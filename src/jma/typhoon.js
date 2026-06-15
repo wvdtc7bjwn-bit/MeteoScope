@@ -1,5 +1,5 @@
 import { JMA_ENDPOINTS } from "../config.js";
-import { fetchJson, fetchXml, parseJmaTime } from "./jmaClient.js";
+import { fetchJson, parseJmaTime } from "./jmaClient.js";
 import {
   attrOf,
   childrenByName,
@@ -11,10 +11,6 @@ import {
 } from "./xmlFeed.js";
 
 export const NO_TYPHOON_MESSAGE = "現在、台風情報は発表されていません";
-
-const PAST_TYPHOON_TELEGRAMS = {
-  "20260531-1545": "/data/typhoon-telegram-20260531-1545.xml"
-};
 
 export async function fetchTyphoonList() {
   let raw = null;
@@ -28,18 +24,6 @@ export async function fetchTyphoonList() {
   }
 
   return buildTyphoonResponse(raw, unavailable);
-}
-
-export async function fetchPastTyphoonTelegram(id) {
-  const url = PAST_TYPHOON_TELEGRAMS[id];
-  if (!url) throw new Error(`Unknown typhoon telegram: ${id}`);
-  const document = await fetchXml(url);
-  return {
-    ...buildTyphoonResponse([parseTyphoonXmlDocument(document)], false),
-    isPastTelegram: true,
-    telegramId: id,
-    summary: `過去実電文 ${id}`
-  };
 }
 
 async function fetchTyphoonDetailData() {

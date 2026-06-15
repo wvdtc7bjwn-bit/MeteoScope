@@ -8,7 +8,6 @@ import {
 import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
 
 const legendsByTab = {
-  radar: [["弱い雨", "legend-rain-low"], ["強い雨", "legend-rain-high"]],
   amedas: [["観測地点", "legend-amedas"]],
   warnings: [
     ["注意報", "legend-advisory"],
@@ -29,13 +28,14 @@ export function updateLeftPanel(tab, state = {}) {
   const amedasMetric = getAmedasMetric(state.amedasMetric ?? state.data?.activeMetric);
   setText("mode-label", tab.label);
   setText("panel-title", buildPanelTitle(tab, state));
-  setPanelTitleVisible(tab.id === "typhoon");
+  setPanelTitleVisible(tab.id === "typhoon" && state.data?.hasTyphoon !== false);
   setText("panel-description", buildDescription(tab, state));
   setText("panel-time", buildTimeText(state));
   renderAmedasSubTabs(tab, amedasMetric.id);
   renderRadarControls(tab, state);
   renderWarningDetails(tab, state);
   renderTyphoonDetails(tab, state);
+  renderAmedasRanking(tab, state, amedasMetric);
   renderLegend(tab.id, amedasMetric.id);
 }
 
@@ -77,7 +77,7 @@ function buildDescription(tab, state) {
     if (state.status === "loading") return "台風データを取得中です。";
     if (state.status === "error") return "台風データを取得できませんでした。";
     if (state.data?.isPastTelegram) return "提供された過去実電文の台風解析・予報情報を表示しています。";
-    if (state.data?.hasTyphoon === false) return NO_TYPHOON_MESSAGE;
+    if (state.data?.hasTyphoon === false) return "";
     if (state.data?.unavailable) return "台風データを取得できませんでした。詳細項目は未取得として表示しています。";
     return "台風の解析値を表示しています。";
   }
@@ -89,7 +89,6 @@ function buildDescription(tab, state) {
 function buildPanelTitle(tab, state) {
   if (tab.id !== "typhoon") return tab.title;
   if (state.status === "loading") return "台風データ取得中";
-  if (state.data?.hasTyphoon === false) return "台風情報";
   const name = state.data?.details?.name;
   return name && name !== "未取得" ? name : "台風名 未取得";
 }
@@ -97,6 +96,7 @@ function buildPanelTitle(tab, state) {
 function buildTimeText(state) {
   if (state.status === "loading") return "更新時刻を取得中...";
   if (state.status === "error") return "更新時刻: 取得失敗";
+  if (state.data?.hasTyphoon === false) return "更新時刻: --";
   const value = state.data?.latestTime ?? state.data?.updatedAt ?? state.data?.summary;
   return value ? `更新時刻: ${value}` : "更新時刻: 未取得";
 }
@@ -124,17 +124,11 @@ function renderLegend(tabId, amedasMetricId) {
 }
 
 function buildLegendItems(tabId, amedasMetricId) {
-  if (tabId === "amedas" && amedasMetricId === "temperature") {
-    return AMEDAS_TEMPERATURE_LEVELS.map((level) => [level.label, "", level.color]);
-  }
-  if (tabId === "amedas" && amedasMetricId === "precipitation") {
+  if (tabId === "radar") {
     return AMEDAS_PRECIPITATION_LEVELS.map((level) => [level.label, "", level.color]);
   }
-  if (tabId === "amedas" && amedasMetricId === "wind") {
-    return AMEDAS_WIND_LEVELS.map((level) => [level.label, "", level.color]);
-  }
-  if (tabId === "amedas" && amedasMetricId === "snow") {
-    return AMEDAS_SNOW_LEVELS.map((level) => [level.label, "", level.color]);
+  if (tabId === "amedas") {
+    return getAmedasLevels(amedasMetricId).map((level) => [level.label, "", level.color]);
   }
   return legendsByTab[tabId] ?? [];
 }
@@ -189,10 +183,7 @@ function getAmedasMetric(metricId) {
 function countAmedasPoints(data = {}, metricId) {
   return (data.points ?? []).filter((point) => {
     const value = point.values?.[metricId];
-    if (!Number.isFinite(value)) return false;
-    if (metricId === "precipitation") return value >= 0.1;
-    if (metricId === "snow") return value >= 1;
-    return true;
+    return shouldIncludeAmedasValue(metricId, value);
   }).length;
 }
 
@@ -262,6 +253,86 @@ function renderWarningDetails(tab, state) {
   `).join("");
 }
 
+function renderAmedasRanking(tab, state, metric) {
+  const root = document.getElementById("amedas-ranking");
+  if (!root) return;
+
+  const isAmedas = tab.id === "amedas";
+  root.hidden = !isAmedas;
+  if (!isAmedas) {
+    root.innerHTML = "";
+    return;
+  }
+
+  if (state.status === "loading") {
+    root.innerHTML = `<div class="amedas-ranking-empty">ランキング取得中...</div>`;
+    return;
+  }
+
+  if (state.status === "error") {
+    root.innerHTML = `<div class="amedas-ranking-empty">ランキングを表示できません</div>`;
+    return;
+  }
+
+  const items = buildAmedasRankingItems(state.data, metric).slice(0, 5);
+  if (items.length === 0) {
+    root.innerHTML = `<div class="amedas-ranking-empty">表示できる観測値がありません</div>`;
+    return;
+  }
+
+  root.innerHTML = `
+    <div class="amedas-ranking-head">
+      <span>${escapeHtml(metric.label)}ランキング</span>
+      <small>上位${items.length}地点</small>
+    </div>
+    <div class="amedas-ranking-list">
+      ${items.map((item, index) => `
+        <div class="amedas-ranking-row">
+          <span class="amedas-ranking-rank">${index + 1}</span>
+          <span class="amedas-ranking-name">${escapeHtml(item.name)}</span>
+          <strong class="amedas-ranking-value" style="--rank-color:${escapeHtml(item.color)}">${escapeHtml(formatAmedasRankingValue(item.value, metric))}</strong>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function buildAmedasRankingItems(data = {}, metric) {
+  return (data.points ?? [])
+    .map((point) => ({
+      name: point.name,
+      value: point.values?.[metric.id],
+      color: getAmedasLevelColor(metric.id, point.values?.[metric.id])
+    }))
+    .filter((item) => shouldIncludeAmedasValue(metric.id, item.value))
+    .sort((a, b) => b.value - a.value);
+}
+
+function shouldIncludeAmedasValue(metricId, value) {
+  if (!Number.isFinite(value)) return false;
+  if (metricId === "precipitation") return value >= 0.1;
+  if (metricId === "snow") return value >= 1;
+  return true;
+}
+
+function formatAmedasRankingValue(value, metric) {
+  const fractionDigits = Number.isInteger(value) ? 0 : 1;
+  return `${value.toFixed(fractionDigits)}${metric.unit}`;
+}
+
+function getAmedasLevelColor(metricId, value) {
+  const levels = getAmedasLevels(metricId);
+  return levels.find((level) => value >= level.min)?.color ?? "#d8e6f7";
+}
+
+function getAmedasLevels(metricId) {
+  if (metricId === "temperature") return AMEDAS_TEMPERATURE_LEVELS;
+  if (metricId === "precipitation") return AMEDAS_PRECIPITATION_LEVELS;
+  if (metricId === "wind") return AMEDAS_WIND_LEVELS;
+  if (metricId === "snow") return AMEDAS_SNOW_LEVELS;
+  return [];
+}
+
 function renderTyphoonDetails(tab, state) {
   const root = document.getElementById("typhoon-detail-grid");
   if (!root) return;
@@ -274,7 +345,11 @@ function renderTyphoonDetails(tab, state) {
   }
 
   if (state.data?.hasTyphoon === false) {
-    root.innerHTML = `<div class="typhoon-empty">${escapeHtml(NO_TYPHOON_MESSAGE)}</div>`;
+    root.innerHTML = `
+      <div class="typhoon-empty">
+        <strong>${escapeHtml(NO_TYPHOON_MESSAGE)}</strong>
+      </div>
+    `;
     return;
   }
 

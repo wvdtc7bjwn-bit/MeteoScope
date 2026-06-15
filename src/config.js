@@ -89,8 +89,9 @@ export const AMEDAS_PRECIPITATION_LEVELS = [
 ];
 
 export const AMEDAS_TEMPERATURE_LEVELS = [
-  { min: 35, label: "35以上（猛暑日）", color: "#d4148e" },
-  { min: 30, label: "30〜35（真夏日）", color: "#ff2b12" },
+  { min: 40, label: "40以上（酷暑日）", color: "#d4148e" },
+  { min: 35, label: "35〜40（猛暑日）", color: "#ff2b12" },
+  { min: 30, label: "30〜35（真夏日）", color: "#ff4a12" },
   { min: 25, label: "25〜30（夏日）", color: "#ff9900" },
   { min: 20, label: "20〜25", color: "#fff000" },
   { min: 15, label: "15〜20", color: "#a8ff00" },

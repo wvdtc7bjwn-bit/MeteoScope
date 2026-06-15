@@ -6,7 +6,7 @@ import { startClock } from "./ui/time.js";
 import { fetchRadarTimes } from "./jma/radar.js";
 import { fetchAmedasLatestTime } from "./jma/amedas.js";
 import { fetchWarningMap } from "./jma/warnings.js";
-import { fetchPastTyphoonTelegram, fetchTyphoonList } from "./jma/typhoon.js";
+import { fetchTyphoonList } from "./jma/typhoon.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -139,9 +139,6 @@ export function createWeatherApp() {
   }
 
   async function loadTabData(tabId) {
-    if (tabId === "typhoon" && launchOptions.typhoonTelegram) {
-      return fetchPastTyphoonTelegram(launchOptions.typhoonTelegram);
-    }
     return loaders[tabId]?.();
   }
 
@@ -167,11 +164,5 @@ function getLaunchOptions() {
   const params = new URLSearchParams(window.location.search);
   const tabParam = params.get("tab");
   const initialTab = TABS.some((tab) => tab.id === tabParam) ? tabParam : "radar";
-  const typhoonTelegram = sanitizeTyphoonTelegramId(params.get("typhoonTelegram"));
-  return { initialTab, typhoonTelegram };
-}
-
-function sanitizeTyphoonTelegramId(value) {
-  if (!value) return "";
-  return /^[0-9-]+$/i.test(value) ? value : "";
+  return { initialTab };
 }
