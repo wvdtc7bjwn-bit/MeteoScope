@@ -506,7 +506,11 @@ export function createWeatherMap(elementId) {
     return collection;
   }
 
-  return { initialize, setMode, renderData };
+  function resize() {
+    map?.resize();
+  }
+
+  return { initialize, setMode, renderData, resize };
 }
 
 function createBaseStyle() {

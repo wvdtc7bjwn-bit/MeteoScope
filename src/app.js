@@ -2,6 +2,8 @@ import { AMEDAS_METRICS, TABS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
 import { setupAmedasSubTabs, setupRadarControls, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupLegendToggle } from "./ui/legendToggle.js";
+import { setupPanelToggle } from "./ui/panelToggle.js";
 import { startClock } from "./ui/time.js";
 import { fetchRadarTimes } from "./jma/radar.js";
 import { fetchAmedasLatestTime } from "./jma/amedas.js";
@@ -153,6 +155,8 @@ export function createWeatherApp() {
       onTogglePlay: toggleRadarPlayback,
       onGoLatest: goLatestRadarObservation
     });
+    setupLegendToggle();
+    setupPanelToggle({ onLayoutChange: () => weatherMap?.resize() });
     startClock("clock");
     selectTab(activeTab);
   }
