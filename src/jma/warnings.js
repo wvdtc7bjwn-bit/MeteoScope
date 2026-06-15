@@ -1,5 +1,12 @@
-import { JMA_ENDPOINTS, JMA_WARNING_OFFICE_CODES } from "../config.js";
+import { JMA_ENDPOINTS } from "../config.js";
 import { fetchJson, parseJmaTime } from "./jmaClient.js";
+import {
+  attrOf,
+  childrenByName,
+  fetchLatestWarningXmlDocuments,
+  firstChildByName,
+  textOf
+} from "./xmlFeed.js";
 
 const PREFECTURE_NAMES = {
   "01": "北海道", "02": "青森県", "03": "岩手県", "04": "宮城県", "05": "秋田県", "06": "山形県",
@@ -63,13 +70,12 @@ const WARNING_LABELS = {
 };
 
 export async function fetchWarningMap() {
-  const [warningReports, areaConst, municipalityGeoJson] = await Promise.all([
+  const [warningReports, municipalityGeoJson] = await Promise.all([
     fetchWarningReports(),
-    fetchJson(JMA_ENDPOINTS.areaConst),
     fetchJson(JMA_ENDPOINTS.warningMunicipalities)
   ]);
   const municipalityIndex = buildMunicipalityIndex(municipalityGeoJson);
-  const areaMap = buildWarningAreaMap(warningReports, areaConst, municipalityIndex);
+  const areaMap = buildWarningAreaMap(warningReports, municipalityIndex);
   const activeAreas = [...areaMap.values()];
   const groups = buildWarningGroups(activeAreas);
   const latestReportTime = getLatestReportTime(warningReports);
@@ -85,23 +91,57 @@ export async function fetchWarningMap() {
 }
 
 async function fetchWarningReports() {
-  const settledReports = await Promise.allSettled(
-    JMA_WARNING_OFFICE_CODES.map((code) =>
-      fetchJson(`${JMA_ENDPOINTS.warningsBase}/${code}.json`)
-    )
-  );
-
-  return settledReports
-    .filter((result) => result.status === "fulfilled")
-    .flatMap((result) => Array.isArray(result.value) ? result.value : [result.value])
-    .filter((report) => report?.areaTypes || report?.warning?.class20Items);
+  const documents = await fetchLatestWarningXmlDocuments();
+  return documents.map(parseWarningXmlDocument).filter((report) => report.items.length > 0);
 }
 
-function buildWarningAreaMap(warningReports, areaConst, municipalityIndex) {
+function parseWarningXmlDocument(document) {
+  const report = document.documentElement;
+  const head = firstChildByName(report, "Head");
+  const body = firstChildByName(report, "Body");
+  const reportDatetime = textOf(firstChildByName(head, "ReportDateTime"));
+  const title = textOf(firstChildByName(head, "Title"));
+  const municipalityWarning = childrenByName(body, "Warning")
+    .find((warning) => {
+      const type = attrOf(warning, "type");
+      return type.includes("市町村等") && !type.includes("まとめた");
+    });
+
+  return {
+    reportDatetime,
+    title,
+    sourceFormat: "xml",
+    items: childrenByName(municipalityWarning, "Item").map(parseWarningXmlItem).filter(Boolean)
+  };
+}
+
+function parseWarningXmlItem(item) {
+  const area = firstChildByName(item, "Area");
+  const code = textOf(firstChildByName(area, "Code"));
+  if (!code) return null;
+
+  return {
+    code,
+    name: textOf(firstChildByName(area, "Name")),
+    warnings: childrenByName(item, "Kind").map(parseWarningKind).filter(Boolean)
+  };
+}
+
+function parseWarningKind(kind) {
+  const code = textOf(firstChildByName(kind, "Code"));
+  if (!code) return null;
+
+  return {
+    code,
+    name: textOf(firstChildByName(kind, "Name")),
+    status: textOf(firstChildByName(kind, "Status"))
+  };
+}
+
+function buildWarningAreaMap(warningReports, municipalityIndex) {
   const reports = Array.isArray(warningReports)
     ? [...warningReports].sort((a, b) => new Date(a.reportDatetime).getTime() - new Date(b.reportDatetime).getTime())
     : [];
-  const municipalities = areaConst?.class20s ?? {};
   const areasByCode = new Map();
 
   reports.forEach((report) => {
@@ -113,7 +153,7 @@ function buildWarningAreaMap(warningReports, areaConst, municipalityIndex) {
         const resolvedCode = resolvedArea.code;
         const current = areasByCode.get(resolvedCode) ?? {
           areaCode: resolvedCode,
-          areaName: municipalities[resolvedCode]?.name ?? resolvedArea.name ?? `エリア ${resolvedCode}`,
+          areaName: resolvedArea.name ?? area.name ?? `エリア ${resolvedCode}`,
           prefectureCode: resolvedCode.slice(0, 2),
           prefecture: PREFECTURE_NAMES[resolvedCode.slice(0, 2)] ?? "その他",
           updatedAt: report.reportDatetime,
@@ -192,6 +232,14 @@ function buildWarningGroups(activeAreas) {
 }
 
 function getMunicipalityAreas(report) {
+  if (Array.isArray(report.items)) {
+    return report.items.map((item) => ({
+      code: item.code,
+      name: item.name,
+      warnings: item.warnings ?? []
+    }));
+  }
+
   if (Array.isArray(report.warning?.class20Items)) {
     return report.warning.class20Items.map((item) => ({
       code: item.areaCode,

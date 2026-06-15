@@ -6,7 +6,7 @@ import { startClock } from "./ui/time.js";
 import { fetchRadarTimes } from "./jma/radar.js";
 import { fetchAmedasLatestTime } from "./jma/amedas.js";
 import { fetchWarningMap } from "./jma/warnings.js";
-import { fetchTyphoonList } from "./jma/typhoon.js";
+import { fetchPastTyphoonTelegram, fetchTyphoonList } from "./jma/typhoon.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -16,21 +16,24 @@ const loaders = {
 };
 
 export function createWeatherApp() {
-  let activeTab = "radar";
+  const launchOptions = getLaunchOptions();
+  let activeTab = launchOptions.initialTab;
   let activeAmedasMetric = AMEDAS_METRICS[0].id;
   let weatherMap = null;
   let latestDataByTab = {};
   let radarPlayTimer = null;
+  let tabControls = null;
 
   async function selectTab(tabId) {
     const tab = TABS.find((item) => item.id === tabId) ?? TABS[0];
     activeTab = tab.id;
+    tabControls?.setActiveButton(tab.id);
     if (tab.id !== "radar") stopRadarPlayback();
     updateLeftPanel(tab, { status: "loading", amedasMetric: activeAmedasMetric, radarPlaying: Boolean(radarPlayTimer) });
     weatherMap?.setMode(tab.id);
 
     try {
-      const data = await loaders[tab.id]?.();
+      const data = await loadTabData(tab.id);
       latestDataByTab[tab.id] = data;
       updateCurrentView(tab, data);
     } catch (error) {
@@ -135,10 +138,17 @@ export function createWeatherApp() {
     return Math.max(0, Math.min(frames.length - 1, Number(index) || 0));
   }
 
+  async function loadTabData(tabId) {
+    if (tabId === "typhoon" && launchOptions.typhoonTelegram) {
+      return fetchPastTyphoonTelegram(launchOptions.typhoonTelegram);
+    }
+    return loaders[tabId]?.();
+  }
+
   function start() {
     weatherMap = createWeatherMap("map");
     weatherMap.initialize();
-    setupTabs({ onChange: selectTab });
+    tabControls = setupTabs({ onChange: selectTab });
     setupAmedasSubTabs({ onChange: selectAmedasMetric });
     setupRadarControls({
       onSeek: selectRadarFrame,
@@ -151,4 +161,17 @@ export function createWeatherApp() {
   }
 
   return { start, selectTab };
+}
+
+function getLaunchOptions() {
+  const params = new URLSearchParams(window.location.search);
+  const tabParam = params.get("tab");
+  const initialTab = TABS.some((tab) => tab.id === tabParam) ? tabParam : "radar";
+  const typhoonTelegram = sanitizeTyphoonTelegramId(params.get("typhoonTelegram"));
+  return { initialTab, typhoonTelegram };
+}
+
+function sanitizeTyphoonTelegramId(value) {
+  if (!value) return "";
+  return /^[0-9-]+$/i.test(value) ? value : "";
 }

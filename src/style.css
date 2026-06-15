@@ -304,6 +304,18 @@ h2 {
   display: none;
 }
 
+.typhoon-empty {
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.055);
+  color: #f8fbff;
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.55;
+}
+
 .typhoon-detail-item {
   min-width: 0;
   padding: 10px;
@@ -486,8 +498,20 @@ h2 {
     repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.92) 0 5px, transparent 5px 10px),
     #b400ff;
 }
-.legend-typhoon { background: #d5a6ff; }
-.legend-forecast { background: rgba(213, 166, 255, 0.35); }
+.legend-typhoon-storm { background: #ff8a00; border-color: rgba(255, 43, 18, 0.95); }
+.legend-typhoon-warning-area { background: rgba(255, 40, 0, 0.32); border-color: #ff2b12; }
+.legend-typhoon-strong { background: #ffeb1a; }
+.legend-typhoon-track { background: #f8fbff; }
+.legend-typhoon-forecast { background: rgba(248, 251, 255, 0.44); }
+
+.legend-note {
+  flex-basis: 100%;
+  margin-top: 2px;
+  color: #aebbd0;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.45;
+}
 
 #map-area {
   position: relative;

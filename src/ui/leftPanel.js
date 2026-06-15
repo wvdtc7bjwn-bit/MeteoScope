@@ -5,6 +5,7 @@ import {
   AMEDAS_TEMPERATURE_LEVELS,
   AMEDAS_WIND_LEVELS
 } from "../config.js";
+import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
 
 const legendsByTab = {
   radar: [["弱い雨", "legend-rain-low"], ["強い雨", "legend-rain-high"]],
@@ -15,7 +16,13 @@ const legendsByTab = {
     ["危険警報", "legend-danger"],
     ["特別警報", "legend-emergency"]
   ],
-  typhoon: [["進路", "legend-typhoon"], ["予報円", "legend-forecast"]]
+  typhoon: [
+    ["暴風域 (25m/s以上)", "legend-typhoon-storm"],
+    ["暴風警戒域", "legend-typhoon-warning-area"],
+    ["強風域 (15m/s以上)", "legend-typhoon-strong"],
+    ["過去の経路", "legend-typhoon-track"],
+    ["警戒領域・予報円", "legend-typhoon-forecast"]
+  ]
 };
 
 export function updateLeftPanel(tab, state = {}) {
@@ -69,6 +76,8 @@ function buildDescription(tab, state) {
   if (tab.id === "typhoon") {
     if (state.status === "loading") return "台風データを取得中です。";
     if (state.status === "error") return "台風データを取得できませんでした。";
+    if (state.data?.isPastTelegram) return "提供された過去実電文の台風解析・予報情報を表示しています。";
+    if (state.data?.hasTyphoon === false) return NO_TYPHOON_MESSAGE;
     if (state.data?.unavailable) return "台風データを取得できませんでした。詳細項目は未取得として表示しています。";
     return "台風の解析値を表示しています。";
   }
@@ -80,6 +89,7 @@ function buildDescription(tab, state) {
 function buildPanelTitle(tab, state) {
   if (tab.id !== "typhoon") return tab.title;
   if (state.status === "loading") return "台風データ取得中";
+  if (state.data?.hasTyphoon === false) return "台風情報";
   const name = state.data?.details?.name;
   return name && name !== "未取得" ? name : "台風名 未取得";
 }
@@ -102,6 +112,15 @@ function renderLegend(tabId, amedasMetricId) {
       return `<div class="legend-item"><span class="legend-swatch ${className}"${swatchStyle}></span>${escapeHtml(label)}</div>`;
     })
     .join("");
+
+  if (tabId === "typhoon") {
+    root.insertAdjacentHTML("beforeend", `
+      <div class="legend-note">
+        ※赤い実線は暴風警戒域、白い点線は予報円・予想進路中心線<br>
+        ※白い×は台風の中心位置
+      </div>
+    `);
+  }
 }
 
 function buildLegendItems(tabId, amedasMetricId) {
@@ -251,6 +270,11 @@ function renderTyphoonDetails(tab, state) {
   root.hidden = !isTyphoon;
   if (!isTyphoon) {
     root.innerHTML = "";
+    return;
+  }
+
+  if (state.data?.hasTyphoon === false) {
+    root.innerHTML = `<div class="typhoon-empty">${escapeHtml(NO_TYPHOON_MESSAGE)}</div>`;
     return;
   }
 
