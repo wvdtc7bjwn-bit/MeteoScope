@@ -9,51 +9,58 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@500;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIINfQkL1hjeY5nld9wZ9YEzR1pKNRaI7H4=" crossorigin="" />
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
   <div id="app">
-    <aside id="sidebar">
-      <div class="app-title">
-        <span class="app-title-main">Weather Viewer</span>
-        <span class="app-title-sub">JMA Data Visualization</span>
-      </div>
+    <nav id="main-tabs" aria-label="表示切替">
+      <button class="tab-button active" data-tab="radar" aria-label="雨雲レーダー">雨雲レーダー</button>
+      <button class="tab-button" data-tab="amedas" aria-label="アメダス">アメダス</button>
+      <button class="tab-button" data-tab="warnings" aria-label="警報・注意報">警報・注意報</button>
+      <button class="tab-button" data-tab="typhoon" aria-label="台風情報">台風情報</button>
+    </nav>
 
+    <aside id="sidebar" aria-label="気象情報">
       <section class="current-panel">
         <div id="mode-label" class="mode-label">雨雲レーダー</div>
-        <h1 id="panel-title">最新の雨雲レーダー</h1>
+        <h1 id="panel-title" hidden></h1>
         <p id="panel-time">更新時刻を取得中...</p>
-        <div id="primary-card" class="primary-card radar-card">
-          <span class="primary-card-label">表示</span>
-          <strong id="primary-value">Radar</strong>
+        <div id="amedas-sub-tabs" class="amedas-sub-tabs" hidden>
+          <button class="amedas-sub-button active" data-amedas-metric="temperature">気温</button>
+          <button class="amedas-sub-button" data-amedas-metric="precipitation">降水量</button>
+          <button class="amedas-sub-button" data-amedas-metric="wind">風速</button>
+          <button class="amedas-sub-button" data-amedas-metric="snow">積雪量</button>
         </div>
+        <div id="warning-detail-list" class="warning-detail-list" hidden></div>
+        <div id="typhoon-detail-grid" class="typhoon-detail-grid" hidden></div>
         <p id="panel-description" class="panel-description">気象庁データを使用して雨雲、アメダス、警報・注意報、台風情報を表示します。</p>
+        <div id="radar-time-controls" class="radar-time-controls" hidden>
+          <div class="radar-time-head">
+            <span id="radar-time-kind">観測</span>
+            <strong id="radar-time-label">--:--</strong>
+          </div>
+          <input id="radar-time-slider" class="radar-time-slider" type="range" min="0" max="0" value="0" />
+          <div class="radar-time-actions">
+            <button id="radar-prev" class="radar-action-button" type="button">前</button>
+            <button id="radar-play" class="radar-action-button radar-play-button" type="button">再生</button>
+            <button id="radar-now" class="radar-action-button" type="button">現在</button>
+            <button id="radar-next" class="radar-action-button" type="button">次</button>
+          </div>
+        </div>
       </section>
 
-      <section class="points-panel">
-        <h2>表示内容</h2>
-        <div id="detail-list" class="detail-list"></div>
-      </section>
-
-      <section class="legend-panel">
-        <h2>凡例</h2>
-        <div id="legend-list" class="legend-list"></div>
-      </section>
     </aside>
 
     <main id="map-area">
       <div id="map"></div>
-      <nav id="main-tabs" aria-label="表示切替">
-        <button class="tab-button active" data-tab="radar">雨雲レーダー</button>
-        <button class="tab-button" data-tab="amedas">アメダス</button>
-        <button class="tab-button" data-tab="warnings">警報・注意報</button>
-        <button class="tab-button" data-tab="typhoon">台風情報</button>
-      </nav>
       <div id="clock"></div>
-      <div id="map-attribution">気象庁データ / 地理院地図</div>
+      <section id="map-legend" class="map-legend" aria-label="凡例">
+        <h2>凡例</h2>
+        <div id="legend-list" class="legend-list"></div>
+      </section>
+      <div id="map-attribution">気象庁データ / EQ-app-2026 map data</div>
     </main>
   </div>
-  <script type="module" src="/src/main.eq.js"></script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>

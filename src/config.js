@@ -11,8 +11,12 @@ export const JMA_ENDPOINTS = {
   // NOTE: These are intentionally centralized so Codex can replace or extend them
   // after confirming current JMA data URLs and CORS behavior.
   radarTimeList: "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json",
+  radarTileBase: "https://www.jma.go.jp/bosai/jmatile/data/nowc",
   amedasTimeList: "https://www.jma.go.jp/bosai/amedas/data/latest_time.txt",
   warnings: "https://www.jma.go.jp/bosai/warning/data/warning/map.json",
+  areaConst: "https://www.jma.go.jp/bosai/common/const/area.json",
+  amedasStationTable: "https://www.jma.go.jp/bosai/amedas/const/amedastable.json",
+  amedasMapBase: "https://www.jma.go.jp/bosai/amedas/data/map",
   typhoon: "https://www.jma.go.jp/bosai/typhoon/data/typhoon.json"
 };
 
@@ -20,21 +24,24 @@ export const TABS = [
   {
     id: "radar",
     label: "雨雲レーダー",
-    title: "最新の雨雲レーダー",
+    title: "",
+    cardLabel: "降水強度",
     primary: "Radar",
-    description: "降水ナウキャスト・雨雲レーダーを地図上に重ねます。まずは最新時刻の取得とレイヤー切替を実装します。"
+    description: "気象庁の降水ナウキャストを地図上に重ねています。降水域がない範囲は薄い青のレーダー範囲のみ表示します。"
   },
   {
     id: "amedas",
     label: "アメダス",
-    title: "アメダス観測値",
+    title: "",
+    cardLabel: "気温",
     primary: "AMeDAS",
-    description: "気温・降水量・風向風速などを地点マーカーで表示します。初期実装では気温表示から始めます。"
+    description: "気温・降水量・風速・積雪量をアメダス観測地点マーカーで表示します。"
   },
   {
     id: "warnings",
     label: "警報・注意報",
-    title: "市区町村別 警報・注意報",
+    title: "",
+    cardLabel: "警戒レベル",
     primary: "Warnings",
     description: "注意報・警報・特別警報を市区町村ポリゴンに色分け表示します。"
   },
@@ -42,7 +49,58 @@ export const TABS = [
     id: "typhoon",
     label: "台風情報",
     title: "台風情報",
+    cardLabel: "台風",
     primary: "Typhoon",
     description: "台風の現在位置、進路、予報円、暴風警戒域を表示します。"
   }
+];
+
+export const AMEDAS_METRICS = [
+  { id: "temperature", label: "気温", primary: "Temp", unit: "℃", color: "#48c46b" },
+  { id: "precipitation", label: "降水量", primary: "Rain", unit: "mm", color: "#56b7f2" },
+  { id: "wind", label: "風速", primary: "Wind", unit: "m/s", color: "#f4d35e" },
+  { id: "snow", label: "積雪量", primary: "Snow", unit: "cm", color: "#d8e6f7" }
+];
+
+export const AMEDAS_PRECIPITATION_LEVELS = [
+  { min: 80, label: "80以上（猛烈な雨）", color: "#d4148e" },
+  { min: 50, label: "50〜80（非常に激しい）", color: "#ff2b12" },
+  { min: 30, label: "30〜50（激しい雨）", color: "#ff9900" },
+  { min: 20, label: "20〜30（強い雨）", color: "#fff000" },
+  { min: 10, label: "10〜20（やや強い）", color: "#0b22ff" },
+  { min: 1, label: "1〜10", color: "#17a9f5" },
+  { min: 0.1, label: "0.1〜1", color: "#a8d8ff" }
+];
+
+export const AMEDAS_TEMPERATURE_LEVELS = [
+  { min: 35, label: "35以上（猛暑日）", color: "#d4148e" },
+  { min: 30, label: "30〜35（真夏日）", color: "#ff2b12" },
+  { min: 25, label: "25〜30（夏日）", color: "#ff9900" },
+  { min: 20, label: "20〜25", color: "#fff000" },
+  { min: 15, label: "15〜20", color: "#a8ff00" },
+  { min: 10, label: "10〜15", color: "#00e86b" },
+  { min: 5, label: "5〜10", color: "#16e7dc" },
+  { min: 0, label: "0〜5", color: "#17a9f5" },
+  { min: -5, label: "-5〜0", color: "#0b22ff" },
+  { min: -Infinity, label: "-5未満（冬日）", color: "#2510b8" }
+];
+
+export const AMEDAS_WIND_LEVELS = [
+  { min: 30, label: "30m/s以上（猛烈な風）", color: "#d4148e" },
+  { min: 25, label: "25〜30", color: "#ff2b12" },
+  { min: 20, label: "20〜25（非常に強い）", color: "#ff9900" },
+  { min: 15, label: "15〜20（強い風）", color: "#fff000" },
+  { min: 10, label: "10〜15（やや強い）", color: "#00ff00" },
+  { min: 5, label: "5〜10", color: "#16e7dc" },
+  { min: 0, label: "5m/s未満", color: "#17a9f5" }
+];
+
+export const AMEDAS_SNOW_LEVELS = [
+  { min: 200, label: "200cm以上", color: "#c9287a" },
+  { min: 150, label: "150〜200cm", color: "#c7582e" },
+  { min: 100, label: "100〜150cm", color: "#c58c36" },
+  { min: 50, label: "50〜100cm", color: "#c2c957" },
+  { min: 20, label: "20〜50cm", color: "#1834d6" },
+  { min: 5, label: "5〜20cm", color: "#426fc8" },
+  { min: 1, label: "1〜5cm", color: "#b7d5ea" }
 ];
