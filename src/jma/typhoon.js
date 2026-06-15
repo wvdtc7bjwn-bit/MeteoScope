@@ -1,4 +1,5 @@
-import { fetchXml, parseJmaTime } from "./jmaClient.js";
+import { JMA_ENDPOINTS } from "../config.js";
+import { fetchJson, fetchXml, parseJmaTime } from "./jmaClient.js";
 import {
   attrOf,
   childrenByName,
@@ -42,8 +43,50 @@ export async function fetchPastTyphoonTelegram(id) {
 }
 
 async function fetchTyphoonDetailData() {
+  try {
+    return await fetchTyphoonJsonData();
+  } catch (error) {
+    console.warn("[Weather Viewer] typhoon JSON data unavailable, falling back to XML", error);
+  }
+
   const documents = await fetchLatestTyphoonXmlDocuments();
   return documents.map(parseTyphoonXmlDocument).filter(Boolean);
+}
+
+async function fetchTyphoonJsonData() {
+  const targets = normalizeTargetTyphoons(await fetchJson(JMA_ENDPOINTS.typhoon));
+  if (targets.length === 0) return [];
+
+  const baseUrl = JMA_ENDPOINTS.typhoon.replace(/targetTc\.json(?:\?.*)?$/, "");
+  const typhoons = await Promise.all(targets.map(async (target, index) => {
+    const typhoonId = pickTyphoonJsonId(target, index);
+    const [forecast, specifications] = await Promise.all([
+      fetchJson(`${baseUrl}${encodeURIComponent(typhoonId)}/forecast.json`),
+      fetchJson(`${baseUrl}${encodeURIComponent(typhoonId)}/specifications.json`)
+    ]);
+
+    return {
+      ...target,
+      id: typhoonId,
+      tropicalCyclone: target.tropicalCyclone ?? typhoonId,
+      forecast: Array.isArray(forecast) ? forecast : [],
+      specifications: Array.isArray(specifications) ? specifications : []
+    };
+  }));
+
+  return typhoons;
+}
+
+function normalizeTargetTyphoons(targetData) {
+  if (Array.isArray(targetData)) return targetData;
+  return targetData?.targetTc ?? targetData?.typhoons ?? targetData?.items ?? targetData?.data ?? [];
+}
+
+function pickTyphoonJsonId(target, index) {
+  if (typeof target === "string" || typeof target === "number") return String(target);
+  const id = target?.tropicalCyclone ?? target?.id ?? target?.tcNumber ?? target?.typhoonNumber;
+  if (!id) throw new Error(`Missing typhoon id at targetTc[${index}]`);
+  return String(id);
 }
 
 function buildTyphoonResponse(raw, unavailable) {
@@ -469,12 +512,17 @@ function normalizeJmaTyphoon(item, index) {
 
   const name = pickJmaTyphoonName(title, item, index);
   const forecastTrack = points.map((entry) => normalizePoint(entry.center)).filter(Boolean);
-  const track = [
+  const pastTrack = [
     ...(current.track?.preTyphoon ?? []),
-    ...(current.track?.typhoon ?? []),
-    ...(item.track?.preTyphoon ?? []),
-    ...(item.track?.typhoon ?? [])
-  ].map((entry) => normalizePoint(entry)).filter(Boolean);
+    ...(current.track?.typhoon ?? [])
+  ].map((entry) => parseJMACoord(entry)).filter(Boolean);
+  console.log(`[Typhoon] pastTrack points=${pastTrack.length}`);
+  const track = pastTrack.length > 0
+    ? pastTrack
+    : [
+      ...(item.track?.preTyphoon ?? []),
+      ...(item.track?.typhoon ?? [])
+    ].map((entry) => parseJMACoord(entry)).filter(Boolean);
   const forecastCircles = points
     .filter((entry) => Number(entry.advancedHours) !== 0)
     .map((entry) => {
@@ -499,6 +547,7 @@ function normalizeJmaTyphoon(item, index) {
     name,
     center,
     track,
+    pastTrack,
     forecastTrack,
     forecastCircles,
     stormWarningArea,
@@ -517,6 +566,10 @@ function normalizeJmaTyphoon(item, index) {
     },
     updatedAt: formatTime(current.validtime?.JST ?? current.validtime?.UTC ?? title.validtime?.JST ?? title.validtime?.UTC ?? item.reportDatetime)
   };
+}
+
+function parseJMACoord(coord) {
+  return normalizePoint(coord);
 }
 
 function pickJmaTyphoonName(title, item, index) {

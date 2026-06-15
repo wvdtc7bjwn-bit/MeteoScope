@@ -31,7 +31,7 @@ const TYPHOON_LAYERS = [
   "typhoon-warning-area-fill",
   "typhoon-warning-area",
   "typhoon-forecast-circle",
-  "typhoon-route",
+  "layer-typhoon-past-track",
   "typhoon-forecast-route",
   "typhoon-center-x",
   "typhoon-forecast-label",
@@ -359,14 +359,14 @@ export function createWeatherMap(elementId) {
     });
 
     map.addLayer({
-      id: "typhoon-route",
+      id: "layer-typhoon-past-track",
       type: "line",
       source: TYPHOON_SOURCE_ID,
-      filter: ["all", ["==", ["geometry-type"], "LineString"], ["==", ["get", "typhoonShape"], "pastRoute"]],
+      filter: ["all", ["==", ["geometry-type"], "LineString"], ["==", ["get", "type"], "pastTrack"]],
       paint: {
-        "line-color": ["get", "color"],
-        "line-opacity": 0.95,
-        "line-width": ["coalesce", ["get", "lineWidth"], 2.4]
+        "line-color": "#ffffff",
+        "line-opacity": 0.6,
+        "line-width": 2
       }
     });
 
@@ -1060,17 +1060,17 @@ function createTyphoonFeatures(data) {
     const features = [];
     features.push(...createTyphoonRadiusFeatures(typhoon));
 
-    if (typhoon.track?.length >= 2) {
+    const pastTrack = typhoon.pastTrack?.length ? typhoon.pastTrack : typhoon.track;
+    if (pastTrack?.length >= 2) {
       features.push({
         type: "Feature",
         geometry: {
           type: "LineString",
-          coordinates: typhoon.track
+          coordinates: pastTrack
         },
         properties: {
-          color: "#f8fbff",
-          typhoonShape: "pastRoute",
-          lineWidth: 2.4,
+          type: "pastTrack",
+          typhoonShape: "pastTrack",
           popup: buildTyphoonPopup(typhoon, "過去の経路")
         }
       });
