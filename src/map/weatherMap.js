@@ -83,12 +83,12 @@ export function createWeatherMap(elementId) {
       minZoom: DEFAULT_VIEW.minZoom,
       maxZoom: DEFAULT_VIEW.maxZoom,
       renderWorldCopies: false,
-      dragRotate: false,
+      dragRotate: true,
       pitchWithRotate: false,
       attributionControl: false,
       style: createBaseStyle()
     });
-    map.touchZoomRotate.disableRotation();
+    map.touchZoomRotate.enableRotation();
 
     map.on("load", () => {
       setupSampleLayers();
@@ -191,6 +191,9 @@ export function createWeatherMap(elementId) {
       type: "circle",
       source: SAMPLE_SOURCE_ID,
       filter: ["all", ["==", ["geometry-type"], "Point"], ["!=", ["get", "markerType"], "wind"]],
+      layout: {
+        "circle-sort-key": ["coalesce", ["get", "sortKey"], 0]
+      },
       paint: {
         "circle-color": ["get", "color"],
         "circle-opacity": 0.92,
@@ -241,6 +244,7 @@ export function createWeatherMap(elementId) {
       layout: {
         "text-field": ["get", "label"],
         "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0],
         "text-size": [
           "interpolate",
           ["linear"],
@@ -1027,6 +1031,7 @@ function createAmedasFeatures(data) {
     if (!Number.isFinite(value)) return [];
     if (metric.id === "precipitation" && value < 0.1) return [];
     if (metric.id === "snow" && value < 1) return [];
+    if (metric.id === "wind" && !Number.isFinite(point.windDirection)) return [];
 
     return [{
       type: "Feature",
@@ -1036,6 +1041,7 @@ function createAmedasFeatures(data) {
         markerType: metric.id === "wind" ? "wind" : "circle",
         rotation: metric.id === "wind" ? getWindArrowRotation(point.windDirection) : 0,
         radius: getAmedasRadius(metric.id, value),
+        sortKey: metric.id === "temperature" ? value : 0,
         label: `${point.name} ${formatAmedasValue(value)}${metric.unit}`,
         popup: buildAmedasPopup(point, metric, value, data?.latestTime)
       }

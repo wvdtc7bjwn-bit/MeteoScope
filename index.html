@@ -33,8 +33,6 @@
         </div>
         <div id="warning-detail-list" class="warning-detail-list" hidden></div>
         <div id="typhoon-detail-grid" class="typhoon-detail-grid" hidden></div>
-        <p id="panel-description" class="panel-description">気象庁データを使用して雨雲、アメダス、警報・注意報、台風情報を表示します。</p>
-        <div id="amedas-ranking" class="amedas-ranking" hidden></div>
         <div id="radar-time-controls" class="radar-time-controls" hidden>
           <div class="radar-time-head">
             <span id="radar-time-kind">観測</span>
@@ -48,6 +46,8 @@
             <button id="radar-next" class="radar-action-button" type="button">次</button>
           </div>
         </div>
+        <p id="panel-description" class="panel-description">気象庁データを使用して雨雲、アメダス、警報・注意報、台風情報を表示します。</p>
+        <div id="amedas-ranking" class="amedas-ranking" hidden></div>
       </section>
 
     </aside>
@@ -63,6 +63,14 @@
       </section>
       <div id="map-attribution">気象庁データ / EQ-app-2026 map data</div>
     </main>
+
+    <div id="warning-modal" class="warning-modal" hidden>
+      <div class="warning-modal-backdrop" data-warning-modal-close></div>
+      <section class="warning-modal-panel" role="dialog" aria-modal="true" aria-labelledby="warning-modal-title">
+        <button class="warning-modal-close" type="button" aria-label="閉じる" data-warning-modal-close>×</button>
+        <div id="warning-modal-content"></div>
+      </section>
+    </div>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>

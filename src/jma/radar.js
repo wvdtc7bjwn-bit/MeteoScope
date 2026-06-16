@@ -3,7 +3,8 @@ import { fetchJson, parseJmaTime } from "./jmaClient.js";
 
 const RADAR_TILE_ELEMENT = "hrpns";
 const FIVE_MINUTES_MS = 5 * 60 * 1000;
-const OBSERVATION_FRAME_COUNT = 13;
+const OBSERVATION_LOOKBACK_HOURS = 3;
+const OBSERVATION_FRAME_COUNT = OBSERVATION_LOOKBACK_HOURS * 60 / 5 + 1;
 const FORECAST_FRAME_COUNT = 12;
 
 export async function fetchRadarTimes() {

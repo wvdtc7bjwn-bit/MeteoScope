@@ -1,7 +1,7 @@
 import { AMEDAS_METRICS, TABS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasSubTabs, setupRadarControls, setupWarningAreaSelection, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasRankingToggle, setupAmedasSubTabs, setupRadarControls, setupWarningAreaSelection, updateLeftPanel } from "./ui/leftPanel.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { startClock } from "./ui/time.js";
@@ -135,6 +135,12 @@ export function createWeatherApp() {
     updateCurrentView(tab, latestDataByTab.radar);
   }
 
+  function refreshAmedasPanel() {
+    if (activeTab !== "amedas" || !latestDataByTab.amedas) return;
+    const tab = TABS.find((item) => item.id === "amedas");
+    updateCurrentView(tab, latestDataByTab.amedas);
+  }
+
   function clampRadarIndex(index, frames = []) {
     if (!frames.length) return 0;
     return Math.max(0, Math.min(frames.length - 1, Number(index) || 0));
@@ -149,6 +155,7 @@ export function createWeatherApp() {
     weatherMap.initialize();
     tabControls = setupTabs({ onChange: selectTab });
     setupAmedasSubTabs({ onChange: selectAmedasMetric });
+    setupAmedasRankingToggle({ onChange: refreshAmedasPanel });
     setupWarningAreaSelection();
     setupRadarControls({
       onSeek: selectRadarFrame,

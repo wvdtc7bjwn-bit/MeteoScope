@@ -41,6 +41,8 @@ function buildAmedasPoints(observations, stations) {
 
 function readObservedValue(value) {
   if (!Array.isArray(value)) return null;
+  const quality = value.length > 1 ? Number(value[1]) : 0;
+  if (!Number.isFinite(quality) || quality !== 0) return null;
   const observed = Number(value[0]);
   return Number.isFinite(observed) ? observed : null;
 }

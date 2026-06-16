@@ -69,15 +69,17 @@ const WARNING_LEVEL_NUMBERS = {
   emergency: 5
 };
 
-const WARNING_LEVEL_TARGETS = ["洪水", "大雨", "土砂災害", "高潮"];
+const WARNING_LEVEL_TARGETS = ["河川氾濫", "洪水", "大雨", "土砂災害", "高潮"];
 
 export async function fetchWarningMap() {
-  const [warningReports, municipalityGeoJson] = await Promise.all([
+  const [warningReports, warningTimelineReports, municipalityGeoJson] = await Promise.all([
     fetchWarningReports(),
+    fetchWarningTimelineReports(),
     fetchJson(JMA_ENDPOINTS.warningMunicipalities)
   ]);
   const municipalityIndex = buildMunicipalityIndex(municipalityGeoJson);
-  const areaMap = buildWarningAreaMap(warningReports, municipalityIndex);
+  const outlookByAreaCode = buildWarningOutlookMap(warningTimelineReports, municipalityIndex);
+  const areaMap = buildWarningAreaMap(warningReports, municipalityIndex, outlookByAreaCode);
   const activeAreas = [...areaMap.values()];
   const groups = buildWarningGroups(activeAreas);
   const latestReportTime = getLatestReportTime(warningReports);
@@ -107,7 +109,21 @@ async function fetchWarningReports() {
   return reportsByOffice.flat();
 }
 
-function buildWarningAreaMap(warningReports, municipalityIndex) {
+async function fetchWarningTimelineReports() {
+  const reportsByOffice = await Promise.all(
+    JMA_WARNING_OFFICE_CODES.map(async (officeCode) => {
+      try {
+        return await fetchJson(`${JMA_ENDPOINTS.warningTimelineBase}/${officeCode}.json`);
+      } catch (error) {
+        console.warn(`[Weather Viewer] warning timeline JSON unavailable: ${officeCode}`, error);
+        return null;
+      }
+    })
+  );
+  return reportsByOffice.filter(Boolean);
+}
+
+function buildWarningAreaMap(warningReports, municipalityIndex, outlookByAreaCode = new Map()) {
   const reports = Array.isArray(warningReports)
     ? [...warningReports].sort((a, b) => new Date(a.reportDatetime).getTime() - new Date(b.reportDatetime).getTime())
     : [];
@@ -126,10 +142,11 @@ function buildWarningAreaMap(warningReports, municipalityIndex) {
           prefectureCode: resolvedCode.slice(0, 2),
           prefecture: PREFECTURE_NAMES[resolvedCode.slice(0, 2)] ?? "その他",
           updatedAt: report.reportDatetime,
-          warnings: []
+          warnings: [],
+          outlook: outlookByAreaCode.get(resolvedCode) ?? []
         };
 
-        current.warnings = applyWarningKinds(current.warnings, area.warnings ?? area.kinds);
+        current.warnings = applyWarningKinds(current.warnings, area.warnings ?? area.kinds, report.reportDatetime);
         current.updatedAt = chooseLatestTime(current.updatedAt, report.reportDatetime);
         current.level = highestSeverityLevel(current.warnings);
         if (current.warnings.length > 0) {
@@ -142,6 +159,112 @@ function buildWarningAreaMap(warningReports, municipalityIndex) {
   });
 
   return areasByCode;
+}
+
+function buildWarningOutlookMap(timelineReports, municipalityIndex) {
+  const outlookByAreaCode = new Map();
+
+  (timelineReports ?? []).forEach((report) => {
+    (report.timeSeries ?? []).forEach((series) => {
+      const timeDefines = series.timeDefines ?? [];
+      ["class20Items", "class10Items"].forEach((bucketName) => {
+        (series[bucketName] ?? []).forEach((item) => {
+          const rows = buildWarningOutlookRows(item.kinds ?? [], timeDefines);
+          if (rows.length === 0) return;
+
+          expandToMunicipalityCodes(String(item.areaCode ?? ""), municipalityIndex).forEach((resolvedArea) => {
+            const areaCode = resolvedArea.code;
+            const currentRows = outlookByAreaCode.get(areaCode) ?? [];
+            outlookByAreaCode.set(areaCode, mergeOutlookRows(currentRows, rows));
+          });
+        });
+      });
+    });
+  });
+
+  return outlookByAreaCode;
+}
+
+function buildWarningOutlookRows(kinds = [], timeDefines = []) {
+  const rows = [];
+
+  kinds.forEach((kind) => {
+    (kind.significancyParts ?? []).forEach((part) => {
+      const partType = String(part?.type ?? "");
+      if (!partType.includes("危険度")) return;
+      rows.push(...buildOutlookPartRows(part, timeDefines, "code", shouldShowWarningLevel(partType)));
+    });
+  });
+
+  return rows.filter((row) => row.slots.some((slot) => slot.level >= 2));
+}
+
+function buildOutlookPartRows(part, timeDefines, valueType, showLevelLabel = false) {
+  if (!Array.isArray(part?.locals)) return [];
+
+  return part.locals.flatMap((local) => {
+    const values = valueType === "code" ? local.codes : local.values;
+    if (!Array.isArray(values)) return [];
+    const slots = timeDefines.map((timeDefine, index) => buildOutlookSlot(timeDefine, values[index], valueType, showLevelLabel));
+    if (!slots.some((slot) => slot.level >= 2 || slot.label)) return [];
+
+    return [{
+      type: normalizeOutlookType(part.type),
+      localName: local.areaName ?? "",
+      slots
+    }];
+  });
+}
+
+function buildOutlookSlot(timeDefine, value, valueType, showLevelLabel = false) {
+  if (valueType !== "code") {
+    const text = value?.value ?? value ?? "";
+    return {
+      time: timeDefine?.dateTime ?? "",
+      duration: timeDefine?.duration ?? "",
+      label: text ? String(text) : "",
+      level: 0
+    };
+  }
+
+  const code = String(value ?? "");
+  const level = warningOutlookLevel(code);
+  return {
+    time: timeDefine?.dateTime ?? "",
+    duration: timeDefine?.duration ?? "",
+    code,
+    label: showLevelLabel ? warningOutlookLabel(code) : "",
+    level
+  };
+}
+
+function normalizeOutlookType(type) {
+  return String(type ?? "").replace("危険度", "");
+}
+
+function warningOutlookLevel(code) {
+  if (code === "51" || code === "50") return 5;
+  if (code === "41") return 4;
+  if (code === "31" || code === "30") return 3;
+  if (code === "22" || code === "21" || code === "20") return 2;
+  return 0;
+}
+
+function warningOutlookLabel(code) {
+  const level = warningOutlookLevel(code);
+  return level > 0 ? `レベル${level}` : "";
+}
+
+function mergeOutlookRows(currentRows, nextRows) {
+  const rowsByKey = new Map(currentRows.map((row) => [outlookRowKey(row), row]));
+  nextRows.forEach((row) => {
+    if (!rowsByKey.has(outlookRowKey(row))) rowsByKey.set(outlookRowKey(row), row);
+  });
+  return [...rowsByKey.values()].slice(0, 10);
+}
+
+function outlookRowKey(row) {
+  return `${row.type}|${row.localName}|${row.slots.map((slot) => `${slot.time}:${slot.code ?? slot.label}`).join(",")}`;
 }
 
 function buildMunicipalityIndex(geoJson) {
@@ -219,7 +342,7 @@ function getMunicipalityAreas(report) {
   return report.areaTypes?.[1]?.areas ?? [];
 }
 
-function applyWarningKinds(currentWarnings, kinds = []) {
+function applyWarningKinds(currentWarnings, kinds = [], reportDatetime = "") {
   const warningsByCode = new Map(currentWarnings.map((warning) => [warning.code, warning]));
 
   kinds.forEach((kind) => {
@@ -236,7 +359,17 @@ function applyWarningKinds(currentWarnings, kinds = []) {
     const [rawLabel, level] = WARNING_LABELS[code] ?? [`警報コード ${code}`, "advisory"];
     const levelNumber = shouldShowWarningLevel(rawLabel) ? WARNING_LEVEL_NUMBERS[level] ?? null : null;
     const label = levelNumber ? `レベル${levelNumber} ${rawLabel}` : rawLabel;
-    warningsByCode.set(code, { code, rawLabel, label, level, levelNumber, status });
+    const previous = warningsByCode.get(code);
+    warningsByCode.set(code, {
+      code,
+      rawLabel,
+      label,
+      level,
+      levelNumber,
+      status,
+      issuedAt: previous?.issuedAt ?? reportDatetime,
+      updatedAt: reportDatetime
+    });
   });
 
   return sortWarnings([...warningsByCode.values()]);

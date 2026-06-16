@@ -8,6 +8,8 @@ import {
 import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
 
 let selectedWarningAreaCode = "";
+let amedasRankingOrder = "top";
+let activeWarningAreasByCode = new Map();
 
 const legendsByTab = {
   amedas: [["観測地点", "legend-amedas"]],
@@ -49,6 +51,21 @@ export function setupAmedasSubTabs({ onChange }) {
       buttons.forEach((item) => item.classList.toggle("active", item === button));
       onChange?.(metricId);
     });
+  });
+}
+
+export function setupAmedasRankingToggle({ onChange }) {
+  const root = document.getElementById("amedas-ranking");
+  if (!root) return;
+
+  root.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest("[data-amedas-ranking-order]");
+    if (!button) return;
+    const order = button.dataset.amedasRankingOrder;
+    if (order !== "top" && order !== "bottom") return;
+    amedasRankingOrder = order;
+    onChange?.();
   });
 }
 
@@ -183,18 +200,28 @@ export function setupWarningAreaSelection() {
   if (!root) return;
 
   root.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
     const row = event.target.closest(".warning-area-row");
     if (!row?.dataset.warningAreaCode) return;
-    selectWarningArea(row.dataset.warningAreaCode, { scroll: false });
+    selectWarningArea(row.dataset.warningAreaCode, { scroll: false, openModal: true });
   });
 
   window.addEventListener("weather-warning-area-select", (event) => {
     const areaCode = event.detail?.areaCode;
-    if (areaCode) selectWarningArea(areaCode, { scroll: true });
+    if (areaCode) selectWarningArea(areaCode, { scroll: true, openModal: true });
+  });
+
+  document.getElementById("warning-modal")?.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    if (event.target.closest("[data-warning-modal-close]")) closeWarningModal();
+  });
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeWarningModal();
   });
 }
 
-function selectWarningArea(areaCode, { scroll } = {}) {
+function selectWarningArea(areaCode, { scroll, openModal } = {}) {
   selectedWarningAreaCode = String(areaCode);
   const root = document.getElementById("warning-detail-list");
   if (!root || root.hidden) return;
@@ -207,6 +234,7 @@ function selectWarningArea(areaCode, { scroll } = {}) {
   if (!row) return;
 
   row.classList.add("selected");
+  if (openModal) openWarningModal(selectedWarningAreaCode);
   if (!scroll) return;
 
   const rootRect = root.getBoundingClientRect();
@@ -260,24 +288,33 @@ function renderWarningDetails(tab, state) {
   root.hidden = !isWarnings;
   if (!isWarnings) {
     root.innerHTML = "";
+    activeWarningAreasByCode = new Map();
+    closeWarningModal();
     return;
   }
 
   if (state.status === "loading") {
     root.innerHTML = `<div class="warning-empty">取得中...</div>`;
+    activeWarningAreasByCode = new Map();
     return;
   }
 
   if (state.status === "error") {
     root.innerHTML = `<div class="warning-empty">取得失敗</div>`;
+    activeWarningAreasByCode = new Map();
     return;
   }
 
   const groups = state.data?.groups ?? [];
   if (groups.length === 0) {
     root.innerHTML = `<div class="warning-empty">発表中の警報・注意報はありません</div>`;
+    activeWarningAreasByCode = new Map();
     return;
   }
+
+  activeWarningAreasByCode = new Map(
+    groups.flatMap((group) => group.areas.map((area) => [String(area.areaCode), area]))
+  );
 
   root.innerHTML = groups.map((group) => `
     <div class="warning-prefecture-label">${escapeHtml(group.prefecture)}<span>${escapeHtml(group.count ?? group.areas.length)}件</span></div>
@@ -292,6 +329,85 @@ function renderWarningDetails(tab, state) {
       </article>
     `).join("")}
   `).join("");
+}
+
+function openWarningModal(areaCode) {
+  const area = activeWarningAreasByCode.get(String(areaCode));
+  const modal = document.getElementById("warning-modal");
+  const content = document.getElementById("warning-modal-content");
+  if (!area || !modal || !content) return;
+
+  const warnings = area.warnings ?? [];
+  const outlookRows = area.outlook ?? [];
+  content.innerHTML = `
+    <header class="warning-modal-head">
+      <span>${escapeHtml(area.prefecture ?? "")}</span>
+      <h2 id="warning-modal-title">${escapeHtml(area.areaName)}</h2>
+      <p>更新時刻: ${escapeHtml(formatWarningTime(area.updatedAt))}</p>
+    </header>
+    <section class="warning-modal-section">
+      <h3>発表中の警報・注意報</h3>
+      <div class="warning-modal-warning-list">
+        ${warnings.map((warning) => `
+          <article class="warning-modal-warning">
+            <span class="warning-badge warning-badge-${escapeHtml(warning.level)}">${escapeHtml(warning.label)}</span>
+            <dl>
+              <div><dt>更新時刻</dt><dd>${escapeHtml(formatWarningTime(warning.updatedAt))}</dd></div>
+              ${warning.status ? `<div><dt>状態</dt><dd>${escapeHtml(warning.status)}</dd></div>` : ""}
+            </dl>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+    <section class="warning-modal-section">
+      <h3>今後の見通し</h3>
+      ${buildWarningOutlookTable(outlookRows)}
+    </section>
+  `;
+  modal.hidden = false;
+  document.body.classList.add("modal-open");
+}
+
+function buildWarningOutlookTable(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return `<p class="warning-modal-empty">今後の見通しはありません。</p>`;
+  }
+
+  const times = rows[0]?.slots ?? [];
+  return `
+    <div class="warning-outlook-scroll">
+      <table class="warning-outlook-table">
+        <thead>
+          <tr>
+            <th>種別</th>
+            ${times.map((slot) => `<th>${escapeHtml(formatOutlookTime(slot))}</th>`).join("")}
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((row) => `
+            <tr>
+              <th>${escapeHtml(row.type)}${row.localName ? `<span>${escapeHtml(row.localName)}</span>` : ""}</th>
+              ${row.slots.map((slot) => `
+                <td class="warning-outlook-level-${escapeHtml(slot.level ?? 0)}">${escapeHtml(formatOutlookCellLabel(slot))}</td>
+              `).join("")}
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function formatOutlookCellLabel(slot) {
+  if (slot?.label) return slot.label;
+  return slot?.level >= 2 ? "" : "-";
+}
+
+function closeWarningModal() {
+  const modal = document.getElementById("warning-modal");
+  if (!modal || modal.hidden) return;
+  modal.hidden = true;
+  document.body.classList.remove("modal-open");
 }
 
 function renderAmedasRanking(tab, state, metric) {
@@ -315,17 +431,26 @@ function renderAmedasRanking(tab, state, metric) {
     return;
   }
 
-  const items = buildAmedasRankingItems(state.data, metric).slice(0, 5);
+  const order = metric.id === "temperature" ? amedasRankingOrder : "top";
+  const items = buildAmedasRankingItems(state.data, metric, order).slice(0, 5);
   if (items.length === 0) {
     root.innerHTML = `<div class="amedas-ranking-empty">表示できる観測値がありません</div>`;
     return;
   }
+  const orderLabel = order === "bottom" ? "下位" : "上位";
+  const orderControls = metric.id === "temperature" ? `
+    <div class="amedas-ranking-toggle" aria-label="気温ランキング切替">
+      <button type="button" data-amedas-ranking-order="top" class="${order === "top" ? "active" : ""}">高い順</button>
+      <button type="button" data-amedas-ranking-order="bottom" class="${order === "bottom" ? "active" : ""}">低い順</button>
+    </div>
+  ` : "";
 
   root.innerHTML = `
     <div class="amedas-ranking-head">
       <span>${escapeHtml(metric.label)}ランキング</span>
-      <small>上位${items.length}地点</small>
+      <small>${orderLabel}${items.length}地点</small>
     </div>
+    ${orderControls}
     <div class="amedas-ranking-list">
       ${items.map((item, index) => `
         <div class="amedas-ranking-row">
@@ -338,7 +463,7 @@ function renderAmedasRanking(tab, state, metric) {
   `;
 }
 
-function buildAmedasRankingItems(data = {}, metric) {
+function buildAmedasRankingItems(data = {}, metric, order = "top") {
   return (data.points ?? [])
     .map((point) => ({
       name: point.name,
@@ -346,7 +471,7 @@ function buildAmedasRankingItems(data = {}, metric) {
       color: getAmedasLevelColor(metric.id, point.values?.[metric.id])
     }))
     .filter((item) => shouldIncludeAmedasValue(metric.id, item.value))
-    .sort((a, b) => b.value - a.value);
+    .sort((a, b) => order === "bottom" ? a.value - b.value : b.value - a.value);
 }
 
 function shouldIncludeAmedasValue(metricId, value) {
@@ -455,4 +580,42 @@ function escapeHtml(value) {
 function cssEscape(value) {
   if (window.CSS?.escape) return window.CSS.escape(value);
   return String(value).replace(/["\\]/g, "\\$&");
+}
+
+function formatWarningTime(value) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Asia/Tokyo"
+  }).formatToParts(date);
+  const getPart = (type) => parts.find((part) => part.type === type)?.value ?? "00";
+  return `${getPart("month")}/${getPart("day")} ${getPart("hour")}:${getPart("minute")}`;
+}
+
+function formatOutlookTime(slot) {
+  const start = new Date(slot?.time ?? "");
+  if (Number.isNaN(start.getTime())) return "--";
+  const end = new Date(start.getTime() + parseDurationHours(slot?.duration) * 60 * 60 * 1000);
+  const startHour = formatHour(start);
+  const endHour = Number.isNaN(end.getTime()) ? "" : formatHour(end);
+  return endHour ? `${startHour}-${endHour}` : startHour;
+}
+
+function parseDurationHours(value) {
+  const match = String(value ?? "").match(/PT(\d+)H/);
+  return match ? Number(match[1]) : 0;
+}
+
+function formatHour(date) {
+  return new Intl.DateTimeFormat("ja-JP", {
+    hour: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Asia/Tokyo"
+  }).format(date);
 }
