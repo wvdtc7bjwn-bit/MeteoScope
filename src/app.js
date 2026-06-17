@@ -1,4 +1,4 @@
-import { AMEDAS_METRICS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
+import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
 import { setupAmedasRankingToggle, setupAmedasSubTabs, setupKikikuruLayerToggles, setupRadarControls, setupWarningAreaSelection, setupWarningSubTabs, updateLeftPanel } from "./ui/leftPanel.js";
@@ -43,6 +43,10 @@ export function createWeatherApp() {
   let weatherMap = null;
   let latestDataByTab = {};
   let radarPlayTimer = null;
+  let autoRefreshTimer = null;
+  let activeLoadRequestId = 0;
+  let autoRefreshInFlight = false;
+  let lastAutoRefreshStartedAt = 0;
   let tabControls = null;
 
   async function selectTab(tabId) {
@@ -59,11 +63,14 @@ export function createWeatherApp() {
     });
     weatherMap?.setMode(tab.id);
 
+    const requestId = ++activeLoadRequestId;
     try {
       const data = await loadTabData(tab.id);
+      if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
       latestDataByTab[tab.id] = data;
       updateCurrentView(tab, data);
     } catch (error) {
+      if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
       console.warn(`[Weather Viewer] ${tab.id} load failed`, error);
       updateLeftPanel(tab, {
         status: "error",
@@ -147,10 +154,7 @@ export function createWeatherApp() {
   function goLatestRadarObservation() {
     const radarData = latestDataByTab.radar;
     if (!radarData?.frames?.length) return;
-    const latestObservationIndex = radarData.frames.reduce(
-      (latestIndex, frame, index) => frame.isForecast ? latestIndex : index,
-      -1
-    );
+    const latestObservationIndex = findLatestObservationIndex(radarData.frames);
     selectRadarFrame(latestObservationIndex >= 0 ? latestObservationIndex : radarData.frames.length - 1);
   }
 
@@ -200,6 +204,40 @@ export function createWeatherApp() {
     return loaders[tabId]?.();
   }
 
+  async function refreshActiveTab({ force = false } = {}) {
+    if (document.hidden || autoRefreshInFlight) return;
+    const now = Date.now();
+    if (!force && now - lastAutoRefreshStartedAt < AUTO_REFRESH_RESUME_THROTTLE_MS) return;
+
+    const tab = TABS.find((item) => item.id === activeTab) ?? TABS[0];
+    if (!loaders[tab.id]) return;
+
+    autoRefreshInFlight = true;
+    lastAutoRefreshStartedAt = now;
+    try {
+      const nextData = await loadTabData(tab.id);
+      if (activeTab !== tab.id) return;
+      latestDataByTab[tab.id] = mergeRefreshedData(tab.id, latestDataByTab[tab.id], nextData);
+      updateCurrentView(tab, latestDataByTab[tab.id]);
+    } catch (error) {
+      console.warn(`[Weather Viewer] ${tab.id} auto refresh failed`, error);
+    } finally {
+      autoRefreshInFlight = false;
+    }
+  }
+
+  function startAutoRefresh() {
+    if (autoRefreshTimer) window.clearInterval(autoRefreshTimer);
+    autoRefreshTimer = window.setInterval(() => {
+      refreshActiveTab({ force: true });
+    }, AUTO_REFRESH_INTERVAL_MS);
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) refreshActiveTab();
+    });
+    window.addEventListener("focus", () => refreshActiveTab());
+  }
+
   function start() {
     weatherMap = createWeatherMap("map");
     weatherMap.initialize();
@@ -218,6 +256,7 @@ export function createWeatherApp() {
     setupLegendToggle();
     setupPanelToggle({ onLayoutChange: () => weatherMap?.resize() });
     startClock("clock");
+    startAutoRefresh();
     selectTab(activeTab);
   }
 
@@ -229,4 +268,38 @@ function getLaunchOptions() {
   const tabParam = params.get("tab");
   const initialTab = TABS.some((tab) => tab.id === tabParam) ? tabParam : "radar";
   return { initialTab };
+}
+
+function mergeRefreshedData(tabId, currentData, nextData) {
+  if (tabId !== "radar" || !currentData?.frames?.length || !nextData?.frames?.length) return nextData;
+
+  const currentIndex = clampIndex(currentData.activeFrameIndex, currentData.frames);
+  const currentFrame = currentData.frames[currentIndex] ?? null;
+  const currentLatestObservationIndex = findLatestObservationIndex(currentData.frames);
+  const nextLatestObservationIndex = findLatestObservationIndex(nextData.frames);
+
+  if (currentIndex === currentLatestObservationIndex && nextLatestObservationIndex >= 0) {
+    return { ...nextData, activeFrameIndex: nextLatestObservationIndex };
+  }
+
+  const sameFrameIndex = nextData.frames.findIndex((frame) =>
+    frame.validtime === currentFrame?.validtime &&
+    frame.isForecast === currentFrame?.isForecast
+  );
+
+  return {
+    ...nextData,
+    activeFrameIndex: sameFrameIndex >= 0
+      ? sameFrameIndex
+      : clampIndex(currentIndex, nextData.frames)
+  };
+}
+
+function findLatestObservationIndex(frames = []) {
+  return frames.reduce((latestIndex, frame, index) => frame.isForecast ? latestIndex : index, -1);
+}
+
+function clampIndex(index, items = []) {
+  if (!items.length) return 0;
+  return Math.max(0, Math.min(items.length - 1, Number(index) || 0));
 }
