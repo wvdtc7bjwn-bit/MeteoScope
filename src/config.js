@@ -49,7 +49,7 @@ export const TABS = [
     title: "",
     cardLabel: "降水強度",
     primary: "Radar",
-    description: "気象庁の降水ナウキャストを地図上に重ねています。降水域がない範囲は薄い青のレーダー範囲のみ表示します。"
+    description: "気象庁の降水ナウキャストを地図上に重ねています。"
   },
   {
     id: "amedas",

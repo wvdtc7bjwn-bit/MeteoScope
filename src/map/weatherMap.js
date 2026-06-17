@@ -39,8 +39,6 @@ const TYPHOON_LAYERS = [
   "typhoon-label"
 ];
 const WIND_ARROW_IMAGE_ID = "amedas-wind-arrow";
-const RADAR_COVERAGE_SOURCE_ID = "jma-nowcast-coverage";
-const RADAR_COVERAGE_LAYER_ID = "jma-nowcast-coverage";
 const RADAR_SOURCE_PREFIX = "jma-nowcast-radar-z";
 const RADAR_LAYER_PREFIX = "jma-nowcast-radar-z";
 const KIKIKURU_SOURCE_PREFIX = "jma-kikikuru";
@@ -555,10 +553,6 @@ function createBaseStyle() {
         type: "geojson",
         data: createEmptyFeatureCollection(),
         promoteId: "code"
-      },
-      [RADAR_COVERAGE_SOURCE_ID]: {
-        type: "geojson",
-        data: createRadarCoverageFeature()
       }
     },
     layers: [
@@ -615,28 +609,6 @@ function createBaseStyle() {
           "fill-color": "rgba(0, 0, 0, 0)",
           "fill-antialias": false,
           "fill-opacity": 0
-        }
-      },
-      {
-        id: RADAR_COVERAGE_LAYER_ID,
-        type: "fill",
-        source: RADAR_COVERAGE_SOURCE_ID,
-        layout: {
-          visibility: "none"
-        },
-        paint: {
-          "fill-color": "#3ba7ff",
-          "fill-opacity": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            4,
-            0.09,
-            7,
-            0.055,
-            10,
-            0.04
-          ]
         }
       },
       {
@@ -948,9 +920,6 @@ function updateRadarLayer(map, mode, data = {}) {
 }
 
 function setRadarVisible(map, isVisible) {
-  if (map?.getLayer(RADAR_COVERAGE_LAYER_ID)) {
-    map.setLayoutProperty(RADAR_COVERAGE_LAYER_ID, "visibility", isVisible ? "visible" : "none");
-  }
   RADAR_ZOOM_LEVELS.forEach(({ id }) => {
     const layerId = getRadarLayerId(id);
     if (map?.getLayer(layerId)) {
@@ -1109,28 +1078,6 @@ function createEmptyFeatureCollection() {
   return {
     type: "FeatureCollection",
     features: []
-  };
-}
-
-function createRadarCoverageFeature() {
-  return {
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        geometry: {
-          type: "Polygon",
-          coordinates: [[
-            [118.0, 20.0],
-            [154.0, 20.0],
-            [154.0, 49.0],
-            [118.0, 49.0],
-            [118.0, 20.0]
-          ]]
-        },
-        properties: {}
-      }
-    ]
   };
 }
 
