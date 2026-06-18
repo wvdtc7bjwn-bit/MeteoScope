@@ -75,6 +75,8 @@ const baseMapData = {
   worldCountries: buildWorldCountriesWithoutJapanData()
 };
 let warningMunicipalityDataPromise = null;
+const baseMunicipalitySourceCache = new WeakMap();
+const warningFeatureCollectionCache = new WeakMap();
 const kikikuruTileUrlCache = new Map();
 
 export function createWeatherMap(elementId) {
@@ -100,6 +102,7 @@ export function createWeatherMap(elementId) {
 
     map.on("load", () => {
       setupSampleLayers();
+      void updateBaseMunicipalitySource(map);
       setMode(activeMode);
       if (pendingRender) {
         renderData(pendingRender.mode, pendingRender.data);
@@ -546,7 +549,7 @@ function createBaseStyle() {
       },
       [MUNICIPALITY_SOURCE_ID]: {
         type: "geojson",
-        data: JMA_ENDPOINTS.warningMunicipalities,
+        data: createEmptyFeatureCollection(),
         promoteId: "code"
       },
       [WARNING_SOURCE_ID]: {
@@ -607,7 +610,7 @@ function createBaseStyle() {
         source: WARNING_SOURCE_ID,
         paint: {
           "fill-color": "rgba(0, 0, 0, 0)",
-          "fill-antialias": false,
+          "fill-antialias": true,
           "fill-opacity": 0
         }
       },
@@ -810,9 +813,9 @@ function updateWarningMunicipalityPaint(map, mode, data = {}) {
     ["linear"],
     ["zoom"],
     4,
-    0.68,
+    0.92,
     8,
-    0.78
+    0.96
   ]);
   updateWarningHatchPaint(map, activeAreas);
 }
@@ -822,15 +825,21 @@ async function updateWarningMunicipalitySource(map, activeAreas) {
   if (!source?.setData) return;
 
   try {
+    const signature = createWarningAreaSignature(activeAreas);
+    const cached = warningFeatureCollectionCache.get(map);
+    if (cached?.signature === signature) return;
+
     if (activeAreas.length === 0) {
-      source.setData(createEmptyFeatureCollection());
+      const empty = createEmptyFeatureCollection();
+      warningFeatureCollectionCache.set(map, { signature, collection: empty });
+      source.setData(empty);
       return;
     }
 
     const municipalityData = await loadWarningMunicipalityData();
     const activeAreasByCode = new Map(activeAreas.map((area) => [String(area.areaCode), area]));
-    source.setData({
-      ...municipalityData,
+    const collection = {
+      type: "FeatureCollection",
       features: municipalityData.features
         .map((feature) => {
           const code = String(feature?.properties?.code ?? "");
@@ -845,10 +854,29 @@ async function updateWarningMunicipalitySource(map, activeAreas) {
           };
         })
         .filter(Boolean)
-    });
+    };
+    warningFeatureCollectionCache.set(map, { signature, collection });
+    source.setData(collection);
     map.triggerRepaint();
   } catch (error) {
     console.warn("[Weather Viewer] warning municipality source update failed", error);
+  }
+}
+
+async function updateBaseMunicipalitySource(map) {
+  const source = map?.getSource(MUNICIPALITY_SOURCE_ID);
+  if (!source?.setData) return;
+
+  const cached = baseMunicipalitySourceCache.get(map);
+  if (cached?.loaded) return;
+  baseMunicipalitySourceCache.set(map, { loaded: true });
+
+  try {
+    source.setData(await loadWarningMunicipalityData());
+    map.triggerRepaint();
+  } catch (error) {
+    baseMunicipalitySourceCache.delete(map);
+    console.warn("[Weather Viewer] base municipality source update failed", error);
   }
 }
 
@@ -861,6 +889,14 @@ function loadWarningMunicipalityData() {
       });
   }
   return warningMunicipalityDataPromise;
+}
+
+function createWarningAreaSignature(activeAreas) {
+  if (!activeAreas.length) return "";
+  return activeAreas
+    .map((area) => `${String(area.areaCode)}:${area.level ?? ""}`)
+    .sort()
+    .join("|");
 }
 
 function updateWarningHatchPaint(map, activeAreas) {
