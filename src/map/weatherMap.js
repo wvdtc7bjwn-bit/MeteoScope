@@ -62,6 +62,7 @@ const MUNICIPALITY_FILL_LAYER_ID = "jma-municipality-fill";
 const WARNING_OVERLAY_LAYER_ID = "jma-warning-overlay";
 const WARNING_HATCH_LAYER_ID = "jma-warning-emergency-hatch";
 const WARNING_HATCH_IMAGE_ID = "jma-warning-emergency-hatch-pattern";
+const STORM_WARNING_ENDPOINT_SNAP_PX = 140;
 const DEFAULT_LAND_FILL = "#3c3d40";
 const NATURAL_EARTH_JAPAN_MASK_BOUNDS = {
   minLng: 122.0,
@@ -1438,9 +1439,23 @@ function buildStormWarningAreaRing(stormWarningArea) {
 
     const next = unused.splice(bestIndex, 1)[0];
     const ordered = bestReverse ? next.slice().reverse() : next;
-    ring.push(...ordered.slice(1));
+    const isSnappedEndpoint = bestDistance < STORM_WARNING_ENDPOINT_SNAP_PX * STORM_WARNING_ENDPOINT_SNAP_PX;
+    ring.push(...(isSnappedEndpoint ? ordered.slice(1) : ordered));
   }
 
+  return closeStormWarningRing(ring);
+}
+
+function closeStormWarningRing(ring) {
+  if (ring.length < 2) return ring;
+  const first = ring[0];
+  const last = ring.at(-1);
+  const shouldSnapClosedPoint = getMercatorPixelDistanceSq(first, last)
+    < STORM_WARNING_ENDPOINT_SNAP_PX * STORM_WARNING_ENDPOINT_SNAP_PX;
+  if (shouldSnapClosedPoint) {
+    ring[ring.length - 1] = first;
+    return ring;
+  }
   return closeLine(ring);
 }
 
