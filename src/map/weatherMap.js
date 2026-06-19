@@ -470,23 +470,6 @@ export function createWeatherMap(elementId) {
       }
     });
 
-    [...SAMPLE_LAYERS, ...TYPHOON_LAYERS].forEach((layerId) => {
-      map.on("mouseenter", layerId, () => {
-        map.getCanvas().style.cursor = "pointer";
-      });
-      map.on("mouseleave", layerId, () => {
-        map.getCanvas().style.cursor = "";
-      });
-      map.on("click", layerId, (event) => {
-        const feature = event.features?.[0];
-        if (!feature) return;
-        new maplibregl.Popup({ closeButton: false })
-          .setLngLat(event.lngLat)
-          .setHTML(feature.properties?.popup ?? "")
-          .addTo(map);
-      });
-    });
-
     map.on("mouseenter", WARNING_OVERLAY_LAYER_ID, (event) => {
       const feature = event.features?.[0];
       const area = warningAreasByCode.get(String(feature?.properties?.code ?? ""));

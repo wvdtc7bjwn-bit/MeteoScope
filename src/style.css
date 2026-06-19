@@ -1048,6 +1048,10 @@ h2 {
   outline: 0;
 }
 
+.maplibregl-popup {
+  display: none !important;
+}
+
 .maplibregl-popup-content {
   padding: 10px 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
