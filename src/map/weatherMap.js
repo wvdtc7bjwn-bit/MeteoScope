@@ -357,6 +357,10 @@ export function createWeatherMap(elementId) {
       type: "line",
       source: TYPHOON_SOURCE_ID,
       filter: ["all", ["==", ["geometry-type"], "LineString"], ["==", ["get", "typhoonShape"], "warningArea"]],
+      layout: {
+        "line-cap": "round",
+        "line-join": "round"
+      },
       paint: {
         "line-color": "#ff2b12",
         "line-opacity": 0.9,
@@ -1154,12 +1158,16 @@ function createAmedasFeatures(data) {
         markerType: metric.id === "wind" ? "wind" : "circle",
         rotation: metric.id === "wind" ? getWindArrowRotation(point.windDirection) : 0,
         radius: getAmedasRadius(metric.id, value),
-        sortKey: metric.id === "temperature" ? value : 0,
+        sortKey: getAmedasSortKey(metric.id, value),
         label: `${point.name} ${formatAmedasValue(value)}${metric.unit}`,
         popup: buildAmedasPopup(point, metric, value, data?.latestTime)
       }
     }];
   });
+}
+
+function getAmedasSortKey(metricId, value) {
+  return metricId === "temperature" || metricId === "precipitation" ? value : 0;
 }
 
 function createWarningFeatures(data) {
@@ -1401,17 +1409,7 @@ function createTyphoonStormWarningShapeFeatures(typhoon) {
 }
 
 function buildStormWarningAreaRing(stormWarningArea) {
-  const segments = [];
-
-  (stormWarningArea?.arc ?? []).forEach((arc) => {
-    const segment = makeStormWarningArcSegment(arc);
-    if (segment?.length >= 2) segments.push(segment);
-  });
-
-  (stormWarningArea?.line ?? []).forEach((line) => {
-    const segment = line.filter((point) => point?.length === 2);
-    if (segment.length >= 2) segments.push(segment);
-  });
+  const segments = buildStormWarningAreaLineSegments(stormWarningArea);
 
   if (segments.length === 0) return null;
   const unused = segments.slice(1);
@@ -1444,6 +1442,29 @@ function buildStormWarningAreaRing(stormWarningArea) {
   }
 
   return closeLine(ring);
+}
+
+function buildStormWarningAreaLineSegments(stormWarningArea) {
+  const segments = [];
+
+  (stormWarningArea?.arc ?? []).forEach((arc) => {
+    const segment = makeStormWarningArcSegment(arc);
+    if (segment?.length >= 2) segments.push(segment);
+  });
+
+  (stormWarningArea?.line ?? []).forEach((line) => {
+    const segment = line.filter((point) => point?.length === 2);
+    if (segment.length >= 2 && !isTinyStormWarningConnector(segment)) segments.push(segment);
+  });
+
+  return segments;
+}
+
+function isTinyStormWarningConnector(segment) {
+  const start = segment[0];
+  const end = segment.at(-1);
+  if (!start || !end) return true;
+  return getMercatorPixelDistanceSq(start, end) < 60 * 60;
 }
 
 function makeStormWarningArcSegment(arc) {

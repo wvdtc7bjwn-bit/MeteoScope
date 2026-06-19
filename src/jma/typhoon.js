@@ -207,9 +207,13 @@ function parseJMACoord(coord) {
 }
 
 function pickJmaTyphoonName(title, item, index) {
-  const number = String(title.typhoonNumber ?? item.typhoonNumber ?? "").slice(-2).replace(/^0/, "");
+  const rawNumber = String(title.typhoonNumber ?? item.typhoonNumber ?? "");
+  const normalizedNumber = rawNumber.slice(-2).replace(/^0/, "");
+  if (isTropicalDepression(item) || isTropicalDepression(title) || isNonNumericTyphoonNumber(rawNumber)) {
+    return formatTropicalDepressionName(rawNumber);
+  }
   const name = title.name?.jp ?? title.name?.en ?? item.name?.jp ?? item.name?.en ?? "";
-  if (Number(number)) return `台風第${Number(number)}号${name ? ` (${name})` : ""}`;
+  if (Number(normalizedNumber)) return `台風第${Number(normalizedNumber)}号${name ? ` (${name})` : ""}`;
   if (name) return name;
   return pickTyphoonName(item, index);
 }
@@ -231,10 +235,26 @@ function pickTyphoonName(item, index) {
   if (name) return String(name);
 
   const number = pickValue(item, ["typhoonNumber", "number", "tcNumber"]);
+  if (isTropicalDepression(item) || isNonNumericTyphoonNumber(number)) return formatTropicalDepressionName(number);
   if (number) return `台風第${String(number).padStart(2, "0")}号`;
 
   const id = pickValue(item, ["tropicalCyclone", "id", "code"]);
   return id ? `台風 ${id}` : `台風 ${index + 1}`;
+}
+
+function isTropicalDepression(item) {
+  const category = String(item?.category ?? item?.class ?? item?.type ?? "").toUpperCase();
+  return category === "TD" || category.includes("TROPICAL DEPRESSION") || category.includes("熱帯低気圧");
+}
+
+function isNonNumericTyphoonNumber(value) {
+  if (value === null || value === undefined || value === "") return false;
+  return !/^\d+$/.test(String(value));
+}
+
+function formatTropicalDepressionName(number) {
+  const suffix = number === null || number === undefined ? "" : String(number).trim();
+  return suffix ? `熱帯低気圧${suffix}` : "熱帯低気圧";
 }
 
 function pickPoint(item, keys) {
