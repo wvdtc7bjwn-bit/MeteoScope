@@ -105,7 +105,7 @@ function normalizeTyphoon(item, index) {
   const stormWarningAreaShape = pickWarningAreaShape(item);
   const name = pickTyphoonName(item, index);
   const updatedAt = formatTime(pickValue(item, [
-    "updatedAt", "reportDatetime", "reportDateTime", "targetTime", "validtime", "basetime", "time", "dateTime"
+    "updatedAt", "issue", "reportDatetime", "reportDateTime", "targetTime", "validtime", "basetime", "time", "dateTime"
   ]));
 
   return {
@@ -202,7 +202,16 @@ function normalizeJmaTyphoon(item, index) {
       speed: formatWithUnit(specNow.speed?.["km/h"] ?? current.speed?.["km/h"] ?? null, "km/h"),
       position: formatPosition(center, current.locationName ?? null)
     },
-    updatedAt: formatTime(current.validtime?.JST ?? current.validtime?.UTC ?? title.validtime?.JST ?? title.validtime?.UTC ?? item.reportDatetime)
+    updatedAt: formatTime(
+      title.issue?.JST
+      ?? title.issue?.UTC
+      ?? item.issue
+      ?? item.reportDatetime
+      ?? current.validtime?.JST
+      ?? current.validtime?.UTC
+      ?? title.validtime?.JST
+      ?? title.validtime?.UTC
+    )
   };
 }
 
