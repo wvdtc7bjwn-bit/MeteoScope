@@ -174,9 +174,12 @@ function normalizeJmaTyphoon(item, index) {
     ?? item;
   const stormWarningAreaShape = pickWarningAreaShape(stormWarningSource);
   const stormWarningArea = pickWarningArea(stormWarningSource);
+  const stormWarningGroups = buildJmaStormWarningGroups(points);
+  const currentStormCircle = pickStormWarningCircleForPoint(current);
   const galeCenter = normalizePoint(current.galeWarningArea?.center) ?? center;
   const strongWindRadius = normalizeRadius(current.galeWarningArea?.radius);
-  const stormRadius = normalizeRadius(current.stormWarningArea?.arc?.[0]?.[1]);
+  const stormRadius = currentStormCircle?.radius ?? normalizeRadius(current.stormWarningArea?.arc?.[0]?.[1]);
+  const stormCenter = currentStormCircle?.center ?? center;
 
   return {
     id: String(item.tropicalCyclone ?? item.id ?? title.typhoonNumber ?? `typhoon-${index + 1}`),
@@ -188,9 +191,11 @@ function normalizeJmaTyphoon(item, index) {
     forecastCircles,
     stormWarningArea,
     stormWarningAreaShape,
+    stormWarningGroups,
     strongWindRadius,
     strongWindCenter: galeCenter,
     stormRadius,
+    stormCenter,
     details: {
       name,
       size: formatClassification(specNow.scale ?? current.scale ?? null),
@@ -213,6 +218,84 @@ function normalizeJmaTyphoon(item, index) {
       ?? title.validtime?.UTC
     )
   };
+}
+
+const MAX_STORM_WARNING_CENTER_DISTANCE_SQ = 9;
+
+function buildJmaStormWarningGroups(points) {
+  const groups = [];
+  let currentGroup = [];
+
+  [...points]
+    .sort((a, b) => Number(a?.advancedHours ?? 0) - Number(b?.advancedHours ?? 0))
+    .forEach((entry) => {
+      const circle = pickStormWarningCircleForPoint(entry);
+      if (!circle) {
+        if (currentGroup.length > 0) {
+          groups.push(currentGroup);
+          currentGroup = [];
+        }
+        return;
+      }
+
+      if (!currentGroup.some((existing) => isSameStormWarningCircle(existing, circle))) {
+        currentGroup.push(circle);
+      }
+    });
+
+  if (currentGroup.length > 0) groups.push(currentGroup);
+  return groups;
+}
+
+function pickStormWarningCircleForPoint(entry) {
+  const circles = extractStormWarningCircles(entry);
+  if (circles.length === 0) return null;
+
+  const expectedCenter = normalizePoint(entry?.center);
+  const label = formatForecastTimeLabel(entry?.validtime?.JST ?? entry?.validtime?.UTC);
+  if (!expectedCenter) return { ...circles.at(-1), label };
+
+  const closest = circles
+    .map((circle) => ({
+      ...circle,
+      distanceSq: getCoordinateDistanceSq(circle.center, expectedCenter)
+    }))
+    .sort((a, b) => a.distanceSq - b.distanceSq)[0];
+
+  if (!closest || closest.distanceSq > MAX_STORM_WARNING_CENTER_DISTANCE_SQ) return null;
+  const { distanceSq, ...circle } = closest;
+  return { ...circle, label };
+}
+
+function extractStormWarningCircles(entry) {
+  const arcs = entry?.stormWarningArea?.arc;
+  if (!Array.isArray(arcs)) return [];
+
+  return arcs
+    .map((arc) => {
+      const center = normalizePoint(arc?.[0] ?? arc?.center);
+      const radius = normalizeRadius(arc?.[1] ?? arc?.radius);
+      if (!center || !Number.isFinite(radius)) return null;
+      return { center, radius };
+    })
+    .filter(Boolean)
+    .filter((circle, index, array) =>
+      array.findIndex((other) => isSameStormWarningCircle(other, circle)) === index
+    );
+}
+
+function isSameStormWarningCircle(a, b) {
+  return a?.center?.length === 2
+    && b?.center?.length === 2
+    && getCoordinateDistanceSq(a.center, b.center) < 0.0001
+    && Math.abs(Number(a.radius) - Number(b.radius)) < 0.1;
+}
+
+function getCoordinateDistanceSq(a, b) {
+  if (!a || !b) return Infinity;
+  const dx = Number(a[0]) - Number(b[0]);
+  const dy = Number(a[1]) - Number(b[1]);
+  return dx * dx + dy * dy;
 }
 
 function parseJMACoord(coord) {

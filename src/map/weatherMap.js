@@ -1213,7 +1213,9 @@ function createTyphoonFeatures(data) {
       }
     });
 
-    if (typhoon.stormWarningAreaShape) {
+    if (hasStormWarningCircleGroups(typhoon)) {
+      features.push(...createTyphoonStormWarningFeatures(typhoon));
+    } else if (typhoon.stormWarningAreaShape) {
       features.push(...createTyphoonStormWarningShapeFeatures(typhoon));
     } else if (hasCircleSet(typhoon.stormWarningArea)) {
       features.push(...createTyphoonStormWarningFeatures(typhoon));
@@ -1345,8 +1347,9 @@ function buildStormWarningCircleGroups(typhoon) {
 function buildStormWarningCircles(typhoon) {
   const circles = [];
   const stormRadius = readRadiusKm(typhoon, ["stormRadius", "wind25mRadius", "violentWindRadius"]);
-  if (typhoon.center?.length === 2 && Number.isFinite(stormRadius)) {
-    circles.push({ center: typhoon.center, radius: stormRadius, label: "暴風域" });
+  const stormCenter = typhoon.stormCenter?.length === 2 ? typhoon.stormCenter : typhoon.center;
+  if (stormCenter?.length === 2 && Number.isFinite(stormRadius)) {
+    circles.push({ center: stormCenter, radius: stormRadius, label: "暴風域" });
   }
 
   (typhoon.stormWarningArea ?? []).forEach((circle) => {
@@ -1359,37 +1362,47 @@ function buildStormWarningCircles(typhoon) {
   return circles;
 }
 
+function hasStormWarningCircleGroups(typhoon) {
+  return Array.isArray(typhoon.stormWarningGroups)
+    && typhoon.stormWarningGroups.some((group) =>
+      Array.isArray(group)
+        && group.some((circle) => circle?.center?.length === 2 && Number.isFinite(circle.radius))
+    );
+}
+
 function createTyphoonStormWarningShapeFeatures(typhoon) {
-  const ring = buildStormWarningAreaRing(typhoon.stormWarningAreaShape);
-  if (!ring) return [];
+  const lineSegments = buildStormWarningAreaLineSegments(typhoon.stormWarningAreaShape);
+  const ring = lineSegments.length > 0 ? null : buildStormWarningAreaRing(typhoon.stormWarningAreaShape);
+  if (lineSegments.length === 0 && !ring) return [];
 
   const properties = {
     color: "#ff2800",
-    typhoonShape: "warningAreaFill",
     popup: buildTyphoonPopup(typhoon, "暴風警戒域")
   };
 
-  return [
-    {
-      type: "Feature",
-      geometry: {
-        type: "Polygon",
-        coordinates: [ring]
-      },
-      properties
-    },
-    {
-      type: "Feature",
-      geometry: {
-        type: "LineString",
-        coordinates: ring
-      },
-      properties: {
-        ...properties,
-        typhoonShape: "warningArea"
-      }
-    }
-  ];
+  const features = [];
+
+  const lineFeatures = lineSegments.length > 0
+    ? lineSegments
+    : [ring];
+
+  lineFeatures
+    .filter((coordinates) => coordinates?.length >= 2)
+    .forEach((coordinates) => {
+      features.push({
+        type: "Feature",
+        geometry: {
+          type: "LineString",
+          coordinates
+        },
+        properties: {
+          ...properties,
+          typhoonShape: "warningArea"
+        }
+      });
+    });
+
+  return features;
 }
 
 function buildStormWarningAreaRing(stormWarningArea) {
@@ -1911,7 +1924,8 @@ function createTyphoonRadiusFeatures(typhoon) {
     lineWidth: 1.25,
     popup: buildTyphoonPopup(typhoon, "強風域")
   });
-  const stormFeature = createTyphoonCircleFeature(typhoon.center, stormRadius, {
+  const stormCenter = typhoon.stormCenter?.length === 2 ? typhoon.stormCenter : typhoon.center;
+  const stormFeature = createTyphoonCircleFeature(stormCenter, stormRadius, {
     color: "#ff2800",
     lineColor: "#ff2b12",
     typhoonShape: "windArea",
