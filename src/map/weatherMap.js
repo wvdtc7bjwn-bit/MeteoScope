@@ -1291,10 +1291,10 @@ function createTyphoonFeatures(data) {
       }
     });
 
-    if (hasStormWarningCircleGroups(typhoon)) {
-      features.push(...createTyphoonStormWarningFeatures(typhoon));
-    } else if (typhoon.stormWarningAreaShape) {
+    if (typhoon.stormWarningAreaShape) {
       features.push(...createTyphoonStormWarningShapeFeatures(typhoon));
+    } else if (hasStormWarningCircleGroups(typhoon)) {
+      features.push(...createTyphoonStormWarningFeatures(typhoon));
     } else if (hasCircleSet(typhoon.stormWarningArea)) {
       features.push(...createTyphoonStormWarningFeatures(typhoon));
     } else if (typhoon.stormWarningArea?.length >= 3) {
@@ -1449,8 +1449,8 @@ function hasStormWarningCircleGroups(typhoon) {
 }
 
 function createTyphoonStormWarningShapeFeatures(typhoon) {
-  const lineSegments = buildStormWarningAreaLineSegments(typhoon.stormWarningAreaShape);
-  const ring = lineSegments.length > 0 ? null : buildStormWarningAreaRing(typhoon.stormWarningAreaShape);
+  const ring = buildStormWarningAreaRing(typhoon.stormWarningAreaShape);
+  const lineSegments = ring ? [] : buildStormWarningAreaLineSegments(typhoon.stormWarningAreaShape);
   if (lineSegments.length === 0 && !ring) return [];
 
   const properties = {
