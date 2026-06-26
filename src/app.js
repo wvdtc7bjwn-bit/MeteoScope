@@ -84,7 +84,7 @@ export function createWeatherApp() {
       if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
       latestDataByTab[tab.id] = data;
       updateCurrentView(tab, data);
-      if (tab.id === "warnings") scheduleWarningDetailsRefresh();
+      if (tab.id === "warnings") refreshAllWarningData();
       scheduleBackgroundPrefetch(tab.id);
     } catch (error) {
       if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
@@ -294,8 +294,7 @@ export function createWeatherApp() {
       if (activeTab !== tab.id) return;
       latestDataByTab[tab.id] = mergeRefreshedData(tab.id, latestDataByTab[tab.id], nextData);
       updateCurrentView(tab, latestDataByTab[tab.id]);
-      if (tab.id === "warnings") scheduleWarningDetailsRefresh();
-      if (tab.id === "warnings" && activeWarningView === "kikikuru") refreshKikikuruData({ force: true });
+      if (tab.id === "warnings") await refreshAllWarningData({ force: true });
     } catch (error) {
       console.warn(`[Weather Viewer] ${tab.id} auto refresh failed`, error);
     } finally {
@@ -431,7 +430,11 @@ export function createWeatherApp() {
   }
 
   async function refreshWarningDetails() {
-    if (latestDataByTab.warnings?.detailsLoaded) return latestDataByTab.warnings;
+    return refreshWarningDetailsData();
+  }
+
+  async function refreshWarningDetailsData({ force = false } = {}) {
+    if (!force && latestDataByTab.warnings?.detailsLoaded) return latestDataByTab.warnings;
     if (warningDetailsRequest) return warningDetailsRequest;
     cancelScheduledWarningDetailsRefresh();
     warningDetailsRequest = fetchWarningTabData({ includeDetails: true })
@@ -448,6 +451,20 @@ export function createWeatherApp() {
         warningDetailsRequest = null;
       });
     return warningDetailsRequest;
+  }
+
+  async function refreshAllWarningData({ force = false } = {}) {
+    const [detailsResult, kikikuruResult] = await Promise.allSettled([
+      refreshWarningDetailsData({ force }),
+      refreshKikikuruData({ force })
+    ]);
+    if (detailsResult.status === "rejected") {
+      console.warn("[Weather Viewer] warning detail refresh failed", detailsResult.reason);
+    }
+    if (kikikuruResult.status === "rejected") {
+      console.warn("[Weather Viewer] kikikuru refresh failed", kikikuruResult.reason);
+    }
+    return latestDataByTab.warnings;
   }
 
   async function refreshKikikuruData({ force = false } = {}) {
@@ -608,7 +625,7 @@ function mergeWarningTabData(currentData, nextData = {}) {
     earlyAreas: currentData.earlyAreas ?? nextData.earlyAreas,
     earlyMunicipalityAreas: currentData.earlyMunicipalityAreas ?? nextData.earlyMunicipalityAreas,
     kikikuru: currentData.kikikuru ?? nextData.kikikuru,
-    detailsLoaded: Boolean(currentData.detailsLoaded || nextData.detailsLoaded)
+    detailsLoaded: Boolean(nextData.detailsLoaded)
   };
 }
 
