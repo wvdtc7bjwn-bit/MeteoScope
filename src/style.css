@@ -309,6 +309,16 @@ h2 {
   gap: 6px;
 }
 
+.current-location-card .warning-badge-advisory {
+  color: #000;
+}
+
+.current-location-card .warning-badge-warning,
+.current-location-card .warning-badge-danger,
+.current-location-card .warning-badge-emergency {
+  color: #fff;
+}
+
 .location-insight-panel {
   display: grid;
   gap: 10px;
@@ -408,6 +418,16 @@ h2 {
   color: #9fb3ce;
   font-size: 11px;
   font-weight: 900;
+}
+
+.location-my-area-item .warning-badge-advisory {
+  color: #000;
+}
+
+.location-my-area-item .warning-badge-warning,
+.location-my-area-item .warning-badge-danger,
+.location-my-area-item .warning-badge-emergency {
+  color: #fff;
 }
 
 .location-my-area-badges {
@@ -588,7 +608,7 @@ h2 {
   min-height: 20px;
   padding: 3px 7px 4px;
   border-radius: 999px;
-  color: #08111d;
+  color: #000;
   font-size: 10px;
   font-weight: 900;
   line-height: 1.2;
@@ -597,6 +617,7 @@ h2 {
 
 .warning-badge-advisory {
   background: #fff000;
+  color: #000;
 }
 
 .warning-badge-warning {
