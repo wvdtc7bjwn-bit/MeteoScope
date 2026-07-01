@@ -2175,7 +2175,7 @@ h2 {
   #main-tabs {
     --tab-shell-padding: 6px;
     --tab-shell-gap: 2px;
-    --tab-active-edge-inset: 4px;
+    --tab-active-edge-inset: 0px;
     position: fixed;
     top: auto;
     right: auto;
@@ -2226,7 +2226,8 @@ h2 {
     bottom: var(--tab-shell-padding);
     left: calc(var(--tab-shell-padding) + var(--tab-active-edge-inset));
     z-index: 0;
-    width: calc((100% - 12px - 6px - (var(--tab-active-edge-inset) * 2)) / 4);
+    width: calc((100% - (var(--tab-shell-padding) * 2) - (var(--tab-shell-gap) * 3) - (var(--tab-active-edge-inset) * 2)) / 4);
+    box-sizing: border-box;
     border: 1px solid rgba(201, 245, 255, 0.34);
     border-radius: 999px;
     background:
