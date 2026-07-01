@@ -34,7 +34,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   function getPeekVisibleHeight() {
     const viewportHeight = window.innerHeight || 0;
     if (window.matchMedia("(max-width: 800px) and (orientation: portrait)").matches) {
-      return Math.min(450, Math.max(320, viewportHeight * 0.48));
+      return Math.max(0, Math.min(450, Math.max(320, viewportHeight * 0.48)) - 8);
     }
     return Math.min(260, Math.max(178, viewportHeight * 0.34));
   }

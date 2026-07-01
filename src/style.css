@@ -2175,10 +2175,11 @@ h2 {
   #main-tabs {
     --tab-shell-padding: 6px;
     --tab-shell-gap: 2px;
+    --tab-active-edge-inset: 4px;
     position: fixed;
     top: auto;
     right: auto;
-    bottom: max(8px, calc(env(safe-area-inset-bottom) + 8px));
+    bottom: max(0px, env(safe-area-inset-bottom));
     left: 50%;
     z-index: 520;
     flex-direction: row;
@@ -2203,6 +2204,7 @@ h2 {
     -webkit-backdrop-filter: blur(22px) saturate(1.5);
     isolation: isolate;
     touch-action: none;
+    overflow: hidden;
   }
 
   #main-tabs::before {
@@ -2222,9 +2224,9 @@ h2 {
     position: absolute;
     top: var(--tab-shell-padding);
     bottom: var(--tab-shell-padding);
-    left: var(--tab-shell-padding);
+    left: calc(var(--tab-shell-padding) + var(--tab-active-edge-inset));
     z-index: 0;
-    width: calc((100% - 12px - 6px) / 4);
+    width: calc((100% - 12px - 6px - (var(--tab-active-edge-inset) * 2)) / 4);
     border: 1px solid rgba(201, 245, 255, 0.34);
     border-radius: 999px;
     background:
