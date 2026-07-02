@@ -307,7 +307,7 @@ export function createWeatherApp() {
       points: [],
       sourceKey,
       location: current,
-      message: "現在地周辺の雨雲を読み取っています。"
+      message: "現在地直下の雨雲を読み取っています。"
     };
 
     buildLocationRadarTimeline(current.coordinates, radarData)
@@ -328,7 +328,7 @@ export function createWeatherApp() {
           points: [],
           sourceKey,
           location: current,
-          message: "現在地周辺の雨雲時系列を取得できませんでした。"
+          message: "現在地直下の雨雲時系列を取得できませんでした。"
         };
         if (activeTab === "radar") refreshActivePanel();
       });

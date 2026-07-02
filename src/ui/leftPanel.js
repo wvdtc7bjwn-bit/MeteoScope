@@ -218,7 +218,7 @@ function renderRadarLocationInsight(root, insights) {
         <span>現在地の雨雲</span>
         <strong>読み取り中</strong>
       </div>
-      <p>${escapeHtml(timeline.message ?? "現在地周辺の雨雲を読み取っています。")}</p>
+      <p>${escapeHtml(timeline.message ?? "現在地直下の雨雲を読み取っています。")}</p>
     `;
     return;
   }

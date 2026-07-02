@@ -2,7 +2,6 @@ import { AMEDAS_PRECIPITATION_LEVELS } from "../config.js";
 
 const RADAR_SAMPLE_ZOOM = 8;
 const TILE_SIZE = 256;
-const SAMPLE_RADIUS_PX = 2;
 const IMAGE_TIMEOUT_MS = 4500;
 const RADAR_SAMPLE_CONCURRENCY = 6;
 const imageCache = new Map();
@@ -36,7 +35,7 @@ export async function buildLocationRadarTimeline(coordinates, radarData = {}) {
     availableCount,
     rainyCount,
     message: availableCount > 0
-      ? (rainyCount > 0 ? "" : "現在地周辺にまとまった降水は検出されていません。")
+      ? (rainyCount > 0 ? "" : "現在地直下に降水は検出されていません。")
       : "雨雲タイルから現在地の降水強度を読み取れませんでした。"
   };
 }
@@ -136,26 +135,15 @@ async function loadTileImageData(url) {
 }
 
 function samplePrecipitationLevel(imageData, pixelX, pixelY) {
-  let best = null;
-  for (let dy = -SAMPLE_RADIUS_PX; dy <= SAMPLE_RADIUS_PX; dy += 1) {
-    for (let dx = -SAMPLE_RADIUS_PX; dx <= SAMPLE_RADIUS_PX; dx += 1) {
-      const x = pixelX + dx;
-      const y = pixelY + dy;
-      if (x < 0 || x >= TILE_SIZE || y < 0 || y >= TILE_SIZE) continue;
-      const index = (y * TILE_SIZE + x) * 4;
-      const alpha = imageData.data[index + 3];
-      if (alpha < 24) continue;
-      const color = {
-        r: imageData.data[index],
-        g: imageData.data[index + 1],
-        b: imageData.data[index + 2]
-      };
-      const matched = matchPrecipitationColor(color);
-      if (!matched) continue;
-      if (!best || matched.min > best.min) best = matched;
-    }
-  }
-  return best;
+  const index = (pixelY * TILE_SIZE + pixelX) * 4;
+  const alpha = imageData.data[index + 3];
+  if (alpha < 24) return null;
+
+  return matchPrecipitationColor({
+    r: imageData.data[index],
+    g: imageData.data[index + 1],
+    b: imageData.data[index + 2]
+  });
 }
 
 function matchPrecipitationColor(color) {
