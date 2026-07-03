@@ -1401,8 +1401,22 @@ h2 {
   min-width: 0;
   min-height: 30px;
   padding: 5px 7px;
+  border: 0;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.055);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.amedas-ranking-row:hover {
+  background: rgba(86, 183, 242, 0.12);
+}
+
+.amedas-ranking-row:focus-visible {
+  outline: 2px solid rgba(86, 183, 242, 0.88);
+  outline-offset: 2px;
 }
 
 .amedas-ranking-rank {

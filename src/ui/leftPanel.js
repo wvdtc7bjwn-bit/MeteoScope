@@ -69,18 +69,24 @@ export function setupAmedasSubTabs({ onChange }) {
   });
 }
 
-export function setupAmedasRankingToggle({ onChange }) {
+export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
   const root = document.getElementById("amedas-ranking");
   if (!root) return;
 
   root.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest("[data-amedas-ranking-order]");
-    if (!button) return;
-    const order = button.dataset.amedasRankingOrder;
-    if (order !== "top" && order !== "bottom") return;
-    amedasRankingOrder = order;
-    onChange?.();
+    if (button) {
+      const order = button.dataset.amedasRankingOrder;
+      if (order !== "top" && order !== "bottom") return;
+      amedasRankingOrder = order;
+      onChange?.();
+      return;
+    }
+
+    const stationButton = event.target.closest("[data-amedas-station-id]");
+    if (!stationButton) return;
+    onSelectStation?.(stationButton.dataset.amedasStationId);
   });
 }
 
@@ -877,11 +883,11 @@ function renderAmedasRanking(tab, state, metric) {
     ${orderControls}
     <div class="amedas-ranking-list">
       ${items.map((item, index) => `
-        <div class="amedas-ranking-row">
+        <button type="button" class="amedas-ranking-row" data-amedas-station-id="${escapeHtml(item.id)}">
           <span class="amedas-ranking-rank">${index + 1}</span>
           <span class="amedas-ranking-name">${escapeHtml(item.name)}</span>
           <strong class="amedas-ranking-value" style="--rank-color:${escapeHtml(item.color)}">${escapeHtml(formatAmedasRankingValue(item.value, metric))}</strong>
-        </div>
+        </button>
       `).join("")}
     </div>
   `;
@@ -890,7 +896,9 @@ function renderAmedasRanking(tab, state, metric) {
 function buildAmedasRankingItems(data = {}, metric, order = "top") {
   return (data.points ?? [])
     .map((point) => ({
+      id: point.id,
       name: point.name,
+      coordinates: point.coordinates,
       value: point.values?.[metric.id],
       color: getAmedasLevelColor(metric.id, point.values?.[metric.id])
     }))

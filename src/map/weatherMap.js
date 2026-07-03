@@ -160,12 +160,40 @@ export function createWeatherMap(elementId) {
     });
   }
 
-  function flyToLocation(coordinates) {
+  function flyToLocation(coordinates, options = {}) {
     if (!map || !Array.isArray(coordinates)) return;
+    const minZoom = Number.isFinite(options.minZoom) ? options.minZoom : 8.2;
+    const zoom = Number.isFinite(options.zoom) ? options.zoom : Math.max(map.getZoom(), minZoom);
     map.flyTo({
       center: coordinates,
-      zoom: Math.max(map.getZoom(), 8.2),
-      duration: 850,
+      zoom,
+      duration: Number.isFinite(options.duration) ? options.duration : 850,
+      offset: getFocusOffset(options),
+      essential: true
+    });
+  }
+
+  function fitToCoordinates(coordinates, options = {}) {
+    if (!map || !Array.isArray(coordinates)) return;
+    const validCoordinates = coordinates.filter((point) =>
+      Array.isArray(point)
+      && point.length === 2
+      && point.every((value) => Number.isFinite(value))
+    );
+    if (validCoordinates.length === 0) return;
+    if (validCoordinates.length === 1) {
+      flyToLocation(validCoordinates[0], options);
+      return;
+    }
+
+    const bounds = validCoordinates.slice(1).reduce(
+      (nextBounds, point) => nextBounds.extend(point),
+      new maplibregl.LngLatBounds(validCoordinates[0], validCoordinates[0])
+    );
+    map.fitBounds(bounds, {
+      padding: getFocusPadding(options),
+      maxZoom: Number.isFinite(options.maxZoom) ? options.maxZoom : 7.2,
+      duration: Number.isFinite(options.duration) ? options.duration : 850,
       essential: true
     });
   }
@@ -578,7 +606,47 @@ export function createWeatherMap(elementId) {
     map?.resize();
   }
 
-  return { initialize, setMode, renderData, resize, showCurrentLocation, flyToLocation };
+  return { initialize, setMode, renderData, resize, showCurrentLocation, flyToLocation, fitToCoordinates };
+}
+
+function getFocusOffset(options = {}) {
+  if (options.offset) return options.offset;
+  if (!window.matchMedia("(max-width: 800px) and (orientation: portrait)").matches) return [0, 0];
+
+  const coveredHeight = getMobileCoveredHeight();
+  const yOffset = -Math.round(Math.min(440, Math.max(150, coveredHeight * 0.48)));
+  return [0, yOffset];
+}
+
+function getFocusPadding(options = {}) {
+  if (options.padding) return options.padding;
+  const viewportHeight = window.innerHeight || 0;
+  if (window.matchMedia("(max-width: 800px) and (orientation: portrait)").matches) {
+    const coveredHeight = getMobileCoveredHeight();
+    const bottom = Math.round(Math.min(viewportHeight * 0.58, Math.max(180, coveredHeight + 28)));
+    return { top: 92, right: 26, bottom, left: 26 };
+  }
+  return { top: 96, right: 96, bottom: 96, left: 96 };
+}
+
+function getMobileCoveredHeight() {
+  const sidebar = document.getElementById("sidebar");
+  const sidebarTop = sidebar?.getBoundingClientRect().top;
+  const viewportHeight = window.innerHeight || 0;
+  return Number.isFinite(sidebarTop)
+    ? Math.max(0, viewportHeight - sidebarTop)
+    : parseMobileVisibleHeight();
+}
+
+function parseMobileVisibleHeight() {
+  const value = getComputedStyle(document.documentElement).getPropertyValue("--mobile-sidebar-visible-height").trim();
+  if (!value) return 0;
+  const numeric = Number.parseFloat(value);
+  if (!Number.isFinite(numeric)) return 0;
+  if (value.endsWith("dvh") || value.endsWith("vh")) {
+    return (window.innerHeight || 0) * numeric / 100;
+  }
+  return numeric;
 }
 
 function createBaseStyle() {

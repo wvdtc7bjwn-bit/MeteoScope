@@ -173,6 +173,28 @@ export function createWeatherApp() {
     if (activeTab !== "typhoon") return;
     const tab = TABS.find((item) => item.id === "typhoon");
     updateCurrentView(tab, latestDataByTab.typhoon);
+    focusSelectedTyphoon();
+  }
+
+  function focusSelectedTyphoon() {
+    const typhoons = latestDataByTab.typhoon?.typhoons ?? [];
+    const selected = typhoons.find((typhoon) => String(typhoon.id) === String(activeTyphoonId)) ?? typhoons[0];
+    const coordinates = buildTyphoonFocusCoordinates(selected);
+    if (!coordinates.length) return;
+    weatherMap?.fitToCoordinates(coordinates, {
+      maxZoom: 6.9,
+      duration: 900
+    });
+  }
+
+  function focusAmedasStation(stationId) {
+    const point = (latestDataByTab.amedas?.points ?? [])
+      .find((item) => String(item.id) === String(stationId));
+    if (!Array.isArray(point?.coordinates)) return;
+    weatherMap?.flyToLocation(point.coordinates, {
+      minZoom: 9.2,
+      duration: 850
+    });
   }
 
   function updateCurrentView(tab, data) {
@@ -771,7 +793,7 @@ export function createWeatherApp() {
     weatherMap.initialize();
     tabControls = setupTabs({ onChange: selectTab });
     setupAmedasSubTabs({ onChange: selectAmedasMetric });
-    setupAmedasRankingToggle({ onChange: refreshAmedasPanel });
+    setupAmedasRankingToggle({ onChange: refreshAmedasPanel, onSelectStation: focusAmedasStation });
     setupKikikuruLayerToggles({ onChange: selectKikikuruLayer });
     setupWarningAreaSelection({ onDetailRequest: () => refreshWarningDetails() });
     setupTyphoonSelector({ onChange: selectTyphoon });
@@ -798,6 +820,38 @@ export function createWeatherApp() {
   }
 
   return { start, selectTab };
+}
+
+function buildTyphoonFocusCoordinates(typhoon) {
+  if (!typhoon) return [];
+  const coordinates = [
+    typhoon.center,
+    ...(typhoon.forecastTrack ?? []),
+    ...(typhoon.forecastCircles ?? []).flatMap((circle) => [
+      circle.center,
+      ...expandCircleBounds(circle.center, circle.radius)
+    ])
+  ];
+
+  return coordinates.filter((point) =>
+    Array.isArray(point)
+    && point.length === 2
+    && point.every((value) => Number.isFinite(value))
+  );
+}
+
+function expandCircleBounds(center, radiusKm) {
+  if (!Array.isArray(center) || !Number.isFinite(radiusKm) || radiusKm <= 0) return [];
+  const [lng, lat] = center;
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) return [];
+  const latRadius = radiusKm / 111.32;
+  const lngRadius = radiusKm / Math.max(12, 111.32 * Math.cos(lat * Math.PI / 180));
+  return [
+    [lng - lngRadius, lat],
+    [lng + lngRadius, lat],
+    [lng, lat - latRadius],
+    [lng, lat + latRadius]
+  ];
 }
 
 function getNextKikikuruLayer(currentView, currentLayer) {
