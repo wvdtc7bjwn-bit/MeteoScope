@@ -1,7 +1,7 @@
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasRankingToggle, setupAmedasSubTabs, setupKikikuruLayerToggles, setupRadarControls, setupTyphoonSelector, setupWarningAreaSelection, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeSelector, setupKikikuruLayerToggles, setupRadarControls, setupTyphoonSelector, setupWarningAreaSelection, updateLeftPanel } from "./ui/leftPanel.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
@@ -10,6 +10,7 @@ import { fetchRadarTimes } from "./jma/radar.js";
 import { fetchAmedasLatestTime } from "./jma/amedas.js";
 import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
+import { fetchEarthquakeXmlList } from "./jma/earthquakeXml.js";
 import { fetchKikikuruTiles } from "./jma/kikikuru.js";
 import { resolveCurrentLocationInfo, searchMunicipalities } from "./location/currentLocation.js";
 import { addMyArea, getMyAreaLimit, loadMyAreas, removeMyArea } from "./location/myAreas.js";
@@ -19,7 +20,8 @@ const loaders = {
   radar: fetchRadarTimes,
   amedas: fetchAmedasLatestTime,
   warnings: fetchWarningTabData,
-  typhoon: fetchTyphoonList
+  typhoon: fetchTyphoonList,
+  earthquake: fetchEarthquakeXmlList
 };
 
 const KIKIKURU_DATA_TTL_MS = 60 * 1000;
@@ -51,6 +53,7 @@ export function createWeatherApp() {
   let activeWarningView = "status";
   let activeKikikuruLayer = KIKIKURU_LAYER_OPTIONS[0]?.id ?? "land";
   let activeTyphoonId = "";
+  let activeEarthquakeId = "";
   let weatherMap = null;
   let latestDataByTab = {};
   let radarPlayTimer = null;
@@ -176,6 +179,14 @@ export function createWeatherApp() {
     focusSelectedTyphoon();
   }
 
+  function selectEarthquake(earthquakeId) {
+    activeEarthquakeId = String(earthquakeId ?? "");
+    if (activeTab !== "earthquake") return;
+    const tab = TABS.find((item) => item.id === "earthquake");
+    updateCurrentView(tab, latestDataByTab.earthquake);
+    focusSelectedEarthquake();
+  }
+
   function focusSelectedTyphoon() {
     const typhoons = latestDataByTab.typhoon?.typhoons ?? [];
     const selected = typhoons.find((typhoon) => String(typhoon.id) === String(activeTyphoonId)) ?? typhoons[0];
@@ -184,6 +195,24 @@ export function createWeatherApp() {
     weatherMap?.fitToCoordinates(coordinates, {
       maxZoom: 6.9,
       duration: 900
+    });
+  }
+
+  function focusSelectedEarthquake() {
+    const earthquakes = latestDataByTab.earthquake?.earthquakes ?? [];
+    const selected = earthquakes.find((earthquake) => String(earthquake.id) === String(activeEarthquakeId)) ?? earthquakes[0];
+    const coordinates = buildEarthquakeFocusCoordinates(selected);
+    if (!coordinates.length) return;
+    if (coordinates.length > 1) {
+      weatherMap?.fitToCoordinates(coordinates, {
+        maxZoom: 7.4,
+        duration: 850
+      });
+      return;
+    }
+    weatherMap?.flyToLocation(coordinates[0], {
+      minZoom: 7,
+      duration: 850
     });
   }
 
@@ -218,6 +247,7 @@ export function createWeatherApp() {
     if (tab.id === "amedas") return { ...data, activeMetric: activeAmedasMetric };
     if (tab.id === "warnings") return { ...data, activeWarningView, activeKikikuruLayer };
     if (tab.id === "typhoon") return buildTyphoonDisplayData(data);
+    if (tab.id === "earthquake") return buildEarthquakeDisplayData(data);
     if (tab.id !== "radar") return data;
 
     const frames = data.frames ?? [];
@@ -251,6 +281,26 @@ export function createWeatherApp() {
       details: selected.details ?? data.details,
       latestTime: selected.updatedAt ?? data.latestTime,
       updatedAt: selected.updatedAt ?? data.updatedAt
+    };
+  }
+
+  function buildEarthquakeDisplayData(data = {}) {
+    const earthquakes = data.earthquakes ?? [];
+    if (!earthquakes.length) {
+      activeEarthquakeId = "";
+      return data;
+    }
+
+    const selected = earthquakes.find((earthquake) => String(earthquake.id) === String(activeEarthquakeId))
+      ?? earthquakes[0];
+    activeEarthquakeId = String(selected.id ?? "");
+
+    return {
+      ...data,
+      selectedEarthquakeId: activeEarthquakeId,
+      selectedEarthquake: selected,
+      latestTime: selected.reportTime ?? data.latestTime,
+      updatedAt: selected.reportTime ?? data.updatedAt
     };
   }
 
@@ -797,6 +847,7 @@ export function createWeatherApp() {
     setupKikikuruLayerToggles({ onChange: selectKikikuruLayer });
     setupWarningAreaSelection({ onDetailRequest: () => refreshWarningDetails() });
     setupTyphoonSelector({ onChange: selectTyphoon });
+    setupEarthquakeSelector({ onChange: selectEarthquake });
     setupRadarControls({
       onSeek: selectRadarFrame,
       onStep: stepRadarFrame,
@@ -838,6 +889,60 @@ function buildTyphoonFocusCoordinates(typhoon) {
     && point.length === 2
     && point.every((value) => Number.isFinite(value))
   );
+}
+
+function buildEarthquakeFocusCoordinates(earthquake) {
+  if (!earthquake) return [];
+  const coordinates = [
+    earthquake.coordinates,
+    ...(earthquake.intensityStations ?? []).map((station) => station.coordinates),
+    ...(earthquake.intensityAreaFeatures ?? []).flatMap(getFeatureBoundsCoordinates)
+  ];
+
+  return coordinates.filter((point) =>
+    Array.isArray(point)
+    && point.length === 2
+    && point.every((value) => Number.isFinite(value))
+  );
+}
+
+function getFeatureBoundsCoordinates(feature) {
+  const bounds = getGeometryBounds(feature?.geometry);
+  if (!bounds) return [];
+  return [
+    [bounds.minLng, bounds.minLat],
+    [bounds.maxLng, bounds.maxLat]
+  ];
+}
+
+function getGeometryBounds(geometry) {
+  if (!geometry?.coordinates) return null;
+  const bounds = {
+    minLng: Infinity,
+    minLat: Infinity,
+    maxLng: -Infinity,
+    maxLat: -Infinity
+  };
+
+  collectGeometryCoordinates(geometry.coordinates, (coordinate) => {
+    const [lng, lat] = coordinate;
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
+    bounds.minLng = Math.min(bounds.minLng, lng);
+    bounds.minLat = Math.min(bounds.minLat, lat);
+    bounds.maxLng = Math.max(bounds.maxLng, lng);
+    bounds.maxLat = Math.max(bounds.maxLat, lat);
+  });
+
+  return Number.isFinite(bounds.minLng) ? bounds : null;
+}
+
+function collectGeometryCoordinates(value, callback) {
+  if (!Array.isArray(value)) return;
+  if (value.length >= 2 && Number.isFinite(value[0]) && Number.isFinite(value[1])) {
+    callback(value);
+    return;
+  }
+  value.forEach((item) => collectGeometryCoordinates(item, callback));
 }
 
 function expandCircleBounds(center, radiusKm) {

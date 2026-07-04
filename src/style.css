@@ -1318,6 +1318,230 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.earthquake-detail-grid {
+  display: block;
+  margin: 0 0 12px;
+}
+
+.earthquake-detail-grid[hidden],
+.earthquake-list[hidden] {
+  display: none;
+}
+
+.earthquake-summary-card {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.earthquake-main-head {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.earthquake-main-head p {
+  margin: 0;
+  color: var(--type-date-color);
+  font-size: var(--type-date-size);
+  font-weight: var(--type-date-weight);
+  line-height: var(--type-date-line);
+}
+
+.earthquake-hypocenter {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.earthquake-hypocenter span {
+  color: var(--type-date-color);
+  font-size: var(--type-bottom-nav-size);
+  font-weight: var(--type-bottom-nav-weight);
+  line-height: 1.3;
+}
+
+.earthquake-hypocenter strong {
+  min-width: 0;
+  color: var(--type-emphasis-title-color);
+  font-size: var(--type-emphasis-title-size);
+  font-weight: var(--type-emphasis-title-weight);
+  line-height: var(--type-info-title-line);
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+  text-wrap: balance;
+}
+
+.earthquake-intensity-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  min-height: 64px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--earthquake-intensity-bg, #4b5563);
+  color: #101827;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.earthquake-intensity-panel.is-bright-text {
+  color: #ffffff;
+}
+
+.earthquake-intensity-label {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.earthquake-intensity-label span {
+  font-size: var(--type-bottom-nav-size);
+  font-weight: var(--type-bottom-nav-weight);
+}
+
+.earthquake-intensity-label small,
+.earthquake-detail-row small {
+  display: block;
+  color: currentColor;
+  font-size: 10px;
+  font-weight: var(--type-bottom-nav-weight);
+  letter-spacing: 0.08em;
+  line-height: 1.1;
+  opacity: 0.7;
+}
+
+.earthquake-intensity-panel strong {
+  flex: none;
+  color: currentColor;
+  font-size: 34px;
+  font-weight: var(--type-info-title-weight);
+  line-height: 1;
+}
+
+.earthquake-detail-box {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.earthquake-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+}
+
+.earthquake-detail-row > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  color: var(--type-date-color);
+  font-size: var(--type-bottom-nav-size);
+  font-weight: var(--type-bottom-nav-weight);
+  line-height: 1.3;
+}
+
+.earthquake-detail-row strong {
+  flex: none;
+  color: var(--type-emphasis-title-color);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-emphasis-title-weight);
+  line-height: 1.3;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.earthquake-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.earthquake-empty {
+  padding: 13px 12px;
+  border: 1px solid rgba(137, 170, 220, 0.22);
+  border-radius: 14px;
+  background: rgba(8, 17, 31, 0.42);
+  color: #d8e6f7;
+  font-size: 13px;
+  font-weight: var(--type-info-title-weight);
+}
+
+.earthquake-select-button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name time"
+    "intensity intensity";
+  align-items: center;
+  gap: 5px 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #dbe8fb;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.earthquake-select-button.active {
+  border-color: rgba(86, 183, 242, 0.74);
+  background:
+    linear-gradient(135deg, rgba(86, 183, 242, 0.24), rgba(72, 196, 107, 0.12)),
+    rgba(255, 255, 255, 0.055);
+  color: #f8fbff;
+}
+
+.earthquake-select-button strong {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  color: #f8fbff;
+  font-size: 13px;
+  font-weight: var(--type-info-title-weight);
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.earthquake-select-button span {
+  grid-area: time;
+  color: var(--type-date-color);
+  font-size: 11px;
+  font-weight: var(--type-date-weight);
+  white-space: nowrap;
+}
+
+.earthquake-select-button em {
+  grid-area: intensity;
+  justify-self: start;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--earthquake-item-intensity-bg, #4b5563);
+  color: #111827;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: var(--type-info-title-weight);
+}
+
+.earthquake-select-button em.is-bright-text {
+  color: #ffffff;
+}
+
 .panel-description {
   margin-bottom: 0;
   white-space: pre-line;
@@ -1618,7 +1842,8 @@ h2 {
 .legend-typhoon-forecast-circle,
 .legend-typhoon-forecast-route,
 .legend-typhoon-track,
-.legend-typhoon-center {
+.legend-typhoon-center,
+.legend-earthquake-center {
   position: relative;
   overflow: hidden;
   background: rgba(248, 251, 255, 0.08);
@@ -1663,12 +1888,30 @@ h2 {
   content: "";
 }
 
-.legend-typhoon-center::before {
+.legend-typhoon-center::before,
+.legend-earthquake-center::before {
   transform: translate(-50%, -50%) rotate(45deg);
 }
 
-.legend-typhoon-center::after {
+.legend-typhoon-center::after,
+.legend-earthquake-center::after {
   transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.legend-earthquake-center {
+  background: rgba(255, 43, 18, 0.12);
+  border-color: rgba(255, 43, 18, 0.5);
+}
+
+.legend-earthquake-center::before,
+.legend-earthquake-center::after {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 13px;
+  height: 2px;
+  background: #ff2b12;
+  content: "";
 }
 
 .legend-note {
@@ -1781,6 +2024,10 @@ h2 {
 
 .tab-button[data-tab="typhoon"] {
   --tab-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='black' stroke-width='2.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 5c7.5 1.8 9.8 9.8 4.8 15.2-5 5.4-14.2 3.6-16.7-2.5'%2F%3E%3Cpath d='M14 27c-7.5-1.8-9.8-9.8-4.8-15.2 5-5.4 14.2-3.6 16.7 2.5'%2F%3E%3Cpath d='M7.3 22.2c-1.9-6.4 1.4-12.2 7.5-13.2'%2F%3E%3Cpath d='M24.7 9.8c1.9 6.4-1.4 12.2-7.5 13.2'%2F%3E%3C%2Fsvg%3E");
+}
+
+.tab-button[data-tab="earthquake"] {
+  --tab-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='black' stroke-width='2.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h5l3-8 5 14 4-11 2 5h5'%2F%3E%3Cpath d='M9 6l2 3'%2F%3E%3Cpath d='M16 4v4'%2F%3E%3Cpath d='M23 6l-2 3'%2F%3E%3C%2Fsvg%3E");
 }
 
 .tab-button:hover {
@@ -2245,7 +2492,7 @@ h2 {
     bottom: var(--tab-shell-padding);
     left: calc(var(--tab-shell-padding) + var(--tab-active-edge-inset));
     z-index: 0;
-    width: calc((100% - (var(--tab-shell-padding) * 2) - (var(--tab-shell-gap) * 3) - (var(--tab-active-edge-inset) * 2)) / 4);
+    width: calc((100% - (var(--tab-shell-padding) * 2) - (var(--tab-shell-gap) * 4) - (var(--tab-active-edge-inset) * 2)) / 5);
     box-sizing: border-box;
     border: 1px solid rgba(226, 251, 255, 0.34);
     border-radius: 999px;
@@ -2281,6 +2528,10 @@ h2 {
 
   #main-tabs[data-active-tab="typhoon"] {
     --tab-indicator-x: calc(300% + var(--tab-shell-gap) + var(--tab-shell-gap) + var(--tab-shell-gap));
+  }
+
+  #main-tabs[data-active-tab="earthquake"] {
+    --tab-indicator-x: calc(400% + var(--tab-shell-gap) + var(--tab-shell-gap) + var(--tab-shell-gap) + var(--tab-shell-gap));
   }
 
   .tab-button {

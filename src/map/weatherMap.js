@@ -7,6 +7,8 @@ import {
   AMEDAS_TEMPERATURE_LEVELS,
   AMEDAS_WIND_LEVELS,
   DEFAULT_VIEW,
+  getEarthquakeIntensityColor,
+  getEarthquakeIntensityRank,
   JMA_ENDPOINTS,
   KIKIKURU_ELEMENTS
 } from "../config.js";
@@ -17,11 +19,12 @@ const MODE_CLASS = {
   radar: "mode-radar",
   amedas: "mode-amedas",
   warnings: "mode-warnings",
-  typhoon: "mode-typhoon"
+  typhoon: "mode-typhoon",
+  earthquake: "mode-earthquake"
 };
 
 const SAMPLE_SOURCE_ID = "weather-samples";
-const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-wind-arrow", "sample-label"];
+const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-wind-arrow", "sample-cross", "sample-label"];
 const TYPHOON_SOURCE_ID = "jma-typhoon";
 const TYPHOON_LAYERS = [
   "typhoon-wind-area-fill",
@@ -63,7 +66,8 @@ const MUNICIPALITY_FILL_LAYER_ID = "jma-municipality-fill";
 const WARNING_OVERLAY_LAYER_ID = "jma-warning-overlay";
 const WARNING_HATCH_LAYER_ID = "jma-warning-emergency-hatch";
 const WARNING_HATCH_IMAGE_ID = "jma-warning-emergency-hatch-pattern";
-const STORM_WARNING_ENDPOINT_SNAP_PX = 140;
+const STORM_WARNING_ENDPOINT_SNAP_PX = 48;
+const STORM_WARNING_DUPLICATE_SEGMENT_PX = 18;
 const DEFAULT_LAND_FILL = "#3c3d40";
 const NATURAL_EARTH_JAPAN_MASK_BOUNDS = {
   minLng: 122.0,
@@ -267,7 +271,11 @@ export function createWeatherMap(elementId) {
       id: "sample-circle",
       type: "circle",
       source: SAMPLE_SOURCE_ID,
-      filter: ["all", ["==", ["geometry-type"], "Point"], ["!=", ["get", "markerType"], "wind"]],
+      filter: ["all",
+        ["==", ["geometry-type"], "Point"],
+        ["!=", ["get", "markerType"], "wind"],
+        ["!=", ["get", "markerType"], "cross"]
+      ],
       layout: {
         "circle-sort-key": ["coalesce", ["get", "sortKey"], 0]
       },
@@ -309,6 +317,37 @@ export function createWeatherMap(elementId) {
         "icon-opacity": 0.94,
         "icon-halo-color": "rgba(5, 9, 20, 0.72)",
         "icon-halo-width": 1.1
+      }
+    });
+
+    map.addLayer({
+      id: "sample-cross",
+      type: "symbol",
+      source: SAMPLE_SOURCE_ID,
+      filter: ["all", ["==", ["geometry-type"], "Point"], ["==", ["get", "markerType"], "cross"]],
+      layout: {
+        "text-field": "×",
+        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          4,
+          24,
+          8,
+          34,
+          10,
+          42
+        ],
+        "text-allow-overlap": true,
+        "text-ignore-placement": true,
+        "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
+      },
+      paint: {
+        "text-color": ["coalesce", ["get", "color"], "#f8fbff"],
+        "text-halo-color": "rgba(5, 9, 20, 0.82)",
+        "text-halo-width": 2.4,
+        "text-halo-blur": 0.4
       }
     });
 
@@ -1264,7 +1303,8 @@ function createSampleFeatureCollection(mode, data = {}) {
     radar: createRadarFeatures,
     amedas: createAmedasFeatures,
     warnings: createWarningFeatures,
-    typhoon: createTyphoonFeatures
+    typhoon: createTyphoonFeatures,
+    earthquake: createEarthquakeFeatures
   };
 
   return {
@@ -1308,6 +1348,86 @@ function getAmedasSortKey(metricId, value) {
 
 function createWarningFeatures(data) {
   return [];
+}
+
+function createEarthquakeFeatures(data) {
+  const earthquakes = data?.earthquakes ?? [];
+  const selectedId = String(data?.selectedEarthquakeId ?? "");
+  const earthquake = data?.selectedEarthquake
+    ?? earthquakes.find((item) => String(item.id) === selectedId)
+    ?? earthquakes[0];
+  if (!earthquake) return [];
+
+  const areaFeatures = (earthquake.intensityAreaFeatures ?? []).map((feature) => ({
+    ...feature,
+    properties: {
+      ...(feature.properties ?? {}),
+      color: feature.properties?.color ?? getEarthquakeIntensityColor(feature.properties?.intensity),
+      fillOpacity: feature.properties?.fillOpacity ?? 0.48,
+      lineWidth: feature.properties?.lineWidth ?? 1.3
+    }
+  }));
+
+  const stationFeatures = (earthquake.intensityStations ?? []).flatMap((station) => {
+    if (!Array.isArray(station.coordinates) || !station.intensity) return [];
+    return [{
+      type: "Feature",
+      geometry: { type: "Point", coordinates: station.coordinates },
+      properties: {
+        color: getEarthquakeIntensityColor(station.intensity),
+        markerType: "circle",
+        radius: getEarthquakeIntensityRadius(station.intensity),
+        sortKey: getEarthquakeIntensityRank(station.intensity),
+        label: getEarthquakeStationLabel(station),
+        popup: buildEarthquakeStationPopup(station, earthquake)
+      }
+    }];
+  });
+
+  const epicenterFeature = Array.isArray(earthquake.coordinates)
+    ? [{
+      type: "Feature",
+      geometry: { type: "Point", coordinates: earthquake.coordinates },
+      properties: {
+        color: "#ff2b12",
+        markerType: "cross",
+        sortKey: 1000,
+        label: "",
+        popup: buildEarthquakePopup(earthquake)
+      }
+    }]
+    : [];
+
+  return [...areaFeatures, ...stationFeatures, ...epicenterFeature];
+}
+
+function getEarthquakeIntensityRadius(value) {
+  const rank = getEarthquakeIntensityRank(value);
+  return Math.max(6, Math.min(15, 5 + rank));
+}
+
+function getEarthquakeStationLabel(station) {
+  if (getEarthquakeIntensityRank(station.intensity) < 4) return "";
+  return `${station.stationName ?? "観測点"} ${station.intensityShort ?? ""}`;
+}
+
+function buildEarthquakePopup(earthquake) {
+  return `
+    <strong>${escapePopup(earthquake.hypocenterName ?? "地震情報")}</strong><br>
+    <span>${escapePopup(earthquake.maxIntensityLabel ?? "震度不明")}</span><br>
+    <span>発生: ${escapePopup(earthquake.eventTime ?? "--")}</span><br>
+    <span>規模: ${escapePopup(earthquake.magnitude ?? "--")}</span><br>
+    <span>深さ: ${escapePopup(Number.isFinite(earthquake.depth) ? `${earthquake.depth} km` : "--")}</span>
+  `;
+}
+
+function buildEarthquakeStationPopup(station, earthquake) {
+  return `
+    <strong>${escapePopup(station.stationName ?? "観測点")}</strong><br>
+    <span>${escapePopup([station.prefecture, station.areaName, station.cityName].filter(Boolean).join(" "))}</span><br>
+    <span>${escapePopup(station.intensityLabel ?? "震度不明")}</span><br>
+    <span>${escapePopup(earthquake.eventTime ?? "--")} 発生</span>
+  `;
 }
 
 function createTyphoonFeatures(data) {
@@ -1465,8 +1585,10 @@ function createTyphoonStormWarningFeatures(typhoon) {
 }
 
 function createStormWarningCircleGroupFeatures(typhoon, circles) {
-  if (circles.length >= 2) {
-    return createOuterTangentAreaFeatures(circles, {
+  const outerCircles = removeContainedCircles(circles);
+
+  if (outerCircles.length >= 2) {
+    return createOuterTangentAreaFeatures(outerCircles, {
       fillShape: "warningAreaFill",
       lineShape: "warningArea",
       color: "#ff2800",
@@ -1476,13 +1598,26 @@ function createStormWarningCircleGroupFeatures(typhoon, circles) {
     });
   }
 
-  return circles
+  return outerCircles
     .map((circle) => createTyphoonCircleLineFeature(circle.center, circle.radius, {
       color: "#ff2b12",
       typhoonShape: "warningArea",
       popup: buildTyphoonPopup(typhoon, circle.label ? `暴風警戒域 ${circle.label}` : "暴風警戒域")
     }))
     .filter(Boolean);
+}
+
+function removeContainedCircles(circles) {
+  return circles.filter((circle, index) => !circles.some((other, otherIndex) => {
+    if (index === otherIndex) return false;
+    if (!circle?.center || !other?.center) return false;
+    const current = projectCircleForTangents(circle);
+    const candidate = projectCircleForTangents(other);
+    const dx = current.pixelCenter.x - candidate.pixelCenter.x;
+    const dy = current.pixelCenter.y - candidate.pixelCenter.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance + current.pixelRadius <= candidate.pixelRadius + 1.5;
+  }));
 }
 
 function buildStormWarningCircleGroups(typhoon) {
@@ -1523,9 +1658,8 @@ function hasStormWarningCircleGroups(typhoon) {
 }
 
 function createTyphoonStormWarningShapeFeatures(typhoon) {
-  const ring = buildStormWarningAreaRing(typhoon.stormWarningAreaShape);
-  const lineSegments = ring ? [] : buildStormWarningAreaLineSegments(typhoon.stormWarningAreaShape);
-  if (lineSegments.length === 0 && !ring) return [];
+  const linePaths = buildStormWarningAreaDrawableSegments(typhoon.stormWarningAreaShape);
+  if (linePaths.length === 0) return [];
 
   const properties = {
     color: "#ff2800",
@@ -1534,11 +1668,7 @@ function createTyphoonStormWarningShapeFeatures(typhoon) {
 
   const features = [];
 
-  const lineFeatures = lineSegments.length > 0
-    ? lineSegments
-    : [ring];
-
-  lineFeatures
+  linePaths
     .filter((coordinates) => coordinates?.length >= 2)
     .forEach((coordinates) => {
       features.push({
@@ -1557,54 +1687,226 @@ function createTyphoonStormWarningShapeFeatures(typhoon) {
   return features;
 }
 
-function buildStormWarningAreaRing(stormWarningArea) {
-  const segments = buildStormWarningAreaLineSegments(stormWarningArea);
-
-  if (segments.length === 0) return null;
-  const unused = segments.slice(1);
-  const ring = segments[0].slice();
-
-  while (unused.length > 0) {
-    const tail = ring.at(-1);
-    let bestIndex = 0;
-    let bestReverse = false;
-    let bestDistance = Infinity;
-
-    unused.forEach((segment, index) => {
-      const startDistance = getPointDistanceSq(tail, segment[0]);
-      const endDistance = getPointDistanceSq(tail, segment.at(-1));
-      if (startDistance < bestDistance) {
-        bestIndex = index;
-        bestReverse = false;
-        bestDistance = startDistance;
-      }
-      if (endDistance < bestDistance) {
-        bestIndex = index;
-        bestReverse = true;
-        bestDistance = endDistance;
-      }
-    });
-
-    const next = unused.splice(bestIndex, 1)[0];
-    const ordered = bestReverse ? next.slice().reverse() : next;
-    const isSnappedEndpoint = bestDistance < STORM_WARNING_ENDPOINT_SNAP_PX * STORM_WARNING_ENDPOINT_SNAP_PX;
-    ring.push(...(isSnappedEndpoint ? ordered.slice(1) : ordered));
-  }
-
-  return closeStormWarningRing(ring);
+function buildStormWarningAreaDrawableSegments(stormWarningArea) {
+  const segments = removeDuplicateStormWarningSegments(
+    buildStormWarningAreaLineSegments(stormWarningArea)
+      .map((segment) => normalizeStormWarningLine(segment))
+      .filter((segment) => segment.length >= 2)
+  );
+  const snappedSegments = snapStormWarningSegmentEndpoints(segments);
+  const stitchedPaths = stitchStormWarningAreaSegments(snappedSegments);
+  return stitchedPaths.length > 0 ? stitchedPaths : snappedSegments;
 }
 
-function closeStormWarningRing(ring) {
-  if (ring.length < 2) return ring;
-  const first = ring[0];
-  const last = ring.at(-1);
-  const shouldSnapClosedPoint = getMercatorPixelDistanceSq(first, last)
-    < STORM_WARNING_ENDPOINT_SNAP_PX * STORM_WARNING_ENDPOINT_SNAP_PX;
-  if (shouldSnapClosedPoint) {
-    ring[ring.length - 1] = first;
-    return ring;
+function normalizeStormWarningLine(points) {
+  const normalized = [];
+  points.forEach((point) => {
+    if (!point?.length) return;
+    const last = normalized.at(-1);
+    if (!last || getMercatorPixelDistanceSq(last, point) > 1) normalized.push(point);
+  });
+  return normalized;
+}
+
+function removeDuplicateStormWarningSegments(segments) {
+  const unique = [];
+  segments.forEach((segment) => {
+    const isDuplicate = unique.some((existing) => areStormWarningSegmentsDuplicate(existing, segment));
+    if (!isDuplicate) unique.push(segment);
+  });
+  return unique;
+}
+
+function areStormWarningSegmentsDuplicate(a, b) {
+  const aLength = getStormWarningLineLengthPx(a);
+  const bLength = getStormWarningLineLengthPx(b);
+  const direct = getMercatorPixelDistanceSq(a[0], b[0])
+    + getMercatorPixelDistanceSq(a.at(-1), b.at(-1));
+  const reversed = getMercatorPixelDistanceSq(a[0], b.at(-1))
+    + getMercatorPixelDistanceSq(a.at(-1), b[0]);
+  const threshold = STORM_WARNING_DUPLICATE_SEGMENT_PX * STORM_WARNING_DUPLICATE_SEGMENT_PX * 2;
+  if (Math.min(direct, reversed) <= threshold) return true;
+
+  const aMiddle = a[Math.floor(a.length / 2)];
+  const bMiddle = b[Math.floor(b.length / 2)];
+  const lengthDelta = Math.abs(aLength - bLength) / Math.max(aLength, bLength, 1);
+  return lengthDelta < 0.04
+    && getMercatorPixelDistanceSq(aMiddle, bMiddle) <= STORM_WARNING_DUPLICATE_SEGMENT_PX * STORM_WARNING_DUPLICATE_SEGMENT_PX;
+}
+
+function getStormWarningLineLengthPx(points) {
+  return points.slice(1).reduce((sum, point, index) =>
+    sum + Math.sqrt(getMercatorPixelDistanceSq(points[index], point))
+  , 0);
+}
+
+function snapStormWarningSegmentEndpoints(segments) {
+  const endpointRefs = segments.flatMap((segment, segmentIndex) => [
+    { point: segment[0], segmentIndex, pointIndex: 0 },
+    { point: segment.at(-1), segmentIndex, pointIndex: segment.length - 1 }
+  ]);
+  const clusters = [];
+
+  endpointRefs.forEach((ref) => {
+    const target = projectMercatorPixel(ref.point);
+    const cluster = clusters.find((candidate) => {
+      const distanceSq = (candidate.x - target.x) ** 2 + (candidate.y - target.y) ** 2;
+      return distanceSq < STORM_WARNING_ENDPOINT_SNAP_PX * STORM_WARNING_ENDPOINT_SNAP_PX;
+    });
+    if (cluster) {
+      cluster.refs.push(ref);
+      cluster.x = (cluster.x * (cluster.refs.length - 1) + target.x) / cluster.refs.length;
+      cluster.y = (cluster.y * (cluster.refs.length - 1) + target.y) / cluster.refs.length;
+    } else {
+      clusters.push({ x: target.x, y: target.y, refs: [ref] });
+    }
+  });
+
+  const snapped = segments.map((segment) => segment.slice());
+  clusters
+    .filter((cluster) => cluster.refs.length >= 2)
+    .forEach((cluster) => {
+      const snappedPoint = unprojectMercatorPixel({ x: cluster.x, y: cluster.y });
+      cluster.refs.forEach(({ segmentIndex, pointIndex }) => {
+        snapped[segmentIndex][pointIndex] = snappedPoint;
+      });
+    });
+
+  return snapped;
+}
+
+function stitchStormWarningAreaSegments(segments) {
+  const sourceSegments = segments
+    .filter((segment) => segment.length >= 2)
+    .map((segment) => segment.slice());
+  const nodes = [];
+  const edges = [];
+
+  sourceSegments.forEach((segment) => {
+    const startNode = getStormWarningEndpointNode(nodes, segment[0]);
+    const endNode = getStormWarningEndpointNode(nodes, segment.at(-1));
+    if (startNode === endNode) return;
+
+    const coordinates = segment.slice();
+    coordinates[0] = nodes[startNode].point;
+    coordinates[coordinates.length - 1] = nodes[endNode].point;
+    const edgeIndex = edges.length;
+    edges.push({ startNode, endNode, coordinates });
+    nodes[startNode].edges.push(edgeIndex);
+    nodes[endNode].edges.push(edgeIndex);
+  });
+
+  const used = new Set();
+  const paths = [];
+
+  edges.forEach((edge, edgeIndex) => {
+    if (used.has(edgeIndex)) return;
+
+    used.add(edgeIndex);
+    const path = edge.coordinates.slice();
+    const startNode = edge.startNode;
+    let currentNode = edge.endNode;
+
+    while (currentNode !== startNode) {
+      const nextEdgeIndex = chooseNextStormWarningEdge(path, currentNode, edges, nodes, used);
+      if (nextEdgeIndex == null) break;
+
+      used.add(nextEdgeIndex);
+      const nextEdge = orientStormWarningEdge(edges[nextEdgeIndex], currentNode);
+      path.push(...nextEdge.coordinates.slice(1));
+      currentNode = nextEdge.endNode;
+    }
+
+    const closedPath = getMercatorPixelDistanceSq(path[0], path.at(-1)) < 4
+      ? closeLine(path.slice(0, -1))
+      : path;
+    paths.push(closedPath);
+  });
+
+  const sortedPaths = paths
+    .filter((path) => path.length >= 2)
+    .sort((a, b) => getStormWarningLineLengthPx(b) - getStormWarningLineLengthPx(a));
+
+  const closedPaths = sortedPaths.filter((path) =>
+    path.length >= 4 && getMercatorPixelDistanceSq(path[0], path.at(-1)) < 4
+  );
+  return (closedPaths.length > 0 ? closedPaths : sortedPaths).slice(0, 1);
+}
+
+function getStormWarningEndpointNode(nodes, point) {
+  const projectedPoint = projectMercatorPixel(point);
+  const thresholdSq = STORM_WARNING_ENDPOINT_SNAP_PX * STORM_WARNING_ENDPOINT_SNAP_PX;
+  let targetIndex = -1;
+  let targetDistanceSq = Infinity;
+
+  nodes.forEach((node, nodeIndex) => {
+    const distanceSq = (node.x - projectedPoint.x) ** 2 + (node.y - projectedPoint.y) ** 2;
+    if (distanceSq < thresholdSq && distanceSq < targetDistanceSq) {
+      targetIndex = nodeIndex;
+      targetDistanceSq = distanceSq;
+    }
+  });
+
+  if (targetIndex >= 0) {
+    const node = nodes[targetIndex];
+    node.x = (node.x * node.count + projectedPoint.x) / (node.count + 1);
+    node.y = (node.y * node.count + projectedPoint.y) / (node.count + 1);
+    node.count += 1;
+    node.point = unprojectMercatorPixel({ x: node.x, y: node.y });
+    return targetIndex;
   }
-  return closeLine(ring);
+
+  nodes.push({
+    x: projectedPoint.x,
+    y: projectedPoint.y,
+    point,
+    count: 1,
+    edges: []
+  });
+  return nodes.length - 1;
+}
+
+function chooseNextStormWarningEdge(path, currentNode, edges, nodes, used) {
+  const candidates = nodes[currentNode].edges.filter((edgeIndex) => !used.has(edgeIndex));
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  const previous = projectMercatorPixel(path.at(-2));
+  const current = projectMercatorPixel(path.at(-1));
+  const incoming = { x: current.x - previous.x, y: current.y - previous.y };
+
+  return candidates
+    .map((edgeIndex) => {
+      const oriented = orientStormWarningEdge(edges[edgeIndex], currentNode);
+      const next = projectMercatorPixel(oriented.coordinates[Math.min(1, oriented.coordinates.length - 1)]);
+      const outgoing = { x: next.x - current.x, y: next.y - current.y };
+      return {
+        edgeIndex,
+        score: getStormWarningVectorCosine(incoming, outgoing),
+        length: getStormWarningLineLengthPx(oriented.coordinates)
+      };
+    })
+    .sort((a, b) => b.score - a.score || b.length - a.length)[0].edgeIndex;
+}
+
+function orientStormWarningEdge(edge, currentNode) {
+  if (edge.startNode === currentNode) {
+    return {
+      endNode: edge.endNode,
+      coordinates: edge.coordinates
+    };
+  }
+  return {
+    endNode: edge.startNode,
+    coordinates: edge.coordinates.slice().reverse()
+  };
+}
+
+function getStormWarningVectorCosine(a, b) {
+  const aLength = Math.hypot(a.x, a.y);
+  const bLength = Math.hypot(b.x, b.y);
+  if (!aLength || !bLength) return -1;
+  return (a.x * b.x + a.y * b.y) / (aLength * bLength);
 }
 
 function buildStormWarningAreaLineSegments(stormWarningArea) {
@@ -1617,17 +1919,10 @@ function buildStormWarningAreaLineSegments(stormWarningArea) {
 
   (stormWarningArea?.line ?? []).forEach((line) => {
     const segment = line.filter((point) => point?.length === 2);
-    if (segment.length >= 2 && !isTinyStormWarningConnector(segment)) segments.push(segment);
+    if (segment.length >= 2) segments.push(segment);
   });
 
   return segments;
-}
-
-function isTinyStormWarningConnector(segment) {
-  const start = segment[0];
-  const end = segment.at(-1);
-  if (!start || !end) return true;
-  return getMercatorPixelDistanceSq(start, end) < 60 * 60;
 }
 
 function makeStormWarningArcSegment(arc) {
@@ -1895,6 +2190,12 @@ function createOuterTangentMergedPolygonRing(circles, options = {}) {
     }
     ring = closeLine(ringPoints);
   }
+
+  if (hasSelfIntersection(ring)) {
+    const hullRing = createCircleHullRing(circles);
+    if (hullRing && !hasSelfIntersection(hullRing)) return hullRing;
+  }
+
   return ring.length >= 4 ? ring : null;
 }
 

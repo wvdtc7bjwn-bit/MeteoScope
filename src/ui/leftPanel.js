@@ -4,6 +4,9 @@ import {
   AMEDAS_SNOW_LEVELS,
   AMEDAS_TEMPERATURE_LEVELS,
   AMEDAS_WIND_LEVELS,
+  EARTHQUAKE_INTENSITY_LEVELS,
+  getEarthquakeIntensityColor,
+  getEarthquakeIntensityTextClass,
   KIKIKURU_LAYER_OPTIONS,
   KIKIKURU_LEVELS
 } from "../config.js";
@@ -33,7 +36,8 @@ const legendsByTab = {
     ["予想進路中心線", "legend-typhoon-forecast-route"],
     ["過去の経路", "legend-typhoon-track"],
     ["中心位置", "legend-typhoon-center"]
-  ]
+  ],
+  earthquake: [["震源", "legend-earthquake-center"]]
 };
 
 export function updateLeftPanel(tab, state = {}) {
@@ -45,7 +49,7 @@ export function updateLeftPanel(tab, state = {}) {
   setPanelTitleVisible(false);
   setText("panel-description", buildDescription(tab, state));
   setText("panel-time", buildTimeText(state));
-  setPanelTimeVisible(tab.id !== "radar" && tab.id !== "typhoon");
+  setPanelTimeVisible(tab.id !== "radar" && tab.id !== "typhoon" && tab.id !== "earthquake");
   renderCurrentLocationCard(tab, state.currentLocation);
   renderKikikuruLayerTabs(tab, warningView, activeKikikuruLayer);
   renderAmedasSubTabs(tab, amedasMetric.id);
@@ -54,6 +58,8 @@ export function updateLeftPanel(tab, state = {}) {
   renderWarningDetails(tab, state, warningView);
   renderTyphoonSelector(tab, state);
   renderTyphoonDetails(tab, state);
+  renderEarthquakeList(tab, state);
+  renderEarthquakeDetails(tab, state);
   renderAmedasRanking(tab, state, amedasMetric);
   renderLegend(tab.id, amedasMetric.id, warningView);
 }
@@ -124,6 +130,18 @@ export function setupTyphoonSelector({ onChange }) {
   });
 }
 
+export function setupEarthquakeSelector({ onChange }) {
+  const root = document.getElementById("earthquake-list");
+  if (!root) return;
+
+  root.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest("[data-earthquake-id]");
+    if (!button) return;
+    onChange?.(button.dataset.earthquakeId);
+  });
+}
+
 function buildDescription(tab, state) {
   if (tab.id === "amedas") {
     const metric = getAmedasMetric(state.amedasMetric ?? state.data?.activeMetric);
@@ -153,6 +171,12 @@ function buildDescription(tab, state) {
     if (state.data?.hasTyphoon === false) return "";
     if (state.data?.unavailable) return "台風データを取得できませんでした。詳細項目は未取得として表示しています。";
     return "台風の解析値を表示しています。";
+  }
+  if (tab.id === "earthquake") {
+    if (state.status === "loading") return "気象庁XMLの地震情報を取得中です。";
+    if (state.status === "error") return "地震情報を取得できませんでした。";
+    const count = state.data?.earthquakes?.length ?? 0;
+    return count > 0 ? "" : "直近の地震情報はありません。";
   }
   if (state.status === "loading") return `${tab.description}\nデータを取得中です。`;
   if (state.status === "error") return `${tab.description}\n取得に失敗しました。CORSまたはURL変更の可能性があります。`;
@@ -324,6 +348,12 @@ function buildLegendItems(tabId, amedasMetricId, warningView = "status") {
     return [
       ["高", "legend-early-high"],
       ["中", "legend-early-middle"]
+    ];
+  }
+  if (tabId === "earthquake") {
+    return [
+      ...legendsByTab.earthquake,
+      ...EARTHQUAKE_INTENSITY_LEVELS.map((level) => [level.label, "", level.color])
     ];
   }
   return legendsByTab[tabId] ?? [];
@@ -965,6 +995,128 @@ function renderTyphoonDetails(tab, state) {
       <strong>${escapeHtml(value)}</strong>
     </div>
   `).join("");
+}
+
+function renderEarthquakeList(tab, state) {
+  const root = document.getElementById("earthquake-list");
+  if (!root) return;
+
+  const isEarthquake = tab.id === "earthquake";
+  root.hidden = !isEarthquake;
+  if (!isEarthquake) {
+    root.innerHTML = "";
+    return;
+  }
+
+  if (state.status === "loading") {
+    root.innerHTML = `<div class="earthquake-empty">地震XMLを取得中です。</div>`;
+    return;
+  }
+
+  if (state.status === "error") {
+    root.innerHTML = `<div class="earthquake-empty">地震XMLを取得できませんでした。</div>`;
+    return;
+  }
+
+  const earthquakes = state.data?.earthquakes ?? [];
+  if (!earthquakes.length) {
+    root.innerHTML = `<div class="earthquake-empty">直近の地震情報はありません。</div>`;
+    return;
+  }
+
+  const selectedId = String(state.data?.selectedEarthquakeId ?? earthquakes[0]?.id ?? "");
+  root.innerHTML = earthquakes.map((earthquake) => {
+    const isActive = String(earthquake.id) === selectedId;
+    const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
+    const intensityTextClass = getEarthquakeIntensityTextClass(earthquake.maxIntensity);
+    return `
+      <button
+        type="button"
+        class="earthquake-select-button${isActive ? " active" : ""}"
+        data-earthquake-id="${escapeHtml(earthquake.id)}"
+        aria-pressed="${isActive ? "true" : "false"}"
+      >
+        <strong>${escapeHtml(earthquake.hypocenterName ?? "震源調査中")}</strong>
+        <span>${escapeHtml(earthquake.eventTime ?? earthquake.reportTime ?? "--")}</span>
+        <em class="${intensityTextClass}" style="--earthquake-item-intensity-bg: ${escapeHtml(intensityColor)};">${escapeHtml(earthquake.maxIntensityLabel ?? "震度不明")}</em>
+      </button>
+    `;
+  }).join("");
+}
+
+function renderEarthquakeDetails(tab, state) {
+  const root = document.getElementById("earthquake-detail-grid");
+  if (!root) return;
+
+  const isEarthquake = tab.id === "earthquake";
+  root.hidden = !isEarthquake;
+  if (!isEarthquake) {
+    root.innerHTML = "";
+    return;
+  }
+
+  const earthquake = state.data?.selectedEarthquake;
+  if (!earthquake) {
+    root.innerHTML = "";
+    return;
+  }
+
+  const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
+  const intensityTextClass = getEarthquakeIntensityTextClass(earthquake.maxIntensity);
+  const depth = formatEarthquakeDepthParts(earthquake.depth);
+  root.innerHTML = `
+    <section class="earthquake-summary-card" aria-label="選択中の地震情報" style="--earthquake-intensity-bg: ${escapeHtml(intensityColor)};">
+      <div class="earthquake-main-head">
+        <div class="earthquake-hypocenter">
+          <span>震源地</span>
+          <strong>${escapeHtml(earthquake.hypocenterName ?? "震源調査中")}</strong>
+        </div>
+        <p>発生時刻: ${escapeHtml(formatEarthquakeEventTime(earthquake.eventTime))}</p>
+      </div>
+
+      <div class="earthquake-intensity-panel ${intensityTextClass}">
+        <div class="earthquake-intensity-label">
+          <span>最大震度</span>
+          <small>Max Intensity</small>
+        </div>
+        <strong>${escapeHtml(earthquake.maxIntensityShort ?? "--")}</strong>
+      </div>
+
+      <div class="earthquake-detail-box">
+        <div class="earthquake-detail-row">
+          <span>
+            <span>マグニチュード</span>
+            <small>Magnitude</small>
+          </span>
+          <strong>${escapeHtml(formatEarthquakeMagnitude(earthquake.magnitude, { prefix: true }))}</strong>
+        </div>
+        <div class="earthquake-detail-row">
+          <span>
+            <span>深さ</span>
+            <small>Depth</small>
+          </span>
+          <strong>${escapeHtml(`${depth.value}${depth.unit ? ` ${depth.unit}` : ""}`)}</strong>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function formatEarthquakeMagnitude(value, options = {}) {
+  const text = String(value ?? "").trim();
+  if (!text || text === "--") return "--";
+  const magnitude = text.replace(/^M\s*/i, "");
+  return options.prefix ? `M ${magnitude}` : magnitude;
+}
+
+function formatEarthquakeDepthParts(value) {
+  return Number.isFinite(value) ? { value: String(value), unit: "km" } : { value: "--", unit: "" };
+}
+
+function formatEarthquakeEventTime(value) {
+  const text = String(value ?? "").trim();
+  if (!text || text === "--") return "--";
+  return text.endsWith("頃") ? text : `${text}頃`;
 }
 
 function getTyphoonDetails(state) {
