@@ -124,8 +124,8 @@ function normalizeTyphoon(item, index) {
       size: formatClassification(pickValue(item, ["size", "scale", "typhoonSize", "stormSize", "classificationSize", "大きさ"])),
       strength: formatClassification(pickValue(item, ["strength", "intensity", "typhoonStrength", "stormIntensity", "classificationIntensity", "強さ"])),
       pressure: formatWithUnit(pickValue(item, ["pressure", "centralPressure", "centerPressure", "pres", "中心気圧"]), "hPa"),
-      maxWind: formatWithUnit(pickValue(item, ["maxWind", "maximumWind", "maxWindSpeed", "wind", "windSpeed", "最大風速"]), "m/s"),
-      maxGust: formatWithUnit(pickValue(item, ["maxGust", "maximumGust", "maxInstantWind", "gust", "最大瞬間風速"]), "m/s"),
+      maxWind: formatWindWithUnit(pickValue(item, ["maxWind", "maximumWind", "maxWindSpeed", "wind", "windSpeed", "最大風速"])),
+      maxGust: formatWindWithUnit(pickValue(item, ["maxGust", "maximumGust", "maxInstantWind", "gust", "最大瞬間風速"])),
       direction: formatPlain(pickValue(item, ["direction", "moveDirection", "movingDirection", "dir", "移動方向"])),
       speed: formatWithUnit(pickValue(item, ["speed", "moveSpeed", "movingSpeed", "velocity", "移動速度"]), "km/h"),
       position: formatPosition(center, pickValue(item, ["centerPosition", "positionText", "locationName", "中心位置"]))
@@ -165,8 +165,14 @@ function normalizeJmaTyphoon(item, index) {
       const circleCenter = normalizePoint(entry.center);
       const radius = normalizeRadius(entry.probabilityCircle?.radius);
       const label = formatForecastTimeLabel(entry.validtime?.JST ?? entry.validtime?.UTC);
+      const specification = pickSpecificationForPoint(specifications, entry);
       if (!circleCenter || !Number.isFinite(radius)) return null;
-      return { center: circleCenter, radius, label };
+      return {
+        center: circleCenter,
+        radius,
+        label,
+        details: buildJmaForecastCircleDetails(entry, specification)
+      };
     })
     .filter(Boolean);
   const stormWarningSource = [...points].reverse().find((entry) => entry?.stormWarningArea?.arc?.length)
@@ -201,8 +207,8 @@ function normalizeJmaTyphoon(item, index) {
       size: formatClassification(specNow.scale ?? current.scale ?? null),
       strength: formatClassification(specNow.intensity ?? current.intensity ?? null),
       pressure: formatWithUnit(specNow.pressure ?? current.pressure ?? null, "hPa"),
-      maxWind: formatWithUnit(specNow.maximumWind?.sustained?.["m/s"] ?? specNow.maximumWind?.sustained?.mps ?? null, "m/s"),
-      maxGust: formatWithUnit(specNow.maximumWind?.gust?.["m/s"] ?? specNow.maximumWind?.gust?.mps ?? null, "m/s"),
+      maxWind: formatWindWithUnit(specNow.maximumWind?.sustained?.["m/s"] ?? specNow.maximumWind?.sustained?.mps ?? null),
+      maxGust: formatWindWithUnit(specNow.maximumWind?.gust?.["m/s"] ?? specNow.maximumWind?.gust?.mps ?? null),
       direction: formatPlain(specNow.course ?? current.course ?? null),
       speed: formatWithUnit(specNow.speed?.["km/h"] ?? current.speed?.["km/h"] ?? null, "km/h"),
       position: formatPosition(center, current.locationName ?? null)
@@ -245,6 +251,68 @@ function buildJmaStormWarningGroups(points) {
 
   if (currentGroup.length > 0) groups.push(currentGroup);
   return groups;
+}
+
+function pickSpecificationForPoint(specifications, point) {
+  if (!Array.isArray(specifications)) return {};
+  const pointHours = Number(point?.advancedHours);
+  if (Number.isFinite(pointHours)) {
+    const matched = specifications.find((entry) => Number(entry?.advancedHours) === pointHours);
+    if (matched) return matched;
+  }
+
+  const pointTime = point?.validtime?.JST ?? point?.validtime?.UTC;
+  return specifications.find((entry) =>
+    (entry?.validtime?.JST ?? entry?.validtime?.UTC) === pointTime
+  ) ?? {};
+}
+
+function buildJmaForecastCircleDetails(point = {}, specification = {}) {
+  return {
+    size: formatClassification(specification.scale ?? point.scale ?? null),
+    strength: formatClassification(specification.intensity ?? point.intensity ?? null),
+    pressure: formatWithUnit(specification.pressure ?? point.pressure ?? null, "hPa"),
+    maxWind: formatWindWithUnit(
+      pickWindSpeed(specification.maximumWind, "sustained")
+      ?? pickWindSpeed(point.maximumWind, "sustained")
+      ?? null
+    ),
+    maxGust: formatWindWithUnit(
+      pickWindSpeed(specification.maximumWind, "gust")
+      ?? pickWindSpeed(point.maximumWind, "gust")
+      ?? null
+    ),
+    direction: formatPlain(specification.course ?? point.course ?? null),
+    speed: formatWithUnit(pickMeasurement(specification.speed ?? point.speed, ["km/h", "kmh", "kph"]) ?? null, "km/h")
+  };
+}
+
+function buildGenericForecastCircleDetails(entry = {}) {
+  return {
+    size: formatClassification(pickValue(entry, ["size", "scale", "typhoonSize", "stormSize", "classificationSize", "大きさ"])),
+    strength: formatClassification(pickValue(entry, ["strength", "intensity", "typhoonStrength", "stormIntensity", "classificationIntensity", "強さ"])),
+    pressure: formatWithUnit(pickValue(entry, ["pressure", "centralPressure", "centerPressure", "pres", "中心気圧"]), "hPa"),
+    maxWind: formatWindWithUnit(pickValue(entry, ["maxWind", "maximumWind", "maxWindSpeed", "wind", "windSpeed", "最大風速"])),
+    maxGust: formatWindWithUnit(pickValue(entry, ["maxGust", "maximumGust", "maxInstantWind", "gust", "最大瞬間風速"])),
+    direction: formatPlain(pickValue(entry, ["direction", "moveDirection", "movingDirection", "dir", "移動方向"])),
+    speed: formatWithUnit(pickValue(entry, ["speed", "moveSpeed", "movingSpeed", "velocity", "移動速度"]), "km/h")
+  };
+}
+
+function pickWindSpeed(maximumWind, kind) {
+  if (!maximumWind) return null;
+  return pickMeasurement(maximumWind[kind] ?? maximumWind, ["m/s", "mps", "ms"]);
+}
+
+function pickMeasurement(value, keys = []) {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number" || typeof value === "string") return value;
+  if (typeof value !== "object") return null;
+
+  for (const key of keys) {
+    if (value[key] !== undefined && value[key] !== null && value[key] !== "") return value[key];
+  }
+  return pickValue(value, ["value", "base", "text"]);
 }
 
 function pickStormWarningCircleForPoint(entry) {
@@ -423,7 +491,12 @@ function pickForecastCircles(item) {
       const radius = normalizeRadius(pickValue(entry, ["radius", "radiusKm", "forecastRadius", "予報円"]));
       const label = pickValue(entry, ["label", "time", "validTime", "validtime", "datetime"]);
       if (!center || !Number.isFinite(radius)) return null;
-      return { center, radius, label: label ? String(label) : "" };
+      return {
+        center,
+        radius,
+        label: label ? String(label) : "",
+        details: buildGenericForecastCircleDetails(entry)
+      };
     })
     .filter(Boolean);
 }
@@ -541,9 +614,22 @@ function formatForecastTimeLabel(value) {
 }
 
 function formatWithUnit(value, unit) {
-  if (value === null) return "未取得";
+  if (value === null || value === undefined || value === "") return "未取得";
   const text = String(value);
   return text.includes(unit) ? text : `${text} ${unit}`;
+}
+
+function formatWindWithUnit(value) {
+  if (isZeroMeasurement(value)) return "-";
+  return formatWithUnit(value, "m/s");
+}
+
+function isZeroMeasurement(value) {
+  if (value === null || value === undefined || value === "") return false;
+  const numericText = String(value).replace(/[^\d.+-]/g, "");
+  if (!numericText) return false;
+  const numericValue = Number(numericText);
+  return Number.isFinite(numericValue) && numericValue === 0;
 }
 
 function formatPlain(value) {

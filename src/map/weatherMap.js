@@ -42,6 +42,11 @@ const TYPHOON_LAYERS = [
   "typhoon-forecast-label",
   "typhoon-label"
 ];
+const TYPHOON_FORECAST_INFO_LAYERS = [
+  "typhoon-forecast-circle-fill",
+  "typhoon-forecast-circle",
+  "typhoon-forecast-label"
+];
 const WIND_ARROW_IMAGE_ID = "amedas-wind-arrow";
 const RADAR_SOURCE_PREFIX = "jma-nowcast-radar-z";
 const RADAR_LAYER_PREFIX = "jma-nowcast-radar-z";
@@ -91,6 +96,8 @@ export function createWeatherMap(elementId) {
   let pendingRender = null;
   let activeMode = "radar";
   let warningAreasByCode = new Map();
+  let typhoonForecastInfoElement = null;
+  let typhoonForecastInfoLngLat = null;
 
   function initialize() {
     map = new maplibregl.Map({
@@ -122,6 +129,7 @@ export function createWeatherMap(elementId) {
     activeMode = mode;
     const container = map?.getContainer();
     if (!container) return;
+    if (mode !== "typhoon") hideTyphoonForecastInfo();
     Object.values(MODE_CLASS).forEach((className) => container.classList.remove(className));
     container.classList.add(MODE_CLASS[mode] ?? MODE_CLASS.radar);
     setRadarVisible(map, mode === "radar");
@@ -546,19 +554,19 @@ export function createWeatherMap(elementId) {
           ["linear"],
           ["zoom"],
           3,
-          10,
+          12,
           7,
-          12
+          15
         ],
         "text-anchor": "center",
         "text-allow-overlap": true,
         "text-ignore-placement": true
       },
       paint: {
-        "text-color": "#9aa8ff",
-        "text-halo-color": "rgba(248, 251, 255, 0.76)",
-        "text-halo-width": 1.4,
-        "text-halo-blur": 0.2
+        "text-color": "#edf4ff",
+        "text-halo-color": "rgba(18, 27, 64, 0.95)",
+        "text-halo-width": 2.2,
+        "text-halo-blur": 0
       }
     });
 
@@ -595,6 +603,8 @@ export function createWeatherMap(elementId) {
       }
     });
 
+    setupTyphoonForecastInfo();
+
     map.on("mouseenter", WARNING_OVERLAY_LAYER_ID, (event) => {
       const feature = event.features?.[0];
       const area = warningAreasByCode.get(String(feature?.properties?.code ?? ""));
@@ -615,6 +625,77 @@ export function createWeatherMap(elementId) {
         }
       }));
     });
+  }
+
+  function setupTyphoonForecastInfo() {
+    typhoonForecastInfoElement = document.createElement("div");
+    typhoonForecastInfoElement.className = "typhoon-forecast-info-popup";
+    typhoonForecastInfoElement.hidden = true;
+    map.getContainer().appendChild(typhoonForecastInfoElement);
+
+    map.on("click", (event) => {
+      if (activeMode !== "typhoon") {
+        hideTyphoonForecastInfo();
+        return;
+      }
+      const layers = TYPHOON_FORECAST_INFO_LAYERS.filter((layerId) => map.getLayer(layerId));
+      if (layers.length === 0) {
+        hideTyphoonForecastInfo();
+        return;
+      }
+      const feature = map.queryRenderedFeatures(event.point, { layers })
+        .find((item) => item?.properties?.forecastPopup);
+      if (!feature) {
+        hideTyphoonForecastInfo();
+        return;
+      }
+      showTyphoonForecastInfo(event.lngLat, feature.properties.forecastPopup);
+    });
+
+    TYPHOON_FORECAST_INFO_LAYERS.forEach((layerId) => {
+      map.on("mouseenter", layerId, () => {
+        if (activeMode === "typhoon") map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", layerId, () => {
+        map.getCanvas().style.cursor = "";
+      });
+    });
+
+    map.on("move", positionTyphoonForecastInfo);
+    map.on("resize", positionTyphoonForecastInfo);
+  }
+
+  function showTyphoonForecastInfo(lngLat, html) {
+    if (!typhoonForecastInfoElement) return;
+    typhoonForecastInfoLngLat = lngLat;
+    typhoonForecastInfoElement.innerHTML = html;
+    typhoonForecastInfoElement.hidden = false;
+    positionTyphoonForecastInfo();
+  }
+
+  function hideTyphoonForecastInfo() {
+    typhoonForecastInfoLngLat = null;
+    if (typhoonForecastInfoElement) {
+      typhoonForecastInfoElement.hidden = true;
+      typhoonForecastInfoElement.innerHTML = "";
+    }
+  }
+
+  function positionTyphoonForecastInfo() {
+    if (!map || !typhoonForecastInfoElement || typhoonForecastInfoElement.hidden || !typhoonForecastInfoLngLat) return;
+    const point = map.project(typhoonForecastInfoLngLat);
+    const container = map.getContainer();
+    const width = typhoonForecastInfoElement.offsetWidth || 240;
+    const height = typhoonForecastInfoElement.offsetHeight || 130;
+    const margin = 12;
+    let x = point.x + 18;
+    let y = point.y - height - 14;
+
+    if (x + width + margin > container.clientWidth) x = point.x - width - 18;
+    if (y < margin) y = point.y + 18;
+    x = clampNumber(x, margin, container.clientWidth - width - margin);
+    y = clampNumber(y, margin, container.clientHeight - height - margin);
+    typhoonForecastInfoElement.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
   }
 
   function updateWarningAreaLookup(mode, data = {}) {
@@ -676,6 +757,11 @@ function getMobileCoveredHeight() {
   return Number.isFinite(sidebarTop)
     ? Math.max(0, viewportHeight - sidebarTop)
     : parseMobileVisibleHeight();
+}
+
+function clampNumber(value, min, max) {
+  if (max < min) return min;
+  return Math.min(max, Math.max(min, value));
 }
 
 function parseMobileVisibleHeight() {
@@ -1478,7 +1564,8 @@ function createTyphoonFeatures(data) {
         typhoonShape: "forecastCircle",
         fillOpacity: 0.1,
         lineWidth: 1.4,
-        popup: buildTyphoonPopup(typhoon, circle.label ? `予報円 ${circle.label}` : "予報円")
+        popup: buildTyphoonPopup(typhoon, circle.label ? `予報円 ${circle.label}` : "予報円"),
+        forecastPopup: buildTyphoonForecastCirclePopup(typhoon, circle)
       });
       if (feature) features.push(feature);
       if (circle.center?.length === 2 && circle.label) {
@@ -1526,6 +1613,71 @@ function buildTyphoonPopup(typhoon, label) {
     <span>移動: ${escapePopup(details.direction ?? "未取得")} ${escapePopup(details.speed ?? "")}</span><br>
     <span>更新: ${escapePopup(typhoon.updatedAt ?? "未取得")}</span>
   `;
+}
+
+function buildTyphoonForecastCirclePopup(typhoon, circle) {
+  const details = resolveTyphoonForecastDetails(typhoon.details ?? {}, circle.details ?? {});
+  const rows = [
+    ["強さ", details.strength],
+    ["中心気圧", details.pressure],
+    ["最大風速", details.maxWind],
+    ["最大瞬間風速", details.maxGust]
+  ].filter(([label, value]) => isKnownTyphoonDetail(value) || isZeroWindTyphoonRow(label, value));
+  const body = rows.length > 0
+    ? rows.map(([label, value]) => `
+      <div class="typhoon-forecast-popup-row">
+        <span>${escapePopup(label)}</span>
+        <strong>${escapePopup(value)}</strong>
+      </div>
+    `).join("")
+    : `<p class="typhoon-forecast-popup-empty">この予報円の詳細値は未取得です。</p>`;
+
+  return `
+    <section class="typhoon-forecast-popup-card" aria-label="台風予報円の情報">
+      <h3>${escapePopup(formatTyphoonForecastPopupTitle(circle.label))}</h3>
+      <div class="typhoon-forecast-popup-body">
+        ${body}
+      </div>
+    </section>
+  `;
+}
+
+function resolveTyphoonForecastDetails(currentDetails, forecastDetails) {
+  return {
+    strength: pickKnownTyphoonDetail(forecastDetails.strength, currentDetails.strength),
+    pressure: pickKnownTyphoonDetail(forecastDetails.pressure, currentDetails.pressure),
+    maxWind: pickWindTyphoonForecastDetail(forecastDetails.maxWind, currentDetails.maxWind),
+    maxGust: pickWindTyphoonForecastDetail(forecastDetails.maxGust, currentDetails.maxGust)
+  };
+}
+
+function pickWindTyphoonForecastDetail(forecastValue, currentValue) {
+  return String(forecastValue ?? "").trim() === "-"
+    ? "-"
+    : pickKnownTyphoonDetail(forecastValue, currentValue);
+}
+
+function pickKnownTyphoonDetail(...values) {
+  return values.find(isKnownTyphoonDetail) ?? "未取得";
+}
+
+function isKnownTyphoonDetail(value) {
+  return value !== null
+    && value !== undefined
+    && String(value).trim() !== ""
+    && String(value).trim() !== "未取得"
+    && String(value).trim() !== "-";
+}
+
+function isZeroWindTyphoonRow(label, value) {
+  return (label === "最大風速" || label === "最大瞬間風速")
+    && String(value ?? "").trim() === "-";
+}
+
+function formatTyphoonForecastPopupTitle(label) {
+  const text = String(label ?? "").trim();
+  if (!text) return "予報円";
+  return text.includes("予報") ? text : `${text}予報`;
 }
 
 function createTyphoonCircleFeature(center, radiusKm, properties) {
@@ -2403,7 +2555,8 @@ function createTyphoonForecastLabelFeature(circle, typhoon) {
     properties: {
       label: circle.label,
       typhoonShape: "forecastLabel",
-      popup: buildTyphoonPopup(typhoon, `予報円 ${circle.label}`)
+      popup: buildTyphoonPopup(typhoon, `予報円 ${circle.label}`),
+      forecastPopup: buildTyphoonForecastCirclePopup(typhoon, circle)
     }
   };
 }
