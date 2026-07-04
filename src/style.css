@@ -1058,6 +1058,7 @@ h2 {
 
 .disaster-map-modal {
   z-index: 1260;
+  padding: 8px;
 }
 
 .disaster-map-modal-overlay {
@@ -1167,14 +1168,6 @@ h2 {
   background: rgba(2, 7, 16, 0.62);
 }
 
-.disaster-map-viewer iframe {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: #101827;
-}
-
 .disaster-map-placeholder {
   position: absolute;
   inset: 0;
@@ -1192,6 +1185,33 @@ h2 {
 
 .disaster-map-placeholder[hidden] {
   display: none;
+}
+
+.disaster-map-pages {
+  height: 100%;
+  overflow: auto;
+  padding: 10px;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.disaster-map-pages::-webkit-scrollbar {
+  display: none;
+}
+
+.disaster-map-page {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto 12px;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.28);
+}
+
+.disaster-map-page:last-child {
+  margin-bottom: 0;
 }
 
 .disaster-map-modal--pdf-open.disaster-map-panel,
@@ -1229,11 +1249,6 @@ h2 {
 .disaster-map-modal--pdf-open .disaster-map-viewer {
   border: 0;
   border-radius: inherit;
-}
-
-.disaster-map-modal--pdf-open .disaster-map-viewer iframe {
-  width: calc(100% + 28px);
-  margin-right: -28px;
 }
 
 .warning-modal-warning-list {
@@ -2583,16 +2598,26 @@ h2 {
     padding: 12px;
   }
 
+  .disaster-map-modal {
+    padding: max(6px, env(safe-area-inset-top)) 5px max(6px, env(safe-area-inset-bottom));
+  }
+
   .disaster-map-panel {
-    width: calc(100vw - 12px);
-    height: min(94dvh, 820px);
-    max-height: min(94dvh, 820px);
+    width: 100%;
+    height: calc(100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom)));
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom)));
     border-radius: 18px;
+  }
+
+  .disaster-map-header {
+    min-height: 58px;
+    padding: 10px 12px;
   }
 
   .disaster-map-body {
     grid-template-rows: auto minmax(0, 1fr);
-    padding: 8px;
+    gap: 6px;
+    padding: 7px;
   }
 
   .disaster-map-toolbar {
@@ -2610,6 +2635,15 @@ h2 {
   .disaster-map-file-button {
     flex: 1 1 auto;
     min-width: 112px;
+  }
+
+  .disaster-map-pages {
+    padding: 7px;
+  }
+
+  .disaster-map-page {
+    border-radius: 4px;
+    margin-bottom: 8px;
   }
 
   .mode-label {
