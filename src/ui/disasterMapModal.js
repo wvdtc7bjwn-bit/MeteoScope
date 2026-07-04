@@ -85,8 +85,7 @@ export function setupDisasterMapModal() {
   let pageStates = [];
   let currentZoom = FIT_ZOOM;
   let pinchState = null;
-  let pendingZoomFrame = 0;
-  let pendingZoomRequest = null;
+  let activePinchZoom = FIT_ZOOM;
   let storedPdfRestored = false;
   let storedPdfRestorePromise = null;
 
@@ -453,10 +452,15 @@ export function setupDisasterMapModal() {
 
   function handleTouchStart(event) {
     if (!pdfDocument || event.touches.length !== 2) return;
+    const midpoint = getTouchMidpoint(event.touches);
     pinchState = {
       startDistance: getTouchDistance(event.touches),
-      startZoom: currentZoom
+      startZoom: currentZoom,
+      anchor: getZoomAnchor(midpoint.x, midpoint.y)
     };
+    activePinchZoom = currentZoom;
+    pages.classList.add("is-pinch-zooming");
+    pages.style.setProperty("--disaster-map-preview-scale", "1");
   }
 
   function handleTouchMove(event) {
@@ -467,12 +471,21 @@ export function setupDisasterMapModal() {
     if (event.cancelable) event.preventDefault();
     const midpoint = getTouchMidpoint(event.touches);
     const nextZoom = clampZoom(pinchState.startZoom * (distance / pinchState.startDistance));
-    if (Math.abs(nextZoom - currentZoom) < PINCH_ZOOM_THRESHOLD) return;
-    scheduleZoom(nextZoom, getZoomAnchor(midpoint.x, midpoint.y));
+    pinchState.anchor = getZoomAnchor(midpoint.x, midpoint.y);
+    if (Math.abs(nextZoom - activePinchZoom) < PINCH_ZOOM_THRESHOLD / 2) return;
+    activePinchZoom = nextZoom;
+    const previewScale = activePinchZoom / Math.max(currentZoom, 0.01);
+    pages.style.setProperty("--disaster-map-preview-scale", previewScale.toFixed(3));
   }
 
   function handleTouchEnd(event) {
-    if (event.touches.length < 2) pinchState = null;
+    if (event.touches.length >= 2 || !pinchState) return;
+    const finalZoom = activePinchZoom;
+    const anchor = pinchState.anchor;
+    clearPinchPreview();
+    pinchState = null;
+    activePinchZoom = currentZoom;
+    setZoom(finalZoom, anchor);
   }
 
   function getTouchDistance(touches) {
@@ -488,17 +501,6 @@ export function setupDisasterMapModal() {
       x: (first.clientX + second.clientX) / 2,
       y: (first.clientY + second.clientY) / 2
     };
-  }
-
-  function scheduleZoom(nextZoom, anchor) {
-    pendingZoomRequest = { zoom: nextZoom, anchor };
-    if (pendingZoomFrame) return;
-    pendingZoomFrame = window.requestAnimationFrame(() => {
-      pendingZoomFrame = 0;
-      const request = pendingZoomRequest;
-      pendingZoomRequest = null;
-      if (request) setZoom(request.zoom, request.anchor);
-    });
   }
 
   function changeZoom(direction, anchor = getDefaultZoomAnchor()) {
@@ -572,6 +574,9 @@ export function setupDisasterMapModal() {
   function cleanupPdfDocument() {
     loadGeneration += 1;
     renderGeneration += 1;
+    pinchState = null;
+    activePinchZoom = FIT_ZOOM;
+    clearPinchPreview();
     disconnectPageObserver();
     for (const state of pageStates) cancelPageRender(state);
     if (pdfDocument) void pdfDocument.destroy();
@@ -617,6 +622,11 @@ export function setupDisasterMapModal() {
   function setStatus(message, type) {
     status.textContent = message;
     status.dataset.status = type;
+  }
+
+  function clearPinchPreview() {
+    pages.classList.remove("is-pinch-zooming");
+    pages.style.removeProperty("--disaster-map-preview-scale");
   }
 }
 

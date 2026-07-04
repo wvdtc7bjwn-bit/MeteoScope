@@ -1245,6 +1245,7 @@ h2 {
 }
 
 .disaster-map-pages {
+  --disaster-map-preview-scale: 1;
   height: 100%;
   overflow: auto;
   padding: 10px;
@@ -1256,6 +1257,16 @@ h2 {
 
 .disaster-map-pages::-webkit-scrollbar {
   display: none;
+}
+
+.disaster-map-pages.is-pinch-zooming {
+  touch-action: none;
+}
+
+.disaster-map-pages.is-pinch-zooming .disaster-map-page-shell {
+  transform: scale(var(--disaster-map-preview-scale, 1));
+  transform-origin: top center;
+  will-change: transform;
 }
 
 .disaster-map-page-shell {
@@ -1340,6 +1351,8 @@ h2 {
   width: min(98vw, 1480px);
   height: 96vh;
   max-height: 96vh;
+  height: min(96svh, 96vh);
+  max-height: min(96svh, 96vh);
   border-radius: 18px;
 }
 
@@ -2720,14 +2733,25 @@ h2 {
   }
 
   .disaster-map-modal {
-    padding: max(6px, env(safe-area-inset-top)) 5px max(6px, env(safe-area-inset-bottom));
+    padding: max(6px, env(safe-area-inset-top)) 5px max(14px, env(safe-area-inset-bottom));
   }
 
   .disaster-map-panel {
     width: 100%;
-    height: calc(100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom)));
-    max-height: calc(100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom)));
+    height: calc(100dvh - max(12px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom)));
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom)));
+    height: calc(100svh - max(12px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom)));
+    max-height: calc(100svh - max(12px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom)));
     border-radius: 18px;
+  }
+
+  .disaster-map-modal--pdf-open.disaster-map-panel,
+  .disaster-map-modal--pdf-open .disaster-map-panel {
+    width: 100%;
+    height: calc(100dvh - max(12px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom)));
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom)));
+    height: calc(100svh - max(12px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom)));
+    max-height: calc(100svh - max(12px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom)));
   }
 
   .disaster-map-header {
@@ -2759,7 +2783,7 @@ h2 {
   }
 
   .disaster-map-pages {
-    padding: 7px;
+    padding: 7px 7px max(72px, calc(env(safe-area-inset-bottom) + 64px));
   }
 
   .disaster-map-page-shell {
@@ -2773,7 +2797,7 @@ h2 {
 
   .disaster-map-zoom-controls {
     right: 9px;
-    bottom: 9px;
+    bottom: max(12px, calc(env(safe-area-inset-bottom) + 10px));
     padding: 5px;
   }
 
