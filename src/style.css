@@ -1056,6 +1056,186 @@ h2 {
   line-height: 1.6;
 }
 
+.disaster-map-modal {
+  z-index: 1260;
+}
+
+.disaster-map-modal-overlay {
+  background: rgba(3, 8, 18, 0.7);
+  backdrop-filter: blur(5px);
+}
+
+.disaster-map-panel {
+  width: min(1240px, calc(100vw - 16px));
+  height: min(94vh, 920px);
+  max-height: min(94vh, 920px);
+  padding: 0;
+  overflow: hidden;
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(86, 183, 242, 0.13), transparent 32%),
+    linear-gradient(180deg, rgba(20, 32, 53, 0.98) 0%, rgba(9, 16, 29, 0.99) 100%);
+}
+
+.disaster-map-header {
+  flex: 0 0 auto;
+  min-height: 68px;
+  padding-block: 12px;
+}
+
+.disaster-map-body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  min-height: 0;
+  flex: 1 1 auto;
+  padding: 10px 12px 12px;
+}
+
+.disaster-map-status {
+  margin: 0;
+  color: #b8c8e2;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.disaster-map-status[data-status="ok"] {
+  color: #9edbff;
+}
+
+.disaster-map-status[data-status="error"] {
+  color: #ff9d9d;
+}
+
+.disaster-map-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.disaster-map-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 42px;
+  padding: 6px;
+  border: 1px solid rgba(146, 178, 228, 0.14);
+  border-radius: 14px;
+  background: rgba(7, 14, 28, 0.42);
+}
+
+.disaster-map-secondary,
+.disaster-map-file-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(146, 178, 228, 0.22);
+  border-radius: 12px;
+  color: #eef6ff;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  background: linear-gradient(180deg, rgba(35, 50, 74, 0.88), rgba(18, 28, 44, 0.9));
+}
+
+.disaster-map-secondary[hidden] {
+  display: none;
+}
+
+.disaster-map-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.disaster-map-viewer {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid rgba(146, 178, 228, 0.18);
+  border-radius: 16px;
+  background: rgba(2, 7, 16, 0.62);
+}
+
+.disaster-map-viewer iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #101827;
+}
+
+.disaster-map-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  color: #9db3d7;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.035), transparent 52%),
+    rgba(8, 16, 30, 0.88);
+}
+
+.disaster-map-placeholder[hidden] {
+  display: none;
+}
+
+.disaster-map-modal--pdf-open.disaster-map-panel,
+.disaster-map-modal--pdf-open .disaster-map-panel {
+  width: min(98vw, 1480px);
+  height: 96vh;
+  max-height: 96vh;
+  border-radius: 18px;
+}
+
+.disaster-map-modal--pdf-open .disaster-map-header {
+  position: relative;
+  z-index: 2;
+  min-height: 68px;
+  padding-block: 12px;
+}
+
+.disaster-map-modal--pdf-open .disaster-map-header .settings-modal-close {
+  width: 38px;
+  height: 38px;
+  background: rgba(15, 24, 40, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.disaster-map-modal--pdf-open .disaster-map-body {
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+}
+
+.disaster-map-modal--pdf-open .disaster-map-toolbar {
+  display: none;
+}
+
+.disaster-map-modal--pdf-open .disaster-map-viewer {
+  border: 0;
+  border-radius: inherit;
+}
+
+.disaster-map-modal--pdf-open .disaster-map-viewer iframe {
+  width: calc(100% + 28px);
+  margin-right: -28px;
+}
+
 .warning-modal-warning-list {
   display: grid;
   gap: 8px;
@@ -2401,6 +2581,35 @@ h2 {
 
   .settings-modal-body {
     padding: 12px;
+  }
+
+  .disaster-map-panel {
+    width: calc(100vw - 12px);
+    height: min(94dvh, 820px);
+    max-height: min(94dvh, 820px);
+    border-radius: 18px;
+  }
+
+  .disaster-map-body {
+    grid-template-rows: auto minmax(0, 1fr);
+    padding: 8px;
+  }
+
+  .disaster-map-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .disaster-map-file-row {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .disaster-map-secondary,
+  .disaster-map-file-button {
+    flex: 1 1 auto;
+    min-width: 112px;
   }
 
   .mode-label {

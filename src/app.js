@@ -5,6 +5,7 @@ import { setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeSelector, 
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
+import { setupDisasterMapModal } from "./ui/disasterMapModal.js";
 import { startClock } from "./ui/time.js";
 import { fetchRadarTimes } from "./jma/radar.js";
 import { fetchAmedasLatestTime } from "./jma/amedas.js";
@@ -934,6 +935,7 @@ export function createWeatherApp() {
       onAddCurrentLocation: addCurrentLocationToMyAreas,
       onRemoveArea: removeSettingsMyArea
     });
+    setupDisasterMapModal();
     document.getElementById("locate-button")?.addEventListener("click", locateCurrentPosition);
     startClock("clock");
     startAutoRefresh();
