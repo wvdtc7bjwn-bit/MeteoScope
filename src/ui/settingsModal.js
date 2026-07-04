@@ -1,6 +1,7 @@
 let settingsModalInitialized = false;
 let settingsOptions = {};
 let settingsSearchRequestId = 0;
+let settingsPdfStatusRequestId = 0;
 
 export function setupSettingsModal(options = {}) {
   settingsOptions = options;
@@ -29,6 +30,12 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    const clearPdfButton = event.target.closest("[data-settings-clear-disaster-map-pdf]");
+    if (clearPdfButton) {
+      void clearStoredDisasterMapPdfFromSettings(clearPdfButton);
+      return;
+    }
+
     if (event.target.closest("[data-settings-add-current-location]")) {
       settingsOptions.onAddCurrentLocation?.();
     }
@@ -41,12 +48,17 @@ export function setupSettingsModal(options = {}) {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeSettingsModal();
   });
+
+  window.addEventListener("disaster-map-pdf-storage-change", () => {
+    void renderSettingsDisasterMapPdf();
+  });
 }
 
 export function refreshSettingsModalView() {
   const modal = document.getElementById("settings-modal");
   if (!modal || modal.hidden) return;
   renderSettingsMyAreas();
+  void renderSettingsDisasterMapPdf();
 }
 
 function openSettingsModal() {
@@ -57,6 +69,7 @@ function openSettingsModal() {
   button?.setAttribute("aria-expanded", "true");
   document.body.classList.add("modal-open");
   renderSettingsMyAreas();
+  void renderSettingsDisasterMapPdf();
 }
 
 function closeSettingsModal() {
@@ -100,6 +113,54 @@ function renderSettingsMyAreas() {
       <button type="button" data-settings-remove-my-area="${escapeHtml(area.areaCode)}">削除</button>
     </div>
   `).join("");
+}
+
+async function renderSettingsDisasterMapPdf() {
+  const modal = document.getElementById("settings-modal");
+  const status = document.getElementById("settings-disaster-map-status");
+  const clearButton = document.getElementById("settings-disaster-map-clear");
+  if (!modal || modal.hidden || !status || !clearButton) return;
+
+  const requestId = ++settingsPdfStatusRequestId;
+  status.textContent = "確認中...";
+  clearButton.disabled = true;
+
+  try {
+    const info = await settingsOptions.getDisasterMapPdfInfo?.();
+    if (requestId !== settingsPdfStatusRequestId) return;
+    if (!info?.name) {
+      status.textContent = "保存されていません";
+      clearButton.disabled = true;
+      return;
+    }
+    status.textContent = `${info.name} を保存中`;
+    clearButton.disabled = false;
+  } catch (error) {
+    if (requestId !== settingsPdfStatusRequestId) return;
+    console.warn("[Weather Viewer] failed to read stored disaster map PDF", error);
+    status.textContent = "保存状態を確認できませんでした";
+    clearButton.disabled = true;
+  }
+}
+
+async function clearStoredDisasterMapPdfFromSettings(button) {
+  if (!(button instanceof HTMLButtonElement)) return;
+  const status = document.getElementById("settings-disaster-map-status");
+  const previousText = button.textContent;
+  button.disabled = true;
+  button.textContent = "削除中";
+  if (status) status.textContent = "削除しています...";
+
+  try {
+    await settingsOptions.onClearDisasterMapPdf?.();
+    await renderSettingsDisasterMapPdf();
+  } catch (error) {
+    console.warn("[Weather Viewer] failed to clear stored disaster map PDF", error);
+    if (status) status.textContent = "削除できませんでした";
+    button.disabled = false;
+  } finally {
+    button.textContent = previousText || "削除";
+  }
 }
 
 async function renderSettingsAreaSearch(query) {

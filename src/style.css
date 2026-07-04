@@ -1035,6 +1035,63 @@ h2 {
   cursor: pointer;
 }
 
+.settings-disaster-map-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.settings-disaster-map-info {
+  min-width: 0;
+}
+
+.settings-disaster-map-info strong {
+  display: block;
+  color: #f8fbff;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.settings-disaster-map-info span {
+  display: block;
+  margin-top: 3px;
+  overflow: hidden;
+  color: #9fb3ce;
+  font-size: 11.5px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-disaster-map-row button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 88, 88, 0.28);
+  border-radius: 999px;
+  background: rgba(255, 88, 88, 0.1);
+  color: #ffd6d6;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.settings-disaster-map-row button:disabled {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.045);
+  color: #76859a;
+  cursor: not-allowed;
+}
+
 .settings-my-area-empty {
   margin: 0;
   color: #91a1bb;
@@ -1192,6 +1249,7 @@ h2 {
   overflow: auto;
   padding: 10px;
   overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
@@ -1269,6 +1327,7 @@ h2 {
   line-height: 1;
   background: rgba(31, 45, 69, 0.82);
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .disaster-map-zoom-controls button:disabled {
