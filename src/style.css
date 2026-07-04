@@ -1200,18 +1200,80 @@ h2 {
   display: none;
 }
 
-.disaster-map-page {
-  display: block;
-  max-width: 100%;
-  height: auto;
+.disaster-map-page-shell {
+  position: relative;
+  display: grid;
+  place-items: center;
   margin: 0 auto 12px;
   border-radius: 6px;
-  background: #ffffff;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.22);
+  contain: content;
 }
 
-.disaster-map-page:last-child {
+.disaster-map-page-shell:last-child {
   margin-bottom: 0;
+}
+
+.disaster-map-page-shell.is-loading::after {
+  content: "読み込み中";
+  color: rgba(232, 241, 255, 0.72);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.disaster-map-page-shell.is-error::after {
+  content: "表示できませんでした";
+  color: #ffb0b0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.disaster-map-page {
+  display: block;
+  max-width: none;
+  height: auto;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.disaster-map-zoom-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px;
+  border: 1px solid rgba(190, 214, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(8, 14, 25, 0.78);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+
+.disaster-map-zoom-controls[hidden] {
+  display: none;
+}
+
+.disaster-map-zoom-controls button {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(190, 214, 255, 0.18);
+  border-radius: 999px;
+  color: #f1f7ff;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  background: rgba(31, 45, 69, 0.82);
+  cursor: pointer;
+}
+
+.disaster-map-zoom-controls button:disabled {
+  cursor: default;
+  opacity: 0.38;
 }
 
 .disaster-map-modal--pdf-open.disaster-map-panel,
@@ -2641,9 +2703,26 @@ h2 {
     padding: 7px;
   }
 
+  .disaster-map-page-shell {
+    margin-bottom: 8px;
+    border-radius: 4px;
+  }
+
   .disaster-map-page {
     border-radius: 4px;
-    margin-bottom: 8px;
+  }
+
+  .disaster-map-zoom-controls {
+    right: 9px;
+    bottom: 9px;
+    padding: 5px;
+  }
+
+  .disaster-map-zoom-controls button {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    font-size: 12px;
   }
 
   .mode-label {
