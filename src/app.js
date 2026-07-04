@@ -1,4 +1,4 @@
-import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
+import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
 import { setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeSelector, setupKikikuruLayerToggles, setupRadarControls, setupTyphoonSelector, setupWarningAreaSelection, updateLeftPanel } from "./ui/leftPanel.js";
@@ -58,9 +58,12 @@ export function createWeatherApp() {
   let latestDataByTab = {};
   let radarPlayTimer = null;
   let autoRefreshTimer = null;
+  let earthquakeRefreshTimer = null;
   let activeLoadRequestId = 0;
   let autoRefreshInFlight = false;
+  let earthquakeRefreshRequest = null;
   let lastAutoRefreshStartedAt = 0;
+  let lastEarthquakeRefreshStartedAt = 0;
   let tabControls = null;
   let currentLocationInfo = { status: "idle" };
   let myAreas = loadMyAreas();
@@ -89,6 +92,9 @@ export function createWeatherApp() {
     const cachedData = latestDataByTab[tab.id];
     if (cachedData) {
       updateCurrentView(tab, cachedData);
+      if (tab.id === "earthquake") {
+        refreshEarthquakeData({ force: true });
+      }
       if (tab.id === "warnings") {
         queueWarningFullRefresh({ delayMs: 700 });
         scheduleBackgroundPrefetch(tab.id);
@@ -490,6 +496,10 @@ export function createWeatherApp() {
 
     const tab = TABS.find((item) => item.id === activeTab) ?? TABS[0];
     if (!loaders[tab.id]) return;
+    if (tab.id === "earthquake") {
+      await refreshEarthquakeData({ force });
+      return;
+    }
 
     autoRefreshInFlight = true;
     lastAutoRefreshStartedAt = now;
@@ -504,6 +514,56 @@ export function createWeatherApp() {
     } finally {
       autoRefreshInFlight = false;
     }
+  }
+
+  async function refreshEarthquakeData({ force = false } = {}) {
+    if (activeTab !== "earthquake") return latestDataByTab.earthquake;
+    if (document.hidden && !force) return latestDataByTab.earthquake;
+    if (earthquakeRefreshRequest) return earthquakeRefreshRequest;
+
+    const now = Date.now();
+    if (!force && now - lastEarthquakeRefreshStartedAt < EARTHQUAKE_REFRESH_INTERVAL_MS - 1000) {
+      return latestDataByTab.earthquake;
+    }
+
+    const previousData = latestDataByTab.earthquake;
+    const selectedIdAtStart = String(activeEarthquakeId ?? "");
+    const previousLatestId = String(previousData?.earthquakes?.[0]?.id ?? "");
+    const selectedWasLatest = !selectedIdAtStart || !previousLatestId || selectedIdAtStart === previousLatestId;
+    lastEarthquakeRefreshStartedAt = now;
+
+    earthquakeRefreshRequest = loadTabData("earthquake")
+      .then((nextData) => {
+        const earthquakes = nextData?.earthquakes ?? [];
+        const nextLatestId = String(earthquakes[0]?.id ?? "");
+        const selectedStillExists = earthquakes.some((earthquake) =>
+          String(earthquake.id) === selectedIdAtStart
+        );
+
+        if (!earthquakes.length) {
+          activeEarthquakeId = "";
+        } else if (selectedWasLatest || !selectedStillExists) {
+          activeEarthquakeId = nextLatestId;
+        } else {
+          activeEarthquakeId = selectedIdAtStart;
+        }
+
+        latestDataByTab.earthquake = nextData;
+        if (activeTab === "earthquake") {
+          const tab = TABS.find((item) => item.id === "earthquake");
+          updateCurrentView(tab, nextData);
+        }
+        return nextData;
+      })
+      .catch((error) => {
+        console.warn("[Weather Viewer] earthquake realtime refresh failed", error);
+        return latestDataByTab.earthquake;
+      })
+      .finally(() => {
+        earthquakeRefreshRequest = null;
+      });
+
+    return earthquakeRefreshRequest;
   }
 
   async function locateCurrentPosition() {
@@ -665,10 +725,21 @@ export function createWeatherApp() {
       refreshActiveTab({ force: true });
     }, AUTO_REFRESH_INTERVAL_MS);
 
+    if (earthquakeRefreshTimer) window.clearInterval(earthquakeRefreshTimer);
+    earthquakeRefreshTimer = window.setInterval(() => {
+      refreshEarthquakeData();
+    }, EARTHQUAKE_REFRESH_INTERVAL_MS);
+
     document.addEventListener("visibilitychange", () => {
-      if (!document.hidden) refreshActiveTab();
+      if (!document.hidden) {
+        refreshActiveTab();
+        refreshEarthquakeData({ force: true });
+      }
     });
-    window.addEventListener("focus", () => refreshActiveTab());
+    window.addEventListener("focus", () => {
+      refreshActiveTab();
+      refreshEarthquakeData({ force: true });
+    });
   }
 
   function scheduleBackgroundPrefetch(excludeTabId) {

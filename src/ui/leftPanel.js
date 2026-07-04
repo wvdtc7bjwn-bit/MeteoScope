@@ -10,6 +10,7 @@ import {
   KIKIKURU_LAYER_OPTIONS,
   KIKIKURU_LEVELS
 } from "../config.js";
+import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
 import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
 
 let selectedWarningAreaCode = "";
@@ -1029,6 +1030,8 @@ function renderEarthquakeList(tab, state) {
     const isActive = String(earthquake.id) === selectedId;
     const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
     const intensityTextClass = getEarthquakeIntensityTextClass(earthquake.maxIntensity);
+    const magnitude = formatEarthquakeMagnitude(earthquake.magnitude, { prefix: true });
+    const depthText = formatEarthquakeDepthText(earthquake.depth, { compact: true });
     return `
       <button
         type="button"
@@ -1038,7 +1041,11 @@ function renderEarthquakeList(tab, state) {
       >
         <strong>${escapeHtml(earthquake.hypocenterName ?? "震源調査中")}</strong>
         <span>${escapeHtml(earthquake.eventTime ?? earthquake.reportTime ?? "--")}</span>
-        <em class="${intensityTextClass}" style="--earthquake-item-intensity-bg: ${escapeHtml(intensityColor)};">${escapeHtml(earthquake.maxIntensityLabel ?? "震度不明")}</em>
+        <div class="earthquake-item-meta">
+          <em class="${intensityTextClass}" style="--earthquake-item-intensity-bg: ${escapeHtml(intensityColor)};">${escapeHtml(earthquake.maxIntensityLabel ?? "震度不明")}</em>
+          <small>${escapeHtml(magnitude)}</small>
+          <small>深さ ${escapeHtml(depthText)}</small>
+        </div>
       </button>
     `;
   }).join("");
@@ -1063,7 +1070,6 @@ function renderEarthquakeDetails(tab, state) {
 
   const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
   const intensityTextClass = getEarthquakeIntensityTextClass(earthquake.maxIntensity);
-  const depth = formatEarthquakeDepthParts(earthquake.depth);
   root.innerHTML = `
     <section class="earthquake-summary-card" aria-label="選択中の地震情報" style="--earthquake-intensity-bg: ${escapeHtml(intensityColor)};">
       <div class="earthquake-main-head">
@@ -1095,7 +1101,7 @@ function renderEarthquakeDetails(tab, state) {
             <span>深さ</span>
             <small>Depth</small>
           </span>
-          <strong>${escapeHtml(`${depth.value}${depth.unit ? ` ${depth.unit}` : ""}`)}</strong>
+          <strong>${escapeHtml(formatEarthquakeDepthText(earthquake.depth))}</strong>
         </div>
       </div>
     </section>
@@ -1107,10 +1113,6 @@ function formatEarthquakeMagnitude(value, options = {}) {
   if (!text || text === "--") return "--";
   const magnitude = text.replace(/^M\s*/i, "");
   return options.prefix ? `M ${magnitude}` : magnitude;
-}
-
-function formatEarthquakeDepthParts(value) {
-  return Number.isFinite(value) ? { value: String(value), unit: "km" } : { value: "--", unit: "" };
 }
 
 function formatEarthquakeEventTime(value) {

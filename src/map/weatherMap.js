@@ -12,6 +12,7 @@ import {
   JMA_ENDPOINTS,
   KIKIKURU_ELEMENTS
 } from "../config.js";
+import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
 import { worldLandGeoJson } from "./data/worldLandGeoJson.js";
 import { worldCountriesGeoJson } from "./data/worldCountriesGeoJson.js";
 
@@ -1417,7 +1418,7 @@ function buildEarthquakePopup(earthquake) {
     <span>${escapePopup(earthquake.maxIntensityLabel ?? "震度不明")}</span><br>
     <span>発生: ${escapePopup(earthquake.eventTime ?? "--")}</span><br>
     <span>規模: ${escapePopup(earthquake.magnitude ?? "--")}</span><br>
-    <span>深さ: ${escapePopup(Number.isFinite(earthquake.depth) ? `${earthquake.depth} km` : "--")}</span>
+    <span>深さ: ${escapePopup(formatEarthquakeDepthText(earthquake.depth))}</span>
   `;
 }
 

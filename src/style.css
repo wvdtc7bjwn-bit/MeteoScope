@@ -1483,7 +1483,7 @@ h2 {
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
     "name time"
-    "intensity intensity";
+    "meta meta";
   align-items: center;
   gap: 5px 10px;
   width: 100%;
@@ -1526,20 +1526,47 @@ h2 {
   white-space: nowrap;
 }
 
+.earthquake-item-meta {
+  grid-area: meta;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
 .earthquake-select-button em {
-  grid-area: intensity;
-  justify-self: start;
-  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 9px;
   border-radius: 999px;
   background: var(--earthquake-item-intensity-bg, #4b5563);
   color: #111827;
-  font-size: 11px;
+  font-size: 10.5px;
   font-style: normal;
   font-weight: var(--type-info-title-weight);
+  line-height: 1;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .earthquake-select-button em.is-bright-text {
   color: #ffffff;
+}
+
+.earthquake-item-meta small {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.065);
+  color: rgba(223, 234, 250, 0.82);
+  font-size: 10.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .panel-description {
