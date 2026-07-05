@@ -458,12 +458,35 @@ export function createWeatherApp() {
     selectRadarFrame(latestObservationIndex >= 0 ? latestObservationIndex : radarData.frames.length - 1);
   }
 
-  function selectWeatherChartFrame(index) {
+  function refreshWeatherChartMapLayer() {
+    if (activeTab !== "radar" || !latestDataByTab.radar) return;
+    const tab = TABS.find((item) => item.id === "radar");
+    if (!tab) return;
+    const displayData = buildDisplayData(tab, latestDataByTab.radar);
+    displayData.weatherChartEnabled = weatherChartEnabled;
+    displayData.weatherChartStatus = weatherChartStatus;
+    displayData.weatherChart = weatherChartData;
+    weatherMap?.renderData(tab.id, displayData);
+  }
+
+  function setWeatherChartFrame(index, { refreshPanel = true } = {}) {
     if (activeTab !== "radar" || !weatherChartData?.frames?.length) return;
     activeWeatherChartFrameIndex = clampRadarIndex(index, weatherChartData.frames);
     weatherChartData = activateWeatherChartFrame(weatherChartData, activeWeatherChartFrameIndex);
     weatherChartStatus = "ok";
-    refreshRadarPanel();
+    if (refreshPanel) {
+      refreshRadarPanel();
+      return;
+    }
+    refreshWeatherChartMapLayer();
+  }
+
+  function previewWeatherChartFrame(index) {
+    setWeatherChartFrame(index, { refreshPanel: false });
+  }
+
+  function selectWeatherChartFrame(index) {
+    setWeatherChartFrame(index, { refreshPanel: true });
   }
 
   function stepWeatherChartFrame(delta) {
@@ -1025,6 +1048,7 @@ export function createWeatherApp() {
     setupRadarOverlayToggle({ onChange: toggleWeatherChartOverlay });
     setupWeatherChartControls({
       onSeek: selectWeatherChartFrame,
+      onPreview: previewWeatherChartFrame,
       onStep: stepWeatherChartFrame,
       onGoLatest: goLatestWeatherChartFrame
     });

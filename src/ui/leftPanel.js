@@ -133,7 +133,7 @@ export function setupRadarOverlayToggle({ onChange }) {
   });
 }
 
-export function setupWeatherChartControls({ onSeek, onStep, onGoLatest }) {
+export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLatest }) {
   const root = document.getElementById("weather-chart-controls");
   if (!root) return;
 
@@ -154,6 +154,7 @@ export function setupWeatherChartControls({ onSeek, onStep, onGoLatest }) {
     if (!(event.target instanceof HTMLInputElement)) return;
     if (event.target.id !== "weather-chart-time-slider") return;
     updateWeatherChartSliderPreview(event.target);
+    onPreview?.(Number(event.target.value));
     if (draggingSlider !== event.target) commitSlider(event.target);
   });
 
