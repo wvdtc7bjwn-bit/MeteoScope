@@ -2401,49 +2401,161 @@ h2 {
 }
 
 #main-tabs {
+  --tab-shell-padding: 5px;
+  --tab-shell-gap: 2px;
+  --tab-indicator-y: 0px;
+  --tab-glass-rim: rgba(207, 232, 255, 0.28);
+  --tab-glass-bg:
+    linear-gradient(180deg, rgba(35, 58, 94, 0.36), rgba(9, 21, 45, 0.24)),
+    rgba(7, 16, 34, 0.18);
+  --tab-glass-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+    inset 0 -1px 0 rgba(2, 8, 22, 0.34),
+    0 18px 42px rgba(1, 7, 20, 0.46),
+    0 0 22px rgba(74, 147, 255, 0.08);
+  --tab-glass-filter: blur(22px) saturate(1.65) contrast(1.05);
+  --tab-glass-overlay:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.012) 48%, rgba(120, 192, 255, 0.035)),
+    rgba(255, 255, 255, 0.018);
+  --tab-glass-overlay-opacity: 0.62;
+  --tab-lens-border: rgba(211, 239, 255, 0.38);
+  --tab-lens-bg:
+    linear-gradient(180deg, rgba(92, 155, 219, 0.22), rgba(34, 86, 160, 0.16)),
+    rgba(79, 155, 226, 0.12);
+  --tab-lens-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(5, 16, 38, 0.3),
+    0 10px 24px rgba(20, 64, 150, 0.12);
+  --tab-lens-filter: blur(20px) saturate(1.7) contrast(1.06);
+  --tab-lens-opacity: 0.88;
   position: absolute;
   top: 18px;
   left: 328px;
   z-index: 500;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--tab-shell-gap);
+  width: 62px;
+  padding: var(--tab-shell-padding);
+  border: 1px solid var(--tab-glass-rim);
+  border-radius: 999px;
+  background: var(--tab-glass-bg);
+  box-shadow: var(--tab-glass-shadow);
+  backdrop-filter: var(--tab-glass-filter);
+  -webkit-backdrop-filter: var(--tab-glass-filter);
+  isolation: isolate;
+  touch-action: none;
+  overflow: hidden;
+}
+
+#main-tabs::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--tab-glass-overlay);
+  opacity: var(--tab-glass-overlay-opacity);
+  pointer-events: none;
+}
+
+#main-tabs::after {
+  content: "";
+  position: absolute;
+  top: var(--tab-shell-padding);
+  left: var(--tab-shell-padding);
+  z-index: 0;
+  width: 50px;
+  height: 50px;
+  box-sizing: border-box;
+  border: 1px solid var(--tab-lens-border);
+  border-radius: 999px;
+  background: var(--tab-lens-bg);
+  box-shadow: var(--tab-lens-shadow);
+  opacity: var(--tab-lens-opacity);
+  pointer-events: none;
+  transform: translate3d(0, var(--tab-indicator-y), 0);
+  backdrop-filter: var(--tab-lens-filter);
+  -webkit-backdrop-filter: var(--tab-lens-filter);
+  transition: transform 440ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease;
+  will-change: transform;
+}
+
+#main-tabs.is-dragging::after {
+  transition: none;
+}
+
+#main-tabs[data-active-tab="amedas"] {
+  --tab-indicator-y: calc(100% + var(--tab-shell-gap));
+}
+
+#main-tabs[data-active-tab="warnings"] {
+  --tab-indicator-y: calc(200% + var(--tab-shell-gap) + var(--tab-shell-gap));
+}
+
+#main-tabs[data-active-tab="typhoon"] {
+  --tab-indicator-y: calc(300% + var(--tab-shell-gap) + var(--tab-shell-gap) + var(--tab-shell-gap));
+}
+
+#main-tabs[data-active-tab="earthquake"] {
+  --tab-indicator-y: calc(400% + var(--tab-shell-gap) + var(--tab-shell-gap) + var(--tab-shell-gap) + var(--tab-shell-gap));
 }
 
 .tab-button {
   position: relative;
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  width: 50px;
+  height: 50px;
+  gap: 2px;
   padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid transparent;
   border-radius: 999px;
-  color: transparent;
+  color: rgba(235, 244, 255, 0.78);
   font-size: 0;
   cursor: pointer;
-  background: radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.08) 38%, rgba(10, 16, 28, 0.8) 100%);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35), inset 0 0 0 2px rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(12px);
-  transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: hidden;
+  transition: color 180ms ease, transform 180ms ease;
 }
 
 .tab-button::before {
   content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 25px;
-  height: 25px;
-  transform: translate(-50%, -50%);
-  background: var(--tab-icon-color, #f8fbff);
+  position: relative;
+  top: auto;
+  left: auto;
+  z-index: 2;
+  width: 21px;
+  height: 21px;
+  transform: none;
+  background: var(--tab-icon-color, rgba(244, 250, 255, 0.96));
   opacity: 0.94;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.24));
   -webkit-mask: var(--tab-icon) center / contain no-repeat;
   mask: var(--tab-icon) center / contain no-repeat;
 }
 
 .tab-button-label {
-  display: none;
+  position: relative;
+  z-index: 2;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(234, 244, 255, 0.88);
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tab-button[data-tab="radar"] {
@@ -2467,12 +2579,25 @@ h2 {
 }
 
 .tab-button:hover {
-  transform: translateY(-1px);
+  transform: translateX(1px);
 }
 
 .tab-button.active {
-  background: radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.48), rgba(97, 124, 170, 0.5) 42%, rgba(22, 30, 48, 0.88) 100%);
-  box-shadow: 0 0 0 2px rgba(143, 180, 255, 0.22), 0 12px 28px rgba(0, 0, 0, 0.38);
+  --tab-icon-color: #75d3ff;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.tab-button.active::before {
+  filter:
+    drop-shadow(0 0 7px rgba(97, 200, 255, 0.26))
+    drop-shadow(0 2px 8px rgba(0, 0, 0, 0.2));
+}
+
+.tab-button.active .tab-button-label {
+  color: #8bdcff;
+  text-shadow: 0 0 8px rgba(81, 196, 255, 0.16);
 }
 
 #clock,
@@ -2835,7 +2960,7 @@ h2 {
   #main-tabs {
     top: max(26px, env(safe-area-inset-top));
     left: 16px;
-    gap: 10px;
+    gap: var(--tab-shell-gap);
   }
 
   .map-locate-button {
@@ -2844,8 +2969,8 @@ h2 {
   }
 
   .tab-button {
-    width: 46px;
-    height: 46px;
+    width: 50px;
+    height: 50px;
   }
 
   #clock {
@@ -2923,13 +3048,18 @@ h2 {
   }
 
   .tab-button {
-    width: 46px;
-    height: 46px;
+    width: 50px;
+    height: 50px;
   }
 
   .tab-button::before {
-    width: 25px;
-    height: 25px;
+    width: 21px;
+    height: 21px;
+  }
+
+  #main-tabs::after {
+    width: 50px;
+    height: 50px;
   }
 
   #clock {
@@ -2950,8 +3080,8 @@ h2 {
     --tab-shell-gap: 2px;
     --tab-active-edge-inset: 0px;
     --tab-indicator-x: 0px;
-    --tab-glass-rim: rgba(214, 244, 255, 0.2);
-    --tab-glass-shadow: rgba(3, 10, 28, 0.54);
+    --tab-glass-rim: rgba(207, 232, 255, 0.28);
+    --tab-glass-shadow: rgba(1, 7, 20, 0.46);
     position: fixed;
     top: auto;
     right: auto;
@@ -2968,17 +3098,17 @@ h2 {
     border: 1px solid var(--tab-glass-rim);
     border-radius: 999px;
     background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.018) 40%, rgba(92, 171, 255, 0.06) 74%, rgba(255, 255, 255, 0.04)),
-      rgba(9, 17, 34, 0.42);
+      linear-gradient(180deg, rgba(35, 58, 94, 0.36), rgba(9, 21, 45, 0.24)),
+      rgba(7, 16, 34, 0.18);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.18),
-      inset 0 -12px 26px rgba(12, 32, 77, 0.16),
-      inset 0 0 18px rgba(178, 226, 255, 0.055),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+      inset 0 -1px 0 rgba(2, 8, 22, 0.34),
       0 18px 42px var(--tab-glass-shadow),
-      0 0 28px rgba(77, 151, 255, 0.12);
+      0 0 22px rgba(74, 147, 255, 0.08);
     transform: translateX(-50%);
-    backdrop-filter: blur(28px) saturate(1.85) brightness(1.08);
-    -webkit-backdrop-filter: blur(28px) saturate(1.85) brightness(1.08);
+    backdrop-filter: blur(22px) saturate(1.65) contrast(1.05);
+    -webkit-backdrop-filter: blur(22px) saturate(1.65) contrast(1.05);
     isolation: isolate;
     touch-action: none;
     overflow: hidden;
@@ -2991,9 +3121,9 @@ h2 {
     z-index: -1;
     border-radius: inherit;
     background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.085), transparent 42%),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.055), transparent 30% 70%, rgba(142, 222, 255, 0.07)),
-      rgba(11, 18, 36, 0.08);
+      linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.012) 48%, rgba(120, 192, 255, 0.035)),
+      rgba(255, 255, 255, 0.018);
+    opacity: 0.62;
     pointer-events: none;
   }
 
@@ -3005,23 +3135,22 @@ h2 {
     left: calc(var(--tab-shell-padding) + var(--tab-active-edge-inset));
     z-index: 0;
     width: calc((100% - (var(--tab-shell-padding) * 2) - (var(--tab-shell-gap) * 4) - (var(--tab-active-edge-inset) * 2)) / 5);
+    height: auto;
     box-sizing: border-box;
-    border: 1px solid rgba(226, 251, 255, 0.34);
+    border: 1px solid rgba(211, 239, 255, 0.38);
     border-radius: 999px;
     background:
-      linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(120, 197, 255, 0.09) 48%, rgba(255, 255, 255, 0.08)),
-      rgba(88, 139, 210, 0.12);
+      linear-gradient(180deg, rgba(92, 155, 219, 0.22), rgba(34, 86, 160, 0.16)),
+      rgba(79, 155, 226, 0.12);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.26),
-      inset 0 -14px 24px rgba(58, 112, 226, 0.08),
-      inset 0 0 20px rgba(255, 255, 255, 0.045),
-      0 10px 26px rgba(26, 77, 180, 0.16),
-      0 0 16px rgba(132, 223, 255, 0.08);
-    opacity: 0.94;
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      inset 0 -1px 0 rgba(5, 16, 38, 0.3),
+      0 10px 24px rgba(20, 64, 150, 0.12);
+    opacity: 0.88;
     pointer-events: none;
     transform: translate3d(var(--tab-indicator-x), 0, 0);
-    backdrop-filter: blur(22px) saturate(1.7) brightness(1.08);
-    -webkit-backdrop-filter: blur(22px) saturate(1.7) brightness(1.08);
+    backdrop-filter: blur(20px) saturate(1.7) contrast(1.06);
+    -webkit-backdrop-filter: blur(20px) saturate(1.7) contrast(1.06);
     transition: transform 440ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease;
     will-change: transform;
   }

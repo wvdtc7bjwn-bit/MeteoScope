@@ -1,14 +1,24 @@
 export function setupTabs({ onChange }) {
   const root = document.getElementById("main-tabs");
   const buttons = [...document.querySelectorAll(".tab-button")];
-  const isMobileSlider = () => window.matchMedia("(max-width: 800px) and (orientation: portrait)").matches;
   let dragPointerId = null;
-  let dragStartX = 0;
-  let dragStartIndicatorX = 0;
+  let dragAxis = "x";
+  let dragStartCoord = 0;
+  let dragStartIndicatorOffset = 0;
   let dragMoved = false;
   let pendingIndicatorFrame = 0;
-  let pendingIndicatorX = 0;
+  let pendingIndicatorOffset = 0;
   let suppressClickUntil = 0;
+
+  function getSliderAxis() {
+    if (!root) return "x";
+    const rect = root.getBoundingClientRect();
+    return rect.height > rect.width ? "y" : "x";
+  }
+
+  function getAxisCoordinate(event, axis) {
+    return axis === "y" ? event.clientY : event.clientX;
+  }
 
   function setActiveButton(tabId) {
     const previousTab = root?.dataset.activeTab;
@@ -18,6 +28,7 @@ export function setupTabs({ onChange }) {
       root.dataset.activeTab = tabId;
       if (!root.classList.contains("is-dragging")) {
         root.style.removeProperty("--tab-indicator-x");
+        root.style.removeProperty("--tab-indicator-y");
       }
     }
     return previousTab !== tabId && activeIndex >= 0;
@@ -28,41 +39,45 @@ export function setupTabs({ onChange }) {
     if (setActiveButton(tabId)) onChange?.(tabId);
   }
 
-  function getTabFromPoint(clientX) {
+  function getTabFromPoint(event, axis) {
     if (!root || buttons.length === 0) return null;
     const rect = root.getBoundingClientRect();
-    const ratio = (clientX - rect.left) / Math.max(1, rect.width);
+    const position = axis === "y" ? event.clientY - rect.top : event.clientX - rect.left;
+    const size = axis === "y" ? rect.height : rect.width;
+    const ratio = position / Math.max(1, size);
     const index = Math.min(buttons.length - 1, Math.max(0, Math.floor(ratio * buttons.length)));
     return buttons[index]?.dataset.tab ?? null;
   }
 
-  function getIndicatorLimits() {
+  function getIndicatorLimits(axis) {
     if (!root || buttons.length === 0) return;
     const rootRect = root.getBoundingClientRect();
     const firstRect = buttons[0].getBoundingClientRect();
-    const indicatorWidth = Math.max(1, firstRect.width);
-    const shellPadding = Math.max(0, firstRect.left - rootRect.left);
-    const maxOffset = Math.max(0, rootRect.width - shellPadding * 2 - indicatorWidth);
+    const indicatorSize = Math.max(1, axis === "y" ? firstRect.height : firstRect.width);
+    const shellPadding = Math.max(0, axis === "y" ? firstRect.top - rootRect.top : firstRect.left - rootRect.left);
+    const rootSize = axis === "y" ? rootRect.height : rootRect.width;
+    const maxOffset = Math.max(0, rootSize - shellPadding * 2 - indicatorSize);
     return { maxOffset, shellPadding };
   }
 
-  function getActiveIndicatorOffset() {
+  function getActiveIndicatorOffset(axis) {
     if (!root || buttons.length === 0) return 0;
-    const limits = getIndicatorLimits();
+    const limits = getIndicatorLimits(axis);
     if (!limits) return 0;
     const activeButton = buttons.find((button) => button.classList.contains("active")) ?? buttons[0];
     const rootRect = root.getBoundingClientRect();
     const activeRect = activeButton.getBoundingClientRect();
-    return Math.min(limits.maxOffset, Math.max(0, activeRect.left - rootRect.left - limits.shellPadding));
+    const offset = axis === "y" ? activeRect.top - rootRect.top : activeRect.left - rootRect.left;
+    return Math.min(limits.maxOffset, Math.max(0, offset - limits.shellPadding));
   }
 
-  function setIndicatorOffset(offset) {
-    const limits = getIndicatorLimits();
+  function setIndicatorOffset(axis, offset) {
+    const limits = getIndicatorLimits(axis);
     if (!root || !limits) return;
-    pendingIndicatorX = Math.min(limits.maxOffset, Math.max(0, offset));
+    pendingIndicatorOffset = Math.min(limits.maxOffset, Math.max(0, offset));
     if (pendingIndicatorFrame) return;
     pendingIndicatorFrame = window.requestAnimationFrame(() => {
-      root.style.setProperty("--tab-indicator-x", `${pendingIndicatorX}px`);
+      root.style.setProperty(axis === "y" ? "--tab-indicator-y" : "--tab-indicator-x", `${pendingIndicatorOffset}px`);
       pendingIndicatorFrame = 0;
     });
   }
@@ -76,6 +91,7 @@ export function setupTabs({ onChange }) {
     }
     window.requestAnimationFrame(() => {
       root.style.removeProperty("--tab-indicator-x");
+      root.style.removeProperty("--tab-indicator-y");
     });
   }
 
@@ -88,22 +104,23 @@ export function setupTabs({ onChange }) {
   });
 
   root?.addEventListener("pointerdown", (event) => {
-    if (!isMobileSlider()) return;
     dragPointerId = event.pointerId;
-    dragStartX = event.clientX;
-    dragStartIndicatorX = getActiveIndicatorOffset();
+    dragAxis = getSliderAxis();
+    dragStartCoord = getAxisCoordinate(event, dragAxis);
+    dragStartIndicatorOffset = getActiveIndicatorOffset(dragAxis);
     dragMoved = false;
     root.classList.add("is-dragging");
-    setIndicatorOffset(dragStartIndicatorX);
+    setIndicatorOffset(dragAxis, dragStartIndicatorOffset);
     root.setPointerCapture?.(event.pointerId);
   });
 
   root?.addEventListener("pointermove", (event) => {
     if (dragPointerId !== event.pointerId) return;
-    if (Math.abs(event.clientX - dragStartX) > 6) dragMoved = true;
+    const delta = getAxisCoordinate(event, dragAxis) - dragStartCoord;
+    if (Math.abs(delta) > 6) dragMoved = true;
     if (!dragMoved) return;
     event.preventDefault();
-    setIndicatorOffset(dragStartIndicatorX + event.clientX - dragStartX);
+    setIndicatorOffset(dragAxis, dragStartIndicatorOffset + delta);
   });
 
   function finishDrag(event) {
@@ -111,7 +128,7 @@ export function setupTabs({ onChange }) {
     root?.releasePointerCapture?.(event.pointerId);
     if (dragMoved) {
       suppressClickUntil = Date.now() + 250;
-      activateTab(getTabFromPoint(event.clientX));
+      activateTab(getTabFromPoint(event, dragAxis));
     }
     stopIndicatorDrag();
     dragPointerId = null;
