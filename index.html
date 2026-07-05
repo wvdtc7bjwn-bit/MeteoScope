@@ -75,11 +75,11 @@
       <button id="locate-button" class="map-locate-button" type="button" aria-label="現在地の気象情報を表示" title="現在地"></button>
       <div id="radar-overlay-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs radar-overlay-tabs" hidden></div>
       <div id="kikikuru-layer-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs" hidden></div>
-      <section id="map-legend" class="map-legend" aria-label="凡例">
-        <button id="legend-toggle" class="legend-toggle" type="button" aria-expanded="true" aria-controls="legend-list">
+      <section id="map-legend" class="map-legend collapsed" aria-label="凡例">
+        <button id="legend-toggle" class="legend-toggle" type="button" aria-expanded="false" aria-controls="legend-list">
           <span>凡例</span>
         </button>
-        <div id="legend-list" class="legend-list"></div>
+        <div id="legend-list" class="legend-list" hidden></div>
       </section>
       <div id="map-attribution">気象庁 / Natural Earth / MapLibre GL JS</div>
     </main>

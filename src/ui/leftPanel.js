@@ -471,9 +471,7 @@ function renderRadarOverlayTabs(tab, weatherChartEnabled = false, weatherChartSt
   }
 
   const isLoading = weatherChartEnabled && weatherChartStatus === "loading";
-  const metaText = isLoading
-    ? "取得中"
-    : weatherChartStatus === "error"
+  const metaText = weatherChartStatus === "error"
       ? "取得失敗"
       : "";
   root.innerHTML = `

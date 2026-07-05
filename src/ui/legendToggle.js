@@ -19,5 +19,5 @@ export function setupLegendToggle() {
     setCollapsed(!legend.classList.contains("collapsed"));
   });
 
-  setCollapsed(false);
+  setCollapsed(true);
 }
