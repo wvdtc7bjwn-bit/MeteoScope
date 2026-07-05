@@ -29,6 +29,7 @@ export const JMA_ENDPOINTS = {
   kikikuruTimeList: "https://www.jma.go.jp/bosai/jmatile/data/risk/targetTimes.json",
   kikikuruTileBase: "https://www.jma.go.jp/bosai/jmatile/data/risk",
   weatherXmlFeed: "https://www.data.jma.go.jp/developer/xml/feed/regular.xml",
+  weatherXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/regular_l.xml",
   areaConst: "https://www.jma.go.jp/bosai/common/const/area.json",
   warningMunicipalities: publicAsset("data/jma-weather-warning-municipalities.geojson"),
   earthquakeAreas: publicAsset("data/earthquake-areas.geojson"),

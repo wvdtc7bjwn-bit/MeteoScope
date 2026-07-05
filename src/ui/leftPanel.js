@@ -738,7 +738,11 @@ function findLatestWeatherChartAnalysisIndex(frames) {
 }
 
 function getWeatherChartFrameKindLabel(frame) {
-  if (frame?.chartKind === "forecast") return "予想";
+  if (frame?.chartKind === "forecast") {
+    const hours = Number(frame.forecastHours);
+    if (Number.isFinite(hours) && hours > 0) return `${hours}時間予想`;
+    return "予想";
+  }
   return "実況";
 }
 

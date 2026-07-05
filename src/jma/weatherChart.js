@@ -2,7 +2,8 @@ import { JMA_ENDPOINTS } from "../config.js";
 import { fetchText, parseJmaTime } from "./jmaClient.js";
 
 const WEATHER_CHART_TTL_MS = 10 * 60 * 1000;
-const WEATHER_CHART_MAX_ENTRIES = 18;
+const WEATHER_CHART_LOOKBACK_MS = 48 * 60 * 60 * 1000;
+const WEATHER_CHART_MAX_ENTRIES = 80;
 const WEATHER_CHART_CODE_PATTERN = /_VZS[AF]\d{2}_/;
 const WEATHER_CHART_TITLE_PATTERN = /地上(?:実況|予想)図|天気図/;
 const ISOBAR_MIN_COORDINATES = 4;
@@ -17,7 +18,7 @@ const EMPTY_FEATURE_COLLECTION = Object.freeze({
 });
 
 export async function fetchWeatherChart() {
-  const feedXml = await fetchText(JMA_ENDPOINTS.weatherXmlFeed, { ttlMs: WEATHER_CHART_TTL_MS });
+  const feedXml = await fetchWeatherChartFeedText();
   const feedDoc = parseXml(feedXml);
   const entries = findWeatherChartEntries(feedDoc);
   if (!entries.length) throw new Error("Weather chart XML entry not found");
@@ -37,6 +38,17 @@ export async function fetchWeatherChart() {
     sourceUrl: uniqueFrames[uniqueFrames.length - 1]?.sourceUrl ?? "",
     publishedAt: uniqueFrames[uniqueFrames.length - 1]?.publishedAt ?? null
   }, findLatestWeatherChartFrameIndex(uniqueFrames));
+}
+
+async function fetchWeatherChartFeedText() {
+  const primaryFeed = JMA_ENDPOINTS.weatherXmlLongFeed ?? JMA_ENDPOINTS.weatherXmlFeed;
+  try {
+    return await fetchText(primaryFeed, { ttlMs: WEATHER_CHART_TTL_MS });
+  } catch (error) {
+    if (primaryFeed === JMA_ENDPOINTS.weatherXmlFeed) throw error;
+    console.warn("[Weather Viewer] weather chart long feed load failed, fallback to regular feed", error);
+    return fetchText(JMA_ENDPOINTS.weatherXmlFeed, { ttlMs: WEATHER_CHART_TTL_MS });
+  }
 }
 
 export function activateWeatherChartFrame(weatherChart, index = 0) {
@@ -77,7 +89,7 @@ async function fetchWeatherChartFrame(entry) {
 }
 
 function findWeatherChartEntries(doc) {
-  return getElements(doc, "entry")
+  const entries = getElements(doc, "entry")
     .map((entry) => {
       const id = getText(getFirst(entry, "id"));
       const title = getText(getFirst(entry, "title"));
@@ -90,7 +102,12 @@ function findWeatherChartEntries(doc) {
       return { id, title, updatedAt, updatedTime, url: link };
     })
     .filter(isWeatherChartEntry)
-    .sort((a, b) => (Number.isFinite(b.updatedTime) ? b.updatedTime : 0) - (Number.isFinite(a.updatedTime) ? a.updatedTime : 0))
+    .sort((a, b) => (Number.isFinite(b.updatedTime) ? b.updatedTime : 0) - (Number.isFinite(a.updatedTime) ? a.updatedTime : 0));
+
+  const latestUpdatedTime = entries.find((entry) => Number.isFinite(entry.updatedTime))?.updatedTime ?? Date.now();
+  const cutoffTime = latestUpdatedTime - WEATHER_CHART_LOOKBACK_MS;
+  return entries
+    .filter((entry) => !Number.isFinite(entry.updatedTime) || entry.updatedTime >= cutoffTime)
     .slice(0, WEATHER_CHART_MAX_ENTRIES);
 }
 
@@ -175,6 +192,7 @@ function parseWeatherChartXml(doc) {
   const reportTime = parseJmaTime(getText(getFirst(doc, "ReportDateTime")));
   const headTargetTime = parseJmaTime(getText(getFirst(doc, "TargetDateTime")));
   const targetTime = parseWeatherChartValidTime(doc) ?? headTargetTime;
+  const forecastHours = calculateForecastHours(headTargetTime, targetTime);
   const lineFeatures = [];
   const pointFeatures = [];
 
@@ -200,7 +218,9 @@ function parseWeatherChartXml(doc) {
 
   return {
     reportTime,
+    baseTime: headTargetTime,
     targetTime,
+    forecastHours,
     lines: {
       type: "FeatureCollection",
       features: lineFeatures
@@ -211,6 +231,13 @@ function parseWeatherChartXml(doc) {
     },
     featureCount: lineFeatures.length + pointFeatures.length
   };
+}
+
+function calculateForecastHours(baseTime, targetTime) {
+  const base = new Date(baseTime ?? "").getTime();
+  const target = new Date(targetTime ?? "").getTime();
+  if (!Number.isFinite(base) || !Number.isFinite(target) || target <= base) return null;
+  return Math.round((target - base) / (60 * 60 * 1000));
 }
 
 function parseWeatherChartValidTime(doc) {
