@@ -173,7 +173,8 @@ function clampIndex(index, length) {
 
 function parseWeatherChartXml(doc) {
   const reportTime = parseJmaTime(getText(getFirst(doc, "ReportDateTime")));
-  const targetTime = parseJmaTime(getText(getFirst(doc, "TargetDateTime")));
+  const headTargetTime = parseJmaTime(getText(getFirst(doc, "TargetDateTime")));
+  const targetTime = parseWeatherChartValidTime(doc) ?? headTargetTime;
   const lineFeatures = [];
   const pointFeatures = [];
 
@@ -210,6 +211,15 @@ function parseWeatherChartXml(doc) {
     },
     featureCount: lineFeatures.length + pointFeatures.length
   };
+}
+
+function parseWeatherChartValidTime(doc) {
+  const meteorologicalInfo = getElements(doc, "MeteorologicalInfo")[0] ?? null;
+  if (!meteorologicalInfo) return null;
+
+  const dateTimeElement = [...meteorologicalInfo.childNodes]
+    .find((node) => node.nodeType === 1 && node.localName === "DateTime");
+  return parseJmaTime(getText(dateTimeElement)) || null;
 }
 
 function parseIsobar(property, baseIndex) {

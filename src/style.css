@@ -527,14 +527,17 @@ h2 {
   background: rgba(13, 23, 39, 0.78);
 }
 
-.radar-overlay-tabs {
-  grid-template-columns: minmax(0, auto) auto;
+.map-kikikuru-tabs.radar-overlay-tabs {
+  grid-template-columns: auto;
+  width: max-content;
+  min-width: 0;
   align-items: center;
-  column-gap: 10px;
+  column-gap: 0;
 }
 
-.radar-overlay-tabs .kikikuru-layer-button {
-  min-width: 92px;
+.map-kikikuru-tabs.radar-overlay-tabs .kikikuru-layer-button {
+  min-width: 76px;
+  padding-inline: 14px;
 }
 
 .radar-overlay-tabs .kikikuru-layer-button.loading {
@@ -3129,6 +3132,16 @@ h2 {
     padding: 7px 10px;
     border-radius: 9px;
     font-size: 12px;
+  }
+
+  .map-kikikuru-tabs.radar-overlay-tabs {
+    grid-template-columns: auto;
+    width: max-content;
+  }
+
+  .map-kikikuru-tabs.radar-overlay-tabs .kikikuru-layer-button {
+    min-width: 72px;
+    padding-inline: 13px;
   }
 
   .map-legend {

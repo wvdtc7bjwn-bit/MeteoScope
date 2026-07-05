@@ -137,10 +137,38 @@ export function setupWeatherChartControls({ onSeek, onStep, onGoLatest }) {
   const root = document.getElementById("weather-chart-controls");
   if (!root) return;
 
+  let draggingSlider = null;
+  const commitSlider = (slider) => {
+    if (!slider || slider.id !== "weather-chart-time-slider") return;
+    onSeek?.(Number(slider.value));
+  };
+
+  root.addEventListener("pointerdown", (event) => {
+    if (!(event.target instanceof HTMLInputElement)) return;
+    if (event.target.id !== "weather-chart-time-slider") return;
+    draggingSlider = event.target;
+    event.target.setPointerCapture?.(event.pointerId);
+  });
+
   root.addEventListener("input", (event) => {
     if (!(event.target instanceof HTMLInputElement)) return;
     if (event.target.id !== "weather-chart-time-slider") return;
-    onSeek?.(Number(event.target.value));
+    updateWeatherChartSliderPreview(event.target);
+    if (draggingSlider !== event.target) commitSlider(event.target);
+  });
+
+  root.addEventListener("change", (event) => {
+    if (!(event.target instanceof HTMLInputElement)) return;
+    commitSlider(event.target);
+  });
+
+  root.addEventListener("pointerup", () => {
+    commitSlider(draggingSlider);
+    draggingSlider = null;
+  });
+
+  root.addEventListener("pointercancel", () => {
+    draggingSlider = null;
   });
 
   root.addEventListener("click", (event) => {
@@ -443,14 +471,11 @@ function renderRadarOverlayTabs(tab, weatherChartEnabled = false, weatherChartSt
   }
 
   const isLoading = weatherChartEnabled && weatherChartStatus === "loading";
-  const weatherChartTime = weatherChart?.latestTime ? formatWarningTime(weatherChart.latestTime) : "";
   const metaText = isLoading
     ? "取得中"
     : weatherChartStatus === "error"
       ? "取得失敗"
-      : weatherChartTime
-        ? `${weatherChartTime}時点`
-        : "";
+      : "";
   root.innerHTML = `
     <button
       type="button"
@@ -574,6 +599,8 @@ function renderWeatherChartControls(tab, enabled = false, status = "idle", weath
       max="${Math.max(0, frames.length - 1)}"
       value="${activeIndex}"
       ${frames.length <= 1 ? "disabled" : ""}
+      data-frame-count="${frames.length}"
+      data-reference-index="${sliderBackgroundIndex}"
       style="background:${escapeHtml(buildSliderBackground(activeIndex, sliderBackgroundIndex, frames.length))};"
       aria-label="天気図の時刻を選択"
     />
@@ -724,6 +751,14 @@ function clampIndex(index, length) {
 function buildProgressPercent(index, length) {
   if (!length || length <= 1 || index < 0) return "0%";
   return `${Math.max(0, Math.min(100, (index / (length - 1)) * 100))}%`;
+}
+
+function updateWeatherChartSliderPreview(slider) {
+  const activeIndex = Number(slider.value);
+  const length = Number(slider.dataset.frameCount) || Number(slider.max) + 1;
+  const referenceIndex = Number(slider.dataset.referenceIndex);
+  const observedIndex = Number.isFinite(referenceIndex) ? referenceIndex : activeIndex;
+  slider.style.background = buildSliderBackground(activeIndex, observedIndex, length);
 }
 
 function buildSliderBackground(activeIndex, observedIndex, length) {
