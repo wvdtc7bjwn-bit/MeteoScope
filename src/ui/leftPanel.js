@@ -449,23 +449,32 @@ function renderTyphoonSelector(tab, state) {
   }
 
   const activeId = String(state.data?.selectedTyphoonId ?? typhoons[0]?.id ?? "");
-  root.innerHTML = typhoons.map((typhoon, index) => {
+  const activeIndex = Math.max(0, typhoons.findIndex((typhoon, index) => {
     const id = String(typhoon.id ?? `typhoon-${index}`);
-    const isActive = id === activeId;
-    const name = typhoon.details?.name ?? typhoon.name ?? `台風 ${index + 1}`;
-    const time = typhoon.updatedAt ? `<span>${escapeHtml(typhoon.updatedAt)}</span>` : "";
-    return `
-      <button
-        type="button"
-        class="typhoon-select-button${isActive ? " active" : ""}"
-        data-typhoon-id="${escapeHtml(id)}"
-        aria-pressed="${isActive ? "true" : "false"}"
-      >
+    return id === activeId;
+  }));
+  const activeTyphoon = typhoons[activeIndex] ?? typhoons[0];
+  const nextIndex = typhoons.length > 1 ? (activeIndex + 1) % typhoons.length : activeIndex;
+  const nextTyphoon = typhoons[nextIndex] ?? activeTyphoon;
+  const nextId = String(nextTyphoon?.id ?? `typhoon-${nextIndex}`);
+  const name = activeTyphoon.details?.name ?? activeTyphoon.name ?? `台風 ${activeIndex + 1}`;
+  const time = activeTyphoon.updatedAt ? `<span>${escapeHtml(activeTyphoon.updatedAt)}</span>` : "";
+  const count = typhoons.length > 1 ? `<em>${activeIndex + 1}/${typhoons.length}</em>` : "";
+  const nextName = nextTyphoon?.details?.name ?? nextTyphoon?.name ?? `台風 ${nextIndex + 1}`;
+  root.innerHTML = `
+    <button
+      type="button"
+      class="typhoon-select-button active typhoon-select-button-cycle"
+      data-typhoon-id="${escapeHtml(nextId)}"
+      aria-label="${escapeHtml(typhoons.length > 1 ? `次の台風 ${nextName} に切り替え` : `${name} を表示`)}"
+    >
+      <div class="typhoon-select-text">
         <strong>${escapeHtml(name)}</strong>
         ${time}
-      </button>
-    `;
-  }).join("");
+      </div>
+      ${count}
+    </button>
+  `;
 }
 
 export function setupWarningAreaSelection(options = {}) {
@@ -987,9 +996,9 @@ function renderTyphoonDetails(tab, state) {
     ["大きさ", details.size],
     ["強さ", details.strength],
     ["中心気圧", details.pressure],
-    ["移動", formatTyphoonMovement(details.direction, details.speed)],
+    ["最大瞬間風速", details.maxGust],
     ["最大風速", details.maxWind],
-    ["最大瞬間風速", details.maxGust]
+    ["移動", formatTyphoonMovement(details.direction, details.speed)]
   ].map(([label, value]) => `
     <div class="typhoon-detail-item">
       <span>${escapeHtml(label)}</span>
