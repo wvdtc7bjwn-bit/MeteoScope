@@ -1,7 +1,7 @@
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeSelector, setupKikikuruLayerToggles, setupRadarControls, setupTyphoonSelector, setupWarningAreaSelection, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeSelector, setupKikikuruLayerToggles, setupRadarControls, setupRadarOverlayToggle, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
@@ -17,6 +17,7 @@ import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
 import { fetchEarthquakeXmlList } from "./jma/earthquakeXml.js";
 import { fetchKikikuruTiles } from "./jma/kikikuru.js";
+import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFrameIndex } from "./jma/weatherChart.js";
 import { resolveCurrentLocationInfo, searchMunicipalities } from "./location/currentLocation.js";
 import { addMyArea, getMyAreaLimit, loadMyAreas, removeMyArea } from "./location/myAreas.js";
 import { buildLocationRadarTimeline } from "./location/radarTimeline.js";
@@ -31,6 +32,7 @@ const loaders = {
 
 const KIKIKURU_DATA_TTL_MS = 60 * 1000;
 const WARNING_DETAILS_TTL_MS = 60 * 1000;
+const WEATHER_CHART_DATA_TTL_MS = 10 * 60 * 1000;
 const LOCATION_WATCH_OPTIONS = {
   enableHighAccuracy: false,
   timeout: 20000,
@@ -77,6 +79,12 @@ export function createWeatherApp() {
   let locationWatchId = null;
   let locationResolveRequestId = 0;
   let lastResolvedLocation = null;
+  let weatherChartEnabled = false;
+  let weatherChartStatus = "idle";
+  let weatherChartData = null;
+  let weatherChartLoadedAt = 0;
+  let weatherChartRequest = null;
+  let activeWeatherChartFrameIndex = 0;
   const loadRequestsByTab = new Map();
   let warningDetailsRequest = null;
   let warningKikikuruRequest = null;
@@ -114,7 +122,9 @@ export function createWeatherApp() {
         radarPlaying: Boolean(radarPlayTimer),
         currentLocation: currentLocationInfo,
         myAreas,
-        locationInsights: buildLocationInsights(tab.id, null)
+        locationInsights: buildLocationInsights(tab.id, null),
+        weatherChartEnabled,
+        weatherChartStatus
       });
     }
 
@@ -137,7 +147,9 @@ export function createWeatherApp() {
         radarPlaying: Boolean(radarPlayTimer),
         currentLocation: currentLocationInfo,
         myAreas,
-        locationInsights: buildLocationInsights(tab.id, null)
+        locationInsights: buildLocationInsights(tab.id, null),
+        weatherChartEnabled,
+        weatherChartStatus
       });
     }
   }
@@ -239,6 +251,11 @@ export function createWeatherApp() {
 
   function updateCurrentView(tab, data) {
     const displayData = buildDisplayData(tab, data);
+    if (tab.id === "radar") {
+      displayData.weatherChartEnabled = weatherChartEnabled;
+      displayData.weatherChartStatus = weatherChartStatus;
+      displayData.weatherChart = weatherChartData;
+    }
     if (tab.id === "radar") ensureLocationRadarTimeline(displayData);
     updateLeftPanel(tab, {
       status: "ok",
@@ -249,7 +266,9 @@ export function createWeatherApp() {
       radarPlaying: Boolean(radarPlayTimer),
       currentLocation: currentLocationInfo,
       myAreas,
-      locationInsights: buildLocationInsights(tab.id, displayData)
+      locationInsights: buildLocationInsights(tab.id, displayData),
+      weatherChartEnabled,
+      weatherChartStatus
     });
     weatherMap?.renderData(tab.id, displayData);
   }
@@ -270,7 +289,7 @@ export function createWeatherApp() {
       activeFrame,
       latestTime: activeFrame?.label ?? data.latestTime,
       latestRawTime: activeFrame?.validtime ?? data.latestRawTime,
-      radarTileUrl: activeFrame?.radarTileUrl ?? data.radarTileUrl
+      radarTileUrl: weatherChartEnabled ? null : (activeFrame?.radarTileUrl ?? data.radarTileUrl)
     };
   }
 
@@ -439,6 +458,24 @@ export function createWeatherApp() {
     selectRadarFrame(latestObservationIndex >= 0 ? latestObservationIndex : radarData.frames.length - 1);
   }
 
+  function selectWeatherChartFrame(index) {
+    if (activeTab !== "radar" || !weatherChartData?.frames?.length) return;
+    activeWeatherChartFrameIndex = clampRadarIndex(index, weatherChartData.frames);
+    weatherChartData = activateWeatherChartFrame(weatherChartData, activeWeatherChartFrameIndex);
+    weatherChartStatus = "ok";
+    refreshRadarPanel();
+  }
+
+  function stepWeatherChartFrame(delta) {
+    if (!weatherChartData?.frames?.length) return;
+    selectWeatherChartFrame((weatherChartData.activeFrameIndex ?? activeWeatherChartFrameIndex) + delta);
+  }
+
+  function goLatestWeatherChartFrame() {
+    if (!weatherChartData?.frames?.length) return;
+    selectWeatherChartFrame(findLatestWeatherChartFrameIndex(weatherChartData.frames));
+  }
+
   function toggleRadarPlayback() {
     if (radarPlayTimer) {
       stopRadarPlayback();
@@ -468,6 +505,59 @@ export function createWeatherApp() {
     if (activeTab !== "radar" || !latestDataByTab.radar) return;
     const tab = TABS.find((item) => item.id === "radar");
     updateCurrentView(tab, latestDataByTab.radar);
+  }
+
+  async function toggleWeatherChartOverlay(overlayId) {
+    if (overlayId !== "weather-chart") return;
+    weatherChartEnabled = !weatherChartEnabled;
+    if (weatherChartEnabled) stopRadarPlayback();
+
+    if (!weatherChartEnabled) {
+      weatherChartStatus = weatherChartData ? "ok" : "idle";
+      refreshRadarPanel();
+      return;
+    }
+
+    if (hasFreshWeatherChartData()) {
+      weatherChartStatus = "ok";
+      refreshRadarPanel();
+      return;
+    }
+
+    weatherChartStatus = "loading";
+    refreshRadarPanel();
+    try {
+      await refreshWeatherChartData();
+      weatherChartStatus = "ok";
+    } catch (error) {
+      console.warn("[Weather Viewer] weather chart load failed", error);
+      weatherChartStatus = "error";
+    }
+    refreshRadarPanel();
+  }
+
+  async function refreshWeatherChartData() {
+    if (hasFreshWeatherChartData()) return weatherChartData;
+    if (weatherChartRequest) return weatherChartRequest;
+    weatherChartRequest = fetchWeatherChart()
+      .then((data) => {
+        activeWeatherChartFrameIndex = Number.isInteger(data.activeFrameIndex) ? data.activeFrameIndex : 0;
+        weatherChartData = activateWeatherChartFrame(data, activeWeatherChartFrameIndex);
+        weatherChartLoadedAt = Date.now();
+        return weatherChartData;
+      })
+      .finally(() => {
+        weatherChartRequest = null;
+      });
+    return weatherChartRequest;
+  }
+
+  function hasFreshWeatherChartData() {
+    return Boolean(
+      (weatherChartData?.featureCount > 0 || weatherChartData?.frames?.some((frame) => frame.featureCount > 0)) &&
+      weatherChartLoadedAt > 0 &&
+      Date.now() - weatherChartLoadedAt < WEATHER_CHART_DATA_TTL_MS
+    );
   }
 
   function refreshAmedasPanel() {
@@ -712,7 +802,9 @@ export function createWeatherApp() {
       radarPlaying: Boolean(radarPlayTimer),
       currentLocation: currentLocationInfo,
       myAreas,
-      locationInsights: buildLocationInsights(tab.id, null)
+      locationInsights: buildLocationInsights(tab.id, null),
+      weatherChartEnabled,
+      weatherChartStatus
     });
   }
 
@@ -929,6 +1021,12 @@ export function createWeatherApp() {
       onStep: stepRadarFrame,
       onTogglePlay: toggleRadarPlayback,
       onGoLatest: goLatestRadarObservation
+    });
+    setupRadarOverlayToggle({ onChange: toggleWeatherChartOverlay });
+    setupWeatherChartControls({
+      onSeek: selectWeatherChartFrame,
+      onStep: stepWeatherChartFrame,
+      onGoLatest: goLatestWeatherChartFrame
     });
     setupLegendToggle();
     setupPanelToggle({ onLayoutChange: () => weatherMap?.resize() });

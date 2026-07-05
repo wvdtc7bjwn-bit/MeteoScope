@@ -56,6 +56,7 @@
             <button id="radar-now" class="radar-action-button" type="button">現在</button>
             <button id="radar-next" class="radar-action-button" type="button">5分後</button>
           </div>
+          <div id="weather-chart-controls" class="weather-chart-controls" hidden></div>
         </div>
         <p id="panel-description" class="panel-description">気象庁データを使用して雨雲、アメダス、警報・注意報、台風情報を表示します。</p>
         <div id="amedas-ranking" class="amedas-ranking" hidden></div>
@@ -72,6 +73,7 @@
       <div id="map"></div>
       <div id="clock"></div>
       <button id="locate-button" class="map-locate-button" type="button" aria-label="現在地の気象情報を表示" title="現在地"></button>
+      <div id="radar-overlay-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs radar-overlay-tabs" hidden></div>
       <div id="kikikuru-layer-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs" hidden></div>
       <section id="map-legend" class="map-legend" aria-label="凡例">
         <button id="legend-toggle" class="legend-toggle" type="button" aria-expanded="true" aria-controls="legend-list">

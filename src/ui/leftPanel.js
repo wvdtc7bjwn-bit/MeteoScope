@@ -45,16 +45,18 @@ export function updateLeftPanel(tab, state = {}) {
   const amedasMetric = getAmedasMetric(state.amedasMetric ?? state.data?.activeMetric);
   const warningView = state.warningView ?? state.data?.activeWarningView ?? "status";
   const activeKikikuruLayer = state.activeKikikuruLayer ?? state.data?.activeKikikuruLayer ?? KIKIKURU_LAYER_OPTIONS[0]?.id;
-  setText("mode-label", tab.label);
+  setText("mode-label", tab.id === "radar" && state.weatherChartEnabled ? "天気図" : tab.label);
   setText("panel-title", buildPanelTitle(tab, state));
   setPanelTitleVisible(false);
   setText("panel-description", buildDescription(tab, state));
   setText("panel-time", buildTimeText(state));
   setPanelTimeVisible(tab.id !== "radar" && tab.id !== "typhoon" && tab.id !== "earthquake");
   renderCurrentLocationCard(tab, state.currentLocation);
+  renderRadarOverlayTabs(tab, state.weatherChartEnabled, state.weatherChartStatus, state.weatherChart ?? state.data?.weatherChart);
   renderKikikuruLayerTabs(tab, warningView, activeKikikuruLayer);
   renderAmedasSubTabs(tab, amedasMetric.id);
   renderRadarControls(tab, state);
+  renderWeatherChartControls(tab, state.weatherChartEnabled, state.weatherChartStatus, state.weatherChart ?? state.data?.weatherChart);
   renderLocationInsights(tab, state.locationInsights, state.myAreas);
   renderWarningDetails(tab, state, warningView);
   renderTyphoonSelector(tab, state);
@@ -119,6 +121,39 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
   document.getElementById("radar-now")?.addEventListener("click", () => onGoLatest?.());
 }
 
+export function setupRadarOverlayToggle({ onChange }) {
+  const root = document.getElementById("radar-overlay-tabs");
+  if (!root) return;
+
+  root.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest("[data-radar-overlay]");
+    if (!button) return;
+    onChange?.(button.dataset.radarOverlay);
+  });
+}
+
+export function setupWeatherChartControls({ onSeek, onStep, onGoLatest }) {
+  const root = document.getElementById("weather-chart-controls");
+  if (!root) return;
+
+  root.addEventListener("input", (event) => {
+    if (!(event.target instanceof HTMLInputElement)) return;
+    if (event.target.id !== "weather-chart-time-slider") return;
+    onSeek?.(Number(event.target.value));
+  });
+
+  root.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest("[data-weather-chart-action]");
+    if (!button) return;
+    const action = button.dataset.weatherChartAction;
+    if (action === "prev") onStep?.(-1);
+    if (action === "next") onStep?.(1);
+    if (action === "latest") onGoLatest?.();
+  });
+}
+
 export function setupTyphoonSelector({ onChange }) {
   const root = document.getElementById("typhoon-selector");
   if (!root) return;
@@ -178,6 +213,11 @@ function buildDescription(tab, state) {
     if (state.status === "error") return "地震情報を取得できませんでした。";
     const count = state.data?.earthquakes?.length ?? 0;
     return count > 0 ? "" : "直近の地震情報はありません。";
+  }
+  if (tab.id === "radar" && state.weatherChartEnabled) {
+    if (state.weatherChartStatus === "loading") return "天気図データを取得中です。";
+    if (state.weatherChartStatus === "error") return "天気図データを取得できませんでした。";
+    return "気象庁の天気図を地図上に重ねています。";
   }
   if (state.status === "loading") return `${tab.description}\nデータを取得中です。`;
   if (state.status === "error") return `${tab.description}\n取得に失敗しました。CORSまたはURL変更の可能性があります。`;
@@ -391,6 +431,37 @@ function renderKikikuruLayerTabs(tab, warningView, activeLayer) {
   `).join("");
 }
 
+function renderRadarOverlayTabs(tab, weatherChartEnabled = false, weatherChartStatus = "idle", weatherChart = null) {
+  const root = document.getElementById("radar-overlay-tabs");
+  if (!root) return;
+
+  const isRadar = tab.id === "radar";
+  root.hidden = !isRadar;
+  if (!isRadar) {
+    root.innerHTML = "";
+    return;
+  }
+
+  const isLoading = weatherChartEnabled && weatherChartStatus === "loading";
+  const weatherChartTime = weatherChart?.latestTime ? formatWarningTime(weatherChart.latestTime) : "";
+  const metaText = isLoading
+    ? "取得中"
+    : weatherChartStatus === "error"
+      ? "取得失敗"
+      : weatherChartTime
+        ? `${weatherChartTime}時点`
+        : "";
+  root.innerHTML = `
+    <button
+      type="button"
+      class="kikikuru-layer-button${weatherChartEnabled ? " active" : ""}${isLoading ? " loading" : ""}"
+      data-radar-overlay="weather-chart"
+      aria-pressed="${weatherChartEnabled ? "true" : "false"}"
+    >${isLoading ? "取得中" : "天気図"}</button>
+    ${metaText ? `<span class="radar-overlay-meta">${escapeHtml(metaText)}</span>` : ""}
+  `;
+}
+
 function renderAmedasSubTabs(tab, activeMetricId) {
   const root = document.getElementById("amedas-sub-tabs");
   if (!root) return;
@@ -413,7 +484,9 @@ function renderRadarControls(tab, state) {
 
   const isRadar = tab.id === "radar";
   root.hidden = !isRadar;
+  root.classList.toggle("weather-chart-active", isRadar && Boolean(state.weatherChartEnabled));
   if (!isRadar) return;
+  if (state.weatherChartEnabled) return;
 
   const frames = state.data?.frames ?? [];
   const activeIndex = Number(state.data?.activeFrameIndex ?? 0);
@@ -434,6 +507,82 @@ function renderRadarControls(tab, state) {
   document.getElementById("radar-play")?.classList.toggle("playing", Boolean(state.radarPlaying));
   const playButton = document.getElementById("radar-play");
   if (playButton) playButton.textContent = state.radarPlaying ? "停止" : "再生";
+}
+
+function renderWeatherChartControls(tab, enabled = false, status = "idle", weatherChart = null) {
+  const root = document.getElementById("weather-chart-controls");
+  if (!root) return;
+
+  const shouldShow = tab.id === "radar" && enabled;
+  root.hidden = !shouldShow;
+  if (!shouldShow) {
+    root.innerHTML = "";
+    return;
+  }
+
+  const frames = Array.isArray(weatherChart?.frames)
+    ? weatherChart.frames
+    : (weatherChart?.featureCount > 0 ? [weatherChart] : []);
+  const activeIndex = clampIndex(weatherChart?.activeFrameIndex ?? 0, frames.length);
+  const activeFrame = frames[activeIndex] ?? weatherChart?.activeFrame ?? weatherChart;
+
+  if (status === "loading" && !frames.length) {
+    root.innerHTML = `
+      <div class="weather-chart-status">
+        <span class="weather-chart-kind">天気図</span>
+        <strong>取得中</strong>
+      </div>
+    `;
+    return;
+  }
+
+  if (status === "error" && !frames.length) {
+    root.innerHTML = `
+      <div class="weather-chart-status weather-chart-status-error">
+        <span class="weather-chart-kind">天気図</span>
+        <strong>取得失敗</strong>
+      </div>
+    `;
+    return;
+  }
+
+  if (!frames.length) {
+    root.innerHTML = `
+      <div class="weather-chart-status">
+        <span class="weather-chart-kind">天気図</span>
+        <strong>未取得</strong>
+      </div>
+    `;
+    return;
+  }
+
+  const latestAnalysisIndex = findLatestWeatherChartAnalysisIndex(frames);
+  const sliderBackgroundIndex = latestAnalysisIndex >= 0 ? latestAnalysisIndex : activeIndex;
+  const timeText = activeFrame?.latestTime ? formatWarningTime(activeFrame.latestTime) : "--";
+  const kindText = getWeatherChartFrameKindLabel(activeFrame);
+
+  root.innerHTML = `
+    <div class="weather-chart-head">
+      <span class="weather-chart-kind${activeFrame?.chartKind === "forecast" ? " forecast" : ""}">${escapeHtml(kindText)}</span>
+      <strong>${escapeHtml(timeText)}</strong>
+    </div>
+    <input
+      id="weather-chart-time-slider"
+      class="radar-time-slider weather-chart-time-slider"
+      type="range"
+      min="0"
+      max="${Math.max(0, frames.length - 1)}"
+      value="${activeIndex}"
+      ${frames.length <= 1 ? "disabled" : ""}
+      style="background:${escapeHtml(buildSliderBackground(activeIndex, sliderBackgroundIndex, frames.length))};"
+      aria-label="天気図の時刻を選択"
+    />
+    <div class="weather-chart-actions">
+      <button class="radar-action-button" type="button" data-weather-chart-action="prev"${activeIndex <= 0 ? " disabled" : ""}>前</button>
+      <button class="radar-action-button" type="button" data-weather-chart-action="latest">最新</button>
+      <button class="radar-action-button" type="button" data-weather-chart-action="next"${activeIndex >= frames.length - 1 ? " disabled" : ""}>次</button>
+    </div>
+  `;
 }
 
 function renderTyphoonSelector(tab, state) {
@@ -551,6 +700,25 @@ function countAmedasPoints(data = {}, metricId) {
 
 function findLatestObservationIndex(frames) {
   return frames.reduce((latestIndex, frame, index) => frame.isForecast ? latestIndex : index, -1);
+}
+
+function findLatestWeatherChartAnalysisIndex(frames) {
+  const now = Date.now() + 5 * 60 * 1000;
+  return frames.reduce((latestIndex, frame, index) => {
+    const time = new Date(frame?.latestTime ?? frame?.targetTime ?? frame?.reportTime ?? "").getTime();
+    if (frame?.chartKind === "forecast" || !Number.isFinite(time) || time > now) return latestIndex;
+    return index;
+  }, -1);
+}
+
+function getWeatherChartFrameKindLabel(frame) {
+  if (frame?.chartKind === "forecast") return "予想";
+  return "実況";
+}
+
+function clampIndex(index, length) {
+  if (!length) return 0;
+  return Math.max(0, Math.min(length - 1, Number(index) || 0));
 }
 
 function buildProgressPercent(index, length) {

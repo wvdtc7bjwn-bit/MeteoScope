@@ -50,6 +50,24 @@ const TYPHOON_FORECAST_INFO_LAYERS = [
 const WIND_ARROW_IMAGE_ID = "amedas-wind-arrow";
 const RADAR_SOURCE_PREFIX = "jma-nowcast-radar-z";
 const RADAR_LAYER_PREFIX = "jma-nowcast-radar-z";
+const WEATHER_CHART_LINE_SOURCE_ID = "jma-weather-chart-lines";
+const WEATHER_CHART_POINT_SOURCE_ID = "jma-weather-chart-points";
+const WEATHER_CHART_LAYERS = [
+  "weather-chart-isobar-line",
+  "weather-chart-front-line",
+  "weather-chart-front-cold-symbol",
+  "weather-chart-front-warm-symbol",
+  "weather-chart-front-occluded-triangle-symbol",
+  "weather-chart-front-occluded-semicircle-symbol",
+  "weather-chart-pressure-point",
+  "weather-chart-isobar-label",
+  "weather-chart-pressure-label"
+];
+const WEATHER_CHART_MAX_ZOOM = 6.4;
+const WEATHER_FRONT_COLD_IMAGE_ID = "weather-front-cold-triangle";
+const WEATHER_FRONT_WARM_IMAGE_ID = "weather-front-warm-semicircle";
+const WEATHER_FRONT_OCCLUDED_TRIANGLE_IMAGE_ID = "weather-front-occluded-triangle";
+const WEATHER_FRONT_OCCLUDED_SEMICIRCLE_IMAGE_ID = "weather-front-occluded-semicircle";
 const KIKIKURU_SOURCE_PREFIX = "jma-kikikuru";
 const KIKIKURU_LAYER_PREFIX = "jma-kikikuru";
 const KIKIKURU_ZOOM_LEVELS = [
@@ -90,6 +108,7 @@ let warningMunicipalityDataPromise = null;
 const baseMunicipalitySourceCache = new WeakMap();
 const warningFeatureCollectionCache = new WeakMap();
 const kikikuruTileUrlCache = new Map();
+const weatherChartZoomLimitCache = new WeakMap();
 
 export function createWeatherMap(elementId) {
   let map = null;
@@ -133,6 +152,7 @@ export function createWeatherMap(elementId) {
     Object.values(MODE_CLASS).forEach((className) => container.classList.remove(className));
     container.classList.add(MODE_CLASS[mode] ?? MODE_CLASS.radar);
     setRadarVisible(map, mode === "radar");
+    if (mode !== "radar") setWeatherChartVisible(map, false);
     if (mode !== "warnings") {
       setKikikuruVisible(map, false);
     }
@@ -151,6 +171,7 @@ export function createWeatherMap(elementId) {
     const typhoonCollection = updateTyphoonLayers(mode, data);
     updateWarningAreaLookup(mode, data);
     updateRadarLayer(map, mode, data);
+    updateWeatherChartLayer(map, mode, data);
     updateKikikuruLayer(map, mode, data);
     updateWarningMunicipalityPaint(map, mode, data);
   }
@@ -224,8 +245,17 @@ export function createWeatherMap(elementId) {
       type: "geojson",
       data: createEmptyFeatureCollection()
     });
+    map.addSource(WEATHER_CHART_LINE_SOURCE_ID, {
+      type: "geojson",
+      data: createEmptyFeatureCollection()
+    });
+    map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
+      type: "geojson",
+      data: createEmptyFeatureCollection()
+    });
     setupWindArrowImage(map);
     setupWarningHatchImage(map);
+    setupWeatherFrontImages(map);
 
     map.addLayer({
       id: WARNING_HATCH_LAYER_ID,
@@ -392,6 +422,8 @@ export function createWeatherMap(elementId) {
         "text-halo-blur": 0.4
       }
     });
+
+    addWeatherChartLayers(map);
 
     map.addLayer({
       id: "current-location-halo",
@@ -956,6 +988,228 @@ function setupWarningHatchImage(map) {
   map.addImage(WARNING_HATCH_IMAGE_ID, context.getImageData(0, 0, size, size));
 }
 
+function setupWeatherFrontImages(map) {
+  addWeatherFrontImage(map, WEATHER_FRONT_COLD_IMAGE_ID, "triangle-down", "#3f6dff");
+  addWeatherFrontImage(map, WEATHER_FRONT_WARM_IMAGE_ID, "semicircle", "#d86c5f");
+  addWeatherFrontImage(map, WEATHER_FRONT_OCCLUDED_TRIANGLE_IMAGE_ID, "triangle", "#b579ff");
+  addWeatherFrontImage(map, WEATHER_FRONT_OCCLUDED_SEMICIRCLE_IMAGE_ID, "semicircle", "#b579ff");
+}
+
+function addWeatherFrontImage(map, imageId, shape, color) {
+  if (map.hasImage(imageId)) return;
+
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+
+  context.clearRect(0, 0, size, size);
+  context.fillStyle = color;
+  context.strokeStyle = "rgba(5, 9, 20, 0.46)";
+  context.lineWidth = 1.5;
+
+  if (shape === "triangle" || shape === "triangle-down") {
+    const points = shape === "triangle-down"
+      ? [[9, 16], [55, 16], [32, 56]]
+      : [[32, 8], [55, 48], [9, 48]];
+    context.beginPath();
+    context.moveTo(points[0][0], points[0][1]);
+    context.lineTo(points[1][0], points[1][1]);
+    context.lineTo(points[2][0], points[2][1]);
+    context.closePath();
+    context.fill();
+    context.stroke();
+  } else {
+    context.beginPath();
+    context.arc(32, 46, 22, Math.PI, 0, false);
+    context.lineTo(54, 46);
+    context.lineTo(10, 46);
+    context.closePath();
+    context.fill();
+    context.stroke();
+  }
+
+  map.addImage(imageId, context.getImageData(0, 0, size, size), { pixelRatio: 1.5 });
+}
+
+function addWeatherChartLayers(map) {
+  map.addLayer({
+    id: "weather-chart-isobar-line",
+    type: "line",
+    source: WEATHER_CHART_LINE_SOURCE_ID,
+    filter: ["==", ["get", "kind"], "isobar"],
+    layout: {
+      visibility: "none",
+      "line-cap": "round",
+      "line-join": "round"
+    },
+    paint: {
+      "line-color": "rgba(246, 250, 255, 0.78)",
+      "line-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0.45, 6, 0.72, 9, 0.88],
+      "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.65, 7, 1.15, 10, 1.8]
+    }
+  });
+
+  map.addLayer({
+    id: "weather-chart-front-line",
+    type: "line",
+    source: WEATHER_CHART_LINE_SOURCE_ID,
+    filter: ["==", ["get", "kind"], "front"],
+    layout: {
+      visibility: "none",
+      "line-cap": "round",
+      "line-join": "round"
+    },
+    paint: {
+      "line-color": [
+        "match",
+        ["get", "frontStyle"],
+        "cold",
+        "#416eff",
+        "warm",
+        "#c76a61",
+        "occluded",
+        "#b579ff",
+        "stationary-cold",
+        "#416eff",
+        "stationary-warm",
+        "#c76a61",
+        "#f8fbff"
+      ],
+      "line-opacity": 0.96,
+      "line-width": ["interpolate", ["linear"], ["zoom"], 3, 1.8, 6, 2.6, 8, 3.4]
+    }
+  });
+
+  addWeatherFrontSymbolLayer(map, {
+    id: "weather-chart-front-cold-symbol",
+    frontSymbol: "cold",
+    imageId: WEATHER_FRONT_COLD_IMAGE_ID,
+    offset: [0, 12],
+    spacing: 90
+  });
+  addWeatherFrontSymbolLayer(map, {
+    id: "weather-chart-front-warm-symbol",
+    frontSymbol: "warm",
+    imageId: WEATHER_FRONT_WARM_IMAGE_ID,
+    offset: [0, -12],
+    spacing: 90
+  });
+  addWeatherFrontSymbolLayer(map, {
+    id: "weather-chart-front-occluded-triangle-symbol",
+    frontSymbol: "occluded",
+    imageId: WEATHER_FRONT_OCCLUDED_TRIANGLE_IMAGE_ID,
+    offset: [0, 12],
+    spacing: 104
+  });
+  addWeatherFrontSymbolLayer(map, {
+    id: "weather-chart-front-occluded-semicircle-symbol",
+    frontSymbol: "occluded",
+    imageId: WEATHER_FRONT_OCCLUDED_SEMICIRCLE_IMAGE_ID,
+    offset: [0, -10],
+    spacing: 104
+  });
+
+  map.addLayer({
+    id: "weather-chart-pressure-point",
+    type: "circle",
+    source: WEATHER_CHART_POINT_SOURCE_ID,
+    layout: {
+      visibility: "none"
+    },
+    paint: {
+      "circle-color": [
+        "match",
+        ["get", "kind"],
+        "high",
+        "#1b7dff",
+        "low",
+        "#ff3b30",
+        "typhoon",
+        "#ff5a36",
+        "#f8fbff"
+      ],
+      "circle-opacity": 0.9,
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 9, 7, 13, 10, 17],
+      "circle-stroke-color": "#f8fbff",
+      "circle-stroke-width": 1.4
+    }
+  });
+
+  map.addLayer({
+    id: "weather-chart-isobar-label",
+    type: "symbol",
+    source: WEATHER_CHART_LINE_SOURCE_ID,
+    minzoom: 4.5,
+    filter: ["all", ["==", ["get", "kind"], "isobar"], ["has", "label"]],
+    layout: {
+      visibility: "none",
+      "symbol-placement": "line",
+      "text-field": ["get", "label"],
+      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 4.5, 9, 8, 11],
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+      "text-padding": 4
+    },
+    paint: {
+      "text-color": "rgba(246, 250, 255, 0.86)",
+      "text-halo-color": "rgba(5, 9, 20, 0.82)",
+      "text-halo-width": 1.6
+    }
+  });
+
+  map.addLayer({
+    id: "weather-chart-pressure-label",
+    type: "symbol",
+    source: WEATHER_CHART_POINT_SOURCE_ID,
+    minzoom: 3,
+    layout: {
+      visibility: "none",
+      "text-field": ["get", "label"],
+      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 3, 14, 7, 18, 10, 24],
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+      "text-offset": [0, 0],
+      "text-anchor": "center"
+    },
+    paint: {
+      "text-color": "#f8fbff",
+      "text-halo-color": "rgba(5, 9, 20, 0.92)",
+      "text-halo-width": 2.2,
+      "text-halo-blur": 0.25
+    }
+  });
+}
+
+function addWeatherFrontSymbolLayer(map, options) {
+  map.addLayer({
+    id: options.id,
+    type: "symbol",
+    source: WEATHER_CHART_LINE_SOURCE_ID,
+    filter: ["all", ["==", ["get", "kind"], "front"], ["==", ["get", "frontSymbol"], options.frontSymbol]],
+    layout: {
+      visibility: "none",
+      "symbol-placement": "line",
+      "symbol-spacing": options.spacing,
+      "icon-image": options.imageId,
+      "icon-size": ["interpolate", ["linear"], ["zoom"], 3, 0.42, 6, 0.58, 8, 0.72],
+      "icon-offset": options.offset,
+      "icon-rotation-alignment": "map",
+      "icon-pitch-alignment": "map",
+      "icon-allow-overlap": true,
+      "icon-ignore-placement": true,
+      "icon-keep-upright": false
+    },
+    paint: {
+      "icon-opacity": 0.96
+    }
+  });
+}
+
 function isSmallNaturalEarthJapanFeature(feature) {
   const bounds = computeGeometryBounds(feature?.geometry);
   if (!Number.isFinite(bounds.minLng)) return false;
@@ -1175,7 +1429,7 @@ function updateWarningHatchPaint(map, activeAreas) {
 }
 
 function updateRadarLayer(map, mode, data = {}) {
-  if (mode !== "radar" || !data?.radarTileUrl) {
+  if (mode !== "radar" || data?.weatherChartEnabled || !data?.radarTileUrl) {
     setRadarVisible(map, false);
     return;
   }
@@ -1245,6 +1499,46 @@ function getRadarLayerId(id) {
 
 function getRadarTileUrl(tileUrl, level) {
   return tileUrl.replace("{z}", String(level.z));
+}
+
+function updateWeatherChartLayer(map, mode, data = {}) {
+  const shouldShow = mode === "radar" && data?.weatherChartEnabled && data?.weatherChart?.featureCount > 0;
+  if (!shouldShow) {
+    setWeatherChartVisible(map, false);
+    return;
+  }
+
+  map.getSource(WEATHER_CHART_LINE_SOURCE_ID)?.setData(data.weatherChart.lines ?? createEmptyFeatureCollection());
+  map.getSource(WEATHER_CHART_POINT_SOURCE_ID)?.setData(data.weatherChart.points ?? createEmptyFeatureCollection());
+  setWeatherChartVisible(map, true);
+}
+
+function setWeatherChartVisible(map, isVisible) {
+  WEATHER_CHART_LAYERS.forEach((layerId) => {
+    if (map?.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, "visibility", isVisible ? "visible" : "none");
+    }
+  });
+  setWeatherChartZoomLimit(map, isVisible);
+}
+
+function setWeatherChartZoomLimit(map, shouldLimit) {
+  if (!map?.setMaxZoom) return;
+
+  const isLimited = weatherChartZoomLimitCache.get(map) === true;
+  if (isLimited === shouldLimit) return;
+
+  weatherChartZoomLimitCache.set(map, shouldLimit);
+  const maxZoom = shouldLimit ? WEATHER_CHART_MAX_ZOOM : DEFAULT_VIEW.maxZoom;
+  map.setMaxZoom(maxZoom);
+
+  if (shouldLimit && map.getZoom() > maxZoom) {
+    map.easeTo({
+      zoom: maxZoom,
+      duration: 260,
+      essential: true
+    });
+  }
 }
 
 function updateKikikuruLayer(map, mode, data = {}) {

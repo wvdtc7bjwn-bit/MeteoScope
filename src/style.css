@@ -527,6 +527,28 @@ h2 {
   background: rgba(13, 23, 39, 0.78);
 }
 
+.radar-overlay-tabs {
+  grid-template-columns: minmax(0, auto) auto;
+  align-items: center;
+  column-gap: 10px;
+}
+
+.radar-overlay-tabs .kikikuru-layer-button {
+  min-width: 92px;
+}
+
+.radar-overlay-tabs .kikikuru-layer-button.loading {
+  color: #bfe9ff;
+}
+
+.radar-overlay-meta {
+  color: rgba(220, 232, 247, 0.78);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .warning-detail-list {
   display: grid;
   gap: 0;
@@ -2082,6 +2104,74 @@ h2 {
   display: none;
 }
 
+.radar-time-controls.weather-chart-active > .radar-time-head,
+.radar-time-controls.weather-chart-active > .location-insight-panel,
+.radar-time-controls.weather-chart-active > .radar-time-slider,
+.radar-time-controls.weather-chart-active > .radar-time-actions {
+  display: none;
+}
+
+.weather-chart-controls {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.weather-chart-controls[hidden] {
+  display: none;
+}
+
+.weather-chart-head,
+.weather-chart-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.weather-chart-kind {
+  flex: none;
+  min-width: 42px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(76, 183, 242, 0.16);
+  color: #bfe9ff;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: center;
+}
+
+.weather-chart-kind.forecast {
+  background: rgba(72, 196, 107, 0.18);
+  color: #c7f6d1;
+}
+
+.weather-chart-head strong,
+.weather-chart-status strong {
+  min-width: 0;
+  color: #f8fbff;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-align: right;
+}
+
+.weather-chart-status-error strong {
+  color: #ffd4d4;
+}
+
+.weather-chart-time-slider {
+  margin-bottom: 12px;
+}
+
+.weather-chart-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
 .radar-time-head {
   display: flex;
   align-items: center;
@@ -2177,6 +2267,11 @@ h2 {
   border-color: rgba(76, 183, 242, 0.42);
   background: rgba(76, 183, 242, 0.18);
   color: var(--type-bottom-nav-active-color);
+}
+
+.radar-action-button:disabled {
+  opacity: 0.48;
+  cursor: default;
 }
 
 .legend-list {
