@@ -2277,7 +2277,7 @@ function stitchStormWarningAreaSegments(segments) {
   const closedPaths = sortedPaths.filter((path) =>
     path.length >= 4 && getMercatorPixelDistanceSq(path[0], path.at(-1)) < 4
   );
-  return (closedPaths.length > 0 ? closedPaths : sortedPaths).slice(0, 1);
+  return closedPaths.length > 0 ? closedPaths : sortedPaths;
 }
 
 function getStormWarningEndpointNode(nodes, point) {
