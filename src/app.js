@@ -21,6 +21,7 @@ import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFra
 import { resolveCurrentLocationInfo, searchMunicipalities } from "./location/currentLocation.js";
 import { addMyArea, getMyAreaLimit, loadMyAreas, removeMyArea } from "./location/myAreas.js";
 import { buildLocationRadarTimeline } from "./location/radarTimeline.js";
+import { setupRemoteConfig } from "./remoteConfig.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -54,6 +55,8 @@ async function fetchWarningTabData(options = {}) {
 }
 
 export function createWeatherApp() {
+  setupRemoteConfig();
+
   const launchOptions = getLaunchOptions();
   let activeTab = launchOptions.initialTab;
   let activeAmedasMetric = AMEDAS_METRICS[0].id;

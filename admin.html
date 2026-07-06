@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#050914" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Weather Viewer Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/admin.css" />
+</head>
+<body>
+  <main class="admin-shell">
+    <section class="admin-hero">
+      <div>
+        <span class="admin-eyebrow">Weather Viewer</span>
+        <h1>管理者画面</h1>
+      </div>
+      <a class="admin-back-link" href="/">アプリへ戻る</a>
+    </section>
+
+    <section id="login-view" class="admin-card admin-login-card">
+      <h2>ログイン</h2>
+      <p>管理者パスワードを入力してください。</p>
+      <form id="login-form" class="admin-login-form">
+        <label for="admin-password">パスワード</label>
+        <input id="admin-password" type="password" autocomplete="current-password" required />
+        <button type="submit">ログイン</button>
+      </form>
+      <p id="login-message" class="admin-message" role="status"></p>
+    </section>
+
+    <section id="dashboard-view" class="admin-dashboard" hidden>
+      <div class="admin-toolbar">
+        <div>
+          <span class="admin-eyebrow">Dashboard</span>
+          <h2>運用設定</h2>
+        </div>
+        <button id="logout-button" class="admin-secondary-button" type="button">ログアウト</button>
+      </div>
+
+      <div class="admin-grid">
+        <section class="admin-card">
+          <div class="admin-section-head">
+            <h3>状態</h3>
+            <button id="refresh-status-button" class="admin-small-button" type="button">更新</button>
+          </div>
+          <dl id="status-list" class="admin-status-list"></dl>
+        </section>
+
+        <section class="admin-card">
+          <div class="admin-section-head">
+            <h3>メンテナンス表示</h3>
+            <button id="save-config-button" class="admin-small-button" type="button">保存</button>
+          </div>
+          <label class="admin-switch-row">
+            <span>表示する</span>
+            <input id="maintenance-enabled" type="checkbox" />
+          </label>
+          <label class="admin-field">
+            <span>表示文</span>
+            <textarea id="maintenance-message" rows="3" placeholder="現在メンテナンス中です。"></textarea>
+          </label>
+        </section>
+
+        <section class="admin-card admin-wide-card">
+          <div class="admin-section-head">
+            <h3>お知らせ</h3>
+            <div class="admin-button-row">
+              <button id="add-notice-button" class="admin-small-button" type="button">追加</button>
+              <button id="save-notices-button" class="admin-small-button" type="button">保存</button>
+            </div>
+          </div>
+          <div id="notice-list" class="admin-notice-list"></div>
+        </section>
+
+        <section class="admin-card">
+          <div class="admin-section-head">
+            <h3>防災マップPDF</h3>
+            <button id="delete-pdf-button" class="admin-small-button danger" type="button">削除</button>
+          </div>
+          <p id="pdf-status" class="admin-muted">確認中...</p>
+          <label class="admin-upload">
+            <span>PDFをアップロード</span>
+            <input id="pdf-input" type="file" accept="application/pdf,.pdf" />
+          </label>
+          <a id="pdf-open-link" class="admin-text-link" href="/api/admin/disaster-map/file" target="_blank" rel="noopener" hidden>保存済みPDFを開く</a>
+        </section>
+
+        <section class="admin-card">
+          <div class="admin-section-head">
+            <h3>キャッシュ</h3>
+            <button id="purge-cache-button" class="admin-small-button" type="button">削除API実行</button>
+          </div>
+          <p class="admin-muted">Cloudflare API トークンが設定されている場合のみ、CDNキャッシュ削除を実行します。</p>
+        </section>
+      </div>
+
+      <p id="dashboard-message" class="admin-message" role="status"></p>
+    </section>
+  </main>
+
+  <script type="module" src="/src/admin.js"></script>
+</body>
+</html>
