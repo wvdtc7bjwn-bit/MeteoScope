@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:cloudflare": "npm run build && npx wrangler pages deploy dist --project-name weather-viewer"
   },
   "dependencies": {
     "maplibre-gl": "^5.24.0",
