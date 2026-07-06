@@ -122,7 +122,7 @@ async function putConfig(request, env) {
 
 async function getNotices(env) {
   const notices = await readJson(env.ADMIN_KV, NOTICES_KEY, []);
-  return json({ notices: Array.isArray(notices) ? notices : [] });
+  return json({ notices: Array.isArray(notices) ? notices.map(normalizeNotice) : [] });
 }
 
 async function putNotices(request, env) {
@@ -234,6 +234,9 @@ function normalizeNotice(notice) {
     body: String(notice.body || "").slice(0, 500),
     level: ["info", "warning", "critical"].includes(notice.level) ? notice.level : "info",
     enabled: notice.enabled !== false,
+    isTicker: Boolean(notice.isTicker),
+    tickerSpeed: ["slow", "normal", "fast"].includes(notice.tickerSpeed) ? notice.tickerSpeed : "normal",
+    tickerDirection: notice.tickerDirection === "right" ? "right" : "left",
     updatedAt: notice.updatedAt || new Date().toISOString()
   };
 }

@@ -25,10 +25,6 @@ const elements = {
   noticeList: document.getElementById("notice-list"),
   addNoticeButton: document.getElementById("add-notice-button"),
   saveNoticesButton: document.getElementById("save-notices-button"),
-  pdfStatus: document.getElementById("pdf-status"),
-  pdfInput: document.getElementById("pdf-input"),
-  pdfOpenLink: document.getElementById("pdf-open-link"),
-  deletePdfButton: document.getElementById("delete-pdf-button"),
   purgeCacheButton: document.getElementById("purge-cache-button")
 };
 
@@ -87,14 +83,6 @@ function bindEvents() {
     void saveNotices();
   });
 
-  elements.pdfInput.addEventListener("change", () => {
-    void uploadPdf();
-  });
-
-  elements.deletePdfButton.addEventListener("click", () => {
-    void deletePdf();
-  });
-
   elements.purgeCacheButton.addEventListener("click", () => {
     void purgeCache();
   });
@@ -114,18 +102,16 @@ function showDashboard() {
 
 async function refreshDashboard() {
   setMessage(elements.dashboardMessage, "読み込み中...");
-  const [status, config, notices, pdf] = await Promise.all([
+  const [status, config, notices] = await Promise.all([
     requestJson("/status"),
     requestJson("/config"),
-    requestJson("/notices"),
-    requestJson("/disaster-map")
+    requestJson("/notices")
   ]);
   renderStatus(status);
   currentConfig = normalizeConfig(config.config);
   currentNotices = Array.isArray(notices.notices) ? notices.notices : [];
   renderConfig();
   renderNotices();
-  renderPdfStatus(pdf);
   setMessage(elements.dashboardMessage, "読み込みました。", "success");
 }
 
@@ -176,18 +162,39 @@ function renderNotices() {
     const editor = document.createElement("article");
     editor.className = "admin-notice-editor";
     editor.innerHTML = `
-      <label class="admin-notice-toggle">
-        <input type="checkbox" data-notice-field="enabled" ${notice.enabled !== false ? "checked" : ""} />
-        表示
-      </label>
-      <input type="text" data-notice-field="title" value="${escapeAttribute(notice.title || "")}" placeholder="タイトル" />
-      <select data-notice-field="level">
-        <option value="info" ${notice.level === "info" ? "selected" : ""}>通常</option>
-        <option value="warning" ${notice.level === "warning" ? "selected" : ""}>注意</option>
-        <option value="critical" ${notice.level === "critical" ? "selected" : ""}>重要</option>
-      </select>
-      <button class="admin-small-button danger" type="button" data-notice-remove>削除</button>
-      <textarea data-notice-field="body" placeholder="本文">${escapeHtml(notice.body || "")}</textarea>
+      <div class="admin-notice-top">
+        <label class="admin-notice-toggle">
+          <input type="checkbox" data-notice-field="enabled" ${notice.enabled !== false ? "checked" : ""} />
+          表示
+        </label>
+        <label class="admin-notice-toggle">
+          <input type="checkbox" data-notice-field="isTicker" ${notice.isTicker ? "checked" : ""} />
+          テロップ
+        </label>
+        <button class="admin-small-button danger" type="button" data-notice-remove>削除</button>
+      </div>
+      <div class="admin-notice-fields">
+        <input type="text" data-notice-field="title" value="${escapeAttribute(notice.title || "")}" placeholder="タイトル" />
+        <select data-notice-field="level">
+          <option value="info" ${notice.level === "info" ? "selected" : ""}>通常</option>
+          <option value="warning" ${notice.level === "warning" ? "selected" : ""}>注意</option>
+          <option value="critical" ${notice.level === "critical" ? "selected" : ""}>重要</option>
+        </select>
+        <select data-notice-field="tickerSpeed">
+          <option value="slow" ${notice.tickerSpeed === "slow" ? "selected" : ""}>ゆっくり</option>
+          <option value="normal" ${!notice.tickerSpeed || notice.tickerSpeed === "normal" ? "selected" : ""}>標準</option>
+          <option value="fast" ${notice.tickerSpeed === "fast" ? "selected" : ""}>速い</option>
+        </select>
+        <select data-notice-field="tickerDirection">
+          <option value="left" ${notice.tickerDirection !== "right" ? "selected" : ""}>右から左</option>
+          <option value="right" ${notice.tickerDirection === "right" ? "selected" : ""}>左から右</option>
+        </select>
+      </div>
+      <textarea data-notice-field="body" placeholder="本文。テロップ表示ではこの文章が横に流れます。">${escapeHtml(notice.body || "")}</textarea>
+      <div class="admin-ticker-preview ${notice.isTicker ? "" : "is-card"}">
+        <span>${escapeHtml(notice.isTicker ? "テロップ表示" : "通常カード表示")}</span>
+        <strong>${escapeHtml(buildNoticePreviewText(notice))}</strong>
+      </div>
     `;
 
     editor.querySelectorAll("[data-notice-field]").forEach((input) => {
@@ -209,6 +216,12 @@ function updateNoticeFromEditor(index, editor) {
     const key = field.dataset.noticeField;
     notice[key] = field.type === "checkbox" ? field.checked : field.value;
   });
+  const preview = editor.querySelector(".admin-ticker-preview");
+  if (preview) {
+    preview.classList.toggle("is-card", !notice.isTicker);
+    preview.querySelector("span").textContent = notice.isTicker ? "テロップ表示" : "通常カード表示";
+    preview.querySelector("strong").textContent = buildNoticePreviewText(notice);
+  }
 }
 
 async function saveNotices() {
@@ -220,50 +233,6 @@ async function saveNotices() {
   currentNotices = response.notices || [];
   renderNotices();
   setMessage(elements.dashboardMessage, "お知らせを保存しました。", "success");
-}
-
-function renderPdfStatus(pdf) {
-  if (pdf.hasFile) {
-    elements.pdfStatus.textContent = `${pdf.meta?.name || "PDF"} を保存しています。`;
-    elements.pdfOpenLink.hidden = false;
-    elements.deletePdfButton.disabled = false;
-  } else {
-    elements.pdfStatus.textContent = "保存済みPDFはありません。";
-    elements.pdfOpenLink.hidden = true;
-    elements.deletePdfButton.disabled = true;
-  }
-}
-
-async function uploadPdf() {
-  const file = elements.pdfInput.files?.[0];
-  if (!file) return;
-  if (file.type && file.type !== "application/pdf") {
-    setMessage(elements.dashboardMessage, "PDFファイルを選択してください。", "error");
-    return;
-  }
-  const formData = new FormData();
-  formData.append("file", file);
-  setMessage(elements.dashboardMessage, "PDFをアップロード中...");
-  const response = await fetch(`${API_BASE}/disaster-map`, {
-    method: "POST",
-    body: formData,
-    credentials: "same-origin"
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    setMessage(elements.dashboardMessage, payload.error || "PDFを保存できませんでした。", "error");
-    return;
-  }
-  renderPdfStatus(payload);
-  elements.pdfInput.value = "";
-  setMessage(elements.dashboardMessage, "PDFを保存しました。", "success");
-}
-
-async function deletePdf() {
-  if (!confirm("保存済みPDFを削除しますか？")) return;
-  const response = await requestJson("/disaster-map", { method: "DELETE" });
-  renderPdfStatus(response);
-  setMessage(elements.dashboardMessage, "PDFを削除しました。", "success");
 }
 
 async function purgeCache() {
@@ -306,6 +275,9 @@ function normalizeNotice(notice) {
     body: String(notice.body || "").trim(),
     level: ["info", "warning", "critical"].includes(notice.level) ? notice.level : "info",
     enabled: notice.enabled !== false,
+    isTicker: Boolean(notice.isTicker),
+    tickerSpeed: ["slow", "normal", "fast"].includes(notice.tickerSpeed) ? notice.tickerSpeed : "normal",
+    tickerDirection: notice.tickerDirection === "right" ? "right" : "left",
     updatedAt: new Date().toISOString()
   };
 }
@@ -316,8 +288,18 @@ function createEmptyNotice() {
     title: "",
     body: "",
     level: "info",
-    enabled: true
+    enabled: true,
+    isTicker: true,
+    tickerSpeed: "normal",
+    tickerDirection: "left"
   };
+}
+
+function buildNoticePreviewText(notice) {
+  const title = String(notice.title || "").trim();
+  const body = String(notice.body || "").trim();
+  if (title && body) return `${title}：${body}`;
+  return body || title || "お知らせ本文を入力してください。";
 }
 
 function setMessage(element, text, type = "") {

@@ -59,8 +59,10 @@ function renderMaintenance(maintenance) {
 }
 
 function renderNotices(notices) {
+  renderTickerNotices(notices);
+  const cardNotices = notices.filter((notice) => !notice?.isTicker);
   let stack = document.getElementById("remote-notice-stack");
-  if (!notices.length) {
+  if (!cardNotices.length) {
     stack?.remove();
     return;
   }
@@ -72,7 +74,7 @@ function renderNotices(notices) {
     document.body.appendChild(stack);
   }
 
-  const visibleNotices = notices
+  const visibleNotices = cardNotices
     .filter((notice) => notice?.enabled !== false)
     .filter((notice) => !sessionStorage.getItem(`${NOTICE_DISMISS_PREFIX}${notice.id || notice.title}`))
     .slice(0, 3);
@@ -103,4 +105,76 @@ function renderNotices(notices) {
     card.append(title, body, close);
     stack.appendChild(card);
   });
+}
+
+function renderTickerNotices(notices) {
+  const tickerNotices = notices
+    .filter((notice) => notice?.enabled !== false && notice?.isTicker)
+    .filter((notice) => !sessionStorage.getItem(`${NOTICE_DISMISS_PREFIX}${notice.id || notice.title}`))
+    .slice(0, 3);
+  let ticker = document.getElementById("remote-notice-ticker");
+  if (!tickerNotices.length) {
+    ticker?.remove();
+    document.body.classList.remove("has-remote-notice-ticker");
+    return;
+  }
+  if (!ticker) {
+    ticker = document.createElement("section");
+    ticker.id = "remote-notice-ticker";
+    ticker.className = "remote-notice-ticker";
+    ticker.setAttribute("aria-label", "お知らせテロップ");
+    document.body.appendChild(ticker);
+  }
+  const severity = tickerNotices.some((notice) => notice.level === "critical")
+    ? "critical"
+    : tickerNotices.some((notice) => notice.level === "warning")
+      ? "warning"
+      : "info";
+  const duration = tickerDuration(tickerNotices);
+  const direction = tickerNotices[0]?.tickerDirection === "right" ? "right" : "left";
+  const text = tickerNotices.map(buildTickerText).filter(Boolean).join("　　");
+  document.body.classList.add("has-remote-notice-ticker");
+  ticker.className = `remote-notice-ticker remote-notice-ticker-${severity} remote-notice-ticker-${direction}`;
+  ticker.style.setProperty("--ticker-duration", `${duration}s`);
+  ticker.innerHTML = "";
+  const label = document.createElement("span");
+  label.className = "remote-notice-ticker-label";
+  label.textContent = severity === "critical" ? "重要" : severity === "warning" ? "注意" : "お知らせ";
+  const viewport = document.createElement("div");
+  viewport.className = "remote-notice-ticker-viewport";
+  const track = document.createElement("div");
+  track.className = "remote-notice-ticker-track";
+  const first = document.createElement("span");
+  const second = document.createElement("span");
+  first.textContent = text || "お知らせがあります。";
+  second.textContent = text || "お知らせがあります。";
+  track.append(first, second);
+  viewport.appendChild(track);
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "remote-notice-ticker-close";
+  close.setAttribute("aria-label", "閉じる");
+  close.textContent = "×";
+  close.addEventListener("click", () => {
+    tickerNotices.forEach((notice) => {
+      sessionStorage.setItem(`${NOTICE_DISMISS_PREFIX}${notice.id || notice.title}`, "1");
+    });
+    ticker.remove();
+    document.body.classList.remove("has-remote-notice-ticker");
+  });
+  ticker.append(label, viewport, close);
+}
+
+function buildTickerText(notice) {
+  const title = String(notice?.title || "").trim();
+  const body = String(notice?.body || "").trim();
+  if (title && body) return `${title}：${body}`;
+  return body || title;
+}
+
+function tickerDuration(notices) {
+  const speed = notices.find((notice) => notice?.tickerSpeed)?.tickerSpeed || "normal";
+  if (speed === "slow") return 36;
+  if (speed === "fast") return 18;
+  return 26;
 }

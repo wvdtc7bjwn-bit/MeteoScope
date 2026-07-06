@@ -44,6 +44,9 @@ function publicNotice(notice) {
     body: notice.body,
     level: notice.level || "info",
     enabled: notice.enabled !== false,
+    isTicker: Boolean(notice.isTicker),
+    tickerSpeed: ["slow", "normal", "fast"].includes(notice.tickerSpeed) ? notice.tickerSpeed : "normal",
+    tickerDirection: notice.tickerDirection === "right" ? "right" : "left",
     updatedAt: notice.updatedAt
   };
 }
