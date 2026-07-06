@@ -10,7 +10,7 @@ export async function fetchTyphoonList() {
   try {
     raw = await fetchTyphoonDetailData();
   } catch (error) {
-    console.warn("[Weather Viewer] typhoon data unavailable", error);
+    console.warn("[MeteoScope] typhoon data unavailable", error);
     unavailable = true;
   }
 
@@ -641,3 +641,4 @@ function formatPosition(center, fallback) {
   if (center) return `北緯 ${center[1].toFixed(1)}° / 東経 ${center[0].toFixed(1)}°`;
   return "未取得";
 }
+

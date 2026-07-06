@@ -1373,7 +1373,7 @@ async function updateWarningMunicipalitySource(map, activeAreas) {
     source.setData(collection);
     map.triggerRepaint();
   } catch (error) {
-    console.warn("[Weather Viewer] warning municipality source update failed", error);
+    console.warn("[MeteoScope] warning municipality source update failed", error);
   }
 }
 
@@ -1390,7 +1390,7 @@ async function updateBaseMunicipalitySource(map) {
     map.triggerRepaint();
   } catch (error) {
     baseMunicipalitySourceCache.delete(map);
-    console.warn("[Weather Viewer] base municipality source update failed", error);
+    console.warn("[MeteoScope] base municipality source update failed", error);
   }
 }
 
@@ -3104,3 +3104,4 @@ function escapePopup(value) {
     '"': "&quot;"
   }[char]));
 }
+

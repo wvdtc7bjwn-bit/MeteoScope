@@ -24,7 +24,7 @@ export async function fetchWeatherChart() {
   if (!entries.length) throw new Error("Weather chart XML entry not found");
 
   const frames = (await Promise.all(entries.map((entry) => fetchWeatherChartFrame(entry).catch((error) => {
-    console.warn("[Weather Viewer] weather chart frame load failed", entry.url, error);
+    console.warn("[MeteoScope] weather chart frame load failed", entry.url, error);
     return null;
   }))))
     .filter((frame) => frame?.featureCount > 0)
@@ -46,7 +46,7 @@ async function fetchWeatherChartFeedText() {
     return await fetchText(primaryFeed, { ttlMs: WEATHER_CHART_TTL_MS });
   } catch (error) {
     if (primaryFeed === JMA_ENDPOINTS.weatherXmlFeed) throw error;
-    console.warn("[Weather Viewer] weather chart long feed load failed, fallback to regular feed", error);
+    console.warn("[MeteoScope] weather chart long feed load failed, fallback to regular feed", error);
     return fetchText(JMA_ENDPOINTS.weatherXmlFeed, { ttlMs: WEATHER_CHART_TTL_MS });
   }
 }
@@ -569,3 +569,4 @@ function getFirst(root, localName) {
 function getText(element) {
   return element?.textContent?.trim() ?? "";
 }
+

@@ -21,7 +21,7 @@ async function refreshRemoteConfig() {
     applyRemoteConfig(config);
   } catch (error) {
     if (error?.name !== "AbortError") {
-      console.debug("[Weather Viewer] remote config unavailable", error);
+      console.debug("[MeteoScope] remote config unavailable", error);
     }
   } finally {
     window.clearTimeout(timeoutId);
@@ -178,3 +178,4 @@ function tickerDuration(notices) {
   if (speed === "fast") return 18;
   return 26;
 }
+

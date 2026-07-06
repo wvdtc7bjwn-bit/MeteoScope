@@ -1,4 +1,4 @@
-export const APP_NAME = "Weather Viewer";
+export const APP_NAME = "MeteoScope";
 export const APP_BASE_URL = import.meta.env.BASE_URL;
 export const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 export const AUTO_REFRESH_RESUME_THROTTLE_MS = 60 * 1000;

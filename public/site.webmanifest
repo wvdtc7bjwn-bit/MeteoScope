@@ -1,6 +1,6 @@
 {
-  "name": "Weather Viewer",
-  "short_name": "Weather",
+  "name": "MeteoScope",
+  "short_name": "MeteoScope",
   "description": "気象庁データを可視化するウェブアプリ",
   "start_url": ".",
   "display": "standalone",

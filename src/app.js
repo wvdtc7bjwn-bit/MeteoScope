@@ -140,7 +140,7 @@ export function createWeatherApp() {
       scheduleBackgroundPrefetch(tab.id);
     } catch (error) {
       if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
-      console.warn(`[Weather Viewer] ${tab.id} load failed`, error);
+      console.warn(`[MeteoScope] ${tab.id} load failed`, error);
       updateLeftPanel(tab, {
         status: "error",
         error,
@@ -427,7 +427,7 @@ export function createWeatherApp() {
       })
       .catch((error) => {
         if (requestId !== locationRadarRequestId) return;
-        console.warn("[Weather Viewer] current location radar timeline failed", error);
+        console.warn("[MeteoScope] current location radar timeline failed", error);
         locationRadarTimeline = {
           status: "unavailable",
           points: [],
@@ -556,7 +556,7 @@ export function createWeatherApp() {
       await refreshWeatherChartData();
       weatherChartStatus = "ok";
     } catch (error) {
-      console.warn("[Weather Viewer] weather chart load failed", error);
+      console.warn("[MeteoScope] weather chart load failed", error);
       weatherChartStatus = "error";
     }
     refreshRadarPanel();
@@ -631,7 +631,7 @@ export function createWeatherApp() {
       updateCurrentView(tab, latestDataByTab[tab.id]);
       if (tab.id === "warnings") queueWarningFullRefresh({ force: true, delayMs: 0 });
     } catch (error) {
-      console.warn(`[Weather Viewer] ${tab.id} auto refresh failed`, error);
+      console.warn(`[MeteoScope] ${tab.id} auto refresh failed`, error);
     } finally {
       autoRefreshInFlight = false;
     }
@@ -677,7 +677,7 @@ export function createWeatherApp() {
         return nextData;
       })
       .catch((error) => {
-        console.warn("[Weather Viewer] earthquake realtime refresh failed", error);
+        console.warn("[MeteoScope] earthquake realtime refresh failed", error);
         return latestDataByTab.earthquake;
       })
       .finally(() => {
@@ -740,7 +740,7 @@ export function createWeatherApp() {
     locationWatchId = navigator.geolocation.watchPosition(
       (position) => {
         applyCurrentPosition(position).catch((error) => {
-          console.warn("[Weather Viewer] current location watch update failed", error);
+          console.warn("[MeteoScope] current location watch update failed", error);
         });
       },
       (error) => {
@@ -891,7 +891,7 @@ export function createWeatherApp() {
     try {
       latestDataByTab[tabId] = await loadTabData(tabId);
     } catch (error) {
-      console.warn(`[Weather Viewer] ${tabId} prefetch failed`, error);
+      console.warn(`[MeteoScope] ${tabId} prefetch failed`, error);
     }
   }
 
@@ -938,7 +938,7 @@ export function createWeatherApp() {
         return latestDataByTab.warnings;
       })
       .catch((error) => {
-        console.warn("[Weather Viewer] warning detail load failed", error);
+        console.warn("[MeteoScope] warning detail load failed", error);
         return latestDataByTab.warnings;
       })
       .finally(() => {
@@ -953,10 +953,10 @@ export function createWeatherApp() {
       refreshKikikuruData({ force })
     ]);
     if (detailsResult.status === "rejected") {
-      console.warn("[Weather Viewer] warning detail refresh failed", detailsResult.reason);
+      console.warn("[MeteoScope] warning detail refresh failed", detailsResult.reason);
     }
     if (kikikuruResult.status === "rejected") {
-      console.warn("[Weather Viewer] kikikuru refresh failed", kikikuruResult.reason);
+      console.warn("[MeteoScope] kikikuru refresh failed", kikikuruResult.reason);
     }
     return latestDataByTab.warnings;
   }
@@ -977,7 +977,7 @@ export function createWeatherApp() {
         return latestDataByTab.warnings;
       })
       .catch((error) => {
-        console.warn("[Weather Viewer] kikikuru tile load failed", error);
+        console.warn("[MeteoScope] kikikuru tile load failed", error);
         latestDataByTab.warnings = {
           ...(latestDataByTab.warnings ?? {}),
           kikikuru: { unavailable: true, error }
@@ -1297,3 +1297,4 @@ function clampIndex(index, items = []) {
   if (!items.length) return 0;
   return Math.max(0, Math.min(items.length - 1, Number(index) || 0));
 }
+

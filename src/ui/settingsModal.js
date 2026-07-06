@@ -137,7 +137,7 @@ async function renderSettingsDisasterMapPdf() {
     clearButton.disabled = false;
   } catch (error) {
     if (requestId !== settingsPdfStatusRequestId) return;
-    console.warn("[Weather Viewer] failed to read stored disaster map PDF", error);
+    console.warn("[MeteoScope] failed to read stored disaster map PDF", error);
     status.textContent = "保存状態を確認できませんでした";
     clearButton.disabled = true;
   }
@@ -155,7 +155,7 @@ async function clearStoredDisasterMapPdfFromSettings(button) {
     await settingsOptions.onClearDisasterMapPdf?.();
     await renderSettingsDisasterMapPdf();
   } catch (error) {
-    console.warn("[Weather Viewer] failed to clear stored disaster map PDF", error);
+    console.warn("[MeteoScope] failed to clear stored disaster map PDF", error);
     if (status) status.textContent = "削除できませんでした";
     button.disabled = false;
   } finally {
@@ -197,7 +197,7 @@ async function renderSettingsAreaSearch(query) {
     `).join("");
   } catch (error) {
     if (requestId !== settingsSearchRequestId) return;
-    console.warn("[Weather Viewer] settings area search failed", error);
+    console.warn("[MeteoScope] settings area search failed", error);
     results.innerHTML = `<p class="settings-my-area-empty">検索できませんでした。</p>`;
   }
 }
@@ -233,3 +233,4 @@ function escapeHtml(value) {
     '"': "&quot;"
   }[char]));
 }
+

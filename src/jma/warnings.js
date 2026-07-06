@@ -134,7 +134,7 @@ async function fetchWarningReports() {
         const reports = await fetchJson(`${JMA_ENDPOINTS.warningsBase}/${officeCode}.json`);
         return Array.isArray(reports) ? reports : [];
       } catch (error) {
-        console.warn(`[Weather Viewer] warning JSON unavailable: ${officeCode}`, error);
+        console.warn(`[MeteoScope] warning JSON unavailable: ${officeCode}`, error);
         return [];
       }
     })
@@ -148,7 +148,7 @@ async function fetchWarningTimelineReports() {
       try {
         return await fetchJson(`${JMA_ENDPOINTS.warningTimelineBase}/${officeCode}.json`);
       } catch (error) {
-        console.warn(`[Weather Viewer] warning timeline JSON unavailable: ${officeCode}`, error);
+        console.warn(`[MeteoScope] warning timeline JSON unavailable: ${officeCode}`, error);
         return null;
       }
     })
@@ -161,7 +161,7 @@ async function fetchEarlyWarningReports() {
     const reports = await fetchJson(JMA_ENDPOINTS.probabilityMap);
     return Array.isArray(reports) ? reports : [];
   } catch (error) {
-    console.warn("[Weather Viewer] early warning probability JSON unavailable", error);
+    console.warn("[MeteoScope] early warning probability JSON unavailable", error);
     return [];
   }
 }
@@ -170,7 +170,7 @@ async function fetchNoWaveTideConst() {
   try {
     return await fetchJson(JMA_ENDPOINTS.noWaveTide, { ttlMs: STATIC_DATA_CACHE_TTL_MS, cache: "force-cache" });
   } catch (error) {
-    console.warn("[Weather Viewer] no-wave/tide JSON unavailable", error);
+    console.warn("[MeteoScope] no-wave/tide JSON unavailable", error);
     return {};
   }
 }
@@ -933,3 +933,4 @@ function prefectureOrder(prefecture) {
   const entry = Object.entries(PREFECTURE_NAMES).find(([, name]) => name === prefecture);
   return entry ? Number(entry[0]) : 99;
 }
+
