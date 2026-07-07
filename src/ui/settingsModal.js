@@ -61,7 +61,10 @@ export function setupSettingsModal(options = {}) {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeSettingsModal();
+    if (event.key !== "Escape") return;
+    const feedbackModal = document.getElementById("feedback-modal");
+    if (feedbackModal && !feedbackModal.hidden) return;
+    closeSettingsModal();
   });
 
   window.addEventListener("disaster-map-pdf-storage-change", () => {

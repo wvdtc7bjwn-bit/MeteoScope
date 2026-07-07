@@ -131,6 +131,13 @@
             <div id="settings-tab-order-list" class="settings-tab-order-list" aria-live="polite"></div>
             <button class="settings-tab-order-reset" type="button" data-settings-tab-order-reset>標準に戻す</button>
           </section>
+          <section class="settings-group settings-feedback-group">
+            <div class="settings-group-title">利用者意見</div>
+            <div class="settings-feedback-row">
+              <p>改善要望や気づいた不具合を送信できます。個人情報は入力しないでください。</p>
+              <button id="feedback-open" class="settings-feedback-open" type="button" aria-haspopup="dialog" aria-controls="feedback-modal">意見を書く</button>
+            </div>
+          </section>
           <section class="settings-group">
             <div class="settings-group-title">利用規約</div>
             <div class="settings-policy-copy">
@@ -144,11 +151,46 @@
             <div class="settings-policy-copy">
               <p>本アプリは、サーバー側で個人を識別する情報を保存しません。</p>
               <p>現在地機能を利用する場合、位置情報はブラウザ上で気象情報の照合と地図表示にのみ使用します。位置情報は外部サーバーへ保存しません。</p>
+              <p>利用者意見を送信した場合、入力本文、分類、送信時刻を改善確認のために保存します。氏名、住所、連絡先などの個人情報は入力しないでください。</p>
               <p>気象データや地図表示の取得時には、各提供元のサーバーへ通信が発生します。</p>
             </div>
           </section>
           <p class="settings-source-note">情報出典: 気象庁・Natural Earth・MapLibre GL JS</p>
         </div>
+      </section>
+    </div>
+
+    <div id="feedback-modal" class="warning-modal feedback-modal" hidden>
+      <div class="warning-modal-backdrop feedback-modal-overlay" data-feedback-modal-close></div>
+      <section class="warning-modal-panel feedback-modal-panel" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
+        <header class="settings-modal-header feedback-modal-header">
+          <div>
+            <span>MeteoScope</span>
+            <h2 id="feedback-modal-title">利用者意見</h2>
+          </div>
+          <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-feedback-modal-close>×</button>
+        </header>
+        <form id="feedback-form" class="feedback-form">
+          <label class="feedback-field" for="feedback-category">
+            <span>種類</span>
+            <select id="feedback-category" name="category">
+              <option value="request">改善要望</option>
+              <option value="bug">不具合</option>
+              <option value="design">デザイン</option>
+              <option value="other">その他</option>
+            </select>
+          </label>
+          <label class="feedback-field" for="feedback-message">
+            <span>内容</span>
+            <textarea id="feedback-message" name="message" rows="7" maxlength="1000" required placeholder="例: スマホで警報タブを開いた時、表示をもう少し軽くしてほしい"></textarea>
+          </label>
+          <p class="feedback-note">送信内容はアプリ改善の確認にのみ使用します。個人情報や緊急連絡は入力しないでください。</p>
+          <div class="feedback-actions">
+            <button class="feedback-secondary" type="button" data-feedback-modal-close>閉じる</button>
+            <button id="feedback-submit" class="feedback-submit" type="submit">送信</button>
+          </div>
+          <p id="feedback-status" class="feedback-status" aria-live="polite"></p>
+        </form>
       </section>
     </div>
 

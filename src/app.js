@@ -4,6 +4,7 @@ import { setupTabs } from "./ui/tabs.js";
 import { setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeSelector, setupKikikuruLayerToggles, setupRadarControls, setupRadarOverlayToggle, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
+import { setupFeedbackModal } from "./ui/feedbackModal.js";
 import { refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
 import {
   clearStoredDisasterMapPdf,
@@ -1070,6 +1071,7 @@ export function createWeatherApp() {
       onTabOrderChange: (order) => tabControls?.setOrder?.(order) ?? order
     });
     setupDisasterMapModal();
+    setupFeedbackModal();
     document.getElementById("locate-button")?.addEventListener("click", locateCurrentPosition);
     startClock("clock");
     startAutoRefresh();
