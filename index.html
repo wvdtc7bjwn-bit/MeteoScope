@@ -104,55 +104,67 @@
         </header>
         <div class="settings-modal-body">
           <section class="settings-group settings-my-area-group">
-            <div class="settings-group-title">マイエリア</div>
-            <div class="settings-my-area-head">
-              <p>保存した市区町村を、現在地と同じように警報・雨雲・台風情報の補助表示に使います。</p>
-              <span id="settings-my-area-count">0/8</span>
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>マイエリア</button>
+            <div class="settings-group-content" hidden>
+              <div class="settings-my-area-head">
+                <p>保存した市区町村を、現在地と同じように警報・雨雲・台風情報の補助表示に使います。</p>
+                <span id="settings-my-area-count">0/8</span>
+              </div>
+              <button id="settings-my-area-current" class="settings-my-area-current" type="button" data-settings-add-current-location>現在地をマイエリアに追加</button>
+              <label class="settings-my-area-search-label" for="settings-my-area-search">市区町村を検索</label>
+              <input id="settings-my-area-search" class="settings-my-area-search" type="search" autocomplete="off" placeholder="例: 京都市北区、長岡市" />
+              <div id="settings-my-area-results" class="settings-my-area-results" aria-live="polite"></div>
+              <div id="settings-my-area-list" class="settings-my-area-list"></div>
             </div>
-            <button id="settings-my-area-current" class="settings-my-area-current" type="button" data-settings-add-current-location>現在地をマイエリアに追加</button>
-            <label class="settings-my-area-search-label" for="settings-my-area-search">市区町村を検索</label>
-            <input id="settings-my-area-search" class="settings-my-area-search" type="search" autocomplete="off" placeholder="例: 京都市北区、長岡市" />
-            <div id="settings-my-area-results" class="settings-my-area-results" aria-live="polite"></div>
-            <div id="settings-my-area-list" class="settings-my-area-list"></div>
           </section>
           <section class="settings-group settings-disaster-map-group">
-            <div class="settings-group-title">防災マップPDF</div>
-            <div class="settings-disaster-map-row">
-              <div class="settings-disaster-map-info">
-                <strong>保存済みPDF</strong>
-                <span id="settings-disaster-map-status">確認中...</span>
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>防災マップPDF</button>
+            <div class="settings-group-content" hidden>
+              <div class="settings-disaster-map-row">
+                <div class="settings-disaster-map-info">
+                  <strong>保存済みPDF</strong>
+                  <span id="settings-disaster-map-status">確認中...</span>
+                </div>
+                <button id="settings-disaster-map-clear" type="button" data-settings-clear-disaster-map-pdf disabled>削除</button>
               </div>
-              <button id="settings-disaster-map-clear" type="button" data-settings-clear-disaster-map-pdf disabled>削除</button>
             </div>
           </section>
           <section class="settings-group settings-tab-order-group">
-            <div class="settings-group-title">表示切替ボタン</div>
-            <p class="settings-tab-order-help">ボタンを選んでから移動先を押すと、横並びのまま順番を入れ替えます。</p>
-            <div id="settings-tab-order-list" class="settings-tab-order-list" aria-live="polite"></div>
-            <button class="settings-tab-order-reset" type="button" data-settings-tab-order-reset>標準に戻す</button>
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>表示切替ボタン</button>
+            <div class="settings-group-content" hidden>
+              <p class="settings-tab-order-help">ボタンを選んでから移動先を押すと、横並びのまま順番を入れ替えます。</p>
+              <div id="settings-tab-order-list" class="settings-tab-order-list" aria-live="polite"></div>
+              <button class="settings-tab-order-reset" type="button" data-settings-tab-order-reset>標準に戻す</button>
+            </div>
           </section>
           <section class="settings-group settings-feedback-group">
-            <div class="settings-group-title">利用者意見</div>
-            <div class="settings-feedback-row">
-              <p>改善要望や気づいた不具合を送信できます。個人情報は入力しないでください。</p>
-              <button id="feedback-open" class="settings-feedback-open" type="button" aria-haspopup="dialog" aria-controls="feedback-modal">意見を書く</button>
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>利用者意見</button>
+            <div class="settings-group-content" hidden>
+              <div class="settings-feedback-row">
+                <p>改善要望や気づいた不具合を送信できます。個人情報は入力しないでください。</p>
+                <button id="feedback-open" class="settings-feedback-open" type="button" aria-haspopup="dialog" aria-controls="feedback-modal">意見を書く</button>
+              </div>
             </div>
           </section>
           <section class="settings-group">
-            <div class="settings-group-title">利用規約</div>
-            <div class="settings-policy-copy">
-              <p>本アプリは、気象庁などが公開する防災・気象情報を閲覧しやすく表示するための補助ツールです。</p>
-              <p>表示内容は速報性や完全性を保証するものではありません。避難判断や安全確保が必要な場合は、気象庁、自治体、報道機関などの公式情報を必ず確認してください。</p>
-              <p>本アプリの利用によって生じたいかなる損害についても、開発者は責任を負いません。</p>
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>利用規約</button>
+            <div class="settings-group-content" hidden>
+              <div class="settings-policy-copy">
+                <p>本アプリは、気象庁などが公開する防災・気象情報を閲覧しやすく表示するための補助ツールです。</p>
+                <p>表示内容は速報性や完全性を保証するものではありません。避難判断や安全確保が必要な場合は、気象庁、自治体、報道機関などの公式情報を必ず確認してください。</p>
+                <p>本アプリの利用によって生じたいかなる損害についても、開発者は責任を負いません。</p>
+              </div>
             </div>
           </section>
           <section class="settings-group">
-            <div class="settings-group-title">プライバシーポリシー</div>
-            <div class="settings-policy-copy">
-              <p>本アプリは、サーバー側で個人を識別する情報を保存しません。</p>
-              <p>現在地機能を利用する場合、位置情報はブラウザ上で気象情報の照合と地図表示にのみ使用します。位置情報は外部サーバーへ保存しません。</p>
-              <p>利用者意見を送信した場合、入力本文、分類、送信時刻を改善確認のために保存します。氏名、住所、連絡先などの個人情報は入力しないでください。</p>
-              <p>気象データや地図表示の取得時には、各提供元のサーバーへ通信が発生します。</p>
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>プライバシーポリシー</button>
+            <div class="settings-group-content" hidden>
+              <div class="settings-policy-copy">
+                <p>本アプリは、サーバー側で個人を識別する情報を保存しません。</p>
+                <p>現在地機能を利用する場合、位置情報はブラウザ上で気象情報の照合と地図表示にのみ使用します。位置情報は外部サーバーへ保存しません。</p>
+                <p>利用者意見を送信した場合、入力本文、分類、送信時刻を改善確認のために保存します。氏名、住所、連絡先などの個人情報は入力しないでください。</p>
+                <p>気象データや地図表示の取得時には、各提供元のサーバーへ通信が発生します。</p>
+              </div>
             </div>
           </section>
           <p class="settings-source-note">情報出典: 気象庁・Natural Earth・MapLibre GL JS</p>

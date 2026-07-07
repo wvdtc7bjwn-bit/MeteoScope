@@ -18,7 +18,17 @@ export function setupSettingsModal(options = {}) {
   button.addEventListener("click", openSettingsModal);
   modal.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
-    if (event.target.closest("[data-settings-modal-close]")) closeSettingsModal();
+    if (event.target.closest("[data-settings-modal-close]")) {
+      closeSettingsModal();
+      return;
+    }
+
+    const groupToggle = event.target.closest("[data-settings-group-toggle]");
+    if (groupToggle) {
+      toggleSettingsGroup(groupToggle);
+      return;
+    }
+
     const addResult = event.target.closest("[data-settings-add-my-area]");
     if (addResult) {
       const area = parseAreaDataset(addResult.dataset);
@@ -87,6 +97,7 @@ function openSettingsModal() {
   modal.hidden = false;
   button?.setAttribute("aria-expanded", "true");
   document.body.classList.add("modal-open");
+  resetSettingsGroups();
   renderSettingsMyAreas();
   renderSettingsTabOrder();
   void renderSettingsDisasterMapPdf();
@@ -100,6 +111,26 @@ function closeSettingsModal() {
   button?.setAttribute("aria-expanded", "false");
   document.body.classList.remove("modal-open");
   selectedTabOrderId = null;
+}
+
+function resetSettingsGroups() {
+  document.querySelectorAll("#settings-modal .settings-group").forEach((group) => {
+    setSettingsGroupExpanded(group, false);
+  });
+}
+
+function toggleSettingsGroup(toggle) {
+  const group = toggle.closest(".settings-group");
+  if (!group) return;
+  setSettingsGroupExpanded(group, toggle.getAttribute("aria-expanded") !== "true");
+}
+
+function setSettingsGroupExpanded(group, expanded) {
+  const toggle = group.querySelector("[data-settings-group-toggle]");
+  const content = group.querySelector(".settings-group-content");
+  group.classList.toggle("is-expanded", expanded);
+  toggle?.setAttribute("aria-expanded", expanded ? "true" : "false");
+  if (content) content.hidden = !expanded;
 }
 
 function renderSettingsMyAreas() {
