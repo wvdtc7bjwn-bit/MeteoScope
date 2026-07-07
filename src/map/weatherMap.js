@@ -1910,7 +1910,7 @@ function buildTyphoonPopup(typhoon, label) {
 }
 
 function buildTyphoonForecastCirclePopup(typhoon, circle) {
-  const details = resolveTyphoonForecastDetails(typhoon.details ?? {}, circle.details ?? {});
+  const details = resolveTyphoonForecastDetails(circle.details ?? {});
   const rows = [
     ["強さ", details.strength],
     ["中心気圧", details.pressure],
@@ -1936,19 +1936,19 @@ function buildTyphoonForecastCirclePopup(typhoon, circle) {
   `;
 }
 
-function resolveTyphoonForecastDetails(currentDetails, forecastDetails) {
+function resolveTyphoonForecastDetails(forecastDetails) {
   return {
-    strength: pickKnownTyphoonDetail(forecastDetails.strength, currentDetails.strength),
-    pressure: pickKnownTyphoonDetail(forecastDetails.pressure, currentDetails.pressure),
-    maxWind: pickWindTyphoonForecastDetail(forecastDetails.maxWind, currentDetails.maxWind),
-    maxGust: pickWindTyphoonForecastDetail(forecastDetails.maxGust, currentDetails.maxGust)
+    strength: pickKnownTyphoonDetail(forecastDetails.strength),
+    pressure: pickKnownTyphoonDetail(forecastDetails.pressure),
+    maxWind: pickWindTyphoonForecastDetail(forecastDetails.maxWind),
+    maxGust: pickWindTyphoonForecastDetail(forecastDetails.maxGust)
   };
 }
 
-function pickWindTyphoonForecastDetail(forecastValue, currentValue) {
+function pickWindTyphoonForecastDetail(forecastValue) {
   return String(forecastValue ?? "").trim() === "-"
     ? "-"
-    : pickKnownTyphoonDetail(forecastValue, currentValue);
+    : pickKnownTyphoonDetail(forecastValue);
 }
 
 function pickKnownTyphoonDetail(...values) {

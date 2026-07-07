@@ -2,6 +2,9 @@ name = "meteoscope"
 compatibility_date = "2026-07-06"
 pages_build_output_dir = "dist"
 
+[build]
+command = "npm run build"
+
 [[kv_namespaces]]
 binding = "ADMIN_KV"
 id = "9464591925964777a82ebaef763d838e"

@@ -129,11 +129,11 @@ function buildWeatherChartFrameId(entry, parsed) {
 }
 
 function compareWeatherChartFrames(a, b) {
-  const kindDiff = getWeatherChartKindOrder(a) - getWeatherChartKindOrder(b);
-  if (kindDiff !== 0) return kindDiff;
-
   const timeDiff = getFrameTime(a) - getFrameTime(b);
   if (timeDiff !== 0) return timeDiff;
+
+  const kindDiff = getWeatherChartKindOrder(a) - getWeatherChartKindOrder(b);
+  if (kindDiff !== 0) return kindDiff;
 
   return String(a?.id ?? a?.sourceUrl ?? "").localeCompare(String(b?.id ?? b?.sourceUrl ?? ""));
 }
