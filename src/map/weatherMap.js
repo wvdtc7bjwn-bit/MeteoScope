@@ -61,7 +61,8 @@ const WEATHER_CHART_LAYERS = [
   "weather-chart-front-occluded-semicircle-symbol",
   "weather-chart-pressure-point",
   "weather-chart-isobar-label",
-  "weather-chart-pressure-label"
+  "weather-chart-pressure-label",
+  "weather-chart-pressure-value-label"
 ];
 const WEATHER_CHART_MAX_ZOOM = 6.4;
 const WEATHER_FRONT_COLD_IMAGE_ID = "weather-front-cold-triangle";
@@ -1181,6 +1182,30 @@ function addWeatherChartLayers(map) {
       "text-halo-color": "rgba(5, 9, 20, 0.92)",
       "text-halo-width": 2.2,
       "text-halo-blur": 0.25
+    }
+  });
+
+  map.addLayer({
+    id: "weather-chart-pressure-value-label",
+    type: "symbol",
+    source: WEATHER_CHART_POINT_SOURCE_ID,
+    minzoom: 3,
+    filter: ["all", ["has", "pressureLabel"], ["!=", ["get", "pressureLabel"], ""]],
+    layout: {
+      visibility: "none",
+      "text-field": ["get", "pressureLabel"],
+      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 3, 8, 7, 10, 10, 13],
+      "text-allow-overlap": true,
+      "text-ignore-placement": true,
+      "text-offset": [0, 1.25],
+      "text-anchor": "top"
+    },
+    paint: {
+      "text-color": "rgba(248, 251, 255, 0.92)",
+      "text-halo-color": "rgba(5, 9, 20, 0.94)",
+      "text-halo-width": 1.8,
+      "text-halo-blur": 0.2
     }
   });
 }
