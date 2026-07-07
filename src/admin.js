@@ -8,6 +8,7 @@ const DEFAULT_CONFIG = {
 
 let currentConfig = structuredClone(DEFAULT_CONFIG);
 let currentNotices = [];
+let currentFeedback = [];
 
 const elements = {
   loginView: document.getElementById("login-view"),
@@ -25,6 +26,8 @@ const elements = {
   noticeList: document.getElementById("notice-list"),
   addNoticeButton: document.getElementById("add-notice-button"),
   saveNoticesButton: document.getElementById("save-notices-button"),
+  feedbackList: document.getElementById("feedback-list"),
+  refreshFeedbackButton: document.getElementById("refresh-feedback-button"),
   purgeCacheButton: document.getElementById("purge-cache-button")
 };
 
@@ -83,6 +86,10 @@ function bindEvents() {
     void saveNotices();
   });
 
+  elements.refreshFeedbackButton.addEventListener("click", () => {
+    void refreshFeedback();
+  });
+
   elements.purgeCacheButton.addEventListener("click", () => {
     void purgeCache();
   });
@@ -102,16 +109,19 @@ function showDashboard() {
 
 async function refreshDashboard() {
   setMessage(elements.dashboardMessage, "読み込み中...");
-  const [status, config, notices] = await Promise.all([
+  const [status, config, notices, feedback] = await Promise.all([
     requestJson("/status"),
     requestJson("/config"),
-    requestJson("/notices")
+    requestJson("/notices"),
+    requestJson("/feedback")
   ]);
   renderStatus(status);
   currentConfig = normalizeConfig(config.config);
   currentNotices = Array.isArray(notices.notices) ? notices.notices : [];
+  currentFeedback = Array.isArray(feedback.feedback) ? feedback.feedback : [];
   renderConfig();
   renderNotices();
+  renderFeedback();
   setMessage(elements.dashboardMessage, "読み込みました。", "success");
 }
 
@@ -235,6 +245,33 @@ async function saveNotices() {
   setMessage(elements.dashboardMessage, "お知らせを保存しました。", "success");
 }
 
+async function refreshFeedback() {
+  setMessage(elements.dashboardMessage, "利用者意見を読み込み中...");
+  const response = await requestJson("/feedback");
+  currentFeedback = Array.isArray(response.feedback) ? response.feedback : [];
+  renderFeedback();
+  setMessage(elements.dashboardMessage, "利用者意見を更新しました。", "success");
+}
+
+function renderFeedback() {
+  if (!elements.feedbackList) return;
+  if (!currentFeedback.length) {
+    elements.feedbackList.innerHTML = `<p class="admin-muted">利用者意見はまだありません。</p>`;
+    return;
+  }
+
+  elements.feedbackList.innerHTML = currentFeedback.map((item) => `
+    <article class="admin-feedback-item">
+      <div class="admin-feedback-meta">
+        <span>${escapeHtml(feedbackCategoryLabel(item.category))}</span>
+        <time>${escapeHtml(formatDateTime(item.createdAt))}</time>
+      </div>
+      <p>${escapeHtml(item.message || "")}</p>
+      <small>${escapeHtml(item.page || "/")}</small>
+    </article>
+  `).join("");
+}
+
 async function purgeCache() {
   setMessage(elements.dashboardMessage, "キャッシュ削除APIを実行中...");
   const response = await requestJson("/cache/purge", { method: "POST" });
@@ -300,6 +337,28 @@ function buildNoticePreviewText(notice) {
   const body = String(notice.body || "").trim();
   if (title && body) return `${title}：${body}`;
   return body || title || "お知らせ本文を入力してください。";
+}
+
+function feedbackCategoryLabel(category) {
+  return {
+    request: "改善要望",
+    bug: "不具合",
+    design: "デザイン",
+    other: "その他"
+  }[category] || "その他";
+}
+
+function formatDateTime(value) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
 }
 
 function setMessage(element, text, type = "") {

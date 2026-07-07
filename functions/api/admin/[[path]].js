@@ -1,5 +1,6 @@
 const CONFIG_KEY = "app-config";
 const NOTICES_KEY = "app-notices";
+const FEEDBACK_KEY = "user-feedback";
 const PDF_OBJECT_KEY = "admin/disaster-map.pdf";
 const SESSION_COOKIE = "weather_viewer_admin";
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
@@ -30,6 +31,7 @@ export async function onRequest({ request, env }) {
     if (route === "config" && method === "PUT") return await putConfig(request, env);
     if (route === "notices" && method === "GET") return await getNotices(env);
     if (route === "notices" && method === "PUT") return await putNotices(request, env);
+    if (route === "feedback" && method === "GET") return await getFeedback(env);
     if (route === "disaster-map" && method === "GET") return await getDisasterMapInfo(env);
     if (route === "disaster-map" && method === "POST") return await putDisasterMap(request, env);
     if (route === "disaster-map" && method === "DELETE") return await deleteDisasterMap(env);
@@ -135,6 +137,15 @@ async function putNotices(request, env) {
   return json({ notices });
 }
 
+async function getFeedback(env) {
+  const feedback = await readJson(env.ADMIN_KV, FEEDBACK_KEY, []);
+  return json({
+    feedback: Array.isArray(feedback)
+      ? feedback.slice(0, 100).map(normalizeFeedback)
+      : []
+  });
+}
+
 async function getDisasterMapInfo(env) {
   if (!env.DISASTER_MAPS) return json({ hasFile: false, configured: false });
   const object = await env.DISASTER_MAPS.head(PDF_OBJECT_KEY);
@@ -238,6 +249,16 @@ function normalizeNotice(notice) {
     tickerSpeed: ["slow", "normal", "fast"].includes(notice.tickerSpeed) ? notice.tickerSpeed : "normal",
     tickerDirection: notice.tickerDirection === "right" ? "right" : "left",
     updatedAt: notice.updatedAt || new Date().toISOString()
+  };
+}
+
+function normalizeFeedback(item) {
+  return {
+    id: String(item.id || ""),
+    category: ["request", "bug", "design", "other"].includes(item.category) ? item.category : "other",
+    message: String(item.message || "").slice(0, 1000),
+    page: String(item.page || "").slice(0, 200),
+    createdAt: item.createdAt || ""
   };
 }
 

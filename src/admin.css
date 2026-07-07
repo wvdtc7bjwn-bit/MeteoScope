@@ -12,6 +12,7 @@
 body {
   min-height: 100dvh;
   margin: 0;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at 18% 0%, rgba(74, 162, 218, 0.18), transparent 34rem),
     radial-gradient(circle at 86% 8%, rgba(93, 128, 197, 0.14), transparent 28rem),
@@ -104,6 +105,7 @@ h3 {
 }
 
 .admin-card {
+  min-width: 0;
   border: 1px solid rgba(148, 197, 239, 0.18);
   border-radius: 18px;
   padding: 20px;
@@ -175,6 +177,7 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -187,6 +190,7 @@ h3 {
 .admin-status-list div {
   display: flex;
   justify-content: space-between;
+  min-width: 0;
   gap: 12px;
   border: 1px solid rgba(148, 197, 239, 0.1);
   border-radius: 12px;
@@ -204,6 +208,7 @@ h3 {
   color: #eff8ff;
   font-weight: 800;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .admin-switch-row {
@@ -230,6 +235,7 @@ h3 {
 
 .admin-notice-editor {
   display: grid;
+  min-width: 0;
   gap: 12px;
   border: 1px solid rgba(148, 197, 239, 0.14);
   border-radius: 16px;
@@ -311,6 +317,61 @@ h3 {
   white-space: nowrap;
 }
 
+.admin-feedback-block {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(148, 197, 239, 0.14);
+}
+
+.admin-feedback-list {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-feedback-item {
+  display: grid;
+  gap: 9px;
+  border: 1px solid rgba(148, 197, 239, 0.14);
+  border-radius: 16px;
+  padding: 14px;
+  background: rgba(7, 17, 32, 0.5);
+}
+
+.admin-feedback-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.admin-feedback-meta span {
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: rgba(119, 209, 255, 0.14);
+  color: #bceaff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admin-feedback-meta time,
+.admin-feedback-item small {
+  color: #93a8c0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-feedback-item p {
+  color: #f4fbff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .admin-upload input {
   padding: 10px;
   border: 1px dashed rgba(148, 197, 239, 0.32);
@@ -343,6 +404,25 @@ h3 {
   color: #8bf2b7;
 }
 
+@media (max-width: 1040px) {
+  .admin-shell {
+    width: min(920px, calc(100% - 28px));
+  }
+
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-wide-card {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .admin-notice-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 760px) {
   .admin-shell {
     width: min(100% - 20px, 1180px);
@@ -368,5 +448,66 @@ h3 {
 
   .admin-section-head {
     align-items: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-shell {
+    width: min(100% - 14px, 1180px);
+    padding: 14px 0 36px;
+  }
+
+  .admin-card {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .admin-hero,
+  .admin-toolbar {
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-size: 30px;
+  }
+
+  h2 {
+    font-size: 22px;
+  }
+
+  .admin-back-link,
+  .admin-secondary-button,
+  .admin-small-button,
+  .admin-login-form button {
+    width: 100%;
+  }
+
+  .admin-button-row {
+    width: 100%;
+  }
+
+  .admin-button-row .admin-small-button {
+    flex: 1 1 130px;
+  }
+
+  .admin-status-list div,
+  .admin-switch-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-status-list dd {
+    text-align: left;
+  }
+
+  .admin-ticker-preview {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-ticker-preview strong {
+    width: 100%;
+    white-space: normal;
   }
 }
