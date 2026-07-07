@@ -1,6 +1,8 @@
-export function setupTabs({ onChange }) {
+import { loadTabOrder, normalizeTabOrder, saveTabOrder } from "./tabOrder.js";
+
+export function setupTabs({ onChange, tabs = [] }) {
   const root = document.getElementById("main-tabs");
-  const buttons = [...document.querySelectorAll(".tab-button")];
+  let buttons = [...document.querySelectorAll(".tab-button")];
   let dragPointerId = null;
   let dragAxis = "x";
   let dragStartCoord = 0;
@@ -9,6 +11,12 @@ export function setupTabs({ onChange }) {
   let pendingIndicatorFrame = 0;
   let pendingIndicatorOffset = 0;
   let suppressClickUntil = 0;
+  let resizeFrame = 0;
+
+  function refreshButtons() {
+    buttons = root ? [...root.querySelectorAll(".tab-button")] : [];
+    return buttons;
+  }
 
   function getSliderAxis() {
     if (!root) return "x";
@@ -20,16 +28,29 @@ export function setupTabs({ onChange }) {
     return axis === "y" ? event.clientY : event.clientX;
   }
 
+  function getActiveTabId() {
+    return buttons.find((button) => button.classList.contains("active"))?.dataset.tab
+      ?? root?.dataset.activeTab
+      ?? buttons[0]?.dataset.tab
+      ?? null;
+  }
+
+  function syncIndicatorToActive() {
+    if (!root || root.classList.contains("is-dragging")) return;
+    refreshButtons();
+    const axis = getSliderAxis();
+    const offset = getActiveIndicatorOffset(axis);
+    root.style.setProperty(axis === "y" ? "--tab-indicator-y" : "--tab-indicator-x", `${offset}px`);
+  }
+
   function setActiveButton(tabId) {
+    refreshButtons();
     const previousTab = root?.dataset.activeTab;
     buttons.forEach((item) => item.classList.toggle("active", item.dataset.tab === tabId));
     const activeIndex = buttons.findIndex((item) => item.dataset.tab === tabId);
     if (root) {
       root.dataset.activeTab = tabId;
-      if (!root.classList.contains("is-dragging")) {
-        root.style.removeProperty("--tab-indicator-x");
-        root.style.removeProperty("--tab-indicator-y");
-      }
+      syncIndicatorToActive();
     }
     return previousTab !== tabId && activeIndex >= 0;
   }
@@ -40,6 +61,7 @@ export function setupTabs({ onChange }) {
   }
 
   function getTabFromPoint(event, axis) {
+    refreshButtons();
     if (!root || buttons.length === 0) return null;
     const rect = root.getBoundingClientRect();
     const position = axis === "y" ? event.clientY - rect.top : event.clientX - rect.left;
@@ -50,7 +72,8 @@ export function setupTabs({ onChange }) {
   }
 
   function getIndicatorLimits(axis) {
-    if (!root || buttons.length === 0) return;
+    refreshButtons();
+    if (!root || buttons.length === 0) return null;
     const rootRect = root.getBoundingClientRect();
     const firstRect = buttons[0].getBoundingClientRect();
     const indicatorSize = Math.max(1, axis === "y" ? firstRect.height : firstRect.width);
@@ -61,6 +84,7 @@ export function setupTabs({ onChange }) {
   }
 
   function getActiveIndicatorOffset(axis) {
+    refreshButtons();
     if (!root || buttons.length === 0) return 0;
     const limits = getIndicatorLimits(axis);
     if (!limits) return 0;
@@ -89,18 +113,40 @@ export function setupTabs({ onChange }) {
       window.cancelAnimationFrame(pendingIndicatorFrame);
       pendingIndicatorFrame = 0;
     }
-    window.requestAnimationFrame(() => {
-      root.style.removeProperty("--tab-indicator-x");
-      root.style.removeProperty("--tab-indicator-y");
-    });
+    window.requestAnimationFrame(syncIndicatorToActive);
   }
 
-  buttons.forEach((button) => {
-    button.addEventListener("click", () => {
-      if (Date.now() < suppressClickUntil) return;
-      const tabId = button.dataset.tab;
-      activateTab(tabId);
+  function applyTabOrder(order) {
+    if (!root) return [];
+    const normalized = normalizeTabOrder(order, tabs);
+    const byId = new Map([...root.querySelectorAll(".tab-button")].map((button) => [button.dataset.tab, button]));
+    normalized.forEach((id) => {
+      const button = byId.get(id);
+      if (button) root.appendChild(button);
     });
+    refreshButtons();
+    syncIndicatorToActive();
+    return normalized;
+  }
+
+  function setOrder(order) {
+    const activeTab = getActiveTabId();
+    const normalized = saveTabOrder(applyTabOrder(order), tabs);
+    if (activeTab) setActiveButton(activeTab);
+    return normalized;
+  }
+
+  function getOrder() {
+    refreshButtons();
+    return normalizeTabOrder(buttons.map((button) => button.dataset.tab), tabs);
+  }
+
+  root?.addEventListener("click", (event) => {
+    if (Date.now() < suppressClickUntil) return;
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest(".tab-button");
+    if (!button || !root.contains(button)) return;
+    activateTab(button.dataset.tab);
   });
 
   root?.addEventListener("pointerdown", (event) => {
@@ -137,9 +183,17 @@ export function setupTabs({ onChange }) {
 
   root?.addEventListener("pointerup", finishDrag);
   root?.addEventListener("pointercancel", finishDrag);
+  window.addEventListener("resize", () => {
+    if (resizeFrame) return;
+    resizeFrame = window.requestAnimationFrame(() => {
+      resizeFrame = 0;
+      syncIndicatorToActive();
+    });
+  });
 
-  const initialTab = buttons.find((button) => button.classList.contains("active"))?.dataset.tab ?? buttons[0]?.dataset.tab;
+  applyTabOrder(loadTabOrder(tabs));
+  const initialTab = getActiveTabId();
   if (initialTab) setActiveButton(initialTab);
 
-  return { setActiveButton };
+  return { setActiveButton, setOrder, getOrder };
 }

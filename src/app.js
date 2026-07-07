@@ -1035,7 +1035,7 @@ export function createWeatherApp() {
   function start() {
     weatherMap = createWeatherMap("map");
     weatherMap.initialize();
-    tabControls = setupTabs({ onChange: selectTab });
+    tabControls = setupTabs({ onChange: selectTab, tabs: TABS });
     setupAmedasSubTabs({ onChange: selectAmedasMetric });
     setupAmedasRankingToggle({ onChange: refreshAmedasPanel, onSelectStation: focusAmedasStation });
     setupKikikuruLayerToggles({ onChange: selectKikikuruLayer });
@@ -1064,7 +1064,10 @@ export function createWeatherApp() {
       onAddCurrentLocation: addCurrentLocationToMyAreas,
       onRemoveArea: removeSettingsMyArea,
       getDisasterMapPdfInfo: getStoredDisasterMapPdfInfo,
-      onClearDisasterMapPdf: clearStoredDisasterMapPdf
+      onClearDisasterMapPdf: clearStoredDisasterMapPdf,
+      tabs: TABS,
+      getTabOrder: () => tabControls?.getOrder?.() ?? TABS.map((tab) => tab.id),
+      onTabOrderChange: (order) => tabControls?.setOrder?.(order) ?? order
     });
     setupDisasterMapModal();
     document.getElementById("locate-button")?.addEventListener("click", locateCurrentPosition);

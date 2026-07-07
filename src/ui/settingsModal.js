@@ -1,7 +1,10 @@
+import { getDefaultTabOrder, normalizeTabOrder } from "./tabOrder.js";
+
 let settingsModalInitialized = false;
 let settingsOptions = {};
 let settingsSearchRequestId = 0;
 let settingsPdfStatusRequestId = 0;
+let selectedTabOrderId = null;
 
 export function setupSettingsModal(options = {}) {
   settingsOptions = options;
@@ -36,6 +39,18 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    const tabOrderButton = event.target.closest("[data-settings-tab-order-tab]");
+    if (tabOrderButton) {
+      handleSettingsTabOrderTap(tabOrderButton.dataset.settingsTabOrderTab);
+      return;
+    }
+
+    if (event.target.closest("[data-settings-tab-order-reset]")) {
+      selectedTabOrderId = null;
+      applySettingsTabOrder(getDefaultTabOrder(getSettingsTabs()));
+      return;
+    }
+
     if (event.target.closest("[data-settings-add-current-location]")) {
       settingsOptions.onAddCurrentLocation?.();
     }
@@ -58,6 +73,7 @@ export function refreshSettingsModalView() {
   const modal = document.getElementById("settings-modal");
   if (!modal || modal.hidden) return;
   renderSettingsMyAreas();
+  renderSettingsTabOrder();
   void renderSettingsDisasterMapPdf();
 }
 
@@ -69,6 +85,7 @@ function openSettingsModal() {
   button?.setAttribute("aria-expanded", "true");
   document.body.classList.add("modal-open");
   renderSettingsMyAreas();
+  renderSettingsTabOrder();
   void renderSettingsDisasterMapPdf();
 }
 
@@ -79,6 +96,7 @@ function closeSettingsModal() {
   modal.hidden = true;
   button?.setAttribute("aria-expanded", "false");
   document.body.classList.remove("modal-open");
+  selectedTabOrderId = null;
 }
 
 function renderSettingsMyAreas() {
@@ -113,6 +131,88 @@ function renderSettingsMyAreas() {
       <button type="button" data-settings-remove-my-area="${escapeHtml(area.areaCode)}">削除</button>
     </div>
   `).join("");
+}
+
+function getSettingsTabs() {
+  return Array.isArray(settingsOptions.tabs) ? settingsOptions.tabs : [];
+}
+
+function getCurrentTabOrder() {
+  return normalizeTabOrder(settingsOptions.getTabOrder?.(), getSettingsTabs());
+}
+
+function renderSettingsTabOrder() {
+  const list = document.getElementById("settings-tab-order-list");
+  if (!list) return;
+
+  const tabs = getSettingsTabs();
+  const order = getCurrentTabOrder();
+  if (!tabs.length || !order.length) {
+    list.innerHTML = `<p class="settings-my-area-empty">表示切替ボタンを取得できませんでした。</p>`;
+    return;
+  }
+
+  const byId = new Map(tabs.map((tab) => [tab.id, tab]));
+  const selectedLabel = byId.get(selectedTabOrderId)?.label ?? null;
+  const statusText = selectedLabel
+    ? `${selectedLabel}を選択中。入れ替えたいボタンをタップしてください。`
+    : "入れ替えたいボタンを選び、移動先のボタンをタップしてください。";
+  list.innerHTML = `
+    <div class="settings-tab-order-preview" role="group" aria-label="表示切替ボタンの並び順">
+      ${order.map((id) => {
+    const tab = byId.get(id);
+    if (!tab) return "";
+    const label = tab.label ?? id;
+    const shortLabel = document.querySelector(`.tab-button[data-tab="${cssEscape(id)}"] .tab-button-label`)?.textContent?.trim() || label;
+    return `
+      <button
+        class="settings-tab-order-button tab-button ${selectedTabOrderId === id ? "is-selected" : ""}"
+        type="button"
+        data-tab="${escapeHtml(id)}"
+        data-settings-tab-order-tab="${escapeHtml(id)}"
+        aria-pressed="${selectedTabOrderId === id ? "true" : "false"}"
+        aria-label="${escapeHtml(label)}を選択または入れ替え"
+      >
+        <span class="tab-button-label">${escapeHtml(shortLabel)}</span>
+      </button>
+    `;
+      }).join("")}
+    </div>
+    <p class="settings-tab-order-status">${escapeHtml(statusText)}</p>
+  `;
+}
+
+function handleSettingsTabOrderTap(tabId) {
+  if (!tabId) return;
+  if (!selectedTabOrderId) {
+    selectedTabOrderId = tabId;
+    renderSettingsTabOrder();
+    return;
+  }
+
+  if (selectedTabOrderId === tabId) {
+    selectedTabOrderId = null;
+    renderSettingsTabOrder();
+    return;
+  }
+
+  const order = getCurrentTabOrder();
+  const fromIndex = order.indexOf(selectedTabOrderId);
+  const toIndex = order.indexOf(tabId);
+  if (fromIndex < 0 || toIndex < 0) {
+    selectedTabOrderId = null;
+    renderSettingsTabOrder();
+    return;
+  }
+
+  [order[fromIndex], order[toIndex]] = [order[toIndex], order[fromIndex]];
+  selectedTabOrderId = null;
+  applySettingsTabOrder(order);
+}
+
+function applySettingsTabOrder(order) {
+  const normalized = settingsOptions.onTabOrderChange?.(order) ?? order;
+  renderSettingsTabOrder(normalized);
 }
 
 async function renderSettingsDisasterMapPdf() {
@@ -222,6 +322,11 @@ function parseAreaDataset(dataset) {
     prefecture: dataset.prefecture,
     coordinates
   };
+}
+
+function cssEscape(value) {
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") return CSS.escape(value);
+  return String(value ?? "").replace(/["\\]/g, "\\$&");
 }
 
 function escapeHtml(value) {
