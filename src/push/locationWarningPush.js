@@ -22,15 +22,16 @@ export function createLocationWarningPush(options = {}) {
       return state;
     }
     try {
-      const config = await loadConfig();
-      const registration = await navigator.serviceWorker.register("/sw.js");
+      const config = await loadConfig({ force: true });
+      await navigator.serviceWorker.register("/sw.js");
       const readyRegistration = await navigator.serviceWorker.ready;
       const subscription = await readyRegistration.pushManager.getSubscription();
+      const configured = Boolean(config.enabled && config.publicKey);
       updateState({
-        configured: Boolean(config.enabled && config.publicKey),
+        configured,
         subscribed: Boolean(subscription),
         permission: Notification.permission,
-        message: config.enabled ? "" : "通知サーバーの設定が未完了です。"
+        message: configured ? "" : buildConfigurationMessage(config)
       });
       return state;
     } catch (error) {
@@ -49,8 +50,19 @@ export function createLocationWarningPush(options = {}) {
 
     updateState({ busy: true, message: "通知を設定しています..." });
     try {
-      const config = await loadConfig();
-      if (!config.enabled || !config.publicKey) throw new Error("push server is not configured");
+      const config = await loadConfig({ force: true });
+      if (!config.enabled || !config.publicKey) {
+        localStorage.removeItem(STORAGE_KEY);
+        updateState({
+          busy: false,
+          enabled: false,
+          subscribed: false,
+          configured: false,
+          message: buildConfigurationMessage(config)
+        });
+        return state;
+      }
+
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
         localStorage.removeItem(STORAGE_KEY);
@@ -58,7 +70,7 @@ export function createLocationWarningPush(options = {}) {
         return state;
       }
 
-      const registration = await navigator.serviceWorker.register("/sw.js");
+      await navigator.serviceWorker.register("/sw.js");
       const readyRegistration = await navigator.serviceWorker.ready;
       const subscription = await getOrCreateSubscription(readyRegistration, config.publicKey);
       await postSubscription(subscription, currentLocation);
@@ -76,7 +88,8 @@ export function createLocationWarningPush(options = {}) {
       return state;
     } catch (error) {
       console.warn("[MeteoScope] push notification subscribe failed", error);
-      updateState({ busy: false, message: "通知設定に失敗しました。" });
+      localStorage.removeItem(STORAGE_KEY);
+      updateState({ busy: false, enabled: false, subscribed: false, message: buildSubscribeErrorMessage(error) });
       return state;
     }
   }
@@ -148,7 +161,8 @@ export function createLocationWarningPush(options = {}) {
     options.onChange?.(state);
   }
 
-  function loadConfig() {
+  function loadConfig(options = {}) {
+    if (options.force) configPromise = null;
     if (!configPromise) {
       configPromise = fetch("/api/push/config", { cache: "no-store" })
         .then((response) => response.ok ? response.json() : { enabled: false, publicKey: "" })
@@ -180,11 +194,17 @@ function isLocationReady(currentLocation) {
 }
 
 async function getOrCreateSubscription(registration, publicKey) {
+  const desiredApplicationServerKey = base64UrlToUint8Array(publicKey);
   const current = await registration.pushManager.getSubscription();
-  if (current) return current;
+  if (current) {
+    const currentKey = current.options?.applicationServerKey;
+    if (!currentKey || areByteArraysEqual(currentKey, desiredApplicationServerKey)) return current;
+    await current.unsubscribe().catch(() => false);
+  }
+
   return registration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: base64UrlToUint8Array(publicKey)
+    applicationServerKey: desiredApplicationServerKey
   });
 }
 
@@ -222,6 +242,27 @@ function buildWarningState(warnings = []) {
       levelNumber: warning.levelNumber
     }))
   };
+}
+
+function buildConfigurationMessage(config = {}) {
+  if (config?.setup?.kv === false) return "通知保存用のKVが未設定です。";
+  if (config?.setup?.vapid === false) return "通知サーバーの鍵を準備できませんでした。";
+  return "通知サーバーの設定が未完了です。";
+}
+
+function buildSubscribeErrorMessage(error) {
+  const message = String(error?.message || "");
+  if (message.includes("VAPID") || message.includes("通知サーバー")) return message;
+  if (message.includes("permission") || message.includes("denied")) return "通知の利用が許可されていません。";
+  if (message.includes("subscription") || message.includes("subscribe")) return "ブラウザの通知購読を作成できませんでした。";
+  return "通知設定に失敗しました。";
+}
+
+function areByteArraysEqual(a, b) {
+  const left = a instanceof Uint8Array ? a : new Uint8Array(a);
+  const right = b instanceof Uint8Array ? b : new Uint8Array(b);
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
 }
 
 function base64UrlToUint8Array(value) {
