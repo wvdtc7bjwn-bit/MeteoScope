@@ -132,7 +132,8 @@ export function createWeatherApp() {
         myAreas,
         locationInsights: buildLocationInsights(tab.id, null),
         weatherChartEnabled,
-        weatherChartStatus
+        weatherChartStatus,
+        weatherChart: weatherChartData
       });
     }
 
@@ -157,7 +158,8 @@ export function createWeatherApp() {
         myAreas,
         locationInsights: buildLocationInsights(tab.id, null),
         weatherChartEnabled,
-        weatherChartStatus
+        weatherChartStatus,
+        weatherChart: weatherChartData
       });
     }
   }
@@ -276,7 +278,8 @@ export function createWeatherApp() {
       myAreas,
       locationInsights: buildLocationInsights(tab.id, displayData),
       weatherChartEnabled,
-      weatherChartStatus
+      weatherChartStatus,
+      weatherChart: weatherChartData
     });
     weatherMap?.renderData(tab.id, displayData);
   }
@@ -836,7 +839,8 @@ export function createWeatherApp() {
       myAreas,
       locationInsights: buildLocationInsights(tab.id, null),
       weatherChartEnabled,
-      weatherChartStatus
+      weatherChartStatus,
+      weatherChart: weatherChartData
     });
   }
 
@@ -932,14 +936,24 @@ export function createWeatherApp() {
     return refreshWarningDetailsData();
   }
 
+  async function refreshCurrentLocationWarningInfo(warningData) {
+    if (currentLocationInfo?.status !== "found" || !Array.isArray(currentLocationInfo.coordinates)) return;
+    try {
+      currentLocationInfo = await resolveCurrentLocationInfo(currentLocationInfo.coordinates, warningData);
+      refreshSettingsModalView();
+    } catch (error) {
+      console.warn("[MeteoScope] current location warning refresh failed", error);
+    }
+  }
   async function refreshWarningDetailsData({ force = false } = {}) {
     if (!force && hasFreshWarningDetails(latestDataByTab.warnings, warningDetailsLoadedAt)) return latestDataByTab.warnings;
     if (warningDetailsRequest) return warningDetailsRequest;
     cancelScheduledWarningDetailsRefresh();
     warningDetailsRequest = fetchWarningTabData({ includeDetails: true })
-      .then((detailsData) => {
+      .then(async (detailsData) => {
         latestDataByTab.warnings = mergeWarningTabData(latestDataByTab.warnings, detailsData);
         warningDetailsLoadedAt = Date.now();
+        await refreshCurrentLocationWarningInfo(latestDataByTab.warnings);
         refreshWarningsView();
         return latestDataByTab.warnings;
       })
@@ -1327,4 +1341,3 @@ function clampIndex(index, items = []) {
   if (!items.length) return 0;
   return Math.max(0, Math.min(items.length - 1, Number(index) || 0));
 }
-

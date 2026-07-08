@@ -18,6 +18,7 @@ let amedasRankingOrder = "top";
 let activeWarningAreasByCode = new Map();
 let activeWarningDetailsLoaded = false;
 let warningAreaSelectionOptions = {};
+let mobileRadarDockSliding = false;
 
 const AMEDAS_RANKING_LIMIT = 20;
 
@@ -64,6 +65,7 @@ export function updateLeftPanel(tab, state = {}) {
   renderEarthquakeList(tab, state);
   renderEarthquakeDetails(tab, state);
   renderAmedasRanking(tab, state, amedasMetric);
+  renderMobileContextDock(tab, state, { amedasMetric, warningView });
   renderLegend(tab.id, amedasMetric.id, warningView);
 }
 
@@ -75,6 +77,15 @@ export function setupAmedasSubTabs({ onChange }) {
       buttons.forEach((item) => item.classList.toggle("active", item === button));
       onChange?.(metricId);
     });
+  });
+
+  document.getElementById("mobile-context-dock")?.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest("[data-mobile-amedas-metric]");
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onChange?.(button.dataset.mobileAmedasMetric);
   });
 }
 
@@ -100,17 +111,17 @@ export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
 }
 
 export function setupKikikuruLayerToggles({ onChange }) {
-  const root = document.getElementById("kikikuru-layer-tabs");
-  if (!root) return;
-
-  root.addEventListener("click", (event) => {
+  const handleClick = (event) => {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest("[data-kikikuru-layer]");
     if (!button) return;
+    event.stopPropagation();
     onChange?.(button.dataset.kikikuruLayer);
-  });
-}
+  };
 
+  document.getElementById("kikikuru-layer-tabs")?.addEventListener("click", handleClick);
+  document.getElementById("mobile-context-dock")?.addEventListener("click", handleClick);
+}
 export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest }) {
   document.getElementById("radar-time-slider")?.addEventListener("input", (event) => {
     onSeek?.(Number(event.currentTarget.value));
@@ -119,36 +130,100 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
   document.getElementById("radar-next")?.addEventListener("click", () => onStep?.(1));
   document.getElementById("radar-play")?.addEventListener("click", () => onTogglePlay?.());
   document.getElementById("radar-now")?.addEventListener("click", () => onGoLatest?.());
-}
 
-export function setupRadarOverlayToggle({ onChange }) {
-  const root = document.getElementById("radar-overlay-tabs");
-  if (!root) return;
+  const mobileDock = document.getElementById("mobile-context-dock");
+  let activeMobileSlider = null;
+  let activeMobileSliderValue = null;
+  const previewMobileSlider = (slider, clientX) => {
+    const rect = slider.getBoundingClientRect();
+    if (!rect.width) return null;
+    const min = Number(slider.min) || 0;
+    const max = Number(slider.max) || 0;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const value = Math.round(min + (max - min) * ratio);
+    slider.value = String(value);
+    updateMobileRadarSliderProgress(slider);
+    updateMobileRadarSliderLabel(slider, value);
+    activeMobileSliderValue = value;
+    onSeek?.(value);
+    return value;
+  };
 
-  root.addEventListener("click", (event) => {
-    if (!(event.target instanceof Element)) return;
-    const button = event.target.closest("[data-radar-overlay]");
-    if (!button) return;
-    onChange?.(button.dataset.radarOverlay);
+  mobileDock?.addEventListener("pointerdown", (event) => {
+    if (!(event.target instanceof HTMLInputElement)) return;
+    if (!event.target.matches("[data-mobile-radar-slider]")) return;
+    activeMobileSlider = event.target;
+    activeMobileSliderValue = Number(activeMobileSlider.value) || 0;
+    mobileRadarDockSliding = true;
+    event.preventDefault();
+    event.stopPropagation();
+    activeMobileSlider.setPointerCapture?.(event.pointerId);
+    previewMobileSlider(activeMobileSlider, event.clientX);
+  });
+
+  mobileDock?.addEventListener("pointermove", (event) => {
+    if (!activeMobileSlider) return;
+    event.preventDefault();
+    event.stopPropagation();
+    previewMobileSlider(activeMobileSlider, event.clientX);
+  });
+
+  const finishMobileSlider = (event) => {
+    if (!activeMobileSlider) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const value = activeMobileSliderValue;
+    activeMobileSlider.releasePointerCapture?.(event.pointerId);
+    activeMobileSlider = null;
+    activeMobileSliderValue = null;
+    mobileRadarDockSliding = false;
+    if (Number.isFinite(value)) onSeek?.(value);
+  };
+
+  mobileDock?.addEventListener("pointerup", finishMobileSlider);
+  mobileDock?.addEventListener("pointercancel", finishMobileSlider);
+
+  mobileDock?.addEventListener("change", (event) => {
+    if (!(event.target instanceof HTMLInputElement)) return;
+    if (!event.target.matches("[data-mobile-radar-slider]")) return;
+    updateMobileRadarSliderProgress(event.target);
+    updateMobileRadarSliderLabel(event.target, Number(event.target.value));
+    onSeek?.(Number(event.target.value));
   });
 }
 
+export function setupRadarOverlayToggle({ onChange }) {
+  const handleClick = (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest("[data-radar-overlay]");
+    if (!button) return;
+    event.stopPropagation();
+    onChange?.(button.dataset.radarOverlay);
+  };
+
+  document.getElementById("radar-overlay-tabs")?.addEventListener("click", handleClick);
+  document.getElementById("mobile-context-dock")?.addEventListener("click", handleClick);
+}
 export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLatest }) {
   const root = document.getElementById("weather-chart-controls");
   if (!root) return;
 
+  const mobileDock = document.getElementById("mobile-context-dock");
+  const sliderRoots = [root, mobileDock].filter(Boolean);
   let draggingSlider = null;
   let previewedSliderValue = null;
+  const isWeatherChartSlider = (slider) => slider?.id === "weather-chart-time-slider" || slider?.matches?.("[data-mobile-weather-chart-slider]");
   const commitSlider = (slider) => {
-    if (!slider || slider.id !== "weather-chart-time-slider") return;
+    if (!isWeatherChartSlider(slider)) return;
     onSeek?.(Number(slider.value));
   };
   const previewSlider = (slider) => {
-    if (!slider || slider.id !== "weather-chart-time-slider") return;
+    if (!isWeatherChartSlider(slider)) return;
     const value = Number(slider.value);
     if (previewedSliderValue === value) return;
     previewedSliderValue = value;
-    updateWeatherChartSliderPreview(slider);
+    if (slider.matches?.("[data-mobile-weather-chart-slider]")) updateMobileWeatherChartSliderPreview(slider);
+    else updateWeatherChartSliderPreview(slider);
     onPreview?.(value);
   };
   const updateSliderFromPointer = (slider, event) => {
@@ -163,44 +238,53 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     slider.value = String(Math.max(min, Math.min(max, steppedValue)));
   };
 
-  root.addEventListener("pointerdown", (event) => {
+  const handlePointerDown = (event) => {
     if (!(event.target instanceof HTMLInputElement)) return;
-    if (event.target.id !== "weather-chart-time-slider") return;
+    if (!isWeatherChartSlider(event.target)) return;
     draggingSlider = event.target;
     previewedSliderValue = null;
     updateSliderFromPointer(event.target, event);
     previewSlider(event.target);
     event.target.setPointerCapture?.(event.pointerId);
-  });
+  };
 
-  root.addEventListener("input", (event) => {
+  const handleInput = (event) => {
     if (!(event.target instanceof HTMLInputElement)) return;
-    if (event.target.id !== "weather-chart-time-slider") return;
+    if (!isWeatherChartSlider(event.target)) return;
     previewSlider(event.target);
     if (draggingSlider !== event.target) commitSlider(event.target);
-  });
+  };
 
-  root.addEventListener("pointermove", (event) => {
+  const handlePointerMove = (event) => {
     if (!draggingSlider) return;
     updateSliderFromPointer(draggingSlider, event);
     previewSlider(draggingSlider);
-  });
+  };
 
-  root.addEventListener("change", (event) => {
+  const handleChange = (event) => {
     if (!(event.target instanceof HTMLInputElement)) return;
     commitSlider(event.target);
-  });
+  };
 
-  root.addEventListener("pointerup", () => {
+  const handlePointerUp = () => {
     previewSlider(draggingSlider);
     commitSlider(draggingSlider);
     draggingSlider = null;
     previewedSliderValue = null;
-  });
+  };
 
-  root.addEventListener("pointercancel", () => {
+  const handlePointerCancel = () => {
     draggingSlider = null;
     previewedSliderValue = null;
+  };
+
+  sliderRoots.forEach((element) => {
+    element.addEventListener("pointerdown", handlePointerDown);
+    element.addEventListener("input", handleInput);
+    element.addEventListener("pointermove", handlePointerMove);
+    element.addEventListener("change", handleChange);
+    element.addEventListener("pointerup", handlePointerUp);
+    element.addEventListener("pointercancel", handlePointerCancel);
   });
 
   root.addEventListener("click", (event) => {
@@ -213,7 +297,6 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     if (action === "latest") onGoLatest?.();
   });
 }
-
 export function setupTyphoonSelector({ onChange }) {
   const root = document.getElementById("typhoon-selector");
   if (!root) return;
@@ -546,12 +629,11 @@ function renderRadarControls(tab, state) {
   const frames = state.data?.frames ?? [];
   const activeIndex = Number(state.data?.activeFrameIndex ?? 0);
   const activeFrame = frames[activeIndex] ?? null;
-  const latestObservationIndex = findLatestObservationIndex(frames);
 
   slider.max = String(Math.max(0, frames.length - 1));
   slider.value = String(Math.min(activeIndex, Math.max(0, frames.length - 1)));
   slider.disabled = frames.length <= 1 || state.status === "loading" || state.status === "error";
-  slider.style.background = buildSliderBackground(activeIndex, latestObservationIndex, frames.length);
+  slider.style.background = buildSliderBackground(activeIndex, frames.length);
 
   label.textContent = activeFrame?.label
     ? `更新時刻: ${activeFrame.label}`
@@ -611,8 +693,6 @@ function renderWeatherChartControls(tab, enabled = false, status = "idle", weath
     return;
   }
 
-  const latestAnalysisIndex = findLatestWeatherChartAnalysisIndex(frames);
-  const sliderBackgroundIndex = latestAnalysisIndex >= 0 ? latestAnalysisIndex : activeIndex;
   const timeText = activeFrame?.latestTime ? formatWarningTime(activeFrame.latestTime) : "--";
   const kindText = getWeatherChartFrameKindLabel(activeFrame);
   const frameMeta = frames.map((frame) => ({
@@ -635,9 +715,8 @@ function renderWeatherChartControls(tab, enabled = false, status = "idle", weath
       value="${activeIndex}"
       ${frames.length <= 1 ? "disabled" : ""}
       data-frame-count="${frames.length}"
-      data-reference-index="${sliderBackgroundIndex}"
       data-frame-meta="${escapeHtml(JSON.stringify(frameMeta))}"
-      style="background:${escapeHtml(buildSliderBackground(activeIndex, sliderBackgroundIndex, frames.length))};"
+      style="background:${escapeHtml(buildSliderBackground(activeIndex, frames.length))};"
       aria-label="天気図の時刻を選択"
     />
     <div class="weather-chart-actions">
@@ -660,12 +739,7 @@ function renderTyphoonSelector(tab, state) {
     return;
   }
 
-  const activeId = String(state.data?.selectedTyphoonId ?? typhoons[0]?.id ?? "");
-  const activeIndex = Math.max(0, typhoons.findIndex((typhoon, index) => {
-    const id = String(typhoon.id ?? `typhoon-${index}`);
-    return id === activeId;
-  }));
-  const activeTyphoon = typhoons[activeIndex] ?? typhoons[0];
+  const { activeIndex, activeTyphoon } = getActiveTyphoonSelection(typhoons, state.data?.selectedTyphoonId);
   const nextIndex = typhoons.length > 1 ? (activeIndex + 1) % typhoons.length : activeIndex;
   const nextTyphoon = typhoons[nextIndex] ?? activeTyphoon;
   const nextId = String(nextTyphoon?.id ?? `typhoon-${nextIndex}`);
@@ -750,6 +824,263 @@ function selectWarningArea(areaCode, { scroll, openModal } = {}) {
   });
 }
 
+function renderMobileContextDock(tab, state, context = {}) {
+  const root = document.getElementById("mobile-context-dock");
+  if (!root) return;
+
+  root.hidden = false;
+  if (mobileRadarDockSliding && tab.id === "radar" && root.dataset.tab === "radar") return;
+  root.dataset.tab = tab.id;
+  root.innerHTML = buildMobileContextDockContent(tab, state, context);
+}
+
+function buildMobileContextDockContent(tab, state, { amedasMetric, warningView } = {}) {
+  if (tab.id === "radar") {
+    const frames = state.data?.frames ?? [];
+    const index = clampIndex(Number(state.data?.activeFrameIndex ?? 0), frames.length);
+    const frame = frames[index] ?? null;
+    return buildRadarMobileContextMarkup(frames, index, state.status, state);
+  }
+  if (tab.id === "amedas") {
+    return `
+      <div class="mobile-dock-content">
+        <span class="mobile-dock-kicker">アメダス</span>
+        <div class="mobile-dock-chip-grid">
+          ${AMEDAS_METRICS.map((metric) => `
+            <button type="button" class="mobile-dock-chip${metric.id === amedasMetric.id ? " active" : ""}" data-mobile-dock-control data-mobile-amedas-metric="${escapeHtml(metric.id)}" aria-pressed="${metric.id === amedasMetric.id ? "true" : "false"}">${escapeHtml(metric.label)}</button>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+  if (tab.id === "warnings") {
+    const info = state.currentLocation;
+    const warnings = warningView === "early" ? (info?.earlyWarnings ?? []) : (info?.warnings ?? []);
+    const area = [info?.prefecture, info?.areaName].filter(Boolean).join(" ") || "現在地の発表状況";
+    return buildWarningMobileContextMarkup({
+      activeKikikuruLayer: state.data?.activeKikikuruLayer,
+      area,
+      isLoading: info?.status === "loading",
+      warningView,
+      warnings
+    });
+  }
+  if (tab.id === "typhoon") {
+    const typhoons = state.data?.typhoons ?? [];
+    if (!typhoons.length || state.data?.hasTyphoon === false) return buildMobileContextMarkup("台風", NO_TYPHOON_MESSAGE, "発表なし");
+    const { activeIndex, activeTyphoon } = getActiveTyphoonSelection(typhoons, state.data?.selectedTyphoonId);
+    const name = activeTyphoon?.details?.name ?? activeTyphoon?.name ?? `台風 ${activeIndex + 1}`;
+    const count = typhoons.length > 1 ? `${activeIndex + 1}/${typhoons.length}` : "選択中";
+    return buildMobileContextMarkup("台風", name, count);
+  }
+  if (tab.id === "earthquake") {
+    const earthquakes = state.data?.earthquakes ?? [];
+    const earthquake = state.data?.selectedEarthquake ?? earthquakes[0];
+    if (!earthquake) return buildMobileContextMarkup("地震", "直近の地震情報はありません", "発表なし");
+    return buildEarthquakeMobileContextMarkup(earthquake);
+  }
+  return buildMobileContextMarkup(tab.label ?? "情報", "詳細情報", "開く");
+}
+
+function buildEarthquakeMobileContextMarkup(earthquake) {
+  const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
+  const intensityTextClass = getEarthquakeIntensityTextClass(earthquake.maxIntensity);
+  const intensity = earthquake.maxIntensityShort ?? earthquake.maxIntensityLabel ?? "--";
+  const magnitude = formatEarthquakeMagnitude(earthquake.magnitude, { prefix: true });
+  const depth = formatEarthquakeDepthText(earthquake.depth, { compact: true });
+  const time = formatMobileEarthquakeTime(earthquake.eventTime ?? earthquake.reportTime);
+
+  return `
+    <div class="mobile-dock-content mobile-dock-earthquake" style="--mobile-earthquake-intensity-bg: ${escapeHtml(intensityColor)};">
+      <div class="mobile-dock-earthquake-head">
+        <span class="mobile-dock-kicker">最新地震</span>
+        <span class="mobile-dock-earthquake-time">${escapeHtml(time)}</span>
+      </div>
+      <div class="mobile-dock-earthquake-main">
+        <div class="mobile-dock-earthquake-text">
+          <strong>${escapeHtml(earthquake.hypocenterName ?? "震源調査中")}</strong>
+          <span>${escapeHtml([magnitude, `深さ ${depth}`].filter((item) => item && item !== "--").join(" / ") || "詳細確認中")}</span>
+        </div>
+        <em class="mobile-dock-earthquake-intensity ${intensityTextClass}">${escapeHtml(intensity)}</em>
+      </div>
+    </div>
+  `;
+}
+
+function formatMobileEarthquakeTime(value) {
+  const text = String(value ?? "").trim().replace(/頃$/u, "");
+  if (!text || text === "--") return "--";
+  const match = text.match(/(?:\d{4}\/)?(\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})/u);
+  return match ? `${match[1]} ${match[2]}` : text;
+}
+function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, isLoading, warningView, warnings }) {
+  const topWarning = getPrimaryMobileWarning(warnings);
+  const summaryText = isLoading ? "" : buildMobileWarningSummary(warnings);
+  const statusText = isLoading ? "取得中" : (topWarning?.label ?? "発表なし");
+  const level = topWarning?.level ?? "none";
+  const kicker = warningView === "early" ? "早期注意情報" : "警報・注意報";
+
+  return `
+    <div class="mobile-dock-content mobile-dock-warning">
+      <div class="mobile-dock-warning-head">
+        ${buildWarningMobileActionRow(warningView, activeKikikuruLayer)}
+      </div>
+      <div class="mobile-dock-warning-main">
+        <div class="mobile-dock-warning-text">
+          <strong>${escapeHtml(isLoading ? "現在地を確認中" : area)}</strong>
+          ${summaryText ? `<span>${escapeHtml(summaryText)}</span>` : ""}
+        </div>
+        <span class="mobile-dock-warning-badge mobile-dock-warning-badge-${escapeHtml(level)}">${escapeHtml(statusText)}</span>
+      </div>
+    </div>
+  `;
+}
+
+function getPrimaryMobileWarning(warnings = []) {
+  const rank = { emergency: 4, danger: 3, high: 3, warning: 2, middle: 2, advisory: 1 };
+  return [...warnings].sort((a, b) => (rank[b?.level] ?? 0) - (rank[a?.level] ?? 0))[0] ?? null;
+}
+function buildWarningMobileActionRow(warningView, activeKikikuruLayer) {
+  const activeKikikuruOption = KIKIKURU_LAYER_OPTIONS.find((element) => element.id === activeKikikuruLayer)
+    ?? KIKIKURU_LAYER_OPTIONS[0]
+    ?? { label: "キキクル" };
+  const options = [
+    { id: "status", label: "発表", active: warningView === "status" },
+    { id: "early", label: "早期", active: warningView === "early" },
+    { id: "kikikuru", label: activeKikikuruOption.label.replace("キキクル", ""), active: warningView === "kikikuru" }
+  ];
+
+  return `
+    <div class="mobile-dock-action-row mobile-dock-warning-actions">
+      ${options.map((option) => `
+        <button type="button" class="mobile-dock-action${option.active ? " active" : ""}" data-mobile-dock-control data-kikikuru-layer="${escapeHtml(option.id)}" aria-pressed="${option.active ? "true" : "false"}"${option.active && option.id !== "kikikuru" ? " disabled" : ""}>${escapeHtml(option.label || "キキクル")}</button>
+      `).join("")}
+    </div>
+  `;
+}
+function buildMobileWarningSummary(warnings = []) {
+  const labels = warnings
+    .map((warning) => simplifyMobileWarningLabel(warning?.label))
+    .filter(Boolean);
+  const uniqueLabels = [...new Set(labels)];
+  if (!uniqueLabels.length) return "";
+  const visible = uniqueLabels.slice(0, 2).join("・");
+  return uniqueLabels.length > 2 ? `${visible} 他${uniqueLabels.length - 2}` : visible;
+}
+
+function simplifyMobileWarningLabel(label = "") {
+  return String(label)
+    .replace(/^レベル\d+\s*/, "")
+    .replace(/(特別警報|危険警報|警報|注意報)$/u, "")
+    .trim();
+}
+
+function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
+  const weatherChartEnabled = Boolean(state.weatherChartEnabled);
+  const weatherChartLoading = weatherChartEnabled && state.weatherChartStatus === "loading";
+  const weatherChart = state.weatherChart ?? state.data?.weatherChart;
+  const chartFrames = Array.isArray(weatherChart?.frames)
+    ? weatherChart.frames
+    : (weatherChart?.featureCount > 0 ? [weatherChart] : []);
+  const chartIndex = clampIndex(weatherChart?.activeFrameIndex ?? 0, chartFrames.length);
+  const chartFrame = chartFrames[chartIndex] ?? weatherChart?.activeFrame ?? weatherChart;
+
+  const radarLength = frames.length;
+  const radarFrame = frames[index] ?? null;
+  const radarFrameMeta = frames.map((item) => ({
+    title: item?.label ?? "--",
+    meta: item?.isForecast ? "予測" : "観測"
+  }));
+
+  const chartFrameMeta = chartFrames.map((item) => ({
+    title: item?.latestTime ? formatWarningTime(item.latestTime) : "--",
+    meta: getWeatherChartFrameKindLabel(item)
+  }));
+
+  const isChartMode = weatherChartEnabled;
+  const length = isChartMode ? chartFrames.length : radarLength;
+  const activeIndex = isChartMode ? chartIndex : index;
+  const title = isChartMode
+    ? (chartFrame?.latestTime ? formatWarningTime(chartFrame.latestTime) : (weatherChartLoading ? "取得中" : "--"))
+    : (radarFrame?.label ?? (status === "loading" ? "取得中" : "--"));
+  const meta = isChartMode
+    ? (chartFrame ? getWeatherChartFrameKindLabel(chartFrame) : "天気図")
+    : (radarFrame?.isForecast ? "予測" : "観測");
+  const frameMeta = isChartMode ? chartFrameMeta : radarFrameMeta;
+  const progress = buildProgressPercent(activeIndex, length);
+  const range = length > 1
+    ? `<input type="range" class="mobile-dock-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : "data-mobile-radar-slider"} data-frame-meta="${escapeHtml(JSON.stringify(frameMeta))}" aria-label="${isChartMode ? "天気図" : "雨雲レーダー"}時刻" style="--mobile-dock-progress:${escapeHtml(progress)}">`
+    : `<div class="mobile-dock-range" style="--mobile-dock-progress:${escapeHtml(progress)}"><span></span></div>`;
+
+  return `
+    <div class="mobile-dock-content">
+      <div class="mobile-dock-action-row mobile-dock-mode-switch">
+        <button type="button" class="mobile-dock-action${weatherChartEnabled ? "" : " active"}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "false" : "true"}"${weatherChartEnabled ? "" : " disabled"}>雨雲レーダー</button>
+        <button type="button" class="mobile-dock-action${weatherChartEnabled ? " active" : ""}${weatherChartLoading ? " loading" : ""}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "true" : "false"}"${weatherChartEnabled ? " disabled" : ""}>${escapeHtml(weatherChartLoading ? "取得中" : "天気図")}</button>
+      </div>
+      <div class="mobile-dock-row">
+        <strong data-mobile-radar-title>${escapeHtml(title)}</strong>
+        <span data-mobile-radar-meta>${escapeHtml(meta)}</span>
+      </div>
+      ${range}
+    </div>
+  `;
+}
+function updateMobileRadarSliderProgress(slider) {
+  const min = Number(slider.min) || 0;
+  const max = Number(slider.max) || 0;
+  const value = Number(slider.value) || 0;
+  const percent = max > min ? `${((value - min) / (max - min)) * 100}%` : "0%";
+  slider.style.setProperty("--mobile-dock-progress", percent);
+}
+
+function updateMobileWeatherChartSliderPreview(slider) {
+  updateMobileRadarSliderProgress(slider);
+  const root = slider.closest("#mobile-context-dock");
+  const title = root?.querySelector("[data-mobile-radar-title]");
+  const meta = root?.querySelector("[data-mobile-radar-meta]");
+  const frames = parseWeatherChartFrameMeta(slider.dataset.frameMeta);
+  const frame = frames[clampIndex(Number(slider.value), frames.length)];
+  if (!frame) return;
+  if (title) title.textContent = frame.title || "--";
+  if (meta) meta.textContent = frame.meta || "天気図";
+}
+
+function updateMobileRadarSliderLabel(slider, value) {
+  const root = slider.closest("#mobile-context-dock");
+  const title = root?.querySelector("[data-mobile-radar-title]");
+  const meta = root?.querySelector("[data-mobile-radar-meta]");
+  const frames = parseWeatherChartFrameMeta(slider.dataset.frameMeta);
+  const frame = frames[clampIndex(value, frames.length)];
+  if (!frame) return;
+  if (title) title.textContent = frame.title || "--";
+  if (meta) meta.textContent = frame.meta || "観測";
+}
+function buildMobileContextMarkup(kicker, title, meta = "", progress = "") {
+  return `
+    <div class="mobile-dock-content">
+      <span class="mobile-dock-kicker">${escapeHtml(kicker)}</span>
+      <div class="mobile-dock-row">
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml(meta)}</span>
+      </div>
+      ${progress ? `<div class="mobile-dock-range" style="--mobile-dock-progress:${escapeHtml(progress)}"><span></span></div>` : ""}
+    </div>
+  `;
+}
+
+function getActiveTyphoonSelection(typhoons = [], selectedTyphoonId = "") {
+  const activeId = String(selectedTyphoonId ?? typhoons[0]?.id ?? "");
+  const activeIndex = Math.max(0, typhoons.findIndex((typhoon, index) => {
+    const id = String(typhoon.id ?? `typhoon-${index}`);
+    return id === activeId;
+  }));
+  return {
+    activeIndex,
+    activeTyphoon: typhoons[activeIndex] ?? typhoons[0]
+  };
+}
+
 function getAmedasMetric(metricId) {
   return AMEDAS_METRICS.find((item) => item.id === metricId) ?? AMEDAS_METRICS[0];
 }
@@ -759,10 +1090,6 @@ function countAmedasPoints(data = {}, metricId) {
     const value = point.values?.[metricId];
     return shouldIncludeAmedasValue(metricId, value);
   }).length;
-}
-
-function findLatestObservationIndex(frames) {
-  return frames.reduce((latestIndex, frame, index) => frame.isForecast ? latestIndex : index, -1);
 }
 
 function findLatestWeatherChartAnalysisIndex(frames) {
@@ -796,9 +1123,7 @@ function buildProgressPercent(index, length) {
 function updateWeatherChartSliderPreview(slider) {
   const activeIndex = Number(slider.value);
   const length = Number(slider.dataset.frameCount) || Number(slider.max) + 1;
-  const referenceIndex = Number(slider.dataset.referenceIndex);
-  const observedIndex = Number.isFinite(referenceIndex) ? referenceIndex : activeIndex;
-  slider.style.background = buildSliderBackground(activeIndex, observedIndex, length);
+  slider.style.background = buildSliderBackground(activeIndex, length);
 
   const meta = parseWeatherChartFrameMeta(slider.dataset.frameMeta);
   const activeMeta = meta[clampIndex(activeIndex, meta.length)];
@@ -824,19 +1149,12 @@ function parseWeatherChartFrameMeta(value) {
   }
 }
 
-function buildSliderBackground(activeIndex, observedIndex, length) {
+function buildSliderBackground(activeIndex, length) {
   const active = buildProgressPercent(activeIndex, length);
-  const observed = buildProgressPercent(observedIndex, length);
-  if (activeIndex <= observedIndex) {
-    return `linear-gradient(to right,
-      #4cb7f2 0%, #4cb7f2 ${active},
-      rgba(255,255,255,0.16) ${active}, rgba(255,255,255,0.16) ${observed},
-      rgba(72,196,107,0.34) ${observed}, rgba(72,196,107,0.34) 100%)`;
-  }
+  const trackSize = "center / 100% 6px no-repeat";
   return `linear-gradient(to right,
-    #4cb7f2 0%, #4cb7f2 ${observed},
-    rgba(72,196,107,0.76) ${observed}, rgba(72,196,107,0.76) ${active},
-    rgba(255,255,255,0.16) ${active}, rgba(255,255,255,0.16) 100%)`;
+    #51c2ff 0%, #65e0a7 ${active},
+    rgba(255,255,255,0.16) ${active}, rgba(255,255,255,0.16) 100%) ${trackSize}`;
 }
 
 function renderCurrentLocationCard(tab, info) {

@@ -21,22 +21,53 @@ export async function resolveCurrentLocationInfo(coordinates, warningData = {}) 
 
   const activeArea = (warningData.activeAreas ?? [])
     .find((area) => String(area.areaCode) === String(municipality.code));
+  const earlyArea = findEarlyWarningAreaForMunicipality(municipality.code, warningData);
 
   return {
     status: "found",
     coordinates,
     areaCode: municipality.code,
     areaName: municipality.name,
-    prefecture: activeArea?.prefecture ?? getPrefectureNameByCode(municipality.code),
+    prefecture: activeArea?.prefecture ?? earlyArea?.prefecture ?? getPrefectureNameByCode(municipality.code),
     center: municipality.center,
     warnings: activeArea?.warnings ?? [],
+    earlyWarnings: buildCurrentLocationEarlyWarnings(earlyArea),
+    earlyWarningArea: earlyArea ? {
+      areaCode: earlyArea.areaCode,
+      areaName: earlyArea.areaName,
+      displayAreaCode: earlyArea.displayAreaCode,
+      displayAreaName: earlyArea.displayAreaName,
+      updatedAt: earlyArea.updatedAt
+    } : null,
     updatedAt: activeArea?.updatedAt ?? warningData.updatedAt ?? warningData.latestTime ?? "",
+    earlyUpdatedAt: earlyArea?.updatedAt ?? warningData.earlyWarnings?.updatedAt ?? warningData.earlyWarnings?.latestTime ?? "",
     message: activeArea?.warnings?.length
       ? "現在地に発表中の警報・注意報があります。"
       : "現在地に発表中の警報・注意報はありません。"
   };
 }
 
+function findEarlyWarningAreaForMunicipality(areaCode, warningData = {}) {
+  const code = String(areaCode ?? "");
+  if (!code) return null;
+  const candidates = [
+    ...(warningData.earlyWarnings?.municipalityAreas ?? []),
+    ...(warningData.earlyMunicipalityAreas ?? [])
+  ];
+  return candidates.find((area) => String(area.areaCode) === code) ?? null;
+}
+
+function buildCurrentLocationEarlyWarnings(area) {
+  return (area?.probabilities ?? [])
+    .filter((probability) => probability?.level && probability.level !== "none")
+    .map((probability) => ({
+      type: probability.type ?? "",
+      level: probability.level,
+      label: [probability.type, probability.label].filter(Boolean).join(" ").trim(),
+      updatedAt: area.updatedAt,
+      displayAreaName: area.displayAreaName ?? area.areaName
+    }));
+}
 export async function findMunicipalityForPoint(lng, lat) {
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
   const municipalities = await loadMunicipalityLookup();

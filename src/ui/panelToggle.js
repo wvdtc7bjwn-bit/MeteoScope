@@ -8,6 +8,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   if (!sidebar) return;
 
   const isMobileSheet = () => window.matchMedia("(max-width: 800px)").matches;
+  const isPortraitSheet = () => window.matchMedia("(max-width: 800px) and (orientation: portrait)").matches;
   let handle = document.getElementById("sidebar-drawer-handle");
   if (!handle) {
     handle = document.createElement("div");
@@ -22,19 +23,33 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   let drawerState = "peek";
   let drawerOffset = null;
   let dragging = false;
+  let dragTarget = null;
   let startY = 0;
   let startOffset = 0;
   let currentOffset = 0;
   let suppressClickUntil = 0;
 
+  function isDockControlEvent(event) {
+    return event.target instanceof Element && Boolean(event.target.closest("[data-mobile-dock-control]"));
+  }
+
   function getSheetHeight() {
+    if (isPortraitSheet()) {
+      const viewportHeight = window.innerHeight || 0;
+      const narrowPhone = (window.innerWidth || 0) <= 420;
+      const ratio = narrowPhone ? 0.72 : 0.7;
+      const maxHeight = narrowPhone ? 590 : 620;
+      const minHeight = narrowPhone ? 330 : 360;
+      return Math.max(minHeight, Math.min(viewportHeight * ratio, maxHeight));
+    }
     return sidebar.getBoundingClientRect().height || 0;
   }
 
   function getPeekVisibleHeight() {
     const viewportHeight = window.innerHeight || 0;
     if (window.matchMedia("(max-width: 800px) and (orientation: portrait)").matches) {
-      return Math.max(0, Math.min(450, Math.max(320, viewportHeight * 0.48)) - 8);
+      const tabBarHeight = document.getElementById("main-tabs")?.getBoundingClientRect().height || 74;
+      return Math.max(68, Math.min(96, tabBarHeight));
     }
     return Math.min(260, Math.max(178, viewportHeight * 0.34));
   }
@@ -104,6 +119,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
       sidebar.style.transform = "";
       sidebar.classList.remove("drawer-open");
       sidebar.classList.remove("drawer-middle");
+      document.documentElement.classList.remove("mobile-drawer-open");
       handle.setAttribute("aria-expanded", "false");
       document.documentElement.style.removeProperty("--mobile-sidebar-visible-height");
       drawerOffset = null;
@@ -111,53 +127,64 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     }
 
     const nextOffset = clampOffset(offset ?? getCurrentOffset());
-    sidebar.style.transform = `translateY(${nextOffset}px)`;
+    sidebar.style.transform = isPortraitSheet() ? "translateY(0)" : `translateY(${nextOffset}px)`;
     sidebar.classList.toggle("drawer-open", nextOffset <= 2);
     sidebar.classList.toggle("drawer-middle", nextOffset > 2 && nextOffset < getSnapOffsets().peek - 2);
-    handle.setAttribute("aria-expanded", String(nextOffset < getSnapOffsets().peek - 2));
+    document.documentElement.classList.toggle("mobile-drawer-open", nextOffset < getSnapOffsets().peek - 2);
+    const isExpanded = nextOffset < getSnapOffsets().peek - 2;
+    handle.setAttribute("aria-expanded", String(isExpanded));
+    mobileContextDock?.setAttribute("aria-expanded", String(isExpanded));
     setVisibleHeight(nextOffset);
   }
 
   function setDrawerState(state) {
     drawerState = state;
     drawerOffset = null;
-    sidebar.style.transition = "transform 220ms ease";
+    sidebar.style.transition = "transform 340ms cubic-bezier(0.16, 1, 0.3, 1), height 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease, filter 220ms ease";
     applyTransform();
-    window.setTimeout(notifyLayoutChange, 230);
+    window.setTimeout(notifyLayoutChange, 350);
   }
 
   function setDrawerOffset(offset, { transition = false } = {}) {
     drawerOffset = clampOffset(offset);
     updateDrawerStateFromOffset(drawerOffset);
-    sidebar.style.transition = transition ? "transform 160ms ease" : "none";
+    sidebar.style.transition = transition
+      ? "transform 260ms cubic-bezier(0.16, 1, 0.3, 1), height 240ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease, filter 180ms ease"
+      : "none";
     applyTransform(drawerOffset);
     notifyLayoutChange();
   }
 
-  handle.addEventListener("pointerdown", (event) => {
+  function beginDrag(event, target = handle) {
     if (!isMobileSheet()) return;
     dragging = true;
+    dragTarget = target;
     startY = event.clientY;
     startOffset = getCurrentOffset();
     currentOffset = startOffset;
     sidebar.style.transition = "none";
-    handle.setPointerCapture?.(event.pointerId);
-  });
+    target.setPointerCapture?.(event.pointerId);
+  }
 
-  handle.addEventListener("pointermove", (event) => {
+  function moveDrag(event) {
     if (!dragging) return;
     const maxOffset = getSnapOffsets().peek;
     currentOffset = Math.min(maxOffset, Math.max(0, startOffset + event.clientY - startY));
     applyTransform(currentOffset);
     notifyLayoutChange();
-  });
+  }
+
+  handle.addEventListener("pointerdown", (event) => beginDrag(event, handle));
+  handle.addEventListener("pointermove", moveDrag);
 
   function finishDrag(event) {
     if (!dragging) return;
+    const moved = Math.abs(currentOffset - startOffset) > 6 || Math.abs(event.clientY - startY) > 6;
     dragging = false;
-    suppressClickUntil = Date.now() + 250;
-    handle.releasePointerCapture?.(event.pointerId);
-    setDrawerOffset(currentOffset);
+    suppressClickUntil = moved ? Date.now() + 250 : 0;
+    dragTarget?.releasePointerCapture?.(event.pointerId);
+    dragTarget = null;
+    setDrawerOffset(moved ? currentOffset : startOffset);
   }
 
   handle.addEventListener("pointerup", finishDrag);
@@ -181,6 +208,38 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
     setDrawerState(drawerState === "full" ? "peek" : "full");
+  });
+
+  const mobileContextDock = document.getElementById("mobile-context-dock");
+  mobileContextDock?.addEventListener("pointerdown", (event) => {
+    if (isDockControlEvent(event)) return;
+    beginDrag(event, mobileContextDock);
+  });
+  mobileContextDock?.addEventListener("pointermove", moveDrag);
+  mobileContextDock?.addEventListener("pointerup", finishDrag);
+  mobileContextDock?.addEventListener("pointercancel", finishDrag);
+  mobileContextDock?.setAttribute("aria-expanded", "false");
+  mobileContextDock?.addEventListener("click", (event) => {
+    if (isDockControlEvent(event)) return;
+    if (Date.now() < suppressClickUntil || !isMobileSheet()) return;
+    setDrawerState("full");
+  });
+  mobileContextDock?.addEventListener("keydown", (event) => {
+    if (isDockControlEvent(event)) return;
+    if (!isMobileSheet()) return;
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setDrawerOffset(getCurrentOffset() - 96, { transition: true });
+      return;
+    }
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setDrawerOffset(getCurrentOffset() + 96, { transition: true });
+      return;
+    }
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    setDrawerState("full");
   });
 
   window.addEventListener("resize", () => {
