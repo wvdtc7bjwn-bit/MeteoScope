@@ -8,6 +8,7 @@ import { JMA_WARNING_OFFICE_CODES } from "../../../src/jma/warningOfficeCodes.js
 const SUBSCRIPTION_INDEX_KEY = "push:warning-subscriptions:index";
 const SUBSCRIPTION_KEY_PREFIX = "push:warning-subscription:";
 const PENDING_KEY_PREFIX = "push:pending:";
+const VAPID_KEYS_KEY = "push:vapid-keys";
 const JMA_WARNING_BASE = "https://www.jma.go.jp/bosai/warning/data/r8";
 const PUSH_TTL_SECONDS = 60;
 const MAX_PENDING_MESSAGES = 6;
@@ -18,7 +19,7 @@ export async function onRequest({ request, env }) {
     const route = url.pathname.replace(/^\/api\/push\/?/, "");
     const method = request.method.toUpperCase();
 
-    if ((route === "" || route === "config") && method === "GET") return getPushConfig(env);
+    if ((route === "" || route === "config") && method === "GET") return await getPushConfig(env);
     if (route === "subscribe" && method === "POST") return subscribe(request, env);
     if (route === "unsubscribe" && method === "POST") return unsubscribe(request, env);
     if (route === "pending" && method === "POST") return pending(request, env);
@@ -85,18 +86,26 @@ export async function runWarningPushCheck(env) {
   return { checked: uniqueIds.length, notified, removed };
 }
 
-function getPushConfig(env) {
+async function getPushConfig(env) {
+  const vapidKeys = await getVapidKeys(env, { create: true });
+  const enabled = Boolean(env.ADMIN_KV && vapidKeys?.publicKey && vapidKeys?.privateKey);
   return json({
-    enabled: Boolean(env.ADMIN_KV && env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY),
-    publicKey: env.VAPID_PUBLIC_KEY || "",
-    minCronIntervalSeconds: 60
+    enabled,
+    publicKey: enabled ? vapidKeys.publicKey : "",
+    minCronIntervalSeconds: 60,
+    setup: {
+      kv: Boolean(env.ADMIN_KV),
+      vapid: Boolean(vapidKeys?.publicKey && vapidKeys?.privateKey),
+      source: vapidKeys?.source || "missing"
+    }
   });
 }
 
 async function subscribe(request, env) {
   const kv = requireKv(env);
-  if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) {
-    return json({ error: "通知サーバーのVAPIDキーが未設定です。" }, { status: 503 });
+  const vapidKeys = await getVapidKeys(env, { create: true });
+  if (!vapidKeys?.publicKey || !vapidKeys?.privateKey) {
+    return json({ error: "通知サーバーのVAPIDキーを準備できませんでした。" }, { status: 503 });
   }
 
   const payload = await request.json().catch(() => ({}));
@@ -342,22 +351,23 @@ async function enqueuePendingMessage(kv, id, message) {
 
 async function sendEmptyPush(pushSubscription, env) {
   const endpoint = pushSubscription?.endpoint;
-  if (!endpoint || !env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) {
+  const vapidKeys = await getVapidKeys(env, { create: true });
+  if (!endpoint || !vapidKeys?.publicKey || !vapidKeys?.privateKey) {
     return { ok: false, status: 0, statusText: "missing push configuration" };
   }
 
-  const token = await createVapidJwt(new URL(endpoint).origin, env);
+  const token = await createVapidJwt(new URL(endpoint).origin, env, vapidKeys);
   return fetch(endpoint, {
     method: "POST",
     headers: {
       "TTL": String(PUSH_TTL_SECONDS),
       "Urgency": "high",
-      "Authorization": `vapid t=${token}, k=${env.VAPID_PUBLIC_KEY}`
+      "Authorization": `vapid t=${token}, k=${vapidKeys.publicKey}`
     }
   });
 }
 
-async function createVapidJwt(audience, env) {
+async function createVapidJwt(audience, env, vapidKeys) {
   const header = base64UrlEncode(JSON.stringify({ typ: "JWT", alg: "ES256" }));
   const payload = base64UrlEncode(JSON.stringify({
     aud: audience,
@@ -365,13 +375,58 @@ async function createVapidJwt(audience, env) {
     sub: env.VAPID_SUBJECT || "mailto:admin@meteoscope.local"
   }));
   const unsignedToken = `${header}.${payload}`;
-  const key = await importVapidPrivateKey(env.VAPID_PUBLIC_KEY, env.VAPID_PRIVATE_KEY);
+  const key = await importVapidPrivateKey(vapidKeys.publicKey, vapidKeys.privateKey);
   const signature = await crypto.subtle.sign(
     { name: "ECDSA", hash: "SHA-256" },
     key,
     new TextEncoder().encode(unsignedToken)
   );
   return `${unsignedToken}.${base64UrlEncodeBytes(new Uint8Array(signature))}`;
+}
+
+async function getVapidKeys(env, options = {}) {
+  const envPublicKey = String(env.VAPID_PUBLIC_KEY || "").trim();
+  const envPrivateKey = String(env.VAPID_PRIVATE_KEY || "").trim();
+  if (envPublicKey && envPrivateKey) {
+    return { publicKey: envPublicKey, privateKey: envPrivateKey, source: "env" };
+  }
+
+  if (!env.ADMIN_KV) return null;
+
+  const stored = await readJson(env.ADMIN_KV, VAPID_KEYS_KEY, null);
+  if (stored?.publicKey && stored?.privateKey) {
+    return {
+      publicKey: String(stored.publicKey),
+      privateKey: String(stored.privateKey),
+      source: "kv"
+    };
+  }
+
+  if (!options.create) return null;
+
+  const generated = await generateVapidKeys();
+  const record = {
+    publicKey: generated.publicKey,
+    privateKey: generated.privateKey,
+    createdAt: new Date().toISOString()
+  };
+  await env.ADMIN_KV.put(VAPID_KEYS_KEY, JSON.stringify(record));
+  return { ...record, source: "kv" };
+}
+
+async function generateVapidKeys() {
+  const keyPair = await crypto.subtle.generateKey(
+    { name: "ECDSA", namedCurve: "P-256" },
+    true,
+    ["sign", "verify"]
+  );
+  const publicBytes = new Uint8Array(await crypto.subtle.exportKey("raw", keyPair.publicKey));
+  const privateJwk = await crypto.subtle.exportKey("jwk", keyPair.privateKey);
+  if (!privateJwk.d) throw new Error("Generated VAPID private key is invalid");
+  return {
+    publicKey: base64UrlEncodeBytes(publicBytes),
+    privateKey: String(privateJwk.d)
+  };
 }
 
 async function importVapidPrivateKey(publicKey, privateKey) {
