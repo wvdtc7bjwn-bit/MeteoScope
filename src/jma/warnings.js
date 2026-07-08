@@ -6,6 +6,7 @@ import {
   getPrefectureNameByCode,
   highestSeverityLevel,
   severityRank,
+  shouldShowWarningLevel,
   severityValue
 } from "./warningCore.js";
 
