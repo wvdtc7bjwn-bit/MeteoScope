@@ -543,63 +543,19 @@ function buildLegendItems(tabId, amedasMetricId, warningView = "status") {
   return legendsByTab[tabId] ?? [];
 }
 
-function renderKikikuruLayerTabs(tab, warningView, activeLayer) {
+function renderKikikuruLayerTabs() {
   const root = document.getElementById("kikikuru-layer-tabs");
   if (!root) return;
-
-  const isWarnings = tab.id === "warnings";
-  root.hidden = !isWarnings;
-  if (!isWarnings) {
-    root.innerHTML = "";
-    return;
-  }
-
-  const activeKikikuruOption = KIKIKURU_LAYER_OPTIONS.find((element) => element.id === activeLayer)
-    ?? KIKIKURU_LAYER_OPTIONS[0]
-    ?? { id: "land", label: "土砂キキクル" };
-  const activeId = warningView === "kikikuru" ? "kikikuru" : "status";
-  const statusLabel = warningView === "early" ? "早期注意情報" : "発表状況";
-  const options = [
-    { id: "status", label: statusLabel },
-    { id: "kikikuru", label: activeKikikuruOption.label }
-  ];
-
-  root.innerHTML = options.map((element) => `
-    <button
-      type="button"
-      class="kikikuru-layer-button${activeId === element.id ? " active" : ""}"
-      data-kikikuru-layer="${escapeHtml(element.id)}"
-      aria-pressed="${activeId === element.id ? "true" : "false"}"
-    >${escapeHtml(element.label)}</button>
-  `).join("");
+  root.hidden = true;
+  root.innerHTML = "";
 }
 
-function renderRadarOverlayTabs(tab, weatherChartEnabled = false, weatherChartStatus = "idle", weatherChart = null) {
+function renderRadarOverlayTabs() {
   const root = document.getElementById("radar-overlay-tabs");
   if (!root) return;
-
-  const isRadar = tab.id === "radar";
-  root.hidden = !isRadar;
-  if (!isRadar) {
-    root.innerHTML = "";
-    return;
-  }
-
-  const isLoading = weatherChartEnabled && weatherChartStatus === "loading";
-  const metaText = weatherChartStatus === "error"
-      ? "取得失敗"
-      : "";
-  root.innerHTML = `
-    <button
-      type="button"
-      class="kikikuru-layer-button${weatherChartEnabled ? " active" : ""}${isLoading ? " loading" : ""}"
-      data-radar-overlay="weather-chart"
-      aria-pressed="${weatherChartEnabled ? "true" : "false"}"
-    >${isLoading ? "取得中" : "天気図"}</button>
-    ${metaText ? `<span class="radar-overlay-meta">${escapeHtml(metaText)}</span>` : ""}
-  `;
+  root.hidden = true;
+  root.innerHTML = "";
 }
-
 function renderAmedasSubTabs(tab, activeMetricId) {
   const root = document.getElementById("amedas-sub-tabs");
   if (!root) return;

@@ -3646,7 +3646,7 @@ h2 {
   }
 
   #sidebar.drawer-open {
-    transform: translateY(0);
+    transform: translateY(0) translateZ(0);
   }
 
   #sidebar-drawer-handle {
@@ -3971,8 +3971,9 @@ h2 {
     height: var(--mobile-sidebar-visible-height, min(72dvh, 590px));
     min-height: 0;
     max-height: min(72dvh, 590px);
-    will-change: height, opacity;
-    transform: translateY(0);
+    will-change: transform, height, opacity;
+    contain: layout paint;
+    transform: translateY(0) translateZ(0);
   }
 
   html:not(.mobile-drawer-open) #sidebar {
@@ -3985,7 +3986,7 @@ h2 {
     pointer-events: auto;
   }
   #sidebar.drawer-open {
-    transform: translateY(0);
+    transform: translateY(0) translateZ(0);
   }
 
   #sidebar-drawer-handle::before {
@@ -4128,7 +4129,9 @@ h2 {
     z-index: 518;
     display: block;
     width: min(390px, calc(100vw - 22px));
-    min-height: 88px;
+    height: 126px;
+    min-height: 126px;
+    box-sizing: border-box;
     padding: 14px 18px 13px;
     border: 1px solid rgba(207, 232, 255, 0.28);
     border-radius: 36px;
@@ -4149,7 +4152,10 @@ h2 {
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
-    transition: opacity 160ms ease, transform 220ms ease;
+    overflow: hidden;
+    transition: opacity 220ms cubic-bezier(0.16, 1, 0.3, 1), transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform, opacity;
+    contain: layout paint;
   }
 
   .mobile-context-dock::before {
@@ -4167,15 +4173,18 @@ h2 {
 
   .mobile-drawer-open .mobile-context-dock {
     opacity: 0;
-    transform: translateX(-50%) translateY(18px);
+    transform: translateX(-50%) translateY(14px) translateZ(0);
     pointer-events: none;
   }
 
   .mobile-dock-content {
     display: grid;
+    align-content: center;
     gap: 7px;
     min-width: 0;
+    height: 100%;
     padding-top: 5px;
+    box-sizing: border-box;
   }
 
   .mobile-dock-kicker {
@@ -4664,7 +4673,7 @@ h2 {
   .map-locate-button {
     bottom: max(
       calc(var(--mobile-sidebar-visible-height, 48dvh) + 70px),
-      calc(max(0px, env(safe-area-inset-bottom)) + 176px)
+      calc(max(0px, env(safe-area-inset-bottom)) + 220px)
     );
   }
 

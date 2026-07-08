@@ -9,6 +9,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
 
   const isMobileSheet = () => window.matchMedia("(max-width: 800px)").matches;
   const isPortraitSheet = () => window.matchMedia("(max-width: 800px) and (orientation: portrait)").matches;
+  const mobileContextDock = document.getElementById("mobile-context-dock");
   let handle = document.getElementById("sidebar-drawer-handle");
   if (!handle) {
     handle = document.createElement("div");
@@ -28,6 +29,9 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   let startOffset = 0;
   let currentOffset = 0;
   let suppressClickUntil = 0;
+  let layoutNotifyFrame = 0;
+  let dragTransformFrame = 0;
+  let pendingDragOffset = null;
 
   function isDockControlEvent(event) {
     return event.target instanceof Element && Boolean(event.target.closest("[data-mobile-dock-control]"));
@@ -114,6 +118,33 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     window.dispatchEvent(new CustomEvent("sidebar-layout-change"));
   }
 
+  function notifyLayoutChangeSoon() {
+    if (layoutNotifyFrame) return;
+    layoutNotifyFrame = window.requestAnimationFrame(() => {
+      layoutNotifyFrame = 0;
+      notifyLayoutChange();
+    });
+  }
+
+  function applyDragTransformSoon(offset) {
+    pendingDragOffset = offset;
+    if (dragTransformFrame) return;
+    dragTransformFrame = window.requestAnimationFrame(() => {
+      dragTransformFrame = 0;
+      const nextOffset = pendingDragOffset;
+      pendingDragOffset = null;
+      if (!dragging || nextOffset == null) return;
+      applyTransform(nextOffset);
+      notifyLayoutChangeSoon();
+    });
+  }
+
+  function cancelPendingDragTransform() {
+    if (!dragTransformFrame) return;
+    window.cancelAnimationFrame(dragTransformFrame);
+    dragTransformFrame = 0;
+    pendingDragOffset = null;
+  }
   function applyTransform(offset = null) {
     if (!isMobileSheet()) {
       sidebar.style.transform = "";
@@ -157,6 +188,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
 
   function beginDrag(event, target = handle) {
     if (!isMobileSheet()) return;
+    event.preventDefault();
     dragging = true;
     dragTarget = target;
     startY = event.clientY;
@@ -168,10 +200,10 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
 
   function moveDrag(event) {
     if (!dragging) return;
+    event.preventDefault();
     const maxOffset = getSnapOffsets().peek;
     currentOffset = Math.min(maxOffset, Math.max(0, startOffset + event.clientY - startY));
-    applyTransform(currentOffset);
-    notifyLayoutChange();
+    applyDragTransformSoon(currentOffset);
   }
 
   handle.addEventListener("pointerdown", (event) => beginDrag(event, handle));
@@ -181,6 +213,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     if (!dragging) return;
     const moved = Math.abs(currentOffset - startOffset) > 6 || Math.abs(event.clientY - startY) > 6;
     dragging = false;
+    cancelPendingDragTransform();
     suppressClickUntil = moved ? Date.now() + 250 : 0;
     dragTarget?.releasePointerCapture?.(event.pointerId);
     dragTarget = null;
@@ -210,7 +243,6 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     setDrawerState(drawerState === "full" ? "peek" : "full");
   });
 
-  const mobileContextDock = document.getElementById("mobile-context-dock");
   mobileContextDock?.addEventListener("pointerdown", (event) => {
     if (isDockControlEvent(event)) return;
     beginDrag(event, mobileContextDock);
