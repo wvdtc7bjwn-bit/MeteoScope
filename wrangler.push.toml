@@ -1,0 +1,11 @@
+name = "meteoscope-warning-push-cron"
+main = "workers/warning-push-cron.js"
+compatibility_date = "2026-07-06"
+
+[[kv_namespaces]]
+binding = "ADMIN_KV"
+id = "9464591925964777a82ebaef763d838e"
+preview_id = "9464591925964777a82ebaef763d838e"
+
+[triggers]
+crons = ["* * * * *"]

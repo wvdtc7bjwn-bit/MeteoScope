@@ -49,6 +49,11 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    if (event.target.closest("[data-settings-push-toggle]")) {
+      void settingsOptions.onToggleLocationWarningPush?.();
+      return;
+    }
+
     const tabOrderButton = event.target.closest("[data-settings-tab-order-tab]");
     if (tabOrderButton) {
       handleSettingsTabOrderTap(tabOrderButton.dataset.settingsTabOrderTab);
@@ -87,6 +92,7 @@ export function refreshSettingsModalView() {
   if (!modal || modal.hidden) return;
   renderSettingsMyAreas();
   renderSettingsTabOrder();
+  renderSettingsPushNotifications();
   void renderSettingsDisasterMapPdf();
 }
 
@@ -100,6 +106,7 @@ function openSettingsModal() {
   resetSettingsGroups();
   renderSettingsMyAreas();
   renderSettingsTabOrder();
+  renderSettingsPushNotifications();
   void renderSettingsDisasterMapPdf();
 }
 
@@ -165,6 +172,45 @@ function renderSettingsMyAreas() {
       <button type="button" data-settings-remove-my-area="${escapeHtml(area.areaCode)}">削除</button>
     </div>
   `).join("");
+}
+
+function renderSettingsPushNotifications() {
+  const state = settingsOptions.getState?.() ?? {};
+  const push = state.locationWarningPush ?? {};
+  const currentLocation = state.currentLocation ?? {};
+  const title = document.getElementById("settings-push-title");
+  const status = document.getElementById("settings-push-status");
+  const button = document.getElementById("settings-push-toggle");
+  if (!title || !status || !button) return;
+
+  const currentAreaName = currentLocation.areaName || push.areaName || "";
+  const locationReady = currentLocation.status === "found" && currentLocation.areaCode;
+  const enabled = Boolean(push.enabled && push.subscribed);
+  const busy = Boolean(push.busy);
+  const configured = push.configured !== false;
+  const supported = push.supported !== false;
+  const canEnable = locationReady && supported && configured;
+
+  button.disabled = busy || (!enabled && !canEnable);
+  button.classList.toggle("is-enabled", enabled);
+  button.textContent = busy ? "処理中" : enabled ? "無効にする" : "有効にする";
+
+  if (enabled) {
+    title.textContent = `${currentAreaName || "現在地"}を監視中`;
+    status.textContent = push.message || "警報・危険警報・特別警報の変化を通知します。";
+    return;
+  }
+
+  title.textContent = "通知は無効です";
+  if (!supported) {
+    status.textContent = "このブラウザではWeb通知を利用できません。";
+  } else if (!configured) {
+    status.textContent = "通知サーバーの設定が未完了です。";
+  } else if (locationReady) {
+    status.textContent = `${currentAreaName}の警報変化を通知できます。`;
+  } else {
+    status.textContent = push.message || "現在地を取得すると通知を有効にできます。";
+  }
 }
 
 function getSettingsTabs() {

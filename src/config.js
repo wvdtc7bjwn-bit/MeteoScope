@@ -1,3 +1,5 @@
+export { JMA_WARNING_OFFICE_CODES } from "./jma/warningOfficeCodes.js";
+
 export const APP_NAME = "MeteoScope";
 export const APP_BASE_URL = import.meta.env.BASE_URL;
 export const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -40,17 +42,6 @@ export const JMA_ENDPOINTS = {
   earthquakeXmlFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml",
   earthquakeXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml"
 };
-
-export const JMA_WARNING_OFFICE_CODES = [
-  "011000", "012000", "013000", "014100", "014030", "015000", "016000", "017000",
-  "020000", "030000", "040000", "050000", "060000", "070000", "080000", "090000",
-  "100000", "110000", "120000", "130000", "140000", "150000", "160000", "170000",
-  "180000", "190000", "200000", "210000", "220000", "230000", "240000", "250000",
-  "260000", "270000", "280000", "290000", "300000", "310000", "320000", "330000",
-  "340000", "350000", "360000", "370000", "380000", "390000", "400000", "410000",
-  "420000", "430000", "440000", "450000", "460040", "460100", "471000", "472000", "473000",
-  "474000"
-];
 
 export const TABS = [
   {

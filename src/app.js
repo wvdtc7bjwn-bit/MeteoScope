@@ -22,6 +22,7 @@ import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFra
 import { resolveCurrentLocationInfo, searchMunicipalities } from "./location/currentLocation.js";
 import { addMyArea, getMyAreaLimit, loadMyAreas, removeMyArea } from "./location/myAreas.js";
 import { buildLocationRadarTimeline } from "./location/radarTimeline.js";
+import { createLocationWarningPush } from "./push/locationWarningPush.js";
 import { setupRemoteConfig } from "./remoteConfig.js";
 
 const loaders = {
@@ -89,6 +90,9 @@ export function createWeatherApp() {
   let weatherChartLoadedAt = 0;
   let weatherChartRequest = null;
   let activeWeatherChartFrameIndex = 0;
+  const locationWarningPush = createLocationWarningPush({
+    onChange: () => refreshSettingsModalView()
+  });
   const loadRequestsByTab = new Map();
   let warningDetailsRequest = null;
   let warningKikikuruRequest = null;
@@ -783,6 +787,7 @@ export function createWeatherApp() {
         coordinates,
         resolvedAt: Date.now()
       };
+      void locationWarningPush.sync(nextInfo);
       resetLocationRadarTimeline();
       refreshSettingsModalView();
       refreshActivePanel();
@@ -1003,6 +1008,7 @@ export function createWeatherApp() {
     return {
       myAreas,
       currentLocation: currentLocationInfo,
+      locationWarningPush: locationWarningPush.getState(),
       myAreaLimit: getMyAreaLimit()
     };
   }
@@ -1031,6 +1037,16 @@ export function createWeatherApp() {
     myAreas = removeMyArea(myAreas, areaCode);
     refreshSettingsModalView();
     refreshActivePanel();
+  }
+
+  async function toggleLocationWarningPush() {
+    const pushState = locationWarningPush.getState();
+    if (pushState.enabled || pushState.subscribed) {
+      await locationWarningPush.disable();
+    } else {
+      await locationWarningPush.enable(currentLocationInfo);
+    }
+    refreshSettingsModalView();
   }
 
   function start() {
@@ -1066,6 +1082,7 @@ export function createWeatherApp() {
       onRemoveArea: removeSettingsMyArea,
       getDisasterMapPdfInfo: getStoredDisasterMapPdfInfo,
       onClearDisasterMapPdf: clearStoredDisasterMapPdf,
+      onToggleLocationWarningPush: toggleLocationWarningPush,
       tabs: TABS,
       getTabOrder: () => tabControls?.getOrder?.() ?? TABS.map((tab) => tab.id),
       onTabOrderChange: (order) => tabControls?.setOrder?.(order) ?? order
@@ -1075,6 +1092,7 @@ export function createWeatherApp() {
     document.getElementById("locate-button")?.addEventListener("click", locateCurrentPosition);
     startClock("clock");
     startAutoRefresh();
+    void locationWarningPush.initialize().then(() => refreshSettingsModalView());
     startLocationWatch();
     selectTab(activeTab);
   }
