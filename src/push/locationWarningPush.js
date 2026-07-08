@@ -73,7 +73,7 @@ export function createLocationWarningPush(options = {}) {
       await navigator.serviceWorker.register("/sw.js");
       const readyRegistration = await navigator.serviceWorker.ready;
       const subscription = await getOrCreateSubscription(readyRegistration, config.publicKey);
-      await postSubscription(subscription, currentLocation);
+      await postSubscription(subscription, currentLocation, state.notifyAdvisory);
       localStorage.setItem(STORAGE_KEY, "1");
       updateState({
         busy: false,
@@ -126,7 +126,7 @@ export function createLocationWarningPush(options = {}) {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
       if (!subscription) return state;
-      await postSubscription(subscription, currentLocation);
+      await postSubscription(subscription, currentLocation, state.notifyAdvisory);
       updateState({
         subscribed: true,
         permission: Notification.permission,
@@ -208,7 +208,7 @@ async function getOrCreateSubscription(registration, publicKey) {
   });
 }
 
-async function postSubscription(subscription, currentLocation) {
+async function postSubscription(subscription, currentLocation, notifyAdvisory = false) {
   const response = await fetch("/api/push/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -221,7 +221,7 @@ async function postSubscription(subscription, currentLocation) {
       },
       warningState: buildWarningState(currentLocation.warnings),
       preferences: {
-        notifyAdvisory: state.notifyAdvisory
+        notifyAdvisory: Boolean(notifyAdvisory)
       }
     })
   });
