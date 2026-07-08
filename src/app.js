@@ -1049,6 +1049,12 @@ export function createWeatherApp() {
     refreshSettingsModalView();
   }
 
+  async function toggleLocationWarningAdvisory() {
+    const pushState = locationWarningPush.getState();
+    await locationWarningPush.setNotifyAdvisory(!pushState.notifyAdvisory, currentLocationInfo);
+    refreshSettingsModalView();
+  }
+
   function start() {
     weatherMap = createWeatherMap("map");
     weatherMap.initialize();
@@ -1083,6 +1089,7 @@ export function createWeatherApp() {
       getDisasterMapPdfInfo: getStoredDisasterMapPdfInfo,
       onClearDisasterMapPdf: clearStoredDisasterMapPdf,
       onToggleLocationWarningPush: toggleLocationWarningPush,
+      onToggleLocationWarningAdvisory: toggleLocationWarningAdvisory,
       tabs: TABS,
       getTabOrder: () => tabControls?.getOrder?.() ?? TABS.map((tab) => tab.id),
       onTabOrderChange: (order) => tabControls?.setOrder?.(order) ?? order

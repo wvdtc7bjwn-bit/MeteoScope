@@ -54,6 +54,11 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    if (event.target.closest("[data-settings-push-advisory-toggle]")) {
+      void settingsOptions.onToggleLocationWarningAdvisory?.();
+      return;
+    }
+
     const tabOrderButton = event.target.closest("[data-settings-tab-order-tab]");
     if (tabOrderButton) {
       handleSettingsTabOrderTap(tabOrderButton.dataset.settingsTabOrderTab);
@@ -181,6 +186,7 @@ function renderSettingsPushNotifications() {
   const title = document.getElementById("settings-push-title");
   const status = document.getElementById("settings-push-status");
   const button = document.getElementById("settings-push-toggle");
+  const advisoryButton = document.getElementById("settings-push-advisory-toggle");
   if (!title || !status || !button) return;
 
   const currentAreaName = currentLocation.areaName || push.areaName || "";
@@ -194,6 +200,8 @@ function renderSettingsPushNotifications() {
   button.disabled = busy || (!enabled && !canEnable);
   button.classList.toggle("is-enabled", enabled);
   button.textContent = busy ? "処理中" : enabled ? "無効にする" : "有効にする";
+  advisoryButton?.setAttribute("aria-pressed", push.notifyAdvisory ? "true" : "false");
+  if (advisoryButton) advisoryButton.disabled = busy;
 
   if (enabled) {
     title.textContent = `${currentAreaName || "現在地"}を監視中`;

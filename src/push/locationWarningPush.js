@@ -1,10 +1,12 @@
 const STORAGE_KEY = "meteoscope.locationWarningPush.enabled";
+const ADVISORY_STORAGE_KEY = "meteoscope.locationWarningPush.notifyAdvisory";
 
 export function createLocationWarningPush(options = {}) {
   let state = {
     supported: isSupported(),
     configured: null,
     enabled: localStorage.getItem(STORAGE_KEY) === "1",
+    notifyAdvisory: localStorage.getItem(ADVISORY_STORAGE_KEY) === "1",
     subscribed: false,
     busy: false,
     permission: typeof Notification === "undefined" ? "unsupported" : Notification.permission,
@@ -126,6 +128,17 @@ export function createLocationWarningPush(options = {}) {
     return state;
   }
 
+  async function setNotifyAdvisory(value, currentLocation) {
+    const notifyAdvisory = Boolean(value);
+    if (notifyAdvisory) localStorage.setItem(ADVISORY_STORAGE_KEY, "1");
+    else localStorage.removeItem(ADVISORY_STORAGE_KEY);
+    updateState({ notifyAdvisory });
+    if (state.enabled && isLocationReady(currentLocation)) {
+      await sync(currentLocation);
+    }
+    return state;
+  }
+
   function getState() {
     return { ...state };
   }
@@ -149,6 +162,7 @@ export function createLocationWarningPush(options = {}) {
     enable,
     disable,
     sync,
+    setNotifyAdvisory,
     getState
   };
 }
@@ -185,7 +199,10 @@ async function postSubscription(subscription, currentLocation) {
         areaName: currentLocation.areaName,
         prefecture: currentLocation.prefecture
       },
-      warningState: buildWarningState(currentLocation.warnings)
+      warningState: buildWarningState(currentLocation.warnings),
+      preferences: {
+        notifyAdvisory: state.notifyAdvisory
+      }
     })
   });
   if (!response.ok) {

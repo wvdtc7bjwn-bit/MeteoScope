@@ -102,6 +102,7 @@ async function subscribe(request, env) {
   const payload = await request.json().catch(() => ({}));
   const pushSubscription = normalizePushSubscription(payload.subscription);
   const area = normalizeArea(payload.area);
+  const preferences = normalizePreferences(payload.preferences);
   if (!pushSubscription || !area.areaCode) {
     return json({ error: "通知設定に必要な現在地情報が不足しています。" }, { status: 400 });
   }
@@ -114,6 +115,7 @@ async function subscribe(request, env) {
     areaCode: area.areaCode,
     areaName: area.areaName,
     prefecture: area.prefecture,
+    preferences,
     warningState: payload.warningState && typeof payload.warningState === "object" ? payload.warningState : null,
     createdAt: payload.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -231,6 +233,7 @@ function getMunicipalityAreas(report) {
 }
 
 function buildNotificationMessage(subscription, currentArea, currentWarnings) {
+  const notifyAdvisory = Boolean(subscription.preferences?.notifyAdvisory);
   const previousWarnings = Array.isArray(subscription.warningState?.warnings)
     ? subscription.warningState.warnings
     : [];
@@ -244,7 +247,20 @@ function buildNotificationMessage(subscription, currentArea, currentWarnings) {
     const currentSeverity = severityValue(current.level);
     const previousSeverity = severityValue(previous?.level);
 
-    if (currentSeverity >= severityValue("warning") && (!previous || current.code !== previous.code || currentSeverity > previousSeverity)) {
+    if (
+      currentSeverity >= severityValue("warning") &&
+      (!previous || current.code !== previous.code || currentSeverity > previousSeverity)
+    ) {
+      eventLines.push(`［発表］${current.label}`);
+      eventPhenomena.add(phenomenon);
+      return;
+    }
+
+    if (
+      notifyAdvisory &&
+      currentSeverity === severityValue("advisory") &&
+      (!previous || current.code !== previous.code)
+    ) {
       eventLines.push(`［発表］${current.label}`);
       eventPhenomena.add(phenomenon);
       return;
@@ -252,11 +268,19 @@ function buildNotificationMessage(subscription, currentArea, currentWarnings) {
 
     if (
       previous &&
-      previousSeverity >= severityValue("danger") &&
+      previousSeverity >= severityValue("warning") &&
       currentSeverity >= severityValue("advisory") &&
       currentSeverity < previousSeverity
     ) {
       eventLines.push(`［切替］${current.label}に切り替え`);
+      eventPhenomena.add(phenomenon);
+    }
+  });
+
+  previousByPhenomenon.forEach((previous, phenomenon) => {
+    if (currentByPhenomenon.has(phenomenon) || eventPhenomena.has(phenomenon)) return;
+    if (severityValue(previous.level) >= severityValue("warning")) {
+      eventLines.push(`［解除］${previous.label}`);
       eventPhenomena.add(phenomenon);
     }
   });
@@ -384,6 +408,12 @@ function normalizeArea(area) {
     areaCode: String(area?.areaCode || ""),
     areaName: String(area?.areaName || ""),
     prefecture: String(area?.prefecture || "")
+  };
+}
+
+function normalizePreferences(preferences) {
+  return {
+    notifyAdvisory: Boolean(preferences?.notifyAdvisory)
   };
 }
 

@@ -127,7 +127,14 @@
                 </div>
                 <button id="settings-push-toggle" class="settings-push-toggle" type="button" data-settings-push-toggle>有効にする</button>
               </div>
-              <p class="settings-push-note">特別警報・危険警報から警報や注意報へ切り替わった場合も通知します。</p>
+              <p class="settings-push-note">警報以上から注意報へ切り替わった場合や、警報以上が解除された場合も通知します。</p>
+              <button id="settings-push-advisory-toggle" class="settings-push-option" type="button" data-settings-push-advisory-toggle aria-pressed="false">
+                <span>
+                  <strong>新規注意報も通知</strong>
+                  <small>注意報だけが新しく出た場合も［発表］として通知します。</small>
+                </span>
+                <span class="settings-push-switch" aria-hidden="true"><span></span></span>
+              </button>
             </div>
           </section>
           <section class="settings-group settings-disaster-map-group">
