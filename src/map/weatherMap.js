@@ -1,4 +1,4 @@
-import maplibregl from "maplibre-gl";
+﻿import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
   AMEDAS_METRICS,
@@ -106,6 +106,12 @@ const NATURAL_EARTH_JAPAN_MASK_BOUNDS = {
   maxLng: 149.5,
   minLat: 23.0,
   maxLat: 46.5
+};
+const KOREAN_ISLANDS_NATURAL_EARTH_BOUNDS = {
+  minLng: 124.0,
+  maxLng: 131.2,
+  minLat: 33.0,
+  maxLat: 38.3
 };
 
 const baseMapData = {
@@ -985,9 +991,10 @@ function buildWorldLandWithoutJapanData() {
 
 function buildWorldCountriesWithoutJapanData() {
   const data = cloneGeoJson(worldCountriesGeoJson);
-  data.features = data.features.filter((feature) =>
-    String(feature?.properties?.ISO_A3 ?? "").toUpperCase() !== "JPN"
-  );
+  data.features = data.features
+    .filter((feature) => String(feature?.properties?.ISO_A3 ?? "").toUpperCase() !== "JPN")
+    .map((feature) => removeNorthernTerritoryCountryParts(feature))
+    .filter(Boolean);
   return data;
 }
 
@@ -1300,6 +1307,15 @@ function isSmallNaturalEarthJapanFeature(feature) {
   const spanLat = bounds.maxLat - bounds.minLat;
   const isJapanMainRange = centerLng >= 127.0;
   const isSouthwestIslandsRange = centerLng >= 122.0 && centerLat <= 27.5;
+  const isKoreanIslandRange =
+    centerLng >= KOREAN_ISLANDS_NATURAL_EARTH_BOUNDS.minLng &&
+    centerLng <= KOREAN_ISLANDS_NATURAL_EARTH_BOUNDS.maxLng &&
+    centerLat >= KOREAN_ISLANDS_NATURAL_EARTH_BOUNDS.minLat &&
+    centerLat <= KOREAN_ISLANDS_NATURAL_EARTH_BOUNDS.maxLat &&
+    spanLng <= 1 &&
+    spanLat <= 0.5;
+
+  if (isKoreanIslandRange) return false;
 
   return (
     centerLng >= NATURAL_EARTH_JAPAN_MASK_BOUNDS.minLng &&
@@ -1313,6 +1329,31 @@ function isSmallNaturalEarthJapanFeature(feature) {
 }
 
 function computeGeometryBounds(geometry) {
+  if (geometry?.type !== "GeometryCollection") {
+    return computeCoordinateBounds(geometry?.coordinates);
+  }
+
+  const bounds = {
+    minLng: Infinity,
+    maxLng: -Infinity,
+    minLat: Infinity,
+    maxLat: -Infinity
+  };
+
+  geometry.geometries?.forEach((child) => {
+    const childBounds = computeGeometryBounds(child);
+    if (Number.isFinite(childBounds.minLng)) {
+      bounds.minLng = Math.min(bounds.minLng, childBounds.minLng);
+      bounds.maxLng = Math.max(bounds.maxLng, childBounds.maxLng);
+      bounds.minLat = Math.min(bounds.minLat, childBounds.minLat);
+      bounds.maxLat = Math.max(bounds.maxLat, childBounds.maxLat);
+    }
+  });
+
+  return bounds;
+}
+
+function computeCoordinateBounds(coordinates) {
   const bounds = {
     minLng: Infinity,
     maxLng: -Infinity,
@@ -1338,20 +1379,7 @@ function computeGeometryBounds(geometry) {
     coords.forEach(walk);
   }
 
-  if (geometry?.type === "GeometryCollection") {
-    geometry.geometries?.forEach((child) => {
-      const childBounds = computeGeometryBounds(child);
-      if (Number.isFinite(childBounds.minLng)) {
-        bounds.minLng = Math.min(bounds.minLng, childBounds.minLng);
-        bounds.maxLng = Math.max(bounds.maxLng, childBounds.maxLng);
-        bounds.minLat = Math.min(bounds.minLat, childBounds.minLat);
-        bounds.maxLat = Math.max(bounds.maxLat, childBounds.maxLat);
-      }
-    });
-  } else {
-    walk(geometry?.coordinates);
-  }
-
+  walk(coordinates);
   return bounds;
 }
 
@@ -1513,6 +1541,39 @@ function loadPrefectureData() {
     });
   }
   return prefectureDataPromise;
+}
+
+function removeNorthernTerritoryCountryParts(feature) {
+  const iso = String(feature?.properties?.ISO_A3 ?? "").toUpperCase();
+  const geometry = feature?.geometry;
+  if (iso !== "RUS" || !geometry) return feature;
+
+  if (geometry.type === "MultiPolygon") {
+    const coordinates = geometry.coordinates.filter((polygon) => !isNorthernTerritoryCountryPart(polygon));
+    if (coordinates.length === 0) return null;
+    return { ...feature, geometry: { ...geometry, coordinates } };
+  }
+  if (geometry.type === "Polygon" && isNorthernTerritoryCountryPart(geometry.coordinates)) {
+    return null;
+  }
+  return feature;
+}
+
+function isNorthernTerritoryCountryPart(polygon) {
+  const bounds = computeCoordinateBounds(polygon);
+  if (!Number.isFinite(bounds.minLng)) return false;
+  const centerLng = (bounds.minLng + bounds.maxLng) / 2;
+  const centerLat = (bounds.minLat + bounds.maxLat) / 2;
+  const spanLng = bounds.maxLng - bounds.minLng;
+  const spanLat = bounds.maxLat - bounds.minLat;
+  return (
+    centerLng >= 145.4 &&
+    centerLng <= 149.1 &&
+    centerLat >= 43.2 &&
+    centerLat <= 46.2 &&
+    spanLng <= 2.2 &&
+    spanLat <= 1.4
+  );
 }
 
 function normalizeWarningMunicipalityData(data) {
