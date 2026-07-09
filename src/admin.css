@@ -338,11 +338,21 @@ h3 {
 }
 
 .admin-notice-toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   color: #c9d8e8;
   font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-notice-toggle input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: #63a8ff;
 }
 
 .admin-ticker-preview {
@@ -618,7 +628,11 @@ h3 {
   }
 
   .admin-status-list dd {
+    max-width: 100%;
+    font-size: 14px;
+    line-height: 1.45;
     text-align: left;
+    word-break: break-word;
   }
 
   .admin-switch-row {
@@ -632,12 +646,27 @@ h3 {
   }
 
   .admin-notice-top {
-    grid-template-columns: 1fr 1fr auto;
-    gap: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    grid-template-columns: none;
+    min-width: 0;
+  }
+
+  .admin-notice-top .admin-notice-toggle {
+    flex: 0 0 auto;
+    min-height: 34px;
+    border: 1px solid rgba(148, 197, 239, 0.14);
+    border-radius: 10px;
+    padding: 0 9px;
+    background: rgba(255, 255, 255, 0.035);
+    font-size: 13px;
   }
 
   .admin-notice-top .danger {
-    justify-self: end;
+    flex: 0 0 auto;
+    justify-self: auto;
+    margin-left: auto;
   }
 
   .admin-notice-fields {
@@ -695,11 +724,10 @@ h3 {
   }
 
   .admin-notice-top {
-    grid-template-columns: 1fr 1fr;
+    flex-wrap: wrap;
   }
 
   .admin-notice-top .danger {
-    grid-column: 1 / -1;
-    justify-self: stretch;
+    margin-left: 0;
   }
 }
