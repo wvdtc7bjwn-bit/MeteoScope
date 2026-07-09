@@ -298,15 +298,16 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
   });
 }
 export function setupTyphoonSelector({ onChange }) {
-  const root = document.getElementById("typhoon-selector");
-  if (!root) return;
-
-  root.addEventListener("click", (event) => {
+  const handleClick = (event) => {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest("[data-typhoon-id]");
     if (!button) return;
+    event.stopPropagation();
     onChange?.(button.dataset.typhoonId);
-  });
+  };
+
+  document.getElementById("typhoon-selector")?.addEventListener("click", handleClick);
+  document.getElementById("mobile-context-dock")?.addEventListener("click", handleClick);
 }
 
 export function setupEarthquakeSelector({ onChange }) {
@@ -798,12 +799,20 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     return buildRadarMobileContextMarkup(frames, index, state.status, state);
   }
   if (tab.id === "amedas") {
+    const metric = amedasMetric ?? getAmedasMetric(state.amedasMetric ?? state.data?.activeMetric);
+    const nearest = findNearestAmedasPoint(state.data, state.currentLocation, metric.id);
+    const nearestText = nearest
+      ? `${nearest.name} ${formatAmedasRankingValue(nearest.value, metric)}`
+      : getAmedasNearestFallbackText(state.currentLocation);
     return `
-      <div class="mobile-dock-content">
-        <span class="mobile-dock-kicker">アメダス</span>
-        <div class="mobile-dock-chip-grid">
-          ${AMEDAS_METRICS.map((metric) => `
-            <button type="button" class="mobile-dock-chip${metric.id === amedasMetric.id ? " active" : ""}" data-mobile-dock-control data-mobile-amedas-metric="${escapeHtml(metric.id)}" aria-pressed="${metric.id === amedasMetric.id ? "true" : "false"}">${escapeHtml(metric.label)}</button>
+      <div class="mobile-dock-content mobile-dock-amedas">
+        <div class="mobile-dock-amedas-head">
+          <span class="mobile-dock-kicker">アメダス</span>
+          <span class="mobile-dock-amedas-nearest${nearest ? "" : " is-muted"}" title="${escapeHtml(nearestText)}">${escapeHtml(nearestText)}</span>
+        </div>
+        <div class="mobile-dock-chip-grid mobile-dock-amedas-grid">
+          ${AMEDAS_METRICS.map((item) => `
+            <button type="button" class="mobile-dock-chip${item.id === metric.id ? " active" : ""}" data-mobile-dock-control data-mobile-amedas-metric="${escapeHtml(item.id)}" aria-pressed="${item.id === metric.id ? "true" : "false"}">${escapeHtml(item.label)}</button>
           `).join("")}
         </div>
       </div>
@@ -824,10 +833,7 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
   if (tab.id === "typhoon") {
     const typhoons = state.data?.typhoons ?? [];
     if (!typhoons.length || state.data?.hasTyphoon === false) return buildMobileContextMarkup("台風", NO_TYPHOON_MESSAGE, "発表なし");
-    const { activeIndex, activeTyphoon } = getActiveTyphoonSelection(typhoons, state.data?.selectedTyphoonId);
-    const name = activeTyphoon?.details?.name ?? activeTyphoon?.name ?? `台風 ${activeIndex + 1}`;
-    const count = typhoons.length > 1 ? `${activeIndex + 1}/${typhoons.length}` : "選択中";
-    return buildMobileContextMarkup("台風", name, count);
+    return buildTyphoonMobileContextMarkup(typhoons, state.data?.selectedTyphoonId);
   }
   if (tab.id === "earthquake") {
     const earthquakes = state.data?.earthquakes ?? [];
@@ -836,6 +842,42 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     return buildEarthquakeMobileContextMarkup(earthquake);
   }
   return buildMobileContextMarkup(tab.label ?? "情報", "詳細情報", "開く");
+}
+
+function buildTyphoonMobileContextMarkup(typhoons = [], selectedTyphoonId = "") {
+  const { activeIndex, activeTyphoon } = getActiveTyphoonSelection(typhoons, selectedTyphoonId);
+  const nextIndex = typhoons.length > 1 ? (activeIndex + 1) % typhoons.length : activeIndex;
+  const nextTyphoon = typhoons[nextIndex] ?? activeTyphoon;
+  const name = activeTyphoon?.details?.name ?? activeTyphoon?.name ?? `台風 ${activeIndex + 1}`;
+  const nextName = nextTyphoon?.details?.name ?? nextTyphoon?.name ?? `台風 ${nextIndex + 1}`;
+  const nextId = String(nextTyphoon?.id ?? `typhoon-${nextIndex}`);
+  const pressure = normalizeSummaryValue(activeTyphoon?.details?.pressure);
+  const maxGust = normalizeSummaryValue(activeTyphoon?.details?.maxGust);
+  const count = typhoons.length > 1 ? `${activeIndex + 1}/${typhoons.length}` : "選択中";
+  const switchButton = typhoons.length > 1
+    ? `<button type="button" class="mobile-dock-typhoon-switch" data-mobile-dock-control data-typhoon-id="${escapeHtml(nextId)}" aria-label="${escapeHtml(`次の台風 ${nextName} に切り替え`)}">${escapeHtml(count)}</button>`
+    : `<span class="mobile-dock-typhoon-switch is-static">${escapeHtml(count)}</span>`;
+
+  return `
+    <div class="mobile-dock-content mobile-dock-typhoon">
+      <div class="mobile-dock-typhoon-head">
+        <span class="mobile-dock-kicker">台風情報</span>
+        ${switchButton}
+      </div>
+      <div class="mobile-dock-typhoon-main">
+        <strong>${escapeHtml(name)}</strong>
+        <div class="mobile-dock-typhoon-values" aria-label="台風の解析値">
+          <span><em>気圧</em>${escapeHtml(pressure)}</span>
+          <span><em>最大瞬間</em>${escapeHtml(maxGust)}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function normalizeSummaryValue(value) {
+  const text = String(value ?? "").trim();
+  return text && text !== "--" && text !== "-" ? text : "-";
 }
 
 function buildEarthquakeMobileContextMarkup(earthquake) {
@@ -1046,6 +1088,53 @@ function countAmedasPoints(data = {}, metricId) {
     const value = point.values?.[metricId];
     return shouldIncludeAmedasValue(metricId, value);
   }).length;
+}
+
+function findNearestAmedasPoint(data = {}, currentLocation, metricId) {
+  const origin = normalizeCoordinatePair(currentLocation?.coordinates);
+  if (!origin) return null;
+
+  return (data.points ?? []).reduce((nearest, point) => {
+    const coordinates = normalizeCoordinatePair(point.coordinates);
+    const value = point.values?.[metricId];
+    if (!coordinates || !Number.isFinite(value)) return nearest;
+
+    const distanceKm = getDistanceKm(origin, coordinates);
+    if (!Number.isFinite(distanceKm) || (nearest && nearest.distanceKm <= distanceKm)) return nearest;
+    return {
+      id: point.id,
+      name: point.name ?? point.id ?? "観測点",
+      value,
+      distanceKm
+    };
+  }, null);
+}
+
+function getAmedasNearestFallbackText(currentLocation) {
+  if (currentLocation?.status === "loading") return "現在地取得中";
+  if (currentLocation?.status && currentLocation.status !== "found") return "現在地未取得";
+  return "最寄り観測点なし";
+}
+
+function normalizeCoordinatePair(value) {
+  if (!Array.isArray(value) || value.length < 2) return null;
+  const longitude = Number(value[0]);
+  const latitude = Number(value[1]);
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
+  return [longitude, latitude];
+}
+
+function getDistanceKm(from, to) {
+  const toRadians = (value) => value * Math.PI / 180;
+  const [fromLng, fromLat] = from;
+  const [toLng, toLat] = to;
+  const dLat = toRadians(toLat - fromLat);
+  const dLng = toRadians(toLng - fromLng);
+  const lat1 = toRadians(fromLat);
+  const lat2 = toRadians(toLat);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function findLatestWeatherChartAnalysisIndex(frames) {
