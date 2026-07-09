@@ -105,18 +105,29 @@ export function createWeatherApp() {
   async function selectTab(tabId) {
     const tab = TABS.find((item) => item.id === tabId) ?? TABS[0];
     activeTab = tab.id;
+    syncActiveTabToUrl(tab.id);
     tabControls?.setActiveButton(tab.id);
-    if (tab.id !== "radar") stopRadarPlayback();
-    weatherMap?.setMode(tab.id);
+    try {
+      if (tab.id !== "radar") stopRadarPlayback();
+      weatherMap?.setMode(tab.id);
+    } catch (error) {
+      console.warn("[MeteoScope] tab map update failed", error);
+    }
 
     const requestId = ++activeLoadRequestId;
     const cachedData = latestDataByTab[tab.id];
     if (cachedData) {
-      updateCurrentView(tab, cachedData);
+      let cachedViewUpdated = false;
+      try {
+        updateCurrentView(tab, cachedData);
+        cachedViewUpdated = true;
+      } catch (error) {
+        console.warn("[MeteoScope] cached tab view update failed", error);
+      }
       if (tab.id === "earthquake") {
         refreshEarthquakeData({ force: true });
       }
-      if (tab.id === "warnings") {
+      if (tab.id === "warnings" && cachedViewUpdated) {
         queueWarningFullRefresh({ delayMs: 700 });
         scheduleBackgroundPrefetch(tab.id);
         return;
@@ -1284,6 +1295,18 @@ function getLaunchOptions() {
   const tabParam = params.get("tab");
   const initialTab = TABS.some((tab) => tab.id === tabParam) ? tabParam : "radar";
   return { initialTab };
+}
+
+function syncActiveTabToUrl(tabId) {
+  if (typeof window === "undefined" || !window.history?.replaceState) return;
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("tab") === tabId) return;
+    url.searchParams.set("tab", tabId);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  } catch (error) {
+    console.warn("[MeteoScope] tab URL sync failed", error);
+  }
 }
 
 function mergeRefreshedData(tabId, currentData, nextData) {

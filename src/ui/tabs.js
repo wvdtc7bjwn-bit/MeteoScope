@@ -57,7 +57,11 @@ export function setupTabs({ onChange, tabs = [] }) {
 
   function activateTab(tabId) {
     if (!tabId) return;
-    if (setActiveButton(tabId)) onChange?.(tabId);
+    if (!setActiveButton(tabId)) return;
+    const result = onChange?.(tabId);
+    if (result && typeof result.catch === "function") {
+      result.catch((error) => console.error("[MeteoScope] tab change failed", error));
+    }
   }
 
   function getTabFromPoint(event, axis) {
