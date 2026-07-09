@@ -3021,20 +3021,25 @@ h2 {
 .legend-list {
   display: grid;
   gap: 5px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
   gap: 7px;
-  min-height: 28px;
-  padding: 6px 8px;
+  min-height: 26px;
+  padding: 5px 7px;
   border-radius: 8px;
   background: var(--panel-soft);
   color: #d8e6f7;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
-  line-height: 1.25;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .legend-swatch {
@@ -3546,7 +3551,10 @@ h2 {
   left: 9px;
   right: auto;
   bottom: 134px;
-  width: 196px;
+  display: flex;
+  flex-direction: column;
+  width: 236px;
+  max-height: calc(100dvh - 154px);
   min-width: 0;
   margin-bottom: 0;
   padding: 9px;
@@ -3596,6 +3604,7 @@ h2 {
 
 .map-legend.collapsed {
   width: 44px;
+  max-height: 44px;
   min-width: 0;
   padding: 0;
   border-radius: 14px;
@@ -3892,7 +3901,8 @@ h2 {
     left: 17px;
     right: auto;
     bottom: calc(var(--mobile-sidebar-visible-height, 34dvh) + 124px);
-    width: min(190px, calc(100vw - 34px));
+    width: min(252px, calc(100vw - 34px));
+    max-height: calc(100dvh - var(--mobile-sidebar-visible-height, 34dvh) - 144px);
     min-width: 0;
     padding: 9px;
     transition: bottom 220ms ease, width 180ms ease, padding 180ms ease;
@@ -4796,6 +4806,10 @@ h2 {
     bottom: max(
       calc(var(--mobile-sidebar-visible-height, 48dvh) + 124px),
       calc(max(0px, env(safe-area-inset-bottom)) + 274px)
+    );
+    max-height: min(
+      calc(100dvh - var(--mobile-sidebar-visible-height, 48dvh) - 144px),
+      calc(100dvh - max(0px, env(safe-area-inset-bottom)) - 294px)
     );
   }
 }

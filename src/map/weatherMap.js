@@ -93,6 +93,11 @@ const WARNING_HATCH_LAYER_ID = "jma-warning-emergency-hatch";
 const WARNING_HATCH_IMAGE_ID = "jma-warning-emergency-hatch-pattern";
 const STORM_WARNING_ENDPOINT_SNAP_PX = 48;
 const STORM_WARNING_DUPLICATE_SEGMENT_PX = 18;
+const WARNING_GEOMETRY_FIX_CODES = new Set([
+  "0220100", // 青森市
+  "3820600", // 西条市
+  "4420200" // 別府市
+]);
 const DEFAULT_LAND_FILL = "#3c3d40";
 const NATURAL_EARTH_JAPAN_MASK_BOUNDS = {
   minLng: 122.0,
@@ -1425,9 +1430,205 @@ function loadWarningMunicipalityData() {
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         return response.json();
-      });
+      })
+      .then((data) => normalizeWarningMunicipalityData(data));
   }
   return warningMunicipalityDataPromise;
+}
+
+function normalizeWarningMunicipalityData(data) {
+  if (!data || data.type !== "FeatureCollection" || !Array.isArray(data.features)) return data;
+  return {
+    ...data,
+    features: data.features.map((feature) => {
+      const code = String(feature?.properties?.code ?? "");
+      if (!WARNING_GEOMETRY_FIX_CODES.has(code)) return feature;
+      const geometry = normalizeWarningGeometry(feature?.geometry);
+      return geometry === feature?.geometry
+        ? feature
+        : { ...feature, geometry };
+    })
+  };
+}
+
+function normalizeWarningGeometry(geometry) {
+  if (!geometry?.coordinates) return geometry;
+  const polygons = geometry.type === "Polygon"
+    ? [geometry.coordinates]
+    : geometry.type === "MultiPolygon"
+      ? geometry.coordinates
+      : null;
+  if (!polygons) return geometry;
+
+  const normalizedPolygons = polygons.flatMap((polygon) => normalizeWarningPolygonParts(polygon));
+  if (geometry.type === "Polygon") {
+    if (normalizedPolygons.length <= 1) {
+      return { ...geometry, coordinates: normalizedPolygons[0] ?? [] };
+    }
+    return { type: "MultiPolygon", coordinates: normalizedPolygons };
+  }
+  return { ...geometry, coordinates: normalizedPolygons };
+}
+
+function normalizeWarningPolygonParts(polygon) {
+  if (!Array.isArray(polygon)) return [];
+  const rings = polygon
+    .map((ring) => normalizeWarningRing(ring))
+    .filter((ring) => ring.length >= 4 && Math.abs(getRingArea(ring)) > 1e-12);
+  if (rings.length <= 1) return rings.length === 1 ? [[rings[0]]] : [];
+
+  const ringInfos = rings
+    .map((ring) => ({
+      ring,
+      area: Math.abs(getRingArea(ring)),
+      point: getRingSamplePoint(ring)
+    }))
+    .sort((a, b) => b.area - a.area);
+
+  const outerInfos = [];
+  ringInfos.forEach((info) => {
+    const containingOuter = outerInfos
+      .filter((outer) => pointInRing(info.point, outer.ring))
+      .sort((a, b) => a.area - b.area)[0];
+    if (!containingOuter) {
+      outerInfos.push({ ...info, holes: [] });
+      return;
+    }
+    containingOuter.holes.push(info.ring);
+  });
+
+  return outerInfos.map((outer) => [outer.ring, ...outer.holes]);
+}
+
+function normalizeWarningRing(ring) {
+  let normalized = closeWarningRing(ring);
+  if (normalized.length < 4) return normalized;
+
+  for (let attempts = 0; attempts < 32; attempts += 1) {
+    const intersection = findLocalRingIntersection(normalized);
+    if (!intersection) break;
+    const next = [
+      ...normalized.slice(0, intersection.start),
+      ...normalized.slice(intersection.end)
+    ];
+    if (next.length < 4) break;
+    normalized = closeWarningRing(next);
+  }
+  if (hasStrictSelfIntersection(normalized) && Math.abs(getRingArea(normalized)) < 1e-5) {
+    const hull = createConvexHullRing(normalized);
+    if (hull.length >= 4 && Math.abs(getRingArea(hull)) > 1e-12) return hull;
+  }
+  return normalized;
+}
+
+function closeWarningRing(ring) {
+  if (!Array.isArray(ring)) return [];
+  const normalized = [];
+  ring.forEach((point) => {
+    if (!Array.isArray(point) || point.length < 2) return;
+    const lng = Number(point[0]);
+    const lat = Number(point[1]);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
+    const last = normalized.at(-1);
+    if (!last || last[0] !== lng || last[1] !== lat) normalized.push([lng, lat]);
+  });
+  if (normalized.length > 0) {
+    const first = normalized[0];
+    const last = normalized.at(-1);
+    if (first[0] !== last[0] || first[1] !== last[1]) normalized.push([...first]);
+  }
+  return normalized;
+}
+
+function findLocalRingIntersection(ring) {
+  const maxSegmentGap = 6;
+  for (let i = 0; i < ring.length - 1; i += 1) {
+    const limit = Math.min(ring.length - 2, i + maxSegmentGap);
+    for (let j = i + 2; j <= limit; j += 1) {
+      if (i === 0 && j === ring.length - 2) continue;
+      if (segmentsCrossStrictly(ring[i], ring[i + 1], ring[j], ring[j + 1])) {
+        return { start: i + 1, end: j + 1 };
+      }
+    }
+  }
+  return null;
+}
+
+function hasStrictSelfIntersection(ring) {
+  for (let i = 0; i < ring.length - 1; i += 1) {
+    for (let j = i + 2; j < ring.length - 1; j += 1) {
+      if (i === 0 && j === ring.length - 2) continue;
+      if (segmentsCrossStrictly(ring[i], ring[i + 1], ring[j], ring[j + 1])) return true;
+    }
+  }
+  return false;
+}
+
+function createConvexHullRing(ring) {
+  const points = [...new Map(
+    ring
+      .slice(0, -1)
+      .map((point) => [`${point[0]},${point[1]}`, point])
+  ).values()].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (points.length < 3) return [];
+
+  const lower = [];
+  points.forEach((point) => {
+    while (lower.length >= 2 && orientPoints(lower.at(-2), lower.at(-1), point) <= 0) lower.pop();
+    lower.push(point);
+  });
+
+  const upper = [];
+  [...points].reverse().forEach((point) => {
+    while (upper.length >= 2 && orientPoints(upper.at(-2), upper.at(-1), point) <= 0) upper.pop();
+    upper.push(point);
+  });
+
+  const hull = [...lower.slice(0, -1), ...upper.slice(0, -1)];
+  return closeWarningRing(hull);
+}
+
+function getRingSamplePoint(ring) {
+  return ring.find((point, index) => index < ring.length - 1) ?? ring[0] ?? [0, 0];
+}
+
+function pointInRing(point, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const xi = ring[i][0];
+    const yi = ring[i][1];
+    const xj = ring[j][0];
+    const yj = ring[j][1];
+    const intersects = (yi > point[1]) !== (yj > point[1])
+      && point[0] < ((xj - xi) * (point[1] - yi)) / (yj - yi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+function segmentsCrossStrictly(a, b, c, d) {
+  if (samePoint(a, c) || samePoint(a, d) || samePoint(b, c) || samePoint(b, d)) return false;
+  const abC = orientPoints(a, b, c);
+  const abD = orientPoints(a, b, d);
+  const cdA = orientPoints(c, d, a);
+  const cdB = orientPoints(c, d, b);
+  return abC * abD < 0 && cdA * cdB < 0;
+}
+
+function orientPoints(a, b, c) {
+  return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+}
+
+function samePoint(a, b) {
+  return a?.[0] === b?.[0] && a?.[1] === b?.[1];
+}
+
+function getRingArea(ring) {
+  let area = 0;
+  for (let i = 0; i < ring.length - 1; i += 1) {
+    area += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+  }
+  return area / 2;
 }
 
 function createWarningAreaSignature(activeAreas) {
