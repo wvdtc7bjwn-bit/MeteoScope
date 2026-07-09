@@ -34,6 +34,7 @@ export const JMA_ENDPOINTS = {
   weatherXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/regular_l.xml",
   areaConst: "https://www.jma.go.jp/bosai/common/const/area.json",
   warningMunicipalities: publicAsset("data/jma-weather-warning-municipalities.geojson"),
+  prefectures: publicAsset("data/japan-prefectures.geojson"),
   earthquakeAreas: publicAsset("data/earthquake-areas.geojson"),
   earthquakeStations: publicAsset("data/jma-stations.compact.json"),
   amedasStationTable: "https://www.jma.go.jp/bosai/amedas/const/amedastable.json",

@@ -85,6 +85,7 @@ const RADAR_ZOOM_LEVELS = [
   { id: "z10", z: 10, minzoom: 9, maxzoom: 22 }
 ];
 const MUNICIPALITY_SOURCE_ID = "jma-weather-warning-municipalities";
+const PREFECTURE_SOURCE_ID = "japan-prefectures";
 const WARNING_SOURCE_ID = "jma-active-warning-municipalities";
 const CURRENT_LOCATION_SOURCE_ID = "current-location";
 const MUNICIPALITY_FILL_LAYER_ID = "jma-municipality-fill";
@@ -112,6 +113,7 @@ const baseMapData = {
   worldCountries: buildWorldCountriesWithoutJapanData()
 };
 let warningMunicipalityDataPromise = null;
+let prefectureDataPromise = null;
 const baseMunicipalitySourceCache = new WeakMap();
 const warningFeatureCollectionCache = new WeakMap();
 const kikikuruTileUrlCache = new Map();
@@ -832,6 +834,10 @@ function createBaseStyle() {
         data: createEmptyFeatureCollection(),
         promoteId: "code"
       },
+      [PREFECTURE_SOURCE_ID]: {
+        type: "geojson",
+        data: createEmptyFeatureCollection()
+      },
       [WARNING_SOURCE_ID]: {
         type: "geojson",
         data: createEmptyFeatureCollection(),
@@ -930,6 +936,40 @@ function createBaseStyle() {
             0.82,
             10,
             0.95
+          ]
+        }
+      },
+      {
+        id: "japan-prefecture-line",
+        type: "line",
+        source: PREFECTURE_SOURCE_ID,
+        layout: {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        paint: {
+          "line-color": "#f7fbff",
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            4,
+            1.45,
+            7,
+            2,
+            10,
+            2.8
+          ],
+          "line-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            4,
+            0.72,
+            7,
+            0.82,
+            10,
+            0.9
           ]
         }
       }
@@ -1430,6 +1470,7 @@ async function updateWarningMunicipalitySource(map, activeAreas) {
 
 async function updateBaseMunicipalitySource(map) {
   const source = map?.getSource(MUNICIPALITY_SOURCE_ID);
+  const prefectureSource = map?.getSource(PREFECTURE_SOURCE_ID);
   if (!source?.setData) return;
 
   const cached = baseMunicipalitySourceCache.get(map);
@@ -1437,8 +1478,14 @@ async function updateBaseMunicipalitySource(map) {
   baseMunicipalitySourceCache.set(map, { loaded: true });
 
   try {
-    const municipalityData = await loadWarningMunicipalityData();
+    const [municipalityData, prefectureData] = await Promise.all([
+      loadWarningMunicipalityData(),
+      loadPrefectureData()
+    ]);
     source.setData(municipalityData);
+    if (prefectureSource?.setData) {
+      prefectureSource.setData(prefectureData);
+    }
     map.triggerRepaint();
   } catch (error) {
     baseMunicipalitySourceCache.delete(map);
@@ -1456,6 +1503,16 @@ function loadWarningMunicipalityData() {
       .then((data) => normalizeWarningMunicipalityData(data));
   }
   return warningMunicipalityDataPromise;
+}
+
+function loadPrefectureData() {
+  if (!prefectureDataPromise) {
+    prefectureDataPromise = fetch(JMA_ENDPOINTS.prefectures).then((response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    });
+  }
+  return prefectureDataPromise;
 }
 
 function normalizeWarningMunicipalityData(data) {
