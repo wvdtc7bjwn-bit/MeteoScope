@@ -44,7 +44,10 @@
       <div class="admin-grid">
         <section class="admin-card">
           <div class="admin-section-head">
-            <h3>状態</h3>
+            <div class="admin-section-title">
+              <h3>状態</h3>
+              <p>APIと保存先の接続状態</p>
+            </div>
             <button id="refresh-status-button" class="admin-small-button" type="button">更新</button>
           </div>
           <dl id="status-list" class="admin-status-list"></dl>
@@ -52,7 +55,10 @@
 
         <section class="admin-card">
           <div class="admin-section-head">
-            <h3>メンテナンス表示</h3>
+            <div class="admin-section-title">
+              <h3>メンテナンス表示</h3>
+              <p>利用者に一時案内を表示</p>
+            </div>
             <button id="save-config-button" class="admin-small-button" type="button">保存</button>
           </div>
           <label class="admin-switch-row">
@@ -67,7 +73,10 @@
 
         <section class="admin-card admin-wide-card">
           <div class="admin-section-head">
-            <h3>お知らせ</h3>
+            <div class="admin-section-title">
+              <h3>お知らせ</h3>
+              <p>アプリ内テロップとカード表示</p>
+            </div>
             <div class="admin-button-row">
               <button id="add-notice-button" class="admin-small-button" type="button">追加</button>
               <button id="save-notices-button" class="admin-small-button" type="button">保存</button>
@@ -76,7 +85,10 @@
           <div id="notice-list" class="admin-notice-list"></div>
           <div class="admin-feedback-block">
             <div class="admin-section-head">
-              <h3>利用者意見</h3>
+              <div class="admin-section-title">
+                <h3>利用者意見</h3>
+                <p>送信された意見の確認</p>
+              </div>
               <button id="refresh-feedback-button" class="admin-small-button" type="button">更新</button>
             </div>
             <div id="feedback-list" class="admin-feedback-list"></div>
@@ -85,7 +97,10 @@
 
         <section class="admin-card">
           <div class="admin-section-head">
-            <h3>キャッシュ</h3>
+            <div class="admin-section-title">
+              <h3>キャッシュ</h3>
+              <p>Cloudflare CDNの更新</p>
+            </div>
             <button id="purge-cache-button" class="admin-small-button" type="button">削除API実行</button>
           </div>
           <p class="admin-muted">Cloudflare API トークンが設定されている場合のみ、CDNキャッシュ削除を実行します。</p>
