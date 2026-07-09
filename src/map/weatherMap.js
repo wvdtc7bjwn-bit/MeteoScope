@@ -89,6 +89,7 @@ const WARNING_SOURCE_ID = "jma-active-warning-municipalities";
 const CURRENT_LOCATION_SOURCE_ID = "current-location";
 const MUNICIPALITY_FILL_LAYER_ID = "jma-municipality-fill";
 const WARNING_OVERLAY_LAYER_ID = "jma-warning-overlay";
+const WARNING_CLICK_LAYER_ID = "jma-warning-click-target";
 const WARNING_HATCH_LAYER_ID = "jma-warning-emergency-hatch";
 const WARNING_HATCH_IMAGE_ID = "jma-warning-emergency-hatch-pattern";
 const STORM_WARNING_ENDPOINT_SNAP_PX = 48;
@@ -643,15 +644,15 @@ export function createWeatherMap(elementId) {
 
     setupTyphoonForecastInfo();
 
-    map.on("mouseenter", WARNING_OVERLAY_LAYER_ID, (event) => {
+    map.on("mouseenter", WARNING_CLICK_LAYER_ID, (event) => {
       const feature = event.features?.[0];
       const area = warningAreasByCode.get(String(feature?.properties?.code ?? ""));
       if (area) map.getCanvas().style.cursor = "pointer";
     });
-    map.on("mouseleave", WARNING_OVERLAY_LAYER_ID, () => {
+    map.on("mouseleave", WARNING_CLICK_LAYER_ID, () => {
       map.getCanvas().style.cursor = "";
     });
-    map.on("click", WARNING_OVERLAY_LAYER_ID, (event) => {
+    map.on("click", WARNING_CLICK_LAYER_ID, (event) => {
       const feature = event.features?.[0];
       const area = warningAreasByCode.get(String(feature?.properties?.code ?? ""));
       if (!area) return;
@@ -737,7 +738,7 @@ export function createWeatherMap(elementId) {
   }
 
   function updateWarningAreaLookup(mode, data = {}) {
-    const areas = getActiveWarningOverlayAreas(mode, data);
+    const areas = getSelectableWarningAreas(mode, data);
     warningAreasByCode = areas.length > 0
       ? new Map(areas.map((area) => [String(area.areaCode), area]))
       : new Map();
@@ -891,6 +892,15 @@ function createBaseStyle() {
           "fill-color": "rgba(0, 0, 0, 0)",
           "fill-antialias": true,
           "fill-opacity": 0
+        }
+      },
+      {
+        id: WARNING_CLICK_LAYER_ID,
+        type: "fill",
+        source: MUNICIPALITY_SOURCE_ID,
+        paint: {
+          "fill-color": "rgba(0, 0, 0, 0)",
+          "fill-opacity": 0.001
         }
       },
       {
@@ -1364,6 +1374,17 @@ function getActiveWarningOverlayAreas(mode, data = {}) {
   return Array.isArray(data?.activeAreas) ? data.activeAreas : [];
 }
 
+function getSelectableWarningAreas(mode, data = {}) {
+  if (mode !== "warnings" || data?.activeWarningView === "kikikuru") return [];
+  if (data?.activeWarningView === "early") {
+    return Array.isArray(data?.earlyMunicipalityAreas) ? data.earlyMunicipalityAreas : [];
+  }
+  return [
+    ...(Array.isArray(data?.outlookAreas) ? data.outlookAreas : []),
+    ...(Array.isArray(data?.activeAreas) ? data.activeAreas : [])
+  ];
+}
+
 async function updateWarningMunicipalitySource(map, activeAreas) {
   const source = map?.getSource(WARNING_SOURCE_ID);
   if (!source?.setData) return;
@@ -1416,7 +1437,8 @@ async function updateBaseMunicipalitySource(map) {
   baseMunicipalitySourceCache.set(map, { loaded: true });
 
   try {
-    source.setData(await loadWarningMunicipalityData());
+    const municipalityData = await loadWarningMunicipalityData();
+    source.setData(municipalityData);
     map.triggerRepaint();
   } catch (error) {
     baseMunicipalitySourceCache.delete(map);

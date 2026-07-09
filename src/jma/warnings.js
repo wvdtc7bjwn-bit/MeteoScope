@@ -43,6 +43,7 @@ export async function fetchWarningMap(options = {}) {
 
   const areaMap = buildWarningAreaMap(warningReports, municipalityIndex, outlookByAreaCode);
   const activeAreas = [...areaMap.values()];
+  const outlookAreas = buildWarningOutlookAreas(outlookByAreaCode, municipalityIndex, areaMap);
   const groups = buildWarningGroups(activeAreas);
   const latestReportTime = getLatestReportTime(warningReports);
 
@@ -50,6 +51,7 @@ export async function fetchWarningMap(options = {}) {
     raw: warningReports,
     groups,
     activeAreas,
+    outlookAreas,
     earlyWarnings,
     earlyAreas: earlyWarnings.areas,
     earlyMunicipalityAreas: earlyWarnings.municipalityAreas,
@@ -159,6 +161,24 @@ function buildWarningAreaMap(warningReports, municipalityIndex, outlookByAreaCod
   });
 
   return areasByCode;
+}
+
+function buildWarningOutlookAreas(outlookByAreaCode, municipalityIndex, activeAreaMap = new Map()) {
+  return [...outlookByAreaCode.entries()]
+    .filter(([areaCode, outlook]) => !activeAreaMap.has(String(areaCode)) && Array.isArray(outlook) && outlook.length > 0)
+    .map(([areaCode, outlook]) => {
+      const code = String(areaCode);
+      const municipality = municipalityIndex.byCode.get(code);
+      return {
+        areaCode: code,
+        areaName: municipality?.name || `エリア ${code}`,
+        prefectureCode: code.slice(0, 2),
+        prefecture: getPrefectureNameByCode(code),
+        updatedAt: "",
+        warnings: [],
+        outlook
+      };
+    });
 }
 
 function buildWarningOutlookMap(timelineReports, municipalityIndex) {

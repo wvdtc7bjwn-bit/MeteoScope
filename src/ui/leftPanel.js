@@ -764,7 +764,13 @@ function selectWarningArea(areaCode, { scroll, openModal } = {}) {
   });
 
   const row = root.querySelector(`[data-warning-area-code="${cssEscape(selectedWarningAreaCode)}"]`);
-  if (!row) return;
+  if (!row) {
+    if (openModal && activeWarningAreasByCode.has(selectedWarningAreaCode)) {
+      warningAreaSelectionOptions.onDetailRequest?.(selectedWarningAreaCode);
+      openWarningModal(selectedWarningAreaCode);
+    }
+    return;
+  }
 
   row.classList.add("selected");
   if (openModal) {
@@ -1290,16 +1296,18 @@ function renderWarningDetails(tab, state, warningView = "status") {
 
   activeWarningDetailsLoaded = Boolean(state.data?.detailsLoaded);
   const groups = state.data?.groups ?? [];
+  const outlookAreas = state.data?.outlookAreas ?? [];
+  const activeAreaEntries = groups.flatMap((group) => group.areas.map((area) => [String(area.areaCode), area]));
+  activeWarningAreasByCode = new Map([
+    ...outlookAreas.map((area) => [String(area.areaCode), area]),
+    ...activeAreaEntries
+  ]);
+
   if (groups.length === 0) {
     root.innerHTML = `<div class="warning-empty">発表中の警報・注意報はありません</div>`;
-    activeWarningAreasByCode = new Map();
     refreshOpenWarningModal();
     return;
   }
-
-  activeWarningAreasByCode = new Map(
-    groups.flatMap((group) => group.areas.map((area) => [String(area.areaCode), area]))
-  );
 
   root.innerHTML = groups.map((group) => `
     <div class="warning-prefecture-label">${escapeHtml(group.prefecture)}<span>${escapeHtml(group.count ?? group.areas.length)}件</span></div>
@@ -1378,7 +1386,7 @@ function openWarningModal(areaCode) {
     <section class="warning-modal-section">
       <h3>発表中の警報・注意報</h3>
       <div class="warning-modal-warning-list">
-        ${warnings.map((warning) => `
+        ${warnings.length === 0 ? `<p class="warning-modal-empty">発表中の警報・注意報はありません。</p>` : warnings.map((warning) => `
           <article class="warning-modal-warning">
             <span class="warning-badge warning-badge-${escapeHtml(warning.level)}">${escapeHtml(warning.label)}</span>
             <dl>
