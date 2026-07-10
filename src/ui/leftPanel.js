@@ -5,6 +5,7 @@ import {
   AMEDAS_TEMPERATURE_LEVELS,
   AMEDAS_WIND_LEVELS,
   EARTHQUAKE_INTENSITY_LEVELS,
+  getAmedasObservationColor,
   getEarthquakeIntensityColor,
   getEarthquakeIntensityTextClass,
   KIKIKURU_LAYER_OPTIONS,
@@ -1604,6 +1605,7 @@ function renderAmedasDailyChart(tab, state, metric) {
 
   const latest = chart.data?.latest;
   root.style.setProperty("--amedas-series-color", metric.color);
+  root.style.setProperty("--amedas-gust-color", metric.color);
   root.innerHTML = `
     <div class="amedas-temperature-chart-head">
       <div>
@@ -1611,7 +1613,7 @@ function renderAmedasDailyChart(tab, state, metric) {
         <strong>${escapeHtml(chart.stationName || "観測点")}</strong>
       </div>
       <div class="amedas-temperature-chart-current">
-        <strong>${formatAmedasDailyValue(latest?.value, metric)}</strong>
+        ${formatAmedasDailyColoredValue(latest?.value, metric)}
         <span>${escapeHtml(latest?.label ?? "--:--")}</span>
       </div>
     </div>
@@ -1623,9 +1625,9 @@ function renderAmedasDailyChart(tab, state, metric) {
     ` : ""}
     ${buildAmedasDailyChartSvg(points, chart.data?.min, chart.data?.max, metric)}
     <div class="amedas-temperature-chart-range${metric.id === "wind" ? " is-wind" : ""}">
-      <span>${escapeHtml(getAmedasDailyMinLabel(metric.id))} ${formatAmedasDailyValue(chart.data?.min, metric)}</span>
-      <span>${escapeHtml(getAmedasDailyMaxLabel(metric.id))} ${formatAmedasDailyValue(chart.data?.max, metric)}</span>
-      ${metric.id === "wind" && Number.isFinite(chart.data?.maxGust) ? `<span class="gust">最大瞬間 ${formatAmedasDailyValue(chart.data.maxGust, metric)}${chart.data.maxGustLabel ? ` (${escapeHtml(chart.data.maxGustLabel)})` : ""}</span>` : ""}
+      <span>${escapeHtml(getAmedasDailyMinLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.min, metric)}</span>
+      <span>${escapeHtml(getAmedasDailyMaxLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.max, metric)}</span>
+      ${metric.id === "wind" && Number.isFinite(chart.data?.maxGust) ? `<span class="gust amedas-temperature-chart-gust-summary">最大瞬間 ${formatAmedasDailyColoredValue(chart.data.maxGust, metric)}${chart.data.maxGustLabel ? ` (${escapeHtml(chart.data.maxGustLabel)})` : ""}</span>` : ""}
     </div>
   `;
 }
@@ -1710,6 +1712,11 @@ function formatAmedasDailyValue(value, metric) {
   if (!Number.isFinite(value)) return "--";
   const digits = metric.id === "snow" || Number.isInteger(value) ? 0 : 1;
   return `${value.toFixed(digits)}${metric.unit}`;
+}
+
+function formatAmedasDailyColoredValue(value, metric) {
+  const color = getAmedasObservationColor(metric.id, value);
+  return `<b class="amedas-temperature-chart-value" style="--amedas-value-color:${escapeHtml(color)}">${escapeHtml(formatAmedasDailyValue(value, metric))}</b>`;
 }
 
 function getAmedasDailySeriesTitle(metricId) {

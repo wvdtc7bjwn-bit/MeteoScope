@@ -2,11 +2,8 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
   AMEDAS_METRICS,
-  AMEDAS_PRECIPITATION_LEVELS,
-  AMEDAS_SNOW_LEVELS,
-  AMEDAS_TEMPERATURE_LEVELS,
-  AMEDAS_WIND_LEVELS,
   DEFAULT_VIEW,
+  getAmedasObservationColor,
   getEarthquakeIntensityColor,
   getEarthquakeIntensityRank,
   JMA_ENDPOINTS,
@@ -3410,52 +3407,7 @@ function buildAmedasPopup(point, metric, value, latestTime) {
 }
 
 function getAmedasColor(metricId, value) {
-  if (metricId === "temperature") {
-    return interpolateLevelColor(AMEDAS_TEMPERATURE_LEVELS, value);
-  }
-  if (metricId === "precipitation") {
-    return AMEDAS_PRECIPITATION_LEVELS.find((level) => value >= level.min)?.color ?? "#a8d8ff";
-  }
-  if (metricId === "wind") {
-    return interpolateLevelColor(AMEDAS_WIND_LEVELS, value);
-  }
-  if (metricId === "snow") {
-    return interpolateLevelColor(AMEDAS_SNOW_LEVELS, value);
-  }
-  return "#d8e6f7";
-}
-
-function interpolateLevelColor(levels, value) {
-  const stops = [...levels]
-    .filter((level) => Number.isFinite(level.min))
-    .sort((a, b) => a.min - b.min);
-
-  if (value <= stops[0].min) return levels.at(-1).color;
-  if (value >= stops.at(-1).min) return stops.at(-1).color;
-
-  const upper = stops.find((level) => value <= level.min) ?? stops.at(-1);
-  const lower = stops[Math.max(0, stops.indexOf(upper) - 1)];
-  const ratio = (value - lower.min) / (upper.min - lower.min);
-  return mixHexColor(lower.color, upper.color, ratio);
-}
-
-function mixHexColor(start, end, ratio) {
-  const startRgb = hexToRgb(start);
-  const endRgb = hexToRgb(end);
-  const amount = Math.max(0, Math.min(1, ratio));
-  const mixed = startRgb.map((channel, index) =>
-    Math.round(channel + (endRgb[index] - channel) * amount)
-  );
-  return `#${mixed.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
-}
-
-function hexToRgb(hex) {
-  const value = hex.replace("#", "");
-  return [
-    Number.parseInt(value.slice(0, 2), 16),
-    Number.parseInt(value.slice(2, 4), 16),
-    Number.parseInt(value.slice(4, 6), 16)
-  ];
+  return getAmedasObservationColor(metricId, value);
 }
 
 function getAmedasRadius(metricId, value) {

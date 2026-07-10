@@ -139,6 +139,53 @@ export const AMEDAS_SNOW_LEVELS = [
   { min: 1, label: "1〜5cm", color: "#b7d5ea" }
 ];
 
+export function getAmedasObservationColor(metricId, value) {
+  if (metricId === "temperature") {
+    return interpolateAmedasLevelColor(AMEDAS_TEMPERATURE_LEVELS, value);
+  }
+  if (metricId === "precipitation") {
+    return AMEDAS_PRECIPITATION_LEVELS.find((level) => value >= level.min)?.color ?? "#a8d8ff";
+  }
+  if (metricId === "wind") {
+    return interpolateAmedasLevelColor(AMEDAS_WIND_LEVELS, value);
+  }
+  if (metricId === "snow") {
+    return interpolateAmedasLevelColor(AMEDAS_SNOW_LEVELS, value);
+  }
+  return "#d8e6f7";
+}
+
+function interpolateAmedasLevelColor(levels, value) {
+  const stops = [...levels]
+    .filter((level) => Number.isFinite(level.min))
+    .sort((left, right) => left.min - right.min);
+
+  if (!stops.length || !Number.isFinite(value)) return "#d8e6f7";
+  if (value <= stops[0].min) return levels.at(-1).color;
+  if (value >= stops.at(-1).min) return stops.at(-1).color;
+
+  const upper = stops.find((level) => value <= level.min) ?? stops.at(-1);
+  const lower = stops[Math.max(0, stops.indexOf(upper) - 1)];
+  const ratio = (value - lower.min) / (upper.min - lower.min);
+  return mixAmedasHexColor(lower.color, upper.color, ratio);
+}
+
+function mixAmedasHexColor(start, end, ratio) {
+  const toRgb = (hex) => {
+    const value = hex.replace("#", "");
+    return [
+      Number.parseInt(value.slice(0, 2), 16),
+      Number.parseInt(value.slice(2, 4), 16),
+      Number.parseInt(value.slice(4, 6), 16)
+    ];
+  };
+  const startRgb = toRgb(start);
+  const endRgb = toRgb(end);
+  const amount = Math.max(0, Math.min(1, ratio));
+  const mixed = startRgb.map((channel, index) => Math.round(channel + (endRgb[index] - channel) * amount));
+  return `#${mixed.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
 export const EARTHQUAKE_INTENSITY_LEVELS = [
   { value: "7", label: "震度7", color: "#420092", rank: 9 },
   { value: "6+", label: "震度6強", color: "#9e07cb", rank: 8 },
