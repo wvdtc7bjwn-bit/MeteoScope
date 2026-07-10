@@ -132,14 +132,16 @@ function renderTickerNotices(notices) {
       : "info";
   const duration = tickerDuration(tickerNotices);
   const direction = tickerNotices[0]?.tickerDirection === "right" ? "right" : "left";
-  const text = tickerNotices.map(buildTickerText).filter(Boolean).join("　　");
+  const text = tickerNotices.map(buildTickerBodyText).filter(Boolean).join("　　");
+  const labelText = buildTickerLabelText(tickerNotices);
   document.body.classList.add("has-remote-notice-ticker");
   ticker.className = `remote-notice-ticker remote-notice-ticker-${severity} remote-notice-ticker-${direction}`;
   ticker.style.setProperty("--ticker-duration", `${duration}s`);
   ticker.innerHTML = "";
   const label = document.createElement("span");
   label.className = "remote-notice-ticker-label";
-  label.textContent = severity === "critical" ? "重要" : severity === "warning" ? "注意" : "お知らせ";
+  label.textContent = labelText;
+  label.title = labelText;
   const viewport = document.createElement("div");
   viewport.className = "remote-notice-ticker-viewport";
   const track = document.createElement("div");
@@ -165,10 +167,14 @@ function renderTickerNotices(notices) {
   ticker.append(label, viewport, close);
 }
 
-function buildTickerText(notice) {
+function buildTickerLabelText(notices) {
+  const primary = notices.find((notice) => String(notice?.title || "").trim()) || notices[0];
+  return String(primary?.title || "お知らせ").trim() || "お知らせ";
+}
+
+function buildTickerBodyText(notice) {
   const title = String(notice?.title || "").trim();
   const body = String(notice?.body || "").trim();
-  if (title && body) return `${title}：${body}`;
   return body || title;
 }
 
@@ -178,4 +184,3 @@ function tickerDuration(notices) {
   if (speed === "fast") return 18;
   return 26;
 }
-
