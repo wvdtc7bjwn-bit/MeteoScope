@@ -179,11 +179,11 @@
   white-space: nowrap;
 }
 
-.remote-notice-ticker-warning .remote-notice-ticker-label {
+.remote-notice-ticker-label-warning {
   background: #ffd65f;
 }
 
-.remote-notice-ticker-critical .remote-notice-ticker-label {
+.remote-notice-ticker-label-critical {
   color: #fff;
   background: #e33d55;
 }

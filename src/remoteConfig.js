@@ -1,5 +1,6 @@
 const PUBLIC_CONFIG_ENDPOINT = "/api/public/config";
 const NOTICE_DISMISS_PREFIX = "weather-viewer.notice.dismissed.";
+let tickerLabelTimer = null;
 
 export function setupRemoteConfig() {
   void refreshRemoteConfig();
@@ -114,6 +115,7 @@ function renderTickerNotices(notices) {
     .slice(0, 3);
   let ticker = document.getElementById("remote-notice-ticker");
   if (!tickerNotices.length) {
+    clearTickerLabelTimer();
     ticker?.remove();
     document.body.classList.remove("has-remote-notice-ticker");
     return;
@@ -125,23 +127,16 @@ function renderTickerNotices(notices) {
     ticker.setAttribute("aria-label", "お知らせテロップ");
     document.body.appendChild(ticker);
   }
-  const severity = tickerNotices.some((notice) => notice.level === "critical")
-    ? "critical"
-    : tickerNotices.some((notice) => notice.level === "warning")
-      ? "warning"
-      : "info";
   const duration = tickerDuration(tickerNotices);
   const direction = tickerNotices[0]?.tickerDirection === "right" ? "right" : "left";
   const text = tickerNotices.map(buildTickerBodyText).filter(Boolean).join("　　");
-  const labelText = buildTickerLabelText(tickerNotices);
   document.body.classList.add("has-remote-notice-ticker");
-  ticker.className = `remote-notice-ticker remote-notice-ticker-${severity} remote-notice-ticker-${direction}`;
+  ticker.className = `remote-notice-ticker remote-notice-ticker-${direction}`;
   ticker.style.setProperty("--ticker-duration", `${duration}s`);
   ticker.innerHTML = "";
   const label = document.createElement("span");
   label.className = "remote-notice-ticker-label";
-  label.textContent = labelText;
-  label.title = labelText;
+  setTickerLabel(label, tickerNotices[0]);
   const viewport = document.createElement("div");
   viewport.className = "remote-notice-ticker-viewport";
   const track = document.createElement("div");
@@ -161,15 +156,41 @@ function renderTickerNotices(notices) {
     tickerNotices.forEach((notice) => {
       sessionStorage.setItem(`${NOTICE_DISMISS_PREFIX}${notice.id || notice.title}`, "1");
     });
+    clearTickerLabelTimer();
     ticker.remove();
     document.body.classList.remove("has-remote-notice-ticker");
   });
   ticker.append(label, viewport, close);
+  startTickerLabelRotation(label, tickerNotices, duration);
 }
 
-function buildTickerLabelText(notices) {
-  const primary = notices.find((notice) => String(notice?.title || "").trim()) || notices[0];
-  return String(primary?.title || "お知らせ").trim() || "お知らせ";
+function startTickerLabelRotation(label, notices, duration) {
+  clearTickerLabelTimer();
+  if (!Array.isArray(notices) || notices.length <= 1) return;
+  let index = 0;
+  const interval = Math.max(3500, Math.round((duration * 1000) / notices.length));
+  tickerLabelTimer = window.setInterval(() => {
+    index = (index + 1) % notices.length;
+    setTickerLabel(label, notices[index]);
+  }, interval);
+}
+
+function clearTickerLabelTimer() {
+  if (!tickerLabelTimer) return;
+  window.clearInterval(tickerLabelTimer);
+  tickerLabelTimer = null;
+}
+
+function setTickerLabel(label, notice) {
+  const labelText = buildTickerLabelText(notice);
+  const level = ["info", "warning", "critical"].includes(notice?.level) ? notice.level : "info";
+  label.className = `remote-notice-ticker-label remote-notice-ticker-label-${level}`;
+  label.textContent = labelText;
+  label.title = labelText;
+}
+
+function buildTickerLabelText(notice) {
+  return String(notice?.title || "お知らせ").trim() || "お知らせ";
 }
 
 function buildTickerBodyText(notice) {
