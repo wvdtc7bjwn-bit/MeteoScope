@@ -24,6 +24,7 @@ import { addMyArea, getMyAreaLimit, loadMyAreas, removeMyArea } from "./location
 import { buildLocationRadarTimeline } from "./location/radarTimeline.js";
 import { createLocationWarningPush } from "./push/locationWarningPush.js";
 import { setupRemoteConfig } from "./remoteConfig.js";
+import { setupTheme } from "./ui/theme.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -57,6 +58,7 @@ async function fetchWarningTabData(options = {}) {
 }
 
 export function createWeatherApp() {
+  const themeController = setupTheme();
   setupRemoteConfig();
 
   const launchOptions = getLaunchOptions();
@@ -1087,7 +1089,8 @@ export function createWeatherApp() {
       myAreas,
       currentLocation: currentLocationInfo,
       locationWarningPush: locationWarningPush.getState(),
-      myAreaLimit: getMyAreaLimit()
+      myAreaLimit: getMyAreaLimit(),
+      themePreference: themeController.getPreference()
     };
   }
 
@@ -1135,6 +1138,8 @@ export function createWeatherApp() {
 
   function start() {
     weatherMap = createWeatherMap("map");
+    weatherMap.setTheme(themeController.getResolvedTheme());
+    themeController.subscribe(({ resolvedTheme }) => weatherMap?.setTheme(resolvedTheme));
     weatherMap.initialize();
     tabControls = setupTabs({ onChange: selectTab, tabs: TABS });
     setupAmedasSubTabs({ onChange: selectAmedasMetric });
@@ -1173,6 +1178,7 @@ export function createWeatherApp() {
       onClearDisasterMapPdf: clearStoredDisasterMapPdf,
       onToggleLocationWarningPush: toggleLocationWarningPush,
       onToggleLocationWarningAdvisory: toggleLocationWarningAdvisory,
+      onThemeChange: (theme) => themeController.setPreference(theme),
       tabs: TABS,
       getTabOrder: () => tabControls?.getOrder?.() ?? TABS.map((tab) => tab.id),
       onTabOrderChange: (order) => tabControls?.setOrder?.(order) ?? order

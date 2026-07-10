@@ -59,6 +59,13 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    const themeButton = event.target.closest("[data-settings-theme]");
+    if (themeButton) {
+      settingsOptions.onThemeChange?.(themeButton.dataset.settingsTheme);
+      renderSettingsTheme();
+      return;
+    }
+
     const tabOrderButton = event.target.closest("[data-settings-tab-order-tab]");
     if (tabOrderButton) {
       handleSettingsTabOrderTap(tabOrderButton.dataset.settingsTabOrderTab);
@@ -98,6 +105,7 @@ export function refreshSettingsModalView() {
   renderSettingsMyAreas();
   renderSettingsTabOrder();
   renderSettingsPushNotifications();
+  renderSettingsTheme();
   void renderSettingsDisasterMapPdf();
 }
 
@@ -112,6 +120,7 @@ function openSettingsModal() {
   renderSettingsMyAreas();
   renderSettingsTabOrder();
   renderSettingsPushNotifications();
+  renderSettingsTheme();
   void renderSettingsDisasterMapPdf();
 }
 
@@ -219,6 +228,16 @@ function renderSettingsPushNotifications() {
   } else {
     status.textContent = push.message || "現在地を取得すると通知を有効にできます。";
   }
+}
+
+function renderSettingsTheme() {
+  const state = settingsOptions.getState?.() ?? {};
+  const preference = state.themePreference ?? "system";
+  document.querySelectorAll("#settings-theme-options [data-settings-theme]").forEach((button) => {
+    const active = button.dataset.settingsTheme === preference;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-checked", active ? "true" : "false");
+  });
 }
 
 function getSettingsTabs() {

@@ -13,6 +13,22 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
+  <script>
+    (() => {
+      try {
+        const stored = localStorage.getItem("meteoscope-theme");
+        const preference = ["system", "dark", "light"].includes(stored) ? stored : "system";
+        const resolved = preference === "system"
+          ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark")
+          : preference;
+        document.documentElement.dataset.theme = resolved;
+        document.documentElement.dataset.themePreference = preference;
+      } catch {
+        document.documentElement.dataset.theme = "dark";
+        document.documentElement.dataset.themePreference = "system";
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
@@ -105,6 +121,17 @@
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-settings-modal-close>×</button>
         </header>
         <div class="settings-modal-body">
+          <section class="settings-group settings-theme-group">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>外観</button>
+            <div class="settings-group-content" hidden>
+              <p class="settings-theme-help">アプリと地図の配色を選択します。</p>
+              <div id="settings-theme-options" class="settings-theme-options" role="radiogroup" aria-label="外観">
+                <button type="button" data-settings-theme="system" role="radio" aria-checked="false">端末設定</button>
+                <button type="button" data-settings-theme="dark" role="radio" aria-checked="false">ダーク</button>
+                <button type="button" data-settings-theme="light" role="radio" aria-checked="false">ライト</button>
+              </div>
+            </div>
+          </section>
           <section class="settings-group settings-my-area-group">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>マイエリア</button>
             <div class="settings-group-content" hidden>

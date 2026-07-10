@@ -98,7 +98,24 @@ const WARNING_GEOMETRY_FIX_CODES = new Set([
   "3820600", // 西条市
   "4420200" // 別府市
 ]);
-const DEFAULT_LAND_FILL = "#3c3d40";
+const MAP_THEME_COLORS = {
+  dark: {
+    background: "#0c1326",
+    worldLand: "#252a33",
+    worldCountryLine: "#5e6672",
+    municipalityFill: "#3c3d40",
+    municipalityLine: "#848a94",
+    prefectureLine: "#f7fbff"
+  },
+  light: {
+    background: "#eaf1f8",
+    worldLand: "#d7dee5",
+    worldCountryLine: "#7f8d9b",
+    municipalityFill: "#f4f5f6",
+    municipalityLine: "#9aa5af",
+    prefectureLine: "#536373"
+  }
+};
 const NATURAL_EARTH_JAPAN_MASK_BOUNDS = {
   minLng: 122.0,
   maxLng: 149.5,
@@ -127,6 +144,7 @@ export function createWeatherMap(elementId) {
   let map = null;
   let pendingRender = null;
   let activeMode = "radar";
+  let activeTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
   let warningAreasByCode = new Map();
   let typhoonForecastInfoElement = null;
   let typhoonForecastInfoLngLat = null;
@@ -142,8 +160,9 @@ export function createWeatherMap(elementId) {
       dragRotate: true,
       pitchWithRotate: false,
       attributionControl: false,
-      style: createBaseStyle()
+      style: createBaseStyle(activeTheme)
     });
+    map.getContainer().dataset.theme = activeTheme;
     map.touchZoomRotate.enableRotation();
 
     map.on("load", () => {
@@ -789,7 +808,12 @@ export function createWeatherMap(elementId) {
     map?.resize();
   }
 
-  return { initialize, setMode, renderData, resize, showCurrentLocation, flyToLocation, fitToCoordinates };
+  function setTheme(theme) {
+    activeTheme = theme === "light" ? "light" : "dark";
+    applyMapTheme(map, activeTheme);
+  }
+
+  return { initialize, setMode, setTheme, renderData, resize, showCurrentLocation, flyToLocation, fitToCoordinates };
 }
 
 function getFocusOffset(options = {}) {
@@ -837,7 +861,8 @@ function parseMobileVisibleHeight() {
   return numeric;
 }
 
-function createBaseStyle() {
+function createBaseStyle(theme = "dark") {
+  const colors = MAP_THEME_COLORS[theme] ?? MAP_THEME_COLORS.dark;
   return {
     version: 8,
     glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
@@ -869,14 +894,14 @@ function createBaseStyle() {
       {
         id: "background",
         type: "background",
-        paint: { "background-color": "#0c1326" }
+        paint: { "background-color": colors.background }
       },
       {
         id: "world-land-fill",
         type: "fill",
         source: "world-land",
         paint: {
-          "fill-color": "#252a33",
+          "fill-color": colors.worldLand,
           "fill-antialias": false,
           "fill-opacity": 1
         }
@@ -886,7 +911,7 @@ function createBaseStyle() {
         type: "line",
         source: "world-countries",
         paint: {
-          "line-color": "#5e6672",
+          "line-color": colors.worldCountryLine,
           "line-width": [
             "interpolate",
             ["linear"],
@@ -906,7 +931,7 @@ function createBaseStyle() {
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
         paint: {
-          "fill-color": DEFAULT_LAND_FILL,
+          "fill-color": colors.municipalityFill,
           "fill-antialias": false,
           "fill-opacity": 1
         }
@@ -935,7 +960,7 @@ function createBaseStyle() {
         type: "line",
         source: MUNICIPALITY_SOURCE_ID,
         paint: {
-          "line-color": "#848a94",
+          "line-color": colors.municipalityLine,
           "line-width": [
             "interpolate",
             ["linear"],
@@ -969,7 +994,7 @@ function createBaseStyle() {
           "line-join": "round"
         },
         paint: {
-          "line-color": "#f7fbff",
+          "line-color": colors.prefectureLine,
           "line-width": [
             "interpolate",
             ["linear"],
@@ -996,6 +1021,24 @@ function createBaseStyle() {
       }
     ]
   };
+}
+
+function applyMapTheme(map, theme) {
+  if (!map) return;
+  const colors = MAP_THEME_COLORS[theme] ?? MAP_THEME_COLORS.dark;
+  const paintUpdates = [
+    ["background", "background-color", colors.background],
+    ["world-land-fill", "fill-color", colors.worldLand],
+    ["world-country-line", "line-color", colors.worldCountryLine],
+    [MUNICIPALITY_FILL_LAYER_ID, "fill-color", colors.municipalityFill],
+    ["jma-municipality-line", "line-color", colors.municipalityLine],
+    ["japan-prefecture-line", "line-color", colors.prefectureLine]
+  ];
+  paintUpdates.forEach(([layerId, property, value]) => {
+    if (map.getLayer(layerId)) map.setPaintProperty(layerId, property, value);
+  });
+  map.getContainer().dataset.theme = theme;
+  map.triggerRepaint();
 }
 
 function buildWorldLandWithoutJapanData() {
