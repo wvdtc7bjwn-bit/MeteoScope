@@ -1,7 +1,7 @@
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeSelector, setupKikikuruLayerToggles, setupRadarControls, setupRadarOverlayToggle, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupRadarControls, setupRadarOverlayToggle, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
@@ -211,11 +211,8 @@ export function createWeatherApp() {
     }
 
     if (layerId !== "kikikuru" && !KIKIKURU_LAYER_OPTIONS.some((element) => element.id === layerId)) return;
-    const previousWarningView = activeWarningView;
     activeWarningView = "kikikuru";
-    activeKikikuruLayer = layerId === "kikikuru"
-      ? getNextKikikuruLayer(previousWarningView, activeKikikuruLayer)
-      : layerId;
+    if (layerId !== "kikikuru") activeKikikuruLayer = layerId;
     if (activeTab !== "warnings") return;
     const tab = TABS.find((item) => item.id === "warnings");
     updateCurrentView(tab, latestDataByTab.warnings);
@@ -1141,6 +1138,7 @@ export function createWeatherApp() {
     weatherMap.initialize();
     tabControls = setupTabs({ onChange: selectTab, tabs: TABS });
     setupAmedasSubTabs({ onChange: selectAmedasMetric });
+    setupMobileDockSegmentedControls();
     setupAmedasRankingToggle({ onChange: refreshAmedasPanel, onSelectStation: focusAmedasStation });
     window.addEventListener("amedas-station-select", (event) => {
       const stationId = event.detail?.stationId;
@@ -1278,11 +1276,6 @@ function expandCircleBounds(center, radiusKm) {
   ];
 }
 
-function getNextKikikuruLayer(currentView, currentLayer) {
-  if (currentView !== "kikikuru") return currentLayer === "inund" ? "inund" : "land";
-  return currentLayer === "land" ? "inund" : "land";
-}
-
 function hasFreshKikikuruData(kikikuru, loadedAt) {
   return Boolean(
     kikikuru?.tileUrls &&
@@ -1371,6 +1364,7 @@ function syncActiveTabToUrl(tabId) {
 
 function mergeRefreshedData(tabId, currentData, nextData) {
   if (tabId === "warnings") return mergeWarningTabData(currentData, nextData);
+  if (tabId === "amedas") return mergeAmedasData(currentData, nextData);
   if (tabId !== "radar" || !currentData?.frames?.length || !nextData?.frames?.length) return nextData;
 
   const currentIndex = clampIndex(currentData.activeFrameIndex, currentData.frames);
@@ -1392,6 +1386,19 @@ function mergeRefreshedData(tabId, currentData, nextData) {
     activeFrameIndex: sameFrameIndex >= 0
       ? sameFrameIndex
       : clampIndex(currentIndex, nextData.frames)
+  };
+}
+
+function mergeAmedasData(currentData, nextData) {
+  if (!currentData || !nextData) return nextData;
+  return {
+    ...nextData,
+    temperatureRankings: nextData.temperatureRankings?.status === "ok"
+      ? nextData.temperatureRankings
+      : currentData.temperatureRankings,
+    windRankings: nextData.windRankings?.status === "ok"
+      ? nextData.windRankings
+      : currentData.windRankings
   };
 }
 

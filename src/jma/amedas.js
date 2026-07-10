@@ -1,7 +1,8 @@
-import { JMA_ENDPOINTS, STATIC_DATA_CACHE_TTL_MS } from "../config.js";
-import { fetchJson, fetchText, parseJmaTime } from "./jmaClient.js";
+import { AUTO_REFRESH_INTERVAL_MS, JMA_ENDPOINTS, STATIC_DATA_CACHE_TTL_MS } from "../config.js";
+import { fetchArrayBuffer, fetchJson, fetchText, parseJmaTime } from "./jmaClient.js";
 
 const AMEDAS_POINT_DATA_TTL_MS = 5 * 60 * 1000;
+const AMEDAS_DAILY_RANKING_TTL_MS = AUTO_REFRESH_INTERVAL_MS;
 const AMEDAS_CHUNK_HOURS = [0, 3, 6, 9, 12, 15, 18, 21];
 const DAILY_SERIES_FIELDS = {
   temperature: "temp",
@@ -14,17 +15,135 @@ export async function fetchAmedasLatestTime() {
   const latestTimeText = await fetchText(JMA_ENDPOINTS.amedasTimeList);
   const latestTime = latestTimeText.trim();
   const mapTime = formatAmedasMapTime(latestTime);
-  const [observations, stations] = await Promise.all([
+  const temperatureRankingsRequest = fetchAmedasTemperatureRankings()
+    .catch((error) => {
+      console.warn("[MeteoScope] AMeDAS temperature rankings unavailable", error);
+      return { status: "error", maximum: [], minimum: [] };
+    });
+  const windRankingsRequest = fetchAmedasWindRankings()
+    .catch((error) => {
+      console.warn("[MeteoScope] AMeDAS wind rankings unavailable", error);
+      return { status: "error", maximum: [], gust: [] };
+    });
+  const [observations, stations, temperatureRankings, windRankings] = await Promise.all([
     fetchJson(`${JMA_ENDPOINTS.amedasMapBase}/${mapTime}.json`),
-    fetchJson(JMA_ENDPOINTS.amedasStationTable, { ttlMs: STATIC_DATA_CACHE_TTL_MS, cache: "force-cache" })
+    fetchJson(JMA_ENDPOINTS.amedasStationTable, { ttlMs: STATIC_DATA_CACHE_TTL_MS, cache: "force-cache" }),
+    temperatureRankingsRequest,
+    windRankingsRequest
   ]);
 
   return {
     latestRawTime: latestTime,
     latestTime: parseJmaTime(latestTime) ?? latestTime,
     mapTime,
-    points: buildAmedasPoints(observations, stations)
+    points: buildAmedasPoints(observations, stations),
+    temperatureRankings,
+    windRankings
   };
+}
+
+async function fetchAmedasTemperatureRankings() {
+  const [maximumBuffer, minimumBuffer] = await Promise.all([
+    fetchArrayBuffer(JMA_ENDPOINTS.amedasDailyMaxTemperature, {
+      ttlMs: AMEDAS_DAILY_RANKING_TTL_MS,
+      accept: "text/csv,*/*"
+    }),
+    fetchArrayBuffer(JMA_ENDPOINTS.amedasDailyMinTemperature, {
+      ttlMs: AMEDAS_DAILY_RANKING_TTL_MS,
+      accept: "text/csv,*/*"
+    })
+  ]);
+  const decoder = new TextDecoder("shift_jis");
+  return {
+    status: "ok",
+    maximum: parseAmedasTemperatureCsv(decoder.decode(maximumBuffer), "maximum"),
+    minimum: parseAmedasTemperatureCsv(decoder.decode(minimumBuffer), "minimum")
+  };
+}
+
+function parseAmedasTemperatureCsv(text, kind) {
+  const valueLabel = kind === "maximum" ? "日の最高気温(℃)" : "日の最低気温(℃)";
+  return parseAmedasRankingCsv(text, (header) => header.endsWith(valueLabel));
+}
+
+async function fetchAmedasWindRankings() {
+  const [maximumBuffer, gustBuffer] = await Promise.all([
+    fetchArrayBuffer(JMA_ENDPOINTS.amedasDailyMaxWind, {
+      ttlMs: AMEDAS_DAILY_RANKING_TTL_MS,
+      accept: "text/csv,*/*"
+    }),
+    fetchArrayBuffer(JMA_ENDPOINTS.amedasDailyMaxGust, {
+      ttlMs: AMEDAS_DAILY_RANKING_TTL_MS,
+      accept: "text/csv,*/*"
+    })
+  ]);
+  const decoder = new TextDecoder("shift_jis");
+  return {
+    status: "ok",
+    maximum: parseAmedasWindCsv(decoder.decode(maximumBuffer)),
+    gust: parseAmedasWindCsv(decoder.decode(gustBuffer))
+  };
+}
+
+function parseAmedasWindCsv(text) {
+  return parseAmedasRankingCsv(text, (header) => /日の最大値\(m\/s\)$/.test(header));
+}
+
+function parseAmedasRankingCsv(text, matchesValueHeader) {
+  const rows = parseCsvRows(text);
+  const headers = rows.shift() ?? [];
+  const idIndex = headers.indexOf("観測所番号");
+  const nameIndex = headers.indexOf("地点");
+  const valueIndex = headers.findIndex(matchesValueHeader);
+  if (idIndex < 0 || nameIndex < 0 || valueIndex < 0) return [];
+
+  return rows.flatMap((row) => {
+    const id = String(row[idIndex] ?? "").trim();
+    const value = Number.parseFloat(row[valueIndex]);
+    if (!id || !Number.isFinite(value)) return [];
+    return [{
+      id,
+      name: String(row[nameIndex] ?? id).replace(/[（(].*$/, "").trim() || id,
+      value
+    }];
+  });
+}
+
+function parseCsvRows(text) {
+  const rows = [];
+  let row = [];
+  let field = "";
+  let quoted = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index];
+    if (character === '"') {
+      if (quoted && text[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+      continue;
+    }
+    if (!quoted && character === ",") {
+      row.push(field);
+      field = "";
+      continue;
+    }
+    if (!quoted && (character === "\n" || character === "\r")) {
+      if (character === "\r" && text[index + 1] === "\n") index += 1;
+      row.push(field);
+      if (row.some((value) => value !== "")) rows.push(row);
+      row = [];
+      field = "";
+      continue;
+    }
+    field += character;
+  }
+  row.push(field);
+  if (row.some((value) => value !== "")) rows.push(row);
+  return rows;
 }
 
 export async function fetchAmedasDailySeries(stationId, referenceTime, metricId) {

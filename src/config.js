@@ -40,6 +40,10 @@ export const JMA_ENDPOINTS = {
   amedasStationTable: "https://www.jma.go.jp/bosai/amedas/const/amedastable.json",
   amedasMapBase: "https://www.jma.go.jp/bosai/amedas/data/map",
   amedasPointBase: "https://www.jma.go.jp/bosai/amedas/data/point",
+  amedasDailyMaxTemperature: "https://www.data.jma.go.jp/stats/data/mdrr/tem_rct/alltable/mxtemsadext00_rct.csv",
+  amedasDailyMinTemperature: "https://www.data.jma.go.jp/stats/data/mdrr/tem_rct/alltable/mntemsadext00_rct.csv",
+  amedasDailyMaxWind: "https://www.data.jma.go.jp/stats/data/mdrr/wind_rct/alltable/mxwsp00_rct.csv",
+  amedasDailyMaxGust: "https://www.data.jma.go.jp/stats/data/mdrr/wind_rct/alltable/gust00_rct.csv",
   typhoon: "https://www.jma.go.jp/bosai/typhoon/data/targetTc.json",
   earthquakeXmlFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml",
   earthquakeXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml"

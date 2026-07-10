@@ -2839,14 +2839,6 @@ h2 {
   flex-wrap: wrap;
 }
 
-.amedas-temperature-chart-range .gust {
-  color: var(--amedas-gust-color, var(--amedas-series-color, #f4d35e));
-}
-
-.amedas-temperature-chart-range .amedas-temperature-chart-gust-summary {
-  color: #f8fbff;
-}
-
 .amedas-temperature-chart-empty {
   margin: 0;
   color: #aebbd0;
@@ -2889,19 +2881,57 @@ h2 {
 }
 
 .amedas-ranking-toggle {
+  --ranking-gap: 3px;
+  --ranking-padding: 3px;
+  position: relative;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: var(--ranking-gap);
   margin: 0 0 8px;
+  padding: var(--ranking-padding);
+  border: 1px solid rgba(207, 232, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(18, 31, 53, 0.48);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 18px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(14px) saturate(1.35);
+  -webkit-backdrop-filter: blur(14px) saturate(1.35);
+  isolation: isolate;
+  overflow: hidden;
+  clip-path: inset(0 round 999px);
+  touch-action: none;
+}
+
+.amedas-ranking-slider::before {
+  content: "";
+  position: absolute;
+  top: var(--ranking-padding);
+  bottom: var(--ranking-padding);
+  left: var(--ranking-padding);
+  z-index: 0;
+  width: calc((100% - (var(--ranking-padding) * 2) - (var(--ranking-gap) * (var(--ranking-count) - 1))) / var(--ranking-count));
+  box-sizing: border-box;
+  border: 1px solid rgba(179, 224, 255, 0.34);
+  border-radius: 999px;
+  background: rgba(69, 157, 217, 0.2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 5px 14px rgba(16, 68, 124, 0.16);
+  pointer-events: none;
+  transform: translate3d(calc(var(--ranking-index-offset) + var(--ranking-gap-offset) + var(--ranking-drag-x, 0px)), 0, 0);
+  transition: transform 380ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.amedas-ranking-slider.is-dragging::before {
+  transition: none;
 }
 
 .amedas-ranking-toggle button {
   min-width: 0;
   min-height: 28px;
   padding: 5px 8px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.055);
+  z-index: 1;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
   color: #aebbd0;
   font-size: 11px;
   font-weight: 900;
@@ -2909,10 +2939,13 @@ h2 {
 }
 
 .amedas-ranking-toggle button.active {
-  border-color: rgba(86, 183, 242, 0.5);
-  background: rgba(86, 183, 242, 0.22);
   color: #f8fbff;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: none;
+}
+
+.amedas-ranking-toggle button:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
 }
 
 .amedas-ranking-list {
@@ -4399,8 +4432,57 @@ h2 {
   .mobile-dock-action-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 2px;
     min-width: 0;
+    padding: 3px;
+    border: 1px solid rgba(207, 232, 255, 0.2);
+    border-radius: 999px;
+    background: rgba(7, 16, 34, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    overflow: hidden;
+  }
+
+  .mobile-dock-segmented {
+    --mobile-dock-indicator-x: 0px;
+    --mobile-dock-indicator-width: 0px;
+    --mobile-dock-drag-x: 0px;
+    position: relative;
+    isolation: isolate;
+  }
+
+  .mobile-dock-segmented::before {
+    content: "";
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    left: 0;
+    z-index: 0;
+    width: var(--mobile-dock-indicator-width);
+    border: 1px solid rgba(211, 239, 255, 0.36);
+    border-radius: 999px;
+    box-sizing: border-box;
+    background: rgba(79, 155, 226, 0.16);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+      0 8px 18px rgba(20, 64, 150, 0.08);
+    transform: translate3d(calc(var(--mobile-dock-indicator-x) + var(--mobile-dock-drag-x)), 0, 0);
+    backdrop-filter: blur(16px) saturate(1.65);
+    -webkit-backdrop-filter: blur(16px) saturate(1.65);
+    pointer-events: none;
+    transition: transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
+    will-change: transform;
+  }
+
+  .mobile-dock-segmented.is-dragging::before,
+  .mobile-dock-segmented.is-initializing::before {
+    transition: none;
+  }
+
+  .mobile-dock-segmented.is-dragging .mobile-dock-action,
+  .mobile-dock-segmented.is-dragging .mobile-dock-chip {
+    transform: none;
   }
 
   .mobile-dock-action-row-single {
@@ -4411,12 +4493,17 @@ h2 {
     align-items: stretch;
   }
 
+  .mobile-dock-radar {
+    align-content: start;
+    padding-top: 7px;
+  }
+
   .mobile-dock-action {
     flex: 1 1 0;
     min-width: 0;
     min-height: 28px;
     padding: 5px 9px;
-    border: 1px solid rgba(199, 224, 248, 0.2);
+    border: 1px solid transparent;
     border-radius: 999px;
     overflow: hidden;
     color: rgba(230, 241, 251, 0.76);
@@ -4427,9 +4514,12 @@ h2 {
     text-align: center;
     text-overflow: ellipsis;
     white-space: nowrap;
-    background: rgba(255, 255, 255, 0.055);
+    background: transparent;
     cursor: pointer;
     touch-action: manipulation;
+    transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, transform 140ms ease;
+    position: relative;
+    z-index: 1;
   }
 
   .mobile-dock-action-row-single .mobile-dock-action {
@@ -4438,10 +4528,18 @@ h2 {
   }
 
   .mobile-dock-action.active {
-    border-color: rgba(128, 210, 255, 0.62);
+    border-color: transparent;
     color: #eaf9ff;
-    background: rgba(77, 177, 236, 0.28);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 0 18px rgba(76, 183, 242, 0.16);
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .mobile-dock-action:not(:disabled):active,
+  .mobile-dock-chip:active,
+  .mobile-dock-typhoon-switch:not(.is-static):active {
+    transform: scale(0.97);
   }
 
   .mobile-dock-action.loading {
@@ -4452,7 +4550,9 @@ h2 {
     opacity: 1;
   }
   .mobile-dock-warning {
+    align-content: start;
     gap: 8px;
+    padding-top: 17px;
   }
 
   .mobile-dock-warning-head,
@@ -4473,6 +4573,31 @@ h2 {
   .mobile-dock-warning-actions .mobile-dock-action {
     min-height: 28px;
     padding-inline: 8px;
+  }
+
+  .mobile-dock-kikikuru-layers {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .mobile-dock-kikikuru-label {
+    color: rgba(218, 230, 244, 0.72);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .mobile-dock-kikikuru-actions {
+    width: 100%;
+  }
+
+  .mobile-dock-kikikuru-actions .mobile-dock-action {
+    min-height: 27px;
+    padding-block: 4px;
   }
 
   .mobile-dock-warning-text {
@@ -4573,16 +4698,20 @@ h2 {
     flex: 0 0 auto;
     min-width: 52px;
     padding: 6px 12px;
-    border: 1px solid rgba(148, 213, 255, 0.36);
+    border: 1px solid rgba(211, 239, 255, 0.34);
     border-radius: 999px;
     color: rgba(232, 246, 255, 0.9);
     font: inherit;
     font-size: 12px;
     font-weight: 900;
     line-height: 1;
-    background: rgba(95, 184, 244, 0.12);
+    background: rgba(79, 155, 226, 0.14);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(16px) saturate(1.6);
+    -webkit-backdrop-filter: blur(16px) saturate(1.6);
     cursor: pointer;
     touch-action: manipulation;
+    transition: transform 140ms ease, background-color 180ms ease;
   }
 
   .mobile-dock-typhoon-switch.is-static {
@@ -4717,6 +4846,29 @@ h2 {
     background: linear-gradient(90deg, #51c2ff, #65e0a7);
   }
 
+  .mobile-dock-range-placeholder {
+    height: 20px;
+    overflow: visible;
+    background: transparent;
+  }
+
+  .mobile-dock-range-placeholder::before {
+    content: "";
+    position: absolute;
+    top: 7px;
+    right: 0;
+    left: 0;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .mobile-dock-range-placeholder span {
+    top: 7px;
+    bottom: auto;
+    height: 6px;
+  }
+
   .mobile-dock-range-input {
     width: 100%;
     height: 20px;
@@ -4775,7 +4927,15 @@ h2 {
   .mobile-dock-chip-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid rgba(207, 232, 255, 0.2);
+    border-radius: 999px;
+    background: rgba(7, 16, 34, 0.12);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+    backdrop-filter: blur(18px) saturate(1.5);
+    -webkit-backdrop-filter: blur(18px) saturate(1.5);
+    overflow: hidden;
   }
 
   .mobile-dock-amedas {
@@ -4814,21 +4974,27 @@ h2 {
     display: grid;
     place-items: center;
     min-height: 34px;
-    border: 1px solid rgba(199, 224, 248, 0.2);
+    border: 1px solid transparent;
     border-radius: 999px;
     color: rgba(230, 241, 251, 0.72);
     font: inherit;
     font-size: 12px;
     font-weight: 800;
-    background: rgba(255, 255, 255, 0.055);
+    background: transparent;
     cursor: pointer;
     touch-action: manipulation;
+    transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, transform 140ms ease;
+    position: relative;
+    z-index: 1;
   }
 
   .mobile-dock-chip.active {
-    border-color: rgba(128, 210, 255, 0.58);
+    border-color: transparent;
     color: #eaf9ff;
-    background: rgba(77, 177, 236, 0.24);
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   #main-tabs::before {

@@ -16,6 +16,9 @@ import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
 
 let selectedWarningAreaCode = "";
 let amedasRankingOrder = "top";
+let amedasTemperatureRankingView = "current";
+let amedasWindRankingView = "current";
+let amedasWindRankingKind = "average";
 let activeWarningAreasByCode = new Map();
 let activeWarningDetailsLoaded = false;
 let warningAreaSelectionOptions = {};
@@ -94,9 +97,60 @@ export function setupAmedasSubTabs({ onChange }) {
 export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
   const root = document.getElementById("amedas-ranking");
   if (!root) return;
+  let dragState = null;
+  let suppressClickUntil = 0;
+
+  const getSliderButtons = (slider) => [...slider.querySelectorAll("button")];
+  const getSliderButtonAtPoint = (slider, clientX) => {
+    const buttons = getSliderButtons(slider);
+    if (!buttons.length) return null;
+    const rect = slider.getBoundingClientRect();
+    const ratio = (clientX - rect.left) / Math.max(1, rect.width);
+    const index = Math.min(buttons.length - 1, Math.max(0, Math.floor(ratio * buttons.length)));
+    return buttons[index] ?? null;
+  };
+  const resetRankingSlider = (slider) => {
+    slider.classList.remove("is-dragging");
+    slider.style.setProperty("--ranking-drag-x", "0px");
+  };
 
   root.addEventListener("click", (event) => {
+    if (Date.now() < suppressClickUntil) return;
     if (!(event.target instanceof Element)) return;
+    const temperaturePeriodButton = event.target.closest("[data-amedas-temperature-ranking-period]");
+    if (temperaturePeriodButton) {
+      const period = temperaturePeriodButton.dataset.amedasTemperatureRankingPeriod;
+      if (period !== "current" && period !== "daily") return;
+      amedasTemperatureRankingView = period === "current" ? "current" : "maximum";
+      onChange?.();
+      return;
+    }
+    const viewButton = event.target.closest("[data-amedas-ranking-view]");
+    if (viewButton) {
+      const view = viewButton.dataset.amedasRankingView;
+      if (!new Set(["current", "maximum", "minimum"]).has(view)) return;
+      amedasTemperatureRankingView = view;
+      onChange?.();
+      return;
+    }
+    const windViewButton = event.target.closest("[data-amedas-wind-ranking-view]");
+    if (windViewButton) {
+      const view = windViewButton.dataset.amedasWindRankingView;
+      if (view !== "current" && view !== "daily") return;
+      amedasWindRankingView = view;
+      if (view === "current") amedasWindRankingKind = "average";
+      onChange?.();
+      return;
+    }
+    const windKindButton = event.target.closest("[data-amedas-wind-ranking-kind]");
+    if (windKindButton) {
+      const kind = windKindButton.dataset.amedasWindRankingKind;
+      if (kind !== "average" && kind !== "gust") return;
+      if (kind === "gust" && amedasWindRankingView === "current") return;
+      amedasWindRankingKind = kind;
+      onChange?.();
+      return;
+    }
     const button = event.target.closest("[data-amedas-ranking-order]");
     if (button) {
       const order = button.dataset.amedasRankingOrder;
@@ -110,6 +164,159 @@ export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
     if (!stationButton) return;
     onSelectStation?.(stationButton.dataset.amedasStationId);
   });
+
+  root.addEventListener("pointerdown", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const slider = event.target.closest(".amedas-ranking-slider");
+    if (!slider || !root.contains(slider)) return;
+    const activeButton = getSliderButtons(slider).find((button) => button.classList.contains("active"));
+    dragState = {
+      pointerId: event.pointerId,
+      slider,
+      startX: event.clientX,
+      moved: false,
+      activeLeft: activeButton?.offsetLeft ?? 0
+    };
+    slider.classList.add("is-dragging");
+    slider.setPointerCapture?.(event.pointerId);
+  });
+
+  root.addEventListener("pointermove", (event) => {
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    const delta = event.clientX - dragState.startX;
+    if (Math.abs(delta) > 6) dragState.moved = true;
+    if (!dragState.moved) return;
+    event.preventDefault();
+    const buttons = getSliderButtons(dragState.slider);
+    const activeButton = buttons.find((button) => button.classList.contains("active"));
+    const indicatorWidth = activeButton?.offsetWidth ?? 0;
+    const firstButton = buttons[0];
+    const lastButton = buttons.at(-1);
+    const trackStart = firstButton?.offsetLeft ?? 0;
+    const trackEnd = (lastButton?.offsetLeft ?? 0) + (lastButton?.offsetWidth ?? 0);
+    const minDelta = trackStart - dragState.activeLeft;
+    const maxDelta = Math.max(minDelta, trackEnd - indicatorWidth - dragState.activeLeft);
+    dragState.slider.style.setProperty("--ranking-drag-x", `${Math.min(maxDelta, Math.max(minDelta, delta))}px`);
+  });
+
+  const finishRankingSliderDrag = (event) => {
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    const { slider, moved } = dragState;
+    slider.releasePointerCapture?.(event.pointerId);
+    dragState = null;
+    if (moved) {
+      const targetButton = getSliderButtonAtPoint(slider, event.clientX);
+      resetRankingSlider(slider);
+      if (targetButton && !targetButton.disabled) targetButton.click();
+      suppressClickUntil = Date.now() + 250;
+      return;
+    }
+    resetRankingSlider(slider);
+  };
+
+  root.addEventListener("pointerup", finishRankingSliderDrag);
+  root.addEventListener("pointercancel", finishRankingSliderDrag);
+}
+
+export function setupMobileDockSegmentedControls() {
+  const root = document.getElementById("mobile-context-dock");
+  if (!root) return;
+  let dragState = null;
+  let suppressClickUntil = 0;
+  let pendingFrame = 0;
+  let pendingOffset = 0;
+
+  const getButtons = (segment) => [...segment.querySelectorAll("button")];
+  const setDragOffset = (segment, offset) => {
+    segment.style.setProperty("--mobile-dock-drag-x", `${offset}px`);
+  };
+  const getButtonAtPoint = (segment, clientX) => {
+    const buttons = getButtons(segment);
+    return buttons.reduce((nearest, button) => {
+      const rect = button.getBoundingClientRect();
+      const distance = Math.abs(clientX - (rect.left + rect.width / 2));
+      return !nearest || distance < nearest.distance ? { button, distance } : nearest;
+    }, null)?.button ?? null;
+  };
+
+  root.addEventListener("click", (event) => {
+    if (Date.now() >= suppressClickUntil) return;
+    if (!(event.target instanceof Element) || !event.target.closest(".mobile-dock-segmented")) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+
+  root.addEventListener("pointerdown", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const segment = event.target.closest(".mobile-dock-segmented");
+    if (!segment || !root.contains(segment)) return;
+    const buttons = getButtons(segment);
+    const activeButton = buttons.find((button) => button.classList.contains("active")) ?? buttons[0];
+    if (!activeButton) return;
+    syncMobileDockSegmentIndicator(segment);
+    dragState = {
+      pointerId: event.pointerId,
+      segment,
+      startX: event.clientX,
+      activeLeft: activeButton.offsetLeft,
+      activeWidth: activeButton.offsetWidth,
+      moved: false
+    };
+    segment.classList.add("is-dragging");
+    segment.setPointerCapture?.(event.pointerId);
+  });
+
+  root.addEventListener("pointermove", (event) => {
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    const delta = event.clientX - dragState.startX;
+    if (Math.abs(delta) > 6) dragState.moved = true;
+    if (!dragState.moved) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const buttons = getButtons(dragState.segment);
+    const firstButton = buttons[0];
+    const lastButton = buttons.at(-1);
+    const minOffset = (firstButton?.offsetLeft ?? dragState.activeLeft) - dragState.activeLeft;
+    const maxOffset = Math.max(
+      minOffset,
+      (lastButton?.offsetLeft ?? dragState.activeLeft) + (lastButton?.offsetWidth ?? dragState.activeWidth)
+        - dragState.activeWidth - dragState.activeLeft
+    );
+    const nextOffset = Math.min(maxOffset, Math.max(minOffset, delta));
+    const segment = dragState.segment;
+    pendingOffset = nextOffset;
+    if (pendingFrame) return;
+    pendingFrame = window.requestAnimationFrame(() => {
+      setDragOffset(segment, pendingOffset);
+      pendingFrame = 0;
+    });
+  });
+
+  const finishDrag = (event) => {
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    const { segment, moved } = dragState;
+    if (pendingFrame) {
+      window.cancelAnimationFrame(pendingFrame);
+      pendingFrame = 0;
+      setDragOffset(segment, pendingOffset);
+    }
+    segment.releasePointerCapture?.(event.pointerId);
+    segment.classList.remove("is-dragging");
+    dragState = null;
+    if (moved) {
+      event.preventDefault();
+      event.stopPropagation();
+      const targetButton = getButtonAtPoint(segment, event.clientX);
+      if (targetButton && !targetButton.disabled) targetButton.click();
+      suppressClickUntil = Date.now() + 250;
+    }
+    window.requestAnimationFrame(() => syncMobileDockSegmentIndicators(root));
+  };
+
+  root.addEventListener("pointerup", finishDrag);
+  root.addEventListener("pointercancel", finishDrag);
+  window.addEventListener("resize", () => window.requestAnimationFrame(() => syncMobileDockSegmentIndicators(root)));
+  syncMobileDockSegmentIndicators(root);
 }
 
 export function setupKikikuruLayerToggles({ onChange }) {
@@ -117,7 +324,8 @@ export function setupKikikuruLayerToggles({ onChange }) {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest("[data-kikikuru-layer]");
     if (!button) return;
-    event.stopPropagation();
+    event.preventDefault();
+    event.stopImmediatePropagation();
     onChange?.(button.dataset.kikikuruLayer);
   };
 
@@ -797,6 +1005,29 @@ function renderMobileContextDock(tab, state, context = {}) {
   if (mobileRadarDockSliding && tab.id === "radar" && root.dataset.tab === "radar") return;
   root.dataset.tab = tab.id;
   root.innerHTML = buildMobileContextDockContent(tab, state, context);
+  initializeMobileDockSegmentIndicators(root);
+}
+
+function initializeMobileDockSegmentIndicators(root) {
+  const segments = [...root.querySelectorAll(".mobile-dock-segmented")];
+  segments.forEach((segment) => segment.classList.add("is-initializing"));
+  syncMobileDockSegmentIndicators(root);
+  window.requestAnimationFrame(() => {
+    segments.forEach((segment) => segment.classList.remove("is-initializing"));
+  });
+}
+
+function syncMobileDockSegmentIndicators(root) {
+  root.querySelectorAll(".mobile-dock-segmented").forEach(syncMobileDockSegmentIndicator);
+}
+
+function syncMobileDockSegmentIndicator(segment) {
+  const buttons = [...segment.querySelectorAll("button")];
+  const activeButton = buttons.find((button) => button.classList.contains("active")) ?? buttons[0];
+  if (!activeButton) return;
+  segment.style.setProperty("--mobile-dock-indicator-x", `${activeButton.offsetLeft}px`);
+  segment.style.setProperty("--mobile-dock-indicator-width", `${activeButton.offsetWidth}px`);
+  segment.style.setProperty("--mobile-dock-drag-x", "0px");
 }
 
 function buildMobileContextDockContent(tab, state, { amedasMetric, warningView } = {}) {
@@ -818,7 +1049,7 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
           <span class="mobile-dock-kicker">アメダス</span>
           <span class="mobile-dock-amedas-nearest${nearest ? "" : " is-muted"}" title="${escapeHtml(nearestText)}">${escapeHtml(nearestText)}</span>
         </div>
-        <div class="mobile-dock-chip-grid mobile-dock-amedas-grid">
+        <div class="mobile-dock-chip-grid mobile-dock-amedas-grid mobile-dock-segmented">
           ${AMEDAS_METRICS.map((item) => `
             <button type="button" class="mobile-dock-chip${item.id === metric.id ? " active" : ""}" data-mobile-dock-control data-mobile-amedas-metric="${escapeHtml(item.id)}" aria-pressed="${item.id === metric.id ? "true" : "false"}">${escapeHtml(item.label)}</button>
           `).join("")}
@@ -924,20 +1155,20 @@ function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, isLoading,
   const summaryText = isLoading ? "" : buildMobileWarningSummary(warnings);
   const statusText = isLoading ? "取得中" : (topWarning?.label ?? "発表なし");
   const level = topWarning?.level ?? "none";
-  const kicker = warningView === "early" ? "早期注意情報" : "警報・注意報";
-
   return `
     <div class="mobile-dock-content mobile-dock-warning">
       <div class="mobile-dock-warning-head">
-        ${buildWarningMobileActionRow(warningView, activeKikikuruLayer)}
+        ${buildWarningMobileActionRow(warningView)}
       </div>
-      <div class="mobile-dock-warning-main">
-        <div class="mobile-dock-warning-text">
-          <strong>${escapeHtml(isLoading ? "現在地を確認中" : area)}</strong>
-          ${summaryText ? `<span>${escapeHtml(summaryText)}</span>` : ""}
-        </div>
-        <span class="mobile-dock-warning-badge mobile-dock-warning-badge-${escapeHtml(level)}">${escapeHtml(statusText)}</span>
-      </div>
+      ${warningView === "kikikuru"
+        ? buildKikikuruMobileLayerRow(activeKikikuruLayer)
+        : `<div class="mobile-dock-warning-main">
+            <div class="mobile-dock-warning-text">
+              <strong>${escapeHtml(isLoading ? "現在地を確認中" : area)}</strong>
+              ${summaryText ? `<span>${escapeHtml(summaryText)}</span>` : ""}
+            </div>
+            <span class="mobile-dock-warning-badge mobile-dock-warning-badge-${escapeHtml(level)}">${escapeHtml(statusText)}</span>
+          </div>`}
     </div>
   `;
 }
@@ -946,21 +1177,35 @@ function getPrimaryMobileWarning(warnings = []) {
   const rank = { emergency: 4, danger: 3, high: 3, warning: 2, middle: 2, advisory: 1 };
   return [...warnings].sort((a, b) => (rank[b?.level] ?? 0) - (rank[a?.level] ?? 0))[0] ?? null;
 }
-function buildWarningMobileActionRow(warningView, activeKikikuruLayer) {
-  const activeKikikuruOption = KIKIKURU_LAYER_OPTIONS.find((element) => element.id === activeKikikuruLayer)
-    ?? KIKIKURU_LAYER_OPTIONS[0]
-    ?? { label: "キキクル" };
+function buildWarningMobileActionRow(warningView) {
   const options = [
     { id: "status", label: "発表", active: warningView === "status" },
     { id: "early", label: "早期", active: warningView === "early" },
-    { id: "kikikuru", label: activeKikikuruOption.label.replace("キキクル", ""), active: warningView === "kikikuru" }
+    { id: "kikikuru", label: "キキクル", active: warningView === "kikikuru" }
   ];
-
   return `
-    <div class="mobile-dock-action-row mobile-dock-warning-actions">
+    <div class="mobile-dock-action-row mobile-dock-warning-actions mobile-dock-segmented">
       ${options.map((option) => `
-        <button type="button" class="mobile-dock-action${option.active ? " active" : ""}" data-mobile-dock-control data-kikikuru-layer="${escapeHtml(option.id)}" aria-pressed="${option.active ? "true" : "false"}"${option.active && option.id !== "kikikuru" ? " disabled" : ""}>${escapeHtml(option.label || "キキクル")}</button>
+        <button type="button" class="mobile-dock-action${option.active ? " active" : ""}" data-mobile-dock-control data-kikikuru-layer="${escapeHtml(option.id)}" aria-pressed="${option.active ? "true" : "false"}"${option.active ? " disabled" : ""}>${escapeHtml(option.label)}</button>
       `).join("")}
+    </div>
+  `;
+}
+
+function buildKikikuruMobileLayerRow(activeKikikuruLayer) {
+  const options = KIKIKURU_LAYER_OPTIONS.map((option) => ({
+    ...option,
+    active: option.id === activeKikikuruLayer,
+    shortLabel: option.label.replace("キキクル", "")
+  }));
+  return `
+    <div class="mobile-dock-kikikuru-layers">
+      <span class="mobile-dock-kikikuru-label">表示レイヤー</span>
+      <div class="mobile-dock-action-row mobile-dock-kikikuru-actions mobile-dock-segmented">
+        ${options.map((option) => `
+          <button type="button" class="mobile-dock-action${option.active ? " active" : ""}" data-mobile-dock-control data-kikikuru-layer="${escapeHtml(option.id)}" aria-pressed="${option.active ? "true" : "false"}"${option.active ? " disabled" : ""}>${escapeHtml(option.shortLabel)}</button>
+        `).join("")}
+      </div>
     </div>
   `;
 }
@@ -1016,11 +1261,11 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   const progress = buildProgressPercent(activeIndex, length);
   const range = length > 1
     ? `<input type="range" class="mobile-dock-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : "data-mobile-radar-slider"} data-frame-meta="${escapeHtml(JSON.stringify(frameMeta))}" aria-label="${isChartMode ? "天気図" : "雨雲レーダー"}時刻" style="--mobile-dock-progress:${escapeHtml(progress)}">`
-    : `<div class="mobile-dock-range" style="--mobile-dock-progress:${escapeHtml(progress)}"><span></span></div>`;
+    : `<div class="mobile-dock-range mobile-dock-range-placeholder" style="--mobile-dock-progress:${escapeHtml(progress)}"><span></span></div>`;
 
   return `
-    <div class="mobile-dock-content">
-      <div class="mobile-dock-action-row mobile-dock-mode-switch">
+    <div class="mobile-dock-content mobile-dock-radar">
+      <div class="mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented">
         <button type="button" class="mobile-dock-action${weatherChartEnabled ? "" : " active"}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "false" : "true"}"${weatherChartEnabled ? "" : " disabled"}>雨雲レーダー</button>
         <button type="button" class="mobile-dock-action${weatherChartEnabled ? " active" : ""}${weatherChartLoading ? " loading" : ""}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "true" : "false"}"${weatherChartEnabled ? " disabled" : ""}>${escapeHtml(weatherChartLoading ? "取得中" : "天気図")}</button>
       </div>
@@ -1540,15 +1785,37 @@ function renderAmedasRanking(tab, state, metric) {
     return;
   }
 
-  const order = metric.id === "temperature" ? amedasRankingOrder : "top";
-  const items = buildAmedasRankingItems(state.data, metric, order).slice(0, AMEDAS_RANKING_LIMIT);
-  if (items.length === 0) {
-    root.innerHTML = `<div class="amedas-ranking-empty">表示できる観測値がありません</div>`;
-    return;
-  }
-  const orderLabel = order === "bottom" ? "下位" : "上位";
-  const orderControls = metric.id === "temperature" ? `
-    <div class="amedas-ranking-toggle" aria-label="気温ランキング切替">
+  const rankingView = metric.id === "temperature"
+    ? amedasTemperatureRankingView
+    : (metric.id === "wind" ? amedasWindRankingView : "current");
+  const windKind = metric.id === "wind" ? amedasWindRankingKind : "average";
+  const order = rankingView === "minimum" ? "bottom" : (rankingView === "maximum" ? "top" : (metric.id === "temperature" ? amedasRankingOrder : "top"));
+  const items = buildAmedasRankingItems(state.data, metric, order, rankingView, windKind).slice(0, AMEDAS_RANKING_LIMIT);
+  const orderLabel = getAmedasRankingLabel(metric.id, rankingView, windKind, order);
+  const temperatureControls = metric.id === "temperature" ? `
+    <div class="amedas-ranking-toggle amedas-ranking-slider" aria-label="気温ランキング集計期間" style="${getAmedasRankingSliderStyle(rankingView === "current" ? 0 : 1, 2)}">
+      <button type="button" data-amedas-temperature-ranking-period="current" class="${rankingView === "current" ? "active" : ""}">実況</button>
+      <button type="button" data-amedas-temperature-ranking-period="daily" class="${rankingView !== "current" ? "active" : ""}">今日ここまで</button>
+    </div>
+    ${rankingView !== "current" ? `
+      <div class="amedas-ranking-toggle amedas-ranking-slider" aria-label="気温ランキング種別" style="${getAmedasRankingSliderStyle(rankingView === "maximum" ? 0 : 1, 2)}">
+        <button type="button" data-amedas-ranking-view="maximum" class="${rankingView === "maximum" ? "active" : ""}">最高</button>
+        <button type="button" data-amedas-ranking-view="minimum" class="${rankingView === "minimum" ? "active" : ""}">最低</button>
+      </div>
+    ` : ""}
+  ` : "";
+  const windControls = metric.id === "wind" ? `
+    <div class="amedas-ranking-toggle amedas-ranking-slider" aria-label="風速ランキング集計期間" style="${getAmedasRankingSliderStyle(rankingView === "current" ? 0 : 1, 2)}">
+      <button type="button" data-amedas-wind-ranking-view="current" class="${rankingView === "current" ? "active" : ""}">実況</button>
+      <button type="button" data-amedas-wind-ranking-view="daily" class="${rankingView === "daily" ? "active" : ""}">今日ここまで</button>
+    </div>
+    <div class="amedas-ranking-toggle amedas-ranking-slider" aria-label="風速ランキング種別" style="${getAmedasRankingSliderStyle(windKind === "average" ? 0 : 1, 2)}">
+      <button type="button" data-amedas-wind-ranking-kind="average" class="${windKind === "average" ? "active" : ""}">平均風速</button>
+      <button type="button" data-amedas-wind-ranking-kind="gust" class="${windKind === "gust" ? "active" : ""}" ${rankingView === "current" ? 'disabled title="実況の全国一括データは提供されていません"' : ""}>最大瞬間風速</button>
+    </div>
+  ` : "";
+  const orderControls = metric.id === "temperature" && rankingView === "current" ? `
+    <div class="amedas-ranking-toggle amedas-ranking-slider" aria-label="気温ランキング切替" style="${getAmedasRankingSliderStyle(order === "top" ? 0 : 1, 2)}">
       <button type="button" data-amedas-ranking-order="top" class="${order === "top" ? "active" : ""}">高い順</button>
       <button type="button" data-amedas-ranking-order="bottom" class="${order === "bottom" ? "active" : ""}">低い順</button>
     </div>
@@ -1559,8 +1826,10 @@ function renderAmedasRanking(tab, state, metric) {
       <span>${escapeHtml(metric.label)}ランキング</span>
       <small>${orderLabel}${items.length}地点</small>
     </div>
+    ${temperatureControls}
+    ${windControls}
     ${orderControls}
-    <div class="amedas-ranking-list">
+    ${items.length ? `<div class="amedas-ranking-list">
       ${items.map((item, index) => `
         <button type="button" class="amedas-ranking-row" data-amedas-station-id="${escapeHtml(item.id)}">
           <span class="amedas-ranking-rank">${index + 1}</span>
@@ -1568,8 +1837,29 @@ function renderAmedasRanking(tab, state, metric) {
           <strong class="amedas-ranking-value" style="--rank-color:${escapeHtml(item.color)}">${escapeHtml(formatAmedasRankingValue(item.value, metric))}</strong>
         </button>
       `).join("")}
-    </div>
+    </div>` : `<div class="amedas-ranking-empty">${getAmedasRankingEmptyMessage(metric.id, rankingView)}</div>`}
   `;
+}
+
+function getAmedasRankingSliderStyle(index, count) {
+  const safeIndex = Math.max(0, Math.min(count - 1, Number(index) || 0));
+  return `--ranking-index-offset:${safeIndex * 100}%;--ranking-gap-offset:${safeIndex * 3}px;--ranking-count:${count}`;
+}
+
+function getAmedasRankingLabel(metricId, rankingView, windKind, order) {
+  if (metricId === "wind") {
+    const period = rankingView === "daily" ? "今日" : "実況";
+    return `${period}${windKind === "gust" ? "瞬間" : "平均"}`;
+  }
+  if (rankingView === "maximum") return "日最高";
+  if (rankingView === "minimum") return "日最低";
+  return order === "bottom" ? "下位" : "上位";
+}
+
+function getAmedasRankingEmptyMessage(metricId, rankingView) {
+  if (rankingView === "current") return "表示できる観測値がありません";
+  if (metricId === "wind") return "今日の風速ランキングを取得できません";
+  return "日最高・日最低ランキングを取得できません";
 }
 
 function renderAmedasDailyChart(tab, state, metric) {
@@ -1627,7 +1917,7 @@ function renderAmedasDailyChart(tab, state, metric) {
     <div class="amedas-temperature-chart-range${metric.id === "wind" ? " is-wind" : ""}">
       <span>${escapeHtml(getAmedasDailyMinLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.min, metric)}</span>
       <span>${escapeHtml(getAmedasDailyMaxLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.max, metric)}</span>
-      ${metric.id === "wind" && Number.isFinite(chart.data?.maxGust) ? `<span class="gust amedas-temperature-chart-gust-summary">最大瞬間 ${formatAmedasDailyColoredValue(chart.data.maxGust, metric)}${chart.data.maxGustLabel ? ` (${escapeHtml(chart.data.maxGustLabel)})` : ""}</span>` : ""}
+      ${metric.id === "wind" && Number.isFinite(chart.data?.maxGust) ? `<span>最大瞬間 ${formatAmedasDailyColoredValue(chart.data.maxGust, metric)}${chart.data.maxGustLabel ? ` (${escapeHtml(chart.data.maxGustLabel)})` : ""}</span>` : ""}
     </div>
   `;
 }
@@ -1740,15 +2030,23 @@ function getAmedasDailyMaxLabel(metricId) {
   return "最高";
 }
 
-function buildAmedasRankingItems(data = {}, metric, order = "top") {
-  return (data.points ?? [])
+function buildAmedasRankingItems(data = {}, metric, order = "top", rankingView = "current", windKind = "average") {
+  const pointsById = new Map((data.points ?? []).map((point) => [String(point.id), point]));
+  const usesDailyTemperature = metric.id === "temperature" && rankingView !== "current";
+  const usesDailyWind = metric.id === "wind" && rankingView === "daily";
+  const source = usesDailyTemperature
+    ? (data.temperatureRankings?.[rankingView] ?? [])
+    : (usesDailyWind ? (data.windRankings?.[windKind === "gust" ? "gust" : "maximum"] ?? []) : (data.points ?? []));
+  return source
     .map((point) => ({
       id: point.id,
       name: point.name,
-      coordinates: point.coordinates,
-      value: point.values?.[metric.id],
-      color: getAmedasLevelColor(metric.id, point.values?.[metric.id])
+      coordinates: point.coordinates ?? pointsById.get(String(point.id))?.coordinates,
+      value: usesDailyTemperature || usesDailyWind
+        ? point.value
+        : point.values?.[metric.id === "wind" && windKind === "gust" ? "gust" : metric.id]
     }))
+    .map((item) => ({ ...item, color: getAmedasLevelColor(metric.id, item.value) }))
     .filter((item) => shouldIncludeAmedasValue(metric.id, item.value))
     .sort((a, b) => order === "bottom" ? a.value - b.value : b.value - a.value);
 }

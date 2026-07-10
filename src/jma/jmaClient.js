@@ -18,6 +18,14 @@ export async function fetchText(url, options = {}) {
   });
 }
 
+export async function fetchArrayBuffer(url, options = {}) {
+  return fetchCached(url, {
+    ...options,
+    accept: options.accept ?? "application/octet-stream,*/*",
+    parse: (response) => response.arrayBuffer()
+  });
+}
+
 async function fetchCached(url, options) {
   const ttlMs = Number.isFinite(options.ttlMs) ? options.ttlMs : DEFAULT_REQUEST_TTL_MS;
   const cacheKey = `${options.accept}:${url}`;

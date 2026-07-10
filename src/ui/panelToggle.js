@@ -34,7 +34,11 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   let pendingDragOffset = null;
 
   function isDockControlEvent(event) {
-    return event.target instanceof Element && Boolean(event.target.closest("[data-mobile-dock-control]"));
+    const path = typeof event.composedPath === "function" ? event.composedPath() : [event.target];
+    return path.some((node) => node instanceof Element && (
+      node.matches("[data-mobile-dock-control], .mobile-dock-segmented") ||
+      Boolean(node.closest("[data-mobile-dock-control], .mobile-dock-segmented"))
+    ));
   }
 
   function getSheetHeight() {
