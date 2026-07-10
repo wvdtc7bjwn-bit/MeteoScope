@@ -26,6 +26,7 @@ const MODE_CLASS = {
 
 const SAMPLE_SOURCE_ID = "weather-samples";
 const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-wind-arrow", "sample-cross", "sample-label"];
+const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
 const TYPHOON_SOURCE_ID = "jma-typhoon";
 const TYPHOON_LAYERS = [
   "typhoon-wind-area-fill",
@@ -436,6 +437,23 @@ export function createWeatherMap(elementId) {
         "text-halo-width": 2,
         "text-halo-blur": 0.4
       }
+    });
+
+    AMEDAS_INTERACTIVE_LAYERS.forEach((layerId) => {
+      map.on("mouseenter", layerId, () => {
+        if (activeMode === "amedas") map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", layerId, () => {
+        if (activeMode === "amedas") map.getCanvas().style.cursor = "";
+      });
+      map.on("click", layerId, (event) => {
+        if (activeMode !== "amedas") return;
+        const stationId = event.features?.[0]?.properties?.stationId;
+        if (!stationId) return;
+        window.dispatchEvent(new CustomEvent("amedas-station-select", {
+          detail: { stationId }
+        }));
+      });
     });
 
     addWeatherChartLayers(map);
@@ -2082,6 +2100,7 @@ function createAmedasFeatures(data) {
         rotation: metric.id === "wind" ? getWindArrowRotation(point.windDirection) : 0,
         radius: getAmedasRadius(metric.id, value),
         sortKey: getAmedasSortKey(metric.id, value),
+        stationId: point.id,
         label: `${point.name} ${formatAmedasValue(value)}${metric.unit}`,
         popup: buildAmedasPopup(point, metric, value, data?.latestTime)
       }

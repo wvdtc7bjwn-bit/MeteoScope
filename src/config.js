@@ -39,6 +39,7 @@ export const JMA_ENDPOINTS = {
   earthquakeStations: publicAsset("data/jma-stations.compact.json"),
   amedasStationTable: "https://www.jma.go.jp/bosai/amedas/const/amedastable.json",
   amedasMapBase: "https://www.jma.go.jp/bosai/amedas/data/map",
+  amedasPointBase: "https://www.jma.go.jp/bosai/amedas/data/point",
   typhoon: "https://www.jma.go.jp/bosai/typhoon/data/targetTc.json",
   earthquakeXmlFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml",
   earthquakeXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml"

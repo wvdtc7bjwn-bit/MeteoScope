@@ -64,6 +64,7 @@ export function updateLeftPanel(tab, state = {}) {
   renderTyphoonDetails(tab, state);
   renderEarthquakeList(tab, state);
   renderEarthquakeDetails(tab, state);
+  renderAmedasDailyChart(tab, state, amedasMetric);
   renderAmedasRanking(tab, state, amedasMetric);
   renderMobileContextDock(tab, state, { amedasMetric, warningView });
   renderLegend(tab.id, amedasMetric.id, warningView);
@@ -1568,6 +1569,168 @@ function renderAmedasRanking(tab, state, metric) {
       `).join("")}
     </div>
   `;
+}
+
+function renderAmedasDailyChart(tab, state, metric) {
+  const root = document.getElementById("amedas-daily-chart");
+  if (!root) return;
+
+  const shouldShow = tab.id === "amedas";
+  root.hidden = !shouldShow;
+  if (!shouldShow) {
+    root.innerHTML = "";
+    return;
+  }
+
+  const chart = state.amedasDailyChart ?? { status: "idle" };
+  if (!state.selectedAmedasStationId || chart.status === "idle" || chart.metricId !== metric.id) {
+    root.innerHTML = `<p class="amedas-temperature-chart-empty">地図上の観測点をタップすると、${escapeHtml(getAmedasDailySeriesTitle(metric.id))}を表示します。</p>`;
+    return;
+  }
+  if (chart.status === "loading") {
+    root.innerHTML = `<p class="amedas-temperature-chart-empty">${escapeHtml(chart.stationName || "観測点")}の${escapeHtml(getAmedasDailySeriesTitle(metric.id))}を読み込んでいます...</p>`;
+    return;
+  }
+  if (chart.status === "error") {
+    root.innerHTML = `<p class="amedas-temperature-chart-empty">${escapeHtml(getAmedasDailySeriesTitle(metric.id))}を取得できませんでした。</p>`;
+    return;
+  }
+
+  const points = chart.data?.points ?? [];
+  if (!points.length) {
+    root.innerHTML = `<p class="amedas-temperature-chart-empty">この観測点では${escapeHtml(getAmedasDailySeriesTitle(metric.id))}を観測していません。</p>`;
+    return;
+  }
+
+  const latest = chart.data?.latest;
+  root.style.setProperty("--amedas-series-color", metric.color);
+  root.innerHTML = `
+    <div class="amedas-temperature-chart-head">
+      <div>
+        <span>${escapeHtml(getAmedasDailySeriesTitle(metric.id))}</span>
+        <strong>${escapeHtml(chart.stationName || "観測点")}</strong>
+      </div>
+      <div class="amedas-temperature-chart-current">
+        <strong>${formatAmedasDailyValue(latest?.value, metric)}</strong>
+        <span>${escapeHtml(latest?.label ?? "--:--")}</span>
+      </div>
+    </div>
+    ${metric.id === "wind" ? `
+      <div class="amedas-temperature-chart-key" aria-label="グラフの凡例">
+        <span>平均風速</span>
+        <span class="gust">最大瞬間風速</span>
+      </div>
+    ` : ""}
+    ${buildAmedasDailyChartSvg(points, chart.data?.min, chart.data?.max, metric)}
+    <div class="amedas-temperature-chart-range${metric.id === "wind" ? " is-wind" : ""}">
+      <span>${escapeHtml(getAmedasDailyMinLabel(metric.id))} ${formatAmedasDailyValue(chart.data?.min, metric)}</span>
+      <span>${escapeHtml(getAmedasDailyMaxLabel(metric.id))} ${formatAmedasDailyValue(chart.data?.max, metric)}</span>
+      ${metric.id === "wind" && Number.isFinite(chart.data?.maxGust) ? `<span class="gust">最大瞬間 ${formatAmedasDailyValue(chart.data.maxGust, metric)}${chart.data.maxGustLabel ? ` (${escapeHtml(chart.data.maxGustLabel)})` : ""}</span>` : ""}
+    </div>
+  `;
+}
+
+function buildAmedasDailyChartSvg(points, minValue, maxValue, metric) {
+  const width = 320;
+  const height = 142;
+  const inset = { top: 10, right: 8, bottom: 23, left: 34 };
+  const plotWidth = width - inset.left - inset.right;
+  const plotHeight = height - inset.top - inset.bottom;
+  const isPrecipitation = metric.id === "precipitation";
+  const min = isPrecipitation ? 0 : (Number.isFinite(minValue) ? Math.floor(minValue - 1) : 0);
+  const gustMax = metric.id === "wind"
+    ? Math.max(...points.map((point) => point.gust).filter(Number.isFinite), Number.NEGATIVE_INFINITY)
+    : Number.NEGATIVE_INFINITY;
+  const max = getAmedasDailyAxisMax(Math.max(Number(maxValue) || 0, gustMax), metric.id);
+  const span = Math.max(1, max - min);
+  const xFor = (minute) => inset.left + (Math.max(0, Math.min(1440, minute)) / 1440) * plotWidth;
+  const yFor = (value) => inset.top + ((max - value) / span) * plotHeight;
+
+  const buildSegments = (valueKey) => {
+    const segments = [];
+    let segment = [];
+    let previousMinute = null;
+    points.forEach((point) => {
+      const value = point[valueKey];
+      if (!Number.isFinite(value)) return;
+      if (previousMinute !== null && point.minute - previousMinute > 20 && segment.length) {
+        segments.push(segment);
+        segment = [];
+      }
+      segment.push(`${xFor(point.minute).toFixed(1)},${yFor(value).toFixed(1)}`);
+      previousMinute = point.minute;
+    });
+    if (segment.length) segments.push(segment);
+    return segments;
+  };
+  const segments = buildSegments("value");
+
+  const grids = [min, min + span / 2, max].map((value) => {
+    const y = yFor(value).toFixed(1);
+    return `<g><line x1="${inset.left}" x2="${width - inset.right}" y1="${y}" y2="${y}"/><text x="0" y="${Number(y) + 4}">${formatAmedasDailyAxis(value, metric)}</text></g>`;
+  }).join("");
+  const times = [0, 360, 720, 1080, 1440].map((minute) => {
+    const x = xFor(minute).toFixed(1);
+    const label = minute === 1440 ? "24" : String(minute / 60).padStart(2, "0");
+    return `<text x="${x}" y="${height - 5}" text-anchor="middle">${label}</text>`;
+  }).join("");
+  const shapes = isPrecipitation
+    ? points.map((point) => {
+      const x = xFor(point.minute) - 1.1;
+      const y = yFor(point.value);
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="2.2" height="${Math.max(1, inset.top + plotHeight - y).toFixed(1)}" rx="1.1"/>`;
+    }).join("")
+    : segments.map((items) => `<polyline points="${items.join(" ")}"/>`).join("");
+  const gustPaths = metric.id === "wind"
+    ? buildSegments("gust").map((items) => `<polyline points="${items.join(" ")}"/>`).join("")
+    : "";
+
+  return `
+    <svg class="amedas-temperature-chart-plot" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(getAmedasDailySeriesTitle(metric.id))}">
+      <g class="amedas-temperature-chart-grid">${grids}</g>
+      <g class="amedas-temperature-chart-axis">${times}</g>
+      <g class="amedas-temperature-chart-line${isPrecipitation ? " is-bar" : ""}">${shapes}</g>
+      ${gustPaths ? `<g class="amedas-temperature-chart-line-gust">${gustPaths}</g>` : ""}
+    </svg>
+  `;
+}
+
+function getAmedasDailyAxisMax(value, metricId) {
+  const numeric = Number.isFinite(value) ? value : 0;
+  if (metricId === "precipitation") return Math.max(1, Math.ceil(numeric));
+  return Math.max(1, Math.ceil(numeric + 1));
+}
+
+function formatAmedasDailyAxis(value, metric) {
+  const digits = metric.id === "snow" || Number.isInteger(value) ? 0 : 1;
+  return `${value.toFixed(digits)}${metric.id === "temperature" ? "°" : ""}`;
+}
+
+function formatAmedasDailyValue(value, metric) {
+  if (!Number.isFinite(value)) return "--";
+  const digits = metric.id === "snow" || Number.isInteger(value) ? 0 : 1;
+  return `${value.toFixed(digits)}${metric.unit}`;
+}
+
+function getAmedasDailySeriesTitle(metricId) {
+  if (metricId === "precipitation") return "今日の1時間降水量";
+  if (metricId === "wind") return "今日の風速";
+  if (metricId === "snow") return "今日の積雪深";
+  return "今日の気温";
+}
+
+function getAmedasDailyMinLabel(metricId) {
+  if (metricId === "precipitation") return "最小";
+  if (metricId === "wind") return "最小風速";
+  if (metricId === "snow") return "最小積雪深";
+  return "最低";
+}
+
+function getAmedasDailyMaxLabel(metricId) {
+  if (metricId === "precipitation") return "最大";
+  if (metricId === "wind") return "最大風速";
+  if (metricId === "snow") return "最大積雪深";
+  return "最高";
 }
 
 function buildAmedasRankingItems(data = {}, metric, order = "top") {

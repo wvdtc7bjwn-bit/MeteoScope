@@ -13,7 +13,7 @@ import {
 } from "./ui/disasterMapModal.js";
 import { startClock } from "./ui/time.js";
 import { fetchRadarTimes } from "./jma/radar.js";
-import { fetchAmedasLatestTime } from "./jma/amedas.js";
+import { fetchAmedasDailySeries, fetchAmedasLatestTime } from "./jma/amedas.js";
 import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
 import { fetchEarthquakeXmlList } from "./jma/earthquakeXml.js";
@@ -62,6 +62,9 @@ export function createWeatherApp() {
   const launchOptions = getLaunchOptions();
   let activeTab = launchOptions.initialTab;
   let activeAmedasMetric = AMEDAS_METRICS[0].id;
+  let selectedAmedasStationId = "";
+  let amedasDailyChart = { status: "idle", stationId: "", stationName: "", metricId: "", data: null };
+  let amedasDailyChartRequestId = 0;
   let activeWarningView = "status";
   let activeKikikuruLayer = KIKIKURU_LAYER_OPTIONS[0]?.id ?? "land";
   let activeTyphoonId = "";
@@ -180,6 +183,11 @@ export function createWeatherApp() {
     if (activeTab !== "amedas") return;
     const tab = TABS.find((item) => item.id === "amedas");
     updateCurrentView(tab, latestDataByTab.amedas);
+    const selectedPoint = (latestDataByTab.amedas?.points ?? [])
+      .find((point) => String(point.id) === selectedAmedasStationId);
+    if (selectedPoint && amedasDailyChart.metricId !== activeAmedasMetric) {
+      void loadAmedasDailyChart(selectedPoint, activeAmedasMetric);
+    }
   }
 
   function selectKikikuruLayer(layerId) {
@@ -270,6 +278,52 @@ export function createWeatherApp() {
     });
   }
 
+  function selectAmedasStation(stationId) {
+    const point = (latestDataByTab.amedas?.points ?? [])
+      .find((item) => String(item.id) === String(stationId));
+    if (!point) return;
+
+    selectedAmedasStationId = String(point.id);
+    focusAmedasStation(point.id);
+    void loadAmedasDailyChart(point, activeAmedasMetric);
+    refreshAmedasPanel();
+  }
+
+  async function loadAmedasDailyChart(point, metricId) {
+    const requestId = ++amedasDailyChartRequestId;
+    amedasDailyChart = {
+      status: "loading",
+      stationId: String(point.id),
+      stationName: point.name,
+      metricId,
+      data: null
+    };
+    refreshAmedasPanel();
+
+    try {
+      const data = await fetchAmedasDailySeries(point.id, latestDataByTab.amedas?.latestRawTime, metricId);
+      if (requestId !== amedasDailyChartRequestId) return;
+      amedasDailyChart = {
+        status: "ok",
+        stationId: String(point.id),
+        stationName: point.name,
+        metricId,
+        data
+      };
+    } catch (error) {
+      if (requestId !== amedasDailyChartRequestId) return;
+      console.warn("[MeteoScope] AMeDAS daily series load failed", error);
+      amedasDailyChart = {
+        status: "error",
+        stationId: String(point.id),
+        stationName: point.name,
+        metricId,
+        data: null
+      };
+    }
+    refreshAmedasPanel();
+  }
+
   function updateCurrentView(tab, data) {
     const displayData = buildDisplayData(tab, data);
     if (tab.id === "radar") {
@@ -282,6 +336,8 @@ export function createWeatherApp() {
       status: "ok",
       data: displayData,
       amedasMetric: activeAmedasMetric,
+      selectedAmedasStationId,
+      amedasDailyChart,
       warningView: activeWarningView,
       activeKikikuruLayer,
       radarPlaying: Boolean(radarPlayTimer),
@@ -1086,6 +1142,10 @@ export function createWeatherApp() {
     tabControls = setupTabs({ onChange: selectTab, tabs: TABS });
     setupAmedasSubTabs({ onChange: selectAmedasMetric });
     setupAmedasRankingToggle({ onChange: refreshAmedasPanel, onSelectStation: focusAmedasStation });
+    window.addEventListener("amedas-station-select", (event) => {
+      const stationId = event.detail?.stationId;
+      if (stationId) selectAmedasStation(stationId);
+    });
     setupKikikuruLayerToggles({ onChange: selectKikikuruLayer });
     setupWarningAreaSelection({ onDetailRequest: () => refreshWarningDetails() });
     setupTyphoonSelector({ onChange: selectTyphoon });

@@ -2700,6 +2700,153 @@ h2 {
   line-height: 1.55;
 }
 
+.amedas-temperature-chart {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(86, 183, 242, 0.18);
+  border-radius: 12px;
+  background: rgba(8, 17, 31, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.amedas-temperature-chart[hidden] {
+  display: none;
+}
+
+.amedas-temperature-chart-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.amedas-temperature-chart-head > div:first-child {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.amedas-temperature-chart-head span,
+.amedas-temperature-chart-current span,
+.amedas-temperature-chart-range {
+  color: #8fa0b8;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.amedas-temperature-chart-head > div:first-child strong {
+  overflow: hidden;
+  color: #f8fbff;
+  font-size: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.amedas-temperature-chart-current {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+  flex: 0 0 auto;
+}
+
+.amedas-temperature-chart-current strong {
+  color: var(--amedas-series-color, #68dca5);
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.amedas-temperature-chart-key {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -2px 0 5px;
+  color: #9faec4;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.amedas-temperature-chart-key span::before {
+  display: inline-block;
+  width: 14px;
+  margin-right: 5px;
+  border-top: 2px solid var(--amedas-series-color, #f4d35e);
+  content: "";
+  vertical-align: middle;
+}
+
+.amedas-temperature-chart-key span.gust::before {
+  border-color: #ff9d4d;
+  border-top-style: dashed;
+}
+
+.amedas-temperature-chart-plot {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.amedas-temperature-chart-grid line {
+  stroke: rgba(255, 255, 255, 0.11);
+  stroke-width: 1;
+}
+
+.amedas-temperature-chart-grid text,
+.amedas-temperature-chart-axis text {
+  fill: #8fa0b8;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.amedas-temperature-chart-line polyline {
+  fill: none;
+  stroke: var(--amedas-series-color, #68dca5);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+.amedas-temperature-chart-line.is-bar rect {
+  fill: var(--amedas-series-color, #56b7f2);
+  opacity: 0.88;
+}
+
+.amedas-temperature-chart-line-gust polyline {
+  fill: none;
+  stroke: #ff9d4d;
+  stroke-dasharray: 5 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.1;
+}
+
+.amedas-temperature-chart-range {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.amedas-temperature-chart-range.is-wind {
+  flex-wrap: wrap;
+}
+
+.amedas-temperature-chart-range .gust {
+  color: #ffbc7a;
+}
+
+.amedas-temperature-chart-empty {
+  margin: 0;
+  color: #aebbd0;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
 .amedas-ranking {
   margin-top: 16px;
   padding: 12px;

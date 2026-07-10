@@ -1,6 +1,15 @@
 import { JMA_ENDPOINTS, STATIC_DATA_CACHE_TTL_MS } from "../config.js";
 import { fetchJson, fetchText, parseJmaTime } from "./jmaClient.js";
 
+const AMEDAS_POINT_DATA_TTL_MS = 5 * 60 * 1000;
+const AMEDAS_CHUNK_HOURS = [0, 3, 6, 9, 12, 15, 18, 21];
+const DAILY_SERIES_FIELDS = {
+  temperature: "temp",
+  precipitation: "precipitation1h",
+  wind: "wind",
+  snow: "snow"
+};
+
 export async function fetchAmedasLatestTime() {
   const latestTimeText = await fetchText(JMA_ENDPOINTS.amedasTimeList);
   const latestTime = latestTimeText.trim();
@@ -15,6 +24,61 @@ export async function fetchAmedasLatestTime() {
     latestTime: parseJmaTime(latestTime) ?? latestTime,
     mapTime,
     points: buildAmedasPoints(observations, stations)
+  };
+}
+
+export async function fetchAmedasDailySeries(stationId, referenceTime, metricId) {
+  const id = String(stationId ?? "").trim();
+  const jst = getJstDateParts(referenceTime);
+  const field = DAILY_SERIES_FIELDS[metricId];
+  if (!id || !jst || !field) throw new Error("AMeDAS station, time, or metric is unavailable");
+
+  const chunkHours = AMEDAS_CHUNK_HOURS.filter((hour) => hour <= Math.floor(jst.hour / 3) * 3);
+  const chunks = await Promise.all(chunkHours.map(async (hour) => {
+    const fileTime = `${jst.date}_${String(hour).padStart(2, "0")}`;
+    return fetchJson(`${JMA_ENDPOINTS.amedasPointBase}/${id}/${fileTime}.json`, {
+      ttlMs: AMEDAS_POINT_DATA_TTL_MS
+    });
+  }));
+
+  const pointsByTime = new Map();
+  chunks.forEach((chunk) => {
+    Object.entries(chunk ?? {}).forEach(([time, observation]) => {
+      const value = readObservedValue(observation?.[field]);
+      if (!Number.isFinite(value) || !isSameJstDate(time, jst.date)) return;
+      const gust = metricId === "wind" ? readObservedValue(observation?.gust) : null;
+      pointsByTime.set(time, {
+        time,
+        label: formatAmedasPointTime(time),
+        minute: Number(time.slice(8, 10)) * 60 + Number(time.slice(10, 12)),
+        value,
+        gust,
+        gustLabel: metricId === "wind" ? formatAmedasGustTime(observation?.gustTime, time) : null
+      });
+    });
+  });
+
+  const points = [...pointsByTime.values()]
+    .filter((point) => Number.isFinite(point.minute))
+    .sort((left, right) => left.minute - right.minute);
+
+  const gustPoints = metricId === "wind"
+    ? points.filter((point) => Number.isFinite(point.gust))
+    : [];
+  const maxGustPoint = gustPoints.length
+    ? gustPoints.reduce((maximum, point) => point.gust > maximum.gust ? point : maximum)
+    : null;
+
+  return {
+    stationId: id,
+    metricId,
+    date: jst.date,
+    points,
+    min: points.length ? Math.min(...points.map((point) => point.value)) : null,
+    max: points.length ? Math.max(...points.map((point) => point.value)) : null,
+    latest: points.at(-1) ?? null,
+    maxGust: maxGustPoint?.gust ?? null,
+    maxGustLabel: maxGustPoint?.gustLabel ?? null
   };
 }
 
@@ -74,4 +138,40 @@ function formatAmedasMapTime(value) {
   }).formatToParts(date);
   const getPart = (type) => parts.find((part) => part.type === type)?.value ?? "00";
   return `${getPart("year")}${getPart("month")}${getPart("day")}${getPart("hour")}${getPart("minute")}00`;
+}
+
+function getJstDateParts(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Asia/Tokyo"
+  }).formatToParts(date);
+  const getPart = (type) => parts.find((part) => part.type === type)?.value ?? "";
+  const dateText = `${getPart("year")}${getPart("month")}${getPart("day")}`;
+  const hour = Number(getPart("hour"));
+  return /^\d{8}$/.test(dateText) && Number.isFinite(hour) ? { date: dateText, hour } : null;
+}
+
+function isSameJstDate(time, date) {
+  return typeof time === "string" && time.slice(0, 8) === date;
+}
+
+function formatAmedasPointTime(time) {
+  if (typeof time !== "string" || !/^\d{14}$/.test(time)) return "--:--";
+  return `${time.slice(8, 10)}:${time.slice(10, 12)}`;
+}
+
+function formatAmedasGustTime(value, fallbackTime) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const digits = String(raw ?? "").replace(/\D/g, "");
+  if (digits.length >= 4) {
+    const hourMinute = digits.slice(-4);
+    return `${hourMinute.slice(0, 2)}:${hourMinute.slice(2)}`;
+  }
+  return formatAmedasPointTime(fallbackTime);
 }
