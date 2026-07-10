@@ -5276,6 +5276,42 @@ html[data-theme="light"] :is(.amedas-sub-button, .kikikuru-layer-button, .radar-
   background: rgba(227, 235, 245, 0.9);
 }
 
+html[data-theme="light"] #radar-time-kind {
+  border: 1px solid rgba(22, 127, 180, 0.22);
+  color: #0d638e;
+  background: rgba(76, 183, 242, 0.2);
+}
+
+html[data-theme="light"] #radar-time-label {
+  color: #1b324a;
+}
+
+html[data-theme="light"] .radar-action-button {
+  border-color: rgba(53, 84, 117, 0.24);
+  color: #294866;
+  background: rgba(220, 233, 247, 0.8);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+html[data-theme="light"] .radar-action-button:is(:hover, :focus-visible, .playing) {
+  border-color: rgba(20, 132, 190, 0.38);
+  color: #075f8b;
+  background: rgba(91, 185, 236, 0.2);
+}
+
+html[data-theme="light"] .radar-time-slider {
+  background:
+    linear-gradient(
+      to right,
+      #2eaee9 0%,
+      #41ce98 var(--radar-progress),
+      rgba(65, 206, 152, 0.42) var(--radar-progress),
+      rgba(65, 206, 152, 0.42) var(--radar-observed),
+      rgba(67, 91, 119, 0.22) var(--radar-observed),
+      rgba(67, 91, 119, 0.22) 100%
+    ) center / 100% 6px no-repeat;
+}
+
 html[data-theme="light"] :is(.amedas-sub-button, .kikikuru-layer-button).active {
   border-color: rgba(37, 143, 199, 0.44);
   color: #0b638e;
@@ -5509,6 +5545,28 @@ html[data-theme="light"] .warning-area-row.selected {
 html[data-theme="light"] .warning-empty {
   color: #425970;
   background: rgba(218, 228, 239, 0.62);
+}
+
+html[data-theme="light"] .earthquake-summary-card {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme="light"] :is(.earthquake-detail-box, .earthquake-select-button) {
+  border-color: rgba(72, 100, 132, 0.2);
+  background: rgba(246, 250, 255, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.58),
+    0 8px 20px rgba(51, 73, 99, 0.1);
+  backdrop-filter: blur(18px) saturate(1.35);
+  -webkit-backdrop-filter: blur(18px) saturate(1.35);
+}
+
+html[data-theme="light"] .earthquake-select-button.active {
+  border-color: rgba(37, 143, 199, 0.4);
+  background: rgba(102, 194, 241, 0.2);
+  color: #17314a;
 }
 
 @media (max-width: 800px) and (orientation: portrait) {
