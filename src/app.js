@@ -98,6 +98,9 @@ export function createWeatherApp() {
   let weatherChartData = null;
   let weatherChartLoadedAt = 0;
   let weatherChartRequest = null;
+  let weatherChartRequestId = 0;
+  let weatherChartRequestExtendedHistory = null;
+  let weatherChartExtendedHistory = false;
   let activeWeatherChartFrameIndex = 0;
   const locationWarningPush = createLocationWarningPush({
     onChange: () => refreshSettingsModalView()
@@ -231,6 +234,7 @@ export function createWeatherApp() {
   }
 
   function applyEarlyAccessState() {
+    refreshWeatherChartAccessMode();
     if (!earlyAccessEnabled && amedasDailyChartDayOffset === 1) {
       amedasDailyChartDayOffset = 0;
       const selectedPoint = (latestDataByTab.amedas?.points ?? [])
@@ -240,6 +244,33 @@ export function createWeatherApp() {
       refreshAmedasPanel();
     }
     refreshSettingsModalView();
+  }
+
+  function refreshWeatherChartAccessMode() {
+    const accessModeChanged = weatherChartExtendedHistory !== earlyAccessEnabled
+      || (weatherChartRequestExtendedHistory !== null && weatherChartRequestExtendedHistory !== earlyAccessEnabled);
+    if (!accessModeChanged || (!weatherChartData && !weatherChartRequest)) return;
+
+    weatherChartRequestId += 1;
+    weatherChartRequest = null;
+    weatherChartRequestExtendedHistory = null;
+    weatherChartData = null;
+    weatherChartLoadedAt = 0;
+    activeWeatherChartFrameIndex = 0;
+    weatherChartStatus = "idle";
+    if (!weatherChartEnabled) return;
+
+    weatherChartStatus = "loading";
+    refreshRadarPanel();
+    void refreshWeatherChartData()
+      .then(() => {
+        weatherChartStatus = "ok";
+      })
+      .catch((error) => {
+        console.warn("[MeteoScope] weather chart access mode reload failed", error);
+        weatherChartStatus = "error";
+      })
+      .finally(refreshRadarPanel);
   }
 
   function selectKikikuruLayer(layerId) {
@@ -692,24 +723,34 @@ export function createWeatherApp() {
   }
 
   async function refreshWeatherChartData() {
+    const extendedHistory = Boolean(earlyAccessEnabled);
     if (hasFreshWeatherChartData()) return weatherChartData;
-    if (weatherChartRequest) return weatherChartRequest;
-    weatherChartRequest = fetchWeatherChart()
+    if (weatherChartRequest && weatherChartRequestExtendedHistory === extendedHistory) return weatherChartRequest;
+
+    const requestId = ++weatherChartRequestId;
+    weatherChartRequestExtendedHistory = extendedHistory;
+    const request = fetchWeatherChart({ extendedHistory })
       .then((data) => {
+        if (requestId !== weatherChartRequestId) return weatherChartRequest ?? weatherChartData;
         activeWeatherChartFrameIndex = Number.isInteger(data.activeFrameIndex) ? data.activeFrameIndex : 0;
         weatherChartData = activateWeatherChartFrame(data, activeWeatherChartFrameIndex);
+        weatherChartExtendedHistory = extendedHistory;
         weatherChartLoadedAt = Date.now();
         return weatherChartData;
       })
       .finally(() => {
+        if (requestId !== weatherChartRequestId) return;
         weatherChartRequest = null;
+        weatherChartRequestExtendedHistory = null;
       });
-    return weatherChartRequest;
+    weatherChartRequest = request;
+    return request;
   }
 
   function hasFreshWeatherChartData() {
     return Boolean(
       (weatherChartData?.featureCount > 0 || weatherChartData?.frames?.some((frame) => frame.featureCount > 0)) &&
+      weatherChartExtendedHistory === Boolean(earlyAccessEnabled) &&
       weatherChartLoadedAt > 0 &&
       Date.now() - weatherChartLoadedAt < WEATHER_CHART_DATA_TTL_MS
     );

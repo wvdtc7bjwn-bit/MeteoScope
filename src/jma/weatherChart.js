@@ -2,9 +2,13 @@ import { JMA_ENDPOINTS } from "../config.js";
 import { fetchText, parseJmaTime } from "./jmaClient.js";
 
 const WEATHER_CHART_TTL_MS = 10 * 60 * 1000;
-const WEATHER_CHART_LOOKBACK_MS = 48 * 60 * 60 * 1000;
+const WEATHER_CHART_STANDARD_LOOKBACK_MS = 48 * 60 * 60 * 1000;
+const WEATHER_CHART_EARLY_ACCESS_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 const WEATHER_CHART_MAX_ENTRIES = 80;
+const WEATHER_CHART_EARLY_ACCESS_MAX_ENTRIES = 90;
+const WEATHER_CHART_FETCH_CONCURRENCY = 8;
 const WEATHER_CHART_CODE_PATTERN = /_VZS[AF]\d{2}_/;
+const WEATHER_CHART_EARLY_ACCESS_CODE_PATTERN = /_VZS(?:A50|F50|F51)_/;
 const WEATHER_CHART_TITLE_PATTERN = /地上(?:実況|予想)図|天気図/;
 const ISOBAR_MIN_COORDINATES = 4;
 const WEATHER_LINE_SMOOTH_SEGMENTS = 5;
@@ -17,16 +21,17 @@ const EMPTY_FEATURE_COLLECTION = Object.freeze({
   features: Object.freeze([])
 });
 
-export async function fetchWeatherChart() {
+export async function fetchWeatherChart(options = {}) {
+  const extendedHistory = Boolean(options.extendedHistory);
   const feedXml = await fetchWeatherChartFeedText();
   const feedDoc = parseXml(feedXml);
-  const entries = findWeatherChartEntries(feedDoc);
+  const entries = findWeatherChartEntries(feedDoc, { extendedHistory });
   if (!entries.length) throw new Error("Weather chart XML entry not found");
 
-  const frames = (await Promise.all(entries.map((entry) => fetchWeatherChartFrame(entry).catch((error) => {
+  const frames = (await mapWithConcurrency(entries, WEATHER_CHART_FETCH_CONCURRENCY, (entry) => fetchWeatherChartFrame(entry).catch((error) => {
     console.warn("[MeteoScope] weather chart frame load failed", entry.url, error);
     return null;
-  }))))
+  })))
     .filter((frame) => frame?.featureCount > 0)
     .sort(compareWeatherChartFrames);
   const uniqueFrames = dedupeWeatherChartFrames(frames);
@@ -35,6 +40,8 @@ export async function fetchWeatherChart() {
   return activateWeatherChartFrame({
     frames: uniqueFrames,
     frameCount: uniqueFrames.length,
+    historyDays: extendedHistory ? 7 : 2,
+    extendedHistory,
     sourceUrl: uniqueFrames[uniqueFrames.length - 1]?.sourceUrl ?? "",
     publishedAt: uniqueFrames[uniqueFrames.length - 1]?.publishedAt ?? null
   }, findLatestWeatherChartFrameIndex(uniqueFrames));
@@ -88,7 +95,8 @@ async function fetchWeatherChartFrame(entry) {
   };
 }
 
-function findWeatherChartEntries(doc) {
+function findWeatherChartEntries(doc, options = {}) {
+  const extendedHistory = Boolean(options.extendedHistory);
   const entries = getElements(doc, "entry")
     .map((entry) => {
       const id = getText(getFirst(entry, "id"));
@@ -101,14 +109,16 @@ function findWeatherChartEntries(doc) {
         .find(Boolean);
       return { id, title, updatedAt, updatedTime, url: link };
     })
-    .filter(isWeatherChartEntry)
+    .filter((entry) => extendedHistory ? isEarlyAccessWeatherChartEntry(entry) : isWeatherChartEntry(entry))
     .sort((a, b) => (Number.isFinite(b.updatedTime) ? b.updatedTime : 0) - (Number.isFinite(a.updatedTime) ? a.updatedTime : 0));
 
   const latestUpdatedTime = entries.find((entry) => Number.isFinite(entry.updatedTime))?.updatedTime ?? Date.now();
-  const cutoffTime = latestUpdatedTime - WEATHER_CHART_LOOKBACK_MS;
+  const lookbackMs = extendedHistory ? WEATHER_CHART_EARLY_ACCESS_LOOKBACK_MS : WEATHER_CHART_STANDARD_LOOKBACK_MS;
+  const maxEntries = extendedHistory ? WEATHER_CHART_EARLY_ACCESS_MAX_ENTRIES : WEATHER_CHART_MAX_ENTRIES;
+  const cutoffTime = latestUpdatedTime - lookbackMs;
   return entries
     .filter((entry) => !Number.isFinite(entry.updatedTime) || entry.updatedTime >= cutoffTime)
-    .slice(0, WEATHER_CHART_MAX_ENTRIES);
+    .slice(0, maxEntries);
 }
 
 function isWeatherChartEntry(entry) {
@@ -136,6 +146,25 @@ function compareWeatherChartFrames(a, b) {
   if (kindDiff !== 0) return kindDiff;
 
   return String(a?.id ?? a?.sourceUrl ?? "").localeCompare(String(b?.id ?? b?.sourceUrl ?? ""));
+}
+
+function isEarlyAccessWeatherChartEntry(entry) {
+  if (!entry?.url) return false;
+  const key = `${entry.id ?? ""} ${entry.url ?? ""}`;
+  return WEATHER_CHART_EARLY_ACCESS_CODE_PATTERN.test(key);
+}
+
+async function mapWithConcurrency(items, concurrency, callback) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await callback(items[index], index);
+    }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
 function dedupeWeatherChartFrames(frames) {
