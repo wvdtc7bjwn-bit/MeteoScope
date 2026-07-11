@@ -132,6 +132,22 @@
               </div>
             </div>
           </section>
+          <section class="settings-group settings-early-access-group">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>アーリーアクセス</button>
+            <div class="settings-group-content" hidden>
+              <p class="settings-theme-help">開発中の機能を先行して利用できます。動作や表示は今後変更される場合があります。</p>
+              <div id="settings-early-access-form" class="settings-early-access-form">
+                <label for="settings-early-access-code">シリアルコード</label>
+                <div><input id="settings-early-access-code" type="text" placeholder="MS-XXXX-XXXX-XXXX" maxlength="24" autocomplete="off" autocapitalize="characters" spellcheck="false" />
+                  <button id="settings-early-access-activate" type="button" data-settings-early-access-activate>認証</button></div>
+              </div>
+              <div id="settings-early-access-active" class="settings-early-access-active" hidden>
+                <div><strong>アメダスの昨日グラフ</strong><small id="settings-early-access-label">認証済み</small></div>
+                <button type="button" data-settings-early-access-deactivate>解除</button>
+              </div>
+              <p id="settings-early-access-status" class="settings-early-access-status" role="status"></p>
+            </div>
+          </section>
           <section class="settings-group settings-my-area-group">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>マイエリア</button>
             <div class="settings-group-content" hidden>

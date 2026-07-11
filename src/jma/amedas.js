@@ -146,13 +146,20 @@ function parseCsvRows(text) {
   return rows;
 }
 
-export async function fetchAmedasDailySeries(stationId, referenceTime, metricId) {
+export async function fetchAmedasDailySeries(stationId, referenceTime, metricId, dayOffset = 0) {
   const id = String(stationId ?? "").trim();
-  const jst = getJstDateParts(referenceTime);
+  const normalizedDayOffset = dayOffset === 1 ? 1 : 0;
+  const referenceDate = new Date(referenceTime);
+  const targetTime = Number.isNaN(referenceDate.getTime())
+    ? referenceTime
+    : new Date(referenceDate.getTime() - normalizedDayOffset * 24 * 60 * 60 * 1000);
+  const jst = getJstDateParts(targetTime);
   const field = DAILY_SERIES_FIELDS[metricId];
   if (!id || !jst || !field) throw new Error("AMeDAS station, time, or metric is unavailable");
 
-  const chunkHours = AMEDAS_CHUNK_HOURS.filter((hour) => hour <= Math.floor(jst.hour / 3) * 3);
+  const chunkHours = normalizedDayOffset === 1
+    ? AMEDAS_CHUNK_HOURS
+    : AMEDAS_CHUNK_HOURS.filter((hour) => hour <= Math.floor(jst.hour / 3) * 3);
   const chunks = await Promise.all(chunkHours.map(async (hour) => {
     const fileTime = `${jst.date}_${String(hour).padStart(2, "0")}`;
     return fetchJson(`${JMA_ENDPOINTS.amedasPointBase}/${id}/${fileTime}.json`, {
@@ -191,6 +198,7 @@ export async function fetchAmedasDailySeries(stationId, referenceTime, metricId)
   return {
     stationId: id,
     metricId,
+    dayOffset: normalizedDayOffset,
     date: jst.date,
     points,
     min: points.length ? Math.min(...points.map((point) => point.value)) : null,

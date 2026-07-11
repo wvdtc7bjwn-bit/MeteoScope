@@ -94,6 +94,86 @@ export function setupAmedasSubTabs({ onChange }) {
   });
 }
 
+export function setupAmedasDailyChartToggle({ onChange } = {}) {
+  const root = document.getElementById("amedas-daily-chart");
+  if (!root) return;
+  let dragState = null;
+  let suppressClickUntil = 0;
+
+  const resetSlider = (slider) => {
+    slider.classList.remove("is-dragging");
+    slider.style.setProperty("--amedas-chart-period-drag-x", "0px");
+  };
+
+  root?.addEventListener("click", (event) => {
+    if (Date.now() < suppressClickUntil) return;
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest("[data-amedas-chart-day]");
+    if (!button) return;
+    const dayOffset = Number(button.dataset.amedasChartDay);
+    if (dayOffset !== 0 && dayOffset !== 1) return;
+    onChange?.(dayOffset);
+  });
+
+  root.addEventListener("pointerdown", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const slider = event.target.closest(".amedas-chart-period-toggle");
+    if (!slider || !root.contains(slider)) return;
+    const activeButton = slider.querySelector("button.active");
+    dragState = {
+      pointerId: event.pointerId,
+      slider,
+      startX: event.clientX,
+      lastX: event.clientX,
+      activeLeft: activeButton?.offsetLeft ?? 0,
+      moved: false
+    };
+    event.stopPropagation();
+    slider.classList.add("is-dragging");
+    slider.setPointerCapture?.(event.pointerId);
+  });
+
+  root.addEventListener("pointermove", (event) => {
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    dragState.lastX = event.clientX;
+    const delta = event.clientX - dragState.startX;
+    if (Math.abs(delta) > 5) dragState.moved = true;
+    if (!dragState.moved) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const buttons = [...dragState.slider.querySelectorAll("button")];
+    const firstButton = buttons[0];
+    const lastButton = buttons.at(-1);
+    const activeButton = buttons.find((button) => button.classList.contains("active"));
+    const indicatorWidth = activeButton?.offsetWidth ?? 0;
+    const minDelta = (firstButton?.offsetLeft ?? 0) - dragState.activeLeft;
+    const maxDelta = (lastButton?.offsetLeft ?? 0) + (lastButton?.offsetWidth ?? 0)
+      - indicatorWidth - dragState.activeLeft;
+    const offset = Math.min(maxDelta, Math.max(minDelta, delta));
+    dragState.slider.style.setProperty("--amedas-chart-period-drag-x", `${offset}px`);
+  });
+
+  const finishDrag = (event) => {
+    if (!dragState || dragState.pointerId !== event.pointerId) return;
+    const { slider, moved, lastX } = dragState;
+    slider.releasePointerCapture?.(event.pointerId);
+    dragState = null;
+    if (moved) {
+      const rect = slider.getBoundingClientRect();
+      const releaseX = event.type === "pointercancel" ? lastX : event.clientX;
+      const dayOffset = releaseX < rect.left + rect.width / 2 ? 0 : 1;
+      resetSlider(slider);
+      suppressClickUntil = Date.now() + 250;
+      onChange?.(dayOffset);
+      return;
+    }
+    resetSlider(slider);
+  };
+
+  root.addEventListener("pointerup", finishDrag);
+  root.addEventListener("pointercancel", finishDrag);
+}
+
 export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
   const root = document.getElementById("amedas-ranking");
   if (!root) return;
@@ -1874,22 +1954,24 @@ function renderAmedasDailyChart(tab, state, metric) {
   }
 
   const chart = state.amedasDailyChart ?? { status: "idle" };
+  const dayOffset = chart.dayOffset === 1 || state.amedasDailyChartDayOffset === 1 ? 1 : 0;
+  const periodToggle = state.earlyAccessEnabled ? buildAmedasDailyChartPeriodToggle(dayOffset) : "";
   if (!state.selectedAmedasStationId || chart.status === "idle" || chart.metricId !== metric.id) {
     root.innerHTML = `<p class="amedas-temperature-chart-empty">地図上の観測点をタップすると、${escapeHtml(getAmedasDailySeriesTitle(metric.id))}を表示します。</p>`;
     return;
   }
   if (chart.status === "loading") {
-    root.innerHTML = `<p class="amedas-temperature-chart-empty">${escapeHtml(chart.stationName || "観測点")}の${escapeHtml(getAmedasDailySeriesTitle(metric.id))}を読み込んでいます...</p>`;
+    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(chart.stationName || "観測点")}の${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset))}を読み込んでいます...</p>`;
     return;
   }
   if (chart.status === "error") {
-    root.innerHTML = `<p class="amedas-temperature-chart-empty">${escapeHtml(getAmedasDailySeriesTitle(metric.id))}を取得できませんでした。</p>`;
+    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset))}を取得できませんでした。</p>`;
     return;
   }
 
   const points = chart.data?.points ?? [];
   if (!points.length) {
-    root.innerHTML = `<p class="amedas-temperature-chart-empty">この観測点では${escapeHtml(getAmedasDailySeriesTitle(metric.id))}を観測していません。</p>`;
+    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">この観測点では${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset))}を観測していません。</p>`;
     return;
   }
 
@@ -1897,9 +1979,10 @@ function renderAmedasDailyChart(tab, state, metric) {
   root.style.setProperty("--amedas-series-color", metric.color);
   root.style.setProperty("--amedas-gust-color", metric.color);
   root.innerHTML = `
+    ${periodToggle}
     <div class="amedas-temperature-chart-head">
       <div>
-        <span>${escapeHtml(getAmedasDailySeriesTitle(metric.id))}</span>
+        <span>${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset))}</span>
         <strong>${escapeHtml(chart.stationName || "観測点")}</strong>
       </div>
       <div class="amedas-temperature-chart-current">
@@ -1913,7 +1996,7 @@ function renderAmedasDailyChart(tab, state, metric) {
         <span class="gust">最大瞬間風速</span>
       </div>
     ` : ""}
-    ${buildAmedasDailyChartSvg(points, chart.data?.min, chart.data?.max, metric)}
+    ${buildAmedasDailyChartSvg(points, chart.data?.min, chart.data?.max, metric, dayOffset)}
     <div class="amedas-temperature-chart-range${metric.id === "wind" ? " is-wind" : ""}">
       <span>${escapeHtml(getAmedasDailyMinLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.min, metric)}</span>
       <span>${escapeHtml(getAmedasDailyMaxLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.max, metric)}</span>
@@ -1922,7 +2005,16 @@ function renderAmedasDailyChart(tab, state, metric) {
   `;
 }
 
-function buildAmedasDailyChartSvg(points, minValue, maxValue, metric) {
+function buildAmedasDailyChartPeriodToggle(dayOffset) {
+  return `
+    <div class="amedas-chart-period-toggle" aria-label="グラフの日付" style="--amedas-chart-period-index:${dayOffset}">
+      <button type="button" data-amedas-chart-day="0" class="${dayOffset === 0 ? "active" : ""}">今日</button>
+      <button type="button" data-amedas-chart-day="1" class="${dayOffset === 1 ? "active" : ""}">昨日</button>
+    </div>
+  `;
+}
+
+function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset = 0) {
   const width = 320;
   const height = 142;
   const inset = { top: 10, right: 8, bottom: 23, left: 34 };
@@ -1978,7 +2070,7 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric) {
     : "";
 
   return `
-    <svg class="amedas-temperature-chart-plot" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(getAmedasDailySeriesTitle(metric.id))}">
+    <svg class="amedas-temperature-chart-plot" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset))}">
       <g class="amedas-temperature-chart-grid">${grids}</g>
       <g class="amedas-temperature-chart-axis">${times}</g>
       <g class="amedas-temperature-chart-line${isPrecipitation ? " is-bar" : ""}">${shapes}</g>
@@ -2009,11 +2101,12 @@ function formatAmedasDailyColoredValue(value, metric) {
   return `<b class="amedas-temperature-chart-value" style="--amedas-value-color:${escapeHtml(color)}">${escapeHtml(formatAmedasDailyValue(value, metric))}</b>`;
 }
 
-function getAmedasDailySeriesTitle(metricId) {
-  if (metricId === "precipitation") return "今日の1時間降水量";
-  if (metricId === "wind") return "今日の風速";
-  if (metricId === "snow") return "今日の積雪深";
-  return "今日の気温";
+function getAmedasDailySeriesTitle(metricId, dayOffset = 0) {
+  const dayLabel = dayOffset === 1 ? "昨日" : "今日";
+  if (metricId === "precipitation") return `${dayLabel}の1時間降水量`;
+  if (metricId === "wind") return `${dayLabel}の風速`;
+  if (metricId === "snow") return `${dayLabel}の積雪深`;
+  return `${dayLabel}の気温`;
 }
 
 function getAmedasDailyMinLabel(metricId) {

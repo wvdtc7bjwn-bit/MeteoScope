@@ -71,6 +71,29 @@
           </label>
         </section>
 
+        <section class="admin-card">
+          <div class="admin-section-head">
+            <div class="admin-section-title">
+              <h3>アーリーアクセス</h3>
+              <p>利用者へ渡すシリアルコードを管理</p>
+            </div>
+          </div>
+          <form id="early-access-form" class="admin-serial-form">
+            <label class="admin-field"><span>管理用ラベル</span><input id="early-access-label" type="text" maxlength="80" placeholder="テスト利用者" /></label>
+            <div class="admin-serial-options">
+              <label class="admin-field"><span>有効期限</span><input id="early-access-expires" type="datetime-local" /></label>
+              <label class="admin-field"><span>利用台数</span><input id="early-access-max-uses" type="number" min="1" max="10000" value="1" /></label>
+            </div>
+            <button class="admin-primary-button" type="submit">シリアルを発行</button>
+          </form>
+          <div id="early-access-generated" class="admin-generated-serial" hidden>
+            <span>発行したシリアル</span><strong id="early-access-serial"></strong>
+            <button id="copy-early-access-serial" class="admin-small-button" type="button">コピー</button>
+            <small>このコードは再表示できません。</small>
+          </div>
+          <div id="early-access-code-list" class="admin-serial-list"></div>
+        </section>
+
         <section class="admin-card admin-wide-card">
           <div class="admin-section-head">
             <div class="admin-section-title">

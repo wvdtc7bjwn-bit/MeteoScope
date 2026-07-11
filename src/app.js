@@ -1,7 +1,7 @@
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupRadarControls, setupRadarOverlayToggle, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupRadarControls, setupRadarOverlayToggle, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
@@ -25,6 +25,7 @@ import { buildLocationRadarTimeline } from "./location/radarTimeline.js";
 import { createLocationWarningPush } from "./push/locationWarningPush.js";
 import { setupRemoteConfig } from "./remoteConfig.js";
 import { setupTheme } from "./ui/theme.js";
+import { activateEarlyAccess, deactivateEarlyAccess, validateEarlyAccess } from "./ui/earlyAccess.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -65,7 +66,10 @@ export function createWeatherApp() {
   let activeTab = launchOptions.initialTab;
   let activeAmedasMetric = AMEDAS_METRICS[0].id;
   let selectedAmedasStationId = "";
-  let amedasDailyChart = { status: "idle", stationId: "", stationName: "", metricId: "", data: null };
+  let earlyAccessState = { status: "checking", active: false, message: "認証状態を確認中です。" };
+  let earlyAccessEnabled = false;
+  let amedasDailyChartDayOffset = 0;
+  let amedasDailyChart = { status: "idle", stationId: "", stationName: "", metricId: "", dayOffset: 0, data: null };
   let amedasDailyChartRequestId = 0;
   let activeWarningView = "status";
   let activeKikikuruLayer = KIKIKURU_LAYER_OPTIONS[0]?.id ?? "land";
@@ -188,8 +192,54 @@ export function createWeatherApp() {
     const selectedPoint = (latestDataByTab.amedas?.points ?? [])
       .find((point) => String(point.id) === selectedAmedasStationId);
     if (selectedPoint && amedasDailyChart.metricId !== activeAmedasMetric) {
-      void loadAmedasDailyChart(selectedPoint, activeAmedasMetric);
+      void loadAmedasDailyChart(selectedPoint, activeAmedasMetric, amedasDailyChartDayOffset);
     }
+  }
+
+  function selectAmedasDailyChartDay(dayOffset) {
+    const normalizedDayOffset = Number(dayOffset) === 1 ? 1 : 0;
+    if (normalizedDayOffset === 1 && !earlyAccessEnabled) return;
+    if (normalizedDayOffset === amedasDailyChartDayOffset) return;
+    amedasDailyChartDayOffset = normalizedDayOffset;
+    const selectedPoint = (latestDataByTab.amedas?.points ?? [])
+      .find((point) => String(point.id) === selectedAmedasStationId);
+    if (!selectedPoint) return;
+    void loadAmedasDailyChart(selectedPoint, activeAmedasMetric, amedasDailyChartDayOffset);
+  }
+
+  async function refreshEarlyAccess() {
+    earlyAccessState = await validateEarlyAccess();
+    earlyAccessEnabled = earlyAccessState.active;
+    applyEarlyAccessState();
+    return earlyAccessState;
+  }
+
+  async function authenticateEarlyAccess(code) {
+    earlyAccessState = { status: "checking", active: false, message: "シリアルコードを確認中です。" };
+    refreshSettingsModalView();
+    earlyAccessState = await activateEarlyAccess(code);
+    earlyAccessEnabled = earlyAccessState.active;
+    applyEarlyAccessState();
+    return earlyAccessState;
+  }
+
+  function releaseEarlyAccess() {
+    earlyAccessState = deactivateEarlyAccess();
+    earlyAccessEnabled = false;
+    applyEarlyAccessState();
+    return earlyAccessState;
+  }
+
+  function applyEarlyAccessState() {
+    if (!earlyAccessEnabled && amedasDailyChartDayOffset === 1) {
+      amedasDailyChartDayOffset = 0;
+      const selectedPoint = (latestDataByTab.amedas?.points ?? [])
+        .find((point) => String(point.id) === selectedAmedasStationId);
+      if (selectedPoint) void loadAmedasDailyChart(selectedPoint, activeAmedasMetric, 0);
+    } else if (activeTab === "amedas") {
+      refreshAmedasPanel();
+    }
+    refreshSettingsModalView();
   }
 
   function selectKikikuruLayer(layerId) {
@@ -284,29 +334,31 @@ export function createWeatherApp() {
 
     selectedAmedasStationId = String(point.id);
     focusAmedasStation(point.id);
-    void loadAmedasDailyChart(point, activeAmedasMetric);
+    void loadAmedasDailyChart(point, activeAmedasMetric, amedasDailyChartDayOffset);
     refreshAmedasPanel();
   }
 
-  async function loadAmedasDailyChart(point, metricId) {
+  async function loadAmedasDailyChart(point, metricId, dayOffset = amedasDailyChartDayOffset) {
     const requestId = ++amedasDailyChartRequestId;
     amedasDailyChart = {
       status: "loading",
       stationId: String(point.id),
       stationName: point.name,
       metricId,
+      dayOffset,
       data: null
     };
     refreshAmedasPanel();
 
     try {
-      const data = await fetchAmedasDailySeries(point.id, latestDataByTab.amedas?.latestRawTime, metricId);
+      const data = await fetchAmedasDailySeries(point.id, latestDataByTab.amedas?.latestRawTime, metricId, dayOffset);
       if (requestId !== amedasDailyChartRequestId) return;
       amedasDailyChart = {
         status: "ok",
         stationId: String(point.id),
         stationName: point.name,
         metricId,
+        dayOffset,
         data
       };
     } catch (error) {
@@ -317,6 +369,7 @@ export function createWeatherApp() {
         stationId: String(point.id),
         stationName: point.name,
         metricId,
+        dayOffset,
         data: null
       };
     }
@@ -337,6 +390,8 @@ export function createWeatherApp() {
       amedasMetric: activeAmedasMetric,
       selectedAmedasStationId,
       amedasDailyChart,
+      amedasDailyChartDayOffset,
+      earlyAccessEnabled,
       warningView: activeWarningView,
       activeKikikuruLayer,
       radarPlaying: Boolean(radarPlayTimer),
@@ -1090,7 +1145,9 @@ export function createWeatherApp() {
       currentLocation: currentLocationInfo,
       locationWarningPush: locationWarningPush.getState(),
       myAreaLimit: getMyAreaLimit(),
-      themePreference: themeController.getPreference()
+      themePreference: themeController.getPreference(),
+      earlyAccessEnabled,
+      earlyAccessState
     };
   }
 
@@ -1143,6 +1200,7 @@ export function createWeatherApp() {
     weatherMap.initialize();
     tabControls = setupTabs({ onChange: selectTab, tabs: TABS });
     setupAmedasSubTabs({ onChange: selectAmedasMetric });
+    setupAmedasDailyChartToggle({ onChange: selectAmedasDailyChartDay });
     setupMobileDockSegmentedControls();
     setupAmedasRankingToggle({ onChange: refreshAmedasPanel, onSelectStation: focusAmedasStation });
     window.addEventListener("amedas-station-select", (event) => {
@@ -1179,6 +1237,8 @@ export function createWeatherApp() {
       onToggleLocationWarningPush: toggleLocationWarningPush,
       onToggleLocationWarningAdvisory: toggleLocationWarningAdvisory,
       onThemeChange: (theme) => themeController.setPreference(theme),
+      onActivateEarlyAccess: authenticateEarlyAccess,
+      onDeactivateEarlyAccess: releaseEarlyAccess,
       tabs: TABS,
       getTabOrder: () => tabControls?.getOrder?.() ?? TABS.map((tab) => tab.id),
       onTabOrderChange: (order) => tabControls?.setOrder?.(order) ?? order
@@ -1191,6 +1251,7 @@ export function createWeatherApp() {
     void locationWarningPush.initialize().then(() => refreshSettingsModalView());
     startLocationWatch();
     selectTab(activeTab);
+    void refreshEarlyAccess();
   }
 
   return { start, selectTab };

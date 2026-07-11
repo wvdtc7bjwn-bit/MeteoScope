@@ -9,6 +9,7 @@ const DEFAULT_CONFIG = {
 let currentConfig = structuredClone(DEFAULT_CONFIG);
 let currentNotices = [];
 let currentFeedback = [];
+let currentEarlyAccessCodes = [];
 
 const elements = {
   loginView: document.getElementById("login-view"),
@@ -28,7 +29,15 @@ const elements = {
   saveNoticesButton: document.getElementById("save-notices-button"),
   feedbackList: document.getElementById("feedback-list"),
   refreshFeedbackButton: document.getElementById("refresh-feedback-button"),
-  purgeCacheButton: document.getElementById("purge-cache-button")
+  purgeCacheButton: document.getElementById("purge-cache-button"),
+  earlyAccessForm: document.getElementById("early-access-form"),
+  earlyAccessLabel: document.getElementById("early-access-label"),
+  earlyAccessExpires: document.getElementById("early-access-expires"),
+  earlyAccessMaxUses: document.getElementById("early-access-max-uses"),
+  earlyAccessGenerated: document.getElementById("early-access-generated"),
+  earlyAccessSerial: document.getElementById("early-access-serial"),
+  copyEarlyAccessSerial: document.getElementById("copy-early-access-serial"),
+  earlyAccessCodeList: document.getElementById("early-access-code-list")
 };
 
 void initialize();
@@ -93,6 +102,17 @@ function bindEvents() {
   elements.purgeCacheButton.addEventListener("click", () => {
     void purgeCache();
   });
+  elements.earlyAccessForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void generateEarlyAccessCode();
+  });
+  elements.copyEarlyAccessSerial?.addEventListener("click", () => {
+    void navigator.clipboard.writeText(elements.earlyAccessSerial.textContent || "");
+  });
+  elements.earlyAccessCodeList?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-revoke-early-access]");
+    if (button) void revokeEarlyAccessCode(button.dataset.revokeEarlyAccess);
+  });
 }
 
 function showLogin() {
@@ -109,20 +129,67 @@ function showDashboard() {
 
 async function refreshDashboard() {
   setMessage(elements.dashboardMessage, "読み込み中...");
-  const [status, config, notices, feedback] = await Promise.all([
+  const [status, config, notices, feedback, earlyAccess] = await Promise.all([
     requestJson("/status"),
     requestJson("/config"),
     requestJson("/notices"),
-    requestJson("/feedback")
+    requestJson("/feedback"),
+    requestJson("/early-access/codes")
   ]);
   renderStatus(status);
   currentConfig = normalizeConfig(config.config);
   currentNotices = Array.isArray(notices.notices) ? notices.notices : [];
   currentFeedback = Array.isArray(feedback.feedback) ? feedback.feedback : [];
+  currentEarlyAccessCodes = Array.isArray(earlyAccess.codes) ? earlyAccess.codes : [];
   renderConfig();
   renderNotices();
   renderFeedback();
+  renderEarlyAccessCodes();
   setMessage(elements.dashboardMessage, "読み込みました。", "success");
+}
+
+async function generateEarlyAccessCode() {
+  setMessage(elements.dashboardMessage, "シリアルコードを発行中...");
+  const response = await requestJson("/early-access/codes", {
+    method: "POST",
+    body: {
+      label: elements.earlyAccessLabel.value.trim(),
+      expiresAt: elements.earlyAccessExpires.value ? new Date(elements.earlyAccessExpires.value).toISOString() : null,
+      maxUses: Number(elements.earlyAccessMaxUses.value) || 1
+    }
+  });
+  currentEarlyAccessCodes = Array.isArray(response.codes) ? response.codes : [];
+  elements.earlyAccessSerial.textContent = response.serial || "";
+  elements.earlyAccessGenerated.hidden = !response.serial;
+  renderEarlyAccessCodes();
+  setMessage(elements.dashboardMessage, "シリアルコードを発行しました。", "success");
+}
+
+async function revokeEarlyAccessCode(id) {
+  if (!id || !confirm("このコードを失効しますか？認証済み端末でも利用できなくなります。")) return;
+  const response = await requestJson(`/early-access/codes/${encodeURIComponent(id)}`, { method: "DELETE" });
+  currentEarlyAccessCodes = Array.isArray(response.codes) ? response.codes : [];
+  renderEarlyAccessCodes();
+  setMessage(elements.dashboardMessage, "シリアルコードを失効しました。", "success");
+}
+
+function renderEarlyAccessCodes() {
+  if (!currentEarlyAccessCodes.length) {
+    elements.earlyAccessCodeList.innerHTML = `<p class="admin-muted">発行済みコードはありません。</p>`;
+    return;
+  }
+  elements.earlyAccessCodeList.innerHTML = currentEarlyAccessCodes.map((entry) => `
+    <article class="admin-serial-item"><div>
+      <strong>${escapeHtml(entry.label || "アーリーアクセス")}</strong>
+      <span>${escapeHtml(formatAdminDate(entry.createdAt))} 発行</span>
+      <small>利用 ${Number(entry.uses || 0)} / ${Number(entry.maxUses || 1)}台${entry.expiresAt ? ` ・ ${escapeHtml(formatAdminDate(entry.expiresAt))}まで` : " ・ 期限なし"}</small>
+    </div><button class="admin-danger-button" type="button" data-revoke-early-access="${escapeHtml(entry.id)}">失効</button></article>
+  `).join("");
+}
+
+function formatAdminDate(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "--" : new Intl.DateTimeFormat("ja-JP", { dateStyle: "short", timeStyle: "short" }).format(date);
 }
 
 function renderStatus(status) {

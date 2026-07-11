@@ -731,3 +731,20 @@ h3 {
     margin-left: 0;
   }
 }
+.admin-serial-form { display: grid; gap: 12px; }
+.admin-serial-options { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 10px; }
+.admin-serial-form input { width: 100%; min-width: 0; border: 1px solid var(--admin-border); border-radius: 8px; background: rgba(8, 18, 37, 0.72); color: var(--admin-text); padding: 10px 12px; font: inherit; }
+.admin-generated-serial { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 10px; margin-top: 14px; padding: 12px; border: 1px solid rgba(85, 183, 216, 0.5); border-radius: 8px; background: rgba(24, 83, 112, 0.24); }
+.admin-generated-serial[hidden] { display: none; }
+.admin-generated-serial > span, .admin-generated-serial > small { grid-column: 1 / -1; color: var(--admin-muted); }
+.admin-generated-serial strong { font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
+.admin-serial-list { display: grid; gap: 8px; margin-top: 14px; }
+.admin-serial-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 12px; border: 1px solid var(--admin-border); border-radius: 8px; background: rgba(8, 18, 37, 0.42); }
+.admin-serial-item > div { display: grid; gap: 3px; min-width: 0; }
+.admin-serial-item span, .admin-serial-item small { color: var(--admin-muted); overflow-wrap: anywhere; }
+.admin-danger-button { flex: 0 0 auto; border: 1px solid rgba(239, 82, 104, 0.5); border-radius: 7px; background: rgba(111, 27, 44, 0.65); color: #fff; padding: 7px 10px; font: inherit; font-weight: 700; cursor: pointer; }
+
+@media (max-width: 600px) {
+  .admin-serial-options { grid-template-columns: 1fr; }
+  .admin-serial-item { align-items: flex-start; }
+}

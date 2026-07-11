@@ -5,6 +5,7 @@ let settingsOptions = {};
 let settingsSearchRequestId = 0;
 let settingsPdfStatusRequestId = 0;
 let selectedTabOrderId = null;
+let earlyAccessBusy = false;
 
 export function setupSettingsModal(options = {}) {
   settingsOptions = options;
@@ -59,6 +60,17 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    if (event.target.closest("[data-settings-early-access-activate]")) {
+      void submitEarlyAccessCode();
+      return;
+    }
+
+    if (event.target.closest("[data-settings-early-access-deactivate]")) {
+      settingsOptions.onDeactivateEarlyAccess?.();
+      renderSettingsEarlyAccess();
+      return;
+    }
+
     const themeButton = event.target.closest("[data-settings-theme]");
     if (themeButton) {
       settingsOptions.onThemeChange?.(themeButton.dataset.settingsTheme);
@@ -106,6 +118,7 @@ export function refreshSettingsModalView() {
   renderSettingsTabOrder();
   renderSettingsPushNotifications();
   renderSettingsTheme();
+  renderSettingsEarlyAccess();
   void renderSettingsDisasterMapPdf();
 }
 
@@ -121,6 +134,7 @@ function openSettingsModal() {
   renderSettingsTabOrder();
   renderSettingsPushNotifications();
   renderSettingsTheme();
+  renderSettingsEarlyAccess();
   void renderSettingsDisasterMapPdf();
 }
 
@@ -238,6 +252,37 @@ function renderSettingsTheme() {
     button.classList.toggle("active", active);
     button.setAttribute("aria-checked", active ? "true" : "false");
   });
+}
+
+function renderSettingsEarlyAccess() {
+  const state = settingsOptions.getState?.() ?? {};
+  const access = state.earlyAccessState ?? {};
+  const form = document.getElementById("settings-early-access-form");
+  const active = document.getElementById("settings-early-access-active");
+  const status = document.getElementById("settings-early-access-status");
+  const button = document.getElementById("settings-early-access-activate");
+  if (!form || !active || !status || !button) return;
+  form.hidden = Boolean(access.active);
+  active.hidden = !access.active;
+  button.disabled = earlyAccessBusy || access.status === "checking";
+  button.textContent = button.disabled ? "確認中" : "認証";
+  document.getElementById("settings-early-access-label").textContent = access.label || "認証済み";
+  status.textContent = access.message || "";
+  status.dataset.state = access.active ? "active" : access.status || "inactive";
+}
+
+async function submitEarlyAccessCode() {
+  if (earlyAccessBusy) return;
+  const input = document.getElementById("settings-early-access-code");
+  earlyAccessBusy = true;
+  renderSettingsEarlyAccess();
+  try {
+    const result = await settingsOptions.onActivateEarlyAccess?.(input?.value || "");
+    if (result?.active && input) input.value = "";
+  } finally {
+    earlyAccessBusy = false;
+    renderSettingsEarlyAccess();
+  }
 }
 
 function getSettingsTabs() {
