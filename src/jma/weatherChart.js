@@ -8,7 +8,6 @@ const WEATHER_CHART_MAX_ENTRIES = 80;
 const WEATHER_CHART_EARLY_ACCESS_MAX_ENTRIES = 90;
 const WEATHER_CHART_FETCH_CONCURRENCY = 8;
 const WEATHER_CHART_CODE_PATTERN = /_VZS[AF]\d{2}_/;
-const WEATHER_CHART_EARLY_ACCESS_CODE_PATTERN = /_VZS(?:A50|F50|F51)_/;
 const WEATHER_CHART_TITLE_PATTERN = /地上(?:実況|予想)図|天気図/;
 const ISOBAR_MIN_COORDINATES = 4;
 const WEATHER_LINE_SMOOTH_SEGMENTS = 5;
@@ -116,8 +115,9 @@ function findWeatherChartEntries(doc, options = {}) {
   const lookbackMs = extendedHistory ? WEATHER_CHART_EARLY_ACCESS_LOOKBACK_MS : WEATHER_CHART_STANDARD_LOOKBACK_MS;
   const maxEntries = extendedHistory ? WEATHER_CHART_EARLY_ACCESS_MAX_ENTRIES : WEATHER_CHART_MAX_ENTRIES;
   const cutoffTime = latestUpdatedTime - lookbackMs;
-  return entries
-    .filter((entry) => !Number.isFinite(entry.updatedTime) || entry.updatedTime >= cutoffTime)
+  const entriesInRange = entries
+    .filter((entry) => !Number.isFinite(entry.updatedTime) || entry.updatedTime >= cutoffTime);
+  return (extendedHistory ? selectEarlyAccessWeatherChartEntries(entriesInRange) : entriesInRange)
     .slice(0, maxEntries);
 }
 
@@ -150,8 +150,25 @@ function compareWeatherChartFrames(a, b) {
 
 function isEarlyAccessWeatherChartEntry(entry) {
   if (!entry?.url) return false;
-  const key = `${entry.id ?? ""} ${entry.url ?? ""}`;
-  return WEATHER_CHART_EARLY_ACCESS_CODE_PATTERN.test(key);
+  const dataCode = getWeatherChartDataCode(entry);
+  return dataCode === "VZSA50" || dataCode === "VZSF50" || dataCode === "VZSF51";
+}
+
+function selectEarlyAccessWeatherChartEntries(entries) {
+  const latestForecastCodes = new Set();
+  return entries.filter((entry) => {
+    const dataCode = getWeatherChartDataCode(entry);
+    if (dataCode === "VZSA50") return true;
+    if (dataCode !== "VZSF50" && dataCode !== "VZSF51") return false;
+    if (latestForecastCodes.has(dataCode)) return false;
+    latestForecastCodes.add(dataCode);
+    return true;
+  });
+}
+
+function getWeatherChartDataCode(entry) {
+  const key = `${entry?.id ?? ""} ${entry?.url ?? ""}`;
+  return key.match(/_?(VZS[AF]\d{2})_?/)?.[1] ?? "";
 }
 
 async function mapWithConcurrency(items, concurrency, callback) {
