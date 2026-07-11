@@ -105,7 +105,10 @@ const MAP_THEME_COLORS = {
     worldCountryLine: "#5e6672",
     municipalityFill: "#3c3d40",
     municipalityLine: "#848a94",
-    prefectureLine: "#f7fbff"
+    prefectureLine: "#f7fbff",
+    weatherIsobar: "rgba(246, 250, 255, 0.78)",
+    weatherIsobarLabel: "rgba(246, 250, 255, 0.86)",
+    weatherIsobarHalo: "rgba(5, 9, 20, 0.82)"
   },
   light: {
     background: "#eaf1f8",
@@ -113,7 +116,10 @@ const MAP_THEME_COLORS = {
     worldCountryLine: "#7f8d9b",
     municipalityFill: "#f4f5f6",
     municipalityLine: "#9aa5af",
-    prefectureLine: "#536373"
+    prefectureLine: "#536373",
+    weatherIsobar: "rgba(48, 66, 85, 0.82)",
+    weatherIsobarLabel: "rgba(37, 55, 74, 0.92)",
+    weatherIsobarHalo: "rgba(247, 251, 255, 0.9)"
   }
 };
 const NATURAL_EARTH_JAPAN_MASK_BOUNDS = {
@@ -167,6 +173,7 @@ export function createWeatherMap(elementId) {
 
     map.on("load", () => {
       setupSampleLayers();
+      applyMapTheme(map, activeTheme);
       void updateBaseMunicipalitySource(map);
       setMode(activeMode);
       if (pendingRender) {
@@ -1032,7 +1039,10 @@ function applyMapTheme(map, theme) {
     ["world-country-line", "line-color", colors.worldCountryLine],
     [MUNICIPALITY_FILL_LAYER_ID, "fill-color", colors.municipalityFill],
     ["jma-municipality-line", "line-color", colors.municipalityLine],
-    ["japan-prefecture-line", "line-color", colors.prefectureLine]
+    ["japan-prefecture-line", "line-color", colors.prefectureLine],
+    ["weather-chart-isobar-line", "line-color", colors.weatherIsobar],
+    ["weather-chart-isobar-label", "text-color", colors.weatherIsobarLabel],
+    ["weather-chart-isobar-label", "text-halo-color", colors.weatherIsobarHalo]
   ];
   paintUpdates.forEach(([layerId, property, value]) => {
     if (map.getLayer(layerId)) map.setPaintProperty(layerId, property, value);
@@ -1167,7 +1177,7 @@ function addWeatherChartLayers(map) {
       "line-join": "round"
     },
     paint: {
-      "line-color": "rgba(246, 250, 255, 0.78)",
+      "line-color": MAP_THEME_COLORS.dark.weatherIsobar,
       "line-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0.45, 6, 0.72, 9, 0.88],
       "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.65, 7, 1.15, 10, 1.8]
     }
@@ -1276,8 +1286,8 @@ function addWeatherChartLayers(map) {
       "text-padding": 4
     },
     paint: {
-      "text-color": "rgba(246, 250, 255, 0.86)",
-      "text-halo-color": "rgba(5, 9, 20, 0.82)",
+      "text-color": MAP_THEME_COLORS.dark.weatherIsobarLabel,
+      "text-halo-color": MAP_THEME_COLORS.dark.weatherIsobarHalo,
       "text-halo-width": 1.6
     }
   });

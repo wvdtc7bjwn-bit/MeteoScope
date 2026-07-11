@@ -2981,6 +2981,22 @@ h2 {
   font-weight: 900;
 }
 
+.amedas-ranking-meta {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.amedas-ranking-meta time,
+.amedas-ranking-reading time {
+  color: #8fa0b8;
+  font-size: 9px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
 .amedas-ranking-toggle {
   --ranking-gap: 3px;
   --ranking-padding: 3px;
@@ -3103,12 +3119,19 @@ h2 {
 }
 
 .amedas-ranking-value {
-  padding-left: 9px;
-  border-left: 4px solid var(--rank-color);
   color: #f8fbff;
   font-size: 13px;
   font-weight: 900;
   line-height: 1.2;
+}
+
+.amedas-ranking-reading {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  min-width: 64px;
+  padding-left: 9px;
+  border-left: 4px solid var(--rank-color);
 }
 
 .amedas-ranking-empty {
@@ -5728,3 +5751,200 @@ html[data-theme="light"] .earthquake-select-button.active {
 .settings-early-access-status[data-state="active"] { color: #55b7d8; }
 
 html[data-theme="light"] .settings-early-access-form input { background: rgba(255, 255, 255, 0.62); border-color: rgba(68, 96, 126, 0.28); }
+
+/* Keep the glass hierarchy and contrast in the light appearance. */
+html[data-theme="light"] :is(#main-tabs, .mobile-context-dock) {
+  border-color: rgba(54, 83, 114, 0.3);
+  background: rgba(235, 244, 252, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.76),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 14px 34px rgba(44, 67, 94, 0.2);
+  backdrop-filter: blur(28px) saturate(1.55) contrast(1.04);
+  -webkit-backdrop-filter: blur(28px) saturate(1.55) contrast(1.04);
+}
+
+html[data-theme="light"] #main-tabs::before {
+  background: rgba(255, 255, 255, 0.16);
+  opacity: 0.62;
+}
+
+html[data-theme="light"] #main-tabs::after {
+  border-color: rgba(25, 119, 174, 0.38);
+  background: rgba(76, 169, 222, 0.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 7px 18px rgba(31, 100, 146, 0.16);
+}
+
+html[data-theme="light"] .tab-button {
+  --tab-icon-color: #263f59;
+  color: #334d68;
+}
+
+html[data-theme="light"] .tab-button::before {
+  background: var(--tab-icon-color, #263f59);
+  opacity: 1;
+  filter: drop-shadow(0 1px 2px rgba(255, 255, 255, 0.75));
+}
+
+html[data-theme="light"] .tab-button-label {
+  color: #334d68;
+  font-weight: 900;
+}
+
+html[data-theme="light"] .tab-button.active {
+  --tab-icon-color: #0677ad;
+}
+
+html[data-theme="light"] .tab-button.active::before {
+  background: #0677ad;
+  filter: drop-shadow(0 2px 5px rgba(24, 126, 181, 0.24));
+}
+
+html[data-theme="light"] .mobile-context-dock {
+  color: #132b44;
+}
+
+html[data-theme="light"] :is(.mobile-dock-typhoon-main strong, .mobile-dock-earthquake-text strong) {
+  color: #10283f;
+}
+
+html[data-theme="light"] :is(.mobile-dock-typhoon-switch, .mobile-dock-typhoon-values span) {
+  border-color: rgba(48, 91, 128, 0.24);
+  color: #15344f;
+  background: rgba(241, 248, 253, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px) saturate(1.45);
+  -webkit-backdrop-filter: blur(18px) saturate(1.45);
+}
+
+html[data-theme="light"] :is(.mobile-dock-typhoon-switch.is-static, .mobile-dock-typhoon-values em, .mobile-dock-earthquake-time, .mobile-dock-earthquake-text span) {
+  color: #536b83;
+}
+
+html[data-theme="light"] .mobile-dock-earthquake-intensity {
+  border-color: rgba(43, 71, 100, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    0 8px 18px rgba(42, 67, 94, 0.18);
+}
+
+html[data-theme="light"] :is(.weather-chart-controls, .weather-chart-status, .weather-chart-head) {
+  color: #142d47;
+}
+
+html[data-theme="light"] .weather-chart-controls {
+  border-color: rgba(57, 86, 116, 0.2);
+  border-radius: 12px;
+  background: rgba(244, 249, 253, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 9px 22px rgba(45, 70, 96, 0.11);
+  backdrop-filter: blur(20px) saturate(1.45);
+  -webkit-backdrop-filter: blur(20px) saturate(1.45);
+}
+
+html[data-theme="light"] :is(.weather-chart-head strong, .weather-chart-status strong) {
+  color: #142d47;
+}
+
+html[data-theme="light"] .weather-chart-kind {
+  border-color: rgba(21, 121, 174, 0.26);
+  color: #075f8c;
+  background: rgba(73, 172, 225, 0.18);
+}
+
+html[data-theme="light"] .weather-chart-kind.forecast {
+  border-color: rgba(197, 117, 24, 0.3);
+  color: #8a4c08;
+  background: rgba(244, 169, 76, 0.2);
+}
+
+html[data-theme="light"] :is(.earthquake-detail-box, .earthquake-select-button, .typhoon-select-button, .typhoon-detail-item) {
+  border-color: rgba(56, 87, 118, 0.24);
+  background: rgba(242, 248, 253, 0.4);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 8px 20px rgba(47, 71, 98, 0.12);
+  backdrop-filter: blur(20px) saturate(1.45);
+  -webkit-backdrop-filter: blur(20px) saturate(1.45);
+}
+
+html[data-theme="light"] :is(.legend-toggle, .legend-toggle span) {
+  color: #233d57;
+}
+
+html[data-theme="light"] .legend-toggle::after {
+  background:
+    linear-gradient(#294762, #294762) center / 9px 2px no-repeat,
+    rgba(75, 105, 136, 0.1);
+  box-shadow:
+    inset 0 0 0 1px rgba(58, 84, 112, 0.26),
+    0 4px 10px rgba(49, 72, 97, 0.12);
+}
+
+html[data-theme="light"] .map-legend.collapsed .legend-toggle::after {
+  background:
+    linear-gradient(#294762, #294762) center / 9px 2px no-repeat,
+    linear-gradient(#294762, #294762) center / 2px 9px no-repeat,
+    rgba(75, 105, 136, 0.1);
+}
+
+html[data-theme="light"] :is(.mobile-dock-amedas-nearest, .mobile-dock-amedas-nearest.is-muted) {
+  color: #3e5872;
+}
+
+html[data-theme="light"] :is(.settings-early-access-form > label, .settings-early-access-active small, .settings-early-access-status) {
+  color: #586e85;
+}
+
+html[data-theme="light"] :is(.radar-action-button, .mobile-dock-action, .mobile-dock-chip):disabled {
+  color: #526a82;
+  opacity: 0.82;
+}
+
+html[data-theme="light"] :is(.earthquake-hypocenter span, .earthquake-main-head p, .earthquake-detail-row > span, .typhoon-detail-item span, .typhoon-select-button span) {
+  color: #536b82;
+}
+
+html[data-theme="light"] :is(.earthquake-hypocenter strong, .earthquake-detail-row strong, .typhoon-detail-item strong, .typhoon-select-button strong) {
+  color: #132c45;
+}
+
+html[data-theme="light"] :is(
+  .amedas-temperature-chart-head span,
+  .amedas-temperature-chart-current span,
+  .amedas-temperature-chart-range,
+  .amedas-temperature-chart-key,
+  .amedas-temperature-chart-empty,
+  .amedas-ranking-head small,
+  .amedas-ranking-meta time,
+  .amedas-ranking-reading time
+) {
+  color: #536b82;
+}
+
+html[data-theme="light"] :is(.amedas-temperature-chart-head strong, .amedas-ranking-head span) {
+  color: #132c45;
+}
+
+html[data-theme="light"] :is(.amedas-temperature-chart-grid text, .amedas-temperature-chart-axis text) {
+  fill: #536b82;
+}
+
+html[data-theme="light"] .amedas-temperature-chart-grid line {
+  stroke: rgba(48, 76, 105, 0.2);
+}
+
+@media (max-width: 800px) and (orientation: portrait) {
+  html[data-theme="light"] #sidebar {
+    border-color: rgba(54, 83, 114, 0.3);
+    background: rgba(235, 244, 252, 0.42);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.72),
+      0 -12px 30px rgba(44, 67, 94, 0.18);
+    backdrop-filter: blur(28px) saturate(1.55) contrast(1.04);
+    -webkit-backdrop-filter: blur(28px) saturate(1.55) contrast(1.04);
+  }
+}

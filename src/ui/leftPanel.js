@@ -1872,6 +1872,7 @@ function renderAmedasRanking(tab, state, metric) {
   const order = rankingView === "minimum" ? "bottom" : (rankingView === "maximum" ? "top" : (metric.id === "temperature" ? amedasRankingOrder : "top"));
   const items = buildAmedasRankingItems(state.data, metric, order, rankingView, windKind).slice(0, AMEDAS_RANKING_LIMIT);
   const orderLabel = getAmedasRankingLabel(metric.id, rankingView, windKind, order);
+  const rankingUpdatedAt = getAmedasRankingUpdatedAt(state.data, metric.id, rankingView, windKind);
   const temperatureControls = metric.id === "temperature" ? `
     <div class="amedas-ranking-toggle amedas-ranking-slider" aria-label="気温ランキング集計期間" style="${getAmedasRankingSliderStyle(rankingView === "current" ? 0 : 1, 2)}">
       <button type="button" data-amedas-temperature-ranking-period="current" class="${rankingView === "current" ? "active" : ""}">実況</button>
@@ -1904,7 +1905,10 @@ function renderAmedasRanking(tab, state, metric) {
   root.innerHTML = `
     <div class="amedas-ranking-head">
       <span>${escapeHtml(metric.label)}ランキング</span>
-      <small>${orderLabel}${items.length}地点</small>
+      <div class="amedas-ranking-meta">
+        <small>${orderLabel}${items.length}地点</small>
+        ${rankingUpdatedAt ? `<time>更新 ${escapeHtml(formatAmedasRankingClock(rankingUpdatedAt))}</time>` : ""}
+      </div>
     </div>
     ${temperatureControls}
     ${windControls}
@@ -1914,7 +1918,10 @@ function renderAmedasRanking(tab, state, metric) {
         <button type="button" class="amedas-ranking-row" data-amedas-station-id="${escapeHtml(item.id)}">
           <span class="amedas-ranking-rank">${index + 1}</span>
           <span class="amedas-ranking-name">${escapeHtml(item.name)}</span>
-          <strong class="amedas-ranking-value" style="--rank-color:${escapeHtml(item.color)}">${escapeHtml(formatAmedasRankingValue(item.value, metric))}</strong>
+          <span class="amedas-ranking-reading" style="--rank-color:${escapeHtml(item.color)}">
+            <strong class="amedas-ranking-value">${escapeHtml(formatAmedasRankingValue(item.value, metric))}</strong>
+            ${item.observationTime ? `<time>観測 ${escapeHtml(formatAmedasRankingClock(item.observationTime))}</time>` : ""}
+          </span>
         </button>
       `).join("")}
     </div>` : `<div class="amedas-ranking-empty">${getAmedasRankingEmptyMessage(metric.id, rankingView)}</div>`}
@@ -2137,7 +2144,8 @@ function buildAmedasRankingItems(data = {}, metric, order = "top", rankingView =
       coordinates: point.coordinates ?? pointsById.get(String(point.id))?.coordinates,
       value: usesDailyTemperature || usesDailyWind
         ? point.value
-        : point.values?.[metric.id === "wind" && windKind === "gust" ? "gust" : metric.id]
+        : point.values?.[metric.id === "wind" && windKind === "gust" ? "gust" : metric.id],
+      observationTime: point.observationTime ?? (usesDailyTemperature || usesDailyWind ? null : data.latestTime)
     }))
     .map((item) => ({ ...item, color: getAmedasLevelColor(metric.id, item.value) }))
     .filter((item) => shouldIncludeAmedasValue(metric.id, item.value))
@@ -2159,6 +2167,31 @@ function formatAmedasRankingValue(value, metric) {
 function getAmedasLevelColor(metricId, value) {
   const levels = getAmedasLevels(metricId);
   return levels.find((level) => value >= level.min)?.color ?? "#d8e6f7";
+}
+
+function getAmedasRankingUpdatedAt(data = {}, metricId, rankingView, windKind) {
+  if (metricId === "temperature" && rankingView !== "current") {
+    return data.temperatureRankings?.[`${rankingView}UpdatedAt`] ?? null;
+  }
+  if (metricId === "wind" && rankingView === "daily") {
+    const key = windKind === "gust" ? "gustUpdatedAt" : "maximumUpdatedAt";
+    return data.windRankings?.[key] ?? null;
+  }
+  return data.latestTime ?? null;
+}
+
+function formatAmedasRankingClock(value) {
+  const text = String(value ?? "");
+  const directMatch = text.match(/(?:^|\s)(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (directMatch) return `${directMatch[1].padStart(2, "0")}:${directMatch[2]}`;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return text;
+  return new Intl.DateTimeFormat("ja-JP", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: "Asia/Tokyo"
+  }).format(date);
 }
 
 function getAmedasLevels(metricId) {

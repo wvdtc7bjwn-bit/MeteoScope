@@ -54,10 +54,14 @@ async function fetchAmedasTemperatureRankings() {
     })
   ]);
   const decoder = new TextDecoder("shift_jis");
+  const maximum = parseAmedasTemperatureCsv(decoder.decode(maximumBuffer), "maximum");
+  const minimum = parseAmedasTemperatureCsv(decoder.decode(minimumBuffer), "minimum");
   return {
     status: "ok",
-    maximum: parseAmedasTemperatureCsv(decoder.decode(maximumBuffer), "maximum"),
-    minimum: parseAmedasTemperatureCsv(decoder.decode(minimumBuffer), "minimum")
+    maximum: maximum.items,
+    minimum: minimum.items,
+    maximumUpdatedAt: maximum.updatedAt,
+    minimumUpdatedAt: minimum.updatedAt
   };
 }
 
@@ -78,10 +82,14 @@ async function fetchAmedasWindRankings() {
     })
   ]);
   const decoder = new TextDecoder("shift_jis");
+  const maximum = parseAmedasWindCsv(decoder.decode(maximumBuffer));
+  const gust = parseAmedasWindCsv(decoder.decode(gustBuffer));
   return {
     status: "ok",
-    maximum: parseAmedasWindCsv(decoder.decode(maximumBuffer)),
-    gust: parseAmedasWindCsv(decoder.decode(gustBuffer))
+    maximum: maximum.items,
+    gust: gust.items,
+    maximumUpdatedAt: maximum.updatedAt,
+    gustUpdatedAt: gust.updatedAt
   };
 }
 
@@ -95,18 +103,45 @@ function parseAmedasRankingCsv(text, matchesValueHeader) {
   const idIndex = headers.indexOf("観測所番号");
   const nameIndex = headers.indexOf("地点");
   const valueIndex = headers.findIndex(matchesValueHeader);
-  if (idIndex < 0 || nameIndex < 0 || valueIndex < 0) return [];
+  if (idIndex < 0 || nameIndex < 0 || valueIndex < 0) return { items: [], updatedAt: null };
+  const observationHourIndex = headers.findIndex((header, index) => index > valueIndex && /起時.*時/.test(header));
+  const observationMinuteIndex = headers.findIndex((header, index) => index > observationHourIndex && /起時.*分/.test(header));
+  const updatedAt = formatAmedasRankingUpdatedAt(headers, rows[0]);
 
-  return rows.flatMap((row) => {
+  const items = rows.flatMap((row) => {
     const id = String(row[idIndex] ?? "").trim();
     const value = Number.parseFloat(row[valueIndex]);
     if (!id || !Number.isFinite(value)) return [];
     return [{
       id,
       name: String(row[nameIndex] ?? id).replace(/[（(].*$/, "").trim() || id,
-      value
+      value,
+      observationTime: formatAmedasRankingObservationTime(row, observationHourIndex, observationMinuteIndex)
     }];
   });
+  return { items, updatedAt };
+}
+
+function formatAmedasRankingUpdatedAt(headers, row = []) {
+  const read = (part) => {
+    const index = headers.findIndex((header) => header === `現在時刻(${part})` || header === `現在時刻（${part}）`);
+    return index >= 0 ? String(row[index] ?? "").trim() : "";
+  };
+  const year = read("年");
+  const month = read("月").padStart(2, "0");
+  const day = read("日").padStart(2, "0");
+  const hour = read("時").padStart(2, "0");
+  const minute = read("分").padStart(2, "0");
+  return /^\d{4}$/.test(year) && /^\d{2}$/.test(month) && /^\d{2}$/.test(day) && /^\d{2}$/.test(hour) && /^\d{2}$/.test(minute)
+    ? `${year}/${month}/${day} ${hour}:${minute}`
+    : null;
+}
+
+function formatAmedasRankingObservationTime(row, hourIndex, minuteIndex) {
+  if (hourIndex < 0 || minuteIndex < 0) return null;
+  const hour = String(row[hourIndex] ?? "").trim().padStart(2, "0");
+  const minute = String(row[minuteIndex] ?? "").trim().padStart(2, "0");
+  return /^\d{2}$/.test(hour) && /^\d{2}$/.test(minute) ? `${hour}:${minute}` : null;
 }
 
 function parseCsvRows(text) {
