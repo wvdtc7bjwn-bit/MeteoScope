@@ -159,27 +159,34 @@ async function getEarlyAccessCodes(env) {
 
 async function createEarlyAccessCode(request, env) {
   const kv = requireKv(env);
-  const payload = await request.json().catch(() => ({}));
-  const codes = await readJson(kv, EARLY_ACCESS_CODES_KEY, []);
-  if (Array.isArray(codes) && codes.length >= 100) {
-    return json({ error: "発行済みコードが100件に達しています。不要なコードを失効してください。" }, { status: 400 });
+  try {
+    const payload = await request.json().catch(() => ({}));
+    const codes = await readJson(kv, EARLY_ACCESS_CODES_KEY, []);
+    if (Array.isArray(codes) && codes.length >= 100) {
+      return json({ error: "発行済みコードが100件に達しています。不要なコードを失効してください。" }, { status: 400 });
+    }
+    const serial = generateSerialCode();
+    const expiresAt = normalizeExpiration(payload.expiresAt);
+    const maxUses = Math.min(10000, Math.max(1, Number.parseInt(payload.maxUses, 10) || 1));
+    const entry = {
+      id: generateEntryId(),
+      codeHash: await hashValue(normalizeSerial(serial)),
+      label: String(payload.label || "アーリーアクセス").trim().slice(0, 80) || "アーリーアクセス",
+      createdAt: new Date().toISOString(),
+      expiresAt,
+      maxUses,
+      uses: 0,
+      lastUsedAt: null
+    };
+    const nextCodes = [entry, ...(Array.isArray(codes) ? codes : [])];
+    await kv.put(EARLY_ACCESS_CODES_KEY, JSON.stringify(nextCodes));
+    return json({ serial, codes: nextCodes.map(publicEarlyAccessCode) }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Response) return error;
+    console.error("[Admin API] early access serial generation failed", error);
+    const detail = error instanceof Error && error.message ? `: ${error.message}` : "";
+    return json({ error: `シリアルコードを保存できませんでした${detail}` }, { status: 503 });
   }
-  const serial = generateSerialCode();
-  const expiresAt = normalizeExpiration(payload.expiresAt);
-  const maxUses = Math.min(10000, Math.max(1, Number.parseInt(payload.maxUses, 10) || 1));
-  const entry = {
-    id: crypto.randomUUID(),
-    codeHash: await hashValue(normalizeSerial(serial)),
-    label: String(payload.label || "アメダス昨日グラフ").trim().slice(0, 80) || "アメダス昨日グラフ",
-    createdAt: new Date().toISOString(),
-    expiresAt,
-    maxUses,
-    uses: 0,
-    lastUsedAt: null
-  };
-  const nextCodes = [entry, ...(Array.isArray(codes) ? codes : [])];
-  await kv.put(EARLY_ACCESS_CODES_KEY, JSON.stringify(nextCodes));
-  return json({ serial, codes: nextCodes.map(publicEarlyAccessCode) }, { status: 201 });
 }
 
 async function deleteEarlyAccessCode(id, env) {
@@ -215,6 +222,11 @@ function generateSerialCode() {
   const bytes = crypto.getRandomValues(new Uint8Array(12));
   const value = [...bytes].map((byte) => alphabet[byte % alphabet.length]).join("");
   return `MS-${value.slice(0, 4)}-${value.slice(4, 8)}-${value.slice(8, 12)}`;
+}
+
+function generateEntryId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function normalizeSerial(value) {
