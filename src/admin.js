@@ -31,6 +31,7 @@ const elements = {
   refreshFeedbackButton: document.getElementById("refresh-feedback-button"),
   purgeCacheButton: document.getElementById("purge-cache-button"),
   earlyAccessForm: document.getElementById("early-access-form"),
+  earlyAccessSubmit: document.querySelector("#early-access-form button[type='submit']"),
   earlyAccessLabel: document.getElementById("early-access-label"),
   earlyAccessExpires: document.getElementById("early-access-expires"),
   earlyAccessMaxUses: document.getElementById("early-access-max-uses"),
@@ -149,20 +150,38 @@ async function refreshDashboard() {
 }
 
 async function generateEarlyAccessCode() {
+  if (elements.earlyAccessSubmit?.disabled) return;
   setMessage(elements.dashboardMessage, "シリアルコードを発行中...");
-  const response = await requestJson("/early-access/codes", {
-    method: "POST",
-    body: {
-      label: elements.earlyAccessLabel.value.trim(),
-      expiresAt: elements.earlyAccessExpires.value ? new Date(elements.earlyAccessExpires.value).toISOString() : null,
-      maxUses: Number(elements.earlyAccessMaxUses.value) || 1
-    }
-  });
-  currentEarlyAccessCodes = Array.isArray(response.codes) ? response.codes : [];
-  elements.earlyAccessSerial.textContent = response.serial || "";
-  elements.earlyAccessGenerated.hidden = !response.serial;
-  renderEarlyAccessCodes();
-  setMessage(elements.dashboardMessage, "シリアルコードを発行しました。", "success");
+  if (elements.earlyAccessSubmit) elements.earlyAccessSubmit.disabled = true;
+  try {
+    const expiresAt = parseEarlyAccessExpiration(elements.earlyAccessExpires.value);
+    const response = await requestJson("/early-access/codes", {
+      method: "POST",
+      body: {
+        label: elements.earlyAccessLabel.value.trim(),
+        expiresAt,
+        maxUses: Number(elements.earlyAccessMaxUses.value) || 1
+      }
+    });
+    if (!response.serial) throw new Error("シリアルコードが返されませんでした。");
+    currentEarlyAccessCodes = Array.isArray(response.codes) ? response.codes : [];
+    elements.earlyAccessSerial.textContent = response.serial;
+    elements.earlyAccessGenerated.hidden = false;
+    renderEarlyAccessCodes();
+    setMessage(elements.dashboardMessage, "シリアルコードを発行しました。", "success");
+  } catch (error) {
+    console.error("[MeteoScope Admin] serial generation failed", error);
+    setMessage(elements.dashboardMessage, error.message || "シリアルコードを発行できませんでした。", "error");
+  } finally {
+    if (elements.earlyAccessSubmit) elements.earlyAccessSubmit.disabled = false;
+  }
+}
+
+function parseEarlyAccessExpiration(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new Error("有効期限を正しく入力してください。");
+  return date.toISOString();
 }
 
 async function revokeEarlyAccessCode(id) {
