@@ -245,7 +245,7 @@ function buildWarningState(warnings = []) {
 }
 
 function buildConfigurationMessage(config = {}) {
-  if (config?.setup?.kv === false) return "通知保存用のKVが未設定です。";
+  if (config?.setup?.d1 === false) return "通知保存用のD1が未設定です。";
   if (config?.setup?.vapid === false) return "通知サーバーの鍵を準備できませんでした。";
   return "通知サーバーの設定が未完了です。";
 }

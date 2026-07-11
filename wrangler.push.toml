@@ -2,10 +2,10 @@ name = "meteoscope-warning-push-cron"
 main = "workers/warning-push-cron.js"
 compatibility_date = "2026-07-06"
 
-[[kv_namespaces]]
-binding = "ADMIN_KV"
-id = "9464591925964777a82ebaef763d838e"
-preview_id = "9464591925964777a82ebaef763d838e"
+[[d1_databases]]
+binding = "NOTIFICATIONS_DB"
+database_name = "meteoscope-notifications"
+database_id = "c1552aac-5617-4ed0-bf69-548a44ef363e"
 
 [triggers]
 crons = ["* * * * *"]

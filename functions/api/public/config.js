@@ -10,8 +10,8 @@ const DEFAULT_CONFIG = {
 };
 
 export async function onRequestGet({ env }) {
-  const config = await readJson(env.ADMIN_KV, CONFIG_KEY, DEFAULT_CONFIG);
-  const notices = await readJson(env.ADMIN_KV, NOTICES_KEY, []);
+  const config = await readJson(env.NOTIFICATIONS_DB, CONFIG_KEY, DEFAULT_CONFIG);
+  const notices = await readJson(env.NOTIFICATIONS_DB, NOTICES_KEY, []);
 
   return json({
     maintenance: {
@@ -24,17 +24,6 @@ export async function onRequestGet({ env }) {
       : [],
     generatedAt: new Date().toISOString()
   });
-}
-
-async function readJson(kv, key, fallback) {
-  if (!kv) return fallback;
-  const value = await kv.get(key);
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
 }
 
 function publicNotice(notice) {
@@ -61,3 +50,4 @@ function json(payload, init = {}) {
     }
   });
 }
+import { readJson } from "../../_shared/d1Store.js";

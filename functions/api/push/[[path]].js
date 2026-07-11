@@ -4,10 +4,8 @@ import {
   severityValue
 } from "../../../src/jma/warningCore.js";
 import { JMA_WARNING_OFFICE_CODES } from "../../../src/jma/warningOfficeCodes.js";
+import { readJson, writeJson } from "../../_shared/d1Store.js";
 
-const SUBSCRIPTION_INDEX_KEY = "push:warning-subscriptions:index";
-const SUBSCRIPTION_KEY_PREFIX = "push:warning-subscription:";
-const PENDING_KEY_PREFIX = "push:pending:";
 const VAPID_KEYS_KEY = "push:vapid-keys";
 const JMA_WARNING_BASE = "https://www.jma.go.jp/bosai/warning/data/r8";
 const PUSH_TTL_SECONDS = 60;
@@ -34,20 +32,18 @@ export async function onRequest({ request, env }) {
 }
 
 export async function runWarningPushCheck(env) {
-  const kv = requireKv(env);
-  const ids = await readJson(kv, SUBSCRIPTION_INDEX_KEY, []);
-  const uniqueIds = [...new Set(Array.isArray(ids) ? ids.map(String).filter(Boolean) : [])];
-  if (!uniqueIds.length) return { checked: 0, notified: 0, removed: 0 };
+  requireNotificationStorage(env);
+  const subscriptions = await listSubscriptions(env);
+  if (!subscriptions.length) return { checked: 0, notified: 0, removed: 0 };
 
   const warningAreas = await fetchActiveWarningAreas();
   let notified = 0;
   let removed = 0;
 
-  for (const id of uniqueIds) {
-    const key = subscriptionKey(id);
-    const subscription = await readJson(kv, key, null);
+  for (const subscription of subscriptions) {
+    const id = String(subscription?.id || "");
     if (!subscription?.endpoint || !subscription?.pushSubscription?.endpoint) {
-      await kv.delete(key);
+      await deleteSubscription(env, id);
       removed += 1;
       continue;
     }
@@ -55,24 +51,27 @@ export async function runWarningPushCheck(env) {
     const currentArea = warningAreas.get(String(subscription.areaCode));
     const currentWarnings = currentArea?.warnings ?? [];
     const result = buildNotificationMessage(subscription, currentArea, currentWarnings);
+    const nextWarningState = buildWarningState(currentWarnings);
+    const warningStateChanged = !sameWarningState(subscription.warningState, nextWarningState);
+    const areaChanged = (
+      (currentArea?.areaName && currentArea.areaName !== subscription.areaName)
+      || (currentArea?.prefecture && currentArea.prefecture !== subscription.prefecture)
+    );
     const nextSubscription = {
       ...subscription,
       areaName: currentArea?.areaName ?? subscription.areaName,
       prefecture: currentArea?.prefecture ?? subscription.prefecture,
-      warningState: buildWarningState(currentWarnings),
-      checkedAt: new Date().toISOString()
+      warningState: nextWarningState
     };
 
     if (result) {
-      await enqueuePendingMessage(kv, id, result);
+      await enqueuePendingMessage(env, id, result);
       const pushResult = await sendEmptyPush(subscription.pushSubscription, env);
       if (pushResult.ok) {
         notified += 1;
         nextSubscription.lastNotifiedAt = new Date().toISOString();
       } else if (pushResult.status === 404 || pushResult.status === 410) {
-        await kv.delete(key);
-        await kv.delete(pendingKey(id));
-        await removeSubscriptionId(kv, id);
+        await deleteSubscription(env, id);
         removed += 1;
         continue;
       } else {
@@ -80,21 +79,37 @@ export async function runWarningPushCheck(env) {
       }
     }
 
-    await kv.put(key, JSON.stringify(nextSubscription));
+    // A one-minute cron must not write when nothing changed.
+    if (warningStateChanged || areaChanged || result) {
+      await saveSubscription(env, nextSubscription);
+    }
   }
 
-  return { checked: uniqueIds.length, notified, removed };
+  return { checked: subscriptions.length, notified, removed, storage: env.NOTIFICATIONS_DB ? "d1" : "kv" };
+}
+
+function sameWarningState(previous, next) {
+  const normalize = (state) => (Array.isArray(state?.warnings) ? state.warnings : [])
+    .map((warning) => ({
+      code: String(warning?.code || ""),
+      rawLabel: String(warning?.rawLabel || ""),
+      label: String(warning?.label || ""),
+      level: String(warning?.level || ""),
+      levelNumber: Number(warning?.levelNumber || 0)
+    }))
+    .sort((a, b) => a.code.localeCompare(b.code, "ja"));
+  return JSON.stringify(normalize(previous)) === JSON.stringify(normalize(next));
 }
 
 async function getPushConfig(env) {
   const vapidKeys = await getVapidKeys(env, { create: true });
-  const enabled = Boolean(env.ADMIN_KV && vapidKeys?.publicKey && vapidKeys?.privateKey);
+  const enabled = Boolean(env.NOTIFICATIONS_DB && vapidKeys?.publicKey && vapidKeys?.privateKey);
   return json({
     enabled,
     publicKey: enabled ? vapidKeys.publicKey : "",
     minCronIntervalSeconds: 60,
     setup: {
-      kv: Boolean(env.ADMIN_KV),
+      d1: Boolean(env.NOTIFICATIONS_DB),
       vapid: Boolean(vapidKeys?.publicKey && vapidKeys?.privateKey),
       source: vapidKeys?.source || "missing"
     }
@@ -102,7 +117,7 @@ async function getPushConfig(env) {
 }
 
 async function subscribe(request, env) {
-  const kv = requireKv(env);
+  requireNotificationStorage(env);
   const vapidKeys = await getVapidKeys(env, { create: true });
   if (!vapidKeys?.publicKey || !vapidKeys?.privateKey) {
     return json({ error: "通知サーバーのVAPIDキーを準備できませんでした。" }, { status: 503 });
@@ -130,34 +145,29 @@ async function subscribe(request, env) {
     updatedAt: new Date().toISOString()
   };
 
-  await kv.put(subscriptionKey(id), JSON.stringify(record));
-  await addSubscriptionId(kv, id);
+  await saveSubscription(env, record);
   return json({ subscribed: true, id, area });
 }
 
 async function unsubscribe(request, env) {
-  const kv = requireKv(env);
+  requireNotificationStorage(env);
   const payload = await request.json().catch(() => ({}));
   const endpoint = String(payload.endpoint || "");
   if (!endpoint) return json({ subscribed: false });
 
   const id = await subscriptionId(endpoint);
-  await kv.delete(subscriptionKey(id));
-  await kv.delete(pendingKey(id));
-  await removeSubscriptionId(kv, id);
+  await deleteSubscription(env, id);
   return json({ subscribed: false });
 }
 
 async function pending(request, env) {
-  const kv = requireKv(env);
+  requireNotificationStorage(env);
   const payload = await request.json().catch(() => ({}));
   const endpoint = String(payload.endpoint || "");
   if (!endpoint) return json({ messages: [] });
 
   const id = await subscriptionId(endpoint);
-  const key = pendingKey(id);
-  const messages = await readJson(kv, key, []);
-  await kv.delete(key);
+  const messages = await takePendingMessages(env, id);
   return json({ messages: Array.isArray(messages) ? messages : [] });
 }
 
@@ -342,11 +352,18 @@ function mapByPhenomenon(warnings) {
   return result;
 }
 
-async function enqueuePendingMessage(kv, id, message) {
-  const key = pendingKey(id);
-  const current = await readJson(kv, key, []);
-  const next = [message, ...(Array.isArray(current) ? current : [])].slice(0, MAX_PENDING_MESSAGES);
-  await kv.put(key, JSON.stringify(next), { expirationTtl: 60 * 60 * 24 * 3 });
+async function enqueuePendingMessage(env, id, message) {
+  await env.NOTIFICATIONS_DB.batch([
+    env.NOTIFICATIONS_DB.prepare(
+      "INSERT INTO push_pending_messages (subscription_id, data, created_at) VALUES (?, ?, ?)"
+    ).bind(id, JSON.stringify(message), new Date().toISOString()),
+    env.NOTIFICATIONS_DB.prepare(
+      `DELETE FROM push_pending_messages
+       WHERE subscription_id = ? AND id NOT IN (
+         SELECT id FROM push_pending_messages WHERE subscription_id = ? ORDER BY id DESC LIMIT ?
+       )`
+    ).bind(id, id, MAX_PENDING_MESSAGES)
+  ]);
 }
 
 async function sendEmptyPush(pushSubscription, env) {
@@ -391,14 +408,14 @@ async function getVapidKeys(env, options = {}) {
     return { publicKey: envPublicKey, privateKey: envPrivateKey, source: "env" };
   }
 
-  if (!env.ADMIN_KV) return null;
+  if (!env.NOTIFICATIONS_DB) return null;
 
-  const stored = await readJson(env.ADMIN_KV, VAPID_KEYS_KEY, null);
+  const stored = await readJson(env.NOTIFICATIONS_DB, VAPID_KEYS_KEY, null);
   if (stored?.publicKey && stored?.privateKey) {
     return {
       publicKey: String(stored.publicKey),
       privateKey: String(stored.privateKey),
-      source: "kv"
+      source: "d1"
     };
   }
 
@@ -410,8 +427,8 @@ async function getVapidKeys(env, options = {}) {
     privateKey: generated.privateKey,
     createdAt: new Date().toISOString()
   };
-  await env.ADMIN_KV.put(VAPID_KEYS_KEY, JSON.stringify(record));
-  return { ...record, source: "kv" };
+  await writeJson(env.NOTIFICATIONS_DB, VAPID_KEYS_KEY, record);
+  return { ...record, source: "d1" };
 }
 
 async function generateVapidKeys() {
@@ -472,29 +489,47 @@ function normalizePreferences(preferences) {
   };
 }
 
-async function addSubscriptionId(kv, id) {
-  const ids = await readJson(kv, SUBSCRIPTION_INDEX_KEY, []);
-  const next = [...new Set([...(Array.isArray(ids) ? ids : []), id])];
-  await kv.put(SUBSCRIPTION_INDEX_KEY, JSON.stringify(next));
+async function listSubscriptions(env) {
+  const result = await env.NOTIFICATIONS_DB.prepare(
+    "SELECT data FROM push_subscriptions ORDER BY updated_at DESC"
+  ).all();
+  return (result.results || []).map((row) => parseJson(row.data, null)).filter(Boolean);
 }
 
-async function removeSubscriptionId(kv, id) {
-  const ids = await readJson(kv, SUBSCRIPTION_INDEX_KEY, []);
-  const next = (Array.isArray(ids) ? ids : []).filter((item) => String(item) !== String(id));
-  await kv.put(SUBSCRIPTION_INDEX_KEY, JSON.stringify(next));
+async function saveSubscription(env, subscription) {
+  const id = String(subscription?.id || "");
+  if (!id) return;
+  await env.NOTIFICATIONS_DB.prepare(
+    `INSERT INTO push_subscriptions (id, data, updated_at) VALUES (?, ?, ?)
+     ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`
+  ).bind(id, JSON.stringify(subscription), new Date().toISOString()).run();
+}
+
+async function deleteSubscription(env, id) {
+  if (!id) return;
+  await env.NOTIFICATIONS_DB.batch([
+    env.NOTIFICATIONS_DB.prepare("DELETE FROM push_subscriptions WHERE id = ?").bind(id),
+    env.NOTIFICATIONS_DB.prepare("DELETE FROM push_pending_messages WHERE subscription_id = ?").bind(id)
+  ]);
+}
+
+async function takePendingMessages(env, id) {
+  const result = await env.NOTIFICATIONS_DB.prepare(
+    "SELECT data FROM push_pending_messages WHERE subscription_id = ? ORDER BY id DESC LIMIT ?"
+  ).bind(id, MAX_PENDING_MESSAGES).all();
+  await env.NOTIFICATIONS_DB.prepare(
+    "DELETE FROM push_pending_messages WHERE subscription_id = ?"
+  ).bind(id).run();
+  return (result.results || []).map((row) => parseJson(row.data, null)).filter(Boolean);
+}
+
+function parseJson(value, fallback) {
+  try { return JSON.parse(value); } catch { return fallback; }
 }
 
 async function subscriptionId(endpoint) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(endpoint));
   return base64UrlEncodeBytes(new Uint8Array(digest)).slice(0, 32);
-}
-
-function subscriptionKey(id) {
-  return `${SUBSCRIPTION_KEY_PREFIX}${id}`;
-}
-
-function pendingKey(id) {
-  return `${PENDING_KEY_PREFIX}${id}`;
 }
 
 function chooseLatestTime(current, next) {
@@ -503,22 +538,10 @@ function chooseLatestTime(current, next) {
   return new Date(next).getTime() > new Date(current).getTime() ? next : current;
 }
 
-async function readJson(kv, key, fallback) {
-  if (!kv) return fallback;
-  const value = await kv.get(key);
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
+function requireNotificationStorage(env) {
+  if (!env.NOTIFICATIONS_DB) {
+    throw json({ error: "通知保存用のD1が未設定です。" }, { status: 503 });
   }
-}
-
-function requireKv(env) {
-  if (!env.ADMIN_KV) {
-    throw json({ error: "ADMIN_KV が未設定です。" }, { status: 503 });
-  }
-  return env.ADMIN_KV;
 }
 
 function base64UrlToBytes(value) {

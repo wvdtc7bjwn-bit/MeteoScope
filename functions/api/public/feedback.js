@@ -4,7 +4,7 @@ const MAX_MESSAGE_LENGTH = 1000;
 
 export async function onRequestPost({ request, env }) {
   try {
-    if (!env.ADMIN_KV) {
+    if (!env.NOTIFICATIONS_DB) {
       return json({ ok: false, error: "Feedback storage is not configured." }, { status: 503 });
     }
 
@@ -22,9 +22,9 @@ export async function onRequestPost({ request, env }) {
       createdAt: new Date().toISOString()
     };
 
-    const current = await readJson(env.ADMIN_KV, FEEDBACK_KEY, []);
+    const current = await readJson(env.NOTIFICATIONS_DB, FEEDBACK_KEY, []);
     const next = [feedback, ...(Array.isArray(current) ? current : [])].slice(0, MAX_FEEDBACK_ITEMS);
-    await env.ADMIN_KV.put(FEEDBACK_KEY, JSON.stringify(next));
+    await writeJson(env.NOTIFICATIONS_DB, FEEDBACK_KEY, next);
 
     return json({ ok: true, id: feedback.id, createdAt: feedback.createdAt });
   } catch (error) {
@@ -35,16 +35,6 @@ export async function onRequestPost({ request, env }) {
 
 export function onRequestGet() {
   return json({ ok: false, error: "Method not allowed." }, { status: 405 });
-}
-
-async function readJson(kv, key, fallback) {
-  const value = await kv.get(key);
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
 }
 
 function normalizeCategory(value) {
@@ -61,3 +51,4 @@ function json(payload, init = {}) {
     }
   });
 }
+import { readJson, writeJson } from "../../_shared/d1Store.js";

@@ -89,7 +89,7 @@ async function sessionStatus(request, env) {
     authenticated: auth.ok,
     setup: {
       passwordConfigured: Boolean(env.ADMIN_PASSWORD),
-      kv: Boolean(env.ADMIN_KV),
+      d1: Boolean(env.NOTIFICATIONS_DB),
       r2: Boolean(env.DISASTER_MAPS),
       cachePurge: Boolean(env.CLOUDFLARE_ZONE_ID && env.CLOUDFLARE_API_TOKEN)
     }
@@ -97,7 +97,7 @@ async function sessionStatus(request, env) {
 }
 
 async function status(env) {
-  const config = await readJson(env.ADMIN_KV, CONFIG_KEY, DEFAULT_CONFIG);
+  const config = await readJson(env.NOTIFICATIONS_DB, CONFIG_KEY, DEFAULT_CONFIG);
   return json({
     ok: true,
     nowJst: new Intl.DateTimeFormat("ja-JP", {
@@ -107,7 +107,7 @@ async function status(env) {
     }).format(new Date()),
     configUpdatedAt: config?.updatedAt || "--",
     bindings: {
-      kv: Boolean(env.ADMIN_KV),
+      d1: Boolean(env.NOTIFICATIONS_DB),
       r2: Boolean(env.DISASTER_MAPS),
       cachePurge: Boolean(env.CLOUDFLARE_ZONE_ID && env.CLOUDFLARE_API_TOKEN)
     }
@@ -115,36 +115,36 @@ async function status(env) {
 }
 
 async function getConfig(env) {
-  const config = await readJson(env.ADMIN_KV, CONFIG_KEY, DEFAULT_CONFIG);
+  const config = await readJson(env.NOTIFICATIONS_DB, CONFIG_KEY, DEFAULT_CONFIG);
   return json({ config: normalizeConfig(config) });
 }
 
 async function putConfig(request, env) {
-  const kv = requireKv(env);
+  const db = requireDb(env);
   const payload = await request.json().catch(() => ({}));
   const config = normalizeConfig(payload.config);
   config.updatedAt = new Date().toISOString();
-  await kv.put(CONFIG_KEY, JSON.stringify(config));
+  await writeJson(db, CONFIG_KEY, config);
   return json({ config });
 }
 
 async function getNotices(env) {
-  const notices = await readJson(env.ADMIN_KV, NOTICES_KEY, []);
+  const notices = await readJson(env.NOTIFICATIONS_DB, NOTICES_KEY, []);
   return json({ notices: Array.isArray(notices) ? notices.map(normalizeNotice) : [] });
 }
 
 async function putNotices(request, env) {
-  const kv = requireKv(env);
+  const db = requireDb(env);
   const payload = await request.json().catch(() => ({}));
   const notices = Array.isArray(payload.notices)
     ? payload.notices.slice(0, 10).map(normalizeNotice)
     : [];
-  await kv.put(NOTICES_KEY, JSON.stringify(notices));
+  await writeJson(db, NOTICES_KEY, notices);
   return json({ notices });
 }
 
 async function getFeedback(env) {
-  const feedback = await readJson(env.ADMIN_KV, FEEDBACK_KEY, []);
+  const feedback = await readJson(env.NOTIFICATIONS_DB, FEEDBACK_KEY, []);
   return json({
     feedback: Array.isArray(feedback)
       ? feedback.slice(0, 100).map(normalizeFeedback)
@@ -153,15 +153,15 @@ async function getFeedback(env) {
 }
 
 async function getEarlyAccessCodes(env) {
-  const codes = await readJson(env.ADMIN_KV, EARLY_ACCESS_CODES_KEY, []);
+  const codes = await readJson(env.NOTIFICATIONS_DB, EARLY_ACCESS_CODES_KEY, []);
   return json({ codes: Array.isArray(codes) ? codes.map(publicEarlyAccessCode) : [] });
 }
 
 async function createEarlyAccessCode(request, env) {
-  const kv = requireKv(env);
+  const db = requireDb(env);
   try {
     const payload = await request.json().catch(() => ({}));
-    const codes = await readJson(kv, EARLY_ACCESS_CODES_KEY, []);
+    const codes = await readJson(db, EARLY_ACCESS_CODES_KEY, []);
     if (Array.isArray(codes) && codes.length >= 100) {
       return json({ error: "発行済みコードが100件に達しています。不要なコードを失効してください。" }, { status: 400 });
     }
@@ -179,7 +179,7 @@ async function createEarlyAccessCode(request, env) {
       lastUsedAt: null
     };
     const nextCodes = [entry, ...(Array.isArray(codes) ? codes : [])];
-    await kv.put(EARLY_ACCESS_CODES_KEY, JSON.stringify(nextCodes));
+    await writeJson(db, EARLY_ACCESS_CODES_KEY, nextCodes);
     return json({ serial, codes: nextCodes.map(publicEarlyAccessCode) }, { status: 201 });
   } catch (error) {
     if (error instanceof Response) return error;
@@ -190,11 +190,11 @@ async function createEarlyAccessCode(request, env) {
 }
 
 async function deleteEarlyAccessCode(id, env) {
-  const kv = requireKv(env);
-  const codes = await readJson(kv, EARLY_ACCESS_CODES_KEY, []);
+  const db = requireDb(env);
+  const codes = await readJson(db, EARLY_ACCESS_CODES_KEY, []);
   const nextCodes = (Array.isArray(codes) ? codes : []).filter((item) => item.id !== id);
   if (nextCodes.length === codes.length) return json({ error: "対象のコードが見つかりません。" }, { status: 404 });
-  await kv.put(EARLY_ACCESS_CODES_KEY, JSON.stringify(nextCodes));
+  await writeJson(db, EARLY_ACCESS_CODES_KEY, nextCodes);
   return json({ codes: nextCodes.map(publicEarlyAccessCode) });
 }
 
@@ -354,22 +354,9 @@ function normalizeFeedback(item) {
   };
 }
 
-async function readJson(kv, key, fallback) {
-  if (!kv) return fallback;
-  const value = await kv.get(key);
-  if (!value) return fallback;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
-  }
-}
-
-function requireKv(env) {
-  if (!env.ADMIN_KV) {
-    throw json({ error: "ADMIN_KV が未設定です。" }, { status: 503 });
-  }
-  return env.ADMIN_KV;
+function requireDb(env) {
+  try { return requireD1(env.NOTIFICATIONS_DB); }
+  catch { throw json({ error: "NOTIFICATIONS_DB が未設定です。" }, { status: 503 }); }
 }
 
 function requireR2(env) {
@@ -490,3 +477,4 @@ function json(payload, init = {}) {
     }
   });
 }
+import { readJson, writeJson, requireD1 } from "../../_shared/d1Store.js";

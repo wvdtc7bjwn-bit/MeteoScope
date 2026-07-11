@@ -213,7 +213,7 @@ function formatAdminDate(value) {
 
 function renderStatus(status) {
   const rows = [
-    ["KV", status.bindings?.kv ? "利用可能" : "未設定"],
+    ["D1", status.bindings?.d1 ? "利用可能" : "未設定"],
     ["R2", status.bindings?.r2 ? "利用可能" : "未設定"],
     ["キャッシュ削除", status.bindings?.cachePurge ? "設定済み" : "未設定"],
     ["現在時刻", status.nowJst || "--"],
