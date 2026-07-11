@@ -800,13 +800,6 @@ function renderLegend(tabId, amedasMetricId, warningView = "status") {
     })
     .join("");
 
-  if (tabId === "typhoon") {
-    root.insertAdjacentHTML("beforeend", `
-      <div class="legend-note">
-        ※白い点線は予報円と予想進路中心線、白い×は中心位置
-      </div>
-    `);
-  }
 }
 
 function buildLegendItems(tabId, amedasMetricId, warningView = "status") {

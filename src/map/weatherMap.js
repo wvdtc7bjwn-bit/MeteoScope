@@ -108,7 +108,13 @@ const MAP_THEME_COLORS = {
     prefectureLine: "#f7fbff",
     weatherIsobar: "rgba(246, 250, 255, 0.78)",
     weatherIsobarLabel: "rgba(246, 250, 255, 0.86)",
-    weatherIsobarHalo: "rgba(5, 9, 20, 0.82)"
+    weatherIsobarHalo: "rgba(5, 9, 20, 0.82)",
+    typhoonForecastCircle: "#f8fbff",
+    typhoonForecastRoute: "#f8fbff",
+    typhoonPastTrack: "#ffffff",
+    typhoonCenter: "#f8fbff",
+    typhoonLabel: "#f8fbff",
+    typhoonLabelHalo: "rgba(5, 9, 20, 0.9)"
   },
   light: {
     background: "#eaf1f8",
@@ -119,7 +125,13 @@ const MAP_THEME_COLORS = {
     prefectureLine: "#536373",
     weatherIsobar: "rgba(48, 66, 85, 0.82)",
     weatherIsobarLabel: "rgba(37, 55, 74, 0.92)",
-    weatherIsobarHalo: "rgba(247, 251, 255, 0.9)"
+    weatherIsobarHalo: "rgba(247, 251, 255, 0.9)",
+    typhoonForecastCircle: "#405a74",
+    typhoonForecastRoute: "#1678ad",
+    typhoonPastTrack: "#56697b",
+    typhoonCenter: "#153e5c",
+    typhoonLabel: "#193650",
+    typhoonLabelHalo: "rgba(248, 252, 255, 0.94)"
   }
 };
 const NATURAL_EARTH_JAPAN_MASK_BOUNDS = {
@@ -1042,7 +1054,16 @@ function applyMapTheme(map, theme) {
     ["japan-prefecture-line", "line-color", colors.prefectureLine],
     ["weather-chart-isobar-line", "line-color", colors.weatherIsobar],
     ["weather-chart-isobar-label", "text-color", colors.weatherIsobarLabel],
-    ["weather-chart-isobar-label", "text-halo-color", colors.weatherIsobarHalo]
+    ["weather-chart-isobar-label", "text-halo-color", colors.weatherIsobarHalo],
+    ["typhoon-forecast-area", "line-color", colors.typhoonForecastCircle],
+    ["typhoon-forecast-circle", "line-color", colors.typhoonForecastCircle],
+    ["typhoon-forecast-route", "line-color", colors.typhoonForecastRoute],
+    ["layer-typhoon-past-track", "line-color", colors.typhoonPastTrack],
+    ["typhoon-center-x", "line-color", colors.typhoonCenter],
+    ["typhoon-forecast-label", "text-color", colors.typhoonLabel],
+    ["typhoon-forecast-label", "text-halo-color", colors.typhoonLabelHalo],
+    ["typhoon-label", "text-color", colors.typhoonLabel],
+    ["typhoon-label", "text-halo-color", colors.typhoonLabelHalo]
   ];
   paintUpdates.forEach(([layerId, property, value]) => {
     if (map.getLayer(layerId)) map.setPaintProperty(layerId, property, value);
