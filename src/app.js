@@ -5,7 +5,8 @@ import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTa
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
-import { refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
+import { setupOnboardingModal } from "./ui/onboardingModal.js";
+import { openSettingsModal, refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
 import {
   clearStoredDisasterMapPdf,
   getStoredDisasterMapPdfInfo,
@@ -1267,6 +1268,7 @@ export function createWeatherApp() {
     });
     setupLegendToggle();
     setupPanelToggle({ onLayoutChange: () => weatherMap?.resize() });
+    const onboarding = setupOnboardingModal({ onOpenSettings: openSettingsModal });
     setupSettingsModal({
       getState: getSettingsState,
       onSearchArea: searchSettingsAreas,
@@ -1280,6 +1282,7 @@ export function createWeatherApp() {
       onThemeChange: (theme) => themeController.setPreference(theme),
       onActivateEarlyAccess: authenticateEarlyAccess,
       onDeactivateEarlyAccess: releaseEarlyAccess,
+      onOpenGuide: onboarding.open,
       tabs: TABS,
       getTabOrder: () => tabControls?.getOrder?.() ?? TABS.map((tab) => tab.id),
       onTabOrderChange: (order) => tabControls?.setOrder?.(order) ?? order
@@ -1293,6 +1296,7 @@ export function createWeatherApp() {
     startLocationWatch();
     selectTab(activeTab);
     void refreshEarlyAccess();
+    onboarding.showFirstRun();
   }
 
   return { start, selectTab };

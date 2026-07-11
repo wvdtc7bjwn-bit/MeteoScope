@@ -211,6 +211,15 @@
               </div>
             </div>
           </section>
+          <section class="settings-group settings-guide-group">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>使い方</button>
+            <div class="settings-group-content" hidden>
+              <div class="settings-feedback-row">
+                <p>地図、表示切替、要約バー、現在地と通知の基本操作を確認できます。</p>
+                <button class="settings-feedback-open" type="button" data-settings-open-guide aria-haspopup="dialog" aria-controls="onboarding-modal">使い方を見る</button>
+              </div>
+            </div>
+          </section>
           <section class="settings-group">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>利用規約</button>
             <div class="settings-group-content" hidden>
@@ -234,6 +243,27 @@
           </section>
           <p class="settings-source-note">情報出典: 気象庁・Natural Earth・MapLibre GL JS</p>
         </div>
+      </section>
+    </div>
+
+    <div id="onboarding-modal" class="warning-modal onboarding-modal" hidden>
+      <div class="warning-modal-backdrop onboarding-modal-backdrop" data-onboarding-close></div>
+      <section class="warning-modal-panel onboarding-panel" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+        <header class="onboarding-header">
+          <div><span>MeteoScope Guide</span><h2 id="onboarding-title">はじめに</h2></div>
+          <button class="warning-modal-close" type="button" aria-label="閉じる" data-onboarding-close>×</button>
+        </header>
+        <div class="onboarding-viewport" id="onboarding-viewport" tabindex="0">
+          <div class="onboarding-track" id="onboarding-track"></div>
+        </div>
+        <footer class="onboarding-footer">
+          <button class="onboarding-skip" type="button" data-onboarding-skip>スキップ</button>
+          <div class="onboarding-dots" id="onboarding-dots" aria-label="ページ"></div>
+          <div class="onboarding-actions">
+            <button type="button" data-onboarding-prev>戻る</button>
+            <button class="onboarding-next" type="button" data-onboarding-next>次へ</button>
+          </div>
+        </footer>
       </section>
     </div>
 

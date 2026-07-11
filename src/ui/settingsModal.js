@@ -90,6 +90,12 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    if (event.target.closest("[data-settings-open-guide]")) {
+      closeSettingsModal();
+      settingsOptions.onOpenGuide?.();
+      return;
+    }
+
     if (event.target.closest("[data-settings-add-current-location]")) {
       settingsOptions.onAddCurrentLocation?.();
     }
@@ -122,7 +128,7 @@ export function refreshSettingsModalView() {
   void renderSettingsDisasterMapPdf();
 }
 
-function openSettingsModal() {
+export function openSettingsModal() {
   const modal = document.getElementById("settings-modal");
   const button = document.getElementById("settings-button");
   if (!modal) return;
