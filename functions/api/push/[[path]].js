@@ -474,7 +474,7 @@ function buildNotificationMessage(subscription, currentArea, currentWarnings) {
   const areaName = currentArea?.areaName || subscription.areaName || "現在地";
   return {
     id: crypto.randomUUID(),
-    title: `${areaName}の警報情報`,
+    title: `${areaName}気象警報・注意報`,
     body: eventLines.slice(0, 5).join("\n"),
     tag: `warning-${subscription.areaCode}`,
     url: "/?tab=warnings",

@@ -1,4 +1,4 @@
-﻿import maplibregl from "maplibre-gl";
+import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
   AMEDAS_METRICS,
@@ -69,6 +69,8 @@ const WEATHER_FRONT_OCCLUDED_TRIANGLE_IMAGE_ID = "weather-front-occluded-triangl
 const WEATHER_FRONT_OCCLUDED_SEMICIRCLE_IMAGE_ID = "weather-front-occluded-semicircle";
 const KIKIKURU_SOURCE_PREFIX = "jma-kikikuru";
 const KIKIKURU_LAYER_PREFIX = "jma-kikikuru";
+const RIVER_FLOOD_SOURCE_ID = "jma-river-flood";
+const RIVER_FLOOD_LAYERS = ["jma-river-flood-casing", "jma-river-flood-line", "jma-river-flood-label"];
 const KIKIKURU_ZOOM_LEVELS = [
   { id: "z4", z: 4, minzoom: 3, maxzoom: 5 },
   { id: "z6", z: 6, minzoom: 5, maxzoom: 7 },
@@ -224,6 +226,7 @@ export function createWeatherMap(elementId) {
     updateRadarLayer(map, mode, data);
     updateWeatherChartLayer(map, mode, data);
     updateKikikuruLayer(map, mode, data);
+    updateRiverFloodLayer(map, mode, data);
     updateWarningMunicipalityPaint(map, mode, data);
   }
 
@@ -300,11 +303,55 @@ export function createWeatherMap(elementId) {
       type: "geojson",
       data: createEmptyFeatureCollection()
     });
-    map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
+map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       type: "geojson",
       data: createEmptyFeatureCollection()
     });
-    setupWindArrowImage(map);
+    map.addSource(RIVER_FLOOD_SOURCE_ID, {
+      type: "geojson",
+      data: createEmptyFeatureCollection()
+    });
+    map.addLayer({
+      id: "jma-river-flood-casing",
+      type: "line",
+      source: RIVER_FLOOD_SOURCE_ID,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": "#f8fbff",
+        "line-opacity": 0.94,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 4, 4.8, 8, 7.2, 11, 9]
+      }
+    });
+    map.addLayer({
+      id: "jma-river-flood-line",
+      type: "line",
+      source: RIVER_FLOOD_SOURCE_ID,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": ["match", ["get", "level"], 5, "#111111", 4, "#a900d6", 3, "#ef3340", 2, "#f4d000", "#4aa8d8"],
+        "line-opacity": 1,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 4, 2.8, 8, 4.8, 11, 6.2]
+      }
+    });
+    map.addLayer({
+      id: "jma-river-flood-label",
+      type: "symbol",
+      source: RIVER_FLOOD_SOURCE_ID,
+      minzoom: 5,
+      layout: {
+        "symbol-placement": "line",
+        "text-field": ["coalesce", ["get", "forecastAreaName"], ["get", "RIVERNAME"]],
+        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 5, 11, 9, 14],
+        "text-allow-overlap": false,
+        "text-padding": 8
+      },
+      paint: {
+        "text-color": "#f8fbff",
+        "text-halo-color": "rgba(5, 9, 20, 0.92)",
+        "text-halo-width": 2
+      }
+    });    setupWindArrowImage(map);
     setupWarningHatchImage(map);
     setupWeatherFrontImages(map);
 
@@ -703,6 +750,25 @@ export function createWeatherMap(elementId) {
       }
     });
 
+    RIVER_FLOOD_LAYERS.forEach((layerId) => {
+      map.on("mouseenter", layerId, () => {
+        if (activeMode === "warnings") map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", layerId, () => {
+        if (activeMode === "warnings") map.getCanvas().style.cursor = "";
+      });
+      map.on("click", layerId, (event) => {
+        if (activeMode !== "warnings") return;
+        const properties = event.features?.[0]?.properties ?? {};
+        window.dispatchEvent(new CustomEvent("river-flood-select", {
+          detail: {
+            reportId: properties.reportId ?? "",
+            forecastAreaCode: properties.FAREACODE ?? "",
+            forecastAreaName: properties.forecastAreaName ?? properties.RIVERNAME ?? "指定河川"
+          }
+        }));
+      });
+    });
     setupTyphoonForecastInfo();
 
     map.on("mouseenter", WARNING_CLICK_LAYER_ID, (event) => {
@@ -1472,10 +1538,21 @@ function computeCoordinateBounds(coordinates) {
   return bounds;
 }
 
+function updateRiverFloodLayer(map, mode, data = {}) {
+  const source = map?.getSource(RIVER_FLOOD_SOURCE_ID);
+  if (!source?.setData) return;
+  const visible = mode === "warnings" && data?.activeWarningView === "river";
+  source.setData(visible && data?.riverFlood?.riverFeatures
+    ? data.riverFlood.riverFeatures
+    : createEmptyFeatureCollection());
+  RIVER_FLOOD_LAYERS.forEach((layerId) => {
+    if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+  });
+}
 function updateWarningMunicipalityPaint(map, mode, data = {}) {
   if (!map?.getLayer(WARNING_OVERLAY_LAYER_ID)) return;
 
-  if (mode !== "warnings" || data?.activeWarningView === "kikikuru") {
+  if (mode !== "warnings" || ["kikikuru", "river"].includes(data?.activeWarningView)) {
     map.setPaintProperty(WARNING_OVERLAY_LAYER_ID, "fill-opacity", 0);
     updateWarningHatchPaint(map, []);
     return;
@@ -1522,7 +1599,7 @@ function updateWarningMunicipalityPaint(map, mode, data = {}) {
 }
 
 function getActiveWarningOverlayAreas(mode, data = {}) {
-  if (mode !== "warnings" || data?.activeWarningView === "kikikuru") return [];
+  if (mode !== "warnings" || ["kikikuru", "river"].includes(data?.activeWarningView)) return [];
   if (data?.activeWarningView === "early") {
     return Array.isArray(data?.earlyMunicipalityAreas)
       ? data.earlyMunicipalityAreas.filter((area) => area.level === "high" || area.level === "middle")
@@ -1532,7 +1609,7 @@ function getActiveWarningOverlayAreas(mode, data = {}) {
 }
 
 function getSelectableWarningAreas(mode, data = {}) {
-  if (mode !== "warnings" || data?.activeWarningView === "kikikuru") return [];
+  if (mode !== "warnings" || ["kikikuru", "river"].includes(data?.activeWarningView)) return [];
   if (data?.activeWarningView === "early") {
     return Array.isArray(data?.earlyMunicipalityAreas) ? data.earlyMunicipalityAreas : [];
   }

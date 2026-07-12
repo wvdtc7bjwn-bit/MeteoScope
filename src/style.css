@@ -568,6 +568,7 @@ h2 {
 
 .current-location-warnings {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 6px;
 }
@@ -6660,4 +6661,304 @@ html[data-theme="light"] .onboarding-brand-copy span { border-color: rgba(45, 11
 
 @media (prefers-reduced-motion: reduce) {
   .onboarding-track { transition: none; }
+}
+
+/* Designated river flood forecasts */
+.river-flood-list {
+  display: grid;
+  gap: 8px;
+}
+
+.river-flood-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(126, 167, 222, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #edf4ff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.river-flood-row-main {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.river-flood-row-main strong,
+.river-flood-row-main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.river-flood-row-status {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.river-flood-row-status .river-flood-level {
+  max-width: min(160px, 42vw);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.current-location-kikikuru-badge {
+  background: var(--current-kikikuru-color, #7f91a8);
+  color: #fff;
+}
+
+.current-location-kikikuru-badge.is-dark-text {
+  color: #111827;
+}
+
+.current-location-kikikuru-badge.is-neutral {
+  border: 1px solid rgba(158, 183, 214, 0.42);
+  background: #405874;
+  color: #f5f9ff;
+}
+
+.current-location-card .current-location-kikikuru-badge.is-neutral {
+  color: #f5f9ff;
+}
+
+html[data-theme="light"] .current-location-card .current-location-kikikuru-badge.is-neutral {
+  border-color: rgba(62, 91, 120, 0.3);
+  background: #688198;
+  color: #fff;
+}
+
+.river-flood-current-name {
+  display: inline-flex;
+  align-items: center;
+  min-height: 23px;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.current-location-place-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.current-location-place-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.current-location-place-row small {
+  flex: 0 0 auto;
+  color: #9eb1cd;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+html[data-theme="light"] .current-location-place-row small {
+  color: #60758a;
+}
+
+.river-flood-row:hover,
+.river-flood-row:focus-visible {
+  border-color: rgba(86, 183, 242, 0.7);
+  background: rgba(86, 183, 242, 0.1);
+}
+
+.river-flood-row strong {
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.river-flood-row small {
+  color: #9eb1cd;
+  font-size: 11px;
+}
+
+.river-flood-level {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 23px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.river-flood-level-5 {
+  background: #111;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+}
+
+.river-flood-level-4 {
+  background: #a900d6;
+}
+
+.river-flood-level-3 {
+  background: #ef3340;
+}
+
+.river-flood-level-2 {
+  background: #f4d000;
+  color: #111;
+}
+
+.river-flood-level-0 {
+  border: 1px solid rgba(158, 183, 214, 0.42);
+  background: #405874;
+  color: #f5f9ff;
+}
+
+.current-location-card .river-flood-level-0 {
+  color: #f5f9ff;
+}
+
+html[data-theme="light"] .current-location-card .river-flood-level-0,
+html[data-theme="light"] .river-flood-level-0 {
+  border-color: rgba(62, 91, 120, 0.3);
+  background: #688198;
+  color: #fff;
+}
+
+.river-flood-headline,
+.river-flood-message,
+.river-flood-condition {
+  margin: 10px 0 0;
+  color: #dce8fa;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.river-flood-condition {
+  color: #9eb1cd;
+  font-size: 12px;
+}
+
+.river-station-list {
+  display: grid;
+  gap: 8px;
+}
+
+.river-station-card {
+  padding: 11px;
+  border: 1px solid rgba(126, 167, 222, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.river-station-card > div,
+.river-rainfall-list > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.river-station-card span,
+.river-rainfall-list span {
+  color: #9eb1cd;
+  font-size: 11px;
+}
+
+.river-station-card dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.river-station-card dl div {
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.river-station-card dt {
+  color: #9eb1cd;
+  font-size: 10px;
+}
+
+.river-station-card dd {
+  margin: 3px 0 0;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.river-rainfall-list {
+  display: grid;
+  gap: 7px;
+}
+
+.river-affected-cities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.river-affected-cities span {
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: rgba(86, 183, 242, 0.12);
+  color: #dce8fa;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+html[data-theme="light"] .river-flood-row,
+html[data-theme="light"] .river-station-card {
+  border-color: rgba(59, 85, 112, 0.22);
+  background: rgba(255, 255, 255, 0.48);
+  color: #14263b;
+}
+
+html[data-theme="light"] :is(.river-flood-headline, .river-flood-message) {
+  color: #243b54;
+}
+
+html[data-theme="light"] :is(.river-flood-condition, .river-flood-row small, .river-station-card span, .river-rainfall-list span, .river-station-card dt) {
+  color: #60758a;
+}
+
+html[data-theme="light"] .river-station-card dl div {
+  background: rgba(85, 116, 148, 0.08);
+}
+
+html[data-theme="light"] .river-affected-cities span {
+  color: #23435d;
+}
+
+@media (max-width: 800px) and (orientation: portrait) {
+  .mobile-dock-river .mobile-dock-warning-main {
+    min-height: 47px;
+  }
+
+  .mobile-dock-river .mobile-dock-warning-text span {
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-dock-river .river-flood-level {
+    flex: 0 0 auto;
+    max-width: 122px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }

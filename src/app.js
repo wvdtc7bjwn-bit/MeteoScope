@@ -19,10 +19,12 @@ import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
 import { fetchEarthquakeXmlList } from "./jma/earthquakeXml.js";
 import { fetchKikikuruTiles } from "./jma/kikikuru.js";
+import { fetchRiverFloodForecasts } from "./jma/riverFlood.js";
 import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFrameIndex } from "./jma/weatherChart.js";
 import { resolveCurrentLocationInfo, searchMunicipalities } from "./location/currentLocation.js";
 import { addMyArea, getMyAreaLimit, loadMyAreas, removeMyArea } from "./location/myAreas.js";
 import { buildLocationRadarTimeline } from "./location/radarTimeline.js";
+import { sampleCurrentKikikuruStatus } from "./location/kikikuruStatus.js";
 import { createLocationWarningPush } from "./push/locationWarningPush.js";
 import { setupRemoteConfig } from "./remoteConfig.js";
 import { setupTheme } from "./ui/theme.js";
@@ -38,6 +40,7 @@ const loaders = {
 
 const KIKIKURU_DATA_TTL_MS = 60 * 1000;
 const WARNING_DETAILS_TTL_MS = 60 * 1000;
+const RIVER_FLOOD_DATA_TTL_MS = 60 * 1000;
 const WEATHER_CHART_DATA_TTL_MS = 10 * 60 * 1000;
 const LOCATION_WATCH_OPTIONS = {
   enableHighAccuracy: false,
@@ -91,6 +94,8 @@ export function createWeatherApp() {
   let myAreas = loadMyAreas();
   let locationRadarTimeline = { status: "idle", points: [] };
   let locationRadarRequestId = 0;
+  let currentKikikuruStatus = { status: "idle", elementId: activeKikikuruLayer };
+  let currentKikikuruRequestId = 0;
   let locationWatchId = null;
   let locationResolveRequestId = 0;
   let lastResolvedLocation = null;
@@ -109,10 +114,12 @@ export function createWeatherApp() {
   const loadRequestsByTab = new Map();
   let warningDetailsRequest = null;
   let warningKikikuruRequest = null;
+  let riverFloodRequest = null;
   let warningDetailsTimer = null;
   let warningFullRefreshTimer = null;
   let warningDetailsLoadedAt = 0;
   let warningKikikuruLoadedAt = 0;
+  let riverFloodLoadedAt = 0;
   let backgroundPrefetchStarted = false;
 
   async function selectTab(tabId) {
@@ -294,14 +301,31 @@ export function createWeatherApp() {
       return;
     }
 
+if (layerId === "river") {
+      activeWarningView = "river";
+      if (activeTab !== "warnings") return;
+      const tab = TABS.find((item) => item.id === "warnings");
+      if (!latestDataByTab.warnings?.riverFlood) {
+        latestDataByTab.warnings = {
+          ...(latestDataByTab.warnings ?? {}),
+          riverFlood: { status: "loading", reports: [], riverFeatures: { type: "FeatureCollection", features: [] } }
+        };
+      }
+      updateCurrentView(tab, latestDataByTab.warnings);
+      cancelScheduledWarningDetailsRefresh();
+      void refreshRiverFloodData();
+      return;
+    }
+
     if (layerId !== "kikikuru" && !KIKIKURU_LAYER_OPTIONS.some((element) => element.id === layerId)) return;
     activeWarningView = "kikikuru";
     if (layerId !== "kikikuru") activeKikikuruLayer = layerId;
+    currentKikikuruStatus = { status: "loading", elementId: activeKikikuruLayer };
     if (activeTab !== "warnings") return;
     const tab = TABS.find((item) => item.id === "warnings");
     updateCurrentView(tab, latestDataByTab.warnings);
     cancelScheduledWarningDetailsRefresh();
-    refreshKikikuruData();
+    void refreshKikikuruData();
   }
 
   function selectTyphoon(typhoonId) {
@@ -439,7 +463,7 @@ export function createWeatherApp() {
 
   function buildDisplayData(tab, data = {}) {
     if (tab.id === "amedas") return { ...data, activeMetric: activeAmedasMetric };
-    if (tab.id === "warnings") return { ...data, activeWarningView, activeKikikuruLayer };
+    if (tab.id === "warnings") return { ...data, activeWarningView, activeKikikuruLayer, currentKikikuruStatus };
     if (tab.id === "typhoon") return buildTyphoonDisplayData(data);
     if (tab.id === "earthquake") return buildEarthquakeDisplayData(data);
     if (tab.id !== "radar") return data;
@@ -955,6 +979,7 @@ export function createWeatherApp() {
       };
       void locationWarningPush.sync(nextInfo);
       resetLocationRadarTimeline();
+      void refreshCurrentKikikuruStatus();
       refreshSettingsModalView();
       refreshActivePanel();
     } catch (error) {
@@ -1131,22 +1156,58 @@ export function createWeatherApp() {
   }
 
   async function refreshAllWarningData({ force = false } = {}) {
-    const [detailsResult, kikikuruResult] = await Promise.allSettled([
+    const tasks = [
       refreshWarningDetailsData({ force }),
       refreshKikikuruData({ force })
-    ]);
-    if (detailsResult.status === "rejected") {
-      console.warn("[MeteoScope] warning detail refresh failed", detailsResult.reason);
+    ];
+    if (activeWarningView === "river" || latestDataByTab.warnings?.riverFlood) {
+      tasks.push(refreshRiverFloodData({ force }));
     }
-    if (kikikuruResult.status === "rejected") {
-      console.warn("[MeteoScope] kikikuru refresh failed", kikikuruResult.reason);
-    }
+    const results = await Promise.allSettled(tasks);
+    results.filter((result) => result.status === "rejected").forEach((result) => {
+      console.warn("[MeteoScope] warning data refresh failed", result.reason);
+    });
     return latestDataByTab.warnings;
+  }
+
+  async function refreshRiverFloodData({ force = false } = {}) {
+    const current = latestDataByTab.warnings?.riverFlood;
+    if (!force && current?.status === "ok" && Date.now() - riverFloodLoadedAt < RIVER_FLOOD_DATA_TTL_MS) {
+      return latestDataByTab.warnings;
+    }
+    if (riverFloodRequest) return riverFloodRequest;
+
+    riverFloodRequest = fetchRiverFloodForecasts()
+      .then((riverFlood) => {
+        latestDataByTab.warnings = {
+          ...(latestDataByTab.warnings ?? {}),
+          riverFlood: { ...riverFlood, status: "ok" }
+        };
+        riverFloodLoadedAt = Date.now();
+        refreshWarningsView({ view: "river" });
+        return latestDataByTab.warnings;
+      })
+      .catch((error) => {
+        console.warn("[MeteoScope] river flood load failed", error);
+        latestDataByTab.warnings = {
+          ...(latestDataByTab.warnings ?? {}),
+          riverFlood: { status: "error", error, reports: [], riverFeatures: { type: "FeatureCollection", features: [] } }
+        };
+        refreshWarningsView({ view: "river" });
+        return latestDataByTab.warnings;
+      })
+      .finally(() => {
+        riverFloodRequest = null;
+      });
+    return riverFloodRequest;
   }
 
   async function refreshKikikuruData({ force = false } = {}) {
     const currentKikikuru = latestDataByTab.warnings?.kikikuru;
-    if (!force && hasFreshKikikuruData(currentKikikuru, warningKikikuruLoadedAt)) return latestDataByTab.warnings;
+    if (!force && hasFreshKikikuruData(currentKikikuru, warningKikikuruLoadedAt)) {
+      void refreshCurrentKikikuruStatus(currentKikikuru);
+      return latestDataByTab.warnings;
+    }
     if (warningKikikuruRequest) return warningKikikuruRequest;
 
     warningKikikuruRequest = fetchKikikuruTiles()
@@ -1157,6 +1218,7 @@ export function createWeatherApp() {
         };
         warningKikikuruLoadedAt = Date.now();
         refreshWarningsView({ view: "kikikuru" });
+        void refreshCurrentKikikuruStatus(kikikuruData);
         return latestDataByTab.warnings;
       })
       .catch((error) => {
@@ -1172,6 +1234,30 @@ export function createWeatherApp() {
         warningKikikuruRequest = null;
       });
     return warningKikikuruRequest;
+  }
+
+  async function refreshCurrentKikikuruStatus(kikikuruData = latestDataByTab.warnings?.kikikuru) {
+    const coordinates = currentLocationInfo?.coordinates;
+    const requestId = ++currentKikikuruRequestId;
+    if (currentLocationInfo?.status !== "found" || !Array.isArray(coordinates) || !kikikuruData?.tileUrls) {
+      currentKikikuruStatus = { status: "unavailable", elementId: activeKikikuruLayer, label: "取得できません" };
+      refreshWarningsView({ view: "kikikuru" });
+      return currentKikikuruStatus;
+    }
+
+    currentKikikuruStatus = { status: "loading", elementId: activeKikikuruLayer };
+    refreshWarningsView({ view: "kikikuru" });
+    try {
+      const result = await sampleCurrentKikikuruStatus(coordinates, kikikuruData, activeKikikuruLayer);
+      if (requestId !== currentKikikuruRequestId) return currentKikikuruStatus;
+      currentKikikuruStatus = result;
+    } catch (error) {
+      if (requestId !== currentKikikuruRequestId) return currentKikikuruStatus;
+      console.warn("[MeteoScope] current location kikikuru sample failed", error);
+      currentKikikuruStatus = { status: "unavailable", elementId: activeKikikuruLayer, label: "取得できません" };
+    }
+    refreshWarningsView({ view: "kikikuru" });
+    return currentKikikuruStatus;
   }
 
   function refreshWarningsView(options = {}) {
@@ -1520,7 +1606,8 @@ function mergeWarningTabData(currentData, nextData = {}) {
     return {
       ...currentData,
       ...nextData,
-      kikikuru: nextData.kikikuru ?? currentData.kikikuru
+      kikikuru: nextData.kikikuru ?? currentData.kikikuru,
+      riverFlood: nextData.riverFlood ?? currentData.riverFlood
     };
   }
 
@@ -1531,6 +1618,7 @@ function mergeWarningTabData(currentData, nextData = {}) {
     earlyAreas: currentData.earlyAreas ?? nextData.earlyAreas,
     earlyMunicipalityAreas: currentData.earlyMunicipalityAreas ?? nextData.earlyMunicipalityAreas,
     kikikuru: currentData.kikikuru ?? nextData.kikikuru,
+    riverFlood: currentData.riverFlood ?? nextData.riverFlood,
     detailsLoaded: Boolean(nextData.detailsLoaded)
   };
 }

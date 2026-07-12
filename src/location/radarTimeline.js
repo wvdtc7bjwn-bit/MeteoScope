@@ -78,7 +78,7 @@ async function sampleRadarFrame(frame, lng, lat) {
   };
 }
 
-function lngLatToTilePixel(lng, lat, z) {
+export function lngLatToTilePixel(lng, lat, z) {
   const n = 2 ** z;
   const xFloat = ((lng + 180) / 360) * n;
   const latRad = lat * Math.PI / 180;
@@ -97,7 +97,7 @@ function clampTile(value, n) {
   return Math.max(0, Math.min(n - 1, value));
 }
 
-async function loadTileImageData(url) {
+export async function loadTileImageData(url) {
   if (imageCache.has(url)) return imageCache.get(url);
 
   const promise = new Promise((resolve, reject) => {
