@@ -74,6 +74,39 @@
         <section class="admin-card">
           <div class="admin-section-head">
             <div class="admin-section-title">
+              <h3>プッシュ通知配信</h3>
+              <p>通知を有効にしている端末へ一斉配信</p>
+            </div>
+          </div>
+          <form id="admin-push-form" class="admin-push-form">
+            <label class="admin-field">
+              <span>通知タイトル</span>
+              <input id="admin-push-title" type="text" maxlength="80" placeholder="MeteoScopeからのお知らせ" required />
+            </label>
+            <label class="admin-field">
+              <span>通知本文</span>
+              <textarea id="admin-push-body" rows="3" maxlength="400" placeholder="通知する内容を入力してください。" required></textarea>
+            </label>
+            <label class="admin-field">
+              <span>タップ時の移動先</span>
+              <select id="admin-push-url">
+                <option value="/">アプリトップ</option>
+                <option value="/?tab=radar">雨雲レーダー</option>
+                <option value="/?tab=amedas">アメダス</option>
+                <option value="/?tab=warnings">警報・注意報</option>
+                <option value="/?tab=typhoon">台風情報</option>
+                <option value="/?tab=earthquake">地震情報</option>
+              </select>
+            </label>
+            <button id="admin-push-submit" class="admin-primary-button" type="submit">通知を配信予約</button>
+            <p class="admin-muted">既存のお知らせ表示とは連動しません。予約後、1分間隔の通知処理で最大25端末ずつ配信します。</p>
+          </form>
+          <div id="admin-push-history" class="admin-push-history"></div>
+        </section>
+
+        <section class="admin-card">
+          <div class="admin-section-head">
+            <div class="admin-section-title">
               <h3>アーリーアクセス</h3>
               <p>D1に保存するシリアルコードを発行・失効</p>
             </div>

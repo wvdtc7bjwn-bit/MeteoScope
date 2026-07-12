@@ -10,6 +10,9 @@ const VAPID_KEYS_KEY = "push:vapid-keys";
 const JMA_WARNING_BASE = "https://www.jma.go.jp/bosai/warning/data/r8";
 const PUSH_TTL_SECONDS = 60;
 const MAX_PENDING_MESSAGES = 6;
+const ADMIN_BROADCAST_BATCH_SIZE = 25;
+const ADMIN_BROADCAST_MAX_ATTEMPTS = 3;
+let adminBroadcastTablesReady = false;
 
 export async function onRequest({ request, env }) {
   try {
@@ -33,8 +36,15 @@ export async function onRequest({ request, env }) {
 
 export async function runWarningPushCheck(env) {
   requireNotificationStorage(env);
+  let adminBroadcast;
+  try {
+    adminBroadcast = await runAdminPushBroadcasts(env);
+  } catch (error) {
+    console.error("[Push API] admin broadcast processing failed", error);
+    adminBroadcast = { processed: 0, sent: 0, removed: 0, failed: 0, error: true };
+  }
   const subscriptions = await listSubscriptions(env);
-  if (!subscriptions.length) return { checked: 0, notified: 0, removed: 0 };
+  if (!subscriptions.length) return { checked: 0, notified: 0, removed: 0, adminBroadcast };
 
   const warningAreas = await fetchActiveWarningAreas();
   let notified = 0;
@@ -66,7 +76,7 @@ export async function runWarningPushCheck(env) {
 
     if (result) {
       await enqueuePendingMessage(env, id, result);
-      const pushResult = await sendEmptyPush(subscription.pushSubscription, env);
+      const pushResult = await sendEmptyPushSafely(subscription.pushSubscription, env);
       if (pushResult.ok) {
         notified += 1;
         nextSubscription.lastNotifiedAt = new Date().toISOString();
@@ -85,7 +95,144 @@ export async function runWarningPushCheck(env) {
     }
   }
 
-  return { checked: subscriptions.length, notified, removed, storage: env.NOTIFICATIONS_DB ? "d1" : "kv" };
+  return {
+    checked: subscriptions.length,
+    notified,
+    removed,
+    adminBroadcast,
+    storage: env.NOTIFICATIONS_DB ? "d1" : "kv"
+  };
+}
+
+export async function queueAdminPushBroadcast(env, input) {
+  requireNotificationStorage(env);
+  await ensureAdminBroadcastTables(env);
+  const broadcast = normalizeAdminBroadcast(input);
+  const subscriptions = (await listSubscriptions(env))
+    .filter((subscription) => (
+      subscription?.id
+      && subscription?.pushSubscription?.endpoint
+      && subscription?.preferences?.adminBroadcast !== false
+    ));
+  const now = new Date().toISOString();
+  const status = subscriptions.length ? "queued" : "completed";
+
+  await env.NOTIFICATIONS_DB.prepare(
+    `INSERT INTO admin_push_broadcasts
+      (id, title, body, url, status, total_count, sent_count, removed_count, failed_count, created_at, completed_at)
+     VALUES (?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?)`
+  ).bind(
+    broadcast.id,
+    broadcast.title,
+    broadcast.body,
+    broadcast.url,
+    status,
+    subscriptions.length,
+    now,
+    status === "completed" ? now : null
+  ).run();
+
+  for (let index = 0; index < subscriptions.length; index += 50) {
+    const statements = subscriptions.slice(index, index + 50).map((subscription) =>
+      env.NOTIFICATIONS_DB.prepare(
+        `INSERT OR IGNORE INTO admin_push_deliveries
+          (broadcast_id, subscription_id, status, attempts, enqueued, last_error, updated_at)
+         VALUES (?, ?, 'pending', 0, 0, '', ?)`
+      ).bind(broadcast.id, String(subscription.id || ""), now)
+    );
+    if (statements.length) await env.NOTIFICATIONS_DB.batch(statements);
+  }
+
+  await pruneAdminPushBroadcastHistory(env);
+  return getAdminPushBroadcast(env, broadcast.id);
+}
+
+export async function listAdminPushBroadcasts(env, limit = 20) {
+  requireNotificationStorage(env);
+  await ensureAdminBroadcastTables(env);
+  const safeLimit = Math.min(50, Math.max(1, Number(limit) || 20));
+  const result = await env.NOTIFICATIONS_DB.prepare(
+    `SELECT id, title, body, url, status, total_count, sent_count, removed_count,
+            failed_count, created_at, completed_at
+     FROM admin_push_broadcasts ORDER BY created_at DESC LIMIT ?`
+  ).bind(safeLimit).all();
+  return (result.results || []).map(publicAdminBroadcast);
+}
+
+export async function runAdminPushBroadcasts(env) {
+  requireNotificationStorage(env);
+  await ensureAdminBroadcastTables(env);
+  const broadcast = await env.NOTIFICATIONS_DB.prepare(
+    `SELECT id, title, body, url, status, total_count, sent_count, removed_count,
+            failed_count, created_at, completed_at
+     FROM admin_push_broadcasts
+     WHERE status IN ('queued', 'sending')
+     ORDER BY created_at ASC LIMIT 1`
+  ).first();
+  if (!broadcast?.id) return { processed: 0, sent: 0, removed: 0, failed: 0 };
+
+  const now = new Date().toISOString();
+  await env.NOTIFICATIONS_DB.prepare(
+    "UPDATE admin_push_broadcasts SET status = 'sending' WHERE id = ?"
+  ).bind(broadcast.id).run();
+
+  const deliveryResult = await env.NOTIFICATIONS_DB.prepare(
+    `SELECT d.subscription_id, d.attempts, d.enqueued, s.data
+     FROM admin_push_deliveries d
+     LEFT JOIN push_subscriptions s ON s.id = d.subscription_id
+     WHERE d.broadcast_id = ? AND d.status = 'pending'
+     ORDER BY d.updated_at ASC LIMIT ?`
+  ).bind(broadcast.id, ADMIN_BROADCAST_BATCH_SIZE).all();
+  const deliveries = deliveryResult.results || [];
+  const vapidKeys = deliveries.length ? await getVapidKeys(env, { create: true }) : null;
+  let sent = 0;
+  let removed = 0;
+  let failed = 0;
+
+  for (const delivery of deliveries) {
+    const subscription = parseJson(delivery.data, null);
+    const subscriptionId = String(delivery.subscription_id || "");
+    if (!subscription?.pushSubscription?.endpoint) {
+      await markAdminDelivery(env, broadcast.id, subscriptionId, "removed", delivery.attempts, "購読情報がありません。", now);
+      removed += 1;
+      continue;
+    }
+
+    const message = buildAdminBroadcastMessage(broadcast);
+    if (!Number(delivery.enqueued)) {
+      await enqueueAdminBroadcastMessage(env, broadcast.id, subscriptionId, message, now);
+    }
+    const pushResult = await sendEmptyPushSafely(subscription.pushSubscription, env, vapidKeys);
+    if (pushResult.ok) {
+      await markAdminDelivery(env, broadcast.id, subscriptionId, "sent", Number(delivery.attempts) + 1, "", now);
+      sent += 1;
+      continue;
+    }
+    if (pushResult.status === 404 || pushResult.status === 410) {
+      await deleteSubscription(env, subscriptionId);
+      await markAdminDelivery(env, broadcast.id, subscriptionId, "removed", Number(delivery.attempts) + 1, pushResult.statusText, now);
+      removed += 1;
+      continue;
+    }
+
+    const attempts = Number(delivery.attempts) + 1;
+    const nextStatus = attempts >= ADMIN_BROADCAST_MAX_ATTEMPTS ? "failed" : "pending";
+    await markAdminDelivery(env, broadcast.id, subscriptionId, nextStatus, attempts, pushResult.statusText, now);
+    if (nextStatus === "failed") {
+      await deleteAdminPendingMessage(env, subscriptionId, message.id);
+      failed += 1;
+    }
+  }
+
+  const updated = await refreshAdminBroadcastCounts(env, broadcast.id);
+  return {
+    id: broadcast.id,
+    processed: deliveries.length,
+    sent,
+    removed,
+    failed,
+    status: updated?.status || "queued"
+  };
 }
 
 function sameWarningState(previous, next) {
@@ -366,9 +513,178 @@ async function enqueuePendingMessage(env, id, message) {
   ]);
 }
 
-async function sendEmptyPush(pushSubscription, env) {
+async function ensureAdminBroadcastTables(env) {
+  if (adminBroadcastTablesReady) return;
+  await env.NOTIFICATIONS_DB.batch([
+    env.NOTIFICATIONS_DB.prepare(
+      `CREATE TABLE IF NOT EXISTS admin_push_broadcasts (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        body TEXT NOT NULL,
+        url TEXT NOT NULL,
+        status TEXT NOT NULL,
+        total_count INTEGER NOT NULL DEFAULT 0,
+        sent_count INTEGER NOT NULL DEFAULT 0,
+        removed_count INTEGER NOT NULL DEFAULT 0,
+        failed_count INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        completed_at TEXT
+      )`
+    ),
+    env.NOTIFICATIONS_DB.prepare(
+      `CREATE TABLE IF NOT EXISTS admin_push_deliveries (
+        broadcast_id TEXT NOT NULL,
+        subscription_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        attempts INTEGER NOT NULL DEFAULT 0,
+        enqueued INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (broadcast_id, subscription_id)
+      )`
+    ),
+    env.NOTIFICATIONS_DB.prepare(
+      "CREATE INDEX IF NOT EXISTS idx_admin_push_delivery_status ON admin_push_deliveries (broadcast_id, status, updated_at)"
+    )
+  ]);
+  adminBroadcastTablesReady = true;
+}
+
+function normalizeAdminBroadcast(input) {
+  const title = String(input?.title || "").trim().slice(0, 80);
+  const body = String(input?.body || "").trim().slice(0, 400);
+  if (!title || !body) {
+    throw json({ error: "通知タイトルと本文を入力してください。" }, { status: 400 });
+  }
+  return {
+    id: crypto.randomUUID(),
+    title,
+    body,
+    url: normalizeAdminBroadcastUrl(input?.url)
+  };
+}
+
+function normalizeAdminBroadcastUrl(value) {
+  const url = String(value || "/").trim();
+  if (!url.startsWith("/") || url.startsWith("//")) return "/";
+  return url.slice(0, 200);
+}
+
+function buildAdminBroadcastMessage(broadcast) {
+  return {
+    id: `admin-${broadcast.id}`,
+    title: String(broadcast.title || "MeteoScope"),
+    body: String(broadcast.body || ""),
+    tag: `admin-${broadcast.id}`,
+    url: normalizeAdminBroadcastUrl(broadcast.url),
+    createdAt: broadcast.created_at || new Date().toISOString()
+  };
+}
+
+async function enqueueAdminBroadcastMessage(env, broadcastId, subscriptionId, message, now) {
+  await env.NOTIFICATIONS_DB.batch([
+    env.NOTIFICATIONS_DB.prepare(
+      "INSERT INTO push_pending_messages (subscription_id, data, created_at) VALUES (?, ?, ?)"
+    ).bind(subscriptionId, JSON.stringify(message), now),
+    env.NOTIFICATIONS_DB.prepare(
+      `UPDATE admin_push_deliveries SET enqueued = 1, updated_at = ?
+       WHERE broadcast_id = ? AND subscription_id = ?`
+    ).bind(now, broadcastId, subscriptionId),
+    env.NOTIFICATIONS_DB.prepare(
+      `DELETE FROM push_pending_messages
+       WHERE subscription_id = ? AND id NOT IN (
+         SELECT id FROM push_pending_messages WHERE subscription_id = ? ORDER BY id DESC LIMIT ?
+       )`
+    ).bind(subscriptionId, subscriptionId, MAX_PENDING_MESSAGES)
+  ]);
+}
+
+async function markAdminDelivery(env, broadcastId, subscriptionId, status, attempts, error, now) {
+  await env.NOTIFICATIONS_DB.prepare(
+    `UPDATE admin_push_deliveries
+     SET status = ?, attempts = ?, last_error = ?, updated_at = ?
+     WHERE broadcast_id = ? AND subscription_id = ?`
+  ).bind(status, attempts, String(error || "").slice(0, 160), now, broadcastId, subscriptionId).run();
+}
+
+async function deleteAdminPendingMessage(env, subscriptionId, messageId) {
+  await env.NOTIFICATIONS_DB.prepare(
+    `DELETE FROM push_pending_messages
+     WHERE subscription_id = ? AND json_extract(data, '$.id') = ?`
+  ).bind(subscriptionId, messageId).run();
+}
+
+async function refreshAdminBroadcastCounts(env, broadcastId) {
+  const counts = await env.NOTIFICATIONS_DB.prepare(
+    `SELECT
+       COUNT(*) AS total_count,
+       SUM(CASE WHEN status = 'sent' THEN 1 ELSE 0 END) AS sent_count,
+       SUM(CASE WHEN status = 'removed' THEN 1 ELSE 0 END) AS removed_count,
+       SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed_count,
+       SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_count
+     FROM admin_push_deliveries WHERE broadcast_id = ?`
+  ).bind(broadcastId).first();
+  const pending = Number(counts?.pending_count || 0);
+  const status = pending > 0 ? "queued" : "completed";
+  const completedAt = status === "completed" ? new Date().toISOString() : null;
+  await env.NOTIFICATIONS_DB.prepare(
+    `UPDATE admin_push_broadcasts
+     SET status = ?, total_count = ?, sent_count = ?, removed_count = ?, failed_count = ?, completed_at = ?
+     WHERE id = ?`
+  ).bind(
+    status,
+    Number(counts?.total_count || 0),
+    Number(counts?.sent_count || 0),
+    Number(counts?.removed_count || 0),
+    Number(counts?.failed_count || 0),
+    completedAt,
+    broadcastId
+  ).run();
+  return getAdminPushBroadcast(env, broadcastId);
+}
+
+async function getAdminPushBroadcast(env, id) {
+  const row = await env.NOTIFICATIONS_DB.prepare(
+    `SELECT id, title, body, url, status, total_count, sent_count, removed_count,
+            failed_count, created_at, completed_at
+     FROM admin_push_broadcasts WHERE id = ?`
+  ).bind(id).first();
+  return row ? publicAdminBroadcast(row) : null;
+}
+
+async function pruneAdminPushBroadcastHistory(env) {
+  await env.NOTIFICATIONS_DB.batch([
+    env.NOTIFICATIONS_DB.prepare(
+      `DELETE FROM admin_push_deliveries
+       WHERE broadcast_id IN (
+         SELECT id FROM admin_push_broadcasts WHERE datetime(created_at) < datetime('now', '-90 days')
+       )`
+    ),
+    env.NOTIFICATIONS_DB.prepare(
+      "DELETE FROM admin_push_broadcasts WHERE datetime(created_at) < datetime('now', '-90 days')"
+    )
+  ]);
+}
+
+function publicAdminBroadcast(row) {
+  return {
+    id: String(row?.id || ""),
+    title: String(row?.title || ""),
+    body: String(row?.body || ""),
+    url: normalizeAdminBroadcastUrl(row?.url),
+    status: ["queued", "sending", "completed"].includes(row?.status) ? row.status : "queued",
+    total: Number(row?.total_count || 0),
+    sent: Number(row?.sent_count || 0),
+    removed: Number(row?.removed_count || 0),
+    failed: Number(row?.failed_count || 0),
+    createdAt: row?.created_at || null,
+    completedAt: row?.completed_at || null
+  };
+}
+
+async function sendEmptyPush(pushSubscription, env, preparedVapidKeys = null) {
   const endpoint = pushSubscription?.endpoint;
-  const vapidKeys = await getVapidKeys(env, { create: true });
+  const vapidKeys = preparedVapidKeys || await getVapidKeys(env, { create: true });
   if (!endpoint || !vapidKeys?.publicKey || !vapidKeys?.privateKey) {
     return { ok: false, status: 0, statusText: "missing push configuration" };
   }
@@ -382,6 +698,19 @@ async function sendEmptyPush(pushSubscription, env) {
       "Authorization": `vapid t=${token}, k=${vapidKeys.publicKey}`
     }
   });
+}
+
+async function sendEmptyPushSafely(pushSubscription, env, preparedVapidKeys = null) {
+  try {
+    return await sendEmptyPush(pushSubscription, env, preparedVapidKeys);
+  } catch (error) {
+    console.warn("[Push API] push request failed", error);
+    return {
+      ok: false,
+      status: 0,
+      statusText: error instanceof Error ? error.message : "push request failed"
+    };
+  }
 }
 
 async function createVapidJwt(audience, env, vapidKeys) {
@@ -485,7 +814,8 @@ function normalizeArea(area) {
 
 function normalizePreferences(preferences) {
   return {
-    notifyAdvisory: Boolean(preferences?.notifyAdvisory)
+    notifyAdvisory: Boolean(preferences?.notifyAdvisory),
+    adminBroadcast: preferences?.adminBroadcast !== false
   };
 }
 

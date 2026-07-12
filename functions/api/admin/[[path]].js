@@ -32,6 +32,8 @@ export async function onRequest({ request, env }) {
     if (route === "config" && method === "PUT") return await putConfig(request, env);
     if (route === "notices" && method === "GET") return await getNotices(env);
     if (route === "notices" && method === "PUT") return await putNotices(request, env);
+    if (route === "push/broadcasts" && method === "GET") return await getPushBroadcasts(env);
+    if (route === "push/broadcasts" && method === "POST") return await postPushBroadcast(request, env);
     if (route === "feedback" && method === "GET") return await getFeedback(env);
     if (route === "early-access/codes" && method === "GET") return await getEarlyAccessCodes(env);
     if (route === "early-access/codes" && method === "POST") return await createEarlyAccessCode(request, env);
@@ -141,6 +143,18 @@ async function putNotices(request, env) {
     : [];
   await writeJson(db, NOTICES_KEY, notices);
   return json({ notices });
+}
+
+async function getPushBroadcasts(env) {
+  const broadcasts = await listAdminPushBroadcasts(env);
+  return json({ broadcasts });
+}
+
+async function postPushBroadcast(request, env) {
+  const payload = await request.json().catch(() => ({}));
+  const broadcast = await queueAdminPushBroadcast(env, payload);
+  const broadcasts = await listAdminPushBroadcasts(env);
+  return json({ broadcast, broadcasts }, { status: 202 });
 }
 
 async function getFeedback(env) {
@@ -478,3 +492,4 @@ function json(payload, init = {}) {
   });
 }
 import { readJson, writeJson, requireD1 } from "../../_shared/d1Store.js";
+import { listAdminPushBroadcasts, queueAdminPushBroadcast } from "../push/[[path]].js";

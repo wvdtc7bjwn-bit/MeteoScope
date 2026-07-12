@@ -181,7 +181,9 @@ h3 {
 }
 
 .admin-login-form input,
+.admin-field input,
 .admin-field textarea,
+.admin-field select,
 .admin-notice-editor input,
 .admin-notice-editor textarea,
 .admin-notice-editor select {
@@ -196,7 +198,9 @@ h3 {
 }
 
 .admin-login-form input:focus,
+.admin-field input:focus,
 .admin-field textarea:focus,
+.admin-field select:focus,
 .admin-notice-editor input:focus,
 .admin-notice-editor textarea:focus,
 .admin-notice-editor select:focus {
@@ -301,6 +305,89 @@ h3 {
   display: grid;
   gap: 14px;
   margin-top: 16px;
+}
+
+.admin-push-form {
+  display: grid;
+}
+
+.admin-push-form .admin-primary-button {
+  justify-self: start;
+  margin-top: 16px;
+}
+
+.admin-push-form .admin-primary-button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.admin-push-history {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.admin-push-history-item {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(148, 197, 239, 0.14);
+  border-radius: 14px;
+  background: rgba(7, 17, 32, 0.5);
+}
+
+.admin-push-history-head,
+.admin-push-counts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.admin-push-history-head {
+  justify-content: space-between;
+}
+
+.admin-push-history-head strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-push-history-head > span,
+.admin-push-counts span {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.admin-push-history-head > span {
+  color: #bfeaff;
+  background: rgba(86, 183, 242, 0.16);
+}
+
+.admin-push-history-head > span[data-status="completed"] {
+  color: #d9ffd2;
+  background: rgba(104, 195, 96, 0.16);
+}
+
+.admin-push-history-item p {
+  margin: 0;
+  color: #c5d5e6;
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.admin-push-counts span {
+  color: #a9bdd4;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-push-history-item small {
+  color: #839bb4;
+  font-size: 11px;
 }
 
 .admin-notice-editor {

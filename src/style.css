@@ -5740,14 +5740,27 @@ html[data-theme="light"] :is(input, textarea, select) {
 
 html[data-theme="light"] .remote-notice-card,
 html[data-theme="light"] .remote-notice-ticker {
-  border-color: rgba(63, 89, 118, 0.22);
+  border-color: rgba(54, 83, 114, 0.32);
   color: #15283e;
-  background: rgba(250, 253, 255, 0.92);
-  box-shadow: 0 14px 34px rgba(54, 75, 99, 0.18);
+  background: rgba(238, 246, 252, 0.94);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.86),
+    0 14px 34px rgba(54, 75, 99, 0.22);
 }
 
 html[data-theme="light"] .remote-notice-card p {
   color: #53677d;
+}
+
+html[data-theme="light"] .remote-notice-ticker-track span {
+  color: #172d44;
+  text-shadow: none;
+}
+
+html[data-theme="light"] .remote-notice-ticker-close {
+  border-color: rgba(55, 82, 111, 0.24);
+  color: #203a55;
+  background: rgba(213, 226, 238, 0.74);
 }
 
 html[data-theme="light"] .warning-detail-list {

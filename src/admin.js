@@ -10,6 +10,7 @@ let currentConfig = structuredClone(DEFAULT_CONFIG);
 let currentNotices = [];
 let currentFeedback = [];
 let currentEarlyAccessCodes = [];
+let currentPushBroadcasts = [];
 
 const elements = {
   loginView: document.getElementById("login-view"),
@@ -38,7 +39,13 @@ const elements = {
   earlyAccessGenerated: document.getElementById("early-access-generated"),
   earlyAccessSerial: document.getElementById("early-access-serial"),
   copyEarlyAccessSerial: document.getElementById("copy-early-access-serial"),
-  earlyAccessCodeList: document.getElementById("early-access-code-list")
+  earlyAccessCodeList: document.getElementById("early-access-code-list"),
+  pushForm: document.getElementById("admin-push-form"),
+  pushTitle: document.getElementById("admin-push-title"),
+  pushBody: document.getElementById("admin-push-body"),
+  pushUrl: document.getElementById("admin-push-url"),
+  pushSubmit: document.getElementById("admin-push-submit"),
+  pushHistory: document.getElementById("admin-push-history")
 };
 
 void initialize();
@@ -114,6 +121,10 @@ function bindEvents() {
     const button = event.target.closest("[data-revoke-early-access]");
     if (button) void revokeEarlyAccessCode(button.dataset.revokeEarlyAccess);
   });
+  elements.pushForm?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void sendAdminPushBroadcast();
+  });
 }
 
 function showLogin() {
@@ -130,23 +141,93 @@ function showDashboard() {
 
 async function refreshDashboard() {
   setMessage(elements.dashboardMessage, "読み込み中...");
-  const [status, config, notices, feedback, earlyAccess] = await Promise.all([
+  const [status, config, notices, feedback, earlyAccess, pushBroadcasts] = await Promise.all([
     requestJson("/status"),
     requestJson("/config"),
     requestJson("/notices"),
     requestJson("/feedback"),
-    requestJson("/early-access/codes")
+    requestJson("/early-access/codes"),
+    requestJson("/push/broadcasts")
   ]);
   renderStatus(status);
   currentConfig = normalizeConfig(config.config);
   currentNotices = Array.isArray(notices.notices) ? notices.notices : [];
   currentFeedback = Array.isArray(feedback.feedback) ? feedback.feedback : [];
   currentEarlyAccessCodes = Array.isArray(earlyAccess.codes) ? earlyAccess.codes : [];
+  currentPushBroadcasts = Array.isArray(pushBroadcasts.broadcasts) ? pushBroadcasts.broadcasts : [];
   renderConfig();
   renderNotices();
   renderFeedback();
   renderEarlyAccessCodes();
+  renderPushBroadcasts();
   setMessage(elements.dashboardMessage, "読み込みました。", "success");
+}
+
+async function sendAdminPushBroadcast() {
+  const title = elements.pushTitle?.value.trim() || "";
+  const body = elements.pushBody?.value.trim() || "";
+  const url = elements.pushUrl?.value || "/";
+  if (!title || !body) {
+    setMessage(elements.dashboardMessage, "通知タイトルと本文を入力してください。", "error");
+    return;
+  }
+  if (!confirm(`「${title}」を通知購読端末へ配信予約しますか？`)) return;
+
+  setMessage(elements.dashboardMessage, "プッシュ通知を予約中...");
+  if (elements.pushSubmit) elements.pushSubmit.disabled = true;
+  try {
+    const response = await requestJson("/push/broadcasts", {
+      method: "POST",
+      body: { title, body, url }
+    });
+    currentPushBroadcasts = Array.isArray(response.broadcasts) ? response.broadcasts : [];
+    renderPushBroadcasts();
+    if (elements.pushTitle) elements.pushTitle.value = "";
+    if (elements.pushBody) elements.pushBody.value = "";
+    if (elements.pushUrl) elements.pushUrl.value = "/";
+    const total = Number(response.broadcast?.total || 0);
+    setMessage(
+      elements.dashboardMessage,
+      total ? `${total}端末への通知を予約しました。` : "配信対象の通知購読端末はありませんでした。",
+      total ? "success" : ""
+    );
+  } catch (error) {
+    setMessage(elements.dashboardMessage, error.message || "プッシュ通知を予約できませんでした。", "error");
+  } finally {
+    if (elements.pushSubmit) elements.pushSubmit.disabled = false;
+  }
+}
+
+function renderPushBroadcasts() {
+  if (!elements.pushHistory) return;
+  if (!currentPushBroadcasts.length) {
+    elements.pushHistory.innerHTML = `<p class="admin-muted">配信履歴はありません。</p>`;
+    return;
+  }
+  elements.pushHistory.innerHTML = currentPushBroadcasts.map((broadcast) => `
+    <article class="admin-push-history-item">
+      <div class="admin-push-history-head">
+        <strong>${escapeHtml(broadcast.title || "通知")}</strong>
+        <span data-status="${escapeAttribute(broadcast.status || "queued")}">${escapeHtml(pushBroadcastStatusLabel(broadcast.status))}</span>
+      </div>
+      <p>${escapeHtml(broadcast.body || "")}</p>
+      <div class="admin-push-counts">
+        <span>対象 ${Number(broadcast.total || 0)}</span>
+        <span>配信 ${Number(broadcast.sent || 0)}</span>
+        <span>失効 ${Number(broadcast.removed || 0)}</span>
+        <span>失敗 ${Number(broadcast.failed || 0)}</span>
+      </div>
+      <small>${escapeHtml(formatAdminDate(broadcast.createdAt))}</small>
+    </article>
+  `).join("");
+}
+
+function pushBroadcastStatusLabel(status) {
+  return {
+    queued: "配信待ち",
+    sending: "配信中",
+    completed: "完了"
+  }[status] || "配信待ち";
 }
 
 async function generateEarlyAccessCode() {

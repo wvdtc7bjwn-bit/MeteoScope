@@ -1,5 +1,5 @@
 self.addEventListener("push", (event) => {
-  event.waitUntil(showPendingWarningNotifications());
+  event.waitUntil(showPendingNotifications());
 });
 
 self.addEventListener("notificationclick", (event) => {
@@ -8,7 +8,7 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(openOrFocusClient(targetUrl));
 });
 
-async function showPendingWarningNotifications() {
+async function showPendingNotifications() {
   const subscription = await self.registration.pushManager.getSubscription();
   if (!subscription?.endpoint) return;
 
