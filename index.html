@@ -90,6 +90,7 @@
     <main id="map-area">
       <div id="map"></div>
       <div id="clock"></div>
+      <button id="disaster-map-button" class="disaster-map-open-button" type="button" aria-label="防災マップを開く" title="防災マップ"></button>
       <button id="locate-button" class="map-locate-button" type="button" aria-label="現在地の気象情報を表示" title="現在地"></button>
       <div id="radar-overlay-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs radar-overlay-tabs" hidden></div>
       <div id="kikikuru-layer-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs" hidden></div>
@@ -183,11 +184,11 @@
             </div>
           </section>
           <section class="settings-group settings-disaster-map-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>防災マップPDF</button>
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>防災マップ</button>
             <div class="settings-group-content" hidden>
               <div class="settings-disaster-map-row">
                 <div class="settings-disaster-map-info">
-                  <strong>保存済みPDF</strong>
+                  <strong>保存済みファイル</strong>
                   <span id="settings-disaster-map-status">確認中...</span>
                 </div>
                 <button id="settings-disaster-map-clear" type="button" data-settings-clear-disaster-map-pdf disabled>削除</button>
@@ -306,30 +307,67 @@
       <section class="warning-modal-panel disaster-map-panel" role="dialog" aria-modal="true" aria-labelledby="disaster-map-title">
         <header class="settings-modal-header disaster-map-header">
           <div>
-            <span>自治体公開PDF</span>
-            <h2 id="disaster-map-title">防災マップPDF</h2>
+            <span>自治体公開資料</span>
+            <h2 id="disaster-map-title">防災マップ</h2>
           </div>
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-disaster-map-close>×</button>
         </header>
         <div class="disaster-map-body">
           <div class="disaster-map-toolbar">
             <div class="disaster-map-file-row">
-              <label class="disaster-map-file-button" for="disaster-map-file">PDFファイルを選択</label>
-              <input id="disaster-map-file" class="disaster-map-file-input" type="file" accept="application/pdf,.pdf" />
+              <label class="disaster-map-file-button" for="disaster-map-file">PDF・画像を選択</label>
+              <input id="disaster-map-file" class="disaster-map-file-input" type="file" accept="application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg" />
               <a id="disaster-map-open" class="disaster-map-secondary" target="_blank" rel="noopener noreferrer" hidden>別タブで開く</a>
               <button id="disaster-map-clear" class="disaster-map-secondary" type="button">クリア</button>
             </div>
-            <p id="disaster-map-status" class="disaster-map-status">PDFファイルを選択してください。</p>
+            <p id="disaster-map-status" class="disaster-map-status">PDFまたは画像を選択してください。</p>
           </div>
           <div class="disaster-map-viewer">
-            <div id="disaster-map-pages" class="disaster-map-pages" aria-label="防災マップPDFプレビュー"></div>
+            <div id="disaster-map-pages" class="disaster-map-pages" aria-label="防災マッププレビュー"></div>
+            <div id="disaster-map-annotation-toolbar" class="disaster-map-annotation-toolbar" hidden>
+              <button id="disaster-map-marker-add" type="button" aria-pressed="false">目印追加</button>
+              <button id="disaster-map-marker-list-toggle" type="button" aria-expanded="false">一覧</button>
+            </div>
+            <aside id="disaster-map-annotation-panel" class="disaster-map-annotation-panel" aria-label="防災メモ" hidden>
+              <header>
+                <strong id="disaster-map-annotation-panel-title">防災メモ</strong>
+                <button id="disaster-map-annotation-panel-close" type="button" aria-label="閉じる">×</button>
+              </header>
+              <form id="disaster-map-annotation-form" hidden>
+                <label>
+                  <span>種類</span>
+                  <select id="disaster-map-annotation-category">
+                    <option value="home">自宅</option>
+                    <option value="shelter">避難所</option>
+                    <option value="meeting">集合場所</option>
+                    <option value="danger">危険箇所</option>
+                    <option value="supplies">備蓄場所</option>
+                    <option value="note">その他</option>
+                  </select>
+                </label>
+                <label>
+                  <span>タイトル</span>
+                  <input id="disaster-map-annotation-title" type="text" maxlength="40" placeholder="例: 家族の集合場所" />
+                </label>
+                <label>
+                  <span>メモ</span>
+                  <textarea id="disaster-map-annotation-memo" maxlength="500" rows="5" placeholder="避難時の注意点や持ち物など"></textarea>
+                </label>
+                <div class="disaster-map-annotation-actions">
+                  <button id="disaster-map-annotation-delete" type="button" hidden>削除</button>
+                  <button id="disaster-map-annotation-cancel" type="button">キャンセル</button>
+                  <button class="primary" type="submit">保存</button>
+                </div>
+              </form>
+              <div id="disaster-map-annotation-list" class="disaster-map-annotation-list" hidden></div>
+            </aside>
             <div id="disaster-map-zoom" class="disaster-map-zoom-controls" hidden>
               <button id="disaster-map-zoom-out" type="button" aria-label="縮小">−</button>
               <button id="disaster-map-zoom-fit" type="button" aria-label="幅に合わせる">100%</button>
               <button id="disaster-map-zoom-in" type="button" aria-label="拡大">＋</button>
             </div>
             <div id="disaster-map-placeholder" class="disaster-map-placeholder">
-              PDFを選択するとここに表示されます。
+              PDFまたは画像を選択するとここに表示されます。
             </div>
           </div>
         </div>

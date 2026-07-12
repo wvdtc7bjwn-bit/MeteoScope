@@ -1,11 +1,10 @@
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
-const TRIPLE_CLICK_WINDOW_MS = 1600;
 const PAGE_GAP_PX = 12;
 const MAX_RENDER_OUTPUT_SCALE = 2;
 const MAX_CANVAS_PIXELS = 7_000_000;
 const VISIBLE_PAGE_MARGIN_PX = 900;
-const ZOOM_LEVELS = [0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5];
+const ZOOM_LEVELS = [0.75, 1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 6, 7.5];
 const FIT_ZOOM = 1;
 const MIN_ZOOM = ZOOM_LEVELS[0];
 const MAX_ZOOM = ZOOM_LEVELS[ZOOM_LEVELS.length - 1];
@@ -14,6 +13,15 @@ const STORED_PDF_DB_NAME = "weather-viewer-disaster-map";
 const STORED_PDF_DB_VERSION = 1;
 const STORED_PDF_STORE_NAME = "files";
 const STORED_PDF_KEY = "selected-pdf";
+const STORED_ANNOTATION_KEY_PREFIX = "annotations:";
+const ANNOTATION_CATEGORIES = {
+  home: { label: "自宅", symbol: "⌂" },
+  shelter: { label: "避難所", symbol: "避" },
+  meeting: { label: "集合場所", symbol: "集" },
+  danger: { label: "危険箇所", symbol: "!" },
+  supplies: { label: "備蓄場所", symbol: "備" },
+  note: { label: "その他", symbol: "•" }
+};
 
 let disasterMapInitialized = false;
 let localPdfUrl = "";
@@ -24,7 +32,7 @@ export async function getStoredDisasterMapPdfInfo() {
   const record = await loadStoredPdf();
   if (!record?.blob) return null;
   return {
-    name: record.name || "防災マップ.pdf",
+    name: record.name || "防災マップ",
     size: record.size || record.blob.size || 0,
     updatedAt: record.updatedAt || record.lastModified || 0
   };
@@ -38,8 +46,13 @@ export async function clearStoredDisasterMapPdf() {
 export function setupDisasterMapModal() {
   if (disasterMapInitialized) return;
   disasterMapInitialized = true;
+  try {
+    window.localStorage.removeItem("meteoscope-disaster-map-overlay-v1");
+  } catch {
+    // Storage may be unavailable in private browsing modes.
+  }
 
-  const earthquakeButton = document.querySelector('.tab-button[data-tab="earthquake"]');
+  const openButton = document.getElementById("disaster-map-button");
   const modal = document.getElementById("disaster-map-modal");
   const fileInput = document.getElementById("disaster-map-file");
   const pages = document.getElementById("disaster-map-pages");
@@ -51,9 +64,22 @@ export function setupDisasterMapModal() {
   const zoomOutButton = document.getElementById("disaster-map-zoom-out");
   const zoomFitButton = document.getElementById("disaster-map-zoom-fit");
   const zoomInButton = document.getElementById("disaster-map-zoom-in");
+  const annotationToolbar = document.getElementById("disaster-map-annotation-toolbar");
+  const markerAddButton = document.getElementById("disaster-map-marker-add");
+  const markerListToggle = document.getElementById("disaster-map-marker-list-toggle");
+  const annotationPanel = document.getElementById("disaster-map-annotation-panel");
+  const annotationPanelTitle = document.getElementById("disaster-map-annotation-panel-title");
+  const annotationPanelClose = document.getElementById("disaster-map-annotation-panel-close");
+  const annotationForm = document.getElementById("disaster-map-annotation-form");
+  const annotationCategory = document.getElementById("disaster-map-annotation-category");
+  const annotationTitle = document.getElementById("disaster-map-annotation-title");
+  const annotationMemo = document.getElementById("disaster-map-annotation-memo");
+  const annotationDelete = document.getElementById("disaster-map-annotation-delete");
+  const annotationCancel = document.getElementById("disaster-map-annotation-cancel");
+  const annotationList = document.getElementById("disaster-map-annotation-list");
 
   if (
-    !earthquakeButton ||
+    !openButton ||
     !modal ||
     !fileInput ||
     !pages ||
@@ -63,7 +89,20 @@ export function setupDisasterMapModal() {
     !zoomControls ||
     !zoomOutButton ||
     !zoomFitButton ||
-    !zoomInButton
+    !zoomInButton ||
+    !annotationToolbar ||
+    !markerAddButton ||
+    !markerListToggle ||
+    !annotationPanel ||
+    !annotationPanelTitle ||
+    !annotationPanelClose ||
+    !annotationForm ||
+    !annotationCategory ||
+    !annotationTitle ||
+    !annotationMemo ||
+    !annotationDelete ||
+    !annotationCancel ||
+    !annotationList
   ) {
     return;
   }
@@ -73,9 +112,6 @@ export function setupDisasterMapModal() {
     fileInput.value = "";
   };
 
-  let clickCount = 0;
-  let lastClickAt = 0;
-  let resetTimer = 0;
   let resizeTimer = 0;
   let scrollFrame = 0;
   let loadGeneration = 0;
@@ -88,21 +124,14 @@ export function setupDisasterMapModal() {
   let activePinchZoom = FIT_ZOOM;
   let storedPdfRestored = false;
   let storedPdfRestorePromise = null;
+  let activeFileKind = "";
+  let activeFileKey = "";
+  let annotations = [];
+  let annotationMode = false;
+  let editingAnnotationId = "";
+  let pendingAnnotation = null;
 
-  earthquakeButton.addEventListener("click", () => {
-    const now = Date.now();
-    clickCount = now - lastClickAt <= TRIPLE_CLICK_WINDOW_MS ? clickCount + 1 : 1;
-    lastClickAt = now;
-    if (resetTimer) window.clearTimeout(resetTimer);
-    resetTimer = window.setTimeout(() => {
-      clickCount = 0;
-    }, TRIPLE_CLICK_WINDOW_MS);
-
-    if (clickCount < 3) return;
-    clickCount = 0;
-    if (resetTimer) window.clearTimeout(resetTimer);
-    openDisasterMapModal();
-  });
+  openButton.addEventListener("click", openDisasterMapModal);
 
   modal.addEventListener("click", (event) => {
     if (event.target.closest("[data-disaster-map-close]")) closeDisasterMapModal();
@@ -111,7 +140,7 @@ export function setupDisasterMapModal() {
   fileInput.addEventListener("change", () => {
     const file = fileInput.files?.[0];
     if (!file) return;
-    showLocalPdf(file);
+    showLocalFile(file);
   });
 
   clearButton?.addEventListener("click", () => {
@@ -122,6 +151,14 @@ export function setupDisasterMapModal() {
   zoomOutButton.addEventListener("click", () => changeZoom(-1));
   zoomFitButton.addEventListener("click", () => setZoom(FIT_ZOOM));
   zoomInButton.addEventListener("click", () => changeZoom(1));
+  markerAddButton.addEventListener("click", () => setAnnotationMode(!annotationMode));
+  markerListToggle.addEventListener("click", toggleAnnotationList);
+  annotationPanelClose.addEventListener("click", closeAnnotationPanel);
+  annotationCancel.addEventListener("click", closeAnnotationPanel);
+  annotationDelete.addEventListener("click", deleteEditingAnnotation);
+  annotationForm.addEventListener("submit", saveEditingAnnotation);
+  annotationList.addEventListener("click", handleAnnotationListClick);
+  pages.addEventListener("click", handlePageAnnotationClick);
   pages.addEventListener("wheel", handleWheelZoom, { passive: false });
   pages.addEventListener("dblclick", handleDoubleClickZoom);
   pages.addEventListener("touchstart", handleTouchStart, { passive: true });
@@ -132,7 +169,7 @@ export function setupDisasterMapModal() {
   pages.addEventListener(
     "scroll",
     () => {
-      if (!pdfDocument || modal.hidden || scrollFrame) return;
+      if (!hasActiveDocument() || modal.hidden || scrollFrame) return;
       scrollFrame = window.requestAnimationFrame(() => {
         scrollFrame = 0;
         renderVisiblePages();
@@ -142,7 +179,7 @@ export function setupDisasterMapModal() {
   );
 
   window.addEventListener("resize", () => {
-    if (!pdfDocument || modal.hidden) return;
+    if (!hasActiveDocument() || modal.hidden) return;
     window.clearTimeout(resizeTimer);
     resizeTimer = window.setTimeout(() => {
       const anchor = getDefaultZoomAnchor();
@@ -156,28 +193,37 @@ export function setupDisasterMapModal() {
   function openDisasterMapModal() {
     modal.hidden = false;
     document.body.classList.add("modal-open");
-    if (!storedPdfRestored && !pdfDocument) void restoreStoredPdf();
+    if (!storedPdfRestored && !hasActiveDocument()) void restoreStoredPdf();
     window.requestAnimationFrame(() => {
-      if (pdfDocument) renderVisiblePages();
+      if (hasActiveDocument()) refreshPageShells({ preserveRendered: true });
       if (!pages.childElementCount) fileInput.focus();
     });
   }
 
   function closeDisasterMapModal() {
     if (modal.hidden) return;
+    setAnnotationMode(false);
+    closeAnnotationPanel();
     modal.hidden = true;
     document.body.classList.remove("modal-open");
   }
 
-  function showLocalPdf(file) {
-    if (!isPdfFile(file)) {
-      setStatus("PDFファイルを選択してください。", "error");
+  function showLocalFile(file) {
+    if (!isSupportedDisasterMapFile(file)) {
+      setStatus("PDFまたはPNG・JPEG画像を選択してください。", "error");
       return;
     }
 
+    const previousFileKey = activeFileKey;
+    const nextFileKey = getFileKey(file);
     cleanupPdfDocument();
     releaseLocalPdfUrl();
     localPdfUrl = URL.createObjectURL(file);
+    activeFileKind = isPdfFile(file) ? "pdf" : "image";
+    activeFileKey = nextFileKey;
+    if (previousFileKey && previousFileKey !== nextFileKey) {
+      void deleteStoredAnnotations(previousFileKey);
+    }
     openLink.href = localPdfUrl;
     openLink.hidden = false;
     currentZoom = FIT_ZOOM;
@@ -187,7 +233,7 @@ export function setupDisasterMapModal() {
     void saveStoredPdf(file).catch((error) => {
       console.warn("[DisasterMap] Failed to persist PDF", error);
     });
-    void loadPdfDocument(file);
+    void loadDisasterMapDocument(file);
   }
 
   function restoreStoredPdf() {
@@ -196,19 +242,21 @@ export function setupDisasterMapModal() {
     storedPdfRestorePromise = (async () => {
       storedPdfRestored = true;
       const record = await loadStoredPdf();
-      if (!record?.blob || pdfDocument) return;
+      if (!record?.blob || hasActiveDocument()) return;
 
       const file = createStoredPdfFile(record);
       setStatus(`${file.name} を復元しています...`, "ok");
       cleanupPdfDocument();
       releaseLocalPdfUrl();
       localPdfUrl = URL.createObjectURL(file);
+      activeFileKind = isPdfFile(file) ? "pdf" : "image";
+      activeFileKey = getFileKey(file);
       openLink.href = localPdfUrl;
       openLink.hidden = false;
       currentZoom = FIT_ZOOM;
       updateZoomControls();
       modal.classList.add("disaster-map-modal--pdf-open");
-      await loadPdfDocument(file);
+      await loadDisasterMapDocument(file);
     })()
       .catch((error) => {
         console.warn("[DisasterMap] Failed to restore stored PDF", error);
@@ -218,6 +266,10 @@ export function setupDisasterMapModal() {
       });
 
     return storedPdfRestorePromise;
+  }
+
+  function loadDisasterMapDocument(file) {
+    return isPdfFile(file) ? loadPdfDocument(file) : loadImageDocument(file);
   }
 
   async function loadPdfDocument(file) {
@@ -244,6 +296,7 @@ export function setupDisasterMapModal() {
 
       setupPageObserver();
       updateZoomControls();
+      await loadAnnotationsForActiveFile();
       renderVisiblePages();
       setStatus(`${file.name} を表示しています。`, "ok");
     } catch (error) {
@@ -253,6 +306,56 @@ export function setupDisasterMapModal() {
       placeholder.hidden = false;
       modal.classList.remove("disaster-map-modal--pdf-open");
       setStatus("PDFを表示できませんでした。", "error");
+    } finally {
+      pages.removeAttribute("aria-busy");
+    }
+  }
+
+  async function loadImageDocument(file) {
+    const currentLoad = ++loadGeneration;
+    renderGeneration += 1;
+    pages.replaceChildren();
+    pages.scrollTop = 0;
+    pages.scrollLeft = 0;
+    placeholder.hidden = true;
+    pages.setAttribute("aria-busy", "true");
+
+    try {
+      const image = await loadImage(localPdfUrl);
+      if (currentLoad !== loadGeneration) return;
+      const shell = document.createElement("div");
+      shell.className = "disaster-map-page-shell";
+      shell.dataset.page = "1";
+      shell.setAttribute("aria-label", "画像");
+      const preview = image.cloneNode();
+      preview.className = "disaster-map-page disaster-map-image-page";
+      preview.alt = "防災マップ";
+      shell.appendChild(preview);
+      pageStates = [{
+        pageNumber: 1,
+        shell,
+        baseWidth: image.naturalWidth || image.width,
+        baseHeight: image.naturalHeight || image.height,
+        renderTask: null,
+        renderKey: "image",
+        rendered: true,
+        image: true
+      }];
+      const layout = applyShellSize(pageStates[0]);
+      preview.style.width = `${layout.cssWidth}px`;
+      preview.style.height = `${layout.cssHeight}px`;
+      pages.appendChild(shell);
+      updateZoomControls();
+      await loadAnnotationsForActiveFile();
+      renderMarkersForPage(pageStates[0]);
+      setStatus(`${file.name} を表示しています。`, "ok");
+    } catch (error) {
+      console.error("[DisasterMap] Image render failed", error);
+      cleanupPdfDocument();
+      pages.replaceChildren();
+      placeholder.hidden = false;
+      modal.classList.remove("disaster-map-modal--pdf-open");
+      setStatus("画像を表示できませんでした。", "error");
     } finally {
       pages.removeAttribute("aria-busy");
     }
@@ -316,9 +419,18 @@ export function setupDisasterMapModal() {
   }
 
   function refreshPageShells({ preserveRendered = false } = {}) {
-    if (!pdfDocument) return;
+    if (!pdfDocument && activeFileKind !== "image") return;
     renderGeneration += 1;
     for (const state of pageStates) {
+      if (state.image) {
+        const layout = applyShellSize(state);
+        const image = state.shell.querySelector(".disaster-map-image-page");
+        if (image) {
+          image.style.width = `${layout.cssWidth}px`;
+          image.style.height = `${layout.cssHeight}px`;
+        }
+        continue;
+      }
       cancelPageRender(state);
       state.rendered = false;
       state.renderKey = "";
@@ -397,6 +509,7 @@ export function setupDisasterMapModal() {
       state.shell.replaceChildren(canvas);
       state.shell.classList.remove("is-loading");
       state.rendered = true;
+      renderMarkersForPage(state);
     } catch (error) {
       if (error?.name !== "RenderingCancelledException") {
         console.error("[DisasterMap] PDF page render failed", error);
@@ -439,19 +552,19 @@ export function setupDisasterMapModal() {
   }
 
   function handleWheelZoom(event) {
-    if (!pdfDocument || !event.ctrlKey) return;
+    if (!hasActiveDocument() || !event.ctrlKey) return;
     if (event.cancelable) event.preventDefault();
     changeZoom(event.deltaY < 0 ? 1 : -1, getZoomAnchor(event.clientX, event.clientY));
   }
 
   function handleDoubleClickZoom(event) {
-    if (!pdfDocument) return;
+    if (!hasActiveDocument()) return;
     const nextZoom = currentZoom >= 1.5 ? FIT_ZOOM : 1.5;
     setZoom(nextZoom, getZoomAnchor(event.clientX, event.clientY));
   }
 
   function handleTouchStart(event) {
-    if (!pdfDocument || event.touches.length !== 2) return;
+    if (!hasActiveDocument() || event.touches.length !== 2) return;
     const midpoint = getTouchMidpoint(event.touches);
     pinchState = {
       startDistance: getTouchDistance(event.touches),
@@ -464,7 +577,7 @@ export function setupDisasterMapModal() {
   }
 
   function handleTouchMove(event) {
-    if (!pdfDocument || !pinchState || event.touches.length !== 2) return;
+    if (!hasActiveDocument() || !pinchState || event.touches.length !== 2) return;
     const distance = getTouchDistance(event.touches);
     if (!distance || !pinchState.startDistance) return;
 
@@ -511,7 +624,7 @@ export function setupDisasterMapModal() {
 
   function setZoom(nextZoom, anchor = getDefaultZoomAnchor()) {
     const normalizedZoom = Number(clampZoom(nextZoom).toFixed(2));
-    if (!pdfDocument || Math.abs(normalizedZoom - currentZoom) < 0.01) return;
+    if (!hasActiveDocument() || Math.abs(normalizedZoom - currentZoom) < 0.01) return;
     currentZoom = normalizedZoom;
     refreshPageShells({ preserveRendered: true });
     restoreZoomAnchor(anchor);
@@ -563,12 +676,229 @@ export function setupDisasterMapModal() {
   }
 
   function updateZoomControls() {
-    const hasPdf = Boolean(pdfDocument);
-    zoomControls.hidden = !hasPdf;
-    zoomOutButton.disabled = !hasPdf || currentZoom <= MIN_ZOOM + 0.01;
-    zoomFitButton.disabled = !hasPdf || Math.abs(currentZoom - FIT_ZOOM) < 0.01;
-    zoomInButton.disabled = !hasPdf || currentZoom >= MAX_ZOOM - 0.01;
+    const hasDocument = Boolean(pdfDocument || activeFileKind === "image" && pageStates.length);
+    zoomControls.hidden = !hasDocument;
+    zoomOutButton.disabled = !hasDocument || currentZoom <= MIN_ZOOM + 0.01;
+    zoomFitButton.disabled = !hasDocument || Math.abs(currentZoom - FIT_ZOOM) < 0.01;
+    zoomInButton.disabled = !hasDocument || currentZoom >= MAX_ZOOM - 0.01;
     zoomFitButton.textContent = `${Math.round(currentZoom * 100)}%`;
+  }
+
+  function hasActiveDocument() {
+    return Boolean(pdfDocument || activeFileKind === "image" && pageStates.length);
+  }
+
+  async function loadAnnotationsForActiveFile() {
+    annotations = [];
+    if (!activeFileKey) {
+      updateAnnotationUi();
+      return;
+    }
+    const requestedFileKey = activeFileKey;
+    try {
+      const record = await loadStoredAnnotations(requestedFileKey);
+      if (requestedFileKey !== activeFileKey) return;
+      annotations = normalizeAnnotations(record?.items);
+    } catch (error) {
+      if (requestedFileKey !== activeFileKey) return;
+      console.warn("[DisasterMap] Failed to load annotations", error);
+    }
+    updateAnnotationUi();
+    renderAllMarkers();
+  }
+
+  function handlePageAnnotationClick(event) {
+    const marker = event.target.closest("[data-disaster-map-annotation-id]");
+    if (marker) {
+      event.stopPropagation();
+      const item = annotations.find((annotation) => annotation.id === marker.dataset.disasterMapAnnotationId);
+      if (item) openAnnotationEditor(item);
+      return;
+    }
+    if (!annotationMode) return;
+    const shell = event.target.closest(".disaster-map-page-shell");
+    if (!shell || event.target.closest(".disaster-map-annotation-layer")) return;
+    const rect = shell.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const pageNumber = Math.max(1, Number(shell.dataset.page) || 1);
+    pendingAnnotation = {
+      id: createAnnotationId(),
+      pageNumber,
+      x: clampRatio((event.clientX - rect.left) / rect.width),
+      y: clampRatio((event.clientY - rect.top) / rect.height),
+      category: "danger",
+      title: "",
+      memo: "",
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    };
+    setAnnotationMode(false);
+    openAnnotationEditor(pendingAnnotation, { isNew: true });
+  }
+
+  function setAnnotationMode(enabled) {
+    annotationMode = Boolean(enabled && hasActiveDocument());
+    markerAddButton.setAttribute("aria-pressed", String(annotationMode));
+    markerAddButton.textContent = annotationMode ? "位置をタップ" : "目印追加";
+    pages.classList.toggle("is-annotation-mode", annotationMode);
+    if (annotationMode) closeAnnotationPanel();
+  }
+
+  function openAnnotationEditor(annotation, { isNew = false } = {}) {
+    if (!annotation) return;
+    pendingAnnotation = { ...annotation };
+    editingAnnotationId = isNew ? "" : annotation.id;
+    annotationPanel.hidden = false;
+    annotationForm.hidden = false;
+    annotationList.hidden = true;
+    annotationPanelTitle.textContent = isNew ? "目印を追加" : "防災メモを編集";
+    annotationCategory.value = ANNOTATION_CATEGORIES[annotation.category] ? annotation.category : "note";
+    annotationTitle.value = annotation.title || "";
+    annotationMemo.value = annotation.memo || "";
+    annotationDelete.hidden = isNew;
+    markerListToggle.setAttribute("aria-expanded", "false");
+    window.requestAnimationFrame(() => annotationTitle.focus());
+  }
+
+  function closeAnnotationPanel() {
+    annotationPanel.hidden = true;
+    annotationForm.hidden = true;
+    annotationList.hidden = true;
+    markerListToggle.setAttribute("aria-expanded", "false");
+    editingAnnotationId = "";
+    pendingAnnotation = null;
+  }
+
+  function toggleAnnotationList() {
+    if (!annotationPanel.hidden && !annotationList.hidden) {
+      closeAnnotationPanel();
+      return;
+    }
+    setAnnotationMode(false);
+    annotationPanel.hidden = false;
+    annotationForm.hidden = true;
+    annotationList.hidden = false;
+    annotationPanelTitle.textContent = `目印一覧 ${annotations.length}件`;
+    markerListToggle.setAttribute("aria-expanded", "true");
+    renderAnnotationList();
+  }
+
+  function saveEditingAnnotation(event) {
+    event.preventDefault();
+    if (!pendingAnnotation || !activeFileKey) return;
+    const category = ANNOTATION_CATEGORIES[annotationCategory.value] ? annotationCategory.value : "note";
+    const next = {
+      ...pendingAnnotation,
+      category,
+      title: annotationTitle.value.trim() || ANNOTATION_CATEGORIES[category].label,
+      memo: annotationMemo.value.trim(),
+      updatedAt: Date.now()
+    };
+    const existingIndex = annotations.findIndex((annotation) => annotation.id === editingAnnotationId);
+    if (existingIndex >= 0) annotations.splice(existingIndex, 1, next);
+    else annotations.push(next);
+    void persistAnnotations();
+    renderAllMarkers();
+    updateAnnotationUi();
+    closeAnnotationPanel();
+  }
+
+  function deleteEditingAnnotation() {
+    if (!editingAnnotationId) return;
+    annotations = annotations.filter((annotation) => annotation.id !== editingAnnotationId);
+    void persistAnnotations();
+    renderAllMarkers();
+    updateAnnotationUi();
+    closeAnnotationPanel();
+  }
+
+  async function persistAnnotations() {
+    if (!activeFileKey) return;
+    try {
+      await saveStoredAnnotations(activeFileKey, annotations);
+    } catch (error) {
+      console.warn("[DisasterMap] Failed to save annotations", error);
+      setStatus("防災メモを保存できませんでした。", "error");
+    }
+  }
+
+  function updateAnnotationUi() {
+    const hasDocument = hasActiveDocument();
+    annotationToolbar.hidden = !hasDocument;
+    markerListToggle.textContent = annotations.length ? `一覧 ${annotations.length}` : "一覧";
+    markerAddButton.disabled = !hasDocument;
+    markerListToggle.disabled = !hasDocument;
+    if (!hasDocument) closeAnnotationPanel();
+  }
+
+  function renderAllMarkers() {
+    for (const state of pageStates) renderMarkersForPage(state);
+    if (!annotationList.hidden) renderAnnotationList();
+  }
+
+  function renderMarkersForPage(state) {
+    if (!state?.shell) return;
+    state.shell.querySelector(".disaster-map-annotation-layer")?.remove();
+    const pageAnnotations = annotations.filter((annotation) => annotation.pageNumber === state.pageNumber);
+    if (!pageAnnotations.length) return;
+    const layer = document.createElement("div");
+    layer.className = "disaster-map-annotation-layer";
+    for (const annotation of pageAnnotations) {
+      const category = ANNOTATION_CATEGORIES[annotation.category] ?? ANNOTATION_CATEGORIES.note;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `disaster-map-marker disaster-map-marker-${annotation.category}`;
+      button.dataset.disasterMapAnnotationId = annotation.id;
+      button.style.left = `${annotation.x * 100}%`;
+      button.style.top = `${annotation.y * 100}%`;
+      button.textContent = category.symbol;
+      button.setAttribute("aria-label", `${category.label}: ${annotation.title}`);
+      button.title = annotation.title;
+      layer.appendChild(button);
+    }
+    state.shell.appendChild(layer);
+  }
+
+  function renderAnnotationList() {
+    annotationList.replaceChildren();
+    if (!annotations.length) {
+      const empty = document.createElement("p");
+      empty.className = "disaster-map-annotation-empty";
+      empty.textContent = "目印はまだありません。";
+      annotationList.appendChild(empty);
+      return;
+    }
+    const fragment = document.createDocumentFragment();
+    for (const annotation of annotations.slice().sort((a, b) => a.pageNumber - b.pageNumber || b.updatedAt - a.updatedAt)) {
+      const category = ANNOTATION_CATEGORIES[annotation.category] ?? ANNOTATION_CATEGORIES.note;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "disaster-map-annotation-list-item";
+      button.dataset.disasterMapAnnotationId = annotation.id;
+      const symbol = document.createElement("span");
+      symbol.className = `disaster-map-annotation-list-symbol disaster-map-marker-${annotation.category}`;
+      symbol.textContent = category.symbol;
+      const copy = document.createElement("span");
+      const title = document.createElement("strong");
+      title.textContent = annotation.title;
+      const meta = document.createElement("small");
+      meta.textContent = `${annotation.pageNumber}ページ・${category.label}`;
+      copy.append(title, meta);
+      button.append(symbol, copy);
+      fragment.appendChild(button);
+    }
+    annotationList.appendChild(fragment);
+  }
+
+  function handleAnnotationListClick(event) {
+    const button = event.target.closest("[data-disaster-map-annotation-id]");
+    if (!button) return;
+    const annotation = annotations.find((item) => item.id === button.dataset.disasterMapAnnotationId);
+    if (!annotation) return;
+    const state = pageStates.find((item) => item.pageNumber === annotation.pageNumber);
+    state?.shell.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    if (state && pdfDocument) void renderPage(state);
+    openAnnotationEditor(annotation);
   }
 
   function cleanupPdfDocument() {
@@ -582,6 +912,12 @@ export function setupDisasterMapModal() {
     if (pdfDocument) void pdfDocument.destroy();
     pdfDocument = null;
     pageStates = [];
+    activeFileKind = "";
+    activeFileKey = "";
+    annotations = [];
+    setAnnotationMode(false);
+    annotationToolbar.hidden = true;
+    closeAnnotationPanel();
     updateZoomControls();
   }
 
@@ -616,7 +952,7 @@ export function setupDisasterMapModal() {
         console.warn("[DisasterMap] Failed to clear stored PDF", error);
       });
     }
-    setStatus("PDFファイルを選択してください。", "");
+    setStatus("PDFまたは画像を選択してください。", "");
   }
 
   function setStatus(message, type) {
@@ -633,6 +969,60 @@ export function setupDisasterMapModal() {
 function isPdfFile(file) {
   const nameLooksPdf = file.name.toLowerCase().endsWith(".pdf");
   return file.type === "application/pdf" || (!file.type && nameLooksPdf) || nameLooksPdf;
+}
+
+function isImageFile(file) {
+  const name = String(file?.name ?? "").toLowerCase();
+  return String(file?.type ?? "").startsWith("image/") || /\.(png|jpe?g)$/.test(name);
+}
+
+function isSupportedDisasterMapFile(file) {
+  return Boolean(file && (isPdfFile(file) || isImageFile(file)));
+}
+
+function getFileKey(file) {
+  if (!file) return "";
+  return [file.name || "防災マップ", file.size || file.blob?.size || 0, file.lastModified || file.updatedAt || 0].join(":");
+}
+
+function createAnnotationId() {
+  return globalThis.crypto?.randomUUID?.() ?? `memo-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function clampRatio(value) {
+  return Math.min(1, Math.max(0, Number(value) || 0));
+}
+
+function normalizeAnnotations(items) {
+  if (!Array.isArray(items)) return [];
+  return items.flatMap((item) => {
+    const pageNumber = Number(item?.pageNumber);
+    const x = Number(item?.x);
+    const y = Number(item?.y);
+    if (!item?.id || !Number.isInteger(pageNumber) || pageNumber < 1 || !Number.isFinite(x) || !Number.isFinite(y)) return [];
+    const category = ANNOTATION_CATEGORIES[item.category] ? item.category : "note";
+    return [{
+      id: String(item.id),
+      pageNumber,
+      x: clampRatio(x),
+      y: clampRatio(y),
+      category,
+      title: String(item.title || ANNOTATION_CATEGORIES[category].label).slice(0, 40),
+      memo: String(item.memo || "").slice(0, 500),
+      createdAt: Number(item.createdAt) || Date.now(),
+      updatedAt: Number(item.updatedAt) || Date.now()
+    }];
+  });
+}
+
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("画像を読み込めませんでした。"));
+    image.src = url;
+  });
 }
 
 function releaseLocalPdfUrl() {
@@ -654,8 +1044,8 @@ async function loadPdfJs() {
 async function saveStoredPdf(file) {
   const record = {
     blob: file,
-    name: file.name || "防災マップ.pdf",
-    type: file.type || "application/pdf",
+    name: file.name || "防災マップ",
+    type: file.type || "application/octet-stream",
     size: file.size || 0,
     lastModified: file.lastModified || Date.now(),
     updatedAt: Date.now()
@@ -668,14 +1058,36 @@ async function loadStoredPdf() {
   return runStoredPdfRequest("readonly", (store) => store.get(STORED_PDF_KEY));
 }
 
+async function loadStoredAnnotations(fileKey) {
+  if (!fileKey) return null;
+  return runStoredPdfRequest("readonly", (store) => store.get(`${STORED_ANNOTATION_KEY_PREFIX}${fileKey}`));
+}
+
+async function saveStoredAnnotations(fileKey, items) {
+  if (!fileKey) return;
+  const key = `${STORED_ANNOTATION_KEY_PREFIX}${fileKey}`;
+  if (!items.length) {
+    await runStoredPdfRequest("readwrite", (store) => store.delete(key));
+    return;
+  }
+  await runStoredPdfRequest("readwrite", (store) => store.put({ items, updatedAt: Date.now() }, key));
+}
+
+async function deleteStoredAnnotations(fileKey) {
+  if (!fileKey) return;
+  await runStoredPdfRequest("readwrite", (store) => store.delete(`${STORED_ANNOTATION_KEY_PREFIX}${fileKey}`));
+}
+
 async function deleteStoredPdf() {
+  const record = await loadStoredPdf();
   await runStoredPdfRequest("readwrite", (store) => store.delete(STORED_PDF_KEY));
+  await deleteStoredAnnotations(getFileKey(record));
   notifyStoredPdfChange();
 }
 
 function createStoredPdfFile(record) {
-  const type = record.type || record.blob?.type || "application/pdf";
-  const name = record.name || "防災マップ.pdf";
+  const type = record.type || record.blob?.type || "application/octet-stream";
+  const name = record.name || "防災マップ";
   const lastModified = record.lastModified || record.updatedAt || Date.now();
   const blob = record.blob instanceof Blob
     ? record.blob
