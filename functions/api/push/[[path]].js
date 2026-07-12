@@ -12,6 +12,9 @@ const PUSH_TTL_SECONDS = 60;
 const MAX_PENDING_MESSAGES = 6;
 const ADMIN_BROADCAST_BATCH_SIZE = 25;
 const ADMIN_BROADCAST_MAX_ATTEMPTS = 3;
+const RETENTION_DAYS = 30;
+const RETENTION_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const RETENTION_CLEANUP_KEY = "retention:last-cleanup";
 let adminBroadcastTablesReady = false;
 
 export async function onRequest({ request, env }) {
@@ -36,6 +39,13 @@ export async function onRequest({ request, env }) {
 
 export async function runWarningPushCheck(env) {
   requireNotificationStorage(env);
+  let retention;
+  try {
+    retention = await runNotificationRetentionCleanup(env);
+  } catch (error) {
+    console.error("[Push API] retention cleanup failed", error);
+    retention = { ran: false, error: true };
+  }
   let adminBroadcast;
   try {
     adminBroadcast = await runAdminPushBroadcasts(env);
@@ -44,7 +54,7 @@ export async function runWarningPushCheck(env) {
     adminBroadcast = { processed: 0, sent: 0, removed: 0, failed: 0, error: true };
   }
   const subscriptions = await listSubscriptions(env);
-  if (!subscriptions.length) return { checked: 0, notified: 0, removed: 0, adminBroadcast };
+  if (!subscriptions.length) return { checked: 0, notified: 0, removed: 0, adminBroadcast, retention };
 
   const warningAreas = await fetchActiveWarningAreas();
   let notified = 0;
@@ -100,6 +110,7 @@ export async function runWarningPushCheck(env) {
     notified,
     removed,
     adminBroadcast,
+    retention,
     storage: env.NOTIFICATIONS_DB ? "d1" : "kv"
   };
 }
@@ -143,7 +154,7 @@ export async function queueAdminPushBroadcast(env, input) {
     if (statements.length) await env.NOTIFICATIONS_DB.batch(statements);
   }
 
-  await pruneAdminPushBroadcastHistory(env);
+  await runNotificationRetentionCleanup(env);
   return getAdminPushBroadcast(env, broadcast.id);
 }
 
@@ -652,18 +663,59 @@ async function getAdminPushBroadcast(env, id) {
   return row ? publicAdminBroadcast(row) : null;
 }
 
-async function pruneAdminPushBroadcastHistory(env) {
-  await env.NOTIFICATIONS_DB.batch([
+async function runNotificationRetentionCleanup(env) {
+  await ensureAdminBroadcastTables(env);
+  const marker = await env.NOTIFICATIONS_DB.prepare(
+    "SELECT value FROM push_meta WHERE key = ?"
+  ).bind(RETENTION_CLEANUP_KEY).first();
+  const lastCleanupAt = Date.parse(String(marker?.value || ""));
+  if (Number.isFinite(lastCleanupAt) && Date.now() - lastCleanupAt < RETENTION_CLEANUP_INTERVAL_MS) {
+    return { ran: false, retentionDays: RETENTION_DAYS, lastCleanupAt: marker.value };
+  }
+
+  const now = new Date().toISOString();
+  const results = await env.NOTIFICATIONS_DB.batch([
     env.NOTIFICATIONS_DB.prepare(
       `DELETE FROM admin_push_deliveries
        WHERE broadcast_id IN (
-         SELECT id FROM admin_push_broadcasts WHERE datetime(created_at) < datetime('now', '-90 days')
+         SELECT id FROM admin_push_broadcasts
+         WHERE status = 'completed' AND datetime(created_at) < datetime('now', '-${RETENTION_DAYS} days')
+       ) OR NOT EXISTS (
+         SELECT 1 FROM admin_push_broadcasts b WHERE b.id = admin_push_deliveries.broadcast_id
        )`
     ),
     env.NOTIFICATIONS_DB.prepare(
-      "DELETE FROM admin_push_broadcasts WHERE datetime(created_at) < datetime('now', '-90 days')"
-    )
+      `DELETE FROM admin_push_broadcasts
+       WHERE status = 'completed' AND datetime(created_at) < datetime('now', '-${RETENTION_DAYS} days')`
+    ),
+    env.NOTIFICATIONS_DB.prepare(
+      `DELETE FROM push_pending_messages
+       WHERE datetime(created_at) < datetime('now', '-${RETENTION_DAYS} days')`
+    ),
+    env.NOTIFICATIONS_DB.prepare(
+      `DELETE FROM app_records
+       WHERE key LIKE 'early-access-activation:%'
+         AND json_extract(value, '$.expiresAt') IS NOT NULL
+         AND datetime(json_extract(value, '$.expiresAt')) < datetime('now')`
+    ),
+    env.NOTIFICATIONS_DB.prepare(
+      `INSERT INTO push_meta (key, value) VALUES (?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value`
+    ).bind(RETENTION_CLEANUP_KEY, now)
   ]);
+  return {
+    ran: true,
+    retentionDays: RETENTION_DAYS,
+    completedBroadcasts: getD1Changes(results[1]),
+    deliveries: getD1Changes(results[0]),
+    pendingMessages: getD1Changes(results[2]),
+    expiredEarlyAccessActivations: getD1Changes(results[3]),
+    lastCleanupAt: now
+  };
+}
+
+function getD1Changes(result) {
+  return Number(result?.meta?.changes || result?.changes || 0);
 }
 
 function publicAdminBroadcast(row) {
@@ -865,12 +917,17 @@ async function deleteSubscription(env, id) {
 
 async function takePendingMessages(env, id) {
   const result = await env.NOTIFICATIONS_DB.prepare(
-    "SELECT data FROM push_pending_messages WHERE subscription_id = ? ORDER BY id DESC LIMIT ?"
+    `DELETE FROM push_pending_messages
+     WHERE id IN (
+       SELECT id FROM push_pending_messages
+       WHERE subscription_id = ? ORDER BY id DESC LIMIT ?
+     )
+     RETURNING id, data`
   ).bind(id, MAX_PENDING_MESSAGES).all();
-  await env.NOTIFICATIONS_DB.prepare(
-    "DELETE FROM push_pending_messages WHERE subscription_id = ?"
-  ).bind(id).run();
-  return (result.results || []).map((row) => parseJson(row.data, null)).filter(Boolean);
+  return (result.results || [])
+    .sort((a, b) => Number(b.id || 0) - Number(a.id || 0))
+    .map((row) => parseJson(row.data, null))
+    .filter(Boolean);
 }
 
 function parseJson(value, fallback) {

@@ -128,10 +128,14 @@ D1 database binding:
 NOTIFICATIONS_DB        meteoscope-notifications
 ```
 
-D1のスキーマは `migrations/0001_notification_storage.sql` と
-`migrations/0002_app_storage.sql` を順番に適用します。通知購読、警報状態、
+D1のスキーマは `migrations/0001_notification_storage.sql`、
+`migrations/0002_app_storage.sql`、`migrations/0003_admin_push_broadcasts.sql` を順番に適用します。通知購読、警報状態、
 保留通知、管理設定、お知らせ、利用者意見、アーリーアクセス認証、VAPID鍵は
 すべてD1へ保存し、Workers KVは使用しません。
+
+通知Cronは1日1回、完了から30日を過ぎた管理者通知履歴、30日以上未取得の
+保留通知、期限切れのアーリーアクセス端末認証、孤立した配信明細を自動削除します。
+通知購読、現行設定、お知らせ、シリアルコード、VAPID鍵は自動削除しません。
 
 `ADMIN_SESSION_SECRET` を省略した場合は `ADMIN_PASSWORD` を使ってセッション署名します。
 GitHub Pages では Pages Functions が動作しないため、管理者画面のAPI機能は Cloudflare Pages 配信時のみ利用できます。通常のアプリ表示は、管理APIが未設定でもそのまま動作します。

@@ -1,5 +1,15 @@
+self.__meteoscopePendingNotificationTask = null;
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
-  event.waitUntil(showPendingNotifications());
+  event.waitUntil(schedulePendingNotifications());
 });
 
 self.addEventListener("notificationclick", (event) => {
@@ -20,7 +30,7 @@ async function showPendingNotifications() {
   if (!response.ok) return;
 
   const payload = await response.json().catch(() => ({}));
-  const messages = Array.isArray(payload.messages) ? payload.messages : [];
+  const messages = dedupePendingMessages(Array.isArray(payload.messages) ? payload.messages : []);
   await Promise.all(messages.map((message) => {
     const title = message.title || "MeteoScope";
     return self.registration.showNotification(title, {
@@ -36,6 +46,25 @@ async function showPendingNotifications() {
       }
     });
   }));
+}
+
+function schedulePendingNotifications() {
+  if (self.__meteoscopePendingNotificationTask) return self.__meteoscopePendingNotificationTask;
+  self.__meteoscopePendingNotificationTask = showPendingNotifications()
+    .finally(() => {
+      self.__meteoscopePendingNotificationTask = null;
+    });
+  return self.__meteoscopePendingNotificationTask;
+}
+
+function dedupePendingMessages(messages) {
+  const unique = new Map();
+  messages.forEach((message) => {
+    const contentKey = `${message?.tag || ""}\u0000${message?.title || ""}\u0000${message?.body || ""}`;
+    const key = contentKey !== "\u0000\u0000" ? contentKey : message?.id;
+    if (!unique.has(key)) unique.set(key, message);
+  });
+  return [...unique.values()];
 }
 
 async function openOrFocusClient(targetUrl) {
