@@ -702,7 +702,13 @@ async function sendEmptyPush(pushSubscription, env, preparedVapidKeys = null) {
 
 async function sendEmptyPushSafely(pushSubscription, env, preparedVapidKeys = null) {
   try {
-    return await sendEmptyPush(pushSubscription, env, preparedVapidKeys);
+    const response = await sendEmptyPush(pushSubscription, env, preparedVapidKeys);
+    if (response.ok) return response;
+    return {
+      ok: false,
+      status: response.status,
+      statusText: await readPushErrorReason(response)
+    };
   } catch (error) {
     console.warn("[Push API] push request failed", error);
     return {
@@ -713,12 +719,26 @@ async function sendEmptyPushSafely(pushSubscription, env, preparedVapidKeys = nu
   }
 }
 
+async function readPushErrorReason(response) {
+  const fallback = String(response?.statusText || "push request failed");
+  try {
+    const payload = await response.clone().json();
+    return String(payload?.reason || payload?.message || fallback).slice(0, 160);
+  } catch {
+    try {
+      return String(await response.clone().text() || fallback).slice(0, 160);
+    } catch {
+      return fallback;
+    }
+  }
+}
+
 async function createVapidJwt(audience, env, vapidKeys) {
   const header = base64UrlEncode(JSON.stringify({ typ: "JWT", alg: "ES256" }));
   const payload = base64UrlEncode(JSON.stringify({
     aud: audience,
     exp: Math.floor(Date.now() / 1000) + 12 * 60 * 60,
-    sub: env.VAPID_SUBJECT || "mailto:admin@meteoscope.local"
+    sub: env.VAPID_SUBJECT || "https://meteoscope.pages.dev"
   }));
   const unsignedToken = `${header}.${payload}`;
   const key = await importVapidPrivateKey(vapidKeys.publicKey, vapidKeys.privateKey);
