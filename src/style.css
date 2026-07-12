@@ -1280,6 +1280,22 @@ h2 {
   color: #dbe7ff;
 }
 
+.settings-policy-copy a,
+#map-attribution a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgba(105, 205, 240, 0.58);
+  text-underline-offset: 3px;
+}
+
+.settings-policy-copy a:hover,
+.settings-policy-copy a:focus-visible,
+#map-attribution a:hover,
+#map-attribution a:focus-visible {
+  color: #8bdcff;
+  text-decoration-color: currentColor;
+}
+
 .settings-my-area-head {
   display: flex;
   align-items: flex-start;

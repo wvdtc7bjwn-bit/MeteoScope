@@ -100,7 +100,7 @@
         </button>
         <div id="legend-list" class="legend-list" hidden></div>
       </section>
-      <div id="map-attribution">気象庁 / Natural Earth / MapLibre GL JS</div>
+      <div id="map-attribution"><a href="https://www.jma.go.jp/" target="_blank" rel="noopener noreferrer">気象庁</a>の公開データをMeteoScopeが加工・可視化 / Natural Earth / MapLibre GL JS</div>
     </main>
 
     <div id="warning-modal" class="warning-modal" hidden>
@@ -222,12 +222,29 @@
             </div>
           </section>
           <section class="settings-group">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>情報出典・加工</button>
+            <div class="settings-group-content" hidden>
+              <div class="settings-policy-copy settings-source-copy">
+                <p><strong>主な情報出典</strong><br><a href="https://www.jma.go.jp/" target="_blank" rel="noopener noreferrer">気象庁ホームページ</a>および<a href="https://www.data.jma.go.jp/developer/index.html" target="_blank" rel="noopener noreferrer">気象データ高度利用ポータルサイト</a></p>
+                <p><strong>加工について</strong><br>気象庁の公開データをもとに、MeteoScopeが地図への重ね合わせ、区域との照合、グラフ・ランキング化、表示用の配色・表記変換、通知状態の比較を行っています。表示内容は気象庁が作成した画面そのものではありません。</p>
+                <p><strong>警報・予報の扱い</strong><br>本アプリは独自の気象予報・警報を発表するものではなく、気象庁が発表した情報を加工・可視化する非公式アプリです。通知の「発表・継続・切替・解除」は、気象庁発表データの変化をMeteoScopeが比較した表示です。</p>
+                <p><strong>利用時の注意</strong><br>重要な防災判断では、発表時刻を確認し、<a href="https://www.jma.go.jp/bosai/" target="_blank" rel="noopener noreferrer">気象庁防災情報</a>や自治体などの公式情報を併せて確認してください。データの停止、遅延、更新または仕様変更により、表示が最新でない場合があります。</p>
+                <p><strong>利用条件</strong><br>気象庁コンテンツは、原則として<a href="https://www.jma.go.jp/jma/kishou/info/coment.html" target="_blank" rel="noopener noreferrer">気象庁ホームページの利用規約</a>および<a href="https://www.digital.go.jp/resources/open_data/public_data_license_v1.0" target="_blank" rel="noopener noreferrer">公共データ利用規約（第1.0版）</a>に基づいて利用しています。</p>
+              </div>
+            </div>
+          </section>
+          <section class="settings-group">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>利用規約</button>
             <div class="settings-group-content" hidden>
               <div class="settings-policy-copy">
-                <p>本アプリは、気象庁などが公開する防災・気象情報を閲覧しやすく表示するための補助ツールです。</p>
-                <p>表示内容は速報性や完全性を保証するものではありません。避難判断や安全確保が必要な場合は、気象庁、自治体、報道機関などの公式情報を必ず確認してください。</p>
-                <p>本アプリの利用によって生じたいかなる損害についても、開発者は責任を負いません。</p>
+                <p><strong>1. 本アプリの位置づけ</strong><br>本アプリは、気象庁などが公開する防災・気象情報を閲覧しやすく表示するための補助ツールです。行政機関による公式な防災情報ではありません。</p>
+                <p><strong>2. 安全に関する注意</strong><br>表示内容の正確性、完全性、即時性、継続的な提供を保証するものではありません。通信障害、提供元の更新、データ処理などにより、遅延、欠落、誤差または表示不具合が生じる場合があります。避難や安全確保の判断では、気象庁、自治体、報道機関などの公式情報を必ず確認してください。</p>
+                <p><strong>3. 通知</strong><br>プッシュ通知は補助機能であり、端末、ブラウザ、通信環境、配信サービスの状態によって遅延または不達となる場合があります。通知だけに依存して安全に関する判断をしないでください。</p>
+                <p><strong>4. 防災マップと防災メモ</strong><br>利用者が読み込むPDF・画像および追加する目印・メモは、利用者自身の責任で管理してください。著作権その他の権利を侵害するデータを利用しないでください。端末やブラウザのデータを削除すると、保存内容が失われる場合があります。</p>
+                <p><strong>5. アーリーアクセス</strong><br>開発中の機能は、予告なく内容の変更、提供の中断または終了を行う場合があります。シリアルコードを第三者へ不正に譲渡、販売または共有しないでください。</p>
+                <p><strong>6. 禁止事項</strong><br>本アプリまたは提供元へ過度な負荷をかける行為、不正アクセス、機能の妨害、法令または第三者の権利を侵害する行為を禁止します。</p>
+                <p><strong>7. 免責と変更</strong><br>法令上認められる範囲で、本アプリの利用または利用不能により生じた損害について、開発者は責任を負いません。本規約および本アプリの内容は、必要に応じて変更する場合があります。</p>
+                <p><small>最終更新日: 2026年7月13日</small></p>
               </div>
             </div>
           </section>
@@ -235,14 +252,19 @@
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>プライバシーポリシー</button>
             <div class="settings-group-content" hidden>
               <div class="settings-policy-copy">
-                <p>本アプリは、サーバー側で個人を識別する情報を保存しません。</p>
-                <p>現在地機能を利用する場合、位置情報はブラウザ上で気象情報の照合と地図表示にのみ使用します。位置情報は外部サーバーへ保存しません。</p>
-                <p>利用者意見を送信した場合、入力本文、分類、送信時刻を改善確認のために保存します。氏名、住所、連絡先などの個人情報は入力しないでください。</p>
-                <p>気象データや地図表示の取得時には、各提供元のサーバーへ通信が発生します。</p>
+                <p><strong>1. 取得・利用する情報</strong><br>本アプリは、選択した外観、表示切替ボタンの順序、マイエリア、使い方ガイドの確認状態、通知設定、アーリーアクセス認証情報などを、機能提供と設定保持のために利用します。</p>
+                <p><strong>2. 位置情報</strong><br>端末の位置情報は、現在地の表示、現在地に対応する市区町村・予報区域・防災情報の照合、周辺情報の表示に使用します。緯度・経度そのものは本アプリのサーバーへ保存しません。現在地の警報通知を有効にした場合は、通知対象となる予報区域のコード・名称・都道府県名をサーバーへ送信し、通知が有効な間保存します。</p>
+                <p><strong>3. プッシュ通知</strong><br>通知を有効にした場合、ブラウザのPush購読情報、通知対象区域、通知設定および警報状態を保存します。これらは通知の配信、重複防止、配信状態の管理に使用し、通知解除または不要となった場合に削除します。通知配信のため、ブラウザやOSが利用するPush配信サービスを経由します。</p>
+                <p><strong>4. 利用者意見</strong><br>利用者意見を送信した場合、入力本文、分類、閲覧ページおよび送信時刻を、改善内容の確認に使用してサーバーへ保存します。氏名、住所、連絡先などの個人情報や緊急情報は入力しないでください。</p>
+                <p><strong>5. アーリーアクセス</strong><br>シリアルコードの認証時には、コードを一方向変換した値、利用回数、認証日時、有効期限および発行された認証トークンに関する情報を保存します。入力したシリアルコードそのものを平文では保存しません。</p>
+                <p><strong>6. 端末内に保存する情報</strong><br>防災マップとして選択したPDF・画像、防災メモ、目印、マイエリア、外観や表示順などの設定は、原則としてブラウザのLocal StorageまたはIndexedDBへ保存されます。防災マップと防災メモは本アプリのサーバーへ送信しません。設定画面またはブラウザのサイトデータ削除により消去できます。</p>
+                <p><strong>7. 外部サービスへの通信</strong><br>気象・地震・地図などのデータ取得時には、気象庁、地図配信元その他の情報提供元へ通信します。また、アプリ配信、API、データ保存および通知処理にはCloudflareのサービスを利用します。通信時には、各提供元にIPアドレス、ブラウザ情報、アクセス日時などが送信される場合があります。</p>
+                <p><strong>8. 管理と変更</strong><br>保存情報は、機能提供、セキュリティ確保、不具合調査および不正利用防止に必要な範囲で取り扱います。本ポリシーは、機能や法令の変更に応じて更新する場合があります。</p>
+                <p><small>最終更新日: 2026年7月13日</small></p>
               </div>
             </div>
           </section>
-          <p class="settings-source-note">情報出典: 気象庁・Natural Earth・MapLibre GL JS</p>
+          <p class="settings-source-note">気象庁公開データをもとにMeteoScopeが加工・可視化</p>
         </div>
       </section>
     </div>
