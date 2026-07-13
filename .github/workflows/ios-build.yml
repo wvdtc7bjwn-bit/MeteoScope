@@ -38,5 +38,7 @@ jobs:
           xcodebuild test
           -project MeteoScope.xcodeproj
           -scheme MeteoScope
-          -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest'
+          -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5'
+          -destination-timeout 120
+          -parallel-testing-enabled NO
           CODE_SIGNING_ALLOWED=NO
