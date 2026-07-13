@@ -26,7 +26,17 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: jp.meteoscope.ios
         PRODUCT_NAME: MeteoScope
         TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+      configs:
+        Debug:
+          APNS_ENVIRONMENT: development
+        Release:
+          APNS_ENVIRONMENT: production
+    entitlements:
+      path: MeteoScope/Support/MeteoScope.entitlements
+      properties:
+        aps-environment: $(APNS_ENVIRONMENT)
     info:
       path: MeteoScope/Support/Info.plist
       properties:

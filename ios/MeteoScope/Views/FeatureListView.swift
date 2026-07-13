@@ -18,9 +18,7 @@ struct FeatureListView: View {
                             .foregroundStyle(.primary)
                         Text(feature.implementationStatus.label)
                             .font(.caption)
-                            .foregroundStyle(
-                                feature.implementationStatus == .available ? Color.green : Color.secondary
-                            )
+                            .foregroundStyle(feature.implementationStatus.color)
                     }
                     Spacer()
                     Image(systemName: "chevron.right")
@@ -32,6 +30,16 @@ struct FeatureListView: View {
             .buttonStyle(.plain)
         }
         .navigationTitle("気象・防災情報")
+    }
+}
+
+private extension FeatureImplementationStatus {
+    var color: Color {
+        switch self {
+        case .available: .green
+        case .basic: .blue
+        case .inProgress: .secondary
+        }
     }
 }
 

@@ -5,6 +5,15 @@ import {
 } from "../../../src/jma/warningCore.js";
 import { JMA_WARNING_OFFICE_CODES } from "../../../src/jma/warningOfficeCodes.js";
 import { readJson, writeJson } from "../../_shared/d1Store.js";
+import {
+  deleteIOSSubscription,
+  isAPNSConfigured,
+  listIOSSubscriptions,
+  normalizeIOSSubscription,
+  saveIOSSubscription,
+  sendAPNSNotification,
+  shouldRemoveIOSSubscription
+} from "../../_shared/apns.js";
 
 const VAPID_KEYS_KEY = "push:vapid-keys";
 const JMA_WARNING_BASE = "https://www.jma.go.jp/bosai/warning/data/r8";
@@ -28,6 +37,10 @@ export async function onRequest({ request, env }) {
     if (route === "unsubscribe" && method === "POST") return unsubscribe(request, env);
     if (route === "pending" && method === "POST") return pending(request, env);
     if (route === "check" && (method === "GET" || method === "POST")) return check(request, env);
+    if (route === "ios/config" && method === "GET") return iosPushConfig(env);
+    if (route === "ios/register" && method === "POST") return registerIOSPush(request, env);
+    if (route === "ios/unregister" && method === "POST") return unregisterIOSPush(request, env);
+    if (route === "ios/test" && method === "POST") return testIOSPush(request, env);
 
     return json({ error: "Not found" }, { status: 404 });
   } catch (error) {
@@ -54,7 +67,20 @@ export async function runWarningPushCheck(env) {
     adminBroadcast = { processed: 0, sent: 0, removed: 0, failed: 0, error: true };
   }
   const subscriptions = await listSubscriptions(env);
-  if (!subscriptions.length) return { checked: 0, notified: 0, removed: 0, adminBroadcast, retention };
+  const iosSubscriptions = await listIOSSubscriptions(env).catch((error) => {
+    console.error("[Push API] failed to list iOS subscriptions", error);
+    return [];
+  });
+  if (!subscriptions.length && !iosSubscriptions.length) {
+    return {
+      checked: 0,
+      notified: 0,
+      removed: 0,
+      ios: { checked: 0, notified: 0, removed: 0, failed: 0, configured: isAPNSConfigured(env) },
+      adminBroadcast,
+      retention
+    };
+  }
 
   const warningAreas = await fetchActiveWarningAreas();
   let notified = 0;
@@ -105,14 +131,77 @@ export async function runWarningPushCheck(env) {
     }
   }
 
+  const ios = await runIOSWarningPushCheck(env, warningAreas, iosSubscriptions);
+
   return {
     checked: subscriptions.length,
     notified,
     removed,
+    ios,
     adminBroadcast,
     retention,
     storage: env.NOTIFICATIONS_DB ? "d1" : "kv"
   };
+}
+
+async function runIOSWarningPushCheck(env, warningAreas, subscriptions) {
+  if (!isAPNSConfigured(env)) {
+    return { checked: subscriptions.length, notified: 0, removed: 0, failed: 0, configured: false };
+  }
+
+  let notified = 0;
+  let removed = 0;
+  let failed = 0;
+  for (const subscription of subscriptions) {
+    if (!subscription?.deviceToken || !subscription?.areaCode) {
+      await deleteIOSSubscription(env, subscription?.id || subscription?.deviceToken);
+      removed += 1;
+      continue;
+    }
+
+    const currentArea = warningAreas.get(String(subscription.areaCode));
+    const currentWarnings = currentArea?.warnings ?? [];
+    const message = buildNotificationMessage(subscription, currentArea, currentWarnings);
+    const nextWarningState = buildWarningState(currentWarnings);
+    const warningStateChanged = !sameWarningState(subscription.warningState, nextWarningState);
+    const areaChanged = (
+      (currentArea?.areaName && currentArea.areaName !== subscription.areaName)
+      || (currentArea?.prefecture && currentArea.prefecture !== subscription.prefecture)
+    );
+    const nextSubscription = {
+      ...subscription,
+      areaName: currentArea?.areaName ?? subscription.areaName,
+      prefecture: currentArea?.prefecture ?? subscription.prefecture,
+      warningState: nextWarningState
+    };
+
+    if (message) {
+      const result = await sendAPNSNotification(env, subscription, message).catch((error) => ({
+        ok: false,
+        status: 0,
+        reason: error instanceof Error ? error.message : "APNsRequestFailed"
+      }));
+      if (result.ok) {
+        notified += 1;
+        nextSubscription.lastNotifiedAt = new Date().toISOString();
+      } else if (shouldRemoveIOSSubscription(result)) {
+        await deleteIOSSubscription(env, subscription.id || subscription.deviceToken);
+        removed += 1;
+        continue;
+      } else {
+        console.warn("[Push API] APNs request failed", result.status, result.reason);
+        failed += 1;
+        // Keep the previous warning state so a transient APNs failure is retried by the next cron.
+        continue;
+      }
+    }
+
+    if (warningStateChanged || areaChanged || message) {
+      await saveIOSSubscription(env, nextSubscription);
+    }
+  }
+
+  return { checked: subscriptions.length, notified, removed, failed, configured: true };
 }
 
 export async function queueAdminPushBroadcast(env, input) {
@@ -316,6 +405,79 @@ async function unsubscribe(request, env) {
   const id = await subscriptionId(endpoint);
   await deleteSubscription(env, id);
   return json({ subscribed: false });
+}
+
+async function iosPushConfig(env) {
+  return json({
+    enabled: isAPNSConfigured(env),
+    registrationEnabled: Boolean(env.NOTIFICATIONS_DB),
+    bundleID: env.APNS_BUNDLE_ID || "",
+    setup: {
+      d1: Boolean(env.NOTIFICATIONS_DB),
+      keyID: Boolean(env.APNS_KEY_ID),
+      teamID: Boolean(env.APNS_TEAM_ID),
+      privateKey: Boolean(env.APNS_PRIVATE_KEY),
+      bundleID: Boolean(env.APNS_BUNDLE_ID)
+    }
+  });
+}
+
+async function registerIOSPush(request, env) {
+  requireNotificationStorage(env);
+  const payload = await request.json().catch(() => ({}));
+  const subscription = normalizeIOSSubscription(payload);
+  if (!subscription) {
+    return json({ error: "iOS通知の端末トークンまたは地域情報が不正です。" }, { status: 400 });
+  }
+  const saved = await saveIOSSubscription(env, subscription);
+  return json({
+    registered: true,
+    id: saved.id,
+    area: {
+      areaCode: saved.areaCode,
+      areaName: saved.areaName,
+      prefecture: saved.prefecture
+    },
+    deliveryEnabled: isAPNSConfigured(env)
+  });
+}
+
+async function unregisterIOSPush(request, env) {
+  requireNotificationStorage(env);
+  const payload = await request.json().catch(() => ({}));
+  const deviceToken = String(payload.deviceToken || "").trim().toLowerCase();
+  if (!deviceToken) return json({ registered: false });
+  await deleteIOSSubscription(env, deviceToken);
+  return json({ registered: false });
+}
+
+async function testIOSPush(request, env) {
+  requireNotificationStorage(env);
+  if (!env.PUSH_CHECK_TOKEN) {
+    return json({ error: "PUSH_CHECK_TOKENが未設定です。" }, { status: 503 });
+  }
+  const token = request.headers.get("X-Push-Check-Token");
+  if (token !== env.PUSH_CHECK_TOKEN) {
+    return json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (!isAPNSConfigured(env)) {
+    return json({ error: "APNsの環境変数が未設定です。" }, { status: 503 });
+  }
+  const payload = await request.json().catch(() => ({}));
+  const deviceToken = String(payload.deviceToken || "").trim().toLowerCase();
+  const subscription = (await listIOSSubscriptions(env)).find((item) => item.deviceToken === deviceToken);
+  if (!subscription) {
+    return json({ error: "登録済み端末が見つかりません。" }, { status: 404 });
+  }
+  const result = await sendAPNSNotification(env, subscription, {
+    id: crypto.randomUUID(),
+    title: "MeteoScope 通知テスト",
+    body: "APNsとの接続に成功しました。",
+    tag: "meteoscope-test",
+    url: "/?tab=warnings",
+    areaCode: subscription.areaCode
+  });
+  return json(result, { status: result.ok ? 200 : 502 });
 }
 
 async function pending(request, env) {

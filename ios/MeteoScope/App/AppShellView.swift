@@ -79,7 +79,9 @@ private struct RemoteNoticeBanner: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(.bar)
+        .meteoGlassSurface(cornerRadius: 16)
+        .padding(.horizontal, 10)
+        .padding(.top, 6)
     }
 }
 
@@ -101,7 +103,7 @@ private struct MaintenanceOverlay: View {
                     .foregroundStyle(.secondary)
             }
             .padding(28)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
+            .meteoGlassSurface(cornerRadius: 22)
             .padding(28)
         }
         .accessibilityAddTraits(.isModal)
@@ -137,4 +139,5 @@ enum RootTab: Hashable {
         .environment(WeatherAppModel.preview)
         .environment(AppPreferences(store: .preview))
         .environment(LocationService.preview)
+        .environment(PushNotificationService())
 }

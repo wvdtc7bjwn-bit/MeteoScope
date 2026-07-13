@@ -4,3 +4,10 @@ enum LoadState<Value> {
     case loaded(Value)
     case failed(String)
 }
+
+extension LoadState {
+    var isIdle: Bool {
+        if case .idle = self { return true }
+        return false
+    }
+}

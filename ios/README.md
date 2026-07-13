@@ -21,6 +21,12 @@ Choose the `MeteoScope` scheme and an iPhone Simulator. Package resolution downl
 
 For Windows-only development, the included GitHub Actions workflow can generate the project and run its tests on a hosted macOS runner. It is manual/PR-triggered and does not deploy or submit the app.
 
+Before committing on Windows, run the source-only checks:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Scripts\Validate-IOSSource.ps1
+```
+
 ## Current implementation
 
 - SwiftUI application shell and navigation
@@ -28,6 +34,21 @@ For Windows-only development, the included GitHub Actions workflow can generate 
 - JMA radar time-list client
 - Three hours of observation frames and one hour of forecast frames
 - Radar timeline selection, loading, error, and retry states
-- Unit tests for radar frame generation
+- AMeDAS live observations with temperature, rain, wind, humidity, pressure, and snow rankings
+- Current humidity high/low rankings and pressure current/today high/low rankings
+- Per-station same-day time-series charts for all AMeDAS metrics
+- Nationwide warning/advisory summary decoded from JMA warning JSON
+- Early-warning probability summaries decoded from JMA probability JSON
+- Active designated-river flood forecasts decoded from JMA XML feeds
+- Current typhoon details decoded from JMA forecast/specification JSON
+- Warning, early-warning, and designated-river areas rendered on the native map
+- Typhoon forecast tracks, probability circles, and available strong-wind/storm areas rendered on the native map
+- Recent earthquake summaries, intensity-area polygons, and observed intensity stations rendered from JMA XML
+- Local disaster-map PDF/JPEG/PNG import, offline storage, positioned markers, notes, editing, and deletion
+- iOS 26 Liquid Glass surfaces with iOS 17/18 Material fallbacks
+- Notification permission, APNs device registration, municipality selection, and Cloudflare sender preparation
+- Deterministic SwiftUI previews for AMeDAS, each warning section, typhoon, earthquake, and disaster-map marker states
+- 1024px AppIcon asset plus a reproducible Windows icon-generation script
+- Privacy manifest and unit tests for feature data decoding, ranking, and map-overlay construction
 
-The remaining AMeDAS, warnings, typhoon, earthquake, notifications, and disaster-map features are represented in the navigation but still need their native data and presentation layers.
+APNs credentials, D1 migration, signed-device end-to-end validation, real SwiftUI Preview/Simulator visual QA, and App Store submission remain Mac/Apple-account work. See `Docs/MAC_HANDOFF.md` and `Docs/APNS_BACKEND_PLAN.md`.

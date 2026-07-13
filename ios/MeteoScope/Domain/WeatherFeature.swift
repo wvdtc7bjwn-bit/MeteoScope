@@ -40,17 +40,35 @@ enum WeatherFeature: String, CaseIterable, Identifiable, Hashable {
     }
 
     var implementationStatus: FeatureImplementationStatus {
-        self == .radar ? .available : .inProgress
+        self == .radar ? .available : .basic
+    }
+}
+
+enum WarningMapMode: String, CaseIterable, Identifiable, Hashable, Sendable {
+    case announcements
+    case early
+    case river
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .announcements: "発表"
+        case .early: "早期"
+        case .river: "河川"
+        }
     }
 }
 
 enum FeatureImplementationStatus: Equatable {
     case available
+    case basic
     case inProgress
 
     var label: String {
         switch self {
         case .available: "利用可能"
+        case .basic: "基本表示対応"
         case .inProgress: "移植中"
         }
     }

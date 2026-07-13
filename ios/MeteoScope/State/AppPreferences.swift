@@ -28,12 +28,37 @@ final class AppPreferences {
         didSet { store.set(automaticallyRefresh, forKey: Keys.automaticallyRefresh) }
     }
 
+    var warningNotificationsEnabled: Bool {
+        didSet { store.set(warningNotificationsEnabled, forKey: Keys.warningNotificationsEnabled) }
+    }
+
+    var notifyAdvisories: Bool {
+        didSet { store.set(notifyAdvisories, forKey: Keys.notifyAdvisories) }
+    }
+
+    var notificationAreaCode: String {
+        didSet { store.set(notificationAreaCode, forKey: Keys.notificationAreaCode) }
+    }
+
+    var notificationAreaName: String {
+        didSet { store.set(notificationAreaName, forKey: Keys.notificationAreaName) }
+    }
+
+    var notificationPrefecture: String {
+        didSet { store.set(notificationPrefecture, forKey: Keys.notificationPrefecture) }
+    }
+
     private let store: UserDefaults
 
     init(store: UserDefaults = .standard) {
         self.store = store
         self.theme = Theme(rawValue: store.string(forKey: Keys.theme) ?? "") ?? .system
         self.automaticallyRefresh = store.object(forKey: Keys.automaticallyRefresh) as? Bool ?? true
+        self.warningNotificationsEnabled = store.object(forKey: Keys.warningNotificationsEnabled) as? Bool ?? false
+        self.notifyAdvisories = store.object(forKey: Keys.notifyAdvisories) as? Bool ?? false
+        self.notificationAreaCode = store.string(forKey: Keys.notificationAreaCode) ?? ""
+        self.notificationAreaName = store.string(forKey: Keys.notificationAreaName) ?? ""
+        self.notificationPrefecture = store.string(forKey: Keys.notificationPrefecture) ?? ""
     }
 
     var colorScheme: ColorScheme? {
@@ -47,6 +72,11 @@ final class AppPreferences {
     private enum Keys {
         static let theme = "meteoscope.theme"
         static let automaticallyRefresh = "meteoscope.automaticallyRefresh"
+        static let warningNotificationsEnabled = "meteoscope.warningNotificationsEnabled"
+        static let notifyAdvisories = "meteoscope.notifyAdvisories"
+        static let notificationAreaCode = "meteoscope.notificationAreaCode"
+        static let notificationAreaName = "meteoscope.notificationAreaName"
+        static let notificationPrefecture = "meteoscope.notificationPrefecture"
     }
 }
 
