@@ -1,10 +1,12 @@
 import CoreLocation
 import MapLibre
 import SwiftUI
+import UIKit
 
 struct WeatherMapView: UIViewRepresentable {
     let radarFrame: RadarFrame?
     let userCoordinate: CLLocationCoordinate2D?
+    let weatherOverlay: WeatherMapOverlay?
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -21,14 +23,17 @@ struct WeatherMapView: UIViewRepresentable {
         context.coordinator.mapView = mapView
         context.coordinator.requestedFrame = radarFrame
         context.coordinator.requestedUserCoordinate = userCoordinate
+        context.coordinator.requestedWeatherOverlay = weatherOverlay
         return mapView
     }
 
     func updateUIView(_ mapView: MLNMapView, context: Context) {
         context.coordinator.requestedFrame = radarFrame
         context.coordinator.requestedUserCoordinate = userCoordinate
+        context.coordinator.requestedWeatherOverlay = weatherOverlay
         context.coordinator.applyRadarLayerIfPossible()
         context.coordinator.applyUserLocationIfNeeded()
+        context.coordinator.applyWeatherOverlayIfNeeded()
     }
 
     final class Coordinator: NSObject, MLNMapViewDelegate {
@@ -38,13 +43,24 @@ struct WeatherMapView: UIViewRepresentable {
         weak var mapView: MLNMapView?
         var requestedFrame: RadarFrame?
         var requestedUserCoordinate: CLLocationCoordinate2D?
+        var requestedWeatherOverlay: WeatherMapOverlay?
         private var renderedFrameID: RadarFrame.ID?
         private var renderedUserCoordinate: CLLocationCoordinate2D?
         private var userAnnotation: MLNPointAnnotation?
+        private var renderedOverlayID: String?
+        private var weatherAnnotations: [MLNAnnotation] = []
+        private var polygonKinds: [ObjectIdentifier: WeatherMapPolygon.Kind] = [:]
+        private var weatherSourceIdentifiers: [String] = []
+        private var weatherLayerIdentifiers: [String] = []
 
         func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
+            renderedFrameID = nil
+            renderedOverlayID = nil
+            weatherSourceIdentifiers = []
+            weatherLayerIdentifiers = []
             applyRadarLayerIfPossible()
             applyUserLocationIfNeeded()
+            applyWeatherOverlayIfNeeded()
         }
 
         func applyRadarLayerIfPossible() {
@@ -98,6 +114,241 @@ struct WeatherMapView: UIViewRepresentable {
             renderedUserCoordinate = requestedUserCoordinate
         }
 
+        func applyWeatherOverlayIfNeeded() {
+            guard let mapView, let style = mapView.style else { return }
+            guard renderedOverlayID != requestedWeatherOverlay?.id else { return }
+
+            if !weatherAnnotations.isEmpty {
+                mapView.removeAnnotations(weatherAnnotations)
+                weatherAnnotations = []
+            }
+            polygonKinds = [:]
+            removeGeoJSONLayers(from: style)
+
+            guard let overlay = requestedWeatherOverlay else {
+                renderedOverlayID = nil
+                return
+            }
+
+            let lineAnnotations: [MLNPolyline] = overlay.polylines.compactMap { line in
+                let coordinates = line.coordinates.map(\.clLocationCoordinate)
+                guard coordinates.count >= 2 else { return nil }
+                return coordinates.withUnsafeBufferPointer { buffer in
+                    guard let baseAddress = buffer.baseAddress else { return nil }
+                    return MLNPolyline(coordinates: baseAddress, count: UInt(coordinates.count))
+                }
+            }
+            let polygonAnnotations: [MLNPolygon] = overlay.polygons.compactMap { polygon in
+                let coordinates = polygon.coordinates.map(\.clLocationCoordinate)
+                guard coordinates.count >= 4 else { return nil }
+                let annotation = coordinates.withUnsafeBufferPointer { buffer -> MLNPolygon? in
+                    guard let baseAddress = buffer.baseAddress else { return nil }
+                    return MLNPolygon(coordinates: baseAddress, count: UInt(coordinates.count))
+                }
+                if let annotation {
+                    polygonKinds[ObjectIdentifier(annotation)] = polygon.kind
+                }
+                return annotation
+            }
+            let pointAnnotations: [WeatherPointAnnotation] = overlay.points.map { point in
+                let annotation = WeatherPointAnnotation()
+                annotation.coordinate = point.coordinate.clLocationCoordinate
+                annotation.title = point.title
+                annotation.subtitle = point.subtitle
+                annotation.kind = point.kind
+                return annotation
+            }
+            let annotations = polygonAnnotations.map { $0 as MLNAnnotation }
+                + lineAnnotations.map { $0 as MLNAnnotation }
+                + pointAnnotations.map { $0 as MLNAnnotation }
+            if !annotations.isEmpty {
+                mapView.addAnnotations(annotations)
+                weatherAnnotations = annotations
+            }
+            addGeoJSONLayers(overlay.geoJSONSources, to: style)
+
+            renderedOverlayID = overlay.id
+            if !annotations.isEmpty {
+                mapView.showAnnotations(
+                    annotations,
+                    edgePadding: UIEdgeInsets(top: 120, left: 35, bottom: 220, right: 35),
+                    animated: true
+                )
+            }
+        }
+
+        private func addGeoJSONLayers(_ sources: [WeatherMapGeoJSONSource], to style: MLNStyle) {
+            for sourceDefinition in sources {
+                let sourceIdentifier = "meteoscope-\(sourceDefinition.id)"
+                let source = MLNShapeSource(
+                    identifier: sourceIdentifier,
+                    url: sourceDefinition.url,
+                    options: nil
+                )
+                style.addSource(source)
+                weatherSourceIdentifiers.append(sourceIdentifier)
+
+                for layerDefinition in sourceDefinition.layers where !layerDefinition.values.isEmpty {
+                    let layerIdentifier = "meteoscope-\(layerDefinition.id)"
+                    let predicate = NSPredicate(
+                        format: "%K IN %@",
+                        layerDefinition.propertyName,
+                        layerDefinition.values
+                    )
+                    let appearance = regionAppearance(for: layerDefinition.appearance)
+                    switch layerDefinition.geometry {
+                    case .fill:
+                        let layer = MLNFillStyleLayer(identifier: layerIdentifier, source: source)
+                        layer.predicate = predicate
+                        layer.fillColor = NSExpression(forConstantValue: appearance.color)
+                        layer.fillOpacity = NSExpression(forConstantValue: appearance.opacity)
+                        layer.fillOutlineColor = NSExpression(forConstantValue: appearance.outlineColor)
+                        style.addLayer(layer)
+                    case .line:
+                        let layer = MLNLineStyleLayer(identifier: layerIdentifier, source: source)
+                        layer.predicate = predicate
+                        layer.lineColor = NSExpression(forConstantValue: appearance.color)
+                        layer.lineOpacity = NSExpression(forConstantValue: appearance.opacity)
+                        layer.lineWidth = NSExpression(forConstantValue: appearance.lineWidth)
+                        style.addLayer(layer)
+                    }
+                    weatherLayerIdentifiers.append(layerIdentifier)
+                }
+            }
+        }
+
+        private func removeGeoJSONLayers(from style: MLNStyle) {
+            for identifier in weatherLayerIdentifiers.reversed() {
+                if let layer = style.layer(withIdentifier: identifier) { style.removeLayer(layer) }
+            }
+            for identifier in weatherSourceIdentifiers.reversed() {
+                if let source = style.source(withIdentifier: identifier) { style.removeSource(source) }
+            }
+            weatherLayerIdentifiers = []
+            weatherSourceIdentifiers = []
+        }
+
+        func mapView(_ mapView: MLNMapView, viewFor annotation: MLNAnnotation) -> MLNAnnotationView? {
+            guard let point = annotation as? WeatherPointAnnotation else { return nil }
+            let reuseIdentifier = "meteoscope-weather-point"
+            let view = mapView.dequeueReusableAnnotationView(withIdentifier: reuseIdentifier)
+                ?? MLNAnnotationView(reuseIdentifier: reuseIdentifier)
+            let appearance = markerAppearance(for: point.kind)
+            view.frame = CGRect(origin: .zero, size: appearance.size)
+            view.backgroundColor = appearance.color
+            view.layer.cornerRadius = appearance.size.width / 2
+            view.layer.borderWidth = appearance.borderWidth
+            view.layer.borderColor = UIColor.white.cgColor
+            view.layer.shadowColor = UIColor.black.cgColor
+            view.layer.shadowOpacity = 0.24
+            view.layer.shadowRadius = 2
+            return view
+        }
+
+        func mapView(_ mapView: MLNMapView, annotationCanShowCallout annotation: MLNAnnotation) -> Bool {
+            annotation is WeatherPointAnnotation
+        }
+
+        func mapView(_ mapView: MLNMapView, strokeColorForShapeAnnotation annotation: MLNShape) -> UIColor {
+            if let polygon = annotation as? MLNPolygon,
+               let kind = polygonKinds[ObjectIdentifier(polygon)] {
+                return polygonAppearance(for: kind).stroke
+            }
+            UIColor.systemOrange
+        }
+
+        func mapView(_ mapView: MLNMapView, fillColorForPolygonAnnotation annotation: MLNPolygon) -> UIColor {
+            guard let kind = polygonKinds[ObjectIdentifier(annotation)] else {
+                return UIColor.systemOrange.withAlphaComponent(0.15)
+            }
+            return polygonAppearance(for: kind).fill
+        }
+
+        func mapView(_ mapView: MLNMapView, lineWidthForPolylineAnnotation annotation: MLNPolyline) -> CGFloat {
+            3.5
+        }
+
+        func mapView(_ mapView: MLNMapView, lineWidthForShapeAnnotation annotation: MLNShape) -> CGFloat {
+            if let polygon = annotation as? MLNPolygon,
+               let kind = polygonKinds[ObjectIdentifier(polygon)] {
+                return polygonAppearance(for: kind).lineWidth
+            }
+            return 3.5
+        }
+
+        private func polygonAppearance(
+            for kind: WeatherMapPolygon.Kind
+        ) -> (fill: UIColor, stroke: UIColor, lineWidth: CGFloat) {
+            switch kind {
+            case .typhoonProbability:
+                (UIColor.systemOrange.withAlphaComponent(0.16), UIColor.systemOrange, 2)
+            case .typhoonStrongWind:
+                (UIColor.systemYellow.withAlphaComponent(0.14), UIColor.systemYellow, 2)
+            case .typhoonStorm:
+                (UIColor.systemRed.withAlphaComponent(0.18), UIColor.systemRed, 2.5)
+            }
+        }
+
+        private func regionAppearance(
+            for appearance: WeatherMapGeoJSONLayer.Appearance
+        ) -> (color: UIColor, outlineColor: UIColor, opacity: NSNumber, lineWidth: NSNumber) {
+            let color: UIColor
+            let opacity: Double
+            let width: Double
+            switch appearance {
+            case .warning(let severity):
+                switch severity {
+                case .advisory: color = .systemYellow
+                case .warning: color = .systemRed
+                case .danger: color = .systemPurple
+                case .emergency: color = UIColor(red: 0.33, green: 0, blue: 0.46, alpha: 1)
+                }
+                opacity = severity == .emergency ? 0.72 : 0.58
+                width = 1.4
+            case .early(let level):
+                color = level == .high ? .systemRed : .systemOrange
+                opacity = level == .high ? 0.52 : 0.42
+                width = 1.3
+            case .river(let level):
+                switch level {
+                case 5: color = UIColor(red: 0.33, green: 0, blue: 0.46, alpha: 1)
+                case 4: color = .systemPurple
+                case 3: color = .systemRed
+                default: color = .systemYellow
+                }
+                opacity = 0.92
+                width = level >= 4 ? 6 : 4
+            case .seismicIntensity(let label):
+                color = intensityColor(label)
+                opacity = 0.48
+                width = 1.3
+            }
+            return (color, color.withAlphaComponent(0.92), NSNumber(value: opacity), NSNumber(value: width))
+        }
+
+        private func markerAppearance(for kind: WeatherMapPoint.Kind) -> (color: UIColor, size: CGSize, borderWidth: CGFloat) {
+            switch kind {
+            case .typhoonCenter:
+                (UIColor.systemRed, CGSize(width: 22, height: 22), 3)
+            case .typhoonForecast:
+                (UIColor.systemOrange, CGSize(width: 14, height: 14), 2)
+            case .earthquakeHypocenter:
+                (UIColor.black, CGSize(width: 22, height: 22), 3)
+            case .seismicIntensity(let label):
+                (intensityColor(label), CGSize(width: 13, height: 13), 1.5)
+            }
+        }
+
+        private func intensityColor(_ label: String) -> UIColor {
+            if label.contains("7") { return UIColor(red: 0.26, green: 0, blue: 0.57, alpha: 1) }
+            if label.contains("6") { return UIColor.systemPurple }
+            if label.contains("5") { return UIColor.systemRed }
+            if label.contains("4") { return UIColor.systemOrange }
+            if label.contains("3") { return UIColor.systemYellow }
+            if label.contains("2") { return UIColor.systemGreen }
+            return UIColor.systemBlue
+        }
+
         private func coordinatesMatch(
             _ left: CLLocationCoordinate2D?,
             _ right: CLLocationCoordinate2D?
@@ -112,5 +363,15 @@ struct WeatherMapView: UIViewRepresentable {
                 false
             }
         }
+    }
+}
+
+private final class WeatherPointAnnotation: MLNPointAnnotation {
+    var kind: WeatherMapPoint.Kind = .typhoonForecast
+}
+
+private extension GeoCoordinate {
+    var clLocationCoordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 }
