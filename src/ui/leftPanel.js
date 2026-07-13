@@ -788,9 +788,7 @@ function renderMyAreaWarningInsight(root, insights, myAreas = []) {
             <span>${escapeHtml(area.prefecture ?? "")}</span>
           </div>
           <div class="location-my-area-badges">
-            ${(area.warnings ?? []).slice(0, 4).map((warning) =>
-              `<span class="warning-badge warning-badge-${escapeHtml(warning.level)}">${escapeHtml(warning.label)}</span>`
-            ).join("")}
+            ${buildWarningBadgesMarkup((area.warnings ?? []).slice(0, 4))}
           </div>
         </article>
       `).join("")}
@@ -1255,7 +1253,10 @@ function formatMobileEarthquakeTime(value) {
 function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLocation, isLoading, riverFlood, warningView, warnings }) {
   if (warningView === "river") return buildRiverFloodMobileContextMarkup(riverFlood, currentLocation);
   const topWarning = getPrimaryMobileWarning(warnings);
-  const summaryText = isLoading ? "" : buildMobileWarningSummary(warnings);
+  const warningBadges = warningView === "status" && !isLoading
+    ? buildWarningBadgesMarkup(warnings)
+    : "";
+  const summaryText = isLoading || warningView === "status" ? "" : buildMobileWarningSummary(warnings);
   const statusText = isLoading ? "取得中" : (topWarning?.label ?? "発表なし");
   const level = topWarning?.level ?? "none";
   return `
@@ -1270,7 +1271,9 @@ function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLoc
               <strong>${escapeHtml(isLoading ? "現在地を確認中" : area)}</strong>
               ${summaryText ? `<span>${escapeHtml(summaryText)}</span>` : ""}
             </div>
-            <span class="mobile-dock-warning-badge mobile-dock-warning-badge-${escapeHtml(level)}">${escapeHtml(statusText)}</span>
+            ${warningBadges
+              ? `<div class="mobile-dock-warning-badges warning-badges">${warningBadges}</div>`
+              : `<span class="mobile-dock-warning-badge mobile-dock-warning-badge-${escapeHtml(level)}">${escapeHtml(statusText)}</span>`}
           </div>`}
     </div>
   `;
@@ -1366,6 +1369,14 @@ function getPointToRiverSegmentDistanceKm(point, start, end) {
   const ratio = Math.max(0, Math.min(1, -(startX * deltaX + startY * deltaY) / lengthSquared));
   return Math.hypot(startX + ratio * deltaX, startY + ratio * deltaY);
 }
+function buildWarningBadgeMarkup(warning = {}) {
+  return `<span class="warning-badge warning-badge-${escapeHtml(warning.level ?? "none")}">${escapeHtml(warning.label ?? "")}</span>`;
+}
+
+function buildWarningBadgesMarkup(warnings = []) {
+  return warnings.map(buildWarningBadgeMarkup).join("");
+}
+
 function getPrimaryMobileWarning(warnings = []) {
   const rank = { emergency: 4, danger: 3, high: 3, warning: 2, middle: 2, advisory: 1 };
   return [...warnings].sort((a, b) => (rank[b?.level] ?? 0) - (rank[a?.level] ?? 0))[0] ?? null;
@@ -1770,7 +1781,7 @@ function buildCurrentLocationCardContent(info, { warningView = "status", activeK
     message: info.message ?? "",
     updatedAt: info.updatedAt,
     detailAreaCode: info.areaCode,
-    badges: warnings.map((warning) => `<span class="warning-badge warning-badge-${escapeHtml(warning.level)}">${escapeHtml(warning.label)}</span>`)
+    badges: warnings.map(buildWarningBadgeMarkup)
   };
 }
 
@@ -1834,9 +1845,7 @@ if (warningView === "river") {
       <article class="warning-area-row${String(area.areaCode) === selectedWarningAreaCode ? " selected" : ""}" data-warning-area-code="${escapeHtml(area.areaCode)}">
         <strong>${escapeHtml(area.areaName)}</strong>
         <div class="warning-badges">
-          ${area.warnings.map((warning) => `
-            <span class="warning-badge warning-badge-${escapeHtml(warning.level)}">${escapeHtml(warning.label)}</span>
-          `).join("")}
+          ${buildWarningBadgesMarkup(area.warnings)}
         </div>
       </article>
     `).join("")}
@@ -2005,7 +2014,7 @@ function openWarningModal(areaCode) {
       <div class="warning-modal-warning-list">
         ${warnings.length === 0 ? `<p class="warning-modal-empty">発表中の警報・注意報はありません。</p>` : warnings.map((warning) => `
           <article class="warning-modal-warning">
-            <span class="warning-badge warning-badge-${escapeHtml(warning.level)}">${escapeHtml(warning.label)}</span>
+            ${buildWarningBadgeMarkup(warning)}
             <dl>
               <div><dt>更新時刻</dt><dd>${escapeHtml(formatWarningTime(warning.updatedAt))}</dd></div>
               ${warning.status ? `<div><dt>状態</dt><dd>${escapeHtml(warning.status)}</dd></div>` : ""}

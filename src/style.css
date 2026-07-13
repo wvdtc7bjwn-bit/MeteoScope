@@ -5079,13 +5079,21 @@ html[data-theme="light"] .legend-typhoon-center::after {
     padding-top: 17px;
   }
 
-  .mobile-dock-warning-head,
-  .mobile-dock-warning-main {
+  .mobile-dock-warning-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
     min-width: 0;
+  }
+
+  .mobile-dock-warning-main {
+    display: grid;
+    grid-template-columns: minmax(0, 44%) minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    min-height: 47px;
   }
 
   .mobile-dock-warning-actions {
@@ -5152,9 +5160,20 @@ html[data-theme="light"] .legend-typhoon-center::after {
     white-space: nowrap;
   }
 
+  .mobile-dock-warning-badges {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .mobile-dock-warning-badges .warning-badge {
+    min-height: 20px;
+    padding: 3px 7px 4px;
+    font-size: 10px;
+  }
+
   .mobile-dock-warning-badge {
-    flex: 0 1 auto;
-    max-width: 48%;
+    justify-self: start;
+    max-width: 100%;
     min-width: 74px;
     padding: 6px 10px;
     border: 1px solid rgba(213, 229, 247, 0.22);
@@ -7334,10 +7353,6 @@ html[data-theme="light"] .river-affected-cities span {
 }
 
 @media (max-width: 800px) and (orientation: portrait) {
-  .mobile-dock-river .mobile-dock-warning-main {
-    min-height: 47px;
-  }
-
   .mobile-dock-river .mobile-dock-warning-text span {
     max-width: 260px;
     overflow: hidden;
@@ -7346,7 +7361,7 @@ html[data-theme="light"] .river-affected-cities span {
   }
 
   .mobile-dock-river .river-flood-level {
-    flex: 0 0 auto;
+    justify-self: start;
     max-width: 122px;
     overflow: hidden;
     text-overflow: ellipsis;
