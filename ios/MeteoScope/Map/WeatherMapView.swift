@@ -18,7 +18,6 @@ struct WeatherMapView: UIViewRepresentable {
             zoomLevel: 4.2,
             animated: false
         )
-        mapView.compassView.position = .topRight
         context.coordinator.mapView = mapView
         context.coordinator.requestedFrame = radarFrame
         context.coordinator.requestedUserCoordinate = userCoordinate

@@ -3,7 +3,7 @@ import Observation
 
 @MainActor
 @Observable
-final class LocationService: NSObject, CLLocationManagerDelegate {
+final class LocationService: NSObject, @preconcurrency CLLocationManagerDelegate {
     enum State {
         case idle
         case requesting
