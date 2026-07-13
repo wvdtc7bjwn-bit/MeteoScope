@@ -5513,6 +5513,10 @@ html[data-theme="light"] .legend-typhoon-center::after {
     min-height: 30px;
   }
 
+  .mobile-dock-amedas-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
   .mobile-dock-chip {
     display: grid;
     place-items: center;

@@ -47,6 +47,7 @@ export const JMA_ENDPOINTS = {
   amedasDailyMinTemperature: "https://www.data.jma.go.jp/stats/data/mdrr/tem_rct/alltable/mntemsadext00_rct.csv",
   amedasDailyMaxWind: "https://www.data.jma.go.jp/stats/data/mdrr/wind_rct/alltable/mxwsp00_rct.csv",
   amedasDailyMaxGust: "https://www.data.jma.go.jp/stats/data/mdrr/wind_rct/alltable/gust00_rct.csv",
+  amedasDailySurface: "https://www.data.jma.go.jp/stats/data/mdrr/synopday/data1s.html",
   typhoon: "https://www.jma.go.jp/bosai/typhoon/data/targetTc.json",
   earthquakeXmlFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml",
   earthquakeXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml"
@@ -67,7 +68,7 @@ export const TABS = [
     title: "",
     cardLabel: "気温",
     primary: "AMeDAS",
-    description: "気温・降水量・風速・積雪量をアメダス観測地点マーカーで表示します。"
+    description: "気温・降水量・風速・湿度・気圧・積雪量をアメダス観測地点マーカーで表示します。"
   },
   {
     id: "warnings",
@@ -99,6 +100,8 @@ export const AMEDAS_METRICS = [
   { id: "temperature", label: "気温", primary: "Temp", unit: "℃", color: "#48c46b" },
   { id: "precipitation", label: "降水量", primary: "Rain", unit: "mm", color: "#56b7f2" },
   { id: "wind", label: "風速", primary: "Wind", unit: "m/s", color: "#f4d35e" },
+  { id: "humidity", label: "湿度", primary: "Humidity", unit: "%", color: "#41b6c4" },
+  { id: "pressure", label: "気圧", primary: "Pressure", unit: "hPa", color: "#7e57c2" },
   { id: "snow", label: "積雪量", primary: "Snow", unit: "cm", color: "#d8e6f7" }
 ];
 
@@ -146,20 +149,44 @@ export const AMEDAS_SNOW_LEVELS = [
   { min: 1, label: "1〜5cm", color: "#b7d5ea" }
 ];
 
+export const AMEDAS_HUMIDITY_LEVELS = [
+  { min: 90, label: "90%以上", color: "#253494" },
+  { min: 80, label: "80〜90%", color: "#2c7fb8" },
+  { min: 70, label: "70〜80%", color: "#41b6c4" },
+  { min: 60, label: "60〜70%", color: "#7fcdbb" },
+  { min: 50, label: "50〜60%", color: "#c7e9b4" },
+  { min: 40, label: "40〜50%", color: "#ffff8c" },
+  { min: 30, label: "30〜40%", color: "#fdae61" },
+  { min: -Infinity, label: "30%未満", color: "#d73027" }
+];
+
+export const AMEDAS_PRESSURE_LEVELS = [
+  { min: 1040, label: "1040hPa以上", color: "#5e35b1" },
+  { min: 1030, label: "1030〜1040hPa", color: "#3949ab" },
+  { min: 1020, label: "1020〜1030hPa", color: "#1e88e5" },
+  { min: 1010, label: "1010〜1020hPa", color: "#26a69a" },
+  { min: 1000, label: "1000〜1010hPa", color: "#9ccc65" },
+  { min: 990, label: "990〜1000hPa", color: "#fdd835" },
+  { min: 980, label: "980〜990hPa", color: "#fb8c00" },
+  { min: -Infinity, label: "980hPa未満", color: "#e53935" }
+];
+
+export const AMEDAS_LEVELS_BY_METRIC = {
+  temperature: AMEDAS_TEMPERATURE_LEVELS,
+  precipitation: AMEDAS_PRECIPITATION_LEVELS,
+  wind: AMEDAS_WIND_LEVELS,
+  humidity: AMEDAS_HUMIDITY_LEVELS,
+  pressure: AMEDAS_PRESSURE_LEVELS,
+  snow: AMEDAS_SNOW_LEVELS
+};
+
 export function getAmedasObservationColor(metricId, value) {
-  if (metricId === "temperature") {
-    return interpolateAmedasLevelColor(AMEDAS_TEMPERATURE_LEVELS, value);
-  }
+  const levels = AMEDAS_LEVELS_BY_METRIC[metricId];
+  if (!levels) return "#d8e6f7";
   if (metricId === "precipitation") {
-    return AMEDAS_PRECIPITATION_LEVELS.find((level) => value >= level.min)?.color ?? "#a8d8ff";
+    return levels.find((level) => value >= level.min)?.color ?? "#a8d8ff";
   }
-  if (metricId === "wind") {
-    return interpolateAmedasLevelColor(AMEDAS_WIND_LEVELS, value);
-  }
-  if (metricId === "snow") {
-    return interpolateAmedasLevelColor(AMEDAS_SNOW_LEVELS, value);
-  }
-  return "#d8e6f7";
+  return interpolateAmedasLevelColor(levels, value);
 }
 
 function interpolateAmedasLevelColor(levels, value) {

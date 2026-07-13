@@ -1,9 +1,7 @@
 import {
+  AMEDAS_LEVELS_BY_METRIC,
   AMEDAS_METRICS,
   AMEDAS_PRECIPITATION_LEVELS,
-  AMEDAS_SNOW_LEVELS,
-  AMEDAS_TEMPERATURE_LEVELS,
-  AMEDAS_WIND_LEVELS,
   EARTHQUAKE_INTENSITY_LEVELS,
   getAmedasObservationColor,
   getEarthquakeIntensityColor,
@@ -15,10 +13,15 @@ import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
 import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
 
 let selectedWarningAreaCode = "";
-let amedasRankingOrder = "top";
+const amedasRankingOrderByMetric = {
+  temperature: "top",
+  humidity: "top",
+  pressure: "top"
+};
 let amedasTemperatureRankingView = "current";
 let amedasWindRankingView = "current";
 let amedasWindRankingKind = "average";
+let amedasPressureRankingView = "current";
 let activeWarningAreasByCode = new Map();
 let activeWarningDetailsLoaded = false;
 let activeRiverFloodReportsById = new Map();
@@ -232,11 +235,22 @@ export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
       onChange?.();
       return;
     }
+    const pressurePeriodButton = event.target.closest("[data-amedas-pressure-ranking-period]");
+    if (pressurePeriodButton) {
+      const period = pressurePeriodButton.dataset.amedasPressureRankingPeriod;
+      if (period !== "current" && period !== "daily") return;
+      amedasPressureRankingView = period;
+      onChange?.();
+      return;
+    }
     const button = event.target.closest("[data-amedas-ranking-order]");
     if (button) {
       const order = button.dataset.amedasRankingOrder;
       if (order !== "top" && order !== "bottom") return;
-      amedasRankingOrder = order;
+      const metricId = button.dataset.amedasRankingOrderMetric ?? "temperature";
+      if (Object.hasOwn(amedasRankingOrderByMetric, metricId)) {
+        amedasRankingOrderByMetric[metricId] = order;
+      }
       onChange?.();
       return;
     }
@@ -2164,11 +2178,9 @@ function renderAmedasRanking(tab, state, metric) {
     return;
   }
 
-  const rankingView = metric.id === "temperature"
-    ? amedasTemperatureRankingView
-    : (metric.id === "wind" ? amedasWindRankingView : "current");
+  const rankingView = getAmedasRankingView(metric.id);
   const windKind = metric.id === "wind" ? amedasWindRankingKind : "average";
-  const order = rankingView === "minimum" ? "bottom" : (rankingView === "maximum" ? "top" : (metric.id === "temperature" ? amedasRankingOrder : "top"));
+  const order = getAmedasRankingOrder(metric.id, rankingView);
   const items = buildAmedasRankingItems(state.data, metric, order, rankingView, windKind).slice(0, AMEDAS_RANKING_LIMIT);
   const orderLabel = getAmedasRankingLabel(metric.id, rankingView, windKind, order);
   const rankingUpdatedAt = getAmedasRankingUpdatedAt(state.data, metric.id, rankingView, windKind);
@@ -2194,10 +2206,17 @@ function renderAmedasRanking(tab, state, metric) {
       <button type="button" data-amedas-wind-ranking-kind="gust" class="${windKind === "gust" ? "active" : ""}" ${rankingView === "current" ? 'disabled title="実況の全国一括データは提供されていません"' : ""}>最大瞬間風速</button>
     </div>
   ` : "";
-  const orderControls = metric.id === "temperature" && rankingView === "current" ? `
-    <div class="amedas-ranking-toggle amedas-ranking-slider" aria-label="気温ランキング切替" style="${getAmedasRankingSliderStyle(order === "top" ? 0 : 1, 2)}">
-      <button type="button" data-amedas-ranking-order="top" class="${order === "top" ? "active" : ""}">高い順</button>
-      <button type="button" data-amedas-ranking-order="bottom" class="${order === "bottom" ? "active" : ""}">低い順</button>
+  const pressureControls = metric.id === "pressure" ? `
+    <div class="amedas-ranking-toggle amedas-ranking-slider" aria-label="気圧ランキング集計期間" style="${getAmedasRankingSliderStyle(rankingView === "current" ? 0 : 1, 2)}">
+      <button type="button" data-amedas-pressure-ranking-period="current" class="${rankingView === "current" ? "active" : ""}">実況</button>
+      <button type="button" data-amedas-pressure-ranking-period="daily" class="${rankingView === "daily" ? "active" : ""}">今日ここまで</button>
+    </div>
+  ` : "";
+  const supportsOrderControls = (metric.id === "temperature" && rankingView === "current") || metric.id === "humidity" || metric.id === "pressure";
+  const orderControls = supportsOrderControls ? `
+    <div class="amedas-ranking-toggle amedas-ranking-slider" aria-label="${escapeHtml(metric.label)}ランキング順序" style="${getAmedasRankingSliderStyle(order === "top" ? 0 : 1, 2)}">
+      <button type="button" data-amedas-ranking-order="top" data-amedas-ranking-order-metric="${escapeHtml(metric.id)}" class="${order === "top" ? "active" : ""}">高い順</button>
+      <button type="button" data-amedas-ranking-order="bottom" data-amedas-ranking-order-metric="${escapeHtml(metric.id)}" class="${order === "bottom" ? "active" : ""}">低い順</button>
     </div>
   ` : "";
 
@@ -2205,12 +2224,13 @@ function renderAmedasRanking(tab, state, metric) {
     <div class="amedas-ranking-head">
       <span>${escapeHtml(metric.label)}ランキング</span>
       <div class="amedas-ranking-meta">
-        <small>${orderLabel}${items.length}地点</small>
+        <small>${orderLabel} ${items.length}地点</small>
         ${rankingUpdatedAt ? `<time>更新 ${escapeHtml(formatAmedasRankingClock(rankingUpdatedAt))}</time>` : ""}
       </div>
     </div>
     ${temperatureControls}
     ${windControls}
+    ${pressureControls}
     ${orderControls}
     ${items.length ? `<div class="amedas-ranking-list">
       ${items.map((item, index) => `
@@ -2227,6 +2247,19 @@ function renderAmedasRanking(tab, state, metric) {
   `;
 }
 
+function getAmedasRankingView(metricId) {
+  if (metricId === "temperature") return amedasTemperatureRankingView;
+  if (metricId === "wind") return amedasWindRankingView;
+  if (metricId === "pressure") return amedasPressureRankingView;
+  return "current";
+}
+
+function getAmedasRankingOrder(metricId, rankingView) {
+  if (rankingView === "minimum") return "bottom";
+  if (rankingView === "maximum") return "top";
+  return amedasRankingOrderByMetric[metricId] ?? "top";
+}
+
 function getAmedasRankingSliderStyle(index, count) {
   const safeIndex = Math.max(0, Math.min(count - 1, Number(index) || 0));
   return `--ranking-index-offset:${safeIndex * 100}%;--ranking-gap-offset:${safeIndex * 3}px;--ranking-count:${count}`;
@@ -2237,6 +2270,11 @@ function getAmedasRankingLabel(metricId, rankingView, windKind, order) {
     const period = rankingView === "daily" ? "今日" : "実況";
     return `${period}${windKind === "gust" ? "瞬間" : "平均"}`;
   }
+  if (metricId === "pressure") {
+    const period = rankingView === "daily" ? "今日最低" : "実況";
+    return `${period}・${order === "bottom" ? "低い順" : "高い順"}`;
+  }
+  if (metricId === "humidity") return `実況・${order === "bottom" ? "低い順" : "高い順"}`;
   if (rankingView === "maximum") return "日最高";
   if (rankingView === "minimum") return "日最低";
   return order === "bottom" ? "下位" : "上位";
@@ -2245,6 +2283,7 @@ function getAmedasRankingLabel(metricId, rankingView, windKind, order) {
 function getAmedasRankingEmptyMessage(metricId, rankingView) {
   if (rankingView === "current") return "表示できる観測値がありません";
   if (metricId === "wind") return "今日の風速ランキングを取得できません";
+  if (metricId === "pressure") return "今日の最低海面気圧ランキングを取得できません";
   return "日最高・日最低ランキングを取得できません";
 }
 
@@ -2411,6 +2450,8 @@ function getAmedasDailySeriesTitle(metricId, dayOffset = 0) {
   const dayLabel = dayOffset === 1 ? "昨日" : "今日";
   if (metricId === "precipitation") return `${dayLabel}の1時間降水量`;
   if (metricId === "wind") return `${dayLabel}の風速`;
+  if (metricId === "humidity") return `${dayLabel}の湿度`;
+  if (metricId === "pressure") return `${dayLabel}の海面気圧`;
   if (metricId === "snow") return `${dayLabel}の積雪深`;
   return `${dayLabel}の気温`;
 }
@@ -2418,6 +2459,8 @@ function getAmedasDailySeriesTitle(metricId, dayOffset = 0) {
 function getAmedasDailyMinLabel(metricId) {
   if (metricId === "precipitation") return "最小";
   if (metricId === "wind") return "最小風速";
+  if (metricId === "humidity") return "最低湿度";
+  if (metricId === "pressure") return "最低気圧";
   if (metricId === "snow") return "最小積雪深";
   return "最低";
 }
@@ -2425,6 +2468,8 @@ function getAmedasDailyMinLabel(metricId) {
 function getAmedasDailyMaxLabel(metricId) {
   if (metricId === "precipitation") return "最大";
   if (metricId === "wind") return "最大風速";
+  if (metricId === "humidity") return "最高湿度";
+  if (metricId === "pressure") return "最高気圧";
   if (metricId === "snow") return "最大積雪深";
   return "最高";
 }
@@ -2433,18 +2478,21 @@ function buildAmedasRankingItems(data = {}, metric, order = "top", rankingView =
   const pointsById = new Map((data.points ?? []).map((point) => [String(point.id), point]));
   const usesDailyTemperature = metric.id === "temperature" && rankingView !== "current";
   const usesDailyWind = metric.id === "wind" && rankingView === "daily";
+  const usesDailyPressure = metric.id === "pressure" && rankingView === "daily";
   const source = usesDailyTemperature
     ? (data.temperatureRankings?.[rankingView] ?? [])
-    : (usesDailyWind ? (data.windRankings?.[windKind === "gust" ? "gust" : "maximum"] ?? []) : (data.points ?? []));
+    : (usesDailyWind
+      ? (data.windRankings?.[windKind === "gust" ? "gust" : "maximum"] ?? [])
+      : (usesDailyPressure ? (data.pressureRankings?.minimum ?? []) : (data.points ?? [])));
   return source
     .map((point) => ({
       id: point.id,
       name: point.name,
       coordinates: point.coordinates ?? pointsById.get(String(point.id))?.coordinates,
-      value: usesDailyTemperature || usesDailyWind
+      value: usesDailyTemperature || usesDailyWind || usesDailyPressure
         ? point.value
         : point.values?.[metric.id === "wind" && windKind === "gust" ? "gust" : metric.id],
-      observationTime: point.observationTime ?? (usesDailyTemperature || usesDailyWind ? null : data.latestTime)
+      observationTime: point.observationTime ?? (usesDailyTemperature || usesDailyWind || usesDailyPressure ? null : data.latestTime)
     }))
     .map((item) => ({ ...item, color: getAmedasLevelColor(metric.id, item.value) }))
     .filter((item) => shouldIncludeAmedasValue(metric.id, item.value))
@@ -2476,6 +2524,9 @@ function getAmedasRankingUpdatedAt(data = {}, metricId, rankingView, windKind) {
     const key = windKind === "gust" ? "gustUpdatedAt" : "maximumUpdatedAt";
     return data.windRankings?.[key] ?? null;
   }
+  if (metricId === "pressure" && rankingView === "daily") {
+    return data.pressureRankings?.minimumUpdatedAt ?? null;
+  }
   return data.latestTime ?? null;
 }
 
@@ -2494,11 +2545,7 @@ function formatAmedasRankingClock(value) {
 }
 
 function getAmedasLevels(metricId) {
-  if (metricId === "temperature") return AMEDAS_TEMPERATURE_LEVELS;
-  if (metricId === "precipitation") return AMEDAS_PRECIPITATION_LEVELS;
-  if (metricId === "wind") return AMEDAS_WIND_LEVELS;
-  if (metricId === "snow") return AMEDAS_SNOW_LEVELS;
-  return [];
+  return AMEDAS_LEVELS_BY_METRIC[metricId] ?? [];
 }
 
 function renderTyphoonDetails(tab, state) {

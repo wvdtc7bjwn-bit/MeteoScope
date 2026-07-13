@@ -1596,7 +1596,10 @@ function mergeAmedasData(currentData, nextData) {
       : currentData.temperatureRankings,
     windRankings: nextData.windRankings?.status === "ok"
       ? nextData.windRankings
-      : currentData.windRankings
+      : currentData.windRankings,
+    pressureRankings: nextData.pressureRankings?.status === "ok"
+      ? nextData.pressureRankings
+      : currentData.pressureRankings
   };
 }
 

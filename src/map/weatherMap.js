@@ -3554,7 +3554,8 @@ function buildAmedasPopup(point, metric, value, latestTime) {
   const windDirection = Number.isFinite(point.windDirection)
     ? `<br>風向: ${getWindDirectionLabel(point.windDirection)}から`
     : "";
-  return `${escapePopup(point.name)}<br>${metric.label}: ${formatAmedasValue(value)} ${metric.unit}${windDirection}<br>アメダス最新時刻: ${latestTime ?? "未取得"}`;
+  const metricLabel = metric.id === "pressure" ? "海面気圧" : metric.label;
+  return `${escapePopup(point.name)}<br>${metricLabel}: ${formatAmedasValue(value)} ${metric.unit}${windDirection}<br>アメダス最新時刻: ${latestTime ?? "未取得"}`;
 }
 
 function getAmedasColor(metricId, value) {

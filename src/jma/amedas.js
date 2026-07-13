@@ -8,6 +8,8 @@ const DAILY_SERIES_FIELDS = {
   temperature: "temp",
   precipitation: "precipitation1h",
   wind: "wind",
+  humidity: "humidity",
+  pressure: "normalPressure",
   snow: "snow"
 };
 
@@ -25,21 +27,72 @@ export async function fetchAmedasLatestTime() {
       console.warn("[MeteoScope] AMeDAS wind rankings unavailable", error);
       return { status: "error", maximum: [], gust: [] };
     });
-  const [observations, stations, temperatureRankings, windRankings] = await Promise.all([
+  const pressureDailyHtmlRequest = fetchText(JMA_ENDPOINTS.amedasDailySurface, {
+    ttlMs: AMEDAS_DAILY_RANKING_TTL_MS
+  }).catch((error) => {
+    console.warn("[MeteoScope] AMeDAS pressure rankings unavailable", error);
+    return null;
+  });
+  const [observations, stations, temperatureRankings, windRankings, pressureDailyHtml] = await Promise.all([
     fetchJson(`${JMA_ENDPOINTS.amedasMapBase}/${mapTime}.json`),
     fetchJson(JMA_ENDPOINTS.amedasStationTable, { ttlMs: STATIC_DATA_CACHE_TTL_MS, cache: "force-cache" }),
     temperatureRankingsRequest,
-    windRankingsRequest
+    windRankingsRequest,
+    pressureDailyHtmlRequest
   ]);
+  const points = buildAmedasPoints(observations, stations);
 
   return {
     latestRawTime: latestTime,
     latestTime: parseJmaTime(latestTime) ?? latestTime,
     mapTime,
-    points: buildAmedasPoints(observations, stations),
+    points,
     temperatureRankings,
-    windRankings
+    windRankings,
+    pressureRankings: buildAmedasPressureRankings(pressureDailyHtml, points)
   };
+}
+
+function buildAmedasPressureRankings(html, points) {
+  if (!html || typeof DOMParser === "undefined") {
+    return { status: "error", minimum: [], minimumUpdatedAt: null };
+  }
+
+  const document = new DOMParser().parseFromString(html, "text/html");
+  const pointsByName = new Map(points.map((point) => [point.name, point]));
+  const minimumById = new Map();
+
+  document.querySelectorAll("tr.o1, tr.o2").forEach((row) => {
+    const cells = [...row.querySelectorAll("td")];
+    const name = cells[0]?.textContent?.trim();
+    const point = pointsByName.get(name);
+    const value = Number.parseFloat(cells[3]?.textContent);
+    if (!point || !Number.isFinite(value)) return;
+    minimumById.set(String(point.id), {
+      id: point.id,
+      name: point.name,
+      value,
+      observationTime: normalizeAmedasClock(cells[4]?.textContent)
+    });
+  });
+
+  const updatedAt = parseAmedasPressureUpdatedAt(document.body?.textContent);
+  return {
+    status: minimumById.size ? "ok" : "error",
+    minimum: [...minimumById.values()],
+    minimumUpdatedAt: updatedAt
+  };
+}
+
+function parseAmedasPressureUpdatedAt(text) {
+  const match = String(text ?? "").match(/日別値詳細版:\s*(\d{4})年(\d{1,2})月(\d{1,2})日\s*(\d{1,2})時(?:([0-9]{1,2})分)?現在/);
+  if (!match) return null;
+  return `${match[1]}/${match[2].padStart(2, "0")}/${match[3].padStart(2, "0")} ${match[4].padStart(2, "0")}:${(match[5] ?? "0").padStart(2, "0")}`;
+}
+
+function normalizeAmedasClock(value) {
+  const match = String(value ?? "").match(/(\d{1,2}):(\d{2})/);
+  return match ? `${match[1].padStart(2, "0")}:${match[2]}` : null;
 }
 
 async function fetchAmedasTemperatureRankings() {
@@ -139,9 +192,7 @@ function formatAmedasRankingUpdatedAt(headers, row = []) {
 
 function formatAmedasRankingObservationTime(row, hourIndex, minuteIndex) {
   if (hourIndex < 0 || minuteIndex < 0) return null;
-  const hour = String(row[hourIndex] ?? "").trim().padStart(2, "0");
-  const minute = String(row[minuteIndex] ?? "").trim().padStart(2, "0");
-  return /^\d{2}$/.test(hour) && /^\d{2}$/.test(minute) ? `${hour}:${minute}` : null;
+  return normalizeAmedasClock(`${row[hourIndex] ?? ""}:${row[minuteIndex] ?? ""}`);
 }
 
 function parseCsvRows(text) {
@@ -258,6 +309,8 @@ function buildAmedasPoints(observations, stations) {
         temperature: readObservedValue(observation.temp),
         precipitation: readObservedValue(observation.precipitation1h),
         wind: readObservedValue(observation.wind),
+        humidity: readObservedValue(observation.humidity),
+        pressure: readObservedValue(observation.normalPressure),
         snow: readObservedValue(observation.snow) ?? readObservedValue(observation.snow1h)
       },
       windDirection: readObservedValue(observation.windDirection)
