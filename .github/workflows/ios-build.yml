@@ -1,0 +1,42 @@
+name: iOS build
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "ios/MeteoScope/**"
+      - "ios/MeteoScopeTests/**"
+      - "ios/project.yml"
+      - ".github/workflows/ios-build.yml"
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ios
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Resolve packages
+        run: >-
+          xcodebuild
+          -project MeteoScope.xcodeproj
+          -scheme MeteoScope
+          -resolvePackageDependencies
+
+      - name: Build and test
+        run: >-
+          xcodebuild test
+          -project MeteoScope.xcodeproj
+          -scheme MeteoScope
+          -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest'
+          CODE_SIGNING_ALLOWED=NO
