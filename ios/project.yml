@@ -1,0 +1,59 @@
+name: MeteoScope
+options:
+  bundleIdPrefix: jp.meteoscope
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.10"
+    DEVELOPMENT_TEAM: ""
+packages:
+  MapLibre:
+    url: https://github.com/maplibre/maplibre-gl-native-distribution
+    from: "6.0.0"
+targets:
+  MeteoScope:
+    type: application
+    platform: iOS
+    sources:
+      - path: MeteoScope
+    dependencies:
+      - package: MapLibre
+        product: MapLibre
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: jp.meteoscope.ios
+        PRODUCT_NAME: MeteoScope
+        TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+    info:
+      path: MeteoScope/Support/Info.plist
+      properties:
+        CFBundleDisplayName: MeteoScope
+        CFBundleShortVersionString: "0.1.0"
+        CFBundleVersion: "1"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSLocationWhenInUseUsageDescription: 現在地周辺の雨雲や警報を表示するために位置情報を使用します。
+        UIRequiresFullScreen: true
+  MeteoScopeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: MeteoScopeTests
+    dependencies:
+      - target: MeteoScope
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: jp.meteoscope.ios.tests
+schemes:
+  MeteoScope:
+    build:
+      targets:
+        MeteoScope: all
+        MeteoScopeTests: [test]
+    test:
+      targets:
+        - MeteoScopeTests
