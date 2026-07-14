@@ -3822,6 +3822,7 @@ html[data-theme="light"] .legend-typhoon-center::after {
   top: 0;
   left: 0;
   z-index: 720;
+  box-sizing: border-box;
   width: fit-content;
   max-width: calc(100% - 24px);
   pointer-events: none;
@@ -3900,6 +3901,8 @@ html[data-theme="light"] .legend-typhoon-center::after {
 .active-fault-popup-card {
   overflow: hidden;
   width: min(300px, calc(100vw - 16px));
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid rgba(255, 106, 61, 0.48);
   border-radius: 8px;
   background: rgba(12, 18, 31, 0.94);
@@ -3916,10 +3919,13 @@ html[data-theme="light"] .legend-typhoon-center::after {
   font-weight: 800;
   line-height: 1.25;
   letter-spacing: -0.02em;
+  line-break: strict;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
 }
 
 .active-fault-popup-card h3 span {
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .map-info-popup-body {
