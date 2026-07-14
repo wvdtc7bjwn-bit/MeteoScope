@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(FoundationXML)
 import FoundationXML
+#endif
 
 final class XMLTreeNode {
     let name: String
