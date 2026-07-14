@@ -199,20 +199,23 @@ enum TyphoonSnapshotBuilder {
         _ record: TyphoonCircularAreaRecord?,
         fallback: GeoCoordinate?
     ) -> TyphoonWindArea? {
-        let directCoordinate = coordinate(from: record?.center)
+        let directCoordinate = Self.coordinate(from: record?.center)
         let arc = record?.arc?.compactMap { item -> (GeoCoordinate, Double)? in
-            guard let coordinate = coordinate(from: item.center), let radius = item.radius, radius > 0 else {
+            guard let itemCoordinate = Self.coordinate(from: item.center),
+                  let radius = item.radius,
+                  radius > 0
+            else {
                 return nil
             }
-            return (coordinate, radius)
+            return (itemCoordinate, radius)
         }
         .min { left, right in
             distanceSquared(left.0, fallback) < distanceSquared(right.0, fallback)
         }
-        let coordinate = directCoordinate ?? arc?.0 ?? fallback
+        let selectedCoordinate = directCoordinate ?? arc?.0 ?? fallback
         let radius = record?.radius ?? arc?.1
-        guard let coordinate, let radius, radius > 0 else { return nil }
-        return TyphoonWindArea(center: coordinate, radiusMeters: radius)
+        guard let selectedCoordinate, let radius, radius > 0 else { return nil }
+        return TyphoonWindArea(center: selectedCoordinate, radiusMeters: radius)
     }
 
     private static func coordinate(from values: [Double]?) -> GeoCoordinate? {
