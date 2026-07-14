@@ -24,6 +24,17 @@ const MODE_CLASS = {
 const SAMPLE_SOURCE_ID = "weather-samples";
 const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-wind-arrow", "sample-cross", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
+const SAMPLE_CIRCLE_BASE_RADIUS = ["coalesce", ["get", "radius"], 8];
+const AMEDAS_CIRCLE_RADIUS_EXPRESSION = buildAmedasZoomExpression(
+  [[3, 0.55], [5, 0.72], [7, 0.92], [9, 1.12], [10, 1.22]],
+  SAMPLE_CIRCLE_BASE_RADIUS,
+  (scale) => ["*", SAMPLE_CIRCLE_BASE_RADIUS, scale]
+);
+const AMEDAS_CIRCLE_STROKE_WIDTH_EXPRESSION = buildAmedasZoomExpression(
+  [[3, 0.9], [5, 1.2], [7, 1.6], [10, 2.2]],
+  2,
+  (width) => width
+);
 const TYPHOON_SOURCE_ID = "jma-typhoon";
 const TYPHOON_LAYERS = [
   "typhoon-wind-area-fill",
@@ -419,9 +430,9 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       paint: {
         "circle-color": ["get", "color"],
         "circle-opacity": 0.92,
-        "circle-radius": ["coalesce", ["get", "radius"], 8],
+        "circle-radius": AMEDAS_CIRCLE_RADIUS_EXPRESSION,
         "circle-stroke-color": "#f8fbff",
-        "circle-stroke-width": 2
+        "circle-stroke-width": AMEDAS_CIRCLE_STROKE_WIDTH_EXPRESSION
       }
     });
 
@@ -2245,6 +2256,7 @@ function createAmedasFeatures(data) {
       properties: {
         color: getAmedasColor(metric.id, value),
         markerType: metric.id === "wind" ? "wind" : "circle",
+        markerScaleMode: metric.id === "wind" ? "fixed" : "amedas-zoom",
         rotation: metric.id === "wind" ? getWindArrowRotation(point.windDirection) : 0,
         radius: getAmedasRadius(metric.id, value),
         sortKey: getAmedasSortKey(metric.id, value),
@@ -2258,6 +2270,19 @@ function createAmedasFeatures(data) {
 
 function getAmedasSortKey(metricId, value) {
   return metricId === "temperature" || metricId === "precipitation" ? value : 0;
+}
+
+function buildAmedasZoomExpression(stops, fallbackValue, createAmedasValue) {
+  const isAmedasCircle = ["==", ["get", "markerScaleMode"], "amedas-zoom"];
+  return [
+    "interpolate",
+    ["linear"],
+    ["zoom"],
+    ...stops.flatMap(([zoom, value]) => [
+      zoom,
+      ["case", isAmedasCircle, createAmedasValue(value), fallbackValue]
+    ])
+  ];
 }
 
 function createWarningFeatures(data) {
