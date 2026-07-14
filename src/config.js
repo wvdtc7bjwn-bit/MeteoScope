@@ -11,6 +11,10 @@ function publicAsset(path) {
   return `${APP_BASE_URL}${path.replace(/^\/+/, "")}`;
 }
 
+export const APP_DATA_ENDPOINTS = {
+  activeFaultSegments: publicAsset("data/activefault_japan_segments.geojson")
+};
+
 export const DEFAULT_VIEW = {
   center: [37.6, 137.8],
   zoom: 5,

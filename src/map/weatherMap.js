@@ -1,6 +1,7 @@
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
+  APP_DATA_ENDPOINTS,
   AMEDAS_METRICS,
   DEFAULT_VIEW,
   getAmedasObservationColor,
@@ -82,6 +83,10 @@ const KIKIKURU_SOURCE_PREFIX = "jma-kikikuru";
 const KIKIKURU_LAYER_PREFIX = "jma-kikikuru";
 const RIVER_FLOOD_SOURCE_ID = "jma-river-flood";
 const RIVER_FLOOD_LAYERS = ["jma-river-flood-casing", "jma-river-flood-line", "jma-river-flood-label"];
+const ACTIVE_FAULT_SOURCE_ID = "aist-active-faults";
+const ACTIVE_FAULT_CASING_LAYER_ID = "aist-active-fault-casing";
+const ACTIVE_FAULT_LINE_LAYER_ID = "aist-active-fault-line";
+const ACTIVE_FAULT_LAYERS = [ACTIVE_FAULT_CASING_LAYER_ID, ACTIVE_FAULT_LINE_LAYER_ID];
 const KIKIKURU_ZOOM_LEVELS = [
   { id: "z4", z: 4, minzoom: 3, maxzoom: 5 },
   { id: "z6", z: 6, minzoom: 5, maxzoom: 7 },
@@ -127,7 +132,9 @@ const MAP_THEME_COLORS = {
     typhoonPastTrack: "#ffffff",
     typhoonCenter: "#f8fbff",
     typhoonLabel: "#f8fbff",
-    typhoonLabelHalo: "rgba(5, 9, 20, 0.9)"
+    typhoonLabelHalo: "rgba(5, 9, 20, 0.9)",
+    activeFault: "#ff6a3d",
+    activeFaultCasing: "rgba(7, 12, 24, 0.78)"
   },
   light: {
     background: "#eaf1f8",
@@ -144,7 +151,9 @@ const MAP_THEME_COLORS = {
     typhoonPastTrack: "#56697b",
     typhoonCenter: "#153e5c",
     typhoonLabel: "#193650",
-    typhoonLabelHalo: "rgba(248, 252, 255, 0.94)"
+    typhoonLabelHalo: "rgba(248, 252, 255, 0.94)",
+    activeFault: "#d83b24",
+    activeFaultCasing: "rgba(255, 255, 255, 0.9)"
   }
 };
 const NATURAL_EARTH_JAPAN_MASK_BOUNDS = {
@@ -176,6 +185,7 @@ export function createWeatherMap(elementId) {
   let pendingRender = null;
   let activeMode = "radar";
   let activeTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+  let activeFaultVisible = true;
   let warningAreasByCode = new Map();
   let typhoonForecastInfoElement = null;
   let typhoonForecastInfoLngLat = null;
@@ -221,6 +231,54 @@ export function createWeatherMap(elementId) {
       setKikikuruVisible(map, false);
     }
     if (mode !== "warnings") updateWarningMunicipalityPaint(map, mode);
+    syncActiveFaultVisibility();
+  }
+
+  function setActiveFaultVisible(visible) {
+    activeFaultVisible = Boolean(visible);
+    syncActiveFaultVisibility();
+  }
+
+  function syncActiveFaultVisibility() {
+    if (!map?.getSource(SAMPLE_SOURCE_ID)) return;
+    const shouldShow = activeMode === "earthquake" && activeFaultVisible;
+    if (shouldShow) ensureActiveFaultLayers();
+    ACTIVE_FAULT_LAYERS.forEach((layerId) => {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", shouldShow ? "visible" : "none");
+    });
+  }
+
+  function ensureActiveFaultLayers() {
+    if (!map || map.getSource(ACTIVE_FAULT_SOURCE_ID)) return;
+    const colors = MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark;
+    const beforeLayerId = map.getLayer("sample-circle") ? "sample-circle" : undefined;
+    map.addSource(ACTIVE_FAULT_SOURCE_ID, {
+      type: "geojson",
+      data: APP_DATA_ENDPOINTS.activeFaultSegments
+    });
+    map.addLayer({
+      id: ACTIVE_FAULT_CASING_LAYER_ID,
+      type: "line",
+      source: ACTIVE_FAULT_SOURCE_ID,
+      layout: { visibility: "visible", "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": colors.activeFaultCasing,
+        "line-opacity": 0.9,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 3, 2.5, 6, 3.5, 9, 5.5, 10, 6.5]
+      }
+    }, beforeLayerId);
+    map.addLayer({
+      id: ACTIVE_FAULT_LINE_LAYER_ID,
+      type: "line",
+      source: ACTIVE_FAULT_SOURCE_ID,
+      layout: { visibility: "visible", "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": colors.activeFault,
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0.72, 6, 0.86, 10, 0.96],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 3, 1.15, 6, 1.8, 9, 3.1, 10, 3.7]
+      }
+    }, beforeLayerId);
+
   }
 
   function renderData(mode, data) {
@@ -909,7 +967,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, setMode, setTheme, renderData, resize, showCurrentLocation, flyToLocation, fitToCoordinates };
+  return { initialize, setMode, setTheme, setActiveFaultVisible, renderData, resize, showCurrentLocation, flyToLocation, fitToCoordinates };
 }
 
 function getFocusOffset(options = {}) {
@@ -1140,7 +1198,9 @@ function applyMapTheme(map, theme) {
     ["typhoon-forecast-label", "text-color", colors.typhoonLabel],
     ["typhoon-forecast-label", "text-halo-color", colors.typhoonLabelHalo],
     ["typhoon-label", "text-color", colors.typhoonLabel],
-    ["typhoon-label", "text-halo-color", colors.typhoonLabelHalo]
+    ["typhoon-label", "text-halo-color", colors.typhoonLabelHalo],
+    [ACTIVE_FAULT_CASING_LAYER_ID, "line-color", colors.activeFaultCasing],
+    [ACTIVE_FAULT_LINE_LAYER_ID, "line-color", colors.activeFault]
   ];
   paintUpdates.forEach(([layerId, property, value]) => {
     if (map.getLayer(layerId)) map.setPaintProperty(layerId, property, value);

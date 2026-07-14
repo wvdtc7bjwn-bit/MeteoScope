@@ -1,7 +1,7 @@
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupRadarControls, setupRadarOverlayToggle, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeActiveFaultToggle, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupRadarControls, setupRadarOverlayToggle, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
@@ -49,6 +49,23 @@ const LOCATION_WATCH_OPTIONS = {
 };
 const LOCATION_RESOLVE_MIN_DISTANCE_METERS = 250;
 const LOCATION_RESOLVE_MIN_INTERVAL_MS = 60 * 1000;
+const ACTIVE_FAULT_VISIBILITY_STORAGE_KEY = "meteoscope-earthquake-active-fault-visible-v1";
+
+function loadActiveFaultVisibility() {
+  try {
+    return localStorage.getItem(ACTIVE_FAULT_VISIBILITY_STORAGE_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+function saveActiveFaultVisibility(visible) {
+  try {
+    localStorage.setItem(ACTIVE_FAULT_VISIBILITY_STORAGE_KEY, visible ? "1" : "0");
+  } catch {
+    // Storage can be unavailable in privacy-restricted environments.
+  }
+}
 
 async function fetchWarningTabData(options = {}) {
   const includeDetails = Boolean(options.includeDetails);
@@ -79,6 +96,7 @@ export function createWeatherApp() {
   let activeKikikuruLayer = KIKIKURU_LAYER_OPTIONS[0]?.id ?? "land";
   let activeTyphoonId = "";
   let activeEarthquakeId = "";
+  let earthquakeActiveFaultVisible = loadActiveFaultVisibility();
   let weatherMap = null;
   let latestDataByTab = {};
   let radarPlayTimer = null;
@@ -162,6 +180,7 @@ export function createWeatherApp() {
         currentLocation: currentLocationInfo,
         myAreas,
         locationInsights: buildLocationInsights(tab.id, null),
+        earthquakeActiveFaultVisible,
         weatherChartEnabled,
         weatherChartStatus,
         weatherChart: weatherChartData
@@ -188,6 +207,7 @@ export function createWeatherApp() {
         currentLocation: currentLocationInfo,
         myAreas,
         locationInsights: buildLocationInsights(tab.id, null),
+        earthquakeActiveFaultVisible,
         weatherChartEnabled,
         weatherChartStatus,
         weatherChart: weatherChartData
@@ -344,6 +364,15 @@ if (layerId === "river") {
     focusSelectedEarthquake();
   }
 
+  function setEarthquakeActiveFaultVisible(visible) {
+    earthquakeActiveFaultVisible = Boolean(visible);
+    saveActiveFaultVisibility(earthquakeActiveFaultVisible);
+    weatherMap?.setActiveFaultVisible(earthquakeActiveFaultVisible);
+    if (activeTab !== "earthquake") return;
+    const tab = TABS.find((item) => item.id === "earthquake");
+    updateCurrentView(tab, latestDataByTab.earthquake ?? {});
+  }
+
   function focusSelectedTyphoon() {
     const typhoons = latestDataByTab.typhoon?.typhoons ?? [];
     const selected = typhoons.find((typhoon) => String(typhoon.id) === String(activeTyphoonId)) ?? typhoons[0];
@@ -454,6 +483,7 @@ if (layerId === "river") {
       currentLocation: currentLocationInfo,
       myAreas,
       locationInsights: buildLocationInsights(tab.id, displayData),
+      earthquakeActiveFaultVisible,
       weatherChartEnabled,
       weatherChartStatus,
       weatherChart: weatherChartData
@@ -506,7 +536,7 @@ if (layerId === "river") {
     const earthquakes = data.earthquakes ?? [];
     if (!earthquakes.length) {
       activeEarthquakeId = "";
-      return data;
+      return { ...data, activeFaultVisible: earthquakeActiveFaultVisible };
     }
 
     const selected = earthquakes.find((earthquake) => String(earthquake.id) === String(activeEarthquakeId))
@@ -515,6 +545,7 @@ if (layerId === "river") {
 
     return {
       ...data,
+      activeFaultVisible: earthquakeActiveFaultVisible,
       selectedEarthquakeId: activeEarthquakeId,
       selectedEarthquake: selected,
       latestTime: selected.reportTime ?? data.latestTime,
@@ -1323,6 +1354,7 @@ if (layerId === "river") {
 
   function start() {
     weatherMap = createWeatherMap("map");
+    weatherMap.setActiveFaultVisible(earthquakeActiveFaultVisible);
     weatherMap.setTheme(themeController.getResolvedTheme());
     themeController.subscribe(({ resolvedTheme }) => weatherMap?.setTheme(resolvedTheme));
     weatherMap.initialize();
@@ -1339,6 +1371,7 @@ if (layerId === "river") {
     setupWarningAreaSelection({ onDetailRequest: () => refreshWarningDetails() });
     setupTyphoonSelector({ onChange: selectTyphoon });
     setupEarthquakeSelector({ onChange: selectEarthquake });
+    setupEarthquakeActiveFaultToggle({ onChange: setEarthquakeActiveFaultVisible });
     setupRadarControls({
       onSeek: selectRadarFrame,
       onStep: stepRadarFrame,

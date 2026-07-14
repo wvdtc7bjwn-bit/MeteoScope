@@ -20,6 +20,14 @@
 
 ## 外部GISレイヤー
 
+### 産総研 活断層データベース
+
+- 表示データ: `public/data/activefault_japan_segments.geojson`。産総研 活断層データベースの`trace_gbank_j.kmz`をGeoJSONへ変換した3,477線分（活動セグメントIDは583件）。
+- 原典URL: `https://gbank.gsj.jp/activefault/DATA/layers/trace_gbank_j.kmz`、データベース: [産総研 活断層データベース](https://gbank.gsj.jp/activefault/)。
+- 加工内容: KML/KMZの線形状と活動セグメント名をGeoJSON（CRS84）へ変換し、地震タブで線幅・配色を変更して重ね合わせる。ONの時だけ遅延読込する。
+- 出典表示: 地図上の帰属表示から、産総研 活断層データベースへリンクする。
+- 公開前確認: 少なくとも同データベースの調査地点ダウンロードには、書面許可なしの公開オンラインサービス利用・再配布を禁止する公式注意事項がある。一方、このKMZに同じ条件が直接適用されるかを示す個別の権利表示は確認できていないため、現時点では再配布条件を「確認済み」としない。一般公開・商用利用前に産総研へ利用可否を確認し、許可記録を保管する。
+
 ### ArcGIS 指定河川洪水予報河川
 
 - 使用URL: `https://services.arcgis.com/wlVTGRSYTzAbjjiC/ArcGIS/rest/services/flood_risk_all/FeatureServer/0/query`

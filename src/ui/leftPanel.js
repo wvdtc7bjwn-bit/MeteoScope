@@ -627,6 +627,17 @@ export function setupEarthquakeSelector({ onChange }) {
   });
 }
 
+export function setupEarthquakeActiveFaultToggle({ onChange }) {
+  document.getElementById("mobile-context-dock")?.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest("[data-earthquake-active-fault]");
+    if (!button) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    onChange?.(button.dataset.earthquakeActiveFault === "on");
+  });
+}
+
 function buildDescription(tab, state) {
   if (tab.id === "amedas") {
     const metric = getAmedasMetric(state.amedasMetric ?? state.data?.activeMetric);
@@ -1191,8 +1202,8 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
   if (tab.id === "earthquake") {
     const earthquakes = state.data?.earthquakes ?? [];
     const earthquake = state.data?.selectedEarthquake ?? earthquakes[0];
-    if (!earthquake) return buildMobileContextMarkup("地震", "直近の地震情報はありません", "発表なし");
-    return buildEarthquakeMobileContextMarkup(earthquake);
+    const activeFaultVisible = state.earthquakeActiveFaultVisible ?? state.data?.activeFaultVisible ?? true;
+    return buildEarthquakeMobileContextMarkup(earthquake, activeFaultVisible);
   }
   return buildMobileContextMarkup(tab.label ?? "情報", "詳細情報", "開く");
 }
@@ -1233,23 +1244,32 @@ function normalizeSummaryValue(value) {
   return text && text !== "--" && text !== "-" ? text : "-";
 }
 
-function buildEarthquakeMobileContextMarkup(earthquake) {
-  const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
-  const intensityTextClass = getEarthquakeIntensityTextClass(earthquake.maxIntensity);
-  const intensity = earthquake.maxIntensityShort ?? earthquake.maxIntensityLabel ?? "--";
-  const magnitude = formatEarthquakeMagnitude(earthquake.magnitude, { prefix: true });
-  const depth = formatEarthquakeDepthText(earthquake.depth, { compact: true });
-  const time = formatMobileEarthquakeTime(earthquake.eventTime ?? earthquake.reportTime);
+function buildEarthquakeMobileContextMarkup(earthquake, activeFaultVisible) {
+  const intensityColor = getEarthquakeIntensityColor(earthquake?.maxIntensity);
+  const intensityTextClass = getEarthquakeIntensityTextClass(earthquake?.maxIntensity);
+  const intensity = earthquake?.maxIntensityShort ?? earthquake?.maxIntensityLabel ?? "--";
+  const magnitude = formatEarthquakeMagnitude(earthquake?.magnitude, { prefix: true });
+  const depth = formatEarthquakeDepthText(earthquake?.depth, { compact: true });
+  const time = formatMobileEarthquakeTime(earthquake?.eventTime ?? earthquake?.reportTime);
 
   return `
     <div class="mobile-dock-content mobile-dock-earthquake" style="--mobile-earthquake-intensity-bg: ${escapeHtml(intensityColor)};">
       <div class="mobile-dock-earthquake-head">
-        <span class="mobile-dock-kicker">最新地震</span>
-        <span class="mobile-dock-earthquake-time">${escapeHtml(time)}</span>
+        <div class="mobile-dock-earthquake-meta">
+          <span class="mobile-dock-kicker">最新地震</span>
+          <span class="mobile-dock-earthquake-time">${escapeHtml(time)}</span>
+        </div>
+        <div class="mobile-dock-earthquake-layer-control">
+          <span>活断層</span>
+          <div class="mobile-dock-action-row mobile-dock-segmented mobile-dock-earthquake-layer-switch" aria-label="活断層表示">
+            <button type="button" class="mobile-dock-action${activeFaultVisible ? "" : " active"}" data-mobile-dock-control data-earthquake-active-fault="off" aria-pressed="${activeFaultVisible ? "false" : "true"}">OFF</button>
+            <button type="button" class="mobile-dock-action${activeFaultVisible ? " active" : ""}" data-mobile-dock-control data-earthquake-active-fault="on" aria-pressed="${activeFaultVisible ? "true" : "false"}">ON</button>
+          </div>
+        </div>
       </div>
       <div class="mobile-dock-earthquake-main">
         <div class="mobile-dock-earthquake-text">
-          <strong>${escapeHtml(earthquake.hypocenterName ?? "震源調査中")}</strong>
+          <strong>${escapeHtml(earthquake?.hypocenterName ?? "直近の地震情報はありません")}</strong>
           <span>${escapeHtml([magnitude, `深さ ${depth}`].filter((item) => item && item !== "--").join(" / ") || "詳細確認中")}</span>
         </div>
         <em class="mobile-dock-earthquake-intensity ${intensityTextClass}">${escapeHtml(intensity)}</em>

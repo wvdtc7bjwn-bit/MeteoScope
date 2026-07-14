@@ -5317,6 +5317,45 @@ html[data-theme="light"] .legend-typhoon-center::after {
     min-width: 0;
   }
 
+  .mobile-dock-earthquake-meta {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .mobile-dock-earthquake-layer-control {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .mobile-dock-earthquake-layer-control > span {
+    color: rgba(211, 229, 246, 0.72);
+    font-size: 10px;
+    font-weight: 850;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .mobile-dock-earthquake-layer-switch {
+    width: 82px;
+    min-width: 82px;
+    padding: 2px;
+  }
+
+  .mobile-dock-earthquake-layer-switch.mobile-dock-segmented::before {
+    top: 2px;
+    bottom: 2px;
+  }
+
+  .mobile-dock-earthquake-layer-switch .mobile-dock-action {
+    min-height: 22px;
+    padding: 3px 5px;
+    font-size: 9px;
+  }
+
   .mobile-dock-earthquake-time {
     flex: 0 0 auto;
     color: rgba(218, 230, 244, 0.72);
