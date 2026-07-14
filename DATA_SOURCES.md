@@ -1,6 +1,6 @@
 # MeteoScope データソース台帳
 
-最終確認日: 2026-07-14
+最終確認日: 2026-07-15
 
 この台帳は、Web版とiOS版が直接または同梱ファイル経由で利用するデータ、地図、ライブラリの出所と再利用条件を追跡するためのものです。
 
@@ -20,13 +20,12 @@
 
 ## 外部GISレイヤー
 
-### 産総研 活断層データベース
+### J-SHIS 主要活断層帯
 
-- 表示データ: `public/data/activefault_japan_segments.geojson`。産総研 活断層データベースの`trace_gbank_j.kmz`をGeoJSONへ変換した3,477線分（活動セグメントIDは583件）。
-- 原典URL: `https://gbank.gsj.jp/activefault/DATA/layers/trace_gbank_j.kmz`、データベース: [産総研 活断層データベース](https://gbank.gsj.jp/activefault/)。
-- 加工内容: KML/KMZの線形状と活動セグメント名をGeoJSON（CRS84）へ変換し、地震タブで線幅・配色を変更して重ね合わせる。ONの時だけ遅延読込する。
-- 出典表示: 地図上の帰属表示から、産総研 活断層データベースへリンクする。
-- 公開前確認: 少なくとも同データベースの調査地点ダウンロードには、書面許可なしの公開オンラインサービス利用・再配布を禁止する公式注意事項がある。一方、このKMZに同じ条件が直接適用されるかを示す個別の権利表示は確認できていないため、現時点では再配布条件を「確認済み」としない。一般公開・商用利用前に産総研へ利用可否を確認し、許可記録を保管する。
+- 提供者: 国立研究開発法人 防災科学技術研究所。仕様は[J-SHIS Web API 主要活断層帯](https://www.j-shis.bosai.go.jp/api-vectortile-majorfault)を参照する。
+- 使用URL: `https://www.j-shis.bosai.go.jp/map/xyz/major_fault/Y2022/MAX/{z}/{x}/{y}.mvt?lang=ja`。2022年版の最大ケースを、地震タブのズーム4以上11未満でJ-SHISから直接取得する。MVTはリポジトリへ同梱・再配布しない。
+- 利用条件: [J-SHIS利用規約](https://www.j-shis.bosai.go.jp/agreement)。画面内に「主要活断層帯: J-SHIS（防災科研）」を表示する。
+- 加工内容: `major_fault`レイヤーの面形状をMeteoScopeの配色で重ね、クリック時に`LTENAME`、`MAG`、`MAX_T30P`から断層帯名、想定規模、最大ケースの30年確率を表示する。負の`MAG`はAPI仕様に従い絶対値をモーメントマグニチュード（Mw）として表示する。
 
 ### ArcGIS 指定河川洪水予報河川
 

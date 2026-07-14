@@ -4,6 +4,7 @@ struct MapDashboardView: View {
     @Environment(WeatherAppModel.self) private var model
     @Environment(AppPreferences.self) private var preferences
     @Environment(LocationService.self) private var locationService
+    @State private var selectedActiveFault: ActiveFaultInfo?
 
     var body: some View {
         @Bindable var model = model
@@ -12,7 +13,9 @@ struct MapDashboardView: View {
             WeatherMapView(
                 radarFrame: model.selectedFeature == .radar ? model.selectedRadarFrame : nil,
                 userCoordinate: locationService.coordinate,
-                weatherOverlay: weatherOverlay
+                weatherOverlay: weatherOverlay,
+                showsActiveFaults: model.selectedFeature == .earthquake && preferences.showsActiveFaults,
+                selectedActiveFault: $selectedActiveFault
             )
                 .ignoresSafeArea(edges: .top)
 
@@ -22,6 +25,11 @@ struct MapDashboardView: View {
                     LocationStatusBanner(message: statusMessage)
                 }
                 Spacer()
+                if model.selectedFeature == .earthquake, let selectedActiveFault {
+                    ActiveFaultInfoCard(info: selectedActiveFault) {
+                        self.selectedActiveFault = nil
+                    }
+                }
                 FeatureOverlay()
             }
             .padding(.horizontal, 12)
@@ -55,6 +63,12 @@ struct MapDashboardView: View {
         }
         .task(id: model.selectedFeature) {
             await model.loadSelectedFeatureIfNeeded()
+        }
+        .onChange(of: model.selectedFeature) { _, feature in
+            if feature != .earthquake { selectedActiveFault = nil }
+        }
+        .onChange(of: preferences.showsActiveFaults) { _, isVisible in
+            if !isVisible { selectedActiveFault = nil }
         }
         .task(id: preferences.automaticallyRefresh) {
             guard preferences.automaticallyRefresh else { return }
@@ -96,6 +110,54 @@ struct MapDashboardView: View {
             return WeatherMapOverlayBuilder.earthquake(earthquake)
         case .radar, .amedas:
             return nil
+        }
+    }
+}
+
+private struct ActiveFaultInfoCard: View {
+    let info: ActiveFaultInfo
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .top, spacing: 8) {
+                Text(info.breakableName)
+                    .font(.subheadline.weight(.bold))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.bold))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("活断層情報を閉じる")
+            }
+            Divider()
+            HStack(spacing: 18) {
+                ActiveFaultValue(label: "想定規模", value: info.magnitude)
+                ActiveFaultValue(label: "30年確率", value: info.thirtyYearProbability)
+            }
+            Text("J-SHIS 2022年版・最大ケース")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(maxWidth: 310, alignment: .leading)
+        .meteoGlassSurface(cornerRadius: 14)
+        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+    }
+}
+
+private struct ActiveFaultValue: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label).font(.caption2).foregroundStyle(.secondary)
+            Text(value).font(.caption.monospacedDigit().weight(.bold))
         }
     }
 }

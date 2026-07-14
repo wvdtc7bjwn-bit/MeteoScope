@@ -7,9 +7,11 @@ struct WeatherMapView: UIViewRepresentable {
     let radarFrame: RadarFrame?
     let userCoordinate: CLLocationCoordinate2D?
     let weatherOverlay: WeatherMapOverlay?
+    let showsActiveFaults: Bool
+    @Binding var selectedActiveFault: ActiveFaultInfo?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(selectedActiveFault: $selectedActiveFault)
     }
 
     func makeUIView(context: Context) -> MLNMapView {
@@ -24,6 +26,14 @@ struct WeatherMapView: UIViewRepresentable {
         context.coordinator.requestedFrame = radarFrame
         context.coordinator.requestedUserCoordinate = userCoordinate
         context.coordinator.requestedWeatherOverlay = weatherOverlay
+        context.coordinator.requestedShowsActiveFaults = showsActiveFaults
+        let activeFaultTap = UITapGestureRecognizer(
+            target: context.coordinator,
+            action: #selector(Coordinator.handleActiveFaultTap(_:))
+        )
+        activeFaultTap.cancelsTouchesInView = false
+        activeFaultTap.delegate = context.coordinator
+        mapView.addGestureRecognizer(activeFaultTap)
         return mapView
     }
 
@@ -31,19 +41,25 @@ struct WeatherMapView: UIViewRepresentable {
         context.coordinator.requestedFrame = radarFrame
         context.coordinator.requestedUserCoordinate = userCoordinate
         context.coordinator.requestedWeatherOverlay = weatherOverlay
+        context.coordinator.requestedShowsActiveFaults = showsActiveFaults
         context.coordinator.applyRadarLayerIfPossible()
         context.coordinator.applyUserLocationIfNeeded()
+        context.coordinator.applyActiveFaultLayerIfPossible()
         context.coordinator.applyWeatherOverlayIfNeeded()
     }
 
-    final class Coordinator: NSObject, MLNMapViewDelegate {
+    final class Coordinator: NSObject, MLNMapViewDelegate, UIGestureRecognizerDelegate {
         private let sourceIdentifier = "meteoscope-radar-source"
         private let layerIdentifier = "meteoscope-radar-layer"
+        private let activeFaultSourceIdentifier = "meteoscope-jshis-major-fault-source"
+        private let activeFaultFillLayerIdentifier = "meteoscope-jshis-major-fault-fill"
+        private let activeFaultLineLayerIdentifier = "meteoscope-jshis-major-fault-line"
 
         weak var mapView: MLNMapView?
         var requestedFrame: RadarFrame?
         var requestedUserCoordinate: CLLocationCoordinate2D?
         var requestedWeatherOverlay: WeatherMapOverlay?
+        var requestedShowsActiveFaults = false
         private var renderedFrameID: RadarFrame.ID?
         private var renderedUserCoordinate: CLLocationCoordinate2D?
         private var userAnnotation: MLNPointAnnotation?
@@ -52,6 +68,11 @@ struct WeatherMapView: UIViewRepresentable {
         private var polygonKinds: [ObjectIdentifier: WeatherMapPolygon.Kind] = [:]
         private var weatherSourceIdentifiers: [String] = []
         private var weatherLayerIdentifiers: [String] = []
+        private let selectedActiveFault: Binding<ActiveFaultInfo?>
+
+        init(selectedActiveFault: Binding<ActiveFaultInfo?>) {
+            self.selectedActiveFault = selectedActiveFault
+        }
 
         func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
             renderedFrameID = nil
@@ -60,6 +81,7 @@ struct WeatherMapView: UIViewRepresentable {
             weatherLayerIdentifiers = []
             applyRadarLayerIfPossible()
             applyUserLocationIfNeeded()
+            applyActiveFaultLayerIfPossible()
             applyWeatherOverlayIfNeeded()
         }
 
@@ -89,6 +111,81 @@ struct WeatherMapView: UIViewRepresentable {
             style.addSource(source)
             style.addLayer(layer)
             renderedFrameID = requestedFrame.id
+        }
+
+        func applyActiveFaultLayerIfPossible() {
+            guard let style = mapView?.style else { return }
+            guard requestedShowsActiveFaults else {
+                removeActiveFaultLayers(from: style)
+                selectedActiveFault.wrappedValue = nil
+                return
+            }
+            guard style.source(withIdentifier: activeFaultSourceIdentifier) == nil else { return }
+
+            let attribution = MLNAttributionInfo(
+                title: NSAttributedString(string: "J-SHIS（防災科研）"),
+                url: MeteoScopeEndpoints.jshisMajorFaultAPI
+            )
+            let source = MLNVectorTileSource(
+                identifier: activeFaultSourceIdentifier,
+                tileURLTemplates: [MeteoScopeEndpoints.jshisMajorFaultTileTemplate],
+                options: [
+                    .minimumZoomLevel: 4,
+                    .maximumZoomLevel: 10,
+                    .attributionInfos: [attribution]
+                ]
+            )
+            style.addSource(source)
+
+            let fillLayer = MLNFillStyleLayer(identifier: activeFaultFillLayerIdentifier, source: source)
+            fillLayer.sourceLayerIdentifier = "major_fault"
+            fillLayer.minimumZoomLevel = 4
+            fillLayer.maximumZoomLevel = 11
+            fillLayer.fillColor = NSExpression(forConstantValue: UIColor.systemOrange)
+            fillLayer.fillOpacity = NSExpression(forConstantValue: 0.18)
+            style.addLayer(fillLayer)
+
+            let lineLayer = MLNLineStyleLayer(identifier: activeFaultLineLayerIdentifier, source: source)
+            lineLayer.sourceLayerIdentifier = "major_fault"
+            lineLayer.minimumZoomLevel = 4
+            lineLayer.maximumZoomLevel = 11
+            lineLayer.lineColor = NSExpression(forConstantValue: UIColor.systemOrange)
+            lineLayer.lineOpacity = NSExpression(forConstantValue: 0.9)
+            lineLayer.lineWidth = NSExpression(forConstantValue: 2)
+            style.addLayer(lineLayer)
+        }
+
+        @objc func handleActiveFaultTap(_ recognizer: UITapGestureRecognizer) {
+            guard recognizer.state == .ended, let mapView else { return }
+            guard requestedShowsActiveFaults, (4..<11).contains(mapView.zoomLevel) else {
+                selectedActiveFault.wrappedValue = nil
+                return
+            }
+            let layerIdentifiers = Set([activeFaultFillLayerIdentifier, activeFaultLineLayerIdentifier])
+            let point = recognizer.location(in: mapView)
+            guard let feature = mapView.visibleFeatures(at: point, in: layerIdentifiers).first,
+                  let info = ActiveFaultInfo(attributes: feature.attributes)
+            else {
+                selectedActiveFault.wrappedValue = nil
+                return
+            }
+            selectedActiveFault.wrappedValue = info
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            true
+        }
+
+        private func removeActiveFaultLayers(from style: MLNStyle) {
+            for identifier in [activeFaultLineLayerIdentifier, activeFaultFillLayerIdentifier] {
+                if let layer = style.layer(withIdentifier: identifier) { style.removeLayer(layer) }
+            }
+            if let source = style.source(withIdentifier: activeFaultSourceIdentifier) {
+                style.removeSource(source)
+            }
         }
 
         func applyUserLocationIfNeeded() {

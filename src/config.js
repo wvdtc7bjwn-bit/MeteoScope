@@ -11,8 +11,8 @@ function publicAsset(path) {
   return `${APP_BASE_URL}${path.replace(/^\/+/, "")}`;
 }
 
-export const APP_DATA_ENDPOINTS = {
-  activeFaultSegments: publicAsset("data/activefault_japan_segments.geojson")
+export const MAP_DATA_ENDPOINTS = {
+  jshisMajorFaultTiles: "https://www.j-shis.bosai.go.jp/map/xyz/major_fault/Y2022/MAX/{z}/{x}/{y}.mvt?lang=ja"
 };
 
 export const DEFAULT_VIEW = {

@@ -28,6 +28,10 @@ final class AppPreferences {
         didSet { store.set(automaticallyRefresh, forKey: Keys.automaticallyRefresh) }
     }
 
+    var showsActiveFaults: Bool {
+        didSet { store.set(showsActiveFaults, forKey: Keys.showsActiveFaults) }
+    }
+
     var warningNotificationsEnabled: Bool {
         didSet { store.set(warningNotificationsEnabled, forKey: Keys.warningNotificationsEnabled) }
     }
@@ -62,6 +66,7 @@ final class AppPreferences {
         self.store = store
         self.theme = Theme(rawValue: store.string(forKey: Keys.theme) ?? "") ?? .system
         self.automaticallyRefresh = store.object(forKey: Keys.automaticallyRefresh) as? Bool ?? true
+        self.showsActiveFaults = store.object(forKey: Keys.showsActiveFaults) as? Bool ?? true
         self.warningNotificationsEnabled = store.object(forKey: Keys.warningNotificationsEnabled) as? Bool ?? false
         self.notifyAdvisories = store.object(forKey: Keys.notifyAdvisories) as? Bool ?? false
         self.notificationAreaCode = store.string(forKey: Keys.notificationAreaCode) ?? ""
@@ -82,6 +87,7 @@ final class AppPreferences {
     private enum Keys {
         static let theme = "meteoscope.theme"
         static let automaticallyRefresh = "meteoscope.automaticallyRefresh"
+        static let showsActiveFaults = "meteoscope.earthquake.showsActiveFaults"
         static let warningNotificationsEnabled = "meteoscope.warningNotificationsEnabled"
         static let notifyAdvisories = "meteoscope.notifyAdvisories"
         static let notificationAreaCode = "meteoscope.notificationAreaCode"

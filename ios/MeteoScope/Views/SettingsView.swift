@@ -71,6 +71,11 @@ struct SettingsView: View {
                 Link("気象庁ホームページの利用規約", destination: MeteoScopeEndpoints.jmaTerms)
                 Link("気象データ高度利用ポータルサイト", destination: MeteoScopeEndpoints.jmaDataPortal)
                 Link("地理院タイル（背景地図）の出典", destination: MeteoScopeEndpoints.gsiTiles)
+                Text("主要活断層帯は、防災科学技術研究所のJ-SHIS 2022年版・最大ケースを地図に重ね、断層帯名、想定規模（M／Mw）、30年確率を表示用に整形しています。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Link("J-SHIS主要活断層帯の出典", destination: MeteoScopeEndpoints.jshisMajorFaultAPI)
+                Link("J-SHIS利用規約", destination: MeteoScopeEndpoints.jshisTerms)
             }
 
             Section("規約とサポート") {

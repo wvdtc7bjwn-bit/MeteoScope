@@ -1,14 +1,14 @@
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
-  APP_DATA_ENDPOINTS,
   AMEDAS_METRICS,
   DEFAULT_VIEW,
   getAmedasObservationColor,
   getEarthquakeIntensityColor,
   getEarthquakeIntensityRank,
   JMA_ENDPOINTS,
-  KIKIKURU_ELEMENTS
+  KIKIKURU_ELEMENTS,
+  MAP_DATA_ENDPOINTS
 } from "../config.js";
 import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
 import { worldLandGeoJson } from "./data/worldLandGeoJson.js";
@@ -83,10 +83,14 @@ const KIKIKURU_SOURCE_PREFIX = "jma-kikikuru";
 const KIKIKURU_LAYER_PREFIX = "jma-kikikuru";
 const RIVER_FLOOD_SOURCE_ID = "jma-river-flood";
 const RIVER_FLOOD_LAYERS = ["jma-river-flood-casing", "jma-river-flood-line", "jma-river-flood-label"];
-const ACTIVE_FAULT_SOURCE_ID = "aist-active-faults";
-const ACTIVE_FAULT_CASING_LAYER_ID = "aist-active-fault-casing";
-const ACTIVE_FAULT_LINE_LAYER_ID = "aist-active-fault-line";
-const ACTIVE_FAULT_LAYERS = [ACTIVE_FAULT_CASING_LAYER_ID, ACTIVE_FAULT_LINE_LAYER_ID];
+const JSHIS_MAJOR_FAULT_SOURCE_ID = "jshis-major-faults";
+const JSHIS_MAJOR_FAULT_FILL_LAYER_ID = "jshis-major-fault-fill";
+const JSHIS_MAJOR_FAULT_LINE_LAYER_ID = "jshis-major-fault-line";
+const ACTIVE_FAULT_LAYERS = [
+  JSHIS_MAJOR_FAULT_FILL_LAYER_ID,
+  JSHIS_MAJOR_FAULT_LINE_LAYER_ID
+];
+const JSHIS_MAJOR_FAULT_INTERACTIVE_LAYERS = [JSHIS_MAJOR_FAULT_FILL_LAYER_ID, JSHIS_MAJOR_FAULT_LINE_LAYER_ID];
 const KIKIKURU_ZOOM_LEVELS = [
   { id: "z4", z: 4, minzoom: 3, maxzoom: 5 },
   { id: "z6", z: 6, minzoom: 5, maxzoom: 7 },
@@ -133,8 +137,8 @@ const MAP_THEME_COLORS = {
     typhoonCenter: "#f8fbff",
     typhoonLabel: "#f8fbff",
     typhoonLabelHalo: "rgba(5, 9, 20, 0.9)",
-    activeFault: "#ff6a3d",
-    activeFaultCasing: "rgba(7, 12, 24, 0.78)"
+    activeFaultFill: "#ff6a3d",
+    activeFault: "#ff6a3d"
   },
   light: {
     background: "#eaf1f8",
@@ -152,8 +156,8 @@ const MAP_THEME_COLORS = {
     typhoonCenter: "#153e5c",
     typhoonLabel: "#193650",
     typhoonLabelHalo: "rgba(248, 252, 255, 0.94)",
-    activeFault: "#d83b24",
-    activeFaultCasing: "rgba(255, 255, 255, 0.9)"
+    activeFaultFill: "#e24a2d",
+    activeFault: "#d83b24"
   }
 };
 const NATURAL_EARTH_JAPAN_MASK_BOUNDS = {
@@ -187,8 +191,9 @@ export function createWeatherMap(elementId) {
   let activeTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
   let activeFaultVisible = true;
   let warningAreasByCode = new Map();
-  let typhoonForecastInfoElement = null;
-  let typhoonForecastInfoLngLat = null;
+  let mapInfoElement = null;
+  let mapInfoLngLat = null;
+  let mapInfoOwner = null;
 
   function initialize() {
     map = new maplibregl.Map({
@@ -222,7 +227,7 @@ export function createWeatherMap(elementId) {
     activeMode = mode;
     const container = map?.getContainer();
     if (!container) return;
-    if (mode !== "typhoon") hideTyphoonForecastInfo();
+    hideMapInfo();
     Object.values(MODE_CLASS).forEach((className) => container.classList.remove(className));
     container.classList.add(MODE_CLASS[mode] ?? MODE_CLASS.radar);
     setRadarVisible(map, mode === "radar");
@@ -236,6 +241,7 @@ export function createWeatherMap(elementId) {
 
   function setActiveFaultVisible(visible) {
     activeFaultVisible = Boolean(visible);
+    if (!activeFaultVisible) hideMapInfo("active-fault");
     syncActiveFaultVisibility();
   }
 
@@ -249,36 +255,51 @@ export function createWeatherMap(elementId) {
   }
 
   function ensureActiveFaultLayers() {
-    if (!map || map.getSource(ACTIVE_FAULT_SOURCE_ID)) return;
+    if (!map || map.getSource(JSHIS_MAJOR_FAULT_SOURCE_ID)) return;
     const colors = MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark;
     const beforeLayerId = map.getLayer("sample-circle") ? "sample-circle" : undefined;
-    map.addSource(ACTIVE_FAULT_SOURCE_ID, {
-      type: "geojson",
-      data: APP_DATA_ENDPOINTS.activeFaultSegments
+    const visibility = activeMode === "earthquake" && activeFaultVisible ? "visible" : "none";
+    map.addSource(JSHIS_MAJOR_FAULT_SOURCE_ID, {
+      type: "vector",
+      tiles: [MAP_DATA_ENDPOINTS.jshisMajorFaultTiles],
+      minzoom: 4,
+      maxzoom: 10
     });
     map.addLayer({
-      id: ACTIVE_FAULT_CASING_LAYER_ID,
-      type: "line",
-      source: ACTIVE_FAULT_SOURCE_ID,
-      layout: { visibility: "visible", "line-cap": "round", "line-join": "round" },
+      id: JSHIS_MAJOR_FAULT_FILL_LAYER_ID,
+      type: "fill",
+      source: JSHIS_MAJOR_FAULT_SOURCE_ID,
+      "source-layer": "major_fault",
+      minzoom: 4,
+      maxzoom: 11,
+      layout: { visibility },
       paint: {
-        "line-color": colors.activeFaultCasing,
-        "line-opacity": 0.9,
-        "line-width": ["interpolate", ["linear"], ["zoom"], 3, 2.5, 6, 3.5, 9, 5.5, 10, 6.5]
+        "fill-color": colors.activeFaultFill,
+        "fill-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0.13, 7, 0.18, 10, 0.24]
       }
     }, beforeLayerId);
     map.addLayer({
-      id: ACTIVE_FAULT_LINE_LAYER_ID,
+      id: JSHIS_MAJOR_FAULT_LINE_LAYER_ID,
       type: "line",
-      source: ACTIVE_FAULT_SOURCE_ID,
-      layout: { visibility: "visible", "line-cap": "round", "line-join": "round" },
+      source: JSHIS_MAJOR_FAULT_SOURCE_ID,
+      "source-layer": "major_fault",
+      minzoom: 4,
+      maxzoom: 11,
+      layout: { visibility, "line-cap": "round", "line-join": "round" },
       paint: {
         "line-color": colors.activeFault,
-        "line-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0.72, 6, 0.86, 10, 0.96],
-        "line-width": ["interpolate", ["linear"], ["zoom"], 3, 1.15, 6, 1.8, 9, 3.1, 10, 3.7]
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0.72, 7, 0.86, 10, 0.96],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.1, 7, 1.8, 10, 3]
       }
     }, beforeLayerId);
-
+    JSHIS_MAJOR_FAULT_INTERACTIVE_LAYERS.forEach((layerId) => {
+      map.on("mouseenter", layerId, () => {
+        if (activeMode === "earthquake" && activeFaultVisible) map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", layerId, () => {
+        if (activeMode === "earthquake") map.getCanvas().style.cursor = "";
+      });
+    });
   }
 
   function renderData(mode, data) {
@@ -838,7 +859,9 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         }));
       });
     });
+    setupMapInfo();
     setupTyphoonForecastInfo();
+    setupActiveFaultInfo();
 
     map.on("mouseenter", WARNING_CLICK_LAYER_ID, (event) => {
       const feature = event.features?.[0];
@@ -862,29 +885,33 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     });
   }
 
-  function setupTyphoonForecastInfo() {
-    typhoonForecastInfoElement = document.createElement("div");
-    typhoonForecastInfoElement.className = "typhoon-forecast-info-popup";
-    typhoonForecastInfoElement.hidden = true;
-    map.getContainer().appendChild(typhoonForecastInfoElement);
+  function setupMapInfo() {
+    mapInfoElement = document.createElement("div");
+    mapInfoElement.className = "map-info-popup";
+    mapInfoElement.hidden = true;
+    map.getContainer().appendChild(mapInfoElement);
+    map.on("move", positionMapInfo);
+    map.on("resize", positionMapInfo);
+  }
 
+  function setupTyphoonForecastInfo() {
     map.on("click", (event) => {
       if (activeMode !== "typhoon") {
-        hideTyphoonForecastInfo();
+        hideMapInfo("typhoon");
         return;
       }
       const layers = TYPHOON_FORECAST_INFO_LAYERS.filter((layerId) => map.getLayer(layerId));
       if (layers.length === 0) {
-        hideTyphoonForecastInfo();
+        hideMapInfo("typhoon");
         return;
       }
       const feature = map.queryRenderedFeatures(event.point, { layers })
         .find((item) => item?.properties?.forecastPopup);
       if (!feature) {
-        hideTyphoonForecastInfo();
+        hideMapInfo("typhoon");
         return;
       }
-      showTyphoonForecastInfo(event.lngLat, feature.properties.forecastPopup);
+      showMapInfo("typhoon", event.lngLat, feature.properties.forecastPopup);
     });
 
     TYPHOON_FORECAST_INFO_LAYERS.forEach((layerId) => {
@@ -895,33 +922,53 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         map.getCanvas().style.cursor = "";
       });
     });
-
-    map.on("move", positionTyphoonForecastInfo);
-    map.on("resize", positionTyphoonForecastInfo);
   }
 
-  function showTyphoonForecastInfo(lngLat, html) {
-    if (!typhoonForecastInfoElement) return;
-    typhoonForecastInfoLngLat = lngLat;
-    typhoonForecastInfoElement.innerHTML = html;
-    typhoonForecastInfoElement.hidden = false;
-    positionTyphoonForecastInfo();
+  function setupActiveFaultInfo() {
+    map.on("click", (event) => {
+      if (activeMode !== "earthquake" || !activeFaultVisible) {
+        hideMapInfo("active-fault");
+        return;
+      }
+      const layers = JSHIS_MAJOR_FAULT_INTERACTIVE_LAYERS.filter((layerId) => map.getLayer(layerId));
+      const feature = layers.length > 0
+        ? map.queryRenderedFeatures(event.point, { layers })[0]
+        : null;
+      if (!feature) {
+        hideMapInfo("active-fault");
+        return;
+      }
+      showMapInfo("active-fault", event.lngLat, buildJshisMajorFaultPopup(feature.properties));
+    });
+
+    map.on("zoomend", () => hideMapInfo("active-fault"));
   }
 
-  function hideTyphoonForecastInfo() {
-    typhoonForecastInfoLngLat = null;
-    if (typhoonForecastInfoElement) {
-      typhoonForecastInfoElement.hidden = true;
-      typhoonForecastInfoElement.innerHTML = "";
+  function showMapInfo(owner, lngLat, html) {
+    if (!mapInfoElement) return;
+    mapInfoOwner = owner;
+    mapInfoLngLat = lngLat;
+    mapInfoElement.innerHTML = html;
+    mapInfoElement.hidden = false;
+    positionMapInfo();
+  }
+
+  function hideMapInfo(owner = null) {
+    if (owner && mapInfoOwner !== owner) return;
+    mapInfoOwner = null;
+    mapInfoLngLat = null;
+    if (mapInfoElement) {
+      mapInfoElement.hidden = true;
+      mapInfoElement.innerHTML = "";
     }
   }
 
-  function positionTyphoonForecastInfo() {
-    if (!map || !typhoonForecastInfoElement || typhoonForecastInfoElement.hidden || !typhoonForecastInfoLngLat) return;
-    const point = map.project(typhoonForecastInfoLngLat);
+  function positionMapInfo() {
+    if (!map || !mapInfoElement || mapInfoElement.hidden || !mapInfoLngLat) return;
+    const point = map.project(mapInfoLngLat);
     const container = map.getContainer();
-    const width = typhoonForecastInfoElement.offsetWidth || 240;
-    const height = typhoonForecastInfoElement.offsetHeight || 130;
+    const width = mapInfoElement.offsetWidth || 240;
+    const height = mapInfoElement.offsetHeight || 130;
     const margin = 12;
     let x = point.x + 18;
     let y = point.y - height - 14;
@@ -930,7 +977,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     if (y < margin) y = point.y + 18;
     x = clampNumber(x, margin, container.clientWidth - width - margin);
     y = clampNumber(y, margin, container.clientHeight - height - margin);
-    typhoonForecastInfoElement.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
+    mapInfoElement.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
   }
 
   function updateWarningAreaLookup(mode, data = {}) {
@@ -968,6 +1015,55 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   }
 
   return { initialize, setMode, setTheme, setActiveFaultVisible, renderData, resize, showCurrentLocation, flyToLocation, fitToCoordinates };
+}
+
+function buildJshisMajorFaultPopup(properties = {}) {
+  const faultName = formatMapInfoTitle(properties.LTENAME || "主要活断層帯");
+  const magnitude = escapeMapInfoHtml(formatJshisMagnitude(properties.MAG));
+  const probability = escapeMapInfoHtml(formatJshisProbability(properties.MAX_T30P));
+  return `
+    <article class="map-info-card active-fault-popup-card">
+      <h3>${faultName}</h3>
+      <div class="map-info-popup-body">
+        <div class="map-info-popup-row"><span>想定規模</span><strong>${magnitude}</strong></div>
+        <div class="map-info-popup-row"><span>30年確率</span><strong>${probability}</strong></div>
+        <p class="map-info-popup-note">J-SHIS 2022年版・最大ケース</p>
+      </div>
+    </article>`;
+}
+
+function formatMapInfoTitle(value) {
+  return escapeMapInfoHtml(value)
+    .split(/(?=[（(])/u)
+    .filter(Boolean)
+    .map((segment) => `<span>${segment}</span>`)
+    .join("<wbr>");
+}
+
+function formatJshisMagnitude(value) {
+  const magnitude = Number(value);
+  if (!Number.isFinite(magnitude) || magnitude <= -900) return "--";
+  const label = magnitude < 0 ? "Mw" : "M";
+  return `${label} ${Math.abs(magnitude).toFixed(1)}`;
+}
+
+function formatJshisProbability(value) {
+  const probability = Number(value);
+  if (!Number.isFinite(probability) || probability < 0) return "--";
+  const percent = probability <= 1 ? probability * 100 : probability;
+  if (percent === 0) return "0%";
+  if (percent < 0.001) return "0.001%未満";
+  const digits = percent < 0.1 ? 3 : percent < 1 ? 2 : 1;
+  return `${percent.toFixed(digits).replace(/\.?0+$/u, "")}%`;
+}
+
+function escapeMapInfoHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function getFocusOffset(options = {}) {
@@ -1199,8 +1295,8 @@ function applyMapTheme(map, theme) {
     ["typhoon-forecast-label", "text-halo-color", colors.typhoonLabelHalo],
     ["typhoon-label", "text-color", colors.typhoonLabel],
     ["typhoon-label", "text-halo-color", colors.typhoonLabelHalo],
-    [ACTIVE_FAULT_CASING_LAYER_ID, "line-color", colors.activeFaultCasing],
-    [ACTIVE_FAULT_LINE_LAYER_ID, "line-color", colors.activeFault]
+    [JSHIS_MAJOR_FAULT_FILL_LAYER_ID, "fill-color", colors.activeFaultFill],
+    [JSHIS_MAJOR_FAULT_LINE_LAYER_ID, "line-color", colors.activeFault]
   ];
   paintUpdates.forEach(([layerId, property, value]) => {
     if (map.getLayer(layerId)) map.setPaintProperty(layerId, property, value);

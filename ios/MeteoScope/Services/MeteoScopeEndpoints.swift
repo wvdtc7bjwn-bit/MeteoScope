@@ -9,6 +9,12 @@ enum MeteoScopeEndpoints {
     static let jmaTerms = URL(string: "https://www.jma.go.jp/jma/kishou/info/coment.html")!
     static let jmaDataPortal = URL(string: "https://www.data.jma.go.jp/developer/index.html")!
     static let gsiTiles = URL(string: "https://maps.gsi.go.jp/development/ichiran.html")!
+    static let jshisMajorFaultAPI = URL(
+        string: "https://www.j-shis.bosai.go.jp/api-vectortile-majorfault"
+    )!
+    static let jshisTerms = URL(string: "https://www.j-shis.bosai.go.jp/agreement")!
+    static let jshisMajorFaultTileTemplate =
+        "https://www.j-shis.bosai.go.jp/map/xyz/major_fault/Y2022/MAX/{z}/{x}/{y}.mvt?lang=ja"
     static let radarTimeList = URL(
         string: "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json"
     )!

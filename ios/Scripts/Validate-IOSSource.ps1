@@ -53,6 +53,24 @@ foreach ($stablePath in @("privacy.html", "terms.html", "support.html", "map-sty
     }
 }
 
+$activeFaultSources = @(
+    Get-Content -LiteralPath (Join-Path $root "MeteoScope/Map/WeatherMapView.swift") -Raw -Encoding UTF8
+    Get-Content -LiteralPath (Join-Path $root "MeteoScope/Views/FeatureDashboardCards.swift") -Raw -Encoding UTF8
+    Get-Content -LiteralPath (Join-Path $root "MeteoScope/Views/SettingsView.swift") -Raw -Encoding UTF8
+    $endpoints
+) -join "`n"
+foreach ($activeFaultMarker in @(
+    "MLNVectorTileSource",
+    "major_fault",
+    "showsActiveFaults",
+    "jshisMajorFaultAPI",
+    "J-SHIS"
+)) {
+    if (-not $activeFaultSources.Contains($activeFaultMarker)) {
+        throw "iOS J-SHIS active fault integration is missing: $activeFaultMarker"
+    }
+}
+
 $freshnessSources = @(
     Get-Content -LiteralPath (Join-Path $root "MeteoScope/State/WeatherAppModel.swift") -Raw -Encoding UTF8
     Get-Content -LiteralPath (Join-Path $root "MeteoScope/Views/FeatureDashboardCards.swift") -Raw -Encoding UTF8

@@ -2,6 +2,31 @@ import XCTest
 @testable import MeteoScope
 
 final class FeatureDataTests: XCTestCase {
+    func testActiveFaultInfoFormatsJshisAttributes() throws {
+        let info = try XCTUnwrap(ActiveFaultInfo(attributes: [
+            "FLT_ID": "F001",
+            "LTENAME": "中央構造線断層帯（全体が同時に活動）",
+            "MAG": "-7.9",
+            "MAX_T30P": "0.005"
+        ]))
+
+        XCTAssertEqual(info.id, "F001")
+        XCTAssertEqual(info.magnitude, "Mw 7.9")
+        XCTAssertEqual(info.thirtyYearProbability, "0.5%")
+        XCTAssertTrue(info.breakableName.contains("\u{200B}（"))
+    }
+
+    func testActiveFaultInfoRejectsMissingNameAndHandlesUnknownValues() throws {
+        XCTAssertNil(ActiveFaultInfo(attributes: ["MAG": "7.0"]))
+        let info = try XCTUnwrap(ActiveFaultInfo(attributes: [
+            "LTENAME": "テスト断層帯",
+            "MAG": "-999.0",
+            "MAX_T30P": "0"
+        ]))
+        XCTAssertEqual(info.magnitude, "--")
+        XCTAssertEqual(info.thirtyYearProbability, "0%")
+    }
+
     func testAmedasBuildsHumidityAndPressureRankings() throws {
         let metadataData = """
         {

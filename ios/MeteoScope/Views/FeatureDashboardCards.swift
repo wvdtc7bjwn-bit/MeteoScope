@@ -541,8 +541,10 @@ private struct TyphoonValue: View {
 
 struct EarthquakeDashboardCard: View {
     @Environment(WeatherAppModel.self) private var model
+    @Environment(AppPreferences.self) private var preferences
 
     var body: some View {
+        @Bindable var preferences = preferences
         switch model.earthquakeState {
         case .idle, .loading:
             FeatureLoadingCard(title: "地震情報を読み込んでいます")
@@ -551,6 +553,14 @@ struct EarthquakeDashboardCard: View {
         case .loaded(let snapshot):
             if let earthquake = snapshot.earthquakes.first {
                 VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 8) {
+                        Label("主要活断層帯", systemImage: "map")
+                            .font(.caption.weight(.semibold))
+                        Spacer()
+                        Toggle("主要活断層帯を表示", isOn: $preferences.showsActiveFaults)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    }
                     HStack(spacing: 12) {
                         Text(earthquake.maximumIntensity)
                             .font(.headline.weight(.black))
