@@ -254,7 +254,7 @@ struct WeatherMapView: UIViewRepresentable {
                let kind = polygonKinds[ObjectIdentifier(polygon)] {
                 return polygonAppearance(for: kind).stroke
             }
-            UIColor.systemOrange
+            return UIColor.systemOrange
         }
 
         func mapView(_ mapView: MLNMapView, fillColorForPolygonAnnotation annotation: MLNPolygon) -> UIColor {
