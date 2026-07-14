@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>サポート | MeteoScope</title><link rel="stylesheet" href="/legal.css"></head>
+<body><main>
+<nav><a href="/">MeteoScope</a><a href="/privacy.html">プライバシー</a><a href="/terms.html">利用規約</a></nav>
+<h1>サポート</h1><p>不具合、情報表示、通知登録の削除に関する連絡を送信できます。APNs device token、秘密鍵、パスワードは入力しないでください。</p>
+<form id="support-form"><label>種類<select name="category"><option value="bug">アプリの不具合</option><option value="request">プライバシー・削除依頼</option><option value="other">情報・出典</option></select></label><label>内容<textarea name="message" maxlength="1000" required></textarea></label><button type="submit">送信</button><p id="result" role="status"></p></form>
+<p>公開リポジトリ：<a href="https://github.com/wvdtc7bjwn-bit/MeteoScope">GitHub</a></p>
+<script type="module">
+const form=document.querySelector('#support-form');const result=document.querySelector('#result');
+form.addEventListener('submit',async(event)=>{event.preventDefault();const button=form.querySelector('button');button.disabled=true;result.textContent='送信中です…';const values=Object.fromEntries(new FormData(form));try{const response=await fetch('/api/public/feedback',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:values.category,message:values.message,page:'/support.html'})});if(!response.ok)throw new Error('送信できませんでした');form.reset();result.textContent='送信しました。';}catch(error){result.textContent='送信できませんでした。時間をおいて再試行してください。';}finally{button.disabled=false;}});
+</script>
+</main></body></html>

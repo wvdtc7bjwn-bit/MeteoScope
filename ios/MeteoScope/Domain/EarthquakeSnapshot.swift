@@ -106,14 +106,15 @@ enum EarthquakeXMLDecoder {
         }
         let intensityPoints = root.descendants(named: "IntensityStation").compactMap { node -> EarthquakeIntensityPoint? in
             guard let code = node.firstChild(named: "Code")?.text,
-                  let station = stations[code],
+                  let stationName = node.firstChild(named: "Name")?.text,
+                  let station = stations[code] ?? stations[stationName],
                   let rawIntensity = node.firstChild(named: "Int")?.text
             else {
                 return nil
             }
             return EarthquakeIntensityPoint(
                 stationCode: code,
-                name: node.firstChild(named: "Name")?.text ?? station.name,
+                name: stationName,
                 intensity: intensityLabel(rawIntensity),
                 coordinate: GeoCoordinate(latitude: station.latitude, longitude: station.longitude)
             )

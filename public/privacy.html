@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>プライバシーポリシー | MeteoScope</title><link rel="stylesheet" href="/legal.css"></head>
+<body><main>
+<nav><a href="/">MeteoScope</a><a href="/terms.html">利用規約</a><a href="/support.html">サポート</a></nav>
+<h1>プライバシーポリシー</h1><p class="meta">最終更新日：2026年7月14日</p>
+<p class="notice">MeteoScopeは気象庁その他の行政機関が提供する公式アプリではありません。広告目的の追跡、第三者広告SDK、データ販売は行いません。</p>
+<h2>サーバーへ保存する情報</h2>
+<p>警報・注意報通知を有効にした場合に限り、APNs device token、Sandbox／Productionの区分、通知対象市区町村のコード・名称・都道府県、通知設定、直前の警報状態、作成・更新・最終通知時刻をCloudflare D1へ保存します。目的は通知登録、重複通知の抑止、発表・切替・解除の比較です。</p>
+<h2>端末内だけで扱う情報</h2>
+<p>正確な緯度経度は現在地周辺の表示と地域候補の提示に端末内で使用し、MeteoScopeのサーバーへ保存しません。利用者が読み込んだ防災マップPDF・画像、配置した目印、メモも端末内に保存し、サーバーへ送信しません。</p>
+<h2>外部送信先</h2>
+<ul><li>Cloudflare：Web配信、Functions、通知登録情報の保存</li><li>Apple Push Notification service：通知配信</li><li>気象庁・国土地理院等：公開データや地図の取得。各提供者には通常の通信情報（IPアドレス等）が伝わる場合があります。</li></ul>
+<h2>保持期間と削除</h2>
+<p>通知登録は通知を有効にしている間保持し、最終登録・更新から180日を超えた登録は定期削除します。通知をOFFにすると登録削除を直ちに試み、通信失敗時はアプリに再試行操作を表示します。APNsが無効と判定したトークンも削除します。</p>
+<h2>利用者の選択</h2><p>通知と位置情報は任意です。許可しなくても主要な気象情報を閲覧でき、通知地域は手動で選択できます。削除に関する問題は<a href="/support.html">サポート</a>から連絡してください。device tokenや秘密鍵を公開フォームへ記載しないでください。</p>
+</main></body></html>

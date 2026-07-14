@@ -1,12 +1,22 @@
 import Foundation
 
 enum MeteoScopeEndpoints {
-    static let mapStyle = URL(string: "https://demotiles.maplibre.org/style.json")!
+    static let mapStyle = URL(string: "https://meteoscope.pages.dev/map-style.json")!
+    static let privacyPolicy = URL(string: "https://meteoscope.pages.dev/privacy.html")!
+    static let termsOfUse = URL(string: "https://meteoscope.pages.dev/terms.html")!
+    static let support = URL(string: "https://meteoscope.pages.dev/support.html")!
+    static let jmaOfficial = URL(string: "https://www.jma.go.jp/bosai/")!
+    static let jmaTerms = URL(string: "https://www.jma.go.jp/jma/kishou/info/coment.html")!
+    static let jmaDataPortal = URL(string: "https://www.data.jma.go.jp/developer/index.html")!
+    static let gsiTiles = URL(string: "https://maps.gsi.go.jp/development/ichiran.html")!
     static let radarTimeList = URL(
         string: "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json"
     )!
     static let publicConfig = URL(
         string: "https://meteoscope.pages.dev/api/public/config"
+    )!
+    static let iosPushConfig = URL(
+        string: "https://meteoscope.pages.dev/api/push/ios/config"
     )!
     static let iosPushRegister = URL(
         string: "https://meteoscope.pages.dev/api/push/ios/register"
@@ -51,7 +61,7 @@ enum MeteoScopeEndpoints {
         URL(string: "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml")!
     ]
     static let earthquakeStationCatalog = URL(
-        string: "https://meteoscope.pages.dev/data/jma-stations.compact.json"
+        string: "https://meteoscope.pages.dev/data/jma-intensity-stations.json"
     )!
     static let warningMunicipalityBoundaries = URL(
         string: "https://meteoscope.pages.dev/data/jma-weather-warning-municipalities.geojson"

@@ -12,18 +12,21 @@ extension Notification.Name {
 @Observable
 final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate {
     enum ServerRegistrationState: Equatable {
-        case idle
+        case notConfigured
         case registering
-        case registered
+        case serverPreparing
+        case available
         case failed(String)
     }
 
     private(set) var authorizationStatus: UNAuthorizationStatus = .notDetermined
     private(set) var deviceToken: String?
     private(set) var registrationError: String?
-    private(set) var serverRegistrationState: ServerRegistrationState = .idle
+    private(set) var serverRegistrationState: ServerRegistrationState = .notConfigured
+    private(set) var serverConfiguration: IOSPushServerConfiguration?
     private(set) var availableAreas: [NotificationArea] = []
     private(set) var isLoadingAreas = false
+    private(set) var isRefreshingServerState = false
     private let session: URLSession
     private var lastSyncedSignature: String?
 
@@ -54,17 +57,24 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
     }
 
     var statusLabel: String {
-        if case .failed = serverRegistrationState { return "サーバー登録エラー" }
-        if serverRegistrationState == .registering { return "通知先を登録中" }
-        if serverRegistrationState == .registered { return "利用可能" }
-        switch authorizationStatus {
-        case .notDetermined: "未設定"
-        case .denied: "許可されていません"
-        case .authorized: deviceToken == nil ? "許可済み・端末登録待ち" : "利用可能"
-        case .provisional: "仮許可"
-        case .ephemeral: "一時許可"
-        @unknown default: "確認中"
+        switch serverRegistrationState {
+        case .notConfigured: "未設定"
+        case .registering: "端末登録中"
+        case .serverPreparing: "通知サーバー準備中"
+        case .available: "利用可能"
+        case .failed: "登録エラー"
         }
+    }
+
+    var canEnableNotifications: Bool {
+        guard let serverConfiguration else { return false }
+        return serverConfiguration.enabled
+            && serverConfiguration.registrationEnabled
+            && serverConfiguration.acceptedEnvironments.contains(Self.apnsEnvironment)
+    }
+
+    var environmentLabel: String {
+        Self.apnsEnvironment == "production" ? "Production（TestFlight／App Store）" : "Sandbox（開発）"
     }
 
     var serverError: String? {
@@ -79,12 +89,41 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
         }
     }
 
+    func refreshServerStatus() async {
+        guard !isRefreshingServerState else { return }
+        isRefreshingServerState = true
+        defer { isRefreshingServerState = false }
+        do {
+            var request = URLRequest(url: MeteoScopeEndpoints.iosPushConfig)
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            request.timeoutInterval = 15
+            let (data, response) = try await session.data(for: request)
+            guard let response = response as? HTTPURLResponse, 200..<300 ~= response.statusCode else {
+                throw WeatherAPIError.invalidResponse
+            }
+            let configuration = try JSONDecoder().decode(IOSPushServerConfiguration.self, from: data)
+            serverConfiguration = configuration
+            if !configuration.enabled || !configuration.registrationEnabled {
+                serverRegistrationState = .serverPreparing
+            } else if !configuration.acceptedEnvironments.contains(Self.apnsEnvironment) {
+                serverRegistrationState = .failed("通知環境が一致しません。")
+            } else if serverRegistrationState != .available {
+                serverRegistrationState = .notConfigured
+            }
+            registrationError = nil
+        } catch {
+            serverRegistrationState = .failed("通知基盤の状態を確認できませんでした。")
+            registrationError = error.localizedDescription
+        }
+    }
+
     func requestAuthorization() async -> Bool {
         do {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(
                 options: [.alert, .badge, .sound]
             )
             await refreshAuthorizationStatus()
+            if granted { serverRegistrationState = .registering }
             return granted
         } catch {
             registrationError = error.localizedDescription
@@ -123,9 +162,23 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
     }
 
     func synchronize(preferences: AppPreferences) async {
-        guard let deviceToken else { return }
+        if !preferences.pendingUnregistrationDeviceToken.isEmpty {
+            await unregister(
+                deviceToken: preferences.pendingUnregistrationDeviceToken,
+                preferences: preferences
+            )
+            if !preferences.pendingUnregistrationDeviceToken.isEmpty { return }
+        }
         if !preferences.warningNotificationsEnabled {
-            await unregister(deviceToken: deviceToken)
+            let tokenToRemove = deviceToken ?? preferences.registeredNotificationDeviceToken
+            guard !tokenToRemove.isEmpty else { return }
+            await unregister(deviceToken: tokenToRemove, preferences: preferences)
+            return
+        }
+        guard let deviceToken else { return }
+        if serverConfiguration == nil { await refreshServerStatus() }
+        guard canEnableNotifications else {
+            serverRegistrationState = .serverPreparing
             return
         }
         guard isAuthorized, !preferences.notificationAreaCode.isEmpty else { return }
@@ -153,25 +206,44 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
                 payload,
                 to: MeteoScopeEndpoints.iosPushRegister
             )
-            guard response.registered else { throw WeatherAPIError.invalidResponse }
+            let nextState = try Self.registrationState(
+                registered: response.registered,
+                deliveryEnabled: response.deliveryEnabled
+            )
+            guard nextState == .available else {
+                lastSyncedSignature = nil
+                serverRegistrationState = nextState
+                return
+            }
             lastSyncedSignature = signature
-            serverRegistrationState = .registered
+            preferences.registeredNotificationDeviceToken = deviceToken
+            serverRegistrationState = .available
             registrationError = nil
         } catch {
             serverRegistrationState = .failed(error.localizedDescription)
         }
     }
 
-    private func unregister(deviceToken: String) async {
+    func retryPendingUnregistration(preferences: AppPreferences) async {
+        guard !preferences.pendingUnregistrationDeviceToken.isEmpty else { return }
+        await unregister(deviceToken: preferences.pendingUnregistrationDeviceToken, preferences: preferences)
+    }
+
+    private func unregister(deviceToken: String, preferences: AppPreferences) async {
         do {
             let _: IOSPushUnregisterResponse = try await sendJSON(
                 IOSPushUnregisterPayload(deviceToken: deviceToken),
                 to: MeteoScopeEndpoints.iosPushUnregister
             )
             lastSyncedSignature = nil
-            serverRegistrationState = .idle
+            preferences.pendingUnregistrationDeviceToken = ""
+            if preferences.registeredNotificationDeviceToken == deviceToken {
+                preferences.registeredNotificationDeviceToken = ""
+            }
+            serverRegistrationState = canEnableNotifications ? .notConfigured : .serverPreparing
         } catch {
-            serverRegistrationState = .failed(error.localizedDescription)
+            preferences.pendingUnregistrationDeviceToken = deviceToken
+            serverRegistrationState = .failed("通知登録を削除できませんでした。再試行してください。")
         }
     }
 
@@ -197,6 +269,14 @@ final class PushNotificationService: NSObject, UNUserNotificationCenterDelegate 
         #else
         "production"
         #endif
+    }
+
+    static func registrationState(
+        registered: Bool,
+        deliveryEnabled: Bool
+    ) throws -> ServerRegistrationState {
+        guard registered else { throw WeatherAPIError.invalidResponse }
+        return deliveryEnabled ? .available : .serverPreparing
     }
 
     nonisolated func userNotificationCenter(
@@ -244,6 +324,15 @@ private struct IOSPushRegistrationPayload: Encodable {
 
 private struct IOSPushRegistrationResponse: Decodable {
     let registered: Bool
+    let deliveryEnabled: Bool
+}
+
+struct IOSPushServerConfiguration: Decodable, Equatable {
+    let enabled: Bool
+    let registrationEnabled: Bool
+    let bundleID: String
+    let acceptedEnvironments: [String]
+    let checkedAt: String?
 }
 
 private struct IOSPushUnregisterPayload: Encodable {

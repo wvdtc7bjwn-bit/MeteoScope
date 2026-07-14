@@ -116,9 +116,7 @@ struct AmedasDashboardCard: View {
                 }
             }
 
-            Text("更新 \(DateTextFormatter.shortDateTime(snapshot.updatedAt))")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            DataFreshnessLabel(feature: .amedas, dataTime: snapshot.updatedAt, dataTimeLabel: "観測時刻")
         }
         .padding()
         .meteoGlassSurface(cornerRadius: 18)
@@ -361,8 +359,8 @@ private struct WarningAnnouncementContent: View {
                         Text("\(prefecture.areaCount)地域").font(.caption.monospacedDigit())
                     }
                 }
-                UpdatedAtLabel(value: snapshot.updatedAt)
             }
+            DataFreshnessLabel(feature: .warnings, dataTime: snapshot.updatedAt, dataTimeLabel: "発表時刻")
         }
     }
 }
@@ -398,8 +396,8 @@ private struct EarlyWarningContent: View {
                             .font(.caption2.monospacedDigit())
                     }
                 }
-                UpdatedAtLabel(value: snapshot.updatedAt)
             }
+            DataFreshnessLabel(feature: .warnings, dataTime: snapshot.updatedAt, dataTimeLabel: "発表時刻")
         }
     }
 }
@@ -429,8 +427,8 @@ private struct RiverFloodContent: View {
                             .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                 }
-                UpdatedAtLabel(value: snapshot.updatedAt)
             }
+            DataFreshnessLabel(feature: .warnings, dataTime: snapshot.updatedAt, dataTimeLabel: "発表時刻")
         }
     }
 }
@@ -456,11 +454,24 @@ private struct InlineEmptyRow: View {
     }
 }
 
-private struct UpdatedAtLabel: View {
-    let value: String
+private struct DataFreshnessLabel: View {
+    @Environment(WeatherAppModel.self) private var model
+    let feature: WeatherFeature
+    let dataTime: String
+    let dataTimeLabel: String
+
     var body: some View {
-        Text("更新 \(DateTextFormatter.shortDateTime(value))")
-            .font(.caption2).foregroundStyle(.tertiary)
+        let freshness = model.freshness(for: feature)
+        VStack(alignment: .leading, spacing: 2) {
+            Text("\(dataTimeLabel) \(DateTextFormatter.shortDateTime(dataTime))")
+            Text("最終正常取得 \(freshness.fetchedAt.map(DateTextFormatter.shortDateTime) ?? "未取得")")
+            if freshness.latestnessUnconfirmed {
+                Label("最新性を確認できていません", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.orange)
+            }
+        }
+        .font(.caption2)
+        .foregroundStyle(.tertiary)
     }
 }
 
@@ -492,18 +503,19 @@ struct TyphoonDashboardCard: View {
                         TyphoonValue(label: "最大瞬間", value: typhoon.maximumGust)
                         TyphoonValue(label: "移動", value: "\(typhoon.course) \(typhoon.speed)")
                     }
-                    Text("更新 \(DateTextFormatter.shortDateTime(typhoon.updatedAt))")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                    DataFreshnessLabel(feature: .typhoon, dataTime: typhoon.updatedAt, dataTimeLabel: "発表時刻")
                 }
                 .padding()
                 .meteoGlassSurface(cornerRadius: 18)
                 .shadow(color: .black.opacity(0.16), radius: 12, y: 5)
             } else {
-                FeatureEmptyCard(
-                    title: "現在、台風情報は発表されていません",
-                    systemImage: "checkmark.circle.fill"
-                )
+                VStack(alignment: .leading, spacing: 8) {
+                    FeatureEmptyCard(
+                        title: "現在、台風情報は発表されていません",
+                        systemImage: "checkmark.circle.fill"
+                    )
+                    DataFreshnessLabel(feature: .typhoon, dataTime: snapshot.updatedAt, dataTimeLabel: "発表時刻")
+                }
             }
         }
     }
@@ -564,12 +576,16 @@ struct EarthquakeDashboardCard: View {
                     Text("発生 \(DateTextFormatter.shortDateTime(earthquake.eventTime))")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
+                    DataFreshnessLabel(feature: .earthquake, dataTime: earthquake.reportTime, dataTimeLabel: "発表時刻")
                 }
                 .padding()
                 .meteoGlassSurface(cornerRadius: 18)
                 .shadow(color: .black.opacity(0.16), radius: 12, y: 5)
             } else {
-                FeatureEmptyCard(title: "表示できる地震情報はありません", systemImage: "waveform.path.ecg")
+                VStack(alignment: .leading, spacing: 8) {
+                    FeatureEmptyCard(title: "表示できる地震情報はありません", systemImage: "waveform.path.ecg")
+                    DataFreshnessLabel(feature: .earthquake, dataTime: snapshot.updatedAt, dataTimeLabel: "発表時刻")
+                }
             }
         }
     }
@@ -630,13 +646,17 @@ private enum MeasurementText {
 }
 
 private enum DateTextFormatter {
-    static func shortDateTime(_ value: String) -> String {
-        guard let date = ISO8601DateFormatter().date(from: value) else { return value }
+    static func shortDateTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ja_JP")
         formatter.timeZone = TimeZone(identifier: "Asia/Tokyo")
         formatter.dateFormat = "MM/dd HH:mm"
         return formatter.string(from: date)
+    }
+
+    static func shortDateTime(_ value: String) -> String {
+        guard let date = ISO8601DateFormatter().date(from: value) else { return value }
+        return shortDateTime(date)
     }
 
     static func clock(_ value: String) -> String {

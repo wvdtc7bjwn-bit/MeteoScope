@@ -352,7 +352,7 @@ extension WeatherAPIClient {
 
                 let resolvedStationData = await stationData
                 let stations = resolvedStationData.flatMap {
-                    try? JSONDecoder().decode([String: EarthquakeStationRecord].self, from: $0)
+                    decodeEarthquakeStations($0)
                 } ?? [:]
 
                 let earthquakes = await withTaskGroup(of: EarthquakeSummary?.self) { group in
@@ -428,6 +428,17 @@ private struct TyphoonBundle: Sendable {
     let id: String
     let forecasts: [TyphoonForecastRecord]
     let specifications: [TyphoonSpecificationRecord]
+}
+
+private func decodeEarthquakeStations(_ data: Data) -> [String: EarthquakeStationRecord]? {
+    let decoder = JSONDecoder()
+    if let keyed = try? decoder.decode([String: EarthquakeStationRecord].self, from: data) {
+        return keyed
+    }
+    guard let records = try? decoder.decode([EarthquakeStationRecord].self, from: data) else {
+        return nil
+    }
+    return Dictionary(records.map { ($0.name, $0) }, uniquingKeysWith: { current, _ in current })
 }
 
 private func requestData(

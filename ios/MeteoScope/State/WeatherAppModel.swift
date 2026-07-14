@@ -16,6 +16,8 @@ final class WeatherAppModel {
     var earthquakeState: LoadState<EarthquakeSnapshot> = .idle
     var remoteConfigState: LoadState<RemoteAppConfig> = .idle
     var selectedRadarFrameID: RadarFrame.ID?
+    private(set) var lastSuccessfulFetchAt: [WeatherFeature: Date] = [:]
+    private(set) var latestFetchError: [WeatherFeature: String] = [:]
     private(set) var dismissedNoticeIDs: Set<RemoteNotice.ID> = []
 
     private let client: WeatherAPIClient
@@ -56,18 +58,21 @@ final class WeatherAppModel {
     }
 
     func refreshRadar() async {
-        radarState = .loading
+        let preservesExistingData = !radarFrames.isEmpty
+        if !preservesExistingData { radarState = .loading }
         do {
             let frames = try await client.fetchRadarFrames()
             guard !Task.isCancelled else { return }
             radarState = .loaded(frames)
+            markFetchSucceeded(.radar)
             if selectedRadarFrameID == nil || !frames.contains(where: { $0.id == selectedRadarFrameID }) {
                 selectedRadarFrameID = latestObservation(in: frames)?.id ?? frames.last?.id
             }
         } catch is CancellationError {
             return
         } catch {
-            radarState = .failed(error.localizedDescription)
+            markFetchFailed(.radar, message: error.localizedDescription)
+            if !preservesExistingData { radarState = .failed(error.localizedDescription) }
         }
     }
 
@@ -76,16 +81,17 @@ final class WeatherAppModel {
         case .radar:
             await loadRadarIfNeeded()
         case .amedas:
-            await loadIfNeeded(\.amedasState, operation: client.fetchAmedasSnapshot)
+            await loadIfNeeded(.amedas, \.amedasState, operation: client.fetchAmedasSnapshot)
         case .warnings:
-            async let warnings: Void = loadIfNeeded(\.warningState, operation: client.fetchWarningSnapshot)
-            async let early: Void = loadIfNeeded(\.earlyWarningState, operation: client.fetchEarlyWarningSnapshot)
-            async let rivers: Void = loadIfNeeded(\.riverFloodState, operation: client.fetchRiverFloodSnapshot)
+            latestFetchError[.warnings] = nil
+            async let warnings: Void = loadIfNeeded(.warnings, \.warningState, operation: client.fetchWarningSnapshot)
+            async let early: Void = loadIfNeeded(.warnings, \.earlyWarningState, operation: client.fetchEarlyWarningSnapshot)
+            async let rivers: Void = loadIfNeeded(.warnings, \.riverFloodState, operation: client.fetchRiverFloodSnapshot)
             _ = await (warnings, early, rivers)
         case .typhoon:
-            await loadIfNeeded(\.typhoonState, operation: client.fetchTyphoonSnapshot)
+            await loadIfNeeded(.typhoon, \.typhoonState, operation: client.fetchTyphoonSnapshot)
         case .earthquake:
-            await loadIfNeeded(\.earthquakeState, operation: client.fetchEarthquakeSnapshot)
+            await loadIfNeeded(.earthquake, \.earthquakeState, operation: client.fetchEarthquakeSnapshot)
         }
     }
 
@@ -94,16 +100,17 @@ final class WeatherAppModel {
         case .radar:
             await refreshRadar()
         case .amedas:
-            await refresh(\.amedasState, operation: client.fetchAmedasSnapshot)
+            await refresh(.amedas, \.amedasState, operation: client.fetchAmedasSnapshot)
         case .warnings:
-            async let warnings: Void = refresh(\.warningState, operation: client.fetchWarningSnapshot)
-            async let early: Void = refresh(\.earlyWarningState, operation: client.fetchEarlyWarningSnapshot)
-            async let rivers: Void = refresh(\.riverFloodState, operation: client.fetchRiverFloodSnapshot)
+            latestFetchError[.warnings] = nil
+            async let warnings: Void = refresh(.warnings, \.warningState, operation: client.fetchWarningSnapshot)
+            async let early: Void = refresh(.warnings, \.earlyWarningState, operation: client.fetchEarlyWarningSnapshot)
+            async let rivers: Void = refresh(.warnings, \.riverFloodState, operation: client.fetchRiverFloodSnapshot)
             _ = await (warnings, early, rivers)
         case .typhoon:
-            await refresh(\.typhoonState, operation: client.fetchTyphoonSnapshot)
+            await refresh(.typhoon, \.typhoonState, operation: client.fetchTyphoonSnapshot)
         case .earthquake:
-            await refresh(\.earthquakeState, operation: client.fetchEarthquakeSnapshot)
+            await refresh(.earthquake, \.earthquakeState, operation: client.fetchEarthquakeSnapshot)
         }
     }
 
@@ -141,33 +148,62 @@ final class WeatherAppModel {
         selectedRootTab = .map
     }
 
+    func freshness(for feature: WeatherFeature) -> DataFreshness {
+        DataFreshness(
+            fetchedAt: lastSuccessfulFetchAt[feature],
+            latestError: latestFetchError[feature]
+        )
+    }
+
     private func latestObservation(in frames: [RadarFrame]) -> RadarFrame? {
         frames.last(where: { !$0.isForecast })
     }
 
     private func loadIfNeeded<Value>(
+        _ feature: WeatherFeature,
         _ keyPath: ReferenceWritableKeyPath<WeatherAppModel, LoadState<Value>>,
         operation: @Sendable () async throws -> Value
     ) async {
         guard self[keyPath: keyPath].isIdle else { return }
-        await refresh(keyPath, operation: operation)
+        await refresh(feature, keyPath, operation: operation)
     }
 
     private func refresh<Value>(
+        _ feature: WeatherFeature,
         _ keyPath: ReferenceWritableKeyPath<WeatherAppModel, LoadState<Value>>,
         operation: @Sendable () async throws -> Value
     ) async {
-        self[keyPath: keyPath] = .loading
+        let preservesExistingData: Bool
+        if case .loaded = self[keyPath: keyPath] { preservesExistingData = true } else { preservesExistingData = false }
+        if !preservesExistingData { self[keyPath: keyPath] = .loading }
         do {
             let value = try await operation()
             guard !Task.isCancelled else { return }
             self[keyPath: keyPath] = .loaded(value)
+            markFetchSucceeded(feature)
         } catch is CancellationError {
             return
         } catch {
-            self[keyPath: keyPath] = .failed(error.localizedDescription)
+            markFetchFailed(feature, message: error.localizedDescription)
+            if !preservesExistingData { self[keyPath: keyPath] = .failed(error.localizedDescription) }
         }
     }
+
+    private func markFetchSucceeded(_ feature: WeatherFeature) {
+        lastSuccessfulFetchAt[feature] = Date()
+        if feature != .warnings { latestFetchError[feature] = nil }
+    }
+
+    private func markFetchFailed(_ feature: WeatherFeature, message: String) {
+        latestFetchError[feature] = message
+    }
+}
+
+struct DataFreshness: Equatable {
+    let fetchedAt: Date?
+    let latestError: String?
+
+    var latestnessUnconfirmed: Bool { latestError != nil }
 }
 
 extension WeatherAppModel {

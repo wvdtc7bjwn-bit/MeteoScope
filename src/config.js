@@ -39,7 +39,7 @@ export const JMA_ENDPOINTS = {
   warningMunicipalities: publicAsset("data/jma-weather-warning-municipalities.geojson"),
   prefectures: publicAsset("data/japan-prefectures.geojson"),
   earthquakeAreas: publicAsset("data/earthquake-areas.geojson"),
-  earthquakeStations: publicAsset("data/jma-stations.compact.json"),
+  earthquakeStations: publicAsset("data/jma-intensity-stations.json"),
   amedasStationTable: "https://www.jma.go.jp/bosai/amedas/const/amedastable.json",
   amedasMapBase: "https://www.jma.go.jp/bosai/amedas/data/map",
   amedasPointBase: "https://www.jma.go.jp/bosai/amedas/data/point",

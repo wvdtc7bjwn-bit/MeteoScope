@@ -2,11 +2,29 @@ name: iOS build
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "ios/MeteoScope/**"
+      - "ios/MeteoScopeTests/**"
+      - "ios/Scripts/**"
+      - "ios/Docs/**"
+      - "ios/project.yml"
+      - "public/privacy.html"
+      - "public/terms.html"
+      - "public/support.html"
+      - ".github/workflows/ios-build.yml"
   pull_request:
     paths:
       - "ios/MeteoScope/**"
       - "ios/MeteoScopeTests/**"
+      - "ios/Scripts/**"
+      - "ios/Docs/**"
       - "ios/project.yml"
+      - "public/privacy.html"
+      - "public/terms.html"
+      - "public/support.html"
       - ".github/workflows/ios-build.yml"
 
 jobs:
@@ -45,6 +63,10 @@ jobs:
 
       - name: Generate project
         run: xcodegen generate
+
+      - name: Validate source and policy assets
+        shell: pwsh
+        run: ./Scripts/Validate-IOSSource.ps1
 
       - name: Resolve packages
         run: >-

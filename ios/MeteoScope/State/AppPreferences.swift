@@ -48,6 +48,14 @@ final class AppPreferences {
         didSet { store.set(notificationPrefecture, forKey: Keys.notificationPrefecture) }
     }
 
+    var pendingUnregistrationDeviceToken: String {
+        didSet { store.set(pendingUnregistrationDeviceToken, forKey: Keys.pendingUnregistrationDeviceToken) }
+    }
+
+    var registeredNotificationDeviceToken: String {
+        didSet { store.set(registeredNotificationDeviceToken, forKey: Keys.registeredNotificationDeviceToken) }
+    }
+
     private let store: UserDefaults
 
     init(store: UserDefaults = .standard) {
@@ -59,6 +67,8 @@ final class AppPreferences {
         self.notificationAreaCode = store.string(forKey: Keys.notificationAreaCode) ?? ""
         self.notificationAreaName = store.string(forKey: Keys.notificationAreaName) ?? ""
         self.notificationPrefecture = store.string(forKey: Keys.notificationPrefecture) ?? ""
+        self.pendingUnregistrationDeviceToken = store.string(forKey: Keys.pendingUnregistrationDeviceToken) ?? ""
+        self.registeredNotificationDeviceToken = store.string(forKey: Keys.registeredNotificationDeviceToken) ?? ""
     }
 
     var colorScheme: ColorScheme? {
@@ -77,6 +87,8 @@ final class AppPreferences {
         static let notificationAreaCode = "meteoscope.notificationAreaCode"
         static let notificationAreaName = "meteoscope.notificationAreaName"
         static let notificationPrefecture = "meteoscope.notificationPrefecture"
+        static let pendingUnregistrationDeviceToken = "meteoscope.pendingUnregistrationDeviceToken"
+        static let registeredNotificationDeviceToken = "meteoscope.registeredNotificationDeviceToken"
     }
 }
 

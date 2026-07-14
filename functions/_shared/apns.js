@@ -11,18 +11,31 @@ export function isAPNSConfigured(env) {
   );
 }
 
-export function normalizeIOSSubscription(payload) {
+export function isValidAPNSDeviceToken(value) {
+  const token = String(value || "").trim().toLowerCase();
+  return /^[a-f0-9]{64,200}$/u.test(token) && token.length % 2 === 0;
+}
+
+export function normalizeIOSSubscription(payload, canonicalArea = null) {
   const deviceToken = String(payload?.deviceToken || "").trim().toLowerCase();
-  if (!/^[a-f0-9]{32,200}$/u.test(deviceToken) || deviceToken.length % 2 !== 0) return null;
-  const environment = payload?.environment === "production" ? "production" : "sandbox";
-  const areaCode = String(payload?.area?.areaCode || "").trim();
-  if (!areaCode) return null;
+  if (!isValidAPNSDeviceToken(deviceToken)) return null;
+  const environment = String(payload?.environment || "");
+  if (!new Set(["sandbox", "production"]).has(environment)) return null;
+  const sourceArea = canonicalArea || payload?.area || {};
+  const areaCode = String(sourceArea.areaCode || "").trim();
+  const areaName = String(sourceArea.areaName || "").trim();
+  const prefecture = String(sourceArea.prefecture || "").trim();
+  const officeCode = String(sourceArea.officeCode || "").trim();
+  if (!/^\d{7}$/u.test(areaCode)) return null;
+  if (!areaName || areaName.length > 80 || !prefecture || prefecture.length > 24) return null;
+  if (!/^\d{6}$/u.test(officeCode)) return null;
   return {
     deviceToken,
     environment,
     areaCode,
-    areaName: String(payload?.area?.areaName || ""),
-    prefecture: String(payload?.area?.prefecture || ""),
+    areaName,
+    prefecture,
+    officeCode,
     preferences: {
       notifyAdvisory: Boolean(payload?.preferences?.notifyAdvisory),
       adminBroadcast: payload?.preferences?.adminBroadcast !== false
@@ -78,7 +91,7 @@ export async function saveIOSSubscription(env, subscription) {
 export async function deleteIOSSubscription(env, deviceTokenOrID) {
   const value = String(deviceTokenOrID || "");
   if (!value) return;
-  const looksLikeToken = /^[a-f0-9]{32,200}$/u.test(value) && value.length % 2 === 0;
+  const looksLikeToken = isValidAPNSDeviceToken(value);
   const id = looksLikeToken ? await iosSubscriptionID(value) : value;
   await env.NOTIFICATIONS_DB.prepare(
     "DELETE FROM ios_push_subscriptions WHERE id = ?"

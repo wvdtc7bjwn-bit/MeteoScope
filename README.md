@@ -40,7 +40,7 @@ Pages プロジェクト名を `meteoscope` にした場合の標準 URL は `ht
 
 ## データ取得元
 
-このアプリはバックエンドサーバーを持たず、ブラウザから気象庁の公開データを直接取得します。
+通常の気象表示はブラウザから気象庁の公開データを取得します。Cloudflare Pages Functionsは管理機能とWeb/iOS通知基盤に使用します。
 
 - 雨雲レーダー: 気象庁降水ナウキャストタイル
 - アメダス: 気象庁アメダス JSON
@@ -49,6 +49,10 @@ Pages プロジェクト名を `meteoscope` にした場合の標準 URL は `ht
 - キキクル: 気象庁リスクタイル
 - 台風情報: 気象庁台風 JSON
 - 市区町村境界: `public/data/jma-weather-warning-municipalities.geojson`
+- 都道府県境界: `public/data/japan-prefectures.geojson`
+- 震度観測点: `public/data/jma-intensity-stations.json`
+
+各データの提供者、取得URL、再利用条件は[`DATA_SOURCES.md`](DATA_SOURCES.md)を参照してください。市区町村境界、地震区域、都道府県境界、震度観測点は気象庁の公式公開データ由来です。都道府県境界と震度観測点は`npm run data:update:jma`で再生成できます。ArcGIS河川レイヤーは親アイテムの利用条件と原典を確認済みです。
 
 ## 開発
 
@@ -129,16 +133,27 @@ NOTIFICATIONS_DB        meteoscope-notifications
 ```
 
 D1のスキーマは `migrations/0001_notification_storage.sql`、
-`migrations/0002_app_storage.sql`、`migrations/0003_admin_push_broadcasts.sql` を順番に適用します。通知購読、警報状態、
+`migrations/0002_app_storage.sql`、`migrations/0003_admin_push_broadcasts.sql`、
+`migrations/0004_ios_push_subscriptions.sql` を順番に適用します。通知購読、警報状態、
 保留通知、管理設定、お知らせ、利用者意見、アーリーアクセス認証、VAPID鍵は
 すべてD1へ保存し、Workers KVは使用しません。
 
-通知Cronは1日1回、完了から30日を過ぎた管理者通知履歴、30日以上未取得の
+通知Cronは、Workers Freeの外部サブリクエスト上限50件/呼び出しとD1 Freeの50クエリ/呼び出しを超えないよう、58官署を15官署ずつ4回に分け、D1では4つのまとまりとして保存します。成功した官署スナップショットだけを更新し、取得失敗を「警報なし」として扱いません。1分cronでも全国一巡は約4分に実行時間を加えた値となり、購読数が多い場合の配信はさらに複数分へ分割されます。管理画面で最終一巡、最終全官署成功、失敗官署数、通知結果を確認できます。
+
+通知Cron内の保持期間整理は1日1回、完了から30日を過ぎた管理者通知履歴、30日以上未取得の
 保留通知、期限切れのアーリーアクセス端末認証、孤立した配信明細を自動削除します。
 通知購読、現行設定、お知らせ、シリアルコード、VAPID鍵は自動削除しません。
 
 `ADMIN_SESSION_SECRET` を省略した場合は `ADMIN_PASSWORD` を使ってセッション署名します。
 GitHub Pages では Pages Functions が動作しないため、管理者画面のAPI機能は Cloudflare Pages 配信時のみ利用できます。通常のアプリ表示は、管理APIが未設定でもそのまま動作します。
+
+## iOS公開準備
+
+- APNs、Cloudflare、App Storeの準備と実機確認: `ios/Docs/APNS_BACKEND_PLAN.md`
+- App Store説明、プライバシー回答、審査メモ、素材チェック: `ios/Docs/APP_STORE_PREPARATION.md`
+- 安定URL候補: `/privacy.html`、`/terms.html`、`/support.html`
+
+APNsが未設定の環境ではiOS登録APIは503で安全停止し、アプリも「利用可能」と表示しません。device token、秘密鍵、Cloudflare tokenをリポジトリやログへ保存しないでください。通知は遅延・不達があり得る補助機能です。
 
 ## GitHub Pages へのデプロイ
 

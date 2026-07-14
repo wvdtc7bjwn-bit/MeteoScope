@@ -1,5 +1,6 @@
 import {
   applyWarningKinds,
+  getPrefectureNameByCode,
   getWarningPhenomenon,
   severityValue
 } from "../../../src/jma/warningCore.js";
@@ -7,6 +8,7 @@ import { JMA_WARNING_OFFICE_CODES } from "../../../src/jma/warningOfficeCodes.js
 import { readJson, writeJson } from "../../_shared/d1Store.js";
 import {
   deleteIOSSubscription,
+  isValidAPNSDeviceToken,
   isAPNSConfigured,
   listIOSSubscriptions,
   normalizeIOSSubscription,
@@ -19,11 +21,19 @@ const VAPID_KEYS_KEY = "push:vapid-keys";
 const JMA_WARNING_BASE = "https://www.jma.go.jp/bosai/warning/data/r8";
 const PUSH_TTL_SECONDS = 60;
 const MAX_PENDING_MESSAGES = 6;
-const ADMIN_BROADCAST_BATCH_SIZE = 25;
+const ADMIN_BROADCAST_BATCH_SIZE = 4;
 const ADMIN_BROADCAST_MAX_ATTEMPTS = 3;
 const RETENTION_DAYS = 30;
+const IOS_SUBSCRIPTION_RETENTION_DAYS = 180;
 const RETENTION_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const RETENTION_CLEANUP_KEY = "retention:last-cleanup";
+const WARNING_OFFICE_BATCH_SIZE = 15;
+const WARNING_NOTIFICATION_BATCH_SIZE = 6;
+const WARNING_CRON_STATE_KEY = "push:warning-cron-state";
+export const WARNING_CRON_HEALTH_KEY = "push:warning-cron-health";
+const WARNING_OFFICE_SNAPSHOT_BATCH_PREFIX = "push:warning-office-batch:";
+const JMA_AREA_CATALOG_URL = "https://www.jma.go.jp/bosai/common/const/area.json";
+const IOS_REQUEST_MAX_BYTES = 4096;
 let adminBroadcastTablesReady = false;
 
 export async function onRequest({ request, env }) {
@@ -37,10 +47,10 @@ export async function onRequest({ request, env }) {
     if (route === "unsubscribe" && method === "POST") return unsubscribe(request, env);
     if (route === "pending" && method === "POST") return pending(request, env);
     if (route === "check" && (method === "GET" || method === "POST")) return check(request, env);
-    if (route === "ios/config" && method === "GET") return iosPushConfig(env);
-    if (route === "ios/register" && method === "POST") return registerIOSPush(request, env);
-    if (route === "ios/unregister" && method === "POST") return unregisterIOSPush(request, env);
-    if (route === "ios/test" && method === "POST") return testIOSPush(request, env);
+    if (route === "ios/config" && method === "GET") return await iosPushConfig(env);
+    if (route === "ios/register" && method === "POST") return await registerIOSPush(request, env);
+    if (route === "ios/unregister" && method === "POST") return await unregisterIOSPush(request, env);
+    if (route === "ios/test" && method === "POST") return await testIOSPush(request, env);
 
     return json({ error: "Not found" }, { status: 404 });
   } catch (error) {
@@ -59,89 +69,247 @@ export async function runWarningPushCheck(env) {
     console.error("[Push API] retention cleanup failed", error);
     retention = { ran: false, error: true };
   }
-  let adminBroadcast;
-  try {
-    adminBroadcast = await runAdminPushBroadcasts(env);
-  } catch (error) {
-    console.error("[Push API] admin broadcast processing failed", error);
-    adminBroadcast = { processed: 0, sent: 0, removed: 0, failed: 0, error: true };
+  const state = await readJson(env.NOTIFICATIONS_DB, WARNING_CRON_STATE_KEY, initialWarningCronState());
+  let adminBroadcast = { processed: 0, sent: 0, removed: 0, failed: 0, deferred: state.phase === "notify" };
+  if (state.phase !== "notify") {
+    try {
+      adminBroadcast = await runAdminPushBroadcasts(env);
+    } catch (error) {
+      console.error("[Push API] admin broadcast processing failed", error);
+      adminBroadcast = { processed: 0, sent: 0, removed: 0, failed: 0, error: true };
+    }
   }
-  const subscriptions = await listSubscriptions(env);
-  const iosSubscriptions = await listIOSSubscriptions(env).catch((error) => {
-    console.error("[Push API] failed to list iOS subscriptions", error);
-    return [];
-  });
-  if (!subscriptions.length && !iosSubscriptions.length) {
-    return {
-      checked: 0,
-      notified: 0,
-      removed: 0,
-      ios: { checked: 0, notified: 0, removed: 0, failed: 0, configured: isAPNSConfigured(env) },
-      adminBroadcast,
-      retention
-    };
-  }
+  const result = state.phase === "notify"
+    ? await runWarningNotificationBatch(env, state)
+    : await runWarningOfficeFetchBatch(env, state);
+  return { ...result, adminBroadcast, retention, storage: "d1" };
+}
 
-  const warningAreas = await fetchActiveWarningAreas();
+export async function readWarningCronHealth(env) {
+  return readJson(env.NOTIFICATIONS_DB, WARNING_CRON_HEALTH_KEY, null);
+}
+
+export function selectWarningOfficeBatch(nextOfficeIndex, batchSize = WARNING_OFFICE_BATCH_SIZE) {
+  const start = Math.max(0, Math.min(Number(nextOfficeIndex) || 0, JMA_WARNING_OFFICE_CODES.length));
+  return JMA_WARNING_OFFICE_CODES.slice(start, start + batchSize);
+}
+
+export function shouldPreserveWarningState(officeCode, failedOfficeCodes) {
+  return !officeCode || new Set(failedOfficeCodes || []).has(officeCode);
+}
+
+export function selectNotificationQueueBatch(queue, cursor = "", batchSize = WARNING_NOTIFICATION_BATCH_SIZE) {
+  const remaining = queue
+    .filter((item) => String(item?.key || "") > String(cursor || ""))
+    .sort((left, right) => String(left.key).localeCompare(String(right.key)));
+  return {
+    batch: remaining.slice(0, batchSize),
+    remainingCount: remaining.length
+  };
+}
+
+async function runWarningOfficeFetchBatch(env, state) {
+  const now = new Date().toISOString();
+  const start = Number(state.nextOfficeIndex) || 0;
+  const officeCodes = selectWarningOfficeBatch(start);
+  const snapshotBatchIndex = Math.floor(start / WARNING_OFFICE_BATCH_SIZE);
+  const snapshotBatchKey = `${WARNING_OFFICE_SNAPSHOT_BATCH_PREFIX}${snapshotBatchIndex}`;
+  const [savedSnapshotBatch, results] = await Promise.all([
+    readJson(env.NOTIFICATIONS_DB, snapshotBatchKey, { offices: {} }),
+    Promise.all(officeCodes.map(fetchWarningOffice))
+  ]);
+  const failures = results.filter((result) => !result.ok).map((result) => result.officeCode);
+  const priorFailures = start === 0 ? [] : Array.isArray(state.failedOfficeCodes) ? state.failedOfficeCodes : [];
+  const failedOfficeCodes = [...new Set([...priorFailures, ...failures])];
+
+  const nextSnapshotBatch = {
+    batchIndex: snapshotBatchIndex,
+    offices: { ...(savedSnapshotBatch?.offices || {}) },
+    updatedAt: now
+  };
+  results.filter((result) => result.ok).forEach((result) => {
+    nextSnapshotBatch.offices[result.officeCode] = {
+      officeCode: result.officeCode,
+      reports: result.reports,
+      successAt: now
+    };
+  });
+
+  const nextOfficeIndex = start + officeCodes.length;
+  const cycleComplete = nextOfficeIndex >= JMA_WARNING_OFFICE_CODES.length;
+  const previousHealth = await readWarningCronHealth(env) || {};
+  const nextState = cycleComplete
+    ? {
+        phase: "notify",
+        nextOfficeIndex: 0,
+        notificationCursor: "",
+        notificationProcessed: 0,
+        cycleStartedAt: state.cycleStartedAt || now,
+        cycleCompletedAt: now,
+        failedOfficeCodes
+      }
+    : {
+        ...state,
+        phase: "fetch",
+        nextOfficeIndex,
+        cycleStartedAt: start === 0 ? now : state.cycleStartedAt || now,
+        failedOfficeCodes
+      };
+  const health = {
+    ...previousHealth,
+    phase: nextState.phase,
+    lastRunAt: now,
+    cycleStartedAt: nextState.cycleStartedAt,
+    lastCycleCompletedAt: cycleComplete ? now : previousHealth.lastCycleCompletedAt || null,
+    lastFullySuccessfulAt: cycleComplete && failedOfficeCodes.length === 0
+      ? now
+      : previousHealth.lastFullySuccessfulAt || null,
+    failedOfficeCount: failedOfficeCodes.length,
+    failedOfficeCodes,
+    nextOfficeIndex: nextState.nextOfficeIndex,
+    officeCount: JMA_WARNING_OFFICE_CODES.length,
+    officeBatchSize: WARNING_OFFICE_BATCH_SIZE,
+    maximumCollectionDelayMinutes: Math.ceil(JMA_WARNING_OFFICE_CODES.length / WARNING_OFFICE_BATCH_SIZE)
+  };
+  await Promise.all([
+    writeJson(env.NOTIFICATIONS_DB, snapshotBatchKey, nextSnapshotBatch),
+    writeJson(env.NOTIFICATIONS_DB, WARNING_CRON_STATE_KEY, nextState),
+    writeJson(env.NOTIFICATIONS_DB, WARNING_CRON_HEALTH_KEY, health)
+  ]);
+  return {
+    phase: "fetch",
+    attemptedOffices: officeCodes.length,
+    failedOffices: failures.length,
+    cycleComplete,
+    nextOfficeIndex: nextState.nextOfficeIndex,
+    checked: 0,
+    notified: 0,
+    removed: 0,
+    ios: { checked: 0, notified: 0, removed: 0, failed: 0, configured: isAPNSConfigured(env) }
+  };
+}
+
+async function runWarningNotificationBatch(env, state) {
+  const now = new Date().toISOString();
+  const [subscriptions, iosSubscriptions, snapshots, areaCatalog] = await Promise.all([
+    listSubscriptions(env),
+    listIOSSubscriptions(env).catch((error) => {
+      console.error("[Push API] failed to list iOS subscriptions", error);
+      return [];
+    }),
+    loadWarningOfficeSnapshots(env),
+    fetchNotificationAreaCatalog()
+  ]);
+  const queue = [
+    ...subscriptions.map((subscription) => ({ kind: "web", subscription })),
+    ...iosSubscriptions.map((subscription) => ({ kind: "ios", subscription }))
+  ]
+    .map((item) => ({ ...item, key: `${item.kind}:${String(item.subscription?.id || "")}` }))
+    .filter((item) => !item.key.endsWith(":"))
+    .sort((left, right) => left.key.localeCompare(right.key));
+  const cursor = String(state.notificationCursor || "");
+  const { batch, remainingCount } = selectNotificationQueueBatch(queue, cursor);
+  const warningAreas = buildActiveWarningAreasFromSnapshots(snapshots);
+  const failedOfficeCodes = new Set(state.failedOfficeCodes || []);
   let notified = 0;
   let removed = 0;
-
-  for (const subscription of subscriptions) {
-    const id = String(subscription?.id || "");
-    if (!subscription?.endpoint || !subscription?.pushSubscription?.endpoint) {
-      await deleteSubscription(env, id);
-      removed += 1;
+  let webFailed = 0;
+  let staleSkipped = 0;
+  const ios = { checked: 0, notified: 0, removed: 0, failed: 0, configured: isAPNSConfigured(env) };
+  const webVapidKeys = batch.some((item) => item.kind === "web")
+    ? await getVapidKeys(env, { create: true })
+    : null;
+  for (const item of batch) {
+    const officeCode = resolveSubscriptionOfficeCode(item.subscription, warningAreas, areaCatalog);
+    if (shouldPreserveWarningState(officeCode, failedOfficeCodes)) {
+      staleSkipped += 1;
       continue;
     }
-
-    const currentArea = warningAreas.get(String(subscription.areaCode));
-    const currentWarnings = currentArea?.warnings ?? [];
-    const result = buildNotificationMessage(subscription, currentArea, currentWarnings);
-    const nextWarningState = buildWarningState(currentWarnings);
-    const warningStateChanged = !sameWarningState(subscription.warningState, nextWarningState);
-    const areaChanged = (
-      (currentArea?.areaName && currentArea.areaName !== subscription.areaName)
-      || (currentArea?.prefecture && currentArea.prefecture !== subscription.prefecture)
-    );
-    const nextSubscription = {
-      ...subscription,
-      areaName: currentArea?.areaName ?? subscription.areaName,
-      prefecture: currentArea?.prefecture ?? subscription.prefecture,
-      warningState: nextWarningState
-    };
-
-    if (result) {
-      await enqueuePendingMessage(env, id, result);
-      const pushResult = await sendEmptyPushSafely(subscription.pushSubscription, env);
-      if (pushResult.ok) {
-        notified += 1;
-        nextSubscription.lastNotifiedAt = new Date().toISOString();
-      } else if (pushResult.status === 404 || pushResult.status === 410) {
-        await deleteSubscription(env, id);
-        removed += 1;
-        continue;
-      } else {
-        console.warn("[Push API] web push failed", pushResult.status, pushResult.statusText);
-      }
-    }
-
-    // A one-minute cron must not write when nothing changed.
-    if (warningStateChanged || areaChanged || result) {
-      await saveSubscription(env, nextSubscription);
+    const subscription = { ...item.subscription, officeCode };
+    if (item.kind === "web") {
+      const result = await runWebWarningPushCheck(env, warningAreas, subscription, webVapidKeys);
+      notified += result.notified;
+      removed += result.removed;
+      webFailed += result.failed;
+    } else {
+      const result = await runIOSWarningPushCheck(env, warningAreas, [subscription]);
+      ios.checked += result.checked;
+      ios.notified += result.notified;
+      ios.removed += result.removed;
+      ios.failed += result.failed;
     }
   }
 
-  const ios = await runIOSWarningPushCheck(env, warningAreas, iosSubscriptions);
-
-  return {
-    checked: subscriptions.length,
-    notified,
-    removed,
-    ios,
-    adminBroadcast,
-    retention,
-    storage: env.NOTIFICATIONS_DB ? "d1" : "kv"
+  const notificationComplete = batch.length >= remainingCount;
+  const nextCursor = batch.at(-1)?.key || cursor;
+  const notificationProcessed = (Number(state.notificationProcessed) || 0) + batch.length;
+  const nextState = notificationComplete
+    ? initialWarningCronState()
+    : { ...state, notificationCursor: nextCursor, notificationProcessed };
+  const previousHealth = await readWarningCronHealth(env) || {};
+  const resultSummary = {
+    checked: batch.length,
+    notified: notified + ios.notified,
+    removed: removed + ios.removed,
+    failed: webFailed + ios.failed,
+    staleSkipped,
+    completedAt: notificationComplete ? now : null
   };
+  await Promise.all([
+    writeJson(env.NOTIFICATIONS_DB, WARNING_CRON_STATE_KEY, nextState),
+    writeJson(env.NOTIFICATIONS_DB, WARNING_CRON_HEALTH_KEY, {
+      ...previousHealth,
+      phase: nextState.phase,
+      lastRunAt: now,
+      notificationCursor: notificationComplete ? "" : nextCursor,
+      notificationProcessed: notificationComplete ? notificationProcessed : nextState.notificationProcessed,
+      notificationTotal: queue.length,
+      lastNotificationResult: resultSummary
+    })
+  ]);
+  return { phase: "notify", checked: batch.length, notified, removed, failed: webFailed + ios.failed, staleSkipped, notificationComplete, ios };
+}
+
+async function runWebWarningPushCheck(env, warningAreas, subscription, vapidKeys) {
+  const id = String(subscription?.id || "");
+  if (!subscription?.endpoint || !subscription?.pushSubscription?.endpoint) {
+    await deleteSubscription(env, id);
+    return { notified: 0, removed: 1, failed: 0 };
+  }
+  const currentArea = warningAreas.get(String(subscription.areaCode));
+  const currentWarnings = currentArea?.warnings ?? [];
+  const message = buildNotificationMessage(subscription, currentArea, currentWarnings);
+  const nextWarningState = buildWarningState(currentWarnings);
+  const warningStateChanged = !sameWarningState(subscription.warningState, nextWarningState);
+  const areaChanged = (
+    (currentArea?.areaName && currentArea.areaName !== subscription.areaName)
+    || (currentArea?.prefecture && currentArea.prefecture !== subscription.prefecture)
+  );
+  const nextSubscription = {
+    ...subscription,
+    officeCode: resolveSubscriptionOfficeCode(subscription, warningAreas),
+    areaName: currentArea?.areaName ?? subscription.areaName,
+    prefecture: currentArea?.prefecture ?? subscription.prefecture,
+    warningState: nextWarningState
+  };
+  let notified = 0;
+  let failed = 0;
+  if (message) {
+    await enqueuePendingMessage(env, id, message);
+    const pushResult = await sendEmptyPushSafely(subscription.pushSubscription, env, vapidKeys);
+    if (pushResult.ok) {
+      notified = 1;
+      nextSubscription.lastNotifiedAt = new Date().toISOString();
+    } else if (pushResult.status === 404 || pushResult.status === 410) {
+      await deleteSubscription(env, id);
+      return { notified: 0, removed: 1, failed: 0 };
+    } else {
+      console.warn("[Push API] web push failed", pushResult.status, pushResult.statusText);
+      failed = 1;
+    }
+  }
+  if (warningStateChanged || areaChanged || message) await saveSubscription(env, nextSubscription);
+  return { notified, removed: 0, failed };
 }
 
 async function runIOSWarningPushCheck(env, warningAreas, subscriptions) {
@@ -170,6 +338,7 @@ async function runIOSWarningPushCheck(env, warningAreas, subscriptions) {
     );
     const nextSubscription = {
       ...subscription,
+      officeCode: resolveSubscriptionOfficeCode(subscription, warningAreas),
       areaName: currentArea?.areaName ?? subscription.areaName,
       prefecture: currentArea?.prefecture ?? subscription.prefecture,
       warningState: nextWarningState
@@ -202,6 +371,17 @@ async function runIOSWarningPushCheck(env, warningAreas, subscriptions) {
   }
 
   return { checked: subscriptions.length, notified, removed, failed, configured: true };
+}
+
+function initialWarningCronState() {
+  return {
+    phase: "fetch",
+    nextOfficeIndex: 0,
+    notificationCursor: "",
+    notificationProcessed: 0,
+    cycleStartedAt: null,
+    failedOfficeCodes: []
+  };
 }
 
 export async function queueAdminPushBroadcast(env, input) {
@@ -335,7 +515,7 @@ export async function runAdminPushBroadcasts(env) {
   };
 }
 
-function sameWarningState(previous, next) {
+export function sameWarningState(previous, next) {
   const normalize = (state) => (Array.isArray(state?.warnings) ? state.warnings : [])
     .map((warning) => ({
       code: String(warning?.code || ""),
@@ -408,10 +588,20 @@ async function unsubscribe(request, env) {
 }
 
 async function iosPushConfig(env) {
+  const health = await readWarningCronHealth(env);
   return json({
     enabled: isAPNSConfigured(env),
-    registrationEnabled: Boolean(env.NOTIFICATIONS_DB),
+    registrationEnabled: Boolean(env.NOTIFICATIONS_DB) && isAPNSConfigured(env),
     bundleID: env.APNS_BUNDLE_ID || "",
+    acceptedEnvironments: ["sandbox", "production"],
+    checkedAt: new Date().toISOString(),
+    warningPipeline: health ? {
+      phase: health.phase || "unknown",
+      lastCycleCompletedAt: health.lastCycleCompletedAt || null,
+      lastFullySuccessfulAt: health.lastFullySuccessfulAt || null,
+      failedOfficeCount: Number(health.failedOfficeCount || 0),
+      maximumCollectionDelayMinutes: Number(health.maximumCollectionDelayMinutes || 4)
+    } : null,
     setup: {
       d1: Boolean(env.NOTIFICATIONS_DB),
       keyID: Boolean(env.APNS_KEY_ID),
@@ -424,8 +614,21 @@ async function iosPushConfig(env) {
 
 async function registerIOSPush(request, env) {
   requireNotificationStorage(env);
-  const payload = await request.json().catch(() => ({}));
-  const subscription = normalizeIOSSubscription(payload);
+  if (!isAPNSConfigured(env)) {
+    return json({
+      registered: false,
+      deliveryEnabled: false,
+      error: "通知サーバーの準備中です。現在は新規登録を受け付けていません。"
+    }, { status: 503 });
+  }
+  const rateLimited = await enforceIOSRegistrationRateLimit(request, env);
+  if (rateLimited) return rateLimited;
+  const payload = await readLimitedJson(request, IOS_REQUEST_MAX_BYTES);
+  const canonicalArea = await validateNotificationArea(payload?.area);
+  if (!canonicalArea) {
+    return json({ error: "通知対象区域を確認できませんでした。" }, { status: 400 });
+  }
+  const subscription = normalizeIOSSubscription(payload, canonicalArea);
   if (!subscription) {
     return json({ error: "iOS通知の端末トークンまたは地域情報が不正です。" }, { status: 400 });
   }
@@ -444,9 +647,12 @@ async function registerIOSPush(request, env) {
 
 async function unregisterIOSPush(request, env) {
   requireNotificationStorage(env);
-  const payload = await request.json().catch(() => ({}));
+  const payload = await readLimitedJson(request, IOS_REQUEST_MAX_BYTES);
   const deviceToken = String(payload.deviceToken || "").trim().toLowerCase();
   if (!deviceToken) return json({ registered: false });
+  if (!isValidAPNSDeviceToken(deviceToken)) {
+    return json({ error: "端末トークンが不正です。" }, { status: 400 });
+  }
   await deleteIOSSubscription(env, deviceToken);
   return json({ registered: false });
 }
@@ -463,7 +669,7 @@ async function testIOSPush(request, env) {
   if (!isAPNSConfigured(env)) {
     return json({ error: "APNsの環境変数が未設定です。" }, { status: 503 });
   }
-  const payload = await request.json().catch(() => ({}));
+  const payload = await readLimitedJson(request, IOS_REQUEST_MAX_BYTES);
   const deviceToken = String(payload.deviceToken || "").trim().toLowerCase();
   const subscription = (await listIOSSubscriptions(env)).find((item) => item.deviceToken === deviceToken);
   if (!subscription) {
@@ -478,6 +684,84 @@ async function testIOSPush(request, env) {
     areaCode: subscription.areaCode
   });
   return json(result, { status: result.ok ? 200 : 502 });
+}
+
+async function readLimitedJson(request, maximumBytes) {
+  const declaredLength = Number(request.headers.get("Content-Length") || 0);
+  if (declaredLength > maximumBytes) {
+    throw json({ error: "リクエストが大きすぎます。" }, { status: 413 });
+  }
+  const text = await request.text();
+  if (new TextEncoder().encode(text).byteLength > maximumBytes) {
+    throw json({ error: "リクエストが大きすぎます。" }, { status: 413 });
+  }
+  try {
+    const payload = JSON.parse(text || "{}");
+    if (!payload || Array.isArray(payload) || typeof payload !== "object") throw new Error("Invalid object");
+    return payload;
+  } catch {
+    throw json({ error: "JSON形式が不正です。" }, { status: 400 });
+  }
+}
+
+async function enforceIOSRegistrationRateLimit(request, env) {
+  const limiter = env.IOS_REGISTRATION_RATE_LIMITER;
+  if (!limiter?.limit) return null;
+  const key = request.headers.get("CF-Connecting-IP") || "unknown";
+  const result = await limiter.limit({ key });
+  if (result?.success !== false) return null;
+  return json(
+    { error: "登録操作が多すぎます。時間をおいて再試行してください。" },
+    { status: 429, headers: { "Retry-After": "60" } }
+  );
+}
+
+async function validateNotificationArea(area) {
+  const areaCode = String(area?.areaCode || "").trim();
+  if (!/^\d{7}$/u.test(areaCode)) return null;
+  try {
+    const catalog = await fetchNotificationAreaCatalog();
+    if (!catalog) return null;
+    const record = catalog?.class20s?.[areaCode];
+    if (!record?.name || String(record.name).length > 80) return null;
+    const officeCode = resolveAreaOfficeCode(catalog, record.parent);
+    if (!officeCode) return null;
+    return {
+      areaCode,
+      areaName: String(record.name),
+      prefecture: getPrefectureNameByCode(areaCode),
+      officeCode
+    };
+  } catch (error) {
+    console.warn("[Push API] area catalog validation unavailable", error);
+    return null;
+  }
+}
+
+async function fetchNotificationAreaCatalog() {
+  try {
+    const response = await fetch(JMA_AREA_CATALOG_URL, {
+      headers: { "Accept": "application/json" },
+      cf: { cacheTtl: 24 * 60 * 60, cacheEverything: true }
+    });
+    if (!response.ok) return null;
+    return await response.json();
+  } catch (error) {
+    console.warn("[Push API] area catalog unavailable", error);
+    return null;
+  }
+}
+
+function resolveAreaOfficeCode(catalog, startingCode) {
+  let code = String(startingCode || "");
+  const visited = new Set();
+  while (code && !visited.has(code)) {
+    visited.add(code);
+    if (catalog?.offices?.[code]) return JMA_WARNING_OFFICE_CODES.includes(code) ? code : "";
+    const record = catalog?.class15s?.[code] || catalog?.class10s?.[code] || catalog?.class20s?.[code];
+    code = String(record?.parent || "");
+  }
+  return "";
 }
 
 async function pending(request, env) {
@@ -504,8 +788,7 @@ async function check(request, env) {
   return json({ ok: true, ...result, checkedAt: new Date().toISOString() });
 }
 
-async function fetchActiveWarningAreas() {
-  const reports = await fetchWarningReports();
+function buildActiveWarningAreas(reports) {
   const areasByCode = new Map();
   reports
     .sort((a, b) => new Date(a.reportDatetime).getTime() - new Date(b.reportDatetime).getTime())
@@ -517,6 +800,7 @@ async function fetchActiveWarningAreas() {
           areaCode,
           areaName: area.name ?? "",
           prefecture: "",
+          officeCode: report.__officeCode || "",
           warnings: [],
           updatedAt: report.reportDatetime
         };
@@ -532,24 +816,53 @@ async function fetchActiveWarningAreas() {
   return areasByCode;
 }
 
-async function fetchWarningReports() {
-  const reportsByOffice = await Promise.all(
-    JMA_WARNING_OFFICE_CODES.map(async (officeCode) => {
-      try {
-        const response = await fetch(`${JMA_WARNING_BASE}/${officeCode}.json`, {
-          headers: { "Accept": "application/json,text/plain,*/*" },
-          cf: { cacheTtl: 30, cacheEverything: true }
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const reports = await response.json();
-        return Array.isArray(reports) ? reports : [];
-      } catch (error) {
-        console.warn(`[Push API] warning JSON unavailable: ${officeCode}`, error);
-        return [];
-      }
-    })
-  );
-  return reportsByOffice.flat();
+async function fetchWarningOffice(officeCode) {
+  try {
+    const response = await fetch(`${JMA_WARNING_BASE}/${officeCode}.json`, {
+      headers: { "Accept": "application/json,text/plain,*/*" },
+      cf: { cacheTtl: 30, cacheEverything: true }
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const reports = await response.json();
+    if (!Array.isArray(reports)) throw new Error("Unexpected warning response");
+    return { ok: true, officeCode, reports };
+  } catch (error) {
+    console.warn(`[Push API] warning JSON unavailable: ${officeCode}`, error);
+    return { ok: false, officeCode, reports: [] };
+  }
+}
+
+async function loadWarningOfficeSnapshots(env) {
+  const batchCount = Math.ceil(JMA_WARNING_OFFICE_CODES.length / WARNING_OFFICE_BATCH_SIZE);
+  const batches = await Promise.all(Array.from({ length: batchCount }, (_, batchIndex) => readJson(
+    env.NOTIFICATIONS_DB,
+    `${WARNING_OFFICE_SNAPSHOT_BATCH_PREFIX}${batchIndex}`,
+    { offices: {} }
+  )));
+  return batches
+    .flatMap((batch) => Object.values(batch?.offices || {}))
+    .filter((snapshot) => snapshot?.officeCode && Array.isArray(snapshot.reports));
+}
+
+function buildActiveWarningAreasFromSnapshots(snapshots) {
+  const reports = snapshots.flatMap((snapshot) => snapshot.reports.map((report) => ({
+    ...report,
+    __officeCode: snapshot.officeCode
+  })));
+  return buildActiveWarningAreas(reports);
+}
+
+function resolveSubscriptionOfficeCode(subscription, warningAreas, areaCatalog = null) {
+  const stored = String(subscription?.officeCode || "");
+  if (JMA_WARNING_OFFICE_CODES.includes(stored)) return stored;
+  const areaCode = String(subscription?.areaCode || "");
+  const fromCurrentArea = warningAreas.get(areaCode)?.officeCode;
+  if (fromCurrentArea) return fromCurrentArea;
+  const officialArea = areaCatalog?.class20s?.[areaCode];
+  const fromCatalog = officialArea ? resolveAreaOfficeCode(areaCatalog, officialArea.parent) : "";
+  if (fromCatalog) return fromCatalog;
+  const prefixMatches = JMA_WARNING_OFFICE_CODES.filter((officeCode) => officeCode.slice(0, 2) === areaCode.slice(0, 2));
+  return prefixMatches.length === 1 ? prefixMatches[0] : "";
 }
 
 function getMunicipalityAreas(report) {
@@ -571,7 +884,7 @@ function getMunicipalityAreas(report) {
   return report.areaTypes?.[1]?.areas ?? [];
 }
 
-function buildNotificationMessage(subscription, currentArea, currentWarnings) {
+export function buildNotificationMessage(subscription, currentArea, currentWarnings) {
   const notifyAdvisory = Boolean(subscription.preferences?.notifyAdvisory);
   const previousWarnings = Array.isArray(subscription.warningState?.warnings)
     ? subscription.warningState.warnings
@@ -861,6 +1174,10 @@ async function runNotificationRetentionCleanup(env) {
          AND datetime(json_extract(value, '$.expiresAt')) < datetime('now')`
     ),
     env.NOTIFICATIONS_DB.prepare(
+      `DELETE FROM ios_push_subscriptions
+       WHERE datetime(updated_at) < datetime('now', '-${IOS_SUBSCRIPTION_RETENTION_DAYS} days')`
+    ),
+    env.NOTIFICATIONS_DB.prepare(
       `INSERT INTO push_meta (key, value) VALUES (?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`
     ).bind(RETENTION_CLEANUP_KEY, now)
@@ -872,6 +1189,8 @@ async function runNotificationRetentionCleanup(env) {
     deliveries: getD1Changes(results[0]),
     pendingMessages: getD1Changes(results[2]),
     expiredEarlyAccessActivations: getD1Changes(results[3]),
+    expiredIOSSubscriptions: getD1Changes(results[4]),
+    iosSubscriptionRetentionDays: IOS_SUBSCRIPTION_RETENTION_DAYS,
     lastCleanupAt: now
   };
 }

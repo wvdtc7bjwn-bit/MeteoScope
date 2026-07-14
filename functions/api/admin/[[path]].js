@@ -99,7 +99,10 @@ async function sessionStatus(request, env) {
 }
 
 async function status(env) {
-  const config = await readJson(env.NOTIFICATIONS_DB, CONFIG_KEY, DEFAULT_CONFIG);
+  const [config, warningCron] = await Promise.all([
+    readJson(env.NOTIFICATIONS_DB, CONFIG_KEY, DEFAULT_CONFIG),
+    readWarningCronHealth(env)
+  ]);
   return json({
     ok: true,
     nowJst: new Intl.DateTimeFormat("ja-JP", {
@@ -108,6 +111,7 @@ async function status(env) {
       timeStyle: "medium"
     }).format(new Date()),
     configUpdatedAt: config?.updatedAt || "--",
+    warningCron,
     bindings: {
       d1: Boolean(env.NOTIFICATIONS_DB),
       r2: Boolean(env.DISASTER_MAPS),
@@ -492,4 +496,4 @@ function json(payload, init = {}) {
   });
 }
 import { readJson, writeJson, requireD1 } from "../../_shared/d1Store.js";
-import { listAdminPushBroadcasts, queueAdminPushBroadcast } from "../push/[[path]].js";
+import { listAdminPushBroadcasts, queueAdminPushBroadcast, readWarningCronHealth } from "../push/[[path]].js";

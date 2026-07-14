@@ -476,7 +476,10 @@ function buildEmptyStationLookup() {
 
 function buildStationCoordinateLookup(raw) {
   const lookup = buildEmptyStationLookup();
-  Object.entries(raw ?? {}).forEach(([code, station]) => {
+  const entries = Array.isArray(raw)
+    ? raw.map((station) => [station?.code ?? "", station])
+    : Object.entries(raw ?? {});
+  entries.forEach(([code, station]) => {
     const longitude = Number(station?.longitude);
     const latitude = Number(station?.latitude);
     if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
@@ -491,7 +494,7 @@ function buildStationCoordinateLookup(raw) {
       coordinates: [longitude, latitude]
     };
 
-    lookup.byCode.set(record.code, record);
+    if (record.code) lookup.byCode.set(record.code, record);
     if (record.noCode) lookup.byNoCode.set(record.noCode, record);
     addStationNameIndex(lookup.byName, record.name, record);
   });

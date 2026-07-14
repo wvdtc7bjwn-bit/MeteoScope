@@ -102,7 +102,7 @@
         </button>
         <div id="legend-list" class="legend-list" hidden></div>
       </section>
-      <div id="map-attribution"><a href="https://www.jma.go.jp/" target="_blank" rel="noopener noreferrer">気象庁</a>の公開データをMeteoScopeが加工・可視化 / Natural Earth / MapLibre GL JS</div>
+      <div id="map-attribution"><a href="https://www.jma.go.jp/" target="_blank" rel="noopener noreferrer">気象庁</a>の公開データをMeteoScopeが加工・可視化 / <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">背景地図: 国土地理院</a> / <a href="https://www.arcgis.com/home/item.html?id=dd9f222b9b61428abd2d26414c10928f&amp;sublayer=0" target="_blank" rel="noopener noreferrer">河川形状: ESRIジャパン株式会社・気象庁</a> / MapLibre GL JS</div>
     </main>
 
     <div id="warning-modal" class="warning-modal" hidden>
@@ -228,6 +228,10 @@
             <div class="settings-group-content" hidden>
               <div class="settings-policy-copy settings-source-copy">
                 <p><strong>主な情報出典</strong><br><a href="https://www.jma.go.jp/" target="_blank" rel="noopener noreferrer">気象庁ホームページ</a>および<a href="https://www.data.jma.go.jp/developer/index.html" target="_blank" rel="noopener noreferrer">気象データ高度利用ポータルサイト</a></p>
+                <p><strong>区域の形状</strong><br>市区町村境界、地震区域、都道府県境界は、気象庁の<a href="https://www.data.jma.go.jp/developer/gis.html" target="_blank" rel="noopener noreferrer">予報区等GISデータ</a>をGeoJSONへ変換し、区域コード・名称・表示用属性を付加して利用しています。原データには国土地理院の測量成果が使用されています。</p>
+                <p><strong>震度観測点</strong><br>気象庁の<a href="https://www.data.jma.go.jp/eqev/data/intens-st/" target="_blank" rel="noopener noreferrer">震度観測点</a>で公開されている、気象庁・地方公共団体・防災科研の観測点名称、表示用座標、所属区分を加工して利用しています。</p>
+                <p><strong>背景地図</strong><br><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院の地理院タイル（標準地図）</a>を背景として利用し、その上に気象・防災情報を重ねています。</p>
+                <p><strong>指定河川の形状</strong><br><a href="https://www.arcgis.com/home/item.html?id=dd9f222b9b61428abd2d26414c10928f&amp;sublayer=0" target="_blank" rel="noopener noreferrer">ESRIジャパン「指定河川洪水予報河川および洪水予報河川」</a>を利用しています。原典は気象業務支援センターが公開する流路データと河川名対応表、気象庁の個別コード表です。MeteoScopeが気象庁XMLの発表情報と照合し、地図上の配色と表示を加工しています。</p>
                 <p><strong>加工について</strong><br>気象庁の公開データをもとに、MeteoScopeが地図への重ね合わせ、区域との照合、グラフ・ランキング化、表示用の配色・表記変換、通知状態の比較を行っています。表示内容は気象庁が作成した画面そのものではありません。</p>
                 <p><strong>警報・予報の扱い</strong><br>本アプリは独自の気象予報・警報を発表するものではなく、気象庁が発表した情報を加工・可視化する非公式アプリです。通知の「発表・継続・切替・解除」は、気象庁発表データの変化をMeteoScopeが比較した表示です。</p>
                 <p><strong>利用時の注意</strong><br>重要な防災判断では、発表時刻を確認し、<a href="https://www.jma.go.jp/bosai/" target="_blank" rel="noopener noreferrer">気象庁防災情報</a>や自治体などの公式情報を併せて確認してください。データの停止、遅延、更新または仕様変更により、表示が最新でない場合があります。</p>

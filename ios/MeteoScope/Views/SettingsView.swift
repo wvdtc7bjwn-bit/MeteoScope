@@ -19,6 +19,10 @@ struct SettingsView: View {
 
             Section("通知") {
                 Toggle("警報・注意報通知", isOn: $preferences.warningNotificationsEnabled)
+                    .disabled(
+                        (!pushNotifications.canEnableNotifications || preferences.notificationAreaCode.isEmpty)
+                            && !preferences.warningNotificationsEnabled
+                    )
                 Toggle("注意報も通知", isOn: $preferences.notifyAdvisories)
                     .disabled(!preferences.warningNotificationsEnabled)
                 NavigationLink {
@@ -31,29 +35,59 @@ struct SettingsView: View {
                             : preferences.notificationAreaName
                     )
                 }
-                LabeledContent("通知権限", value: pushNotifications.statusLabel)
+                LabeledContent("通知状態", value: pushNotifications.statusLabel)
+                LabeledContent("APNs環境", value: pushNotifications.environmentLabel)
+                Button {
+                    Task { await pushNotifications.refreshServerStatus() }
+                } label: {
+                    Label(
+                        pushNotifications.isRefreshingServerState ? "通知基盤を確認中" : "通知基盤の状態を確認",
+                        systemImage: "arrow.clockwise"
+                    )
+                }
+                .disabled(pushNotifications.isRefreshingServerState)
+                if !preferences.pendingUnregistrationDeviceToken.isEmpty {
+                    Button("通知OFFの登録削除を再試行") {
+                        Task { await pushNotifications.retryPendingUnregistration(preferences: preferences) }
+                    }
+                }
                 if let error = pushNotifications.serverError ?? pushNotifications.registrationError {
                     Text(error)
                         .font(.footnote)
                         .foregroundStyle(.red)
                 }
-                Text("通知には地域の選択と端末の通知許可が必要です。APNsの鍵はアプリ内へ保存せず、Cloudflare側のシークレットとして管理します。")
+                Text(notificationExplanation)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
 
             Section("アプリについて") {
                 LabeledContent("アプリ", value: "MeteoScope")
-                LabeledContent("バージョン", value: "0.1.0")
-                Text("気象庁が公開する防災気象情報を表示します。重要な判断では、気象庁や自治体の公式発表も確認してください。")
+                LabeledContent("バージョン", value: appVersion)
+                Text("出典：気象庁ホームページ・気象データ高度利用ポータルサイト。気象庁公開データをもとにMeteoScopeが区域照合、地図への重ね合わせ、配色変換、ランキング化、通知状態の比較を行っています。本アプリは気象庁その他の行政機関が提供する公式アプリではありません。重要な判断では気象庁・自治体等の公式発表も確認してください。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                Link("気象庁 防災情報を開く", destination: MeteoScopeEndpoints.jmaOfficial)
+                Link("気象庁ホームページの利用規約", destination: MeteoScopeEndpoints.jmaTerms)
+                Link("気象データ高度利用ポータルサイト", destination: MeteoScopeEndpoints.jmaDataPortal)
+                Link("地理院タイル（背景地図）の出典", destination: MeteoScopeEndpoints.gsiTiles)
+            }
+
+            Section("規約とサポート") {
+                Link("プライバシーポリシー", destination: MeteoScopeEndpoints.privacyPolicy)
+                Link("利用規約", destination: MeteoScopeEndpoints.termsOfUse)
+                Link("サポート・削除依頼", destination: MeteoScopeEndpoints.support)
             }
         }
         .navigationTitle("設定")
         .onChange(of: preferences.warningNotificationsEnabled) { _, enabled in
             Task {
                 if enabled {
+                    await pushNotifications.refreshServerStatus()
+                    guard pushNotifications.canEnableNotifications else {
+                        preferences.warningNotificationsEnabled = false
+                        return
+                    }
                     let granted = await pushNotifications.requestAuthorization()
                     if !granted {
                         preferences.warningNotificationsEnabled = false
@@ -73,10 +107,27 @@ struct SettingsView: View {
             Task { await pushNotifications.synchronize(preferences: preferences) }
         }
         .task {
+            await pushNotifications.refreshServerStatus()
             await pushNotifications.refreshAuthorizationStatus()
             await pushNotifications.loadNotificationAreasIfNeeded()
             await pushNotifications.synchronize(preferences: preferences)
         }
+    }
+
+    private var appVersion: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "--"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "--"
+        return "\(version) (\(build))"
+    }
+
+    private var notificationExplanation: String {
+        if !pushNotifications.canEnableNotifications {
+            return "通知サーバーの準備が完了するまで購読は有効化できません。主要な気象情報は通知や位置情報を許可しなくても確認できます。"
+        }
+        if preferences.notificationAreaCode.isEmpty {
+            return "先に通知する地域を選択してください。位置情報を許可しなくても地域は手動で選択できます。"
+        }
+        return "通知は補助機能です。端末設定、通信状況、Appleまたは配信基盤の状態により遅延・不達となる場合があります。"
     }
 }
 

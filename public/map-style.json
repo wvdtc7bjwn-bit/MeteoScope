@@ -1,0 +1,18 @@
+{
+  "version": 8,
+  "name": "MeteoScope GSI Base",
+  "sources": {
+    "gsi-standard": {
+      "type": "raster",
+      "tiles": ["https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png"],
+      "tileSize": 256,
+      "minzoom": 2,
+      "maxzoom": 18,
+      "attribution": "国土地理院"
+    }
+  },
+  "layers": [
+    { "id": "background", "type": "background", "paint": { "background-color": "#dce7f2" } },
+    { "id": "gsi-standard", "type": "raster", "source": "gsi-standard", "minzoom": 2, "maxzoom": 19 }
+  ]
+}

@@ -7,11 +7,17 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview",
+    "data:update:jma": "node scripts/update-jma-static-data.mjs",
+    "test:safety": "node Tests/PushSafetyTests.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy dist --project-name meteoscope"
   },
   "dependencies": {
     "maplibre-gl": "^5.24.0",
     "pdfjs-dist": "^6.1.200",
     "vite": "^6.0.0"
+  },
+  "devDependencies": {
+    "adm-zip": "^0.6.0",
+    "mapshaper": "^0.7.45"
   }
 }
