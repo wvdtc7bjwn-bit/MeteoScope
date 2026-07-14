@@ -433,12 +433,12 @@ private struct TyphoonBundle: Sendable {
 private func decodeEarthquakeStations(_ data: Data) -> [String: EarthquakeStationRecord]? {
     let decoder = JSONDecoder()
     if let keyed = try? decoder.decode([String: EarthquakeStationRecord].self, from: data) {
-        return keyed
+        return EarthquakeStationLookup.makeLookup(keyed)
     }
     guard let records = try? decoder.decode([EarthquakeStationRecord].self, from: data) else {
         return nil
     }
-    return Dictionary(records.map { ($0.name, $0) }, uniquingKeysWith: { current, _ in current })
+    return EarthquakeStationLookup.makeLookup(records)
 }
 
 private func requestData(

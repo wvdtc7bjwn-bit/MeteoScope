@@ -157,7 +157,7 @@ final class FeatureDataTests: XCTestCase {
         <Report>
           <Control><DateTime>2026-07-13T10:01:00Z</DateTime></Control>
           <Head><ReportDateTime>2026-07-13T19:01:00+09:00</ReportDateTime><EventID>event-1</EventID><Headline><Text>津波の心配はありません。</Text></Headline></Head>
-          <Body><Earthquake><OriginTime>2026-07-13T18:58:00+09:00</OriginTime><Hypocenter><Area><Name>奈良県</Name><Coordinate>+34.6+135.8-10000/</Coordinate></Area></Hypocenter><Magnitude>3.2</Magnitude></Earthquake><Intensity><Observation><MaxInt>2</MaxInt><Pref><Area><Name>奈良県</Name><Code>560</Code><MaxInt>2</MaxInt><City><IntensityStation><Name>奈良市</Name><Code>2920100</Code><Int>2</Int></IntensityStation></City></Area></Pref></Observation></Intensity></Body>
+          <Body><Earthquake><OriginTime>2026-07-13T18:58:00+09:00</OriginTime><Hypocenter><Area><Name>奈良県</Name><Coordinate>+34.6+135.8-10000/</Coordinate></Area></Hypocenter><Magnitude>3.2</Magnitude></Earthquake><Intensity><Observation><MaxInt>2</MaxInt><Pref><Area><Name>奈良県</Name><Code>560</Code><MaxInt>2</MaxInt><City><IntensityStation><Name>奈良市＊</Name><Code>2920100</Code><Int>2</Int></IntensityStation></City></Area></Pref></Observation></Intensity></Body>
         </Report>
         """.data(using: .utf8)!
 
@@ -165,7 +165,7 @@ final class FeatureDataTests: XCTestCase {
             data: report,
             entry: try XCTUnwrap(entries.first),
             stations: [
-                "2920100": EarthquakeStationRecord(
+                EarthquakeStationLookup.normalizedName("奈良市"): EarthquakeStationRecord(
                     name: "奈良市",
                     latitude: 34.68,
                     longitude: 135.82
@@ -178,7 +178,31 @@ final class FeatureDataTests: XCTestCase {
         XCTAssertEqual(earthquake.depth, "10 km")
         XCTAssertEqual(earthquake.maximumIntensity, "震度2")
         XCTAssertEqual(earthquake.intensityAreas.first?.areaCode, "560")
-        XCTAssertEqual(earthquake.intensityPoints.first?.name, "奈良市")
+        XCTAssertEqual(earthquake.intensityPoints.first?.name, "奈良市＊")
+        XCTAssertEqual(earthquake.intensityPoints.first?.coordinate.latitude, 34.68)
+        XCTAssertEqual(EarthquakeStationLookup.normalizedName("八戸市南郷＊"), "八戸市南郷")
+        let renamedStationLookup = EarthquakeStationLookup.makeLookup([
+            EarthquakeStationRecord(name: "蓬田村蓬田", latitude: 40.97, longitude: 140.66)
+        ])
+        XCTAssertEqual(
+            EarthquakeStationLookup.station(
+                code: "0230400",
+                name: "蓬田村阿弥陀川＊",
+                in: renamedStationLookup
+            )?.latitude,
+            40.97
+        )
+        let ambiguousLookup = EarthquakeStationLookup.makeLookup([
+            EarthquakeStationRecord(name: "八戸市南郷", latitude: 40.4, longitude: 141.43),
+            EarthquakeStationRecord(name: "八戸市湊町", latitude: 40.52, longitude: 141.52)
+        ])
+        XCTAssertNil(
+            EarthquakeStationLookup.station(
+                code: "unknown",
+                name: "八戸市未登録＊",
+                in: ambiguousLookup
+            )
+        )
     }
 
     func testEarlyWarningBuilderKeepsMiddleAndHighProbabilities() throws {

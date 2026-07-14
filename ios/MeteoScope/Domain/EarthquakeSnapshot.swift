@@ -43,6 +43,75 @@ struct EarthquakeStationRecord: Decodable, Sendable {
     let longitude: Double
 }
 
+enum EarthquakeStationLookup {
+    static func normalizedName(_ value: String) -> String {
+        value.precomposedStringWithCompatibilityMapping
+            .replacingOccurrences(of: #"\s+"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"[（(].*?[）)]"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"震度計$"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"[＊*]+$"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func makeLookup(_ records: [EarthquakeStationRecord]) -> [String: EarthquakeStationRecord] {
+        var lookup = Dictionary(
+            records.map { (normalizedName($0.name), $0) },
+            uniquingKeysWith: { current, _ in current }
+        )
+        let municipalityGroups = Dictionary(grouping: records) { record in
+            municipalityKeys(record.name).first ?? ""
+        }
+        for (key, candidates) in municipalityGroups where !key.isEmpty && candidates.count == 1 {
+            lookup["municipality:\(key)"] = candidates[0]
+        }
+        return lookup
+    }
+
+    static func makeLookup(_ keyedRecords: [String: EarthquakeStationRecord]) -> [String: EarthquakeStationRecord] {
+        var lookup = keyedRecords
+        for (key, record) in keyedRecords {
+            lookup[normalizedName(key)] = record
+            lookup[normalizedName(record.name)] = record
+        }
+        let uniqueRecords = Dictionary(
+            keyedRecords.values.map { ("\($0.name)|\($0.latitude)|\($0.longitude)", $0) },
+            uniquingKeysWith: { current, _ in current }
+        ).values.map { $0 }
+        for (key, record) in makeLookup(uniqueRecords) where lookup[key] == nil {
+            lookup[key] = record
+        }
+        return lookup
+    }
+
+    static func station(
+        code: String,
+        name: String,
+        in stations: [String: EarthquakeStationRecord]
+    ) -> EarthquakeStationRecord? {
+        if let direct = stations[code] ?? stations[normalizedName(name)] ?? stations[name] {
+            return direct
+        }
+        for municipality in municipalityKeys(name) {
+            if let station = stations["municipality:\(municipality)"] {
+                return station
+            }
+        }
+        return nil
+    }
+
+    private static func municipalityKeys(_ value: String) -> [String] {
+        var prefix = ""
+        var keys: [String] = []
+        for character in normalizedName(value) {
+            prefix.append(character)
+            if "市区町村".contains(character) {
+                keys.append(prefix)
+            }
+        }
+        return Array(keys.reversed())
+    }
+}
+
 struct EarthquakeFeedEntry: Hashable, Sendable {
     let id: String
     let title: String
@@ -107,7 +176,11 @@ enum EarthquakeXMLDecoder {
         let intensityPoints = root.descendants(named: "IntensityStation").compactMap { node -> EarthquakeIntensityPoint? in
             guard let code = node.firstChild(named: "Code")?.text,
                   let stationName = node.firstChild(named: "Name")?.text,
-                  let station = stations[code] ?? stations[stationName],
+                  let station = EarthquakeStationLookup.station(
+                      code: code,
+                      name: stationName,
+                      in: stations
+                  ),
                   let rawIntensity = node.firstChild(named: "Int")?.text
             else {
                 return nil

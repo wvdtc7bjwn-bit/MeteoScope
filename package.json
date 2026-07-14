@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "data:update:jma": "node scripts/update-jma-static-data.mjs",
     "test:safety": "node Tests/PushSafetyTests.mjs",
+    "test:earthquake": "node Tests/EarthquakeStationLookupTests.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy dist --project-name meteoscope"
   },
   "dependencies": {

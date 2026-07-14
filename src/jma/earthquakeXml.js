@@ -6,6 +6,11 @@ import {
   STATIC_DATA_CACHE_TTL_MS
 } from "../config.js";
 import { fetchJson, fetchText, parseJmaTime } from "./jmaClient.js";
+import {
+  attachIntensityStationCoordinates,
+  buildEmptyStationLookup,
+  buildStationCoordinateLookup
+} from "./earthquakeStationLookup.js";
 
 const EARTHQUAKE_XML_DETAIL_FETCH_LIMIT = 48;
 const EARTHQUAKE_HISTORY_DISPLAY_LIMIT = 11;
@@ -400,17 +405,6 @@ function attachEarthquakeMapData(earthquake, areaLookup, stationLookup) {
   };
 }
 
-function attachIntensityStationCoordinates(stations, stationLookup) {
-  return stations.map((station) => {
-    const coordinate = findStationCoordinate(station, stationLookup);
-    return {
-      ...station,
-      stationName: station.stationName || coordinate?.name || station.code,
-      coordinates: coordinate?.coordinates ?? null
-    };
-  });
-}
-
 function buildIntensityAreaFeatures(areas, areaLookup) {
   return areas.flatMap((area) => {
     const features = areaLookup.get(normalizeAreaCode(area.code)) ?? [];
@@ -464,70 +458,6 @@ async function loadStationCoordinateLookup() {
     }).then(buildStationCoordinateLookup);
   }
   return stationCoordinateLookupPromise;
-}
-
-function buildEmptyStationLookup() {
-  return {
-    byCode: new Map(),
-    byNoCode: new Map(),
-    byName: new Map()
-  };
-}
-
-function buildStationCoordinateLookup(raw) {
-  const lookup = buildEmptyStationLookup();
-  const entries = Array.isArray(raw)
-    ? raw.map((station) => [station?.code ?? "", station])
-    : Object.entries(raw ?? {});
-  entries.forEach(([code, station]) => {
-    const longitude = Number(station?.longitude);
-    const latitude = Number(station?.latitude);
-    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
-
-    const record = {
-      code: String(code),
-      noCode: station?.noCode ? String(station.noCode) : "",
-      name: station?.name ?? "",
-      cityName: station?.cityName ?? "",
-      regionCode: normalizeAreaCode(station?.regionCode),
-      regionName: station?.regionName ?? "",
-      coordinates: [longitude, latitude]
-    };
-
-    if (record.code) lookup.byCode.set(record.code, record);
-    if (record.noCode) lookup.byNoCode.set(record.noCode, record);
-    addStationNameIndex(lookup.byName, record.name, record);
-  });
-  return lookup;
-}
-
-function addStationNameIndex(index, name, record) {
-  const normalized = normalizeStationName(name);
-  if (!normalized || index.has(normalized)) return;
-  index.set(normalized, record);
-}
-
-function findStationCoordinate(station, lookup) {
-  const code = String(station?.code ?? "").trim();
-  if (code && lookup.byCode.has(code)) return lookup.byCode.get(code);
-  if (code && lookup.byNoCode.has(code)) return lookup.byNoCode.get(code);
-
-  const normalizedName = normalizeStationName(station?.stationName);
-  if (normalizedName && lookup.byName.has(normalizedName)) return lookup.byName.get(normalizedName);
-
-  const cityPrefixedName = normalizeStationName(`${station?.cityName ?? ""}${station?.stationName ?? ""}`);
-  if (cityPrefixedName && lookup.byName.has(cityPrefixedName)) return lookup.byName.get(cityPrefixedName);
-
-  return null;
-}
-
-function normalizeStationName(name) {
-  return String(name ?? "")
-    .normalize("NFKC")
-    .replace(/\s+/g, "")
-    .replace(/[（(].*?[）)]/g, "")
-    .replace(/震度計$/u, "")
-    .trim();
 }
 
 function getMaxIntensity(values) {
