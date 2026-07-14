@@ -58,8 +58,11 @@ enum EarthquakeStationLookup {
             records.map { (normalizedName($0.name), $0) },
             uniquingKeysWith: { current, _ in current }
         )
-        let municipalityGroups = Dictionary(grouping: records) { record in
-            municipalityKeys(record.name).first ?? ""
+        var municipalityGroups: [String: [EarthquakeStationRecord]] = [:]
+        for record in records {
+            for key in municipalityKeys(record.name) {
+                municipalityGroups[key, default: []].append(record)
+            }
         }
         for (key, candidates) in municipalityGroups where !key.isEmpty && candidates.count == 1 {
             lookup["municipality:\(key)"] = candidates[0]
