@@ -123,8 +123,9 @@ private struct ActiveFaultInfoCard: View {
             HStack(alignment: .top, spacing: 8) {
                 Text(info.breakableName)
                     .font(.subheadline.weight(.bold))
-                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
                 Spacer(minLength: 4)
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
