@@ -163,7 +163,10 @@ struct WeatherMapView: UIViewRepresentable {
             }
             let layerIdentifiers = Set([activeFaultFillLayerIdentifier, activeFaultLineLayerIdentifier])
             let point = recognizer.location(in: mapView)
-            guard let feature = mapView.visibleFeatures(at: point, in: layerIdentifiers).first,
+            guard let feature = mapView.visibleFeatures(
+                at: point,
+                styleLayerIdentifiers: layerIdentifiers
+            ).first,
                   let info = ActiveFaultInfo(attributes: feature.attributes)
             else {
                 selectedActiveFault.wrappedValue = nil
