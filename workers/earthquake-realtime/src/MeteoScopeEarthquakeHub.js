@@ -15,7 +15,8 @@ import {
 const STATE_KEY = "latest-state-v2";
 const HISTORY_KEY = "earthquake-history-v1";
 const RETENTION_CLEANUP_KEY = "retention-cleanup-v1";
-const DMDATA_TELEGRAM_CURSOR_KEY = "dmdata-telegram-cursor-v1";
+// Parser changes require one bounded replay so recent station rows are rebuilt safely.
+const DMDATA_TELEGRAM_CURSOR_KEY = "dmdata-telegram-cursor-v2";
 const REPLAY_TYPES = ["earthquake", "eew", "tsunami"];
 const HISTORY_MAX_ITEMS = 100;
 const FINALIZED_EEW_EVENT_IDS_MAX_SIZE = 200;
