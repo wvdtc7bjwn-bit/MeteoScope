@@ -105,4 +105,17 @@ for (const relativePath of [
   assert.doesNotMatch(source, /rt\.eq-signal\.com/);
 }
 
+const dmdataOnlySources = await Promise.all([
+  "src/config.js",
+  "src/dmdata/earthquakes.js",
+  "ios/MeteoScope/Services/MeteoScopeEndpoints.swift",
+  "ios/MeteoScope/Services/WeatherAPIClient.swift"
+].map(relativePath => fs.readFile(path.join(root, relativePath), "utf8")));
+
+for (const source of dmdataOnlySources) {
+  assert.doesNotMatch(source, /developer\/xml\/feed\/eqvol(?:_l)?\.xml/u);
+}
+assert.match(dmdataOnlySources[1], /latestPayload\?\.latest\?\.tsunami/u);
+assert.match(dmdataOnlySources[3], /DMDataTsunamiBuilder\.build/u);
+
 console.log("Earthquake Worker route tests passed.");

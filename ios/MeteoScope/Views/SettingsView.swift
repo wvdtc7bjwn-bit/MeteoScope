@@ -67,7 +67,7 @@ struct SettingsView: View {
             Section("アプリについて") {
                 LabeledContent("アプリ", value: "MeteoScope")
                 LabeledContent("バージョン", value: appVersion)
-                Text("出典：気象庁ホームページ・気象データ高度利用ポータルサイト。地震情報は気象庁電文をDM-D.S.SからMeteoScope専用Cloudflare Workerが受信・正規化したデータを使用し、津波情報は気象庁XMLを併用します。MeteoScopeが区域照合、地図への重ね合わせ、配色変換、ランキング化、通知状態の比較を行っています。本アプリは気象庁その他の行政機関が提供する公式アプリではありません。重要な判断では気象庁・自治体等の公式発表も確認してください。")
+                Text("出典：気象庁ホームページ・気象データ高度利用ポータルサイト。地震・津波情報は気象庁電文をDM-D.S.SからMeteoScope専用Cloudflare Workerが受信・正規化したデータを使用します。MeteoScopeが区域照合、地図への重ね合わせ、配色変換、ランキング化、通知状態の比較を行っています。本アプリは気象庁その他の行政機関が提供する公式アプリではありません。重要な判断では気象庁・自治体等の公式発表も確認してください。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Link("気象庁 防災情報を開く", destination: MeteoScopeEndpoints.jmaOfficial)

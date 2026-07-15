@@ -73,9 +73,7 @@ export const JMA_ENDPOINTS = {
   amedasDailyMaxWind: "https://www.data.jma.go.jp/stats/data/mdrr/wind_rct/alltable/mxwsp00_rct.csv",
   amedasDailyMaxGust: "https://www.data.jma.go.jp/stats/data/mdrr/wind_rct/alltable/gust00_rct.csv",
   amedasDailySurface: "https://www.data.jma.go.jp/stats/data/mdrr/synopday/data1s.html",
-  typhoon: "https://www.jma.go.jp/bosai/typhoon/data/targetTc.json",
-  earthquakeXmlFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml",
-  earthquakeXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml"
+  typhoon: "https://www.jma.go.jp/bosai/typhoon/data/targetTc.json"
 };
 
 export const TABS = [
@@ -117,7 +115,7 @@ export const TABS = [
     title: "",
     cardLabel: "震源",
     primary: "Quake",
-    description: "気象庁XMLの震源・震度情報を表示します。"
+    description: "DM-D.S.S経由で取得した気象庁発表の地震・津波情報を表示します。"
   }
 ];
 

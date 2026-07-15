@@ -212,6 +212,7 @@ struct DMDataLatestResponse: Decodable, Sendable {
 
 struct DMDataLatestContainer: Decodable, Sendable {
     let earthquake: DMDataLatestEnvelope?
+    let tsunami: DMDataLatestTsunamiEnvelope?
 }
 
 struct DMDataLatestEnvelope: Decodable, Sendable {
@@ -226,6 +227,158 @@ struct DMDataLatestEarthquake: Decodable, Sendable {
     enum CodingKeys: String, CodingKey {
         case eventID = "eventId"
         case points
+    }
+}
+
+struct DMDataLatestTsunamiEnvelope: Decodable, Sendable {
+    let data: DMDataLatestTsunami
+    let receivedAt: String?
+}
+
+struct DMDataLatestTsunami: Decodable, Sendable {
+    let eventID: String?
+    let reportTime: String?
+    let validTime: String?
+    let title: String?
+    let headline: String?
+    let text: String?
+    let isCanceled: Bool?
+    let earthquake: DMDataTsunamiEarthquake?
+    let areas: [DMDataTsunamiArea]?
+    let observations: [DMDataTsunamiObservationGroup]?
+
+    enum CodingKeys: String, CodingKey {
+        case eventID = "eventId"
+        case reportTime
+        case validTime
+        case title
+        case headline
+        case text
+        case isCanceled
+        case earthquake
+        case areas
+        case observations
+    }
+}
+
+struct DMDataTsunamiEarthquake: Decodable, Sendable {
+    let eventID: String?
+
+    enum CodingKeys: String, CodingKey {
+        case eventID = "eventId"
+    }
+}
+
+struct DMDataTsunamiArea: Decodable, Sendable {
+    let code: String?
+    let name: String?
+    let kindCode: String?
+    let kind: String?
+    let lastKind: String?
+    let arrivalTime: String?
+    let condition: String?
+    let height: String?
+    let heightUnit: String?
+    let heightOver: Bool?
+    let heightCondition: String?
+    let maximumHeightCondition: String?
+
+    enum CodingKeys: String, CodingKey {
+        case code
+        case name
+        case kindCode
+        case kind
+        case lastKind
+        case arrivalTime
+        case condition
+        case height
+        case heightUnit
+        case heightOver
+        case heightCondition
+        case maximumHeightCondition = "maxHeightCondition"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        code = try container.decodeIfPresent(String.self, forKey: .code)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        kindCode = try container.decodeIfPresent(String.self, forKey: .kindCode)
+        kind = try container.decodeIfPresent(String.self, forKey: .kind)
+        lastKind = try container.decodeIfPresent(String.self, forKey: .lastKind)
+        arrivalTime = try container.decodeIfPresent(String.self, forKey: .arrivalTime)
+        condition = try container.decodeIfPresent(String.self, forKey: .condition)
+        height = container.decodeStringOrNumberIfPresent(forKey: .height)
+        heightUnit = try container.decodeIfPresent(String.self, forKey: .heightUnit)
+        heightOver = try container.decodeIfPresent(Bool.self, forKey: .heightOver)
+        heightCondition = try container.decodeIfPresent(String.self, forKey: .heightCondition)
+        maximumHeightCondition = try container.decodeIfPresent(
+            String.self,
+            forKey: .maximumHeightCondition
+        )
+    }
+}
+
+struct DMDataTsunamiObservationGroup: Decodable, Sendable {
+    let code: String?
+    let name: String?
+    let stations: [DMDataTsunamiObservation]?
+}
+
+struct DMDataTsunamiObservation: Decodable, Sendable {
+    let code: String?
+    let name: String?
+    let firstArrivalTime: String?
+    let firstCondition: String?
+    let maximumDateTime: String?
+    let maximumHeight: String?
+    let maximumHeightUnit: String?
+    let maximumHeightOver: Bool?
+    let maximumHeightCondition: String?
+    let maximumCondition: String?
+    let offshore: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case code
+        case name
+        case firstArrivalTime
+        case firstCondition
+        case maximumDateTime = "maxDateTime"
+        case maximumHeight = "maxHeight"
+        case maximumHeightUnit = "maxHeightUnit"
+        case maximumHeightOver = "maxHeightOver"
+        case maximumHeightCondition = "maxHeightCondition"
+        case maximumCondition = "maxCondition"
+        case offshore
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        code = try container.decodeIfPresent(String.self, forKey: .code)
+        name = try container.decodeIfPresent(String.self, forKey: .name)
+        firstArrivalTime = try container.decodeIfPresent(String.self, forKey: .firstArrivalTime)
+        firstCondition = try container.decodeIfPresent(String.self, forKey: .firstCondition)
+        maximumDateTime = try container.decodeIfPresent(String.self, forKey: .maximumDateTime)
+        maximumHeight = container.decodeStringOrNumberIfPresent(forKey: .maximumHeight)
+        maximumHeightUnit = try container.decodeIfPresent(String.self, forKey: .maximumHeightUnit)
+        maximumHeightOver = try container.decodeIfPresent(Bool.self, forKey: .maximumHeightOver)
+        maximumHeightCondition = try container.decodeIfPresent(
+            String.self,
+            forKey: .maximumHeightCondition
+        )
+        maximumCondition = try container.decodeIfPresent(String.self, forKey: .maximumCondition)
+        offshore = try container.decodeIfPresent(Bool.self, forKey: .offshore)
+    }
+}
+
+private extension KeyedDecodingContainer {
+    func decodeStringOrNumberIfPresent(forKey key: Key) -> String? {
+        if let text = try? decode(String.self, forKey: key) {
+            return text
+        }
+        if let number = try? decode(Double.self, forKey: key) {
+            return String(number)
+        }
+        return nil
     }
 }
 
@@ -378,6 +531,80 @@ enum DMDataEarthquakeBuilder {
         "41": "佐賀県", "42": "長崎県", "43": "熊本県", "44": "大分県", "45": "宮崎県",
         "46": "鹿児島県", "47": "沖縄県"
     ]
+}
+
+enum DMDataTsunamiBuilder {
+    static func build(_ envelope: DMDataLatestTsunamiEnvelope?) -> TsunamiSnapshot? {
+        guard let envelope, envelope.data.isCanceled != true else { return nil }
+        let data = envelope.data
+        let areas = (data.areas ?? []).map { area in
+            let grade = area.kind ?? "発表内容不明"
+            return TsunamiArea(
+                code: area.code ?? "",
+                name: area.name ?? area.code ?? "津波予報区",
+                grade: grade,
+                level: level(name: grade, code: area.kindCode),
+                arrivalTime: area.arrivalTime ?? "",
+                arrivalCondition: area.condition ?? "",
+                height: height(area.height, unit: area.heightUnit, over: area.heightOver),
+                heightCondition: area.heightCondition ?? area.maximumHeightCondition ?? ""
+            )
+        }
+        .sorted { $0.level.rank > $1.level.rank }
+
+        let allObservations = (data.observations ?? []).flatMap { group in
+            (group.stations ?? []).enumerated().map { index, station in
+                TsunamiObservation(
+                    id: station.code ?? "\(group.code ?? "dmdata")-\(index)",
+                    areaCode: group.code ?? "",
+                    areaName: group.name ?? "",
+                    stationName: station.name ?? station.code ?? "観測点",
+                    offshore: station.offshore == true,
+                    arrivalTime: station.firstArrivalTime ?? "",
+                    arrivalCondition: station.firstCondition ?? "",
+                    maximumHeightTime: station.maximumDateTime ?? "",
+                    maximumHeight: height(
+                        station.maximumHeight,
+                        unit: station.maximumHeightUnit,
+                        over: station.maximumHeightOver
+                    ),
+                    maximumHeightCondition: station.maximumHeightCondition
+                        ?? station.maximumCondition
+                        ?? ""
+                )
+            }
+        }
+        let highestLevel = areas.map(\.level).max { $0.rank < $1.rank } ?? .none
+        let eventID = data.eventID ?? data.earthquake?.eventID ?? ""
+        let reportTime = data.reportTime ?? envelope.receivedAt ?? ""
+        return TsunamiSnapshot(
+            id: eventID.isEmpty ? "dmdata-tsunami:\(reportTime)" : eventID,
+            eventID: eventID,
+            title: data.title ?? "津波情報",
+            headline: data.headline ?? data.text ?? "",
+            reportTime: reportTime,
+            validTime: data.validTime ?? "",
+            areas: areas,
+            observations: allObservations.filter { !$0.offshore },
+            offshoreObservations: allObservations.filter(\.offshore),
+            highestLevel: highestLevel
+        )
+    }
+
+    private static func level(name: String, code: String?) -> TsunamiLevel {
+        let value = "\(name) \(code ?? "")"
+        if value.contains("大津波警報") { return .majorWarning }
+        if value.contains("津波警報") && !value.contains("解除") { return .warning }
+        if value.contains("津波注意報") && !value.contains("解除") { return .advisory }
+        if value.contains("津波予報") || value.contains("若干の海面変動") { return .forecast }
+        return .none
+    }
+
+    private static func height(_ value: String?, unit: String?, over: Bool?) -> String {
+        let text = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard !text.isEmpty else { return "" }
+        return "\(text)\(unit ?? "m")\(over == true ? "超" : "")"
+    }
 }
 
 enum EarthquakeStationLookup {

@@ -1,8 +1,14 @@
 import stationCoordinatesByCode from "../../../public/data/jma-intensity-stations.json";
+import {
+  isAllowedDmdataTelegramDataUrl,
+  mergeDmdataTsunamiSnapshots
+} from "./dmdataTsunami.js";
+import { getEarthquakeTsunamiStatus } from "./earthquakeTsunamiStatus.js";
 
 const STATE_KEY = "latest-state-v2";
 const HISTORY_KEY = "earthquake-history-v1";
 const RETENTION_CLEANUP_KEY = "retention-cleanup-v1";
+const DMDATA_TELEGRAM_CURSOR_KEY = "dmdata-telegram-cursor-v1";
 const REPLAY_TYPES = ["earthquake", "eew", "tsunami"];
 const HISTORY_MAX_ITEMS = 100;
 const FINALIZED_EEW_EVENT_IDS_MAX_SIZE = 200;
@@ -16,6 +22,8 @@ const STATION_INTENSITY_RETENTION_DAYS = 30;
 const TSUNAMI_HISTORY_RETENTION_DAYS = 90;
 const GD_EARTHQUAKE_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const GD_EARTHQUAKE_BACKFILL_DAYS = 2;
+const DMDATA_TELEGRAM_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const DMDATA_TELEGRAM_LIST_LIMIT = 40;
 
 async function fetchWithTimeout(fetchImpl, url, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
@@ -420,93 +428,6 @@ function getScalarValue(value, fallback = "-") {
     );
   }
   return String(value);
-}
-
-function collectTsunamiStatusCandidates(data, candidates = [], seen = new Set()) {
-  if (data === null || data === undefined || data === "") {
-    return candidates;
-  }
-
-  if (typeof data === "string" || typeof data === "number") {
-    candidates.push(String(data));
-    return candidates;
-  }
-
-  if (typeof data !== "object") {
-    return candidates;
-  }
-
-  if (seen.has(data)) {
-    return candidates;
-  }
-  seen.add(data);
-
-  if (Array.isArray(data)) {
-    for (const item of data) {
-      collectTsunamiStatusCandidates(item, candidates, seen);
-    }
-    return candidates;
-  }
-
-  for (const key of [
-    "text",
-    "name",
-    "value",
-    "kind",
-    "status",
-    "comment",
-    "free",
-    "warning",
-    "tsunami",
-    "tsunamiText",
-    "tsunamiStatus",
-    "tsunamiForecast",
-    "domesticTsunami",
-    "foreignTsunami",
-    "forecast",
-    "forecasts",
-    "areas",
-    "comments",
-    "forecastComment",
-    "varComment",
-    "freeFormComment"
-  ]) {
-    collectTsunamiStatusCandidates(data[key], candidates, seen);
-  }
-
-  return candidates;
-}
-
-function getEarthquakeTsunamiStatus(body = {}, report = {}, telegram = {}) {
-  const candidates = collectTsunamiStatusCandidates([
-    body?.tsunami,
-    body?.tsunamiText,
-    body?.tsunamiStatus,
-    body?.tsunamiForecast,
-    body?.domesticTsunami,
-    body?.foreignTsunami,
-    body?.comments,
-    body?.text,
-    body?.earthquake,
-    report?.comments,
-    report?.text,
-    telegram?.body,
-    telegram?.head?.headline
-  ])
-    .map(value => String(value || "").trim())
-    .filter(Boolean);
-
-  if (candidates.some(text => text.includes("大津波警報"))) return "大津波警報";
-  if (candidates.some(text => text.includes("津波警報") && !text.includes("大津波警報"))) return "津波警報";
-  if (candidates.some(text => text.includes("津波注意報"))) return "津波注意報";
-  if (candidates.some(text => text.includes("若干") || text.includes("海面変動") || text.includes("津波予報"))) {
-    return "若干の海面変動";
-  }
-  if (candidates.some(text => text.includes("津波の心配なし") || text.includes("津波なし") || text.includes("心配なし"))) {
-    return "心配なし";
-  }
-
-  return null;
 }
 
 function getMagnitudeValue(earthquake, hypocenter) {
@@ -1373,7 +1294,9 @@ function normalizeTsunamiHeight(height) {
   }
 
   return {
-    value: height.value ?? null,
+    value: height.value === null || height.value === undefined
+      ? null
+      : String(height.value),
     unit: height.unit ?? "m",
     over: height.over === true,
     condition: getScalarValue(height.condition, "")
@@ -1415,7 +1338,7 @@ function normalizeTsunamiForecastStations(stations) {
   }));
 }
 
-function normalizeTsunamiObservations(observations) {
+function normalizeTsunamiObservations(observations, options = {}) {
   return (Array.isArray(observations) ? observations : []).map(observation => ({
     code: observation?.code === null || observation?.code === undefined
       ? null
@@ -1439,7 +1362,8 @@ function normalizeTsunamiObservations(observations) {
         maxHeightCondition: maxHeight.condition,
         maxCondition: getScalarValue(station?.maxHeight?.condition, ""),
         maxRevise: getScalarValue(station?.maxHeight?.revise, ""),
-        maxStatus: getScalarValue(station?.maxHeight?.status, "")
+        maxStatus: getScalarValue(station?.maxHeight?.status, ""),
+        offshore: options.offshore === true
       };
     })
   }));
@@ -1468,6 +1392,7 @@ function normalizeTsunamiEstimations(estimations) {
 
 async function normalizeTsunami(telegram) {
   const { report, body } = await getReportAndBody(telegram);
+  const telegramType = telegram?.head?.type ?? report?.type ?? "VTSE41";
   const tsunami = body?.tsunami ?? {};
   const rawEarthquakes = Array.isArray(body?.earthquakes) ? body.earthquakes : [];
   const earthquake = body?.earthquake ?? rawEarthquakes[0] ?? {};
@@ -1477,7 +1402,9 @@ async function normalizeTsunami(telegram) {
   const observations = Array.isArray(tsunami?.observations) ? tsunami.observations : [];
   const estimations = Array.isArray(tsunami?.estimations) ? tsunami.estimations : [];
   const normalizedForecasts = normalizeTsunamiForecasts(forecasts);
-  const normalizedObservations = normalizeTsunamiObservations(observations);
+  const normalizedObservations = normalizeTsunamiObservations(observations, {
+    offshore: String(telegramType).toUpperCase() === "VTSE52"
+  });
   const normalizedEstimations = normalizeTsunamiEstimations(estimations);
   const isDistantEarthquake = isDistantEarthquakeData({
     report,
@@ -1487,8 +1414,22 @@ async function normalizeTsunami(telegram) {
     coordinate,
     maxInt: null
   });
+  const eventId =
+    earthquake?.eventId ??
+    report?.eventId ??
+    telegram?.xmlReport?.head?.eventId ??
+    telegram?.head?.eventId ??
+    null;
+  const infoType = report?.infoType ?? telegram?.xmlReport?.head?.infoType ?? telegram?.head?.infoType ?? null;
+  const status = report?.status ?? telegram?.xmlReport?.control?.status ?? telegram?.head?.status ?? null;
+  const explicitlyCanceled =
+    body?.isCanceled === true ||
+    String(infoType ?? "").includes("取消") ||
+    String(status ?? "").includes("取消");
   return {
-    type: telegram?.head?.type ?? report?.type ?? "VTSE41",
+    eventId,
+    type: telegramType,
+    telegramType,
     reportTime: report?.reportDateTime ?? report?.pressDateTime ?? telegram?.head?.time ?? nowIso(),
     validTime:
       report?.validDateTime ??
@@ -1497,23 +1438,20 @@ async function normalizeTsunami(telegram) {
       telegram?.validDateTime ??
       null,
     title: report?.title ?? telegram?.head?.title ?? telegram?.head?.type ?? "津波情報",
-    status: report?.status ?? telegram?.head?.status ?? null,
-    infoType: report?.infoType ?? telegram?.head?.infoType ?? null,
+    headline:
+      report?.headline ??
+      telegram?.xmlReport?.head?.headline ??
+      body?.text ??
+      "",
+    status,
+    infoType,
     text: body?.text ?? "",
-    isCanceled:
-      normalizedForecasts.length === 0 &&
-      normalizedObservations.length === 0 &&
-      normalizedEstimations.length === 0,
+    isCanceled: explicitlyCanceled,
     areas: normalizedForecasts,
     observations: normalizedObservations,
     estimations: normalizedEstimations,
     earthquake: {
-      eventId:
-        earthquake?.eventId ??
-        report?.eventId ??
-        telegram?.head?.eventId ??
-        telegram?.head?.time ??
-        null,
+      eventId,
       name: hypocenter?.name ?? UNKNOWN_HYPOCENTER,
       time:
         earthquake?.originTime ??
@@ -1883,7 +1821,15 @@ export class MeteoScopeEarthquakeHub {
       lastError: null,
       lastResult: null
     };
+    this.dmdataTelegramBackfill = {
+      running: false,
+      lastRunAt: null,
+      lastError: null,
+      lastResult: null,
+      cursorToken: null
+    };
     this.gdEarthquakeLastPollMs = 0;
+    this.dmdataTelegramLastPollMs = 0;
     this.dmdataSocket = null;
     this.dmdataSocketExpiresAt = null;
     this.initialized = this.initialize();
@@ -1938,6 +1884,13 @@ export class MeteoScopeEarthquakeHub {
         this.retentionCleanup.lastResult = cleanupMarker.lastResult ?? null;
         this.retentionCleanup.lastError = cleanupMarker.lastError ?? null;
       }
+      const telegramMarker = await this.state.storage.get(DMDATA_TELEGRAM_CURSOR_KEY);
+      if (telegramMarker && typeof telegramMarker === "object") {
+        this.dmdataTelegramBackfill.lastRunAt = telegramMarker.lastRunAt ?? null;
+        this.dmdataTelegramBackfill.lastResult = telegramMarker.lastResult ?? null;
+        this.dmdataTelegramBackfill.lastError = telegramMarker.lastError ?? null;
+        this.dmdataTelegramBackfill.cursorToken = telegramMarker.cursorToken ?? null;
+      }
     }
     catch (error) {
       console.error("[DataHubDO] storage load failed", error);
@@ -1976,7 +1929,8 @@ export class MeteoScopeEarthquakeHub {
   async runBackgroundTick() {
     await Promise.allSettled([
       this.ensureDmdataStream(),
-      this.pollGdEarthquakesOnce()
+      this.pollGdEarthquakesOnce(),
+      this.pollDmdataTelegramsOnce()
     ]);
 
     await this.runRetentionCleanupIfDue();
@@ -2578,7 +2532,12 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
       return;
     }
 
-    if (type === "tsunami" && isStaleTsunamiStored({ data, timestamp })) {
+    const nextData = type === "tsunami"
+      ? mergeDmdataTsunamiSnapshots(this.latest.tsunami?.data, data)
+      : data;
+
+    if (type === "tsunami" && isStaleTsunamiStored({ data: nextData, timestamp })) {
+      await this.appendTsunamiHistory(nextData, timestamp);
       this.latest.tsunami = null;
       await this.persistLatest();
       return;
@@ -2587,7 +2546,7 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
     this.latest[type] = {
       source,
       timestamp,
-      data
+      data: nextData
     };
     await this.persistLatest();
 
@@ -2595,7 +2554,7 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
       await this.appendEarthquakeHistory(data, timestamp);
     }
     else if (type === "tsunami") {
-      await this.appendTsunamiHistory(data, timestamp);
+      await this.appendTsunamiHistory(nextData, timestamp);
     }
   }
 
@@ -2906,6 +2865,13 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
         clients: this.clients.size,
         dmdata: this.dmdata,
         gdEarthquakeBackfill: this.gdEarthquakeBackfill,
+        dmdataTelegramBackfill: {
+          running: this.dmdataTelegramBackfill.running,
+          lastRunAt: this.dmdataTelegramBackfill.lastRunAt,
+          lastError: this.dmdataTelegramBackfill.lastError,
+          lastResult: this.dmdataTelegramBackfill.lastResult,
+          cursorConfigured: Boolean(this.dmdataTelegramBackfill.cursorToken)
+        },
         historyCount: this.earthquakeHistory.length,
         cleanup: {
           expiredTsunami: Boolean(removedExpiredTsunami),
@@ -3347,6 +3313,152 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
     }
     finally {
       this.gdEarthquakeBackfill.running = false;
+    }
+  }
+
+  async pollDmdataTelegramsOnce(options = {}) {
+    const force = options.force === true;
+    const apiKey = String(this.env.DMDATA_API_KEY || "").trim();
+    if (!apiKey) return;
+
+    const now = Date.now();
+    if (!force && now - this.dmdataTelegramLastPollMs < DMDATA_TELEGRAM_POLL_INTERVAL_MS) return;
+    if (this.dmdataTelegramBackfill.running) return;
+
+    this.dmdataTelegramLastPollMs = now;
+    this.dmdataTelegramBackfill.running = true;
+    const startedAt = nowIso();
+    const result = {
+      listed: 0,
+      fetched: 0,
+      earthquakes: 0,
+      tsunamis: 0,
+      failed: 0,
+      cursorAdvanced: false
+    };
+
+    try {
+      const authBasic = btoa(`${apiKey}:`);
+      const url = new URL("https://api.dmdata.jp/v2/telegram");
+      url.searchParams.set("type", "VXSE52,VXSE53,VTSE41,VTSE51,VTSE52");
+      url.searchParams.set("formatMode", "json");
+      url.searchParams.set("test", "no");
+      url.searchParams.set("limit", String(DMDATA_TELEGRAM_LIST_LIMIT));
+      if (this.dmdataTelegramBackfill.cursorToken) {
+        url.searchParams.set("cursorToken", this.dmdataTelegramBackfill.cursorToken);
+      }
+
+      const listResponse = await fetchWithTimeout(fetch, url.toString(), {
+        method: "GET",
+        headers: { Authorization: `Basic ${authBasic}` }
+      }, 8000);
+      const listPayload = await listResponse.json().catch(() => null);
+      if (!listResponse.ok || listPayload?.status !== "ok") {
+        throw new Error(`dmdata_telegram_list_http_${listResponse.status}`);
+      }
+
+      const items = (Array.isArray(listPayload.items) ? listPayload.items : [])
+        .slice(0, DMDATA_TELEGRAM_LIST_LIMIT)
+        .sort((left, right) => (
+          (toTimeMs(left?.receivedTime ?? left?.head?.time) ?? 0) -
+          (toTimeMs(right?.receivedTime ?? right?.head?.time) ?? 0)
+        ));
+      result.listed = items.length;
+      let currentEarthquakeMs = getEarthquakeDataTimeMs(this.latest.earthquake?.data) ?? 0;
+      let currentTsunamiMs = getTsunamiIssueTimeMs(this.latest.tsunami?.data) ?? 0;
+
+      for (const item of items) {
+        if (String(item?.format ?? "").toLowerCase() !== "json" || !isAllowedDmdataTelegramDataUrl(item?.url)) {
+          result.failed += 1;
+          continue;
+        }
+
+        try {
+          const dataResponse = await fetchWithTimeout(fetch, item.url, {
+            method: "GET",
+            headers: {
+              Authorization: `Basic ${authBasic}`,
+              Accept: "application/json"
+            }
+          }, 8000);
+          const report = await dataResponse.json().catch(() => null);
+          if (!dataResponse.ok || !report || typeof report !== "object") {
+            throw new Error(`dmdata_telegram_data_http_${dataResponse.status}`);
+          }
+          result.fetched += 1;
+
+          const telegram = {
+            head: item.head ?? {},
+            xmlReport: item.xmlReport ?? null,
+            format: "json",
+            compression: null,
+            encoding: "utf-8",
+            body: report
+          };
+          const events = await mapDmdataMessageToEvents(telegram);
+          const timestamp = item.receivedTime ?? item.head?.time ?? nowIso();
+
+          for (const event of events) {
+            if (event.type === "earthquake" && !isUnresolvedEarthquakeData(event.data)) {
+              const eventMs = getEarthquakeDataTimeMs(event.data) ?? toTimeMs(timestamp) ?? 0;
+              if (eventMs >= currentEarthquakeMs) {
+                await this.updateLatest("earthquake", "dmdata-telegram", event.data, timestamp);
+                currentEarthquakeMs = eventMs;
+              }
+              else {
+                await this.appendEarthquakeHistory(event.data, timestamp);
+              }
+              result.earthquakes += 1;
+            }
+            else if (event.type === "tsunami") {
+              const eventMs = getTsunamiIssueTimeMs(event.data) ?? toTimeMs(timestamp) ?? 0;
+              if (eventMs >= currentTsunamiMs) {
+                await this.updateLatest("tsunami", "dmdata-telegram", event.data, timestamp);
+                currentTsunamiMs = eventMs;
+              }
+              else {
+                await this.appendTsunamiHistory(event.data, timestamp);
+              }
+              result.tsunamis += 1;
+            }
+          }
+        }
+        catch {
+          result.failed += 1;
+        }
+      }
+
+      const nextCursor = result.failed === 0
+        ? String(listPayload.nextPooling ?? this.dmdataTelegramBackfill.cursorToken ?? "").trim() || null
+        : this.dmdataTelegramBackfill.cursorToken;
+      result.cursorAdvanced = Boolean(nextCursor && nextCursor !== this.dmdataTelegramBackfill.cursorToken);
+      this.dmdataTelegramBackfill.cursorToken = nextCursor;
+      this.dmdataTelegramBackfill.lastRunAt = startedAt;
+      this.dmdataTelegramBackfill.lastResult = result;
+      this.dmdataTelegramBackfill.lastError = result.failed > 0
+        ? `dmdata_telegram_data_failed_${result.failed}`
+        : null;
+      await this.state.storage.put(DMDATA_TELEGRAM_CURSOR_KEY, {
+        cursorToken: this.dmdataTelegramBackfill.cursorToken,
+        lastRunAt: startedAt,
+        lastResult: result,
+        lastError: this.dmdataTelegramBackfill.lastError
+      });
+    }
+    catch (error) {
+      const message = String(error?.message || error || "dmdata_telegram_backfill_failed");
+      this.dmdataTelegramBackfill.lastRunAt = startedAt;
+      this.dmdataTelegramBackfill.lastResult = result;
+      this.dmdataTelegramBackfill.lastError = message;
+      await this.state.storage.put(DMDATA_TELEGRAM_CURSOR_KEY, {
+        cursorToken: this.dmdataTelegramBackfill.cursorToken,
+        lastRunAt: startedAt,
+        lastResult: result,
+        lastError: message
+      }).catch(() => {});
+    }
+    finally {
+      this.dmdataTelegramBackfill.running = false;
     }
   }
 

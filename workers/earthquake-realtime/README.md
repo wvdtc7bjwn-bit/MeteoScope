@@ -32,6 +32,8 @@ DM-D.S.S（dmdata.jp）の地震・津波電文をMeteoScope専用のDurable Obj
 
 4. DM-D.S.S APIキーをSecretへ登録します。
 
+   APIキーには `socket.start`、`telegram.get.earthquake`、`gd.earthquake`、`telegram.list`、`telegram.data` の権限が必要です。
+
    ```powershell
    npx wrangler secret put DMDATA_API_KEY
    ```
@@ -49,7 +51,7 @@ DM-D.S.S（dmdata.jp）の地震・津波電文をMeteoScope専用のDurable Obj
 
 ## EQ-appからの切替
 
-停止時間を避ける場合は、先にこのWorkerを稼働させて `/api/health` の `dmdata.connected`、`gdEarthquakeBackfill.lastRunAt`、`historyCount` を確認してからMeteoScopeを公開します。その後にEQ-app側のDM-D.S.S接続を停止します。同一APIキーで同時接続できる数は契約条件を確認してください。
+停止時間を避ける場合は、先にこのWorkerを稼働させて `/api/health` の `dmdata.connected`、`gdEarthquakeBackfill.lastRunAt`、`dmdataTelegramBackfill.lastRunAt`、`dmdataTelegramBackfill.lastError`、`historyCount` を確認してからMeteoScopeを公開します。その後にEQ-app側のDM-D.S.S接続を停止します。同一APIキーで同時接続できる数は契約条件を確認してください。
 
 過去履歴を残す場合は、EQ-appのD1を一時的に同じ `EQ_D1` へbindするか、CloudflareのD1 export/importで3テーブル（`earthquake_history`、`station_intensities`、`tsunami_history`）を移行します。認証・セッション・Discordのテーブルは移行対象外です。
 
@@ -59,6 +61,7 @@ DM-D.S.S（dmdata.jp）の地震・津波電文をMeteoScope専用のDurable Obj
 
 - DM-D.S.S WebSocket切断時は最大60秒の指数バックオフで再接続します。
 - GD地震履歴を5分ごとに直近2日分補完します。
+- Telegram List/Dataを5分ごとに差分取得し、地震別津波コメントとVTSE41/51/52を補完します。初回取得は最大40電文に制限し、DM-D.S.S Data APIの50リクエスト/5分上限を超えない構成です。
 - 履歴は15秒、観測点一覧は24時間Cloudflare Cache APIへ保存します。最新情報と稼働状態はキャッシュしません。
 - 地震・観測点は30日、津波履歴は90日でD1から削除します。
 - 通常接続時のDurable Object alarmは30秒間隔です。概算で1日2,880回のalarm起動に加え、閲覧APIのリクエストが発生します。実際の使用量はCloudflare Analyticsで確認してください。

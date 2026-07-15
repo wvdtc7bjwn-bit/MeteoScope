@@ -2649,12 +2649,12 @@ function renderEarthquakeList(tab, state) {
   }
 
   if (state.status === "loading") {
-    root.innerHTML = `<div class="earthquake-empty">地震XMLを取得中です。</div>`;
+    root.innerHTML = `<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得中です。</div>`;
     return;
   }
 
   if (state.status === "error") {
-    root.innerHTML = `<div class="earthquake-empty">地震XMLを取得できませんでした。</div>`;
+    root.innerHTML = `<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得できませんでした。</div>`;
     return;
   }
 
@@ -2733,7 +2733,7 @@ function getEarthquakeTsunamiState(earthquake, tsunami, status) {
   if (/若干の海面変動/u.test(tsunamiComment)) {
     return { level: "forecast", label: "若干の海面変動", tsunami: null };
   }
-  return { level: "unknown", label: "", tsunami: null };
+  return { level: "unknown", label: "津波情報未確認", tsunami: null };
 }
 
 function renderEarthquakeTsunamiDetails(state) {

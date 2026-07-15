@@ -67,10 +67,6 @@ enum MeteoScopeEndpoints {
         string: "https://www.jma.go.jp/bosai/typhoon/data/"
     )!
     static let typhoonTargets = typhoonBase.appending(path: "targetTc.json")
-    static let earthquakeFeeds = [
-        URL(string: "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml")!,
-        URL(string: "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml")!
-    ]
     private static let earthquakeAPIBase = URL(
         string: "https://meteoscope.pages.dev/api/earthquakes"
     )!

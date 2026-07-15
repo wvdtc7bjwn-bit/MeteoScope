@@ -326,48 +326,6 @@ extension WeatherAPIClient {
                     timeout: 12,
                     cachePolicy: .reloadIgnoringLocalCacheData
                 )
-                let feedBatches = await withTaskGroup(of: EarthquakeFeedBatch.self) { group in
-                    for url in MeteoScopeEndpoints.earthquakeFeeds {
-                        group.addTask {
-                            do {
-                                let data = try await requestData(
-                                    from: url,
-                                    session: session,
-                                    timeout: 15,
-                                    cachePolicy: .reloadIgnoringLocalCacheData
-                                )
-                                return EarthquakeFeedBatch(
-                                    url: url,
-                                    entries: try EarthquakeXMLDecoder.feedEntries(data: data)
-                                )
-                            } catch {
-                                return EarthquakeFeedBatch(url: url, entries: nil)
-                            }
-                        }
-                    }
-                    var batches: [EarthquakeFeedBatch] = []
-                    for await batch in group { batches.append(batch) }
-                    return batches
-                }
-                let feedEntries = feedBatches.flatMap { $0.entries ?? [] }
-                let currentFeedURL = MeteoScopeEndpoints.earthquakeFeeds[0]
-                let currentFeedAvailable = feedBatches.contains {
-                    $0.url == currentFeedURL && $0.entries != nil
-                }
-
-                let allUniqueEntries = Dictionary(
-                    feedEntries.map { ($0.url, $0) },
-                    uniquingKeysWith: { current, candidate in
-                        candidate.updated > current.updated ? candidate : current
-                    }
-                )
-                .values
-                .sorted { $0.updated > $1.updated }
-                let tsunamiEntries = allUniqueEntries
-                    .filter { ["VTSE41", "VTSE51", "VTSE52"].contains($0.bulletinCode) }
-                    .prefix(18)
-                    .map { $0 }
-
                 let resolvedHistoryData = try await historyData
                 let history = try JSONDecoder().decode(
                     DMDataEarthquakeHistoryResponse.self,
@@ -377,38 +335,15 @@ extension WeatherAPIClient {
                     throw WeatherAPIError.invalidResponse
                 }
                 let resolvedLatestData = await latestData
-                let latest = resolvedLatestData.flatMap {
+                let latestResponse = resolvedLatestData.flatMap {
                     try? JSONDecoder().decode(DMDataLatestResponse.self, from: $0)
-                }?.latest.earthquake
-                let tsunamiReports = await withTaskGroup(of: TsunamiReport?.self) { group in
-                    for entry in tsunamiEntries {
-                        group.addTask {
-                            do {
-                                let data = try await requestData(
-                                    from: entry.url,
-                                    session: session,
-                                    timeout: 15,
-                                    cachePolicy: .reloadIgnoringLocalCacheData
-                                )
-                                return try EarthquakeXMLDecoder.tsunami(data: data, entry: entry)
-                            } catch {
-                                return nil
-                            }
-                        }
-                    }
-                    var collected: [TsunamiReport] = []
-                    for await report in group {
-                        if let report { collected.append(report) }
-                    }
-                    return collected
                 }
                 let earthquakes = DMDataEarthquakeBuilder.build(
                     history: history.items,
-                    latest: latest
+                    latest: latestResponse?.latest.earthquake
                 )
-                let tsunami = EarthquakeXMLDecoder.mergedTsunami(reports: tsunamiReports)
-                let tsunamiStatus: TsunamiFetchStatus = if !currentFeedAvailable
-                    || (!tsunamiEntries.isEmpty && tsunamiReports.isEmpty) {
+                let tsunami = DMDataTsunamiBuilder.build(latestResponse?.latest.tsunami)
+                let tsunamiStatus: TsunamiFetchStatus = if resolvedLatestData == nil {
                     .unavailable
                 } else if tsunami != nil {
                     .available
@@ -472,22 +407,6 @@ private struct TyphoonBundle: Sendable {
     let id: String
     let forecasts: [TyphoonForecastRecord]
     let specifications: [TyphoonSpecificationRecord]
-}
-
-private struct EarthquakeFeedBatch: Sendable {
-    let url: URL
-    let entries: [EarthquakeFeedEntry]?
-}
-
-private func decodeEarthquakeStations(_ data: Data) -> [String: EarthquakeStationRecord]? {
-    let decoder = JSONDecoder()
-    if let keyed = try? decoder.decode([String: EarthquakeStationRecord].self, from: data) {
-        return EarthquakeStationLookup.makeLookup(keyed)
-    }
-    guard let records = try? decoder.decode([EarthquakeStationRecord].self, from: data) else {
-        return nil
-    }
-    return EarthquakeStationLookup.makeLookup(records)
 }
 
 private func requestData(

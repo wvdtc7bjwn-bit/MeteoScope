@@ -1,6 +1,6 @@
 # MeteoScope データソース台帳
 
-最終確認日: 2026-07-15
+最終確認日: 2026-07-16
 
 この台帳は、Web版とiOS版が直接または同梱ファイル経由で利用するデータ、地図、ライブラリの出所と再利用条件を追跡するためのものです。
 
@@ -9,8 +9,7 @@
 | 対象 | 提供者・取得URL | 条件 | MeteoScopeでの加工 |
 | --- | --- | --- | --- |
 | 気象庁JSON・XML・CSV・タイル | 気象庁。`https://www.jma.go.jp/bosai/`、`https://www.data.jma.go.jp/developer/xml/`、`https://www.data.jma.go.jp/stats/` | [気象庁ホームページ利用規約](https://www.jma.go.jp/jma/kishou/info/coment.html)。政府標準利用規約2.0相当の公共データ利用規約第1.0版。出典表示と、編集・加工した場合の明示が必要。国が作成したような態様での公表は禁止。第三者権利がある素材は別途確認が必要。 | 区域照合、XML/JSON解析、地図重ね合わせ、配色変換、ランキング、時系列整理、通知状態の差分比較。アプリ内と規約ページに非公式・加工内容・公式情報確認を表示する。 |
-| DM-D.S.S経由の地震情報 | DM-D.S.Sが配信する気象庁地震電文をMeteoScope専用Cloudflare Worker（公開口は`https://meteoscope.pages.dev/api/earthquakes/`）で正規化して取得。[DM-D.S.S公式ドキュメント](https://dmdata.jp/docs/manual)、[利用規約](https://dmdata.jp/terms)。 | 気象庁配信データの条件に加えDM-D.S.S利用規約を適用する。DM-D.S.SのAPIキーはMeteoScope WorkerのCloudflare Secretにのみ保存し、Web/iOSクライアントやリポジトリへ含めない。サービスや仕様変更による遅延・停止の可能性があり、配信を保証しない。 | 履歴・震源・規模・深さ・最大震度・細分区域を表示形式へ変換する。最新地震の観測点は最新APIから取得し、過去地震の観測点は利用者が選択した時だけ取得する。取得不能時は直前の正常データを維持する。津波警報等は気象庁XMLを別経路で照合する。 |
-| 津波警報・注意報・観測XML（VTSE41/51/52） | 気象庁「[気象庁防災情報XML](https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml)」。電文仕様は[津波警報・注意報、津波情報、沖合の津波観測に関する情報](https://www.data.jma.go.jp/suishin/cgi-bin/catalogue/make_product_page.cgi?id=TsuJoho)を参照。 | 気象庁ホームページ利用規約。PULL型フィードは遅延・停止の可能性があり、配信保証はない。 | EventID単位で警報・注意報、到達予想、沿岸／沖合観測を統合し、各地震カードへ状態を表示する。取得不能を「津波の心配なし」と判定せず、発表時刻を明示する。 |
+| DM-D.S.S経由の地震・津波情報 | DM-D.S.Sが配信する気象庁のVXSE52/53・VTSE41/51/52電文をMeteoScope専用Cloudflare Worker（公開口は`https://meteoscope.pages.dev/api/earthquakes/`）で受信・正規化して取得。[DM-D.S.S公式ドキュメント](https://dmdata.jp/docs/manual)、[JSONスキーマ](https://dmdata.jp/docs/reference/conversion/json/)、[利用規約](https://dmdata.jp/terms)。 | 気象庁配信データの条件に加えDM-D.S.S利用規約を適用する。DM-D.S.SのAPIキーはMeteoScope WorkerのCloudflare Secretにのみ保存し、Web/iOSクライアントやリポジトリへ含めない。サービスや仕様変更による遅延・停止の可能性があり、配信を保証しない。 | 履歴・震源・規模・深さ・最大震度・細分区域・地震別津波コメント・津波警報等・沿岸／沖合観測をEventID単位で統合する。Web/iOSは気象庁XMLフィードへ直接アクセスしない。取得不能を「津波の心配なし」と判定せず、未確認として表示する。 |
 | `jma-tsunami-forecast-areas.geojson` | 気象庁「[予報区等GISデータの一覧](https://www.data.jma.go.jp/developer/gis.html)」の津波予報区。取得元は`20240520_AreaTsunami_GIS.zip`。2026-07-15取得時の原ZIP SHA-256は`735e2ed36befa8d9511f01e6a0e503e01e7824b5125a71326f3f623d808a7eb9`。 | 気象庁ホームページ利用規約。元データはJGD2011で、同ページ記載の国土地理院承認番号・出典も引き継いで表示する。 | Mapshaperで`-clean -simplify 2% keep-shapes -filter 'code != "0"' -filter-fields code,name -o format=geojson precision=0.0001`を適用し、帰属未定4線を除いた66予報区の線形GeoJSONへ変換。生成物SHA-256は`e8c53fe6e3d4069e9caacf3570a9f8e0d02492674071343f401bf0ffdb658373`。電文の予報区コードと照合して地図上の海岸線を配色する。 |
 | `jma-weather-warning-municipalities.geojson` | 気象庁「[予報区等GISデータの一覧](https://www.data.jma.go.jp/developer/gis.html)」が公式配布する市町村等（気象警報等）。2026-07-14に同庁の最新`area.json`と照合し、現行`class20s`の1,805区域コードをすべて含むことを確認した。 | 気象庁ホームページ利用規約。元データはJGD2011で、気象庁ページ記載の国土地理院承認番号・出典も引き継いで表示する。 | ShapefileからGeoJSONへ変換し、警報区域コード・名称をアプリ用プロパティへ整理。現ファイルを作った配布ZIPの版、取得日、原ZIPのハッシュ、変換コマンドは未記録のため、提供元・利用条件とは別の再現性課題として次回更新時に生成工程へ取り込む。 |
 | `earthquake-areas.geojson` | 気象庁「[予報区等GISデータの一覧](https://www.data.jma.go.jp/developer/gis.html)」が公式配布する地震情報／細分区域。提供元と適用される利用条件は確認済み。 | 気象庁ホームページ利用規約。元データはJGD2011で、気象庁ページ記載の国土地理院承認番号・出典も引き継いで表示する。 | ShapefileからGeoJSONへ変換し、地震区域コード・名称と表示用属性を付加。現ファイルを作った配布ZIPの版、取得日、原ZIPのハッシュ、変換コマンドは未記録のため、提供元・利用条件とは別の再現性課題として次回更新時に生成工程へ取り込む。 |

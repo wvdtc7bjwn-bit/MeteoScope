@@ -6,15 +6,17 @@ import {
 import { PREFECTURE_NAMES } from "../jma/warningCore.js";
 import { fetchJson, parseJmaTime } from "../jma/jmaClient.js";
 import {
+  attachTsunamiMapData,
   attachEarthquakeMapDataList,
-  fetchTsunamiXmlState
+  loadTsunamiAreaLookup
 } from "../jma/earthquakeXml.js";
+import { getTsunamiLevelRank } from "../tsunami.js";
 
 const HISTORY_LIMIT = 11;
 const REQUEST_TTL_MS = 60 * 1000;
 
 export async function fetchDmdataEarthquakeList() {
-  const [historyPayload, latestPayload, tsunamiState] = await Promise.all([
+  const [historyPayload, latestPayload] = await Promise.all([
     fetchJson(`${DMDATA_ENDPOINTS.earthquakeHistory}?limit=${HISTORY_LIMIT}`, {
       ttlMs: REQUEST_TTL_MS,
       cache: "no-store"
@@ -25,10 +27,6 @@ export async function fetchDmdataEarthquakeList() {
     }).catch((error) => {
       console.warn("[DM-D.S.S] latest earthquake request failed", error);
       return null;
-    }),
-    fetchTsunamiXmlState().catch((error) => {
-      console.warn("[DM-D.S.S] JMA tsunami request failed", error);
-      return { tsunami: null, tsunamiStatus: "unavailable", updatedAt: "未取得" };
     })
   ]);
 
@@ -36,25 +34,115 @@ export async function fetchDmdataEarthquakeList() {
   if (!historyPayload?.enabled || !history.length) {
     throw new Error("DM-D.S.S earthquake history is unavailable");
   }
-
   const latest = latestPayload?.latest?.earthquake ?? null;
   const mapped = history.map((item) => mapDmdataHistoryItem(
     item,
     latest?.data?.eventId === item?.event_id ? (latest.data.points ?? []) : null
   ));
   const earthquakes = await attachEarthquakeMapDataList(mapped);
-  const updatedAt = earthquakes[0]?.reportTime ?? tsunamiState.updatedAt ?? "未取得";
+  const tsunami = await mapDmdataTsunami(latestPayload?.latest?.tsunami ?? null);
+  const tsunamiStatus = latestPayload === null ? "unavailable" : tsunami ? "available" : "none";
+  const updatedAt = earthquakes[0]?.reportTime ?? tsunami?.reportTime ?? "未取得";
   return {
     source: "dmdata",
     sourceLabel: "気象庁発表（DM-D.S.S経由）",
     earthquakes,
-    tsunami: tsunamiState.tsunami,
-    tsunamiStatus: tsunamiState.tsunamiStatus,
+    tsunami,
+    tsunamiStatus,
     hasEarthquakes: earthquakes.length > 0,
     latestTime: updatedAt,
     updatedAt,
     summary: earthquakes.length > 0 ? `地震情報 ${earthquakes.length} 件` : "地震情報はありません"
   };
+}
+
+export async function mapDmdataTsunami(envelope, areaLookup = null) {
+  const data = envelope?.data;
+  if (!data || data.isCanceled === true) return null;
+  const areas = (Array.isArray(data.areas) ? data.areas : [])
+    .map(mapDmdataTsunamiArea)
+    .filter(Boolean)
+    .sort((left, right) => getTsunamiLevelRank(right.level) - getTsunamiLevelRank(left.level));
+  const flattenedObservations = (Array.isArray(data.observations) ? data.observations : [])
+    .flatMap((group) => (Array.isArray(group?.stations) ? group.stations : []).map((station, index) => ({
+      id: String(station?.code ?? `${group?.code ?? "dmdata"}-${index}`),
+      areaCode: String(group?.code ?? ""),
+      areaName: String(group?.name ?? ""),
+      stationCode: String(station?.code ?? ""),
+      stationName: String(station?.name ?? station?.code ?? "観測点"),
+      offshore: station?.offshore === true,
+      arrivalTime: formatDmdataTsunamiTime(station?.firstArrivalTime),
+      arrivalCondition: String(station?.firstCondition ?? ""),
+      maxHeightTime: formatDmdataTsunamiTime(station?.maxDateTime),
+      maxHeight: formatDmdataTsunamiHeight(station?.maxHeight, station?.maxHeightUnit, station?.maxHeightOver),
+      maxHeightCondition: String(station?.maxHeightCondition ?? station?.maxCondition ?? "")
+    })));
+  const observations = flattenedObservations.filter((item) => !item.offshore);
+  const offshoreObservations = flattenedObservations.filter((item) => item.offshore);
+  const highestLevel = areas
+    .map((area) => area.level)
+    .sort((left, right) => getTsunamiLevelRank(right) - getTsunamiLevelRank(left))[0] ?? "none";
+  const eventId = String(data.eventId ?? data.earthquake?.eventId ?? "");
+  const reportTimeRaw = String(data.reportTime ?? envelope?.receivedAt ?? "");
+  const tsunami = {
+    id: eventId || `dmdata-tsunami:${reportTimeRaw}`,
+    eventId,
+    title: String(data.title ?? "津波情報"),
+    headline: String(data.headline ?? data.text ?? ""),
+    reportTime: parseJmaTime(reportTimeRaw) ?? reportTimeRaw ?? "--",
+    reportTimeRaw,
+    targetDateTime: "",
+    validDateTime: parseJmaTime(data.validTime) ?? String(data.validTime ?? ""),
+    areas,
+    observations,
+    offshoreObservations,
+    highestLevel,
+    isActive: ["major-warning", "warning", "advisory"].includes(highestLevel),
+    sourceUrls: [DMDATA_ENDPOINTS.earthquakeLatest],
+    mapFeatures: []
+  };
+  return attachTsunamiMapData(tsunami, areaLookup ?? await loadTsunamiAreaLookup());
+}
+
+function mapDmdataTsunamiArea(area) {
+  const code = String(area?.code ?? "").trim();
+  const name = String(area?.name ?? code ?? "津波予報区");
+  const grade = String(area?.kind ?? "発表内容不明");
+  const gradeCode = String(area?.kindCode ?? "");
+  if (!code && !name && !grade) return null;
+  return {
+    code,
+    name,
+    grade,
+    gradeCode,
+    level: getDmdataTsunamiLevel(grade, gradeCode),
+    lastGrade: String(area?.lastKind ?? ""),
+    arrivalTime: formatDmdataTsunamiTime(area?.arrivalTime),
+    arrivalCondition: String(area?.condition ?? ""),
+    height: formatDmdataTsunamiHeight(area?.height, area?.heightUnit, area?.heightOver),
+    heightCondition: String(area?.heightCondition ?? area?.maxHeightCondition ?? "")
+  };
+}
+
+function getDmdataTsunamiLevel(name, code) {
+  const value = `${name ?? ""} ${code ?? ""}`;
+  if (/大津波警報/u.test(value)) return "major-warning";
+  if (/津波警報/u.test(value) && !/解除/u.test(value)) return "warning";
+  if (/津波注意報/u.test(value) && !/解除/u.test(value)) return "advisory";
+  if (/津波予報|若干の海面変動/u.test(value)) return "forecast";
+  return "none";
+}
+
+function formatDmdataTsunamiTime(value) {
+  const text = String(value ?? "").trim();
+  return text ? (parseJmaTime(text) ?? text) : "";
+}
+
+function formatDmdataTsunamiHeight(value, unit = "m", over = false) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  const suffix = unit ? String(unit) : "m";
+  return `${text}${suffix}${over === true ? "超" : ""}`;
 }
 
 export async function hydrateDmdataEarthquakeStations(snapshot, earthquakeId) {
@@ -79,6 +167,7 @@ export async function hydrateDmdataEarthquakeStations(snapshot, earthquakeId) {
 
 export function mapDmdataHistoryItem(item, stationItems = null) {
   const eventId = String(item?.event_id ?? "").trim();
+  const tsunamiStatus = String(item?.tsunami_status ?? "").trim();
   const maximumIntensity = normalizeDmdataIntensity(item?.max_intensity);
   const reportTimeRaw = item?.updated_at ?? item?.origin_time ?? "";
   const eventTimeRaw = item?.origin_time ?? reportTimeRaw;
@@ -113,7 +202,7 @@ export function mapDmdataHistoryItem(item, stationItems = null) {
     intensityCities: [],
     ...mapDmdataStations(stationItems),
     headline: "気象庁発表をDM-D.S.S経由で取得",
-    tsunamiComment: formatDmdataTsunamiComment(item?.tsunami_status),
+    tsunamiComment: formatDmdataTsunamiComment(tsunamiStatus),
     url: DMDATA_ENDPOINTS.earthquakeHistory
   };
 }

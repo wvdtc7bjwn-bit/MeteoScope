@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  mapDmdataTsunami,
   mapDmdataHistoryItem,
   normalizeDmdataIntensity
 } from "../src/dmdata/earthquakes.js";
@@ -47,5 +48,40 @@ assert.match(summary.tsunamiComment, /津波の心配はありません/u);
 const unloaded = mapDmdataHistoryItem(history);
 assert.equal(unloaded.stationsLoaded, false);
 assert.deepEqual(unloaded.intensityStations, []);
+
+const tsunami = await mapDmdataTsunami({
+  receivedAt: "2026-07-16T00:00:00Z",
+  data: {
+    eventId: history.event_id,
+    reportTime: "2026-07-16T09:00:00+09:00",
+    title: "津波警報・注意報・予報",
+    headline: "海岸から離れてください。",
+    isCanceled: false,
+    areas: [{
+      code: "210",
+      name: "青森県太平洋沿岸",
+      kindCode: "62",
+      kind: "津波注意報",
+      arrivalTime: "2026-07-16T09:30:00+09:00",
+      height: "1.0",
+      heightUnit: "m"
+    }],
+    observations: [{
+      code: "210",
+      name: "青森県太平洋沿岸",
+      stations: [{
+        code: "87110",
+        name: "八戸港",
+        maxHeight: "0.4",
+        maxHeightUnit: "m",
+        offshore: false
+      }]
+    }]
+  }
+}, new Map());
+assert.equal(tsunami.highestLevel, "advisory");
+assert.equal(tsunami.eventId, history.event_id);
+assert.equal(tsunami.areas[0].height, "1.0m");
+assert.equal(tsunami.observations[0].stationName, "八戸港");
 
 console.log("DM-D.S.S earthquake adapter tests passed");

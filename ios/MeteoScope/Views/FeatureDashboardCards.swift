@@ -691,7 +691,7 @@ private struct EarthquakeHistoryCard: View {
         let comment = earthquake.tsunamiComment.isEmpty ? earthquake.headline : earthquake.tsunamiComment
         if comment.contains("津波の心配はありません") { return "津波の心配なし" }
         if comment.contains("若干の海面変動") { return "若干の海面変動" }
-        return nil
+        return "津波情報未確認"
     }
 
     var body: some View {
