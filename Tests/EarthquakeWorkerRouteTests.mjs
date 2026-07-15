@@ -7,6 +7,13 @@ import {
   isPublicReadMethod,
   resolvePublicEarthquakeRoute
 } from "../workers/earthquake-realtime/src/routePolicy.js";
+import {
+  buildJmaIntensityStationCoordinateLookup,
+  findJmaIntensityStationCoordinate,
+  isJmaIntensityStationCode,
+  normalizeJmaIntensityStationCode,
+  sanitizeJmaIntensityStationPoints
+} from "../workers/earthquake-realtime/src/earthquakeStationPolicy.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pagesProxyUrl = pathToFileURL(
@@ -54,6 +61,62 @@ assert.deepEqual(
 assert.equal(isPublicReadMethod("GET"), true);
 assert.equal(isPublicReadMethod("HEAD"), true);
 assert.equal(isPublicReadMethod("POST"), false);
+assert.equal(isJmaIntensityStationCode("0320224"), true);
+assert.equal(isJmaIntensityStationCode("17"), false);
+assert.equal(isJmaIntensityStationCode("391"), false);
+assert.equal(isJmaIntensityStationCode("cf-0"), false);
+assert.equal(normalizeJmaIntensityStationCode(" 0320224 "), "0320224");
+
+const arrayCoordinateLookup = buildJmaIntensityStationCoordinateLookup([
+  { name: "石狩市花川", latitude: 43.17, longitude: 141.32 },
+  { name: "札幌南区石山", latitude: 42.97, longitude: 141.33 }
+]);
+assert.equal(
+  findJmaIntensityStationCoordinate(arrayCoordinateLookup, {
+    code: "1",
+    name: "石川県"
+  }),
+  null
+);
+assert.deepEqual(
+  findJmaIntensityStationCoordinate(arrayCoordinateLookup, {
+    code: "0120221",
+    name: "札幌南区石山"
+  }),
+  { latitude: 42.97, longitude: 141.33 }
+);
+
+const dmdataParameterLookup = buildJmaIntensityStationCoordinateLookup([{
+  code: "1720130",
+  name: "金沢市西念",
+  latitude: 36.5881,
+  longitude: 136.6331,
+  status: "廃止"
+}, {
+  code: "1720130",
+  name: "金沢市西念",
+  latitude: 36.5872,
+  longitude: 136.6336,
+  status: "現"
+}]);
+assert.deepEqual(
+  findJmaIntensityStationCoordinate(dmdataParameterLookup, {
+    code: "1720130",
+    name: "金沢市西念"
+  }),
+  { latitude: 36.5872, longitude: 136.6336 }
+);
+assert.deepEqual(
+  sanitizeJmaIntensityStationPoints({
+    eventId: "20260716012301",
+    points: [
+      { code: "17", name: "石川県" },
+      { code: "391", name: "石川県加賀" },
+      { code: "1720130", name: "金沢市西念" }
+    ]
+  }).points,
+  [{ code: "1720130", name: "金沢市西念" }]
+);
 
 let forwardedUrl = "";
 const proxyResponse = await onRequest({

@@ -12,6 +12,7 @@ const JSON_HEADERS = {
   "access-control-allow-headers": "content-type",
   "x-content-type-options": "nosniff"
 };
+const PUBLIC_CACHE_VERSION = "station-coordinates-v2";
 
 function jsonResponse(payload, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(payload), {
@@ -27,7 +28,9 @@ function getHub(env) {
 
 async function fetchFromHub(request, env, route) {
   const cache = caches.default;
-  const cacheKey = new Request(request.url, { method: "GET" });
+  const cacheUrl = new URL(request.url);
+  cacheUrl.searchParams.set("_meteoscopeCache", PUBLIC_CACHE_VERSION);
+  const cacheKey = new Request(cacheUrl, { method: "GET" });
 
   if (route.cacheSeconds > 0) {
     const cached = await cache.match(cacheKey);

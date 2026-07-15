@@ -4,6 +4,13 @@ import {
   mergeDmdataTsunamiSnapshots
 } from "./dmdataTsunami.js";
 import { getEarthquakeTsunamiStatus } from "./earthquakeTsunamiStatus.js";
+import {
+  buildJmaIntensityStationCoordinateLookup,
+  findJmaIntensityStationCoordinate,
+  isJmaIntensityStationCode,
+  normalizeJmaIntensityStationCode,
+  sanitizeJmaIntensityStationPoints
+} from "./earthquakeStationPolicy.js";
 
 const STATE_KEY = "latest-state-v2";
 const HISTORY_KEY = "earthquake-history-v1";
@@ -24,6 +31,11 @@ const GD_EARTHQUAKE_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const GD_EARTHQUAKE_BACKFILL_DAYS = 2;
 const DMDATA_TELEGRAM_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const DMDATA_TELEGRAM_LIST_LIMIT = 40;
+const DMDATA_EARTHQUAKE_STATION_PARAMETER_URL =
+  "https://api.dmdata.jp/v2/parameter/earthquake/station";
+const DMDATA_EARTHQUAKE_STATION_MIN_COUNT = 4000;
+const DMDATA_EARTHQUAKE_STATION_REFRESH_MS = 24 * 60 * 60 * 1000;
+const DMDATA_EARTHQUAKE_STATION_RETRY_MS = 5 * 60 * 1000;
 
 async function fetchWithTimeout(fetchImpl, url, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
@@ -593,43 +605,9 @@ function getScaleList() {
   };
 }
 
-function normalizeStationName(name) {
-  return String(name ?? "")
-    .replace(/[\s　]+/g, "")
-    .trim();
-}
-
-const normalizedStationCoordinatesByName = (() => {
-  const map = new Map();
-  for (const [code, station] of Object.entries(stationCoordinatesByCode || {})) {
-    const normalizedName = normalizeStationName(station?.name);
-    if (normalizedName && !map.has(normalizedName)) {
-      map.set(normalizedName, {
-        code,
-        latitude: station.latitude,
-        longitude: station.longitude
-      });
-    }
-  }
-  return map;
-})();
-
-function findStationCoordinate({ code, name } = {}) {
-  const codeKey = code === null || code === undefined ? "" : String(code);
-  const byCode = codeKey ? stationCoordinatesByCode?.[codeKey] : null;
-  if (byCode) {
-    return {
-      latitude: byCode.latitude,
-      longitude: byCode.longitude
-    };
-  }
-
-  const normalizedName = normalizeStationName(name);
-  if (!normalizedName) {
-    return null;
-  }
-  return normalizedStationCoordinatesByName.get(normalizedName) ?? null;
-}
+const fallbackStationCoordinateLookup = buildJmaIntensityStationCoordinateLookup(
+  stationCoordinatesByCode
+);
 
 function getPointCoordinate(source) {
   const coordinate =
@@ -674,7 +652,11 @@ function isLikelyTestData(data) {
   );
 }
 
-function normalizeStationPoint(station, parent = {}) {
+function normalizeStationPoint(
+  station,
+  parent = {},
+  coordinateLookup = fallbackStationCoordinateLookup
+) {
   if (!station || typeof station !== "object") {
     return null;
   }
@@ -685,6 +667,10 @@ function normalizeStationPoint(station, parent = {}) {
     station.station_code ??
     station.intensityStationCode ??
     null;
+  const normalizedCode = normalizeJmaIntensityStationCode(code);
+  if (!isJmaIntensityStationCode(normalizedCode)) {
+    return null;
+  }
   const name =
     station.name ??
     station.addr ??
@@ -714,7 +700,10 @@ function normalizeStationPoint(station, parent = {}) {
   }
 
   const direct = getPointCoordinate(station);
-  const fallback = findStationCoordinate({ code, name });
+  const fallback = findJmaIntensityStationCoordinate(coordinateLookup, {
+    code: normalizedCode,
+    name
+  });
   const latitude = direct.latitude ?? fallback?.latitude ?? null;
   const longitude = direct.longitude ?? fallback?.longitude ?? null;
 
@@ -723,7 +712,7 @@ function normalizeStationPoint(station, parent = {}) {
   }
 
   return {
-    code: code === null || code === undefined ? String(name) : String(code),
+    code: normalizedCode,
     name: String(name),
     intensity,
     scale,
@@ -732,13 +721,18 @@ function normalizeStationPoint(station, parent = {}) {
   };
 }
 
-function extractNestedStations(node, parent = {}, result = []) {
+function extractNestedStations(
+  node,
+  parent = {},
+  result = [],
+  coordinateLookup = fallbackStationCoordinateLookup
+) {
   if (!node) {
     return result;
   }
   if (Array.isArray(node)) {
     for (const item of node) {
-      extractNestedStations(item, parent, result);
+      extractNestedStations(item, parent, result, coordinateLookup);
     }
     return result;
   }
@@ -752,7 +746,7 @@ function extractNestedStations(node, parent = {}, result = []) {
     intensity: node.maxInt ?? node.intensity ?? node.int ?? parent.intensity
   };
 
-  const station = normalizeStationPoint(node, parent);
+  const station = normalizeStationPoint(node, parent, coordinateLookup);
   if (station) {
     result.push(station);
   }
@@ -773,31 +767,35 @@ function extractNestedStations(node, parent = {}, result = []) {
     "prefecture"
   ]) {
     if (node[key]) {
-      extractNestedStations(node[key], nextParent, result);
+      extractNestedStations(node[key], nextParent, result, coordinateLookup);
     }
   }
 
   return result;
 }
 
-function normalizeStations(intensity, body = {}) {
+function normalizeStations(
+  intensity,
+  body = {},
+  coordinateLookup = fallbackStationCoordinateLookup
+) {
   const raw = [];
-  extractNestedStations(intensity?.stations, {}, raw);
-  extractNestedStations(intensity?.station, {}, raw);
-  extractNestedStations(intensity?.regions, {}, raw);
-  extractNestedStations(intensity?.prefectures, {}, raw);
-  extractNestedStations(intensity?.areas, {}, raw);
-  extractNestedStations(intensity?.observation, {}, raw);
-  extractNestedStations(intensity?.observations, {}, raw);
-  extractNestedStations(body?.stations, {}, raw);
-  extractNestedStations(body?.station, {}, raw);
-  extractNestedStations(body?.regions, {}, raw);
-  extractNestedStations(body?.areas, {}, raw);
-  extractNestedStations(body?.observation, {}, raw);
-  extractNestedStations(body?.observations, {}, raw);
-  extractNestedStations(body?.intensityForecast, {}, raw);
-  extractNestedStations(body?.forecast, {}, raw);
-  extractNestedStations(body?.forecastAreas, {}, raw);
+  extractNestedStations(intensity?.stations, {}, raw, coordinateLookup);
+  extractNestedStations(intensity?.station, {}, raw, coordinateLookup);
+  extractNestedStations(intensity?.regions, {}, raw, coordinateLookup);
+  extractNestedStations(intensity?.prefectures, {}, raw, coordinateLookup);
+  extractNestedStations(intensity?.areas, {}, raw, coordinateLookup);
+  extractNestedStations(intensity?.observation, {}, raw, coordinateLookup);
+  extractNestedStations(intensity?.observations, {}, raw, coordinateLookup);
+  extractNestedStations(body?.stations, {}, raw, coordinateLookup);
+  extractNestedStations(body?.station, {}, raw, coordinateLookup);
+  extractNestedStations(body?.regions, {}, raw, coordinateLookup);
+  extractNestedStations(body?.areas, {}, raw, coordinateLookup);
+  extractNestedStations(body?.observation, {}, raw, coordinateLookup);
+  extractNestedStations(body?.observations, {}, raw, coordinateLookup);
+  extractNestedStations(body?.intensityForecast, {}, raw, coordinateLookup);
+  extractNestedStations(body?.forecast, {}, raw, coordinateLookup);
+  extractNestedStations(body?.forecastAreas, {}, raw, coordinateLookup);
 
   const seen = new Set();
   return raw.filter(point => {
@@ -987,7 +985,10 @@ async function getReportAndBody(telegram) {
   };
 }
 
-async function normalizeEarthquake(telegram) {
+async function normalizeEarthquake(
+  telegram,
+  coordinateLookup = fallbackStationCoordinateLookup
+) {
   const { report, body } = await getReportAndBody(telegram);
   const earthquake = body?.earthquake ?? {};
   const hypocenter = earthquake?.hypocenter ?? {};
@@ -995,7 +996,7 @@ async function normalizeEarthquake(telegram) {
   const intensity = body?.intensity ?? {};
   const maxInt = intensity?.maxInt;
   const telegramType = telegram?.head?.type ?? report?.type ?? "VXSE53";
-  const points = normalizeStations(intensity, body);
+  const points = normalizeStations(intensity, body, coordinateLookup);
   const isDistantEarthquake = isDistantEarthquakeData({
     report,
     body,
@@ -1712,13 +1713,16 @@ function isUnresolvedHistoryItem(item) {
   });
 }
 
-async function mapDmdataMessageToEvents(payload) {
+async function mapDmdataMessageToEvents(
+  payload,
+  coordinateLookup = fallbackStationCoordinateLookup
+) {
   const type = String(payload?.head?.type ?? "").toUpperCase();
   const classification = String(payload?.classification ?? "").toLowerCase();
   if (!type) {
     // Fallback for dmdata envelopes where head.type is omitted or wrapped.
     if (classification.includes("telegram.earthquake")) {
-      return [{ type: "earthquake", data: await normalizeEarthquake(payload) }];
+      return [{ type: "earthquake", data: await normalizeEarthquake(payload, coordinateLookup) }];
     }
     if (classification.includes("eew.forecast")) {
       return [{ type: "eew", data: await normalizeEew(payload) }];
@@ -1732,7 +1736,7 @@ async function mapDmdataMessageToEvents(payload) {
     return [{ type: "eew", data: await normalizeEew(payload) }];
   }
   if (type === "VXSE51" || type === "VXSE52" || type === "VXSE53" || type === "VXSE62") {
-    return [{ type: "earthquake", data: await normalizeEarthquake(payload) }];
+    return [{ type: "earthquake", data: await normalizeEarthquake(payload, coordinateLookup) }];
   }
   if (type === "VTSE41" || type === "VTSE51" || type === "VTSE52") {
     return [{ type: "tsunami", data: await normalizeTsunami(payload) }];
@@ -1828,6 +1832,16 @@ export class MeteoScopeEarthquakeHub {
       lastResult: null,
       cursorToken: null
     };
+    this.stationCoordinateLookup = fallbackStationCoordinateLookup;
+    this.dmdataStationCatalog = {
+      loading: false,
+      loadedAt: null,
+      lastAttemptAt: null,
+      lastError: null,
+      stationCount: 0,
+      version: null,
+      changeTime: null
+    };
     this.gdEarthquakeLastPollMs = 0;
     this.dmdataTelegramLastPollMs = 0;
     this.dmdataSocket = null;
@@ -1896,7 +1910,68 @@ export class MeteoScopeEarthquakeHub {
       console.error("[DataHubDO] storage load failed", error);
     }
 
+    await this.refreshDmdataStationCatalog();
     await this.scheduleNextTick(1000);
+  }
+
+  async refreshDmdataStationCatalog() {
+    if (this.dmdataStationCatalog.loading) {
+      return;
+    }
+
+    const apiKey = String(this.env?.DMDATA_API_KEY || "").trim();
+    const attemptedAt = nowIso();
+    this.dmdataStationCatalog.lastAttemptAt = attemptedAt;
+    if (!apiKey) {
+      this.dmdataStationCatalog.lastError = "dmdata_api_key_not_configured";
+      return;
+    }
+
+    this.dmdataStationCatalog.loading = true;
+    try {
+      const response = await fetchWithTimeout(fetch, DMDATA_EARTHQUAKE_STATION_PARAMETER_URL, {
+        method: "GET",
+        headers: {
+          Authorization: `Basic ${btoa(`${apiKey}:`)}`,
+          Accept: "application/json"
+        }
+      }, 10_000);
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || payload?.status !== "ok") {
+        throw new Error(`dmdata_station_parameter_http_${response.status}`);
+      }
+
+      const lookup = buildJmaIntensityStationCoordinateLookup(payload.items);
+      const stationCount = lookup.byCode.size;
+      if (stationCount < DMDATA_EARTHQUAKE_STATION_MIN_COUNT) {
+        throw new Error(`dmdata_station_parameter_count_${stationCount}`);
+      }
+
+      this.stationCoordinateLookup = lookup;
+      this.dmdataStationCatalog.loadedAt = attemptedAt;
+      this.dmdataStationCatalog.lastError = null;
+      this.dmdataStationCatalog.stationCount = stationCount;
+      this.dmdataStationCatalog.version = payload.version ?? null;
+      this.dmdataStationCatalog.changeTime = payload.changeTime ?? null;
+    }
+    catch (error) {
+      this.dmdataStationCatalog.lastError = String(
+        error?.message || error || "dmdata_station_parameter_failed"
+      );
+    }
+    finally {
+      this.dmdataStationCatalog.loading = false;
+    }
+  }
+
+  async refreshDmdataStationCatalogIfDue() {
+    const lastAttemptMs = toTimeMs(this.dmdataStationCatalog.lastAttemptAt) ?? 0;
+    const loadedAtMs = toTimeMs(this.dmdataStationCatalog.loadedAt) ?? 0;
+    const retryDue = !loadedAtMs && Date.now() - lastAttemptMs >= DMDATA_EARTHQUAKE_STATION_RETRY_MS;
+    const refreshDue = loadedAtMs && Date.now() - loadedAtMs >= DMDATA_EARTHQUAKE_STATION_REFRESH_MS;
+    if (retryDue || refreshDue) {
+      await this.refreshDmdataStationCatalog();
+    }
   }
 
   async scheduleNextTick(delayMs = 1000) {
@@ -1930,7 +2005,8 @@ export class MeteoScopeEarthquakeHub {
     await Promise.allSettled([
       this.ensureDmdataStream(),
       this.pollGdEarthquakesOnce(),
-      this.pollDmdataTelegramsOnce()
+      this.pollDmdataTelegramsOnce(),
+      this.refreshDmdataStationCatalogIfDue()
     ]);
 
     await this.runRetentionCleanupIfDue();
@@ -1957,7 +2033,7 @@ export class MeteoScopeEarthquakeHub {
       earthquake: this.latest.earthquake &&
         !isUnresolvedEarthquakeData(this.latest.earthquake.data) &&
         !isLikelyTestData(this.latest.earthquake.data)
-        ? this.latest.earthquake.data
+        ? sanitizeJmaIntensityStationPoints(this.latest.earthquake.data)
         : null,
       eew: includeEew && latestEew ? latestEew.data : null,
       tsunami: this.latest.tsunami?.data &&
@@ -2060,6 +2136,11 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
           throw error;
         }
       }
+      await db.prepare(`
+        DELETE FROM station_intensities
+        WHERE length(station_code) != 7
+           OR station_code GLOB '*[^0-9]*'
+      `).run();
     }
     catch (error) {
       console.error("[DataHubDO] ensure D1 schema failed", error);
@@ -2256,16 +2337,18 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
         .all();
 
       const rows = Array.isArray(result?.results) ? result.results : [];
-      return rows.map(row => ({
-        event_id: row.event_id,
-        station_code: row.station_code,
-        station_name: row.station_name,
-        intensity: row.intensity ?? "-",
-        scale: Number(row.scale ?? 0),
-        latitude: row.latitude ?? null,
-        longitude: row.longitude ?? null,
-        updated_at: row.updated_at
-      }));
+      return rows
+        .filter(row => isJmaIntensityStationCode(row.station_code))
+        .map(row => ({
+          event_id: row.event_id,
+          station_code: row.station_code,
+          station_name: row.station_name,
+          intensity: row.intensity ?? "-",
+          scale: Number(row.scale ?? 0),
+          latitude: row.latitude ?? null,
+          longitude: row.longitude ?? null,
+          updated_at: row.updated_at
+        }));
     }
     catch (error) {
       console.error("[DataHubDO] load station intensities from D1 failed", error);
@@ -2275,12 +2358,15 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
 
   async saveStationIntensitiesToD1(eventId, points = [], timestamp = nowIso()) {
     const db = this.env?.EQ_D1;
-    if (!db || !eventId || !Array.isArray(points) || points.length === 0) {
+    const validPoints = Array.isArray(points)
+      ? points.filter(point => isJmaIntensityStationCode(point?.code))
+      : [];
+    if (!db || !eventId || validPoints.length === 0) {
       return;
     }
     try {
-      const statements = points.map((point, index) => {
-        const stationCode = String(point?.code ?? point?.name ?? `unknown-${index}`);
+      const statements = validPoints.map((point) => {
+        const stationCode = normalizeJmaIntensityStationCode(point.code);
         return db
           .prepare(`
             INSERT INTO station_intensities (
@@ -2670,6 +2756,12 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
   async handleLatest(request) {
     const includeEew = request?.headers?.get("x-eew-authenticated") === "1";
     let earthquake = this.latest.earthquake;
+    if (earthquake?.data) {
+      earthquake = {
+        ...earthquake,
+        data: sanitizeJmaIntensityStationPoints(earthquake.data)
+      };
+    }
     if (earthquake && isLikelyTestData(earthquake.data)) {
       earthquake = null;
     }
@@ -2830,8 +2922,11 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
       });
     }
 
-    const points = Array.isArray(this.latest.earthquake?.data?.points)
-      ? this.latest.earthquake.data.points
+    const latestEarthquakeData = sanitizeJmaIntensityStationPoints(
+      this.latest.earthquake?.data
+    );
+    const points = Array.isArray(latestEarthquakeData?.points)
+      ? latestEarthquakeData.points
       : [];
 
     const items = points.map((point, index) => ({
@@ -2864,6 +2959,7 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
         timestamp: nowIso(),
         clients: this.clients.size,
         dmdata: this.dmdata,
+        dmdataStationCatalog: this.dmdataStationCatalog,
         gdEarthquakeBackfill: this.gdEarthquakeBackfill,
         dmdataTelegramBackfill: {
           running: this.dmdataTelegramBackfill.running,
@@ -2942,7 +3038,7 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
   }
 
   async handleDmdataPayload(payload) {
-    const events = await mapDmdataMessageToEvents(payload);
+    const events = await mapDmdataMessageToEvents(payload, this.stationCoordinateLookup);
     for (const event of events) {
       if ((event.type === "earthquake" || event.type === "eew") && isUnresolvedEarthquakeData(event.data)) {
         continue;
@@ -3395,7 +3491,7 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
             encoding: "utf-8",
             body: report
           };
-          const events = await mapDmdataMessageToEvents(telegram);
+          const events = await mapDmdataMessageToEvents(telegram, this.stationCoordinateLookup);
           const timestamp = item.receivedTime ?? item.head?.time ?? nowIso();
 
           for (const event of events) {
