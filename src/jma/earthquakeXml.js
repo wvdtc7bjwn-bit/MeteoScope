@@ -11,30 +11,51 @@ import {
   buildEmptyStationLookup,
   buildStationCoordinateLookup
 } from "./earthquakeStationLookup.js";
+import {
+  getTsunamiLevelColor,
+  getTsunamiLevelLineWidth,
+  getTsunamiLevelRank
+} from "../tsunami.js";
 
 const EARTHQUAKE_XML_DETAIL_FETCH_LIMIT = 48;
 const EARTHQUAKE_HISTORY_DISPLAY_LIMIT = 11;
 const EARTHQUAKE_XML_CODES = /VXSE5[1-3]/;
+const TSUNAMI_XML_DETAIL_FETCH_LIMIT = 18;
+const TSUNAMI_XML_CODES = /VTSE(?:41|51|52)/;
 const EARTHQUAKE_SERIES_WINDOW_MS = 5 * 60 * 1000;
 const EARTHQUAKE_SERIES_COORDINATE_DISTANCE_KM = 120;
 let earthquakeAreaLookupPromise = null;
+let tsunamiAreaLookupPromise = null;
 let stationCoordinateLookupPromise = null;
 
 export async function fetchEarthquakeXmlList() {
   const feeds = await fetchEarthquakeFeeds();
-  const entries = getUniqueEarthquakeEntries(feeds.flatMap(({ feed }) => getElements(feed, "entry")
+  const currentFeedAvailable = feeds.some(({ url }) => url === JMA_ENDPOINTS.earthquakeXmlFeed);
+  const allEntries = getUniqueEarthquakeEntries(feeds.flatMap(({ feed }) => getElements(feed, "entry")
     .map(parseFeedEntry)
-    .filter((entry) => entry.url && EARTHQUAKE_XML_CODES.test(entry.url))))
+    .filter((entry) => entry.url)));
+  const entries = allEntries
+    .filter((entry) => EARTHQUAKE_XML_CODES.test(entry.code))
     .slice(0, EARTHQUAKE_XML_DETAIL_FETCH_LIMIT);
+  const tsunamiEntries = allEntries
+    .filter((entry) => TSUNAMI_XML_CODES.test(entry.code))
+    .slice(0, TSUNAMI_XML_DETAIL_FETCH_LIMIT);
 
-  const results = await Promise.allSettled(entries.map(fetchEarthquakeDetail));
+  const [results, tsunamiResults] = await Promise.all([
+    Promise.allSettled(entries.map(fetchEarthquakeDetail)),
+    Promise.allSettled(tsunamiEntries.map(fetchTsunamiDetail))
+  ]);
   const baseEarthquakes = dedupeEarthquakes(results
     .filter((result) => result.status === "fulfilled" && result.value)
     .map((result) => result.value))
     .slice(0, EARTHQUAKE_HISTORY_DISPLAY_LIMIT);
-  const [areaLookup, stationLookup] = await Promise.all([
+  const [areaLookup, tsunamiLookup, stationLookup] = await Promise.all([
     loadEarthquakeAreaLookup().catch((error) => {
       console.warn("[Earthquake XML] earthquake area lookup failed", error);
+      return new Map();
+    }),
+    loadTsunamiAreaLookup().catch((error) => {
+      console.warn("[Earthquake XML] tsunami area lookup failed", error);
       return new Map();
     }),
     loadStationCoordinateLookup().catch((error) => {
@@ -47,15 +68,74 @@ export async function fetchEarthquakeXmlList() {
     areaLookup,
     stationLookup
   ));
+  const tsunamiReports = tsunamiResults
+    .filter((result) => result.status === "fulfilled" && result.value)
+    .map((result) => result.value);
+  const parsedTsunami = mergeTsunamiReports(tsunamiReports);
+  const tsunami = attachTsunamiMapData(parsedTsunami, currentFeedAvailable ? tsunamiLookup : new Map());
+  const tsunamiStatus = !currentFeedAvailable || (tsunamiEntries.length > 0 && tsunamiReports.length === 0)
+    ? "unavailable"
+    : tsunami ? "available" : "none";
 
   return {
     source: "xml",
     earthquakes,
+    tsunami,
+    tsunamiStatus,
     hasEarthquakes: earthquakes.length > 0,
     latestTime: earthquakes[0]?.reportTime ?? getLatestFeedUpdatedTime(feeds) ?? "未取得",
     updatedAt: earthquakes[0]?.reportTime ?? getLatestFeedUpdatedTime(feeds) ?? "未取得",
     summary: earthquakes.length > 0 ? `地震情報 ${earthquakes.length} 件` : "地震情報はありません"
   };
+}
+
+export async function fetchTsunamiXmlState() {
+  const feeds = await fetchEarthquakeFeeds();
+  const currentFeedAvailable = feeds.some(({ url }) => url === JMA_ENDPOINTS.earthquakeXmlFeed);
+  const allEntries = getUniqueEarthquakeEntries(feeds.flatMap(({ feed }) => getElements(feed, "entry")
+    .map(parseFeedEntry)
+    .filter((entry) => entry.url)));
+  const tsunamiEntries = allEntries
+    .filter((entry) => TSUNAMI_XML_CODES.test(entry.code))
+    .slice(0, TSUNAMI_XML_DETAIL_FETCH_LIMIT);
+  const results = await Promise.allSettled(tsunamiEntries.map(fetchTsunamiDetail));
+  const reports = results
+    .filter((result) => result.status === "fulfilled" && result.value)
+    .map((result) => result.value);
+  const tsunamiLookup = await loadTsunamiAreaLookup().catch((error) => {
+    console.warn("[Earthquake XML] tsunami area lookup failed", error);
+    return new Map();
+  });
+  const tsunami = attachTsunamiMapData(
+    mergeTsunamiReports(reports),
+    currentFeedAvailable ? tsunamiLookup : new Map()
+  );
+  const tsunamiStatus = !currentFeedAvailable || (tsunamiEntries.length > 0 && reports.length === 0)
+    ? "unavailable"
+    : tsunami ? "available" : "none";
+  return {
+    tsunami,
+    tsunamiStatus,
+    updatedAt: tsunami?.reportTime ?? getLatestFeedUpdatedTime(feeds) ?? "未取得"
+  };
+}
+
+export async function attachEarthquakeMapDataList(earthquakes) {
+  const [areaLookup, stationLookup] = await Promise.all([
+    loadEarthquakeAreaLookup().catch((error) => {
+      console.warn("[Earthquake XML] earthquake area lookup failed", error);
+      return new Map();
+    }),
+    loadStationCoordinateLookup().catch((error) => {
+      console.warn("[Earthquake XML] station coordinate lookup failed", error);
+      return buildEmptyStationLookup();
+    })
+  ]);
+  return (earthquakes ?? []).map((earthquake) => attachEarthquakeMapData(
+    earthquake,
+    areaLookup,
+    stationLookup
+  ));
 }
 
 async function fetchEarthquakeFeeds() {
@@ -105,6 +185,14 @@ async function fetchEarthquakeDetail(entry) {
   return parseEarthquakeReport(text, entry);
 }
 
+async function fetchTsunamiDetail(entry) {
+  const text = await fetchText(entry.url, {
+    ttlMs: 60 * 1000,
+    cache: "no-store"
+  });
+  return parseTsunamiReport(text, entry);
+}
+
 function parseFeedEntry(entry) {
   const link = getChildren(entry, "link").find((element) => element.getAttribute("href"));
   const url = link?.getAttribute("href") ?? "";
@@ -117,7 +205,7 @@ function parseFeedEntry(entry) {
   };
 }
 
-function parseEarthquakeReport(text, entry) {
+export function parseEarthquakeReport(text, entry) {
   const xml = parseXml(text);
   const report = getFirst(xml, "Report") ?? xml;
   const control = getFirstChild(report, "Control");
@@ -142,6 +230,8 @@ function parseEarthquakeReport(text, entry) {
   const title = getText(getFirstChild(head, "Title")) || entry.title || getText(getFirstChild(control, "Title")) || "地震情報";
   const reportTitle = getText(getFirstChild(control, "Title")) || title;
   const headline = getText(getFirst(getFirstChild(head, "Headline"), "Text"));
+  const forecastComment = getFirst(getFirstChild(body, "Comments"), "ForecastComment");
+  const tsunamiComment = getText(getFirst(forecastComment, "Text")) || getText(forecastComment);
   const hypocenterName = getText(getFirstChild(hypocenterArea, "Name")) || "震源調査中";
   const eventKey = buildEarthquakeEventKey(entry, eventId, originTime, arrivalTime, targetDateTime);
   const id = eventKey || buildEarthquakeId(entry, originTime, coordinate, title);
@@ -178,8 +268,196 @@ function parseEarthquakeReport(text, entry) {
     intensityCities,
     intensityStations,
     headline,
+    tsunamiComment,
     url: entry.url
   };
+}
+
+export function parseTsunamiReport(text, entry = {}) {
+  const xml = parseXml(text);
+  const report = getFirst(xml, "Report") ?? xml;
+  const control = getFirstChild(report, "Control");
+  const head = getFirstChild(report, "Head");
+  const body = getFirstChild(report, "Body");
+  const tsunami = getFirstChild(body, "Tsunami");
+  if (!tsunami) throw new Error("JMA tsunami XML does not contain a Tsunami body");
+
+  const eventId = normalizeEarthquakeEventId(
+    getText(getFirstChild(head, "EventID")) || getText(getFirstChild(control, "EventID"))
+  );
+  const reportTimeRaw = getText(getFirstChild(head, "ReportDateTime"))
+    || getText(getFirstChild(control, "DateTime"))
+    || entry.updated
+    || "";
+  const targetDateTime = getText(getFirstChild(head, "TargetDateTime"));
+  const validDateTime = getText(getFirstChild(head, "ValidDateTime"));
+  const title = getText(getFirstChild(head, "Title"))
+    || entry.title
+    || getText(getFirstChild(control, "Title"))
+    || "津波情報";
+  const headline = getText(getFirst(getFirstChild(head, "Headline"), "Text"));
+  const forecast = getFirstChild(tsunami, "Forecast");
+  const observation = getFirstChild(tsunami, "Observation");
+  const areas = getChildren(forecast, "Item").map(parseTsunamiForecastItem).filter(Boolean);
+  const isOffshore = entry.code === "VTSE52";
+  const parsedObservations = getChildren(observation, "Item")
+    .flatMap((item) => parseTsunamiObservationItem(item, isOffshore));
+
+  return {
+    id: entry.id || `${eventId}:${entry.code}:${reportTimeRaw}`,
+    eventId,
+    xmlCode: entry.code || getXmlCodeFromUrl(entry.url),
+    title,
+    headline,
+    reportTime: parseJmaTime(reportTimeRaw) ?? reportTimeRaw ?? "--",
+    reportTimeRaw,
+    targetDateTime: parseJmaTime(targetDateTime) ?? targetDateTime ?? "",
+    validDateTime: parseJmaTime(validDateTime) ?? validDateTime ?? "",
+    areas,
+    observations: isOffshore ? [] : parsedObservations,
+    offshoreObservations: isOffshore ? parsedObservations : [],
+    url: entry.url || ""
+  };
+}
+
+function parseTsunamiForecastItem(item) {
+  const area = getFirstChild(item, "Area");
+  const category = getFirstChild(item, "Category");
+  const kind = getFirstChild(category, "Kind");
+  const lastKind = getFirstChild(category, "LastKind");
+  const firstHeight = getFirstChild(item, "FirstHeight");
+  const maxHeight = getFirstChild(item, "MaxHeight");
+  const name = getText(getFirstChild(area, "Name"));
+  const code = normalizeTsunamiAreaCode(getText(getFirstChild(area, "Code")));
+  const grade = getText(getFirstChild(kind, "Name"));
+  const gradeCode = getText(getFirstChild(kind, "Code"));
+  if (!name && !code && !grade && !gradeCode) return null;
+
+  return {
+    code,
+    name: name || code || "津波予報区",
+    grade: grade || "発表内容不明",
+    gradeCode,
+    level: getTsunamiLevel(grade, gradeCode),
+    lastGrade: getText(getFirstChild(lastKind, "Name")),
+    arrivalTime: formatTsunamiTime(getText(getFirstChild(firstHeight, "ArrivalTime"))),
+    arrivalCondition: getText(getFirstChild(firstHeight, "Condition")),
+    height: getTsunamiHeight(maxHeight),
+    heightCondition: getText(getFirstChild(maxHeight, "Condition"))
+  };
+}
+
+function parseTsunamiObservationItem(item, offshore) {
+  const area = getFirstChild(item, "Area");
+  const areaCode = normalizeTsunamiAreaCode(getText(getFirstChild(area, "Code")));
+  const areaName = getText(getFirstChild(area, "Name"));
+  return getChildren(item, "Station").flatMap((station, index) => {
+    const stationName = getText(getFirstChild(station, "Name"));
+    const stationCode = getText(getFirstChild(station, "Code"));
+    const firstHeight = getFirstChild(station, "FirstHeight");
+    const maxHeight = getFirstChild(station, "MaxHeight");
+    if (!stationName && !stationCode) return [];
+    return [{
+      id: stationCode || `${areaCode}:${stationName}:${index}`,
+      areaCode,
+      areaName,
+      stationCode,
+      stationName: stationName || stationCode,
+      offshore,
+      arrivalTime: formatTsunamiTime(getText(getFirstChild(firstHeight, "ArrivalTime"))),
+      arrivalCondition: getText(getFirstChild(firstHeight, "Condition")),
+      maxHeightTime: formatTsunamiTime(getText(getFirstChild(maxHeight, "DateTime"))),
+      maxHeight: getTsunamiHeight(maxHeight),
+      maxHeightCondition: getText(getFirstChild(maxHeight, "Condition"))
+    }];
+  });
+}
+
+export function mergeTsunamiReports(reports) {
+  const validReports = (reports ?? []).filter(Boolean);
+  if (!validReports.length) return null;
+
+  const grouped = new Map();
+  validReports.forEach((report) => {
+    const key = report.eventId || `report:${report.id}`;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(report);
+  });
+  const eventReports = [...grouped.values()].sort((left, right) => (
+    getDateMs(getLatestTsunamiReport(right)?.reportTimeRaw)
+    - getDateMs(getLatestTsunamiReport(left)?.reportTimeRaw)
+  ))[0];
+  const ordered = [...eventReports].sort((a, b) => getDateMs(b.reportTimeRaw) - getDateMs(a.reportTimeRaw));
+  const latest = ordered[0];
+  const latestForecast = ordered.find((report) => report.areas?.length) ?? latest;
+  const areas = dedupeTsunamiAreas(latestForecast.areas ?? []);
+  const observations = mergeTsunamiObservations(ordered.flatMap((report) => report.observations ?? []));
+  const offshoreObservations = mergeTsunamiObservations(
+    ordered.flatMap((report) => report.offshoreObservations ?? [])
+  );
+  const highestLevel = areas
+    .map((area) => area.level)
+    .sort((a, b) => getTsunamiLevelRank(b) - getTsunamiLevelRank(a))[0] ?? "none";
+
+  return {
+    id: latest.eventId || latest.id,
+    eventId: latest.eventId,
+    title: latest.title,
+    headline: latest.headline || latestForecast.headline,
+    reportTime: latest.reportTime,
+    reportTimeRaw: latest.reportTimeRaw,
+    targetDateTime: latest.targetDateTime,
+    validDateTime: latest.validDateTime || latestForecast.validDateTime,
+    areas,
+    observations,
+    offshoreObservations,
+    highestLevel,
+    isActive: ["major-warning", "warning", "advisory"].includes(highestLevel),
+    sourceUrls: [...new Set(ordered.map((report) => report.url).filter(Boolean))],
+    mapFeatures: []
+  };
+}
+
+function getLatestTsunamiReport(reports) {
+  return [...reports].sort((a, b) => getDateMs(b.reportTimeRaw) - getDateMs(a.reportTimeRaw))[0];
+}
+
+function dedupeTsunamiAreas(areas) {
+  return [...new Map(areas.map((area) => [area.code || area.name, area])).values()]
+    .sort((a, b) => getTsunamiLevelRank(b.level) - getTsunamiLevelRank(a.level)
+      || String(a.code).localeCompare(String(b.code), "ja"));
+}
+
+function mergeTsunamiObservations(observations) {
+  return [...new Map(observations.map((observation) => [observation.id, observation])).values()]
+    .sort((a, b) => getDateMs(b.maxHeightTime || b.arrivalTime) - getDateMs(a.maxHeightTime || a.arrivalTime));
+}
+
+function getTsunamiLevel(name, code) {
+  const value = `${name ?? ""} ${code ?? ""}`;
+  if (/大津波警報/u.test(value)) return "major-warning";
+  if (/津波警報/u.test(value) && !/解除/u.test(value)) return "warning";
+  if (/津波注意報/u.test(value) && !/解除/u.test(value)) return "advisory";
+  if (/津波予報|若干の海面変動/u.test(value)) return "forecast";
+  return "none";
+}
+
+function getTsunamiHeight(node) {
+  const height = getFirstChild(node, "TsunamiHeight");
+  const description = height?.getAttribute("description") ?? "";
+  const value = getText(height);
+  if (description) return description;
+  if (!value) return "";
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? `${numeric}m` : value;
+}
+
+function formatTsunamiTime(value) {
+  return parseJmaTime(value) ?? value ?? "";
+}
+
+function normalizeTsunamiAreaCode(value) {
+  return String(value ?? "").trim();
 }
 
 function dedupeEarthquakes(items) {
@@ -293,6 +571,7 @@ function mergeEarthquakeReports(primary, fallback) {
     intensityCities: primary.intensityCities?.length ? primary.intensityCities : fallback.intensityCities,
     intensityStations: primary.intensityStations?.length ? primary.intensityStations : fallback.intensityStations,
     headline: primary.headline || fallback.headline,
+    tsunamiComment: primary.tsunamiComment || fallback.tsunamiComment,
     url: primary.url || fallback.url
   };
 }
@@ -439,6 +718,62 @@ async function loadEarthquakeAreaLookup() {
   return earthquakeAreaLookupPromise;
 }
 
+async function loadTsunamiAreaLookup() {
+  if (!tsunamiAreaLookupPromise) {
+    tsunamiAreaLookupPromise = fetchJson(JMA_ENDPOINTS.tsunamiForecastAreas, {
+      ttlMs: STATIC_DATA_CACHE_TTL_MS,
+      cache: "force-cache"
+    }).then(buildTsunamiAreaLookup);
+  }
+  return tsunamiAreaLookupPromise;
+}
+
+function buildTsunamiAreaLookup(geoJson) {
+  const lookup = new Map();
+  (geoJson?.features ?? []).forEach((feature) => {
+    const code = normalizeTsunamiAreaCode(feature?.properties?.code);
+    if (!code) return;
+    if (!lookup.has(code)) lookup.set(code, []);
+    lookup.get(code).push(feature);
+  });
+  return lookup;
+}
+
+function attachTsunamiMapData(tsunami, lookup) {
+  if (!tsunami) return null;
+  const mapFeatures = tsunami.areas.flatMap((area) => {
+    if (area.level === "none") return [];
+    return (lookup.get(normalizeTsunamiAreaCode(area.code)) ?? []).map((feature, index) => ({
+      type: "Feature",
+      geometry: feature.geometry,
+      properties: {
+        ...(feature.properties ?? {}),
+        tsunamiAreaCode: area.code,
+        tsunamiAreaName: area.name,
+        tsunamiLevel: area.level,
+        tsunamiGrade: area.grade,
+        color: getTsunamiLevelColor(area.level),
+        lineWidth: getTsunamiLevelLineWidth(area.level),
+        sortKey: getTsunamiLevelRank(area.level),
+        popup: buildTsunamiAreaPopup(area),
+        featureIndex: index
+      }
+    }));
+  });
+  return { ...tsunami, mapFeatures };
+}
+
+function buildTsunamiAreaPopup(area) {
+  const arrival = area.arrivalCondition || (area.arrivalTime ? `到達予想 ${area.arrivalTime}` : "到達予想時刻なし");
+  const height = area.heightCondition || (area.height ? `予想される最大波 ${area.height}` : "高さ未発表");
+  return `
+    <strong>${escapeHtml(area.name ?? "津波予報区")}</strong><br>
+    <span>気象庁発表: ${escapeHtml(area.grade ?? "津波情報")}</span><br>
+    <span>${escapeHtml(arrival)}</span><br>
+    <span>${escapeHtml(height)}</span>
+  `;
+}
+
 function buildEarthquakeAreaLookup(geoJson) {
   const lookup = new Map();
   (geoJson?.features ?? []).forEach((feature) => {
@@ -492,7 +827,7 @@ function normalizeEarthquakeEventTime(value) {
 }
 
 function getXmlCodeFromUrl(value) {
-  return String(value ?? "").match(/VXSE5[1-3]/)?.[0] ?? "";
+  return String(value ?? "").match(/(?:VXSE5[1-3]|VTSE(?:41|51|52))/)?.[0] ?? "";
 }
 
 function getEarthquakeReportPriority(report) {
@@ -600,12 +935,14 @@ function parseXml(text) {
 
 function getElements(root, localName) {
   if (!root) return [];
-  return [...root.getElementsByTagName("*")].filter((element) => element.localName === localName);
+  return Array.from(root.getElementsByTagName("*") ?? [])
+    .filter((element) => element.localName === localName);
 }
 
 function getChildren(root, localName) {
   if (!root) return [];
-  return [...root.children].filter((element) => element.localName === localName);
+  return Array.from(root.children ?? root.childNodes ?? [])
+    .filter((element) => element.nodeType === 1 && element.localName === localName);
 }
 
 function getFirst(root, localName) {

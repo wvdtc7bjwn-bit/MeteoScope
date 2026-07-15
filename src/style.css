@@ -2706,6 +2706,180 @@ h2 {
   margin: 0 0 14px;
 }
 
+.earthquake-tsunami-details {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid rgba(125, 161, 204, 0.24);
+  border-left: 4px solid #8594a6;
+  background: rgba(4, 10, 20, 0.16);
+}
+
+.earthquake-tsunami-details.level-major-warning { border-left-color: #b400ff; }
+.earthquake-tsunami-details.level-warning { border-left-color: #ff2b12; }
+.earthquake-tsunami-details.level-advisory { border-left-color: #f4d000; }
+.earthquake-tsunami-details.level-forecast { border-left-color: #168bd2; }
+
+.tsunami-information-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tsunami-information-heading > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tsunami-information-heading small,
+.tsunami-information-heading time {
+  color: var(--type-date-color);
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.tsunami-information-heading time {
+  flex: 0 0 auto;
+  max-width: 48%;
+  text-align: right;
+}
+
+.tsunami-information-heading strong {
+  color: #f5f9ff;
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.earthquake-tsunami-details > p {
+  margin: 0;
+  color: rgba(224, 235, 248, 0.82);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.earthquake-tsunami-status {
+  justify-self: start;
+  margin-top: 0;
+  padding: 3px 7px;
+  border: 1px solid rgba(134, 160, 190, 0.45);
+  border-radius: 999px;
+  color: #cbd9e8;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.earthquake-tsunami-status.level-major-warning { border-color: #b400ff; color: #e3a2ff; }
+.earthquake-tsunami-status.level-warning { border-color: #ff2b12; color: #ff8d82; }
+.earthquake-tsunami-status.level-advisory { border-color: #f4d000; color: #f4d000; }
+.earthquake-tsunami-status.level-forecast { border-color: #168bd2; color: #67c8ff; }
+.earthquake-tsunami-status.level-unavailable { border-style: dashed; }
+
+.tsunami-area-list {
+  display: grid;
+  gap: 6px;
+}
+
+.tsunami-area-row {
+  display: grid;
+  grid-template-columns: minmax(72px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(4, 10, 20, 0.22);
+}
+
+.tsunami-level-badge {
+  padding: 5px 7px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  color: #aebbc9;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.tsunami-area-row.level-major-warning .tsunami-level-badge { color: #dd8cff; }
+.tsunami-area-row.level-warning .tsunami-level-badge { color: #ff7060; }
+.tsunami-area-row.level-advisory .tsunami-level-badge { color: #f4d000; }
+.tsunami-area-row.level-forecast .tsunami-level-badge { color: #67c8ff; }
+
+.tsunami-area-row > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tsunami-area-row strong {
+  color: #f4f8ff;
+  font-size: 12.5px;
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.tsunami-area-row div span {
+  color: var(--type-date-color);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.tsunami-observations {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(4, 10, 20, 0.2);
+}
+
+.tsunami-observations summary {
+  padding: 9px 10px;
+  color: #e6effa;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.tsunami-observations > div {
+  display: grid;
+  max-height: 220px;
+  overflow: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tsunami-observations p {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #e8f1fc;
+  font-size: 10.5px;
+}
+
+.tsunami-observations p span {
+  color: var(--type-date-color);
+  text-align: right;
+}
+
+.tsunami-official-link {
+  color: #69caff;
+  font-size: 11px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.tsunami-official-link:hover { text-decoration: underline; }
+
 .earthquake-empty {
   padding: 13px 12px;
   border: 1px solid rgba(137, 170, 220, 0.22);
@@ -2811,14 +2985,29 @@ h2 {
 
 .earthquake-card-facts {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 4px 12px;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  min-width: 0;
   color: rgba(237, 244, 255, 0.92);
   font-size: 14.5px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1.3;
+  white-space: nowrap;
+}
+
+.earthquake-card-facts > span:not(.earthquake-tsunami-status) {
+  flex: 0 0 auto;
+}
+
+.earthquake-card-facts .earthquake-tsunami-status {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 2px 5px;
+  font-size: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .earthquake-card-info time {
@@ -5407,6 +5596,25 @@ html[data-theme="light"] .legend-typhoon-center::after {
     white-space: nowrap;
   }
 
+  .mobile-dock-earthquake-facts {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .mobile-dock-earthquake-facts > span:first-child {
+    min-width: 0;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-dock-earthquake-facts .earthquake-tsunami-status {
+    flex: 0 1 auto;
+    padding: 2px 5px;
+    font-size: 9px;
+    line-height: 1.1;
+  }
+
   .mobile-dock-earthquake-intensity {
     display: grid;
     flex: 0 0 48px;
@@ -6350,6 +6558,42 @@ html[data-theme="light"] :is(.earthquake-history-item, .earthquake-observation-l
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
+
+html[data-theme="light"] .earthquake-tsunami-details {
+  border-color: rgba(72, 100, 132, 0.22);
+  background: rgba(225, 235, 245, 0.32);
+}
+
+html[data-theme="light"] .tsunami-information-heading strong,
+html[data-theme="light"] .tsunami-area-row strong,
+html[data-theme="light"] .tsunami-observations summary,
+html[data-theme="light"] .tsunami-observations p {
+  color: #17304a;
+}
+
+html[data-theme="light"] .earthquake-tsunami-details > p,
+html[data-theme="light"] .tsunami-area-row div span,
+html[data-theme="light"] .tsunami-observations p span {
+  color: #526980;
+}
+
+html[data-theme="light"] :is(.tsunami-area-row, .tsunami-observations) {
+  border-color: rgba(72, 100, 132, 0.18);
+  background: rgba(225, 235, 245, 0.58);
+}
+
+html[data-theme="light"] .tsunami-official-link { color: #006da8; }
+
+html[data-theme="light"] .earthquake-tsunami-status {
+  color: #405a74;
+  border-color: rgba(64, 90, 116, 0.4);
+}
+
+html[data-theme="light"] .earthquake-tsunami-status.level-major-warning { color: #7d009f; }
+html[data-theme="light"] .earthquake-tsunami-status.level-warning { color: #b51d10; }
+html[data-theme="light"] .earthquake-tsunami-status.level-advisory { color: #806b00; }
+html[data-theme="light"] .earthquake-tsunami-status.level-forecast { color: #006da8; }
+html[data-theme="light"] .tsunami-area-row.level-advisory .tsunami-level-badge { color: #806b00; }
 
 @media (max-width: 800px) and (orientation: portrait) {
   html[data-theme="light"] #sidebar,

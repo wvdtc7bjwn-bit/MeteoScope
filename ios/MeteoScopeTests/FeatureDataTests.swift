@@ -210,7 +210,7 @@ final class FeatureDataTests: XCTestCase {
         <Report>
           <Control><DateTime>2026-07-13T10:01:00Z</DateTime></Control>
           <Head><ReportDateTime>2026-07-13T19:01:00+09:00</ReportDateTime><EventID>event-1</EventID><Headline><Text>津波の心配はありません。</Text></Headline></Head>
-          <Body><Earthquake><OriginTime>2026-07-13T18:58:00+09:00</OriginTime><Hypocenter><Area><Name>奈良県</Name><Coordinate>+34.6+135.8-10000/</Coordinate></Area></Hypocenter><Magnitude>3.2</Magnitude></Earthquake><Intensity><Observation><MaxInt>2</MaxInt><Pref><Name>奈良県</Name><Area><Name>奈良県</Name><Code>560</Code><MaxInt>2</MaxInt><City><IntensityStation><Name>奈良市＊</Name><Code>2920100</Code><Int>2</Int></IntensityStation><IntensityStation><Name>座標未登録地点</Name><Code>unknown</Code><Int>1</Int></IntensityStation></City></Area></Pref></Observation></Intensity></Body>
+          <Body><Earthquake><OriginTime>2026-07-13T18:58:00+09:00</OriginTime><Hypocenter><Area><Name>奈良県</Name><Coordinate>+34.6+135.8-10000/</Coordinate></Area></Hypocenter><Magnitude>3.2</Magnitude></Earthquake><Intensity><Observation><MaxInt>2</MaxInt><Pref><Name>奈良県</Name><Area><Name>奈良県</Name><Code>560</Code><MaxInt>2</MaxInt><City><IntensityStation><Name>奈良市＊</Name><Code>2920100</Code><Int>2</Int></IntensityStation><IntensityStation><Name>座標未登録地点</Name><Code>unknown</Code><Int>1</Int></IntensityStation></City></Area></Pref></Observation></Intensity><Comments><ForecastComment><Text>この地震による津波の心配はありません。</Text><Code>0215</Code></ForecastComment></Comments></Body>
         </Report>
         """.data(using: .utf8)!
 
@@ -227,6 +227,8 @@ final class FeatureDataTests: XCTestCase {
         )
 
         XCTAssertEqual(earthquake.hypocenterName, "奈良県")
+        XCTAssertEqual(earthquake.eventID, "event-1")
+        XCTAssertEqual(earthquake.tsunamiComment, "この地震による津波の心配はありません。")
         XCTAssertEqual(earthquake.magnitude, "M3.2")
         XCTAssertEqual(earthquake.depth, "10 km")
         XCTAssertEqual(earthquake.maximumIntensity, "震度2")
@@ -259,6 +261,87 @@ final class FeatureDataTests: XCTestCase {
                 in: ambiguousLookup
             )
         )
+    }
+
+    func testTsunamiDecodeMergeAndMapLayer() throws {
+        let feed = """
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <entry><id>tsunami-1</id><title>津波警報・注意報・予報</title><updated>2026-07-15T10:05:00+09:00</updated><link href="https://example.com/VTSE41.xml" /></entry>
+        </feed>
+        """.data(using: .utf8)!
+        let entry = try XCTUnwrap(EarthquakeXMLDecoder.feedEntries(data: feed).first)
+        let report = """
+        <Report>
+          <Control><DateTime>2026-07-15T10:05:00+09:00</DateTime></Control>
+          <Head><Title>津波警報・注意報・予報</Title><ReportDateTime>2026-07-15T10:05:00+09:00</ReportDateTime><EventID>event-tsunami</EventID><Headline><Text>海の中や海岸付近は危険です。</Text></Headline></Head>
+          <Body><Tsunami><Forecast><Item><Area><Name>北海道太平洋沿岸東部</Name><Code>100</Code></Area><Category><Kind><Name>津波注意報</Name><Code>62</Code></Kind></Category><FirstHeight><ArrivalTime>2026-07-15T10:30:00+09:00</ArrivalTime></FirstHeight><MaxHeight><TsunamiHeight description="１ｍ">1.0</TsunamiHeight></MaxHeight></Item></Forecast></Tsunami></Body>
+        </Report>
+        """.data(using: .utf8)!
+
+        let decoded = try EarthquakeXMLDecoder.tsunami(data: report, entry: entry)
+        let tsunami = try XCTUnwrap(EarthquakeXMLDecoder.mergedTsunami(reports: [decoded]))
+
+        XCTAssertEqual(tsunami.eventID, "event-tsunami")
+        XCTAssertEqual(tsunami.highestLevel, .advisory)
+        XCTAssertEqual(tsunami.areas.first?.height, "１ｍ")
+        XCTAssertTrue(tsunami.isActive)
+
+        let overlay = WeatherMapOverlayBuilder.earthquake(nil, tsunami: tsunami)
+        XCTAssertEqual(overlay.geoJSONSources.first?.layers.first?.values, ["100"])
+        XCTAssertEqual(overlay.geoJSONSources.first?.layers.first?.geometry, .line)
+    }
+
+    func testDMDataEarthquakeHistoryAndLatestStationDecode() throws {
+        let historyData = """
+        {
+          "enabled":true,
+          "items":[{
+            "event_id":"20260715212943",
+            "telegram_type":"VXSE53",
+            "place":"岩手県沖",
+            "origin_time":"2026-07-15T21:29:00+09:00",
+            "magnitude":"4.4",
+            "depth":"40",
+            "max_intensity":"1",
+            "tsunami_status":"心配なし",
+            "latitude":40.1,
+            "longitude":142.5,
+            "regions":[{"code":"210","name":"岩手県沿岸北部","maxInt":"1"}],
+            "updated_at":"2026-07-15T12:33:00.000Z"
+          }]
+        }
+        """.data(using: .utf8)!
+        let latestData = """
+        {
+          "latest":{"earthquake":{"data":{
+            "eventId":"20260715212943",
+            "points":[{
+              "code":"0320224",
+              "name":"宮古市田老＊",
+              "intensity":"1",
+              "latitude":39.7356,
+              "longitude":141.9669
+            }]
+          },"receivedAt":"2026-07-15T12:33:00.000Z"}}
+        }
+        """.data(using: .utf8)!
+
+        let history = try JSONDecoder().decode(DMDataEarthquakeHistoryResponse.self, from: historyData)
+        let latest = try JSONDecoder().decode(DMDataLatestResponse.self, from: latestData)
+        let earthquake = try XCTUnwrap(DMDataEarthquakeBuilder.build(
+            history: history.items,
+            latest: latest.latest.earthquake
+        ).first)
+
+        XCTAssertEqual(earthquake.eventID, "20260715212943")
+        XCTAssertEqual(earthquake.hypocenterName, "岩手県沖")
+        XCTAssertEqual(earthquake.magnitude, "M4.4")
+        XCTAssertEqual(earthquake.depth, "40 km")
+        XCTAssertEqual(earthquake.maximumIntensity, "震度1")
+        XCTAssertEqual(earthquake.intensityAreas.first?.areaCode, "210")
+        XCTAssertEqual(earthquake.intensityPoints.first?.prefecture, "岩手県")
+        XCTAssertEqual(earthquake.intensityPoints.first?.coordinate?.longitude, 141.9669)
+        XCTAssertEqual(earthquake.tsunamiComment, "この地震による津波の心配はありません。")
     }
 
     func testEarlyWarningBuilderKeepsMiddleAndHighProbabilities() throws {
@@ -303,9 +386,13 @@ final class FeatureDataTests: XCTestCase {
 
     func testWeatherMapOverlayBuildsWarningAndEarthquakeRegionLayers() {
         let warnings = WeatherMapOverlayBuilder.warnings(.preview)
-        let earthquake = WeatherMapOverlayBuilder.earthquake(EarthquakeSnapshot.preview.earthquakes[0])
+        let earthquake = WeatherMapOverlayBuilder.earthquake(
+            EarthquakeSnapshot.preview.earthquakes[0],
+            tsunami: EarthquakeSnapshot.preview.tsunami
+        )
 
         XCTAssertFalse(warnings.geoJSONSources.first?.layers.isEmpty ?? true)
         XCTAssertEqual(earthquake.geoJSONSources.first?.layers.first?.values, ["560"])
+        XCTAssertEqual(earthquake.geoJSONSources.count, 2)
     }
 }

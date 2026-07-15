@@ -102,12 +102,11 @@ struct MapDashboardView: View {
             }
             return WeatherMapOverlayBuilder.typhoon(typhoon)
         case .earthquake:
-            guard case .loaded(let snapshot) = model.earthquakeState,
-                  let earthquake = model.selectedEarthquake(in: snapshot)
-            else {
-                return nil
-            }
-            return WeatherMapOverlayBuilder.earthquake(earthquake)
+            guard case .loaded(let snapshot) = model.earthquakeState else { return nil }
+            return WeatherMapOverlayBuilder.earthquake(
+                model.selectedEarthquake(in: snapshot),
+                tsunami: snapshot.tsunami
+            )
         case .radar, .amedas:
             return nil
         }

@@ -17,7 +17,10 @@ import { fetchRadarTimes } from "./jma/radar.js";
 import { fetchAmedasDailySeries, fetchAmedasLatestTime } from "./jma/amedas.js";
 import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
-import { fetchEarthquakeXmlList } from "./jma/earthquakeXml.js";
+import {
+  fetchDmdataEarthquakeList,
+  hydrateDmdataEarthquakeStations
+} from "./dmdata/earthquakes.js";
 import { fetchKikikuruTiles } from "./jma/kikikuru.js";
 import { fetchRiverFloodForecasts } from "./jma/riverFlood.js";
 import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFrameIndex } from "./jma/weatherChart.js";
@@ -35,7 +38,7 @@ const loaders = {
   amedas: fetchAmedasLatestTime,
   warnings: fetchWarningTabData,
   typhoon: fetchTyphoonList,
-  earthquake: fetchEarthquakeXmlList
+  earthquake: fetchDmdataEarthquakeList
 };
 
 const KIKIKURU_DATA_TTL_MS = 60 * 1000;
@@ -370,6 +373,17 @@ if (layerId === "river") {
     const tab = TABS.find((item) => item.id === "earthquake");
     updateCurrentView(tab, latestDataByTab.earthquake);
     if (!isSelected) focusSelectedEarthquake();
+    void hydrateDmdataEarthquakeStations(latestDataByTab.earthquake, nextEarthquakeId)
+      .then((nextData) => {
+        if (!nextData || nextData === latestDataByTab.earthquake) return;
+        latestDataByTab.earthquake = nextData;
+        if (activeTab !== "earthquake") return;
+        updateCurrentView(tab, nextData);
+        if (String(activeEarthquakeId) === nextEarthquakeId) focusSelectedEarthquake();
+      })
+      .catch((error) => {
+        console.warn("[MeteoScope] DM-D.S.S station detail request failed", error);
+      });
   }
 
   function setEarthquakeActiveFaultVisible(visible) {

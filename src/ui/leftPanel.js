@@ -9,6 +9,7 @@ import {
   KIKIKURU_LAYER_OPTIONS,
   KIKIKURU_LEVELS
 } from "../config.js";
+import { getTsunamiLevelColor, getTsunamiLevelLabel } from "../tsunami.js";
 import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
 import { buildEarthquakeObservationRows } from "../earthquakeDetails.js";
 import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
@@ -75,7 +76,7 @@ export function updateLeftPanel(tab, state = {}) {
   renderAmedasDailyChart(tab, state, amedasMetric);
   renderAmedasRanking(tab, state, amedasMetric);
   renderMobileContextDock(tab, state, { amedasMetric, warningView });
-  renderLegend(tab.id, amedasMetric.id, warningView);
+  renderLegend(tab.id, amedasMetric.id, warningView, state.data);
 }
 
 export function setupAmedasSubTabs({ onChange }) {
@@ -674,7 +675,7 @@ if (state.data?.activeWarningView === "early") {
     return "台風の解析値を表示しています。";
   }
   if (tab.id === "earthquake") {
-    if (state.status === "loading") return "気象庁XMLの地震情報を取得中です。";
+    if (state.status === "loading") return "DM-D.S.S経由の地震情報を取得中です。";
     if (state.status === "error") return "地震情報を取得できませんでした。";
     const count = state.data?.earthquakes?.length ?? 0;
     return count > 0 ? "" : "直近の地震情報はありません。";
@@ -821,10 +822,10 @@ function renderMyAreaWarningInsight(root, insights, myAreas = []) {
   `;
 }
 
-function renderLegend(tabId, amedasMetricId, warningView = "status") {
+function renderLegend(tabId, amedasMetricId, warningView = "status", data = null) {
   const root = document.getElementById("legend-list");
   if (!root) return;
-  const items = buildLegendItems(tabId, amedasMetricId, warningView);
+  const items = buildLegendItems(tabId, amedasMetricId, warningView, data);
 
   root.innerHTML = items
     .map(([label, className, color]) => {
@@ -835,7 +836,7 @@ function renderLegend(tabId, amedasMetricId, warningView = "status") {
 
 }
 
-function buildLegendItems(tabId, amedasMetricId, warningView = "status") {
+function buildLegendItems(tabId, amedasMetricId, warningView = "status", data = null) {
   if (tabId === "radar") {
     return AMEDAS_PRECIPITATION_LEVELS.map((level) => [level.label, "", level.color]);
   }
@@ -860,7 +861,16 @@ if (tabId === "warnings" && warningView === "early") {
     ];
   }
   if (tabId === "earthquake") {
+    const tsunamiLevels = [...new Set((data?.tsunami?.areas ?? [])
+      .map((area) => area.level)
+      .filter((level) => level && level !== "none"))];
+    const tsunamiLegend = tsunamiLevels.map((level) => [
+      getTsunamiLevelLabel(level),
+      "",
+      getTsunamiLevelColor(level)
+    ]);
     return [
+      ...tsunamiLegend,
       ...legendsByTab.earthquake,
       ...EARTHQUAKE_INTENSITY_LEVELS.map((level) => [level.label, "", level.color])
     ];
@@ -1203,7 +1213,12 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     const earthquakes = state.data?.earthquakes ?? [];
     const earthquake = state.data?.selectedEarthquake ?? earthquakes[0];
     const activeFaultVisible = state.earthquakeActiveFaultVisible ?? state.data?.activeFaultVisible ?? true;
-    return buildEarthquakeMobileContextMarkup(earthquake, activeFaultVisible);
+    return buildEarthquakeMobileContextMarkup(
+      earthquake,
+      activeFaultVisible,
+      state.data?.tsunami,
+      state.data?.tsunamiStatus
+    );
   }
   return buildMobileContextMarkup(tab.label ?? "情報", "詳細情報", "開く");
 }
@@ -1248,13 +1263,14 @@ function normalizeSummaryValue(value) {
   return text && !["--", "-", "未取得", "取得中"].includes(text) ? text : "-";
 }
 
-function buildEarthquakeMobileContextMarkup(earthquake, activeFaultVisible) {
+function buildEarthquakeMobileContextMarkup(earthquake, activeFaultVisible, tsunami, tsunamiStatus) {
   const intensityColor = getEarthquakeIntensityColor(earthquake?.maxIntensity);
   const intensityTextClass = getEarthquakeIntensityTextClass(earthquake?.maxIntensity);
   const intensity = earthquake?.maxIntensityShort ?? earthquake?.maxIntensityLabel ?? "--";
   const magnitude = formatEarthquakeMagnitude(earthquake?.magnitude, { prefix: true });
   const depth = formatEarthquakeDepthText(earthquake?.depth, { compact: true });
   const time = formatMobileEarthquakeTime(earthquake?.eventTime ?? earthquake?.reportTime);
+  const tsunamiMarkup = buildMobileTsunamiStatusMarkup(earthquake, tsunami, tsunamiStatus);
 
   return `
     <div class="mobile-dock-content mobile-dock-earthquake" style="--mobile-earthquake-intensity-bg: ${escapeHtml(intensityColor)};">
@@ -1274,7 +1290,10 @@ function buildEarthquakeMobileContextMarkup(earthquake, activeFaultVisible) {
       <div class="mobile-dock-earthquake-main">
         <div class="mobile-dock-earthquake-text">
           <strong>${escapeHtml(earthquake?.hypocenterName ?? "直近の地震情報はありません")}</strong>
-          <span>${escapeHtml([magnitude, `深さ ${depth}`].filter((item) => item && item !== "--").join(" / ") || "詳細確認中")}</span>
+          <div class="mobile-dock-earthquake-facts">
+            <span>${escapeHtml([magnitude, `深さ ${depth}`].filter((item) => item && item !== "--").join(" / ") || "詳細確認中")}</span>
+            ${tsunamiMarkup}
+          </div>
         </div>
         <em class="mobile-dock-earthquake-intensity ${intensityTextClass}">${escapeHtml(intensity)}</em>
       </div>
@@ -2656,6 +2675,11 @@ function renderEarthquakeList(tab, state) {
     const depthText = formatEarthquakeDepthText(earthquake.depth, { compact: true });
     const observations = buildEarthquakeObservationRows(earthquake);
     const observationsId = `earthquake-observations-${index}`;
+    const tsunamiState = getEarthquakeTsunamiState(
+      earthquake,
+      state.data?.tsunami,
+      state.data?.tsunamiStatus
+    );
     return `
       <article class="earthquake-history-item${isActive ? " active" : ""}${isExpanded ? " expanded" : ""}">
         <button
@@ -2677,14 +2701,86 @@ function renderEarthquakeList(tab, state) {
             <span class="earthquake-card-facts">
               <span>${escapeHtml(magnitude)}</span>
               <span>深さ ${escapeHtml(depthText)}</span>
+              ${tsunamiState.label ? `<span class="earthquake-tsunami-status level-${escapeHtml(tsunamiState.level)}">${escapeHtml(tsunamiState.label)}</span>` : ""}
             </span>
           </span>
           <span class="earthquake-card-chevron" aria-hidden="true"></span>
         </button>
         ${isExpanded ? renderEarthquakeObservations(observations, observationsId) : ""}
+        ${isExpanded ? renderEarthquakeTsunamiDetails(tsunamiState) : ""}
       </article>
     `;
   }).join("");
+}
+
+function getEarthquakeTsunamiState(earthquake, tsunami, status) {
+  if (status === "unavailable") {
+    return { level: "unavailable", label: "津波情報を確認できません", tsunami: null };
+  }
+  const eventId = String(earthquake?.eventId ?? "").trim();
+  const tsunamiEventId = String(tsunami?.eventId ?? "").trim();
+  if (tsunami && eventId && tsunamiEventId && eventId === tsunamiEventId) {
+    return {
+      level: tsunami.highestLevel,
+      label: getTsunamiLevelLabel(tsunami.highestLevel),
+      tsunami
+    };
+  }
+  const tsunamiComment = String(earthquake?.tsunamiComment ?? earthquake?.headline ?? "");
+  if (/津波の心配はありません/u.test(tsunamiComment)) {
+    return { level: "none", label: "津波の心配なし", tsunami: null };
+  }
+  if (/若干の海面変動/u.test(tsunamiComment)) {
+    return { level: "forecast", label: "若干の海面変動", tsunami: null };
+  }
+  return { level: "unknown", label: "", tsunami: null };
+}
+
+function renderEarthquakeTsunamiDetails(state) {
+  const tsunami = state?.tsunami;
+  if (!tsunami) return "";
+  const currentAreas = (tsunami.areas ?? []).filter((area) => area.level !== "none");
+  const observations = [...(tsunami.observations ?? []), ...(tsunami.offshoreObservations ?? [])];
+  return `
+    <section class="earthquake-tsunami-details level-${escapeHtml(tsunami.highestLevel)}" aria-label="津波情報">
+      <div class="tsunami-information-heading">
+        <div><small>気象庁発表</small><strong>${escapeHtml(getTsunamiLevelLabel(tsunami.highestLevel))}</strong></div>
+        <time>${escapeHtml(tsunami.reportTime || "時刻未取得")}</time>
+      </div>
+      ${tsunami.headline ? `<p>${escapeHtml(tsunami.headline)}</p>` : ""}
+      ${currentAreas.length ? `
+        <div class="tsunami-area-list">
+          ${currentAreas.map((area) => `
+            <article class="tsunami-area-row level-${escapeHtml(area.level)}">
+              <span class="tsunami-level-badge">${escapeHtml(getTsunamiLevelLabel(area.level))}</span>
+              <div><strong>${escapeHtml(area.name)}</strong><span>${escapeHtml(buildTsunamiAreaDetail(area))}</span></div>
+            </article>
+          `).join("")}
+        </div>
+      ` : ""}
+      ${observations.length ? `
+        <details class="tsunami-observations">
+          <summary>観測された津波 ${observations.length}地点</summary>
+          <div>${observations.slice(0, 30).map((observation) => `
+            <p><strong>${escapeHtml(observation.stationName)}</strong><span>${escapeHtml(
+              observation.maxHeightCondition || observation.maxHeight || "高さ未発表"
+            )}${observation.maxHeightTime ? ` / ${escapeHtml(observation.maxHeightTime)}` : ""}</span></p>
+          `).join("")}</div>
+        </details>
+      ` : ""}
+      ${renderTsunamiOfficialLink()}
+    </section>
+  `;
+}
+
+function buildTsunamiAreaDetail(area) {
+  const arrival = area.arrivalCondition || (area.arrivalTime ? `到達予想 ${area.arrivalTime}` : "到達予想時刻なし");
+  const height = area.heightCondition || (area.height ? `予想最大波 ${area.height}` : "高さ未発表");
+  return `${arrival} / ${height}`;
+}
+
+function renderTsunamiOfficialLink() {
+  return `<a class="tsunami-official-link" href="https://www.jma.go.jp/bosai/map.html#contents=tsunami" target="_blank" rel="noopener noreferrer">気象庁の津波情報を開く</a>`;
 }
 
 function renderEarthquakeObservations(observations, observationsId) {
@@ -2711,6 +2807,12 @@ function renderEarthquakeObservations(observations, observationsId) {
       ${body}
     </section>
   `;
+}
+
+function buildMobileTsunamiStatusMarkup(earthquake, tsunami, status) {
+  const tsunamiState = getEarthquakeTsunamiState(earthquake, tsunami, status);
+  if (!tsunamiState.label) return "";
+  return `<span class="earthquake-tsunami-status level-${escapeHtml(tsunamiState.level)}">${escapeHtml(tsunamiState.label)}</span>`;
 }
 
 function formatEarthquakeMagnitude(value, options = {}) {

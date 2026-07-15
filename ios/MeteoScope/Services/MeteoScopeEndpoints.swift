@@ -6,8 +6,13 @@ enum MeteoScopeEndpoints {
     static let termsOfUse = URL(string: "https://meteoscope.pages.dev/terms.html")!
     static let support = URL(string: "https://meteoscope.pages.dev/support.html")!
     static let jmaOfficial = URL(string: "https://www.jma.go.jp/bosai/")!
+    static let jmaTsunamiInformation = URL(
+        string: "https://www.jma.go.jp/bosai/map.html#contents=tsunami"
+    )!
     static let jmaTerms = URL(string: "https://www.jma.go.jp/jma/kishou/info/coment.html")!
     static let jmaDataPortal = URL(string: "https://www.data.jma.go.jp/developer/index.html")!
+    static let dmdataDocumentation = URL(string: "https://dmdata.jp/docs/manual")!
+    static let dmdataTerms = URL(string: "https://dmdata.jp/terms")!
     static let gsiTiles = URL(string: "https://maps.gsi.go.jp/development/ichiran.html")!
     static let jshisMajorFaultAPI = URL(
         string: "https://www.j-shis.bosai.go.jp/api-vectortile-majorfault"
@@ -66,6 +71,25 @@ enum MeteoScopeEndpoints {
         URL(string: "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml")!,
         URL(string: "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml")!
     ]
+    private static let earthquakeAPIBase = URL(
+        string: "https://meteoscope.pages.dev/api/earthquakes"
+    )!
+    static let dmdataEarthquakeHistory: URL = {
+        var components = URLComponents(
+            url: earthquakeAPIBase.appending(path: "history"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [URLQueryItem(name: "limit", value: "11")]
+        return components.url!
+    }()
+    static let dmdataEarthquakeLatest = earthquakeAPIBase.appending(path: "latest")
+    static func dmdataEarthquakeStations(eventID: String) -> URL? {
+        guard !eventID.isEmpty else { return nil }
+        return earthquakeAPIBase
+            .appending(path: "history")
+            .appending(path: eventID)
+            .appending(path: "stations")
+    }
     static let earthquakeStationCatalog = URL(
         string: "https://meteoscope.pages.dev/data/jma-intensity-stations.json"
     )!
@@ -77,6 +101,9 @@ enum MeteoScopeEndpoints {
     )!
     static let earthquakeAreaBoundaries = URL(
         string: "https://meteoscope.pages.dev/data/earthquake-areas.geojson"
+    )!
+    static let tsunamiForecastAreaBoundaries = URL(
+        string: "https://meteoscope.pages.dev/data/jma-tsunami-forecast-areas.geojson"
     )!
     static let riverFloodGeometry = URL(
         string: "https://services.arcgis.com/wlVTGRSYTzAbjjiC/ArcGIS/rest/services/flood_risk_all/FeatureServer/0/query"

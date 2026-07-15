@@ -76,6 +76,7 @@ struct WeatherMapGeoJSONLayer: Identifiable, Hashable, Sendable {
         case early(EarlyWarningLevel)
         case river(Int)
         case seismicIntensity(String)
+        case tsunami(TsunamiLevel)
     }
 
     let id: String
@@ -229,8 +230,11 @@ enum WeatherMapOverlayBuilder {
         )
     }
 
-    static func earthquake(_ earthquake: EarthquakeSummary) -> WeatherMapOverlay {
-        var points: [WeatherMapPoint] = earthquake.intensityPoints
+    static func earthquake(
+        _ earthquake: EarthquakeSummary?,
+        tsunami: TsunamiSnapshot? = nil
+    ) -> WeatherMapOverlay {
+        var points: [WeatherMapPoint] = (earthquake?.intensityPoints ?? [])
             .sorted {
                 SeismicIntensityCatalog.rank($0.intensity) > SeismicIntensityCatalog.rank($1.intensity)
             }
@@ -246,7 +250,7 @@ enum WeatherMapOverlayBuilder {
                 )
             }
 
-        if let coordinate = earthquake.coordinate {
+        if let earthquake, let coordinate = earthquake.coordinate {
             points.insert(
                 WeatherMapPoint(
                     id: "\(earthquake.id)-hypocenter",
@@ -259,9 +263,9 @@ enum WeatherMapOverlayBuilder {
             )
         }
 
-        let intensityLabels = earthquake.intensityAreas.map(\.intensity).uniqued()
+        let intensityLabels = (earthquake?.intensityAreas ?? []).map(\.intensity).uniqued()
         let layers = intensityLabels.compactMap { intensity -> WeatherMapGeoJSONLayer? in
-            let codes = earthquake.intensityAreas
+            let codes = (earthquake?.intensityAreas ?? [])
                 .filter { $0.intensity == intensity }
                 .map(\.areaCode)
             guard !codes.isEmpty else { return nil }
@@ -273,16 +277,39 @@ enum WeatherMapOverlayBuilder {
                 appearance: .seismicIntensity(intensity)
             )
         }
-        let sources = layers.isEmpty ? [] : [
+        var sources = layers.isEmpty ? [] : [
             WeatherMapGeoJSONSource(
                 id: "earthquake-boundaries",
                 url: MeteoScopeEndpoints.earthquakeAreaBoundaries,
                 layers: layers
             )
         ]
+        let tsunamiLayers = TsunamiLevel.allMapLevels.compactMap { level -> WeatherMapGeoJSONLayer? in
+            let codes = (tsunami?.areas ?? [])
+                .filter { $0.level == level }
+                .map(\.code)
+                .filter { !$0.isEmpty }
+            guard !codes.isEmpty else { return nil }
+            return WeatherMapGeoJSONLayer(
+                id: "tsunami-\(level.rawValue)",
+                propertyName: "code",
+                values: codes,
+                geometry: .line,
+                appearance: .tsunami(level)
+            )
+        }
+        if !tsunamiLayers.isEmpty {
+            sources.append(
+                WeatherMapGeoJSONSource(
+                    id: "tsunami-forecast-areas",
+                    url: MeteoScopeEndpoints.tsunamiForecastAreaBoundaries,
+                    layers: tsunamiLayers
+                )
+            )
+        }
 
         return WeatherMapOverlay(
-            id: "earthquake-\(earthquake.id)-\(earthquake.reportTime)-\(earthquake.intensityPoints.count)",
+            id: "earthquake-\(earthquake?.id ?? "none")-\(earthquake?.reportTime ?? "")-tsunami-\(tsunami?.reportTime ?? "none")",
             points: points,
             geoJSONSources: sources
         )

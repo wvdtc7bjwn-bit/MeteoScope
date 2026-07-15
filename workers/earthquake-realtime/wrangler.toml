@@ -1,0 +1,21 @@
+name = "eqapp-realtime"
+main = "src/index.js"
+compatibility_date = "2026-07-15"
+
+[vars]
+DMDATA_APP_NAME = "meteoscope-earthquake"
+DMDATA_TEST_MODE = "excluding"
+
+[[durable_objects.bindings]]
+name = "EARTHQUAKE_HUB"
+class_name = "RealtimeHub"
+
+# The v1 migration already exists on the adopted eqapp-realtime script.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RealtimeHub"]
+
+[[d1_databases]]
+binding = "EQ_D1"
+database_name = "eq-signal-history"
+database_id = "1b800abc-1bef-4bff-8966-27250b945e7c"

@@ -584,6 +584,8 @@ struct EarthquakeDashboardCard: View {
                                 let isSelected = earthquake.id == selectedEarthquake.id
                                 EarthquakeHistoryCard(
                                     earthquake: earthquake,
+                                    tsunami: snapshot.tsunami,
+                                    tsunamiStatus: snapshot.tsunamiStatus,
                                     isExpanded: isSelected && collapsedEarthquakeID != earthquake.id
                                 ) {
                                     withAnimation(.easeInOut(duration: 0.18)) {
@@ -616,8 +618,47 @@ struct EarthquakeDashboardCard: View {
     }
 }
 
+private struct TsunamiAreaRow: View {
+    let area: TsunamiArea
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(area.level.displayName)
+                .font(.caption2.weight(.bold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(.secondary.opacity(0.5), lineWidth: 1)
+                )
+            VStack(alignment: .leading, spacing: 2) {
+                Text(area.name)
+                    .font(.caption.weight(.bold))
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(8)
+        .background(.black.opacity(0.06), in: RoundedRectangle(cornerRadius: 9))
+    }
+
+    private var detail: String {
+        let arrival = area.arrivalCondition.isEmpty
+            ? (area.arrivalTime.isEmpty ? "到達予想時刻なし" : "到達予想 \(DateTextFormatter.shortDateTime(area.arrivalTime))")
+            : area.arrivalCondition
+        let height = area.heightCondition.isEmpty
+            ? (area.height.isEmpty ? "高さ未発表" : "予想最大波 \(area.height)")
+            : area.heightCondition
+        return "\(arrival) / \(height)"
+    }
+}
+
 private struct EarthquakeHistoryCard: View {
     let earthquake: EarthquakeSummary
+    let tsunami: TsunamiSnapshot?
+    let tsunamiStatus: TsunamiFetchStatus
     let isExpanded: Bool
     let onSelect: () -> Void
 
@@ -633,6 +674,24 @@ private struct EarthquakeHistoryCard: View {
 
     private var observationCount: Int {
         orderedPoints.isEmpty ? earthquake.intensityAreas.count : orderedPoints.count
+    }
+
+    private var matchingTsunami: TsunamiSnapshot? {
+        guard !earthquake.eventID.isEmpty,
+              let tsunami,
+              !tsunami.eventID.isEmpty,
+              earthquake.eventID == tsunami.eventID
+        else { return nil }
+        return tsunami
+    }
+
+    private var tsunamiLabel: String? {
+        if tsunamiStatus == .unavailable { return "津波情報を確認できません" }
+        if let matchingTsunami { return matchingTsunami.highestLevel.displayName }
+        let comment = earthquake.tsunamiComment.isEmpty ? earthquake.headline : earthquake.tsunamiComment
+        if comment.contains("津波の心配はありません") { return "津波の心配なし" }
+        if comment.contains("若干の海面変動") { return "若干の海面変動" }
+        return nil
     }
 
     var body: some View {
@@ -664,9 +723,21 @@ private struct EarthquakeHistoryCard: View {
                             .font(.headline.weight(.bold))
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
-                        HStack(spacing: 12) {
+                        HStack(spacing: 8) {
                             Text(earthquake.magnitude)
                             Text("深さ \(earthquake.depth)")
+                            if let tsunamiLabel {
+                                Text(tsunamiLabel)
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(tsunamiAccent)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.72)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                                    .overlay(
+                                        Capsule().stroke(tsunamiAccent.opacity(0.7), lineWidth: 1)
+                                    )
+                            }
                         }
                         .font(.subheadline.monospacedDigit().weight(.semibold))
                     }
@@ -741,6 +812,10 @@ private struct EarthquakeHistoryCard: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
+
+                    if let matchingTsunami {
+                        TsunamiEventDetails(tsunami: matchingTsunami)
+                    }
                 }
                 .padding(12)
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -751,6 +826,84 @@ private struct EarthquakeHistoryCard: View {
             interactive: true
         )
         .shadow(color: .black.opacity(isExpanded ? 0.16 : 0.1), radius: 10, y: 4)
+    }
+
+    private var tsunamiAccent: Color {
+        guard let level = matchingTsunami?.highestLevel else { return .secondary }
+        switch level {
+        case .majorWarning: .purple
+        case .warning: .red
+        case .advisory: .yellow
+        case .forecast: Color.meteoscopeAccent
+        case .none: .secondary
+        }
+    }
+}
+
+private struct TsunamiEventDetails: View {
+    let tsunami: TsunamiSnapshot
+
+    private var visibleAreas: [TsunamiArea] {
+        tsunami.areas.filter { $0.level != .none }
+    }
+
+    private var observations: [TsunamiObservation] {
+        tsunami.observations + tsunami.offshoreObservations
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            HStack {
+                Label("気象庁発表 \(tsunami.highestLevel.displayName)", systemImage: "water.waves")
+                    .font(.caption.weight(.bold))
+                Spacer()
+                Text(DateTextFormatter.shortDateTime(tsunami.reportTime))
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            if !tsunami.headline.isEmpty {
+                Text(tsunami.headline)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            if !visibleAreas.isEmpty {
+                DisclosureGroup("対象の津波予報区（\(visibleAreas.count)）") {
+                    LazyVStack(spacing: 6) {
+                        ForEach(visibleAreas) { area in
+                            TsunamiAreaRow(area: area)
+                        }
+                    }
+                    .padding(.top, 7)
+                }
+                .font(.caption.weight(.semibold))
+            }
+            if !observations.isEmpty {
+                DisclosureGroup("観測された津波（\(observations.count)地点）") {
+                    LazyVStack(spacing: 5) {
+                        ForEach(observations.prefix(30)) { observation in
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(observation.stationName)
+                                    .lineLimit(2)
+                                Spacer()
+                                Text(observation.maximumHeightCondition.isEmpty
+                                     ? (observation.maximumHeight.isEmpty ? "高さ未発表" : observation.maximumHeight)
+                                     : observation.maximumHeightCondition)
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.trailing)
+                            }
+                            .font(.caption2)
+                        }
+                    }
+                    .padding(.top, 7)
+                }
+                .font(.caption.weight(.semibold))
+            }
+            Link(destination: MeteoScopeEndpoints.jmaTsunamiInformation) {
+                Label("気象庁の津波情報を開く", systemImage: "safari")
+                    .font(.caption.weight(.semibold))
+            }
+        }
     }
 }
 

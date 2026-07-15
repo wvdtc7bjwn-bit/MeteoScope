@@ -14,6 +14,10 @@ export const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 export const AUTO_REFRESH_RESUME_THROTTLE_MS = 60 * 1000;
 export const EARTHQUAKE_REFRESH_INTERVAL_MS = 60 * 1000;
 export const STATIC_DATA_CACHE_TTL_MS = 60 * 60 * 1000;
+const EARTHQUAKE_API_BASE = String(
+  import.meta.env?.VITE_EARTHQUAKE_API_BASE ||
+  "/api/earthquakes"
+).replace(/\/+$/, "");
 
 function publicAsset(path) {
   return `${APP_BASE_URL}${path.replace(/^\/+/, "")}`;
@@ -21,6 +25,14 @@ function publicAsset(path) {
 
 export const MAP_DATA_ENDPOINTS = {
   jshisMajorFaultTiles: "https://www.j-shis.bosai.go.jp/map/xyz/major_fault/Y2022/MAX/{z}/{x}/{y}.mvt?lang=ja"
+};
+
+export const DMDATA_ENDPOINTS = {
+  earthquakeHistory: `${EARTHQUAKE_API_BASE}/history`,
+  earthquakeLatest: `${EARTHQUAKE_API_BASE}/latest`,
+  earthquakeStations(eventId) {
+    return `${EARTHQUAKE_API_BASE}/history/${encodeURIComponent(String(eventId ?? ""))}/stations`;
+  }
 };
 
 export const DEFAULT_VIEW = {
@@ -51,6 +63,7 @@ export const JMA_ENDPOINTS = {
   warningMunicipalities: publicAsset("data/jma-weather-warning-municipalities.geojson"),
   prefectures: publicAsset("data/japan-prefectures.geojson"),
   earthquakeAreas: publicAsset("data/earthquake-areas.geojson"),
+  tsunamiForecastAreas: publicAsset("data/jma-tsunami-forecast-areas.geojson"),
   earthquakeStations: publicAsset("data/jma-intensity-stations.json"),
   amedasStationTable: "https://www.jma.go.jp/bosai/amedas/const/amedastable.json",
   amedasMapBase: "https://www.jma.go.jp/bosai/amedas/data/map",

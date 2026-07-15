@@ -4,7 +4,7 @@ export function attachIntensityStationCoordinates(stations, stationLookup) {
     return {
       ...station,
       stationName: station.stationName || coordinate?.name || station.code,
-      coordinates: coordinate?.coordinates ?? null
+      coordinates: coordinate?.coordinates ?? station.coordinates ?? null
     };
   });
 }

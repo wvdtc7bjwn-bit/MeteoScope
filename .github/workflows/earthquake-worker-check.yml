@@ -1,0 +1,54 @@
+name: Earthquake Worker check
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "workers/earthquake-realtime/**"
+      - "functions/api/earthquakes/**"
+      - "public/data/jma-intensity-stations.json"
+      - "src/config.js"
+      - "Tests/EarthquakeWorkerRouteTests.mjs"
+      - "package.json"
+      - ".github/workflows/earthquake-worker-check.yml"
+  pull_request:
+    paths:
+      - "workers/earthquake-realtime/**"
+      - "functions/api/earthquakes/**"
+      - "public/data/jma-intensity-stations.json"
+      - "src/config.js"
+      - "Tests/EarthquakeWorkerRouteTests.mjs"
+      - "package.json"
+      - ".github/workflows/earthquake-worker-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test public route policy and Pages proxy
+        run: npm run test:earthquake-worker
+
+      - name: Test DM-D.S.S adapter
+        run: npm run test:dmdata
+
+      - name: Bundle Worker without deployment
+        run: >-
+          npx --yes wrangler@4.95.0 deploy
+          --dry-run
+          --config workers/earthquake-realtime/wrangler.toml
+          --outdir ${{ runner.temp }}/meteoscope-earthquake-worker

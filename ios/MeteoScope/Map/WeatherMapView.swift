@@ -422,6 +422,16 @@ struct WeatherMapView: UIViewRepresentable {
                 color = intensityColor(label)
                 opacity = 0.48
                 width = 1.3
+            case .tsunami(let level):
+                switch level {
+                case .majorWarning: color = UIColor(red: 0.71, green: 0, blue: 1, alpha: 1)
+                case .warning: color = UIColor(red: 1, green: 0.17, blue: 0.07, alpha: 1)
+                case .advisory: color = UIColor(red: 0.96, green: 0.82, blue: 0, alpha: 1)
+                case .forecast: color = UIColor(red: 0.09, green: 0.55, blue: 0.82, alpha: 1)
+                case .none: color = .systemGray
+                }
+                opacity = 0.96
+                width = Double(level.rank + 2)
             }
             return (color, color.withAlphaComponent(0.92), NSNumber(value: opacity), NSNumber(value: width))
         }

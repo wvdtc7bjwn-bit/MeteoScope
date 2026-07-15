@@ -20,6 +20,7 @@ final class WeatherAppModel {
     private(set) var lastSuccessfulFetchAt: [WeatherFeature: Date] = [:]
     private(set) var latestFetchError: [WeatherFeature: String] = [:]
     private(set) var dismissedNoticeIDs: Set<RemoteNotice.ID> = []
+    private var loadingEarthquakeStationIDs: Set<String> = []
 
     private let client: WeatherAPIClient
 
@@ -44,6 +45,42 @@ final class WeatherAppModel {
 
     func selectEarthquake(_ earthquake: EarthquakeSummary) {
         selectedEarthquakeID = earthquake.id
+        guard earthquake.intensityPoints.isEmpty,
+              !earthquake.eventID.isEmpty,
+              loadingEarthquakeStationIDs.insert(earthquake.eventID).inserted
+        else {
+            return
+        }
+        Task { [weak self] in
+            await self?.loadEarthquakeStations(eventID: earthquake.eventID)
+        }
+    }
+
+    private func loadEarthquakeStations(eventID: String) async {
+        defer { loadingEarthquakeStationIDs.remove(eventID) }
+        do {
+            let points = try await client.fetchEarthquakeStations(eventID)
+            guard !Task.isCancelled, !points.isEmpty,
+                  case .loaded(let snapshot) = earthquakeState
+            else {
+                return
+            }
+            let earthquakes = snapshot.earthquakes.map { earthquake in
+                earthquake.eventID == eventID
+                    ? earthquake.replacingIntensityPoints(points)
+                    : earthquake
+            }
+            earthquakeState = .loaded(EarthquakeSnapshot(
+                updatedAt: snapshot.updatedAt,
+                earthquakes: earthquakes,
+                tsunami: snapshot.tsunami,
+                tsunamiStatus: snapshot.tsunamiStatus
+            ))
+        } catch is CancellationError {
+            return
+        } catch {
+            // Region-level intensity data remains available when station details fail.
+        }
     }
 
     var maintenanceConfiguration: MaintenanceConfiguration? {

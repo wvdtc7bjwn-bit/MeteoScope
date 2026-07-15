@@ -32,6 +32,10 @@ Pages プロジェクト名を `meteoscope` にした場合の標準 URL は `ht
 - 台風情報
   - 現在位置、過去経路、予報経路、予報円、強風域、暴風域、暴風警戒域を表示
   - 台風が発表されていない場合は発表なし表示
+- 地震・津波情報
+  - 直近の地震、震源、各地の震度を表示
+  - 各地震に「津波の心配なし」「津波注意報」等を表示
+  - 気象庁の津波予報区、到達予想、沿岸・沖合の観測値を地図と詳細に表示
 - 共通
   - MapLibre GL による暗色地図
   - 全タブで市区町村区分を表示
@@ -40,7 +44,7 @@ Pages プロジェクト名を `meteoscope` にした場合の標準 URL は `ht
 
 ## データ取得元
 
-通常の気象表示はブラウザから気象庁の公開データを取得します。Cloudflare Pages Functionsは管理機能とWeb/iOS通知基盤に使用します。
+通常の気象表示はブラウザから気象庁の公開データを取得します。地震情報はMeteoScope専用のCloudflare Workerを通じてDM-D.S.S配信データを取得し、津波情報は気象庁防災情報XMLを併用します。Cloudflare Pages Functionsは管理機能、Web/iOS通知基盤、地震Workerへの読み取り専用プロキシに使用します。
 
 - 雨雲レーダー: 気象庁降水ナウキャストタイル
 - アメダス: 気象庁アメダス JSON
@@ -48,9 +52,12 @@ Pages プロジェクト名を `meteoscope` にした場合の標準 URL は `ht
 - 今後の見通し: 気象庁 `warning_timeline` JSON
 - キキクル: 気象庁リスクタイル
 - 台風情報: 気象庁台風 JSON
+- 地震情報: DM-D.S.Sを受信するMeteoScope専用Worker（履歴・最新・選択時の観測点）。構築・切替方法は`workers/earthquake-realtime/README.md`を参照
+- 津波情報: 気象庁防災情報XML（VTSE41/51/52）
 - 市区町村境界: `public/data/jma-weather-warning-municipalities.geojson`
 - 都道府県境界: `public/data/japan-prefectures.geojson`
 - 震度観測点: `public/data/jma-intensity-stations.json`
+- 津波予報区: `public/data/jma-tsunami-forecast-areas.geojson`
 
 各データの提供者、取得URL、再利用条件は[`DATA_SOURCES.md`](DATA_SOURCES.md)を参照してください。市区町村境界、地震区域、都道府県境界、震度観測点は気象庁の公式公開データ由来です。都道府県境界と震度観測点は`npm run data:update:jma`で再生成できます。ArcGIS河川レイヤーは親アイテムの利用条件と原典を確認済みです。
 

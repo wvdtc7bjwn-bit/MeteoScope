@@ -2446,12 +2446,20 @@ function createWarningFeatures(data) {
 }
 
 function createEarthquakeFeatures(data) {
+  const tsunamiFeatures = (data?.tsunami?.mapFeatures ?? []).map((feature) => ({
+    ...feature,
+    properties: {
+      ...(feature.properties ?? {}),
+      color: feature.properties?.color ?? "#168bd2",
+      lineWidth: feature.properties?.lineWidth ?? 3
+    }
+  }));
   const earthquakes = data?.earthquakes ?? [];
   const selectedId = String(data?.selectedEarthquakeId ?? "");
   const earthquake = data?.selectedEarthquake
     ?? earthquakes.find((item) => String(item.id) === selectedId)
     ?? earthquakes[0];
-  if (!earthquake) return [];
+  if (!earthquake) return tsunamiFeatures;
 
   const areaFeatures = (earthquake.intensityAreaFeatures ?? []).map((feature) => ({
     ...feature,
@@ -2493,7 +2501,7 @@ function createEarthquakeFeatures(data) {
     }]
     : [];
 
-  return [...areaFeatures, ...stationFeatures, ...epicenterFeature];
+  return [...tsunamiFeatures, ...areaFeatures, ...stationFeatures, ...epicenterFeature];
 }
 
 function getEarthquakeIntensityRadius(value) {
