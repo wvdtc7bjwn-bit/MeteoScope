@@ -58,6 +58,21 @@ const [ambiguousStation] = attachIntensityStationCoordinates([
 ], ambiguousLookup);
 assert.equal(ambiguousStation.coordinates, null);
 
+const directCoordinateLookup = buildStationCoordinateLookup({
+  "0120221": {
+    name: "旧座標",
+    latitude: 45.4,
+    longitude: 141.7
+  }
+});
+const [directCoordinateStation] = attachIntensityStationCoordinates([{
+  code: "0120221",
+  stationName: "函館市泊町＊",
+  intensity: "1",
+  coordinates: [141.0044, 41.7158]
+}], directCoordinateLookup);
+assert.deepEqual(directCoordinateStation.coordinates, [141.0044, 41.7158]);
+
 const stationRows = buildEarthquakeObservationRows({
   intensityStations: [
     { code: "02", stationName: "盛岡市薮川", prefecture: "岩手県", intensity: "2", intensityShort: "2", rank: 2 },
