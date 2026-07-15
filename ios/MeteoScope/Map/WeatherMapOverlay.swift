@@ -230,12 +230,12 @@ enum WeatherMapOverlayBuilder {
     }
 
     static func earthquake(_ earthquake: EarthquakeSummary) -> WeatherMapOverlay {
-        var points = earthquake.intensityPoints
+        var points: [WeatherMapPoint] = earthquake.intensityPoints
             .sorted {
                 SeismicIntensityCatalog.rank($0.intensity) > SeismicIntensityCatalog.rank($1.intensity)
             }
             .prefix(600)
-            .compactMap { station in
+            .compactMap { station -> WeatherMapPoint? in
                 guard let coordinate = station.coordinate else { return nil }
                 return WeatherMapPoint(
                     id: "station-\(station.stationCode)",
