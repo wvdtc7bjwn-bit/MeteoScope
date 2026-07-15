@@ -639,25 +639,6 @@ private struct EarthquakeHistoryCard: View {
         VStack(spacing: 0) {
             Button(action: onSelect) {
                 HStack(alignment: .top, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("震源地")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(earthquake.hypocenterName)
-                            .font(.headline.weight(.bold))
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                        HStack(spacing: 12) {
-                            Text(earthquake.magnitude)
-                            Text("深さ \(earthquake.depth)")
-                        }
-                        .font(.caption.monospacedDigit().weight(.semibold))
-                        Text("発生時刻 \(DateTextFormatter.shortDateTime(earthquake.eventTime))頃")
-                            .font(.caption2.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
                     VStack(spacing: 5) {
                         Text("最大震度")
                             .font(.caption2.weight(.semibold))
@@ -671,6 +652,25 @@ private struct EarthquakeHistoryCard: View {
                                 in: RoundedRectangle(cornerRadius: 14)
                             )
                     }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("\(DateTextFormatter.shortDateTime(earthquake.eventTime))頃発生")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                        Text("震源地")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Text(earthquake.hypocenterName)
+                            .font(.headline.weight(.bold))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 12) {
+                            Text(earthquake.magnitude)
+                            Text("深さ \(earthquake.depth)")
+                        }
+                        .font(.subheadline.monospacedDigit().weight(.semibold))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                     Image(systemName: "chevron.down")
                         .font(.caption.weight(.bold))
@@ -748,8 +748,7 @@ private struct EarthquakeHistoryCard: View {
         }
         .meteoGlassSurface(
             cornerRadius: 18,
-            interactive: true,
-            tint: isExpanded ? .blue.opacity(0.11) : nil
+            interactive: true
         )
         .shadow(color: .black.opacity(isExpanded ? 0.16 : 0.1), radius: 10, y: 4)
     }

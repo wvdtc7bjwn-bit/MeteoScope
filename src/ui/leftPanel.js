@@ -2666,18 +2666,18 @@ function renderEarthquakeList(tab, state) {
           aria-pressed="${isActive ? "true" : "false"}"
           aria-controls="${observationsId}"
         >
+          <span class="earthquake-card-intensity">
+            <small>最大震度</small>
+            <strong class="${intensityTextClass}" style="--earthquake-item-intensity-bg: ${escapeHtml(intensityColor)};">${escapeHtml(earthquake.maxIntensityShort ?? "--")}</strong>
+          </span>
           <span class="earthquake-card-info">
+            <time>${escapeHtml(formatEarthquakeEventTime(earthquake.eventTime ?? earthquake.reportTime))}発生</time>
             <small>震源地</small>
             <strong>${escapeHtml(earthquake.hypocenterName ?? "震源調査中")}</strong>
             <span class="earthquake-card-facts">
               <span>${escapeHtml(magnitude)}</span>
               <span>深さ ${escapeHtml(depthText)}</span>
             </span>
-            <time>発生時刻 ${escapeHtml(formatEarthquakeEventTime(earthquake.eventTime ?? earthquake.reportTime))}</time>
-          </span>
-          <span class="earthquake-card-intensity">
-            <small>最大震度</small>
-            <strong class="${intensityTextClass}" style="--earthquake-item-intensity-bg: ${escapeHtml(intensityColor)};">${escapeHtml(earthquake.maxIntensityShort ?? "--")}</strong>
           </span>
           <span class="earthquake-card-chevron" aria-hidden="true"></span>
         </button>

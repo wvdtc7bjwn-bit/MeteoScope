@@ -2720,20 +2720,15 @@ h2 {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.045);
+  background: rgba(10, 19, 34, 0.82);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
 }
 
-.earthquake-history-item.active {
-  border-color: rgba(86, 183, 242, 0.6);
-  background:
-    linear-gradient(135deg, rgba(86, 183, 242, 0.14), rgba(72, 196, 107, 0.055)),
-    rgba(255, 255, 255, 0.045);
-}
-
 .earthquake-select-button {
+  appearance: none;
+  -webkit-appearance: none;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 64px 14px;
+  grid-template-columns: 64px minmax(0, 1fr) 14px;
   align-items: stretch;
   gap: 10px;
   width: 100%;
@@ -2745,6 +2740,11 @@ h2 {
   font: inherit;
   text-align: left;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.earthquake-select-button:is(:hover, :active) {
+  background: transparent;
 }
 
 .earthquake-select-button:focus-visible {
@@ -2815,7 +2815,7 @@ h2 {
   flex-wrap: wrap;
   gap: 4px 12px;
   color: rgba(237, 244, 255, 0.92);
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1.3;
@@ -6343,18 +6343,12 @@ html[data-theme="light"] .warning-empty {
 
 html[data-theme="light"] :is(.earthquake-history-item, .earthquake-observation-list) {
   border-color: rgba(72, 100, 132, 0.2);
-  background: rgba(246, 250, 255, 0.28);
+  background: rgba(246, 250, 255, 0.96);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.58),
     0 8px 20px rgba(51, 73, 99, 0.1);
-  backdrop-filter: blur(18px) saturate(1.35);
-  -webkit-backdrop-filter: blur(18px) saturate(1.35);
-}
-
-html[data-theme="light"] .earthquake-history-item.active {
-  border-color: rgba(37, 143, 199, 0.4);
-  background: rgba(102, 194, 241, 0.2);
-  color: #17314a;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 @media (max-width: 800px) and (orientation: portrait) {
@@ -6666,7 +6660,7 @@ html[data-theme="light"] .weather-chart-kind.forecast {
   background: rgba(244, 169, 76, 0.2);
 }
 
-html[data-theme="light"] :is(.earthquake-history-item, .earthquake-observation-list, .typhoon-select-button, .typhoon-detail-item) {
+html[data-theme="light"] :is(.typhoon-select-button, .typhoon-detail-item) {
   border-color: rgba(56, 87, 118, 0.24);
   background: rgba(242, 248, 253, 0.4);
   box-shadow:
