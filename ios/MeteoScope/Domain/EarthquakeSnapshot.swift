@@ -5,6 +5,31 @@ struct EarthquakeSnapshot: Sendable {
     let earthquakes: [EarthquakeSummary]
     let tsunami: TsunamiSnapshot?
     let tsunamiStatus: TsunamiFetchStatus
+
+    func preservingIntensityPoints(from previous: Self) -> Self {
+        let previousByEventID = previous.earthquakes.reduce(
+            into: [String: EarthquakeSummary]()
+        ) { result, earthquake in
+            if result[earthquake.eventID] == nil {
+                result[earthquake.eventID] = earthquake
+            }
+        }
+        let mergedEarthquakes = earthquakes.map { earthquake in
+            guard earthquake.intensityPoints.isEmpty,
+                  let previousEarthquake = previousByEventID[earthquake.eventID],
+                  !previousEarthquake.intensityPoints.isEmpty
+            else {
+                return earthquake
+            }
+            return earthquake.replacingIntensityPoints(previousEarthquake.intensityPoints)
+        }
+        return Self(
+            updatedAt: updatedAt,
+            earthquakes: mergedEarthquakes,
+            tsunami: tsunami,
+            tsunamiStatus: tsunamiStatus
+        )
+    }
 }
 
 enum TsunamiFetchStatus: String, Sendable {

@@ -96,3 +96,21 @@ export function sanitizeJmaIntensityStationPoints(data) {
   ));
   return points.length === data.points.length ? data : { ...data, points };
 }
+
+export function preserveJmaIntensityStationPoints(previous, next) {
+  const sanitizedNext = sanitizeJmaIntensityStationPoints(next);
+  if (!previous || !sanitizedNext) {
+    return sanitizedNext;
+  }
+  const previousEventId = String(previous.eventId ?? previous.event_id ?? "");
+  const nextEventId = String(sanitizedNext.eventId ?? sanitizedNext.event_id ?? "");
+  if (!previousEventId || previousEventId !== nextEventId) {
+    return sanitizedNext;
+  }
+  const previousPoints = sanitizeJmaIntensityStationPoints(previous)?.points ?? [];
+  const nextPoints = Array.isArray(sanitizedNext.points) ? sanitizedNext.points : [];
+  if (nextPoints.length > 0 || previousPoints.length === 0) {
+    return sanitizedNext;
+  }
+  return { ...sanitizedNext, points: previousPoints };
+}

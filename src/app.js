@@ -19,7 +19,8 @@ import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
 import {
   fetchDmdataEarthquakeList,
-  hydrateDmdataEarthquakeStations
+  hydrateDmdataEarthquakeStations,
+  mergeDmdataEarthquakeStationDetails
 } from "./dmdata/earthquakes.js";
 import { fetchKikikuruTiles } from "./jma/kikikuru.js";
 import { fetchRiverFloodForecasts } from "./jma/riverFlood.js";
@@ -375,10 +376,15 @@ if (layerId === "river") {
     if (!isSelected) focusSelectedEarthquake();
     void hydrateDmdataEarthquakeStations(latestDataByTab.earthquake, nextEarthquakeId)
       .then((nextData) => {
-        if (!nextData || nextData === latestDataByTab.earthquake) return;
-        latestDataByTab.earthquake = nextData;
+        if (!nextData) return;
+        const mergedData = mergeDmdataEarthquakeStationDetails(
+          nextData,
+          latestDataByTab.earthquake
+        );
+        if (mergedData === latestDataByTab.earthquake) return;
+        latestDataByTab.earthquake = mergedData;
         if (activeTab !== "earthquake") return;
-        updateCurrentView(tab, nextData);
+        updateCurrentView(tab, mergedData);
         if (String(activeEarthquakeId) === nextEarthquakeId) focusSelectedEarthquake();
       })
       .catch((error) => {
@@ -904,7 +910,8 @@ if (layerId === "river") {
 
     earthquakeRefreshRequest = loadTabData("earthquake")
       .then((nextData) => {
-        const earthquakes = nextData?.earthquakes ?? [];
+        const mergedData = mergeDmdataEarthquakeStationDetails(previousData, nextData);
+        const earthquakes = mergedData?.earthquakes ?? [];
         const nextLatestId = String(earthquakes[0]?.id ?? "");
         const selectedStillExists = earthquakes.some((earthquake) =>
           String(earthquake.id) === selectedIdAtStart
@@ -918,12 +925,12 @@ if (layerId === "river") {
           activeEarthquakeId = selectedIdAtStart;
         }
 
-        latestDataByTab.earthquake = nextData;
+        latestDataByTab.earthquake = mergedData;
         if (activeTab === "earthquake") {
           const tab = TABS.find((item) => item.id === "earthquake");
-          updateCurrentView(tab, nextData);
+          updateCurrentView(tab, mergedData);
         }
-        return nextData;
+        return mergedData;
       })
       .catch((error) => {
         console.warn("[MeteoScope] earthquake realtime refresh failed", error);

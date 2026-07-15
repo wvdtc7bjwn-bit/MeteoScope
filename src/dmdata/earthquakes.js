@@ -35,9 +35,12 @@ export async function fetchDmdataEarthquakeList() {
     throw new Error("DM-D.S.S earthquake history is unavailable");
   }
   const latest = latestPayload?.latest?.earthquake ?? null;
+  const latestStationItems = Array.isArray(latest?.data?.points) && latest.data.points.length > 0
+    ? latest.data.points
+    : null;
   const mapped = history.map((item) => mapDmdataHistoryItem(
     item,
-    latest?.data?.eventId === item?.event_id ? (latest.data.points ?? []) : null
+    latest?.data?.eventId === item?.event_id ? latestStationItems : null
   ));
   const earthquakes = await attachEarthquakeMapDataList(mapped);
   const tsunami = await mapDmdataTsunami(latestPayload?.latest?.tsunami ?? null);
@@ -54,6 +57,26 @@ export async function fetchDmdataEarthquakeList() {
     updatedAt,
     summary: earthquakes.length > 0 ? `地震情報 ${earthquakes.length} 件` : "地震情報はありません"
   };
+}
+
+export function mergeDmdataEarthquakeStationDetails(currentSnapshot, nextSnapshot) {
+  if (!currentSnapshot || !nextSnapshot) return nextSnapshot;
+  const currentById = new Map(
+    (currentSnapshot.earthquakes ?? []).map((earthquake) => [String(earthquake.id), earthquake])
+  );
+  let changed = false;
+  const earthquakes = (nextSnapshot.earthquakes ?? []).map((earthquake) => {
+    if ((earthquake.intensityStations ?? []).length > 0) return earthquake;
+    const current = currentById.get(String(earthquake.id));
+    if (!current || (current.intensityStations ?? []).length === 0) return earthquake;
+    changed = true;
+    return {
+      ...earthquake,
+      intensityStations: current.intensityStations,
+      stationsLoaded: current.stationsLoaded
+    };
+  });
+  return changed ? { ...nextSnapshot, earthquakes } : nextSnapshot;
 }
 
 export async function mapDmdataTsunami(envelope, areaLookup = null) {

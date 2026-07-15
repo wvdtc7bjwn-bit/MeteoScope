@@ -9,6 +9,7 @@ import {
   findJmaIntensityStationCoordinate,
   isJmaIntensityStationCode,
   normalizeJmaIntensityStationCode,
+  preserveJmaIntensityStationPoints,
   sanitizeJmaIntensityStationPoints
 } from "./earthquakeStationPolicy.js";
 
@@ -2621,7 +2622,9 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
 
     const nextData = type === "tsunami"
       ? mergeDmdataTsunamiSnapshots(this.latest.tsunami?.data, data)
-      : data;
+      : type === "earthquake"
+        ? preserveJmaIntensityStationPoints(this.latest.earthquake?.data, data)
+        : data;
 
     if (type === "tsunami" && isStaleTsunamiStored({ data: nextData, timestamp })) {
       await this.appendTsunamiHistory(nextData, timestamp);
@@ -2638,7 +2641,7 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
     await this.persistLatest();
 
     if (type === "earthquake") {
-      await this.appendEarthquakeHistory(data, timestamp);
+      await this.appendEarthquakeHistory(nextData, timestamp);
     }
     else if (type === "tsunami") {
       await this.appendTsunamiHistory(nextData, timestamp);

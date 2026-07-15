@@ -12,6 +12,7 @@ import {
   findJmaIntensityStationCoordinate,
   isJmaIntensityStationCode,
   normalizeJmaIntensityStationCode,
+  preserveJmaIntensityStationPoints,
   sanitizeJmaIntensityStationPoints
 } from "../workers/earthquake-realtime/src/earthquakeStationPolicy.js";
 
@@ -116,6 +117,20 @@ assert.deepEqual(
     ]
   }).points,
   [{ code: "1720130", name: "金沢市西念" }]
+);
+assert.deepEqual(
+  preserveJmaIntensityStationPoints(
+    { eventId: "20260716012301", points: [{ code: "1721020", name: "白山市別宮町＊" }] },
+    { eventId: "20260716012301", points: [], magnitude: "3.0" }
+  ).points,
+  [{ code: "1721020", name: "白山市別宮町＊" }]
+);
+assert.deepEqual(
+  preserveJmaIntensityStationPoints(
+    { eventId: "old", points: [{ code: "1721020" }] },
+    { eventId: "new", points: [] }
+  ).points,
+  []
 );
 
 let forwardedUrl = "";

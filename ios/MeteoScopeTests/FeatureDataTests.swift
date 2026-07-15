@@ -361,6 +361,22 @@ final class FeatureDataTests: XCTestCase {
 
     }
 
+    func testEarthquakeRefreshPreservesLoadedIntensityPoints() throws {
+        let previous = EarthquakeSnapshot.preview
+        let earthquake = try XCTUnwrap(previous.earthquakes.first)
+        let refreshed = EarthquakeSnapshot(
+            updatedAt: "2026-07-16T01:00:00+09:00",
+            earthquakes: [earthquake.replacingIntensityPoints([])],
+            tsunami: previous.tsunami,
+            tsunamiStatus: previous.tsunamiStatus
+        )
+
+        let merged = refreshed.preservingIntensityPoints(from: previous)
+
+        XCTAssertEqual(merged.updatedAt, "2026-07-16T01:00:00+09:00")
+        XCTAssertEqual(merged.earthquakes.first?.intensityPoints, earthquake.intensityPoints)
+    }
+
     func testEarlyWarningBuilderKeepsMiddleAndHighProbabilities() throws {
         let data = """
         [[{"reportDatetime":"2026-07-13T17:00:00+09:00","timeSeries":[{"timeDefines":["2026-07-14T00:00:00+09:00","2026-07-15T00:00:00+09:00"],"areas":[{"code":"290000","properties":[{"type":"雨の警報級の可能性","probabilities":["中","高"]}]}]}]}]]

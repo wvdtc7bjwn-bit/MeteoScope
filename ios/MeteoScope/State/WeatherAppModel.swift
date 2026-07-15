@@ -138,7 +138,7 @@ final class WeatherAppModel {
         case .typhoon:
             await loadIfNeeded(.typhoon, \.typhoonState, operation: client.fetchTyphoonSnapshot)
         case .earthquake:
-            await loadIfNeeded(.earthquake, \.earthquakeState, operation: client.fetchEarthquakeSnapshot)
+            await loadEarthquakeIfNeeded()
         }
     }
 
@@ -157,7 +157,37 @@ final class WeatherAppModel {
         case .typhoon:
             await refresh(.typhoon, \.typhoonState, operation: client.fetchTyphoonSnapshot)
         case .earthquake:
-            await refresh(.earthquake, \.earthquakeState, operation: client.fetchEarthquakeSnapshot)
+            await refreshEarthquake()
+        }
+    }
+
+    private func loadEarthquakeIfNeeded() async {
+        guard earthquakeState.isIdle else { return }
+        await refreshEarthquake()
+    }
+
+    private func refreshEarthquake() async {
+        let previous: EarthquakeSnapshot?
+        if case .loaded(let snapshot) = earthquakeState {
+            previous = snapshot
+        } else {
+            previous = nil
+            earthquakeState = .loading
+        }
+
+        do {
+            let fetched = try await client.fetchEarthquakeSnapshot()
+            guard !Task.isCancelled else { return }
+            let snapshot = previous.map { fetched.preservingIntensityPoints(from: $0) } ?? fetched
+            earthquakeState = .loaded(snapshot)
+            markFetchSucceeded(.earthquake)
+        } catch is CancellationError {
+            return
+        } catch {
+            markFetchFailed(.earthquake, message: error.localizedDescription)
+            if previous == nil {
+                earthquakeState = .failed(error.localizedDescription)
+            }
         }
     }
 

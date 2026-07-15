@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   mapDmdataTsunami,
   mapDmdataHistoryItem,
+  mergeDmdataEarthquakeStationDetails,
   normalizeDmdataIntensity
 } from "../src/dmdata/earthquakes.js";
 
@@ -48,6 +49,14 @@ assert.match(summary.tsunamiComment, /津波の心配はありません/u);
 const unloaded = mapDmdataHistoryItem(history);
 assert.equal(unloaded.stationsLoaded, false);
 assert.deepEqual(unloaded.intensityStations, []);
+
+const refreshed = mergeDmdataEarthquakeStationDetails(
+  { earthquakes: [summary] },
+  { earthquakes: [unloaded], updatedAt: "2026-07-16T00:00:00Z" }
+);
+assert.equal(refreshed.earthquakes[0].intensityStations.length, 1);
+assert.equal(refreshed.earthquakes[0].intensityStations[0].stationName, "宮古市田老＊");
+assert.equal(refreshed.updatedAt, "2026-07-16T00:00:00Z");
 
 const tsunami = await mapDmdataTsunami({
   receivedAt: "2026-07-16T00:00:00Z",
