@@ -30,6 +30,7 @@ export const MAP_DATA_ENDPOINTS = {
 export const DMDATA_ENDPOINTS = {
   earthquakeHistory: `${EARTHQUAKE_API_BASE}/history`,
   earthquakeLatest: `${EARTHQUAKE_API_BASE}/latest`,
+  earthquakeStream: `${EARTHQUAKE_API_BASE}/stream`,
   earthquakeStations(eventId) {
     return `${EARTHQUAKE_API_BASE}/history/${encodeURIComponent(String(eventId ?? ""))}/stations`;
   }

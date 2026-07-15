@@ -5,6 +5,24 @@ import {
   mergeDmdataEarthquakeStationDetails,
   normalizeDmdataIntensity
 } from "../src/dmdata/earthquakes.js";
+import {
+  parseDmdataEarthquakeUpdate,
+  toDmdataWebSocketUrl
+} from "../src/dmdata/earthquakeUpdates.js";
+
+assert.deepEqual(
+  parseDmdataEarthquakeUpdate(JSON.stringify({
+    type: "earthquake",
+    timestamp: "2026-07-16T01:23:45Z"
+  })),
+  { type: "earthquake", token: "2026-07-16T01:23:45Z" }
+);
+assert.equal(parseDmdataEarthquakeUpdate('{"type":"status"}'), null);
+assert.equal(parseDmdataEarthquakeUpdate("invalid"), null);
+assert.equal(
+  toDmdataWebSocketUrl("https://meteoscope.pages.dev/api/earthquakes/stream"),
+  "wss://meteoscope.pages.dev/api/earthquakes/stream"
+);
 
 assert.equal(normalizeDmdataIntensity("5弱"), "5-");
 assert.equal(normalizeDmdataIntensity("震度6強"), "6+");

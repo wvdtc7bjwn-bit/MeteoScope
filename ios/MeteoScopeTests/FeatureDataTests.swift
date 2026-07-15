@@ -377,6 +377,19 @@ final class FeatureDataTests: XCTestCase {
         XCTAssertEqual(merged.earthquakes.first?.intensityPoints, earthquake.intensityPoints)
     }
 
+    func testEarthquakeRealtimeEnvelopeTriggersOnlySupportedUpdates() throws {
+        let earthquake = try XCTUnwrap(EarthquakeUpdateClient.decode(
+            Data(#"{"type":"earthquake","timestamp":"2026-07-16T01:23:45Z"}"#.utf8)
+        ))
+        XCTAssertEqual(earthquake.kind, .earthquake)
+        XCTAssertEqual(earthquake.token, "2026-07-16T01:23:45Z")
+
+        XCTAssertNil(EarthquakeUpdateClient.decode(
+            Data(#"{"type":"status","timestamp":"2026-07-16T01:23:45Z"}"#.utf8)
+        ))
+        XCTAssertNil(EarthquakeUpdateClient.decode(Data("invalid".utf8)))
+    }
+
     func testEarlyWarningBuilderKeepsMiddleAndHighProbabilities() throws {
         let data = """
         [[{"reportDatetime":"2026-07-13T17:00:00+09:00","timeSeries":[{"timeDefines":["2026-07-14T00:00:00+09:00","2026-07-15T00:00:00+09:00"],"areas":[{"code":"290000","properties":[{"type":"雨の警報級の可能性","probabilities":["中","高"]}]}]}]}]]

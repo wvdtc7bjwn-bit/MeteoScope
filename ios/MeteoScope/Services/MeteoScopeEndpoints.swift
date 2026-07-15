@@ -79,6 +79,28 @@ enum MeteoScopeEndpoints {
         return components.url!
     }()
     static let dmdataEarthquakeLatest = earthquakeAPIBase.appending(path: "latest")
+    static let dmdataEarthquakeStream: URL = {
+        var components = URLComponents(
+            url: earthquakeAPIBase.appending(path: "stream"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.scheme = "wss"
+        return components.url!
+    }()
+    static func dmdataEarthquakeHistory(realtimeToken: String) -> URL {
+        guard !realtimeToken.isEmpty,
+              var components = URLComponents(
+                url: dmdataEarthquakeHistory,
+                resolvingAgainstBaseURL: false
+              )
+        else {
+            return dmdataEarthquakeHistory
+        }
+        var items = components.queryItems ?? []
+        items.append(URLQueryItem(name: "_rt", value: realtimeToken))
+        components.queryItems = items
+        return components.url ?? dmdataEarthquakeHistory
+    }
     static func dmdataEarthquakeStations(eventID: String) -> URL? {
         guard !eventID.isEmpty else { return nil }
         return earthquakeAPIBase

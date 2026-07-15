@@ -10,7 +10,8 @@ export default defineConfig({
       "/api": {
         target: cloudflareApiTarget,
         changeOrigin: true,
-        secure: true
+        secure: true,
+        ws: true
       }
     }
   },

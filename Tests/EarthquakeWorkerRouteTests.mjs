@@ -27,6 +27,10 @@ assert.deepEqual(
   { internalPath: "/latest", cacheSeconds: 0 }
 );
 assert.deepEqual(
+  resolvePublicEarthquakeRoute(new URL("https://example.test/api/stream")),
+  { internalPath: "/connect", cacheSeconds: 0, websocket: true }
+);
+assert.deepEqual(
   resolvePublicEarthquakeRoute(
     new URL("https://example.test/api/earthquakes/latest")
   ),
@@ -151,6 +155,24 @@ assert.equal(proxyResponse.status, 200);
 assert.equal(forwardedUrl, "https://earthquake-worker.internal/api/history?limit=7");
 assert.equal(proxyResponse.headers.get("access-control-allow-origin"), "*");
 
+let forwardedUpgrade = "";
+const streamResponse = await onRequest({
+  request: new Request(
+    "https://meteoscope.pages.dev/api/earthquakes/stream",
+    { headers: { upgrade: "websocket" } }
+  ),
+  env: {
+    EARTHQUAKE_REALTIME: {
+      async fetch(request) {
+        forwardedUpgrade = request.headers.get("upgrade") ?? "";
+        return new Response(null, { status: 200 });
+      }
+    }
+  }
+});
+assert.equal(streamResponse.status, 200);
+assert.equal(forwardedUpgrade, "websocket");
+
 const unconfiguredResponse = await onRequest({
   request: new Request("https://meteoscope.pages.dev/api/earthquakes/health"),
   env: {}
@@ -173,7 +195,8 @@ const publicWorkerSource = await fs.readFile(
   path.join(root, "workers", "earthquake-realtime", "src", "index.js"),
   "utf8"
 );
-assert.doesNotMatch(publicWorkerSource, /\/ingest|\/connect|\/auth|\/discord/);
+assert.doesNotMatch(publicWorkerSource, /\/ingest|\/auth|\/discord/);
+assert.match(publicWorkerSource, /x-eew-authenticated/u);
 
 for (const relativePath of [
   "src/config.js",

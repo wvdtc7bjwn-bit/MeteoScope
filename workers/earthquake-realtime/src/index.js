@@ -27,6 +27,23 @@ function getHub(env) {
 }
 
 async function fetchFromHub(request, env, route) {
+  if (route.websocket) {
+    if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+      return jsonResponse({ ok: false, error: "websocket_upgrade_required" }, 426, {
+        upgrade: "websocket"
+      });
+    }
+    return getHub(env).fetch(
+      new Request(`https://earthquake-hub.internal${route.internalPath}`, {
+        method: "GET",
+        headers: {
+          upgrade: "websocket",
+          "x-eew-authenticated": "0"
+        }
+      })
+    );
+  }
+
   const cache = caches.default;
   const cacheUrl = new URL(request.url);
   cacheUrl.searchParams.set("_meteoscopeCache", PUBLIC_CACHE_VERSION);

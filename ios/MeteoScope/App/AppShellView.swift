@@ -46,6 +46,9 @@ struct AppShellView: View {
         .task {
             await model.loadRemoteConfigIfNeeded()
         }
+        .task {
+            await model.observeEarthquakeUpdates()
+        }
     }
 }
 

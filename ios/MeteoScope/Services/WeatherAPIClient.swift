@@ -10,6 +10,7 @@ struct WeatherAPIClient: Sendable {
     var fetchRiverFloodSnapshot: @Sendable () async throws -> RiverFloodSnapshot
     var fetchTyphoonSnapshot: @Sendable () async throws -> TyphoonSnapshot
     var fetchEarthquakeSnapshot: @Sendable () async throws -> EarthquakeSnapshot
+    var fetchRealtimeEarthquakeSnapshot: @Sendable (String) async throws -> EarthquakeSnapshot
     var fetchEarthquakeStations: @Sendable (String) async throws -> [EarthquakeIntensityPoint]
 }
 
@@ -314,47 +315,12 @@ extension WeatherAPIClient {
                 )
             },
             fetchEarthquakeSnapshot: {
-                async let historyData = requestData(
-                    from: MeteoScopeEndpoints.dmdataEarthquakeHistory,
+                try await fetchDMDataEarthquakeSnapshot(session: session)
+            },
+            fetchRealtimeEarthquakeSnapshot: { token in
+                try await fetchDMDataEarthquakeSnapshot(
                     session: session,
-                    timeout: 12,
-                    cachePolicy: .reloadIgnoringLocalCacheData
-                )
-                async let latestData = try? requestData(
-                    from: MeteoScopeEndpoints.dmdataEarthquakeLatest,
-                    session: session,
-                    timeout: 12,
-                    cachePolicy: .reloadIgnoringLocalCacheData
-                )
-                let resolvedHistoryData = try await historyData
-                let history = try JSONDecoder().decode(
-                    DMDataEarthquakeHistoryResponse.self,
-                    from: resolvedHistoryData
-                )
-                guard history.enabled, !history.items.isEmpty else {
-                    throw WeatherAPIError.invalidResponse
-                }
-                let resolvedLatestData = await latestData
-                let latestResponse = resolvedLatestData.flatMap {
-                    try? JSONDecoder().decode(DMDataLatestResponse.self, from: $0)
-                }
-                let earthquakes = DMDataEarthquakeBuilder.build(
-                    history: history.items,
-                    latest: latestResponse?.latest.earthquake
-                )
-                let tsunami = DMDataTsunamiBuilder.build(latestResponse?.latest.tsunami)
-                let tsunamiStatus: TsunamiFetchStatus = if resolvedLatestData == nil {
-                    .unavailable
-                } else if tsunami != nil {
-                    .available
-                } else {
-                    .none
-                }
-                return EarthquakeSnapshot(
-                    updatedAt: earthquakes.first?.reportTime ?? "未取得",
-                    earthquakes: earthquakes,
-                    tsunami: tsunami,
-                    tsunamiStatus: tsunamiStatus
+                    realtimeToken: token
                 )
             },
             fetchEarthquakeStations: { eventID in
@@ -398,9 +364,81 @@ extension WeatherAPIClient {
             fetchRiverFloodSnapshot: { .preview },
             fetchTyphoonSnapshot: { .preview },
             fetchEarthquakeSnapshot: { .preview },
+            fetchRealtimeEarthquakeSnapshot: { _ in .preview },
             fetchEarthquakeStations: { _ in [] }
         )
     }
+}
+
+private func fetchDMDataEarthquakeSnapshot(
+    session: URLSession,
+    realtimeToken: String? = nil
+) async throws -> EarthquakeSnapshot {
+    let historyURL = realtimeToken.map {
+        MeteoScopeEndpoints.dmdataEarthquakeHistory(realtimeToken: $0)
+    } ?? MeteoScopeEndpoints.dmdataEarthquakeHistory
+    let latestURL: URL = if let realtimeToken, !realtimeToken.isEmpty {
+        appendQueryItem(
+            to: MeteoScopeEndpoints.dmdataEarthquakeLatest,
+            name: "_rt",
+            value: realtimeToken
+        )
+    } else {
+        MeteoScopeEndpoints.dmdataEarthquakeLatest
+    }
+
+    async let historyData = requestData(
+        from: historyURL,
+        session: session,
+        timeout: 12,
+        cachePolicy: .reloadIgnoringLocalCacheData
+    )
+    async let latestData = try? requestData(
+        from: latestURL,
+        session: session,
+        timeout: 12,
+        cachePolicy: .reloadIgnoringLocalCacheData
+    )
+    let resolvedHistoryData = try await historyData
+    let history = try JSONDecoder().decode(
+        DMDataEarthquakeHistoryResponse.self,
+        from: resolvedHistoryData
+    )
+    guard history.enabled, !history.items.isEmpty else {
+        throw WeatherAPIError.invalidResponse
+    }
+    let resolvedLatestData = await latestData
+    let latestResponse = resolvedLatestData.flatMap {
+        try? JSONDecoder().decode(DMDataLatestResponse.self, from: $0)
+    }
+    let earthquakes = DMDataEarthquakeBuilder.build(
+        history: history.items,
+        latest: latestResponse?.latest.earthquake
+    )
+    let tsunami = DMDataTsunamiBuilder.build(latestResponse?.latest.tsunami)
+    let tsunamiStatus: TsunamiFetchStatus = if resolvedLatestData == nil {
+        .unavailable
+    } else if tsunami != nil {
+        .available
+    } else {
+        .none
+    }
+    return EarthquakeSnapshot(
+        updatedAt: earthquakes.first?.reportTime ?? "未取得",
+        earthquakes: earthquakes,
+        tsunami: tsunami,
+        tsunamiStatus: tsunamiStatus
+    )
+}
+
+private func appendQueryItem(to url: URL, name: String, value: String) -> URL {
+    guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+        return url
+    }
+    var items = components.queryItems ?? []
+    items.append(URLQueryItem(name: name, value: value))
+    components.queryItems = items
+    return components.url ?? url
 }
 
 private struct TyphoonBundle: Sendable {

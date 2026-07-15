@@ -34,9 +34,16 @@ export async function onRequest(context) {
   target.search = sourceUrl.search;
 
   try {
+    const isWebSocket = request.headers.get("upgrade")?.toLowerCase() === "websocket";
     const upstream = await env.EARTHQUAKE_REALTIME.fetch(
-      new Request(target, { method: request.method })
+      new Request(target, {
+        method: request.method,
+        headers: isWebSocket ? { upgrade: "websocket" } : undefined
+      })
     );
+    if (isWebSocket) {
+      return upstream;
+    }
     const headers = new Headers(upstream.headers);
     Object.entries(RESPONSE_HEADERS).forEach(([key, value]) => headers.set(key, value));
     return new Response(upstream.body, {

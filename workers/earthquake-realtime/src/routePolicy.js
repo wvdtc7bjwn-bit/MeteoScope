@@ -10,6 +10,10 @@ export function resolvePublicEarthquakeRoute(url) {
     return { internalPath: "/latest", cacheSeconds: 0 };
   }
 
+  if (pathname === "/api/stream") {
+    return { internalPath: "/connect", cacheSeconds: 0, websocket: true };
+  }
+
   if (pathname === "/api/health") {
     return { internalPath: "/health", cacheSeconds: 0 };
   }

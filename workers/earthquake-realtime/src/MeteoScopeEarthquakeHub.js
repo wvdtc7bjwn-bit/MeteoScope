@@ -3604,6 +3604,21 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
     if (url.pathname === "/latest") {
       return this.handleLatest(request);
     }
+    if (url.pathname === "/connect") {
+      if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+        return new Response(
+          JSON.stringify({ ok: false, error: "websocket_upgrade_required" }),
+          {
+            status: 426,
+            headers: {
+              "content-type": "application/json; charset=utf-8",
+              upgrade: "websocket"
+            }
+          }
+        );
+      }
+      return this.handleConnect(request);
+    }
     if (url.pathname === "/history") {
       return this.handleHistory(url);
     }

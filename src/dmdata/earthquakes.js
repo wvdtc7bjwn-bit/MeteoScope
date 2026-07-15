@@ -15,14 +15,21 @@ import { getTsunamiLevelRank } from "../tsunami.js";
 const HISTORY_LIMIT = 11;
 const REQUEST_TTL_MS = 60 * 1000;
 
-export async function fetchDmdataEarthquakeList() {
+export async function fetchDmdataEarthquakeList(options = {}) {
+  const realtimeToken = String(options.realtimeToken ?? "").trim();
+  const requestTtlMs = realtimeToken ? 0 : REQUEST_TTL_MS;
+  const historyUrl = appendRealtimeToken(
+    `${DMDATA_ENDPOINTS.earthquakeHistory}?limit=${HISTORY_LIMIT}`,
+    realtimeToken
+  );
+  const latestUrl = appendRealtimeToken(DMDATA_ENDPOINTS.earthquakeLatest, realtimeToken);
   const [historyPayload, latestPayload] = await Promise.all([
-    fetchJson(`${DMDATA_ENDPOINTS.earthquakeHistory}?limit=${HISTORY_LIMIT}`, {
-      ttlMs: REQUEST_TTL_MS,
+    fetchJson(historyUrl, {
+      ttlMs: requestTtlMs,
       cache: "no-store"
     }),
-    fetchJson(DMDATA_ENDPOINTS.earthquakeLatest, {
-      ttlMs: REQUEST_TTL_MS,
+    fetchJson(latestUrl, {
+      ttlMs: requestTtlMs,
       cache: "no-store"
     }).catch((error) => {
       console.warn("[DM-D.S.S] latest earthquake request failed", error);
@@ -57,6 +64,12 @@ export async function fetchDmdataEarthquakeList() {
     updatedAt,
     summary: earthquakes.length > 0 ? `地震情報 ${earthquakes.length} 件` : "地震情報はありません"
   };
+}
+
+function appendRealtimeToken(url, token) {
+  if (!token) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}_rt=${encodeURIComponent(token)}`;
 }
 
 export function mergeDmdataEarthquakeStationDetails(currentSnapshot, nextSnapshot) {

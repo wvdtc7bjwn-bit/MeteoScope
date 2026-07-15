@@ -22,6 +22,7 @@ import {
   hydrateDmdataEarthquakeStations,
   mergeDmdataEarthquakeStationDetails
 } from "./dmdata/earthquakes.js";
+import { startDmdataEarthquakeUpdates } from "./dmdata/earthquakeUpdates.js";
 import { fetchKikikuruTiles } from "./jma/kikikuru.js";
 import { fetchRiverFloodForecasts } from "./jma/riverFlood.js";
 import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFrameIndex } from "./jma/weatherChart.js";
@@ -110,6 +111,7 @@ export function createWeatherApp() {
   let activeLoadRequestId = 0;
   let autoRefreshInFlight = false;
   let earthquakeRefreshRequest = null;
+  let pendingEarthquakeRealtimeToken = "";
   let lastAutoRefreshStartedAt = 0;
   let lastEarthquakeRefreshStartedAt = 0;
   let tabControls = null;
@@ -892,10 +894,13 @@ if (layerId === "river") {
     }
   }
 
-  async function refreshEarthquakeData({ force = false } = {}) {
+  async function refreshEarthquakeData({ force = false, realtimeToken = "" } = {}) {
     if (activeTab !== "earthquake") return latestDataByTab.earthquake;
     if (document.hidden && !force) return latestDataByTab.earthquake;
-    if (earthquakeRefreshRequest) return earthquakeRefreshRequest;
+    if (earthquakeRefreshRequest) {
+      if (realtimeToken) pendingEarthquakeRealtimeToken = realtimeToken;
+      return earthquakeRefreshRequest;
+    }
 
     const now = Date.now();
     if (!force && now - lastEarthquakeRefreshStartedAt < EARTHQUAKE_REFRESH_INTERVAL_MS - 1000) {
@@ -908,7 +913,10 @@ if (layerId === "river") {
     const selectedWasLatest = !selectedIdAtStart || !previousLatestId || selectedIdAtStart === previousLatestId;
     lastEarthquakeRefreshStartedAt = now;
 
-    earthquakeRefreshRequest = loadTabData("earthquake")
+    const loadEarthquake = realtimeToken
+      ? fetchDmdataEarthquakeList({ realtimeToken })
+      : loadTabData("earthquake");
+    earthquakeRefreshRequest = loadEarthquake
       .then((nextData) => {
         const mergedData = mergeDmdataEarthquakeStationDetails(previousData, nextData);
         const earthquakes = mergedData?.earthquakes ?? [];
@@ -938,6 +946,13 @@ if (layerId === "river") {
       })
       .finally(() => {
         earthquakeRefreshRequest = null;
+        const pendingToken = pendingEarthquakeRealtimeToken;
+        pendingEarthquakeRealtimeToken = "";
+        if (pendingToken && activeTab === "earthquake") {
+          queueMicrotask(() => {
+            void refreshEarthquakeData({ force: true, realtimeToken: pendingToken });
+          });
+        }
       });
 
     return earthquakeRefreshRequest;
@@ -1433,6 +1448,11 @@ if (layerId === "river") {
     document.getElementById("locate-button")?.addEventListener("click", locateCurrentPosition);
     startClock("clock");
     startAutoRefresh();
+    startDmdataEarthquakeUpdates({
+      onUpdate: ({ token }) => {
+        void refreshEarthquakeData({ force: true, realtimeToken: token });
+      }
+    });
     void adminNoticePush.initialize().then(() => refreshSettingsModalView());
     startLocationWatch();
     selectTab(activeTab);

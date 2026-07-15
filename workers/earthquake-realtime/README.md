@@ -2,9 +2,10 @@
 
 DM-D.S.S（dmdata.jp）の地震・津波電文をMeteoScope専用のDurable Objectで受信し、D1へ保存する読み取り専用APIです。EQ-appの廃止後もWeb版とiOS版が独立して動作するための基盤です。
 
-公開ルートは次の4種類だけです。
+公開ルートは次の5種類だけです。
 
 - `GET /api/latest`
+- `GET /api/stream`（読み取り専用WebSocket。地震・津波更新通知）
 - `GET /api/history?limit=1..100`
 - `GET /api/history/{eventId}/stations`
 - `GET /api/health`
@@ -64,5 +65,6 @@ DM-D.S.S（dmdata.jp）の地震・津波電文をMeteoScope専用のDurable Obj
 - Telegram List/Dataを5分ごとに差分取得し、地震別津波コメントとVTSE41/51/52を補完します。初回取得は最大40電文に制限し、DM-D.S.S Data APIの50リクエスト/5分上限を超えない構成です。
 - 震度観測点の座標はEQ-appと同じDM-D.S.S震度観測点パラメータAPIを起動時に取得し、24時間ごとに更新します。7桁の観測点コードだけを採用し、都道府県・地域コードを観測点として保存しません。取得状態は`/api/health`の`dmdataStationCatalog`で確認できます。
 - 履歴は15秒、観測点一覧は24時間Cloudflare Cache APIへ保存します。最新情報と稼働状態はキャッシュしません。
+- Web/iOSは`/api/stream`の更新通知を受けると、キャッシュ回避トークン付きで最新情報を再取得します。切断時は従来の定期更新へフォールバックします。
 - 地震・観測点は30日、津波履歴は90日でD1から削除します。
 - 通常接続時のDurable Object alarmは30秒間隔です。概算で1日2,880回のalarm起動に加え、閲覧APIのリクエストが発生します。実際の使用量はCloudflare Analyticsで確認してください。
