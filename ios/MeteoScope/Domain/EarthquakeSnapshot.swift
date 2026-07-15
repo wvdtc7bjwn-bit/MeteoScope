@@ -851,15 +851,17 @@ enum EarthquakeXMLDecoder {
         let ordered = eventReports.sorted { $0.reportTime > $1.reportTime }
         guard let latest = ordered.first else { return nil }
         let latestForecast = ordered.first(where: { !$0.areas.isEmpty }) ?? latest
-        let areas = Dictionary(
-            latestForecast.areas.map { ($0.id, $0) },
+        let areaPairs: [(String, TsunamiArea)] = latestForecast.areas.map { ($0.id, $0) }
+        let uniqueAreas: [String: TsunamiArea] = Dictionary(
+            areaPairs,
             uniquingKeysWith: { current, _ in current }
-        ).values.sorted { left, right in
+        )
+        let areas: [TsunamiArea] = uniqueAreas.values.sorted { left, right in
             left.level.rank == right.level.rank ? left.id < right.id : left.level.rank > right.level.rank
         }
         let observations = mergedTsunamiObservations(ordered.flatMap(\.observations))
         let offshoreObservations = mergedTsunamiObservations(ordered.flatMap(\.offshoreObservations))
-        let highestLevel = areas.map(\.level).max(by: { $0.rank < $1.rank }) ?? .none
+        let highestLevel = areas.map { $0.level }.max(by: { $0.rank < $1.rank }) ?? TsunamiLevel.none
 
         return TsunamiSnapshot(
             id: latest.eventID.isEmpty ? latest.id : latest.eventID,

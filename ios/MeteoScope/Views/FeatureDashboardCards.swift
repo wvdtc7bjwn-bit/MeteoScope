@@ -829,13 +829,13 @@ private struct EarthquakeHistoryCard: View {
     }
 
     private var tsunamiAccent: Color {
-        guard let level = matchingTsunami?.highestLevel else { return .secondary }
+        guard let level = matchingTsunami?.highestLevel else { return Color.secondary }
         switch level {
-        case .majorWarning: .purple
-        case .warning: .red
-        case .advisory: .yellow
-        case .forecast: Color.meteoscopeAccent
-        case .none: .secondary
+        case .majorWarning: return Color.purple
+        case .warning: return Color.red
+        case .advisory: return Color.yellow
+        case .forecast: return Color.meteoscopeAccent
+        case .none: return Color.secondary
         }
     }
 }
