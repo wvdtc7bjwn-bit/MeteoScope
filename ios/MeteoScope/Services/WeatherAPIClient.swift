@@ -216,7 +216,7 @@ extension WeatherAPIClient {
                 .prefix(40)
 
                 let reports = await withTaskGroup(of: RiverFloodSummary?.self) { group in
-                    for entry in uniqueEntries {
+                    for entry in allUniqueEntries {
                         group.addTask {
                             do {
                                 let data = try await requestData(
