@@ -12,7 +12,7 @@ const JSON_HEADERS = {
   "access-control-allow-headers": "content-type",
   "x-content-type-options": "nosniff"
 };
-const PUBLIC_CACHE_VERSION = "station-coordinates-v2";
+const PUBLIC_CACHE_VERSION = "station-coordinates-v3";
 
 function jsonResponse(payload, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(payload), {
