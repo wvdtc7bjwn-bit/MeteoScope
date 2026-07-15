@@ -33,6 +33,7 @@ const WARNING_CRON_STATE_KEY = "push:warning-cron-state";
 export const WARNING_CRON_HEALTH_KEY = "push:warning-cron-health";
 const WARNING_OFFICE_SNAPSHOT_BATCH_PREFIX = "push:warning-office-batch:";
 const JMA_AREA_CATALOG_URL = "https://www.jma.go.jp/bosai/common/const/area.json";
+const WEB_REQUEST_MAX_BYTES = 8192;
 const IOS_REQUEST_MAX_BYTES = 4096;
 let adminBroadcastTablesReady = false;
 
@@ -62,6 +63,13 @@ export async function onRequest({ request, env }) {
 
 export async function runWarningPushCheck(env) {
   requireNotificationStorage(env);
+  let webSubscriptionMigration;
+  try {
+    webSubscriptionMigration = await migrateWebSubscriptionsToAdminOnly(env);
+  } catch (error) {
+    console.error("[Push API] web subscription migration failed", error);
+    webSubscriptionMigration = { migrated: 0, error: true };
+  }
   let retention;
   try {
     retention = await runNotificationRetentionCleanup(env);
@@ -82,7 +90,7 @@ export async function runWarningPushCheck(env) {
   const result = state.phase === "notify"
     ? await runWarningNotificationBatch(env, state)
     : await runWarningOfficeFetchBatch(env, state);
-  return { ...result, adminBroadcast, retention, storage: "d1" };
+  return { ...result, adminBroadcast, retention, webSubscriptionMigration, storage: "d1" };
 }
 
 export async function readWarningCronHealth(env) {
@@ -191,8 +199,7 @@ async function runWarningOfficeFetchBatch(env, state) {
 
 async function runWarningNotificationBatch(env, state) {
   const now = new Date().toISOString();
-  const [subscriptions, iosSubscriptions, snapshots, areaCatalog] = await Promise.all([
-    listSubscriptions(env),
+  const [iosSubscriptions, snapshots, areaCatalog] = await Promise.all([
     listIOSSubscriptions(env).catch((error) => {
       console.error("[Push API] failed to list iOS subscriptions", error);
       return [];
@@ -200,25 +207,13 @@ async function runWarningNotificationBatch(env, state) {
     loadWarningOfficeSnapshots(env),
     fetchNotificationAreaCatalog()
   ]);
-  const queue = [
-    ...subscriptions.map((subscription) => ({ kind: "web", subscription })),
-    ...iosSubscriptions.map((subscription) => ({ kind: "ios", subscription }))
-  ]
-    .map((item) => ({ ...item, key: `${item.kind}:${String(item.subscription?.id || "")}` }))
-    .filter((item) => !item.key.endsWith(":"))
-    .sort((left, right) => left.key.localeCompare(right.key));
+  const queue = buildIOSWarningNotificationQueue(iosSubscriptions);
   const cursor = String(state.notificationCursor || "");
   const { batch, remainingCount } = selectNotificationQueueBatch(queue, cursor);
   const warningAreas = buildActiveWarningAreasFromSnapshots(snapshots);
   const failedOfficeCodes = new Set(state.failedOfficeCodes || []);
-  let notified = 0;
-  let removed = 0;
-  let webFailed = 0;
   let staleSkipped = 0;
   const ios = { checked: 0, notified: 0, removed: 0, failed: 0, configured: isAPNSConfigured(env) };
-  const webVapidKeys = batch.some((item) => item.kind === "web")
-    ? await getVapidKeys(env, { create: true })
-    : null;
   for (const item of batch) {
     const officeCode = resolveSubscriptionOfficeCode(item.subscription, warningAreas, areaCatalog);
     if (shouldPreserveWarningState(officeCode, failedOfficeCodes)) {
@@ -226,18 +221,11 @@ async function runWarningNotificationBatch(env, state) {
       continue;
     }
     const subscription = { ...item.subscription, officeCode };
-    if (item.kind === "web") {
-      const result = await runWebWarningPushCheck(env, warningAreas, subscription, webVapidKeys);
-      notified += result.notified;
-      removed += result.removed;
-      webFailed += result.failed;
-    } else {
-      const result = await runIOSWarningPushCheck(env, warningAreas, [subscription]);
-      ios.checked += result.checked;
-      ios.notified += result.notified;
-      ios.removed += result.removed;
-      ios.failed += result.failed;
-    }
+    const result = await runIOSWarningPushCheck(env, warningAreas, [subscription]);
+    ios.checked += result.checked;
+    ios.notified += result.notified;
+    ios.removed += result.removed;
+    ios.failed += result.failed;
   }
 
   const notificationComplete = batch.length >= remainingCount;
@@ -249,9 +237,9 @@ async function runWarningNotificationBatch(env, state) {
   const previousHealth = await readWarningCronHealth(env) || {};
   const resultSummary = {
     checked: batch.length,
-    notified: notified + ios.notified,
-    removed: removed + ios.removed,
-    failed: webFailed + ios.failed,
+    notified: ios.notified,
+    removed: ios.removed,
+    failed: ios.failed,
     staleSkipped,
     completedAt: notificationComplete ? now : null
   };
@@ -267,49 +255,27 @@ async function runWarningNotificationBatch(env, state) {
       lastNotificationResult: resultSummary
     })
   ]);
-  return { phase: "notify", checked: batch.length, notified, removed, failed: webFailed + ios.failed, staleSkipped, notificationComplete, ios };
+  return {
+    phase: "notify",
+    checked: batch.length,
+    notified: ios.notified,
+    removed: ios.removed,
+    failed: ios.failed,
+    staleSkipped,
+    notificationComplete,
+    ios
+  };
 }
 
-async function runWebWarningPushCheck(env, warningAreas, subscription, vapidKeys) {
-  const id = String(subscription?.id || "");
-  if (!subscription?.endpoint || !subscription?.pushSubscription?.endpoint) {
-    await deleteSubscription(env, id);
-    return { notified: 0, removed: 1, failed: 0 };
-  }
-  const currentArea = warningAreas.get(String(subscription.areaCode));
-  const currentWarnings = currentArea?.warnings ?? [];
-  const message = buildNotificationMessage(subscription, currentArea, currentWarnings);
-  const nextWarningState = buildWarningState(currentWarnings);
-  const warningStateChanged = !sameWarningState(subscription.warningState, nextWarningState);
-  const areaChanged = (
-    (currentArea?.areaName && currentArea.areaName !== subscription.areaName)
-    || (currentArea?.prefecture && currentArea.prefecture !== subscription.prefecture)
-  );
-  const nextSubscription = {
-    ...subscription,
-    officeCode: resolveSubscriptionOfficeCode(subscription, warningAreas),
-    areaName: currentArea?.areaName ?? subscription.areaName,
-    prefecture: currentArea?.prefecture ?? subscription.prefecture,
-    warningState: nextWarningState
-  };
-  let notified = 0;
-  let failed = 0;
-  if (message) {
-    await enqueuePendingMessage(env, id, message);
-    const pushResult = await sendEmptyPushSafely(subscription.pushSubscription, env, vapidKeys);
-    if (pushResult.ok) {
-      notified = 1;
-      nextSubscription.lastNotifiedAt = new Date().toISOString();
-    } else if (pushResult.status === 404 || pushResult.status === 410) {
-      await deleteSubscription(env, id);
-      return { notified: 0, removed: 1, failed: 0 };
-    } else {
-      console.warn("[Push API] web push failed", pushResult.status, pushResult.statusText);
-      failed = 1;
-    }
-  }
-  if (warningStateChanged || areaChanged || message) await saveSubscription(env, nextSubscription);
-  return { notified, removed: 0, failed };
+export function buildIOSWarningNotificationQueue(subscriptions) {
+  return (Array.isArray(subscriptions) ? subscriptions : [])
+    .map((subscription) => ({
+      kind: "ios",
+      subscription,
+      key: `ios:${String(subscription?.id || "")}`
+    }))
+    .filter((item) => item.key !== "ios:")
+    .sort((left, right) => left.key.localeCompare(right.key));
 }
 
 async function runIOSWarningPushCheck(env, warningAreas, subscriptions) {
@@ -550,12 +516,10 @@ async function subscribe(request, env) {
     return json({ error: "通知サーバーのVAPIDキーを準備できませんでした。" }, { status: 503 });
   }
 
-  const payload = await request.json().catch(() => ({}));
+  const payload = await readLimitedJson(request, WEB_REQUEST_MAX_BYTES);
   const pushSubscription = normalizePushSubscription(payload.subscription);
-  const area = normalizeArea(payload.area);
-  const preferences = normalizePreferences(payload.preferences);
-  if (!pushSubscription || !area.areaCode) {
-    return json({ error: "通知設定に必要な現在地情報が不足しています。" }, { status: 400 });
+  if (!pushSubscription) {
+    return json({ error: "ブラウザの通知購読情報が不正です。" }, { status: 400 });
   }
 
   const id = await subscriptionId(pushSubscription.endpoint);
@@ -563,17 +527,14 @@ async function subscribe(request, env) {
     id,
     endpoint: pushSubscription.endpoint,
     pushSubscription,
-    areaCode: area.areaCode,
-    areaName: area.areaName,
-    prefecture: area.prefecture,
-    preferences,
-    warningState: payload.warningState && typeof payload.warningState === "object" ? payload.warningState : null,
-    createdAt: payload.createdAt || new Date().toISOString(),
+    deliveryMode: "admin_only",
+    preferences: { adminBroadcast: true },
+    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
 
   await saveSubscription(env, record);
-  return json({ subscribed: true, id, area });
+  return json({ subscribed: true, id, deliveryMode: record.deliveryMode });
 }
 
 async function unsubscribe(request, env) {
@@ -1357,26 +1318,40 @@ function normalizePushSubscription(subscription) {
   };
 }
 
-function normalizeArea(area) {
-  return {
-    areaCode: String(area?.areaCode || ""),
-    areaName: String(area?.areaName || ""),
-    prefecture: String(area?.prefecture || "")
-  };
-}
-
-function normalizePreferences(preferences) {
-  return {
-    notifyAdvisory: Boolean(preferences?.notifyAdvisory),
-    adminBroadcast: preferences?.adminBroadcast !== false
-  };
-}
-
 async function listSubscriptions(env) {
   const result = await env.NOTIFICATIONS_DB.prepare(
     "SELECT data FROM push_subscriptions ORDER BY updated_at DESC"
   ).all();
   return (result.results || []).map((row) => parseJson(row.data, null)).filter(Boolean);
+}
+
+async function migrateWebSubscriptionsToAdminOnly(env) {
+  const now = new Date().toISOString();
+  const result = await env.NOTIFICATIONS_DB.prepare(
+    `UPDATE push_subscriptions
+     SET data = json_set(
+       json_remove(
+         data,
+         '$.areaCode',
+         '$.areaName',
+         '$.prefecture',
+         '$.officeCode',
+         '$.warningState',
+         '$.lastNotifiedAt'
+       ),
+       '$.deliveryMode',
+       'admin_only',
+       '$.preferences',
+       json('{"adminBroadcast":true}'),
+       '$.updatedAt',
+       ?
+     ),
+     updated_at = ?
+     WHERE COALESCE(json_extract(data, '$.deliveryMode'), '') <> 'admin_only'
+        OR json_type(data, '$.areaCode') IS NOT NULL
+        OR json_type(data, '$.warningState') IS NOT NULL`
+  ).bind(now, now).run();
+  return { migrated: getD1Changes(result) };
 }
 
 async function saveSubscription(env, subscription) {

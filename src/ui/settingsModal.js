@@ -51,12 +51,7 @@ export function setupSettingsModal(options = {}) {
     }
 
     if (event.target.closest("[data-settings-push-toggle]")) {
-      void settingsOptions.onToggleLocationWarningPush?.();
-      return;
-    }
-
-    if (event.target.closest("[data-settings-push-advisory-toggle]")) {
-      void settingsOptions.onToggleLocationWarningAdvisory?.();
+      void settingsOptions.onToggleAdminNoticePush?.();
       return;
     }
 
@@ -210,31 +205,25 @@ function renderSettingsMyAreas() {
 
 function renderSettingsPushNotifications() {
   const state = settingsOptions.getState?.() ?? {};
-  const push = state.locationWarningPush ?? {};
-  const currentLocation = state.currentLocation ?? {};
+  const push = state.adminNoticePush ?? {};
   const title = document.getElementById("settings-push-title");
   const status = document.getElementById("settings-push-status");
   const button = document.getElementById("settings-push-toggle");
-  const advisoryButton = document.getElementById("settings-push-advisory-toggle");
   if (!title || !status || !button) return;
 
-  const currentAreaName = currentLocation.areaName || push.areaName || "";
-  const locationReady = currentLocation.status === "found" && currentLocation.areaCode;
   const enabled = Boolean(push.enabled && push.subscribed);
+  const subscribed = Boolean(push.subscribed);
   const busy = Boolean(push.busy);
-  const configured = push.configured !== false;
-  const supported = push.supported !== false;
-  const canEnable = locationReady && supported && configured;
+  const configured = push.configured === true;
+  const supported = push.supported === true;
+  const canEnable = supported && configured;
 
-  button.disabled = busy || (!enabled && !canEnable);
+  button.disabled = busy || (!subscribed && !canEnable);
   button.classList.toggle("is-enabled", enabled);
-  button.textContent = busy ? "処理中" : enabled ? "無効にする" : "有効にする";
-  advisoryButton?.setAttribute("aria-pressed", push.notifyAdvisory ? "true" : "false");
-  if (advisoryButton) advisoryButton.disabled = busy;
-
+  button.textContent = busy ? "処理中" : subscribed ? "無効にする" : "有効にする";
   if (enabled) {
-    title.textContent = `${currentAreaName || "現在地"}を監視中`;
-    status.textContent = push.message || "警報・危険警報・特別警報の変化を通知します。";
+    title.textContent = "お知らせ通知は有効です";
+    status.textContent = push.message || "MeteoScope管理者からのお知らせを受け取ります。";
     return;
   }
 
@@ -243,10 +232,8 @@ function renderSettingsPushNotifications() {
     status.textContent = "このブラウザではWeb通知を利用できません。";
   } else if (!configured) {
     status.textContent = "通知サーバーの設定が未完了です。";
-  } else if (locationReady) {
-    status.textContent = `${currentAreaName}の警報変化を通知できます。`;
   } else {
-    status.textContent = push.message || "現在地を取得すると通知を有効にできます。";
+    status.textContent = push.message || "メンテナンスなどの重要なお知らせを通知できます。";
   }
 }
 

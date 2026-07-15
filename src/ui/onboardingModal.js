@@ -44,8 +44,8 @@ const PAGES = [
   {
     eyebrow: "Safety",
     title: "自分に合った情報を受け取る",
-    body: "設定から現在地の警報通知、マイエリア、外観を変更できます。安全に関わる判断では公式情報も確認してください。",
-    visual: `<div class="onboarding-safety-visual"><span>現在地の警報通知</span><i></i><span>マイエリア</span><b>2</b><button type="button" data-onboarding-open-settings>設定を開く</button></div>`
+    body: "設定から管理者のお知らせ通知、マイエリア、外観を変更できます。Web版は警報・注意報をプッシュ通知しないため、公式情報も確認してください。",
+    visual: `<div class="onboarding-safety-visual"><span>お知らせ通知</span><i></i><span>マイエリア</span><b>2</b><button type="button" data-onboarding-open-settings>設定を開く</button></div>`
   }
 ];
 

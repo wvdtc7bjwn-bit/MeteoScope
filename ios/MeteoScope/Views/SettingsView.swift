@@ -17,8 +17,8 @@ struct SettingsView: View {
                 Toggle("気象データを自動更新", isOn: $preferences.automaticallyRefresh)
             }
 
-            Section("通知") {
-                Toggle("警報・注意報通知", isOn: $preferences.warningNotificationsEnabled)
+            Section("iOS版の警報・注意報通知") {
+                Toggle("警報・注意報を通知", isOn: $preferences.warningNotificationsEnabled)
                     .disabled(
                         (!pushNotifications.canEnableNotifications || preferences.notificationAreaCode.isEmpty)
                             && !preferences.warningNotificationsEnabled
@@ -57,6 +57,9 @@ struct SettingsView: View {
                         .foregroundStyle(.red)
                 }
                 Text(notificationExplanation)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Text("この設定はiOS版専用です。Web版のプッシュ通知はMeteoScope管理者からのお知らせのみで、警報・注意報は配信しません。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

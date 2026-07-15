@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  buildIOSWarningNotificationQueue,
   buildNotificationMessage,
   onRequest,
   runWarningPushCheck,
@@ -35,6 +36,10 @@ assert.ok(selectWarningOfficeBatch(45).length <= 15);
 assert.equal(shouldPreserveWarningState("290000", ["290000"]), true);
 assert.equal(shouldPreserveWarningState("290000", []), false);
 assert.equal(shouldPreserveWarningState("", []), true);
+assert.deepEqual(
+  buildIOSWarningNotificationQueue([{ id: "device-b" }, { id: "device-a" }]).map((item) => item.key),
+  ["ios:device-a", "ios:device-b"]
+);
 
 const firstQueueBatch = selectNotificationQueueBatch(
   [{ key: "web:a" }, { key: "web:b" }, { key: "web:c" }],
@@ -206,6 +211,50 @@ const validRegistration = await validRegistrationResponse.json();
 assert.equal(validRegistration.area.areaName, "奈良市西部");
 assert.equal(validRegistration.area.prefecture, "奈良県");
 assert.equal(validRegistration.deliveryEnabled, true);
+
+let savedWebSubscription = null;
+const webSubscriptionDatabase = {
+  prepare(sql) {
+    return {
+      bind(...values) {
+        return {
+          async run() {
+            if (sql.includes("INSERT INTO push_subscriptions")) {
+              savedWebSubscription = JSON.parse(values[1]);
+            }
+            return { success: true };
+          }
+        };
+      }
+    };
+  }
+};
+const webSubscriptionResponse = await onRequest({
+  request: new Request("https://example.test/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      subscription: {
+        endpoint: "https://push.example.test/subscription",
+        keys: { p256dh: "public-key", auth: "auth-secret" }
+      },
+      area: canonicalArea,
+      preferences: { notifyAdvisory: true, adminBroadcast: false },
+      warningState: { warnings: [{ code: "03", level: "warning" }] }
+    })
+  }),
+  env: {
+    NOTIFICATIONS_DB: webSubscriptionDatabase,
+    VAPID_PUBLIC_KEY: "configured-public-key",
+    VAPID_PRIVATE_KEY: "configured-private-key"
+  }
+});
+assert.equal(webSubscriptionResponse.status, 200);
+assert.equal((await webSubscriptionResponse.json()).deliveryMode, "admin_only");
+assert.equal(savedWebSubscription.deliveryMode, "admin_only");
+assert.deepEqual(savedWebSubscription.preferences, { adminBroadcast: true });
+assert.equal("areaCode" in savedWebSubscription, false);
+assert.equal("warningState" in savedWebSubscription, false);
 
 class CountingD1 {
   constructor() {

@@ -1,17 +1,15 @@
-const STORAGE_KEY = "meteoscope.locationWarningPush.enabled";
-const ADVISORY_STORAGE_KEY = "meteoscope.locationWarningPush.notifyAdvisory";
+const STORAGE_KEY = "meteoscope.adminNoticePush.enabled";
+const LEGACY_STORAGE_KEY = "meteoscope.locationWarningPush.enabled";
+const LEGACY_ADVISORY_STORAGE_KEY = "meteoscope.locationWarningPush.notifyAdvisory";
 
-export function createLocationWarningPush(options = {}) {
+export function createAdminNoticePush(options = {}) {
   let state = {
     supported: isSupported(),
     configured: null,
-    enabled: localStorage.getItem(STORAGE_KEY) === "1",
-    notifyAdvisory: localStorage.getItem(ADVISORY_STORAGE_KEY) === "1",
+    enabled: isStoredAsEnabled(),
     subscribed: false,
     busy: false,
     permission: typeof Notification === "undefined" ? "unsupported" : Notification.permission,
-    areaCode: "",
-    areaName: "",
     message: ""
   };
   let configPromise = null;
@@ -27,32 +25,41 @@ export function createLocationWarningPush(options = {}) {
       const readyRegistration = await navigator.serviceWorker.ready;
       const subscription = await readyRegistration.pushManager.getSubscription();
       const configured = Boolean(config.enabled && config.publicKey);
+      const subscribed = Boolean(subscription && Notification.permission === "granted");
+      const enabled = configured && subscribed;
+
+      if (enabled) {
+        await postSubscription(subscription);
+        storeEnabled();
+      } else if (!subscribed) {
+        clearStoredState();
+      }
+
       updateState({
         configured,
-        subscribed: Boolean(subscription),
+        enabled,
+        subscribed,
         permission: Notification.permission,
-        message: configured ? "" : buildConfigurationMessage(config)
+        message: configured
+          ? enabled ? "管理者からのお知らせを受け取ります。" : ""
+          : buildConfigurationMessage(config)
       });
       return state;
     } catch (error) {
-      console.warn("[MeteoScope] push notification init failed", error);
+      console.warn("[MeteoScope] admin notice push init failed", error);
       updateState({ configured: false, message: "通知機能を初期化できませんでした。" });
       return state;
     }
   }
 
-  async function enable(currentLocation) {
-    if (!isLocationReady(currentLocation)) {
-      updateState({ message: "現在地を取得してから通知を有効にしてください。" });
-      return state;
-    }
+  async function enable() {
     if (!state.supported) return initialize();
 
     updateState({ busy: true, message: "通知を設定しています..." });
     try {
       const config = await loadConfig({ force: true });
       if (!config.enabled || !config.publicKey) {
-        localStorage.removeItem(STORAGE_KEY);
+        clearStoredState();
         updateState({
           busy: false,
           enabled: false,
@@ -65,30 +72,34 @@ export function createLocationWarningPush(options = {}) {
 
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        localStorage.removeItem(STORAGE_KEY);
-        updateState({ busy: false, enabled: false, subscribed: false, permission, message: "通知の利用が許可されていません。" });
+        clearStoredState();
+        updateState({
+          busy: false,
+          enabled: false,
+          subscribed: false,
+          permission,
+          message: "通知の利用が許可されていません。"
+        });
         return state;
       }
 
       await navigator.serviceWorker.register("/sw.js");
       const readyRegistration = await navigator.serviceWorker.ready;
       const subscription = await getOrCreateSubscription(readyRegistration, config.publicKey);
-      await postSubscription(subscription, currentLocation, state.notifyAdvisory);
-      localStorage.setItem(STORAGE_KEY, "1");
+      await postSubscription(subscription);
+      storeEnabled();
       updateState({
         busy: false,
         enabled: true,
         subscribed: true,
         permission,
         configured: true,
-        areaCode: currentLocation.areaCode,
-        areaName: currentLocation.areaName,
-        message: `${currentLocation.areaName}の警報通知を有効にしました。`
+        message: "管理者からのお知らせ通知を有効にしました。"
       });
       return state;
     } catch (error) {
-      console.warn("[MeteoScope] push notification subscribe failed", error);
-      localStorage.removeItem(STORAGE_KEY);
+      console.warn("[MeteoScope] admin notice push subscribe failed", error);
+      clearStoredState();
       updateState({ busy: false, enabled: false, subscribed: false, message: buildSubscribeErrorMessage(error) });
       return state;
     }
@@ -100,56 +111,23 @@ export function createLocationWarningPush(options = {}) {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
       if (subscription) {
-        await fetch("/api/push/unsubscribe", {
+        const response = await fetch("/api/push/unsubscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: subscription.endpoint })
-        }).catch(() => null);
-        await subscription.unsubscribe().catch(() => false);
+        });
+        if (!response.ok) throw new Error(`unsubscribe failed: ${response.status}`);
+        const unsubscribed = await subscription.unsubscribe();
+        if (!unsubscribed) throw new Error("browser unsubscribe failed");
       }
-      localStorage.removeItem(STORAGE_KEY);
-      updateState({ busy: false, enabled: false, subscribed: false, areaCode: "", areaName: "", message: "通知を解除しました。" });
+      clearStoredState();
+      updateState({ busy: false, enabled: false, subscribed: false, message: "お知らせ通知を解除しました。" });
       return state;
     } catch (error) {
-      console.warn("[MeteoScope] push notification unsubscribe failed", error);
-      localStorage.removeItem(STORAGE_KEY);
-      updateState({ busy: false, enabled: false, subscribed: false, message: "通知解除を完了できませんでした。" });
+      console.warn("[MeteoScope] admin notice push unsubscribe failed", error);
+      updateState({ busy: false, message: "通知解除を完了できませんでした。もう一度お試しください。" });
       return state;
     }
-  }
-
-  async function sync(currentLocation) {
-    if (!state.enabled || !isLocationReady(currentLocation) || !state.supported) return state;
-    try {
-      const config = await loadConfig();
-      if (!config.enabled || !config.publicKey || Notification.permission !== "granted") return state;
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      if (!subscription) return state;
-      await postSubscription(subscription, currentLocation, state.notifyAdvisory);
-      updateState({
-        subscribed: true,
-        permission: Notification.permission,
-        areaCode: currentLocation.areaCode,
-        areaName: currentLocation.areaName,
-        message: `${currentLocation.areaName}の警報通知を監視中です。`
-      });
-    } catch (error) {
-      console.warn("[MeteoScope] push notification sync failed", error);
-      updateState({ message: "通知対象の更新に失敗しました。" });
-    }
-    return state;
-  }
-
-  async function setNotifyAdvisory(value, currentLocation) {
-    const notifyAdvisory = Boolean(value);
-    if (notifyAdvisory) localStorage.setItem(ADVISORY_STORAGE_KEY, "1");
-    else localStorage.removeItem(ADVISORY_STORAGE_KEY);
-    updateState({ notifyAdvisory });
-    if (state.enabled && isLocationReady(currentLocation)) {
-      await sync(currentLocation);
-    }
-    return state;
   }
 
   function getState() {
@@ -171,14 +149,7 @@ export function createLocationWarningPush(options = {}) {
     return configPromise;
   }
 
-  return {
-    initialize,
-    enable,
-    disable,
-    sync,
-    setNotifyAdvisory,
-    getState
-  };
+  return { initialize, enable, disable, getState };
 }
 
 function isSupported() {
@@ -189,8 +160,20 @@ function isSupported() {
     window.isSecureContext;
 }
 
-function isLocationReady(currentLocation) {
-  return currentLocation?.status === "found" && currentLocation?.areaCode;
+function isStoredAsEnabled() {
+  return localStorage.getItem(STORAGE_KEY) === "1" || localStorage.getItem(LEGACY_STORAGE_KEY) === "1";
+}
+
+function storeEnabled() {
+  localStorage.setItem(STORAGE_KEY, "1");
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_ADVISORY_STORAGE_KEY);
+}
+
+function clearStoredState() {
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_ADVISORY_STORAGE_KEY);
 }
 
 async function getOrCreateSubscription(registration, publicKey) {
@@ -208,40 +191,17 @@ async function getOrCreateSubscription(registration, publicKey) {
   });
 }
 
-async function postSubscription(subscription, currentLocation, notifyAdvisory = false) {
+async function postSubscription(subscription) {
   const response = await fetch("/api/push/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      subscription: subscription.toJSON(),
-      area: {
-        areaCode: currentLocation.areaCode,
-        areaName: currentLocation.areaName,
-        prefecture: currentLocation.prefecture
-      },
-      warningState: buildWarningState(currentLocation.warnings),
-      preferences: {
-        notifyAdvisory: Boolean(notifyAdvisory)
-      }
-    })
+    body: JSON.stringify({ subscription: subscription.toJSON() })
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(payload.error || `subscribe failed: ${response.status}`);
   }
   return response.json();
-}
-
-function buildWarningState(warnings = []) {
-  return {
-    warnings: (Array.isArray(warnings) ? warnings : []).map((warning) => ({
-      code: warning.code,
-      rawLabel: warning.rawLabel,
-      label: warning.label,
-      level: warning.level,
-      levelNumber: warning.levelNumber
-    }))
-  };
 }
 
 function buildConfigurationMessage(config = {}) {

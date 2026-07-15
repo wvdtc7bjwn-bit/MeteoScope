@@ -25,7 +25,7 @@ import { resolveCurrentLocationInfo, searchMunicipalities } from "./location/cur
 import { addMyArea, getMyAreaLimit, loadMyAreas, removeMyArea } from "./location/myAreas.js";
 import { buildLocationRadarTimeline } from "./location/radarTimeline.js";
 import { sampleCurrentKikikuruStatus } from "./location/kikikuruStatus.js";
-import { createLocationWarningPush } from "./push/locationWarningPush.js";
+import { createAdminNoticePush } from "./push/adminNoticePush.js";
 import { setupRemoteConfig } from "./remoteConfig.js";
 import { setupTheme } from "./ui/theme.js";
 import { activateEarlyAccess, deactivateEarlyAccess, validateEarlyAccess } from "./ui/earlyAccess.js";
@@ -126,7 +126,7 @@ export function createWeatherApp() {
   let weatherChartRequestExtendedHistory = null;
   let weatherChartExtendedHistory = false;
   let activeWeatherChartFrameIndex = 0;
-  const locationWarningPush = createLocationWarningPush({
+  const adminNoticePush = createAdminNoticePush({
     onChange: () => refreshSettingsModalView()
   });
   const loadRequestsByTab = new Map();
@@ -1008,7 +1008,6 @@ if (layerId === "river") {
         coordinates,
         resolvedAt: Date.now()
       };
-      void locationWarningPush.sync(nextInfo);
       resetLocationRadarTimeline();
       void refreshCurrentKikikuruStatus();
       refreshSettingsModalView();
@@ -1302,7 +1301,7 @@ if (layerId === "river") {
     return {
       myAreas,
       currentLocation: currentLocationInfo,
-      locationWarningPush: locationWarningPush.getState(),
+      adminNoticePush: adminNoticePush.getState(),
       myAreaLimit: getMyAreaLimit(),
       themePreference: themeController.getPreference(),
       earlyAccessEnabled,
@@ -1336,19 +1335,13 @@ if (layerId === "river") {
     refreshActivePanel();
   }
 
-  async function toggleLocationWarningPush() {
-    const pushState = locationWarningPush.getState();
+  async function toggleAdminNoticePush() {
+    const pushState = adminNoticePush.getState();
     if (pushState.enabled || pushState.subscribed) {
-      await locationWarningPush.disable();
+      await adminNoticePush.disable();
     } else {
-      await locationWarningPush.enable(currentLocationInfo);
+      await adminNoticePush.enable();
     }
-    refreshSettingsModalView();
-  }
-
-  async function toggleLocationWarningAdvisory() {
-    const pushState = locationWarningPush.getState();
-    await locationWarningPush.setNotifyAdvisory(!pushState.notifyAdvisory, currentLocationInfo);
     refreshSettingsModalView();
   }
 
@@ -1396,8 +1389,7 @@ if (layerId === "river") {
       onRemoveArea: removeSettingsMyArea,
       getDisasterMapPdfInfo: getStoredDisasterMapPdfInfo,
       onClearDisasterMapPdf: clearStoredDisasterMapPdf,
-      onToggleLocationWarningPush: toggleLocationWarningPush,
-      onToggleLocationWarningAdvisory: toggleLocationWarningAdvisory,
+      onToggleAdminNoticePush: toggleAdminNoticePush,
       onThemeChange: (theme) => themeController.setPreference(theme),
       onActivateEarlyAccess: authenticateEarlyAccess,
       onDeactivateEarlyAccess: releaseEarlyAccess,
@@ -1411,7 +1403,7 @@ if (layerId === "river") {
     document.getElementById("locate-button")?.addEventListener("click", locateCurrentPosition);
     startClock("clock");
     startAutoRefresh();
-    void locationWarningPush.initialize().then(() => refreshSettingsModalView());
+    void adminNoticePush.initialize().then(() => refreshSettingsModalView());
     startLocationWatch();
     selectTab(activeTab);
     void refreshEarlyAccess();
