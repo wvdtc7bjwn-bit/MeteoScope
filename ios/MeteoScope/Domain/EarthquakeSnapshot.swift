@@ -31,8 +31,9 @@ struct EarthquakeIntensityArea: Identifiable, Hashable, Sendable {
 struct EarthquakeIntensityPoint: Identifiable, Hashable, Sendable {
     let stationCode: String
     let name: String
+    let prefecture: String
     let intensity: String
-    let coordinate: GeoCoordinate
+    let coordinate: GeoCoordinate?
 
     var id: String { stationCode }
 }
@@ -176,24 +177,30 @@ enum EarthquakeXMLDecoder {
                 intensity: intensityLabel(rawIntensity)
             )
         }
-        let intensityPoints = root.descendants(named: "IntensityStation").compactMap { node -> EarthquakeIntensityPoint? in
-            guard let code = node.firstChild(named: "Code")?.text,
-                  let stationName = node.firstChild(named: "Name")?.text,
-                  let station = EarthquakeStationLookup.station(
-                      code: code,
-                      name: stationName,
-                      in: stations
-                  ),
-                  let rawIntensity = node.firstChild(named: "Int")?.text
-            else {
-                return nil
+        let intensityPoints = root.descendants(named: "Pref").flatMap { prefectureNode in
+            let prefecture = prefectureNode.firstChild(named: "Name")?.text ?? ""
+            return prefectureNode.descendants(named: "IntensityStation").compactMap { node -> EarthquakeIntensityPoint? in
+                guard let code = node.firstChild(named: "Code")?.text,
+                      let stationName = node.firstChild(named: "Name")?.text,
+                      let rawIntensity = node.firstChild(named: "Int")?.text
+                else {
+                    return nil
+                }
+                let station = EarthquakeStationLookup.station(
+                    code: code,
+                    name: stationName,
+                    in: stations
+                )
+                return EarthquakeIntensityPoint(
+                    stationCode: code,
+                    name: stationName,
+                    prefecture: prefecture,
+                    intensity: intensityLabel(rawIntensity),
+                    coordinate: station.map {
+                        GeoCoordinate(latitude: $0.latitude, longitude: $0.longitude)
+                    }
+                )
             }
-            return EarthquakeIntensityPoint(
-                stationCode: code,
-                name: stationName,
-                intensity: intensityLabel(rawIntensity),
-                coordinate: GeoCoordinate(latitude: station.latitude, longitude: station.longitude)
-            )
         }
         let stableID = [eventID, eventTime, hypocenter].compactMap { value in
             guard let value, !value.isEmpty else { return nil }
@@ -298,6 +305,7 @@ extension EarthquakeSnapshot {
                     EarthquakeIntensityPoint(
                         stationCode: "2920100",
                         name: "奈良市",
+                        prefecture: "奈良県",
                         intensity: "震度2",
                         coordinate: GeoCoordinate(latitude: 34.68, longitude: 135.82)
                     )

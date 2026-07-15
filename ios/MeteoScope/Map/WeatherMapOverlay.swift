@@ -235,10 +235,11 @@ enum WeatherMapOverlayBuilder {
                 SeismicIntensityCatalog.rank($0.intensity) > SeismicIntensityCatalog.rank($1.intensity)
             }
             .prefix(600)
-            .map { station in
-                WeatherMapPoint(
+            .compactMap { station in
+                guard let coordinate = station.coordinate else { return nil }
+                return WeatherMapPoint(
                     id: "station-\(station.stationCode)",
-                    coordinate: station.coordinate,
+                    coordinate: coordinate,
                     title: station.name,
                     subtitle: station.intensity,
                     kind: .seismicIntensity(station.intensity)

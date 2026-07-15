@@ -4,6 +4,7 @@ import {
   buildStationCoordinateLookup,
   normalizeStationName
 } from "../src/jma/earthquakeStationLookup.js";
+import { buildEarthquakeObservationRows } from "../src/earthquakeDetails.js";
 
 assert.equal(normalizeStationName("八戸市南郷＊"), "八戸市南郷");
 assert.equal(normalizeStationName("八戸市南郷*"), "八戸市南郷");
@@ -56,5 +57,21 @@ const [ambiguousStation] = attachIntensityStationCoordinates([
   { code: "unknown", stationName: "八戸市未登録＊", cityName: "八戸市", intensity: "1" }
 ], ambiguousLookup);
 assert.equal(ambiguousStation.coordinates, null);
+
+const stationRows = buildEarthquakeObservationRows({
+  intensityStations: [
+    { code: "02", stationName: "盛岡市薮川", prefecture: "岩手県", intensity: "2", intensityShort: "2", rank: 2 },
+    { code: "01", stationName: "八戸市南郷", prefecture: "青森県", intensity: "3", intensityShort: "3", rank: 3 }
+  ],
+  intensityCities: [{ code: "city", cityName: "使用しない市", intensity: "4", rank: 4 }]
+});
+assert.deepEqual(stationRows.map((row) => row.name), ["八戸市南郷", "盛岡市薮川"]);
+assert.equal(stationRows[0].kind, "station");
+
+const cityRows = buildEarthquakeObservationRows({
+  intensityCities: [{ code: "03201", cityName: "盛岡市", prefecture: "岩手県", intensity: "5-", intensityShort: "5弱" }]
+});
+assert.equal(cityRows[0].kind, "city");
+assert.equal(cityRows[0].name, "盛岡市");
 
 console.log("Earthquake station lookup tests passed");

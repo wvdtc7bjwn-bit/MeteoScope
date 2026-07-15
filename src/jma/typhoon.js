@@ -70,7 +70,7 @@ function buildTyphoonResponse(raw, unavailable) {
     unavailable,
     summary: buildSummary(typhoons.length, unavailable),
     latestTime: hasTyphoon ? typhoons[0].updatedAt : "発表なし",
-    updatedAt: unavailable ? "未取得" : (hasTyphoon ? typhoons[0].updatedAt : "発表なし")
+    updatedAt: unavailable ? "-" : (hasTyphoon ? typhoons[0].updatedAt : "発表なし")
   };
 }
 
@@ -89,7 +89,7 @@ function normalizeTyphoons(raw) {
     .filter(Boolean);
 }
 
-function normalizeTyphoon(item, index) {
+export function normalizeTyphoon(item, index = 0) {
   if (!item || typeof item !== "object") return null;
   if (Array.isArray(item.forecast) || Array.isArray(item.specifications)) {
     return normalizeJmaTyphoon(item, index);
@@ -104,6 +104,10 @@ function normalizeTyphoon(item, index) {
   const stormWarningArea = pickWarningArea(item);
   const stormWarningAreaShape = pickWarningAreaShape(item);
   const name = pickTyphoonName(item, index);
+  const transitionStatus = formatTyphoonTransitionStatus(
+    getTyphoonTransitionStatus(item.category, item.class, item.type, item.status),
+    pickValue(item, ["typhoonNumber", "number", "tcNumber"])
+  );
   const updatedAt = formatTime(pickValue(item, [
     "updatedAt", "issue", "reportDatetime", "reportDateTime", "targetTime", "validtime", "basetime", "time", "dateTime"
   ]));
@@ -111,6 +115,7 @@ function normalizeTyphoon(item, index) {
   return {
     id: String(pickValue(item, ["tropicalCyclone", "typhoonNumber", "id", "code"]) ?? `typhoon-${index + 1}`),
     name,
+    transitionStatus,
     center,
     track,
     forecastTrack,
@@ -121,6 +126,7 @@ function normalizeTyphoon(item, index) {
     stormRadius: pickRadius(item, ["stormRadius", "wind25mRadius", "violentWindRadius", "radius25m", "暴風域"]),
     details: {
       name,
+      transitionStatus,
       size: formatClassification(pickValue(item, ["size", "scale", "typhoonSize", "stormSize", "classificationSize", "大きさ"])),
       strength: formatClassification(pickValue(item, ["strength", "intensity", "typhoonStrength", "stormIntensity", "classificationIntensity", "強さ"])),
       pressure: formatWithUnit(pickValue(item, ["pressure", "centralPressure", "centerPressure", "pres", "中心気圧"]), "hPa"),
@@ -147,6 +153,19 @@ function normalizeJmaTyphoon(item, index) {
   if (!center) return null;
 
   const name = pickJmaTyphoonName(title, item, index);
+  const transitionStatus = formatTyphoonTransitionStatus(
+    getTyphoonTransitionStatus(
+      specNow.category,
+      current.category,
+      current.class,
+      current.type,
+      current.status,
+      title.category,
+      item.category,
+      item.status
+    ),
+    title.typhoonNumber ?? item.typhoonNumber
+  );
   const forecastTrack = points.map((entry) => normalizePoint(entry.center)).filter(Boolean);
   const pastTrack = [
     ...(current.track?.preTyphoon ?? []),
@@ -190,6 +209,7 @@ function normalizeJmaTyphoon(item, index) {
   return {
     id: String(item.tropicalCyclone ?? item.id ?? title.typhoonNumber ?? `typhoon-${index + 1}`),
     name,
+    transitionStatus,
     center,
     track,
     pastTrack,
@@ -204,6 +224,7 @@ function normalizeJmaTyphoon(item, index) {
     stormCenter,
     details: {
       name,
+      transitionStatus,
       size: formatClassification(specNow.scale ?? current.scale ?? null),
       strength: formatClassification(specNow.intensity ?? current.intensity ?? null),
       pressure: formatWithUnit(specNow.pressure ?? current.pressure ?? null, "hPa"),
@@ -385,6 +406,7 @@ function pickJmaTyphoonName(title, item, index) {
 function buildEmptyDetails(value) {
   return {
     name: value,
+    transitionStatus: null,
     size: value,
     strength: value,
     pressure: value,
@@ -413,6 +435,42 @@ function isTropicalDepression(item) {
   return category === "TD" || category.includes("TROPICAL DEPRESSION") || category.includes("熱帯低気圧");
 }
 
+export function getTyphoonTransitionStatus(...sources) {
+  const text = sources.map(extractCycloneStatusText).filter(Boolean).join(" ").toUpperCase();
+  if (!text) return null;
+  if (/温帯低気圧|EXTRATROPICAL|(?:^|\W)(?:EX|ET)(?:\W|$)/.test(text)) {
+    return "温帯低気圧に変わりました";
+  }
+  if (/熱帯低気圧|TROPICAL DEPRESSION|(?:^|\W)TD(?:\W|$)/.test(text)) {
+    return "熱帯低気圧に変わりました";
+  }
+  return null;
+}
+
+export function formatTyphoonTransitionStatus(status, rawNumber) {
+  if (!status) return null;
+  const number = normalizeTyphoonDisplayNumber(rawNumber);
+  return number ? `台風${number}号は${status}` : status;
+}
+
+function normalizeTyphoonDisplayNumber(value) {
+  const groups = String(value ?? "").match(/\d+/g);
+  if (!groups?.length) return "";
+  let digits = groups.at(-1);
+  if (digits.length >= 4) digits = digits.slice(-2);
+  const number = Number.parseInt(digits, 10);
+  return Number.isFinite(number) && number > 0 ? String(number) : "";
+}
+
+function extractCycloneStatusText(value) {
+  if (value === null || value === undefined) return "";
+  if (typeof value !== "object") return String(value).trim();
+  return ["jp", "ja", "en", "label", "name", "category", "class", "type", "status"]
+    .map((key) => extractCycloneStatusText(value[key]))
+    .filter(Boolean)
+    .join(" ");
+}
+
 function isNonNumericTyphoonNumber(value) {
   if (value === null || value === undefined || value === "") return false;
   return !/^\d+$/.test(String(value));
@@ -424,7 +482,7 @@ function formatTropicalDepressionName(number) {
 }
 
 function formatClassification(value) {
-  if (value === null || value === undefined || value === "") return "未取得";
+  if (value === null || value === undefined || value === "") return "-";
   if (typeof value === "object") {
     return formatClassification(value.jp ?? value.ja ?? value.label ?? value.name ?? value.en ?? null);
   }
@@ -597,7 +655,7 @@ function normalizeRadius(value) {
 }
 
 function formatTime(value) {
-  return parseJmaTime(value) ?? "取得済み";
+  return parseJmaTime(value) ?? "-";
 }
 
 function formatForecastTimeLabel(value) {
@@ -614,7 +672,7 @@ function formatForecastTimeLabel(value) {
 }
 
 function formatWithUnit(value, unit) {
-  if (value === null || value === undefined || value === "") return "未取得";
+  if (value === null || value === undefined || value === "") return "-";
   const text = String(value);
   return text.includes(unit) ? text : `${text} ${unit}`;
 }
@@ -633,12 +691,12 @@ function isZeroMeasurement(value) {
 }
 
 function formatPlain(value) {
-  return value === null ? "未取得" : String(value);
+  return value === null || value === undefined || value === "" ? "-" : String(value);
 }
 
 function formatPosition(center, fallback) {
   if (fallback !== null && fallback !== undefined && fallback !== "") return String(fallback);
   if (center) return `北緯 ${center[1].toFixed(1)}° / 東経 ${center[0].toFixed(1)}°`;
-  return "未取得";
+  return "-";
 }
 

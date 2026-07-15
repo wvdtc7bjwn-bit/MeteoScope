@@ -10,6 +10,7 @@ import {
   KIKIKURU_LEVELS
 } from "../config.js";
 import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
+import { buildEarthquakeObservationRows } from "../earthquakeDetails.js";
 import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
 
 let selectedWarningAreaCode = "";
@@ -71,7 +72,6 @@ export function updateLeftPanel(tab, state = {}) {
   renderTyphoonSelector(tab, state);
   renderTyphoonDetails(tab, state);
   renderEarthquakeList(tab, state);
-  renderEarthquakeDetails(tab, state);
   renderAmedasDailyChart(tab, state, amedasMetric);
   renderAmedasRanking(tab, state, amedasMetric);
   renderMobileContextDock(tab, state, { amedasMetric, warningView });
@@ -1218,6 +1218,7 @@ function buildTyphoonMobileContextMarkup(typhoons = [], selectedTyphoonId = "") 
   const pressure = normalizeSummaryValue(activeTyphoon?.details?.pressure);
   const maxGust = normalizeSummaryValue(activeTyphoon?.details?.maxGust);
   const count = typhoons.length > 1 ? `${activeIndex + 1}/${typhoons.length}` : "選択中";
+  const transitionStatus = activeTyphoon?.transitionStatus ?? activeTyphoon?.details?.transitionStatus ?? "";
   const switchButton = typhoons.length > 1
     ? `<button type="button" class="mobile-dock-typhoon-switch" data-mobile-dock-control data-typhoon-id="${escapeHtml(nextId)}" aria-label="${escapeHtml(`次の台風 ${nextName} に切り替え`)}">${escapeHtml(count)}</button>`
     : `<span class="mobile-dock-typhoon-switch is-static">${escapeHtml(count)}</span>`;
@@ -1229,7 +1230,10 @@ function buildTyphoonMobileContextMarkup(typhoons = [], selectedTyphoonId = "") 
         ${switchButton}
       </div>
       <div class="mobile-dock-typhoon-main">
-        <strong>${escapeHtml(name)}</strong>
+        <div class="mobile-dock-typhoon-text">
+          <strong>${escapeHtml(name)}</strong>
+          ${transitionStatus ? `<span class="mobile-dock-typhoon-status">${escapeHtml(transitionStatus)}</span>` : ""}
+        </div>
         <div class="mobile-dock-typhoon-values" aria-label="台風の解析値">
           <span><em>気圧</em>${escapeHtml(pressure)}</span>
           <span><em>最大瞬間</em>${escapeHtml(maxGust)}</span>
@@ -1241,7 +1245,7 @@ function buildTyphoonMobileContextMarkup(typhoons = [], selectedTyphoonId = "") 
 
 function normalizeSummaryValue(value) {
   const text = String(value ?? "").trim();
-  return text && text !== "--" && text !== "-" ? text : "-";
+  return text && !["--", "-", "未取得", "取得中"].includes(text) ? text : "-";
 }
 
 function buildEarthquakeMobileContextMarkup(earthquake, activeFaultVisible) {
@@ -2589,7 +2593,17 @@ function renderTyphoonDetails(tab, state) {
   }
 
   const details = getTyphoonDetails(state);
-  root.innerHTML = [
+  const transitionStatus = state.data?.selectedTyphoon?.transitionStatus
+    ?? state.data?.selectedTyphoon?.details?.transitionStatus
+    ?? details.transitionStatus
+    ?? "";
+  const statusMarkup = transitionStatus ? `
+    <div class="typhoon-transition-status" role="status">
+      <span>現在の状態</span>
+      <strong>${escapeHtml(transitionStatus)}</strong>
+    </div>
+  ` : "";
+  root.innerHTML = statusMarkup + [
     ["大きさ", details.size],
     ["強さ", details.strength],
     ["中心気圧", details.pressure],
@@ -2632,84 +2646,69 @@ function renderEarthquakeList(tab, state) {
   }
 
   const selectedId = String(state.data?.selectedEarthquakeId ?? earthquakes[0]?.id ?? "");
-  root.innerHTML = earthquakes.map((earthquake) => {
+  const collapsedId = String(state.data?.collapsedEarthquakeId ?? "");
+  root.innerHTML = earthquakes.map((earthquake, index) => {
     const isActive = String(earthquake.id) === selectedId;
+    const isExpanded = isActive && String(earthquake.id) !== collapsedId;
     const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
     const intensityTextClass = getEarthquakeIntensityTextClass(earthquake.maxIntensity);
     const magnitude = formatEarthquakeMagnitude(earthquake.magnitude, { prefix: true });
     const depthText = formatEarthquakeDepthText(earthquake.depth, { compact: true });
+    const observations = buildEarthquakeObservationRows(earthquake);
+    const observationsId = `earthquake-observations-${index}`;
     return `
-      <button
-        type="button"
-        class="earthquake-select-button${isActive ? " active" : ""}"
-        data-earthquake-id="${escapeHtml(earthquake.id)}"
-        aria-pressed="${isActive ? "true" : "false"}"
-      >
-        <strong>${escapeHtml(earthquake.hypocenterName ?? "震源調査中")}</strong>
-        <span>${escapeHtml(earthquake.eventTime ?? earthquake.reportTime ?? "--")}</span>
-        <div class="earthquake-item-meta">
-          <em class="${intensityTextClass}" style="--earthquake-item-intensity-bg: ${escapeHtml(intensityColor)};">${escapeHtml(earthquake.maxIntensityLabel ?? "震度不明")}</em>
-          <small>${escapeHtml(magnitude)}</small>
-          <small>深さ ${escapeHtml(depthText)}</small>
-        </div>
-      </button>
+      <article class="earthquake-history-item${isActive ? " active" : ""}${isExpanded ? " expanded" : ""}">
+        <button
+          type="button"
+          class="earthquake-select-button"
+          data-earthquake-id="${escapeHtml(earthquake.id)}"
+          aria-expanded="${isExpanded ? "true" : "false"}"
+          aria-pressed="${isActive ? "true" : "false"}"
+          aria-controls="${observationsId}"
+        >
+          <span class="earthquake-card-info">
+            <small>震源地</small>
+            <strong>${escapeHtml(earthquake.hypocenterName ?? "震源調査中")}</strong>
+            <span class="earthquake-card-facts">
+              <span>${escapeHtml(magnitude)}</span>
+              <span>深さ ${escapeHtml(depthText)}</span>
+            </span>
+            <time>発生時刻 ${escapeHtml(formatEarthquakeEventTime(earthquake.eventTime ?? earthquake.reportTime))}</time>
+          </span>
+          <span class="earthquake-card-intensity">
+            <small>最大震度</small>
+            <strong class="${intensityTextClass}" style="--earthquake-item-intensity-bg: ${escapeHtml(intensityColor)};">${escapeHtml(earthquake.maxIntensityShort ?? "--")}</strong>
+          </span>
+          <span class="earthquake-card-chevron" aria-hidden="true"></span>
+        </button>
+        ${isExpanded ? renderEarthquakeObservations(observations, observationsId) : ""}
+      </article>
     `;
   }).join("");
 }
 
-function renderEarthquakeDetails(tab, state) {
-  const root = document.getElementById("earthquake-detail-grid");
-  if (!root) return;
-
-  const isEarthquake = tab.id === "earthquake";
-  root.hidden = !isEarthquake;
-  if (!isEarthquake) {
-    root.innerHTML = "";
-    return;
-  }
-
-  const earthquake = state.data?.selectedEarthquake;
-  if (!earthquake) {
-    root.innerHTML = "";
-    return;
-  }
-
-  const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
-  const intensityTextClass = getEarthquakeIntensityTextClass(earthquake.maxIntensity);
-  root.innerHTML = `
-    <section class="earthquake-summary-card" aria-label="選択中の地震情報" style="--earthquake-intensity-bg: ${escapeHtml(intensityColor)};">
-      <div class="earthquake-main-head">
-        <div class="earthquake-hypocenter">
-          <span>震源地</span>
-          <strong>${escapeHtml(earthquake.hypocenterName ?? "震源調査中")}</strong>
+function renderEarthquakeObservations(observations, observationsId) {
+  const title = observations[0]?.kind === "city" ? "各地の震度（市区町村）" : "各地の震度";
+  const body = observations.length
+    ? `<div class="earthquake-observation-list">${observations.map((observation) => {
+      const intensityColor = getEarthquakeIntensityColor(observation.intensity);
+      const intensityTextClass = getEarthquakeIntensityTextClass(observation.intensity);
+      return `
+        <div class="earthquake-observation-row">
+          <strong class="earthquake-observation-intensity ${intensityTextClass}" style="--earthquake-item-intensity-bg: ${escapeHtml(intensityColor)};" aria-label="${escapeHtml(observation.intensityLabel)}">${escapeHtml(observation.intensityShort)}</strong>
+          <span class="earthquake-observation-prefecture">${escapeHtml(observation.prefecture || "--")}</span>
+          <span class="earthquake-observation-name">${escapeHtml(observation.name)}</span>
         </div>
-        <p>発生時刻: ${escapeHtml(formatEarthquakeEventTime(earthquake.eventTime))}</p>
+      `;
+    }).join("")}</div>`
+    : `<p class="earthquake-observation-empty">各地の震度情報はありません。</p>`;
+  return `
+    <section id="${observationsId}" class="earthquake-observations" aria-label="${escapeHtml(title)}">
+      <div class="earthquake-observations-heading">
+        <h2>${escapeHtml(title)}</h2>
+        ${observations.length ? `<span>${observations.length}地点</span>` : ""}
       </div>
-
-      <div class="earthquake-intensity-panel ${intensityTextClass}">
-        <div class="earthquake-intensity-label">
-          <span>最大震度</span>
-          <small>Max Intensity</small>
-        </div>
-        <strong>${escapeHtml(earthquake.maxIntensityShort ?? "--")}</strong>
-      </div>
-
-      <div class="earthquake-detail-box">
-        <div class="earthquake-detail-row">
-          <span>
-            <span>マグニチュード</span>
-            <small>Magnitude</small>
-          </span>
-          <strong>${escapeHtml(formatEarthquakeMagnitude(earthquake.magnitude, { prefix: true }))}</strong>
-        </div>
-        <div class="earthquake-detail-row">
-          <span>
-            <span>深さ</span>
-            <small>Depth</small>
-          </span>
-          <strong>${escapeHtml(formatEarthquakeDepthText(earthquake.depth))}</strong>
-        </div>
-      </div>
+      ${body}
     </section>
   `;
 }
@@ -2729,34 +2728,47 @@ function formatEarthquakeEventTime(value) {
 
 function getTyphoonDetails(state) {
   if (state.status === "loading") {
-    return buildEmptyTyphoonDetails("取得中");
+    return buildEmptyTyphoonDetails();
   }
   if (state.status === "error") {
-    return buildEmptyTyphoonDetails("未取得");
+    return buildEmptyTyphoonDetails();
   }
-
-  return state.data?.details ?? buildEmptyTyphoonDetails("未取得");
+  const details = state.data?.details ?? buildEmptyTyphoonDetails();
+  return {
+    ...details,
+    size: normalizeSummaryValue(details.size),
+    strength: normalizeSummaryValue(details.strength),
+    pressure: normalizeSummaryValue(details.pressure),
+    maxWind: normalizeSummaryValue(details.maxWind),
+    maxGust: normalizeSummaryValue(details.maxGust),
+    direction: normalizeSummaryValue(details.direction),
+    speed: normalizeSummaryValue(details.speed),
+    position: normalizeSummaryValue(details.position)
+  };
 }
 
 function formatTyphoonMovement(direction, speed) {
-  const hasDirection = direction && direction !== "未取得" && direction !== "取得中";
-  const hasSpeed = speed && speed !== "未取得" && speed !== "取得中";
-  if (hasDirection && hasSpeed) return `${direction} ${speed}`;
-  if (hasDirection) return direction;
-  if (hasSpeed) return speed;
-  return direction || speed || "未取得";
+  const normalizedDirection = normalizeSummaryValue(direction);
+  const normalizedSpeed = normalizeSummaryValue(speed);
+  const hasDirection = normalizedDirection !== "-";
+  const hasSpeed = normalizedSpeed !== "-";
+  if (hasDirection && hasSpeed) return `${normalizedDirection} ${normalizedSpeed}`;
+  if (hasDirection) return normalizedDirection;
+  if (hasSpeed) return normalizedSpeed;
+  return "-";
 }
 
-function buildEmptyTyphoonDetails(value) {
+function buildEmptyTyphoonDetails() {
   return {
-    size: value,
-    strength: value,
-    pressure: value,
-    maxWind: value,
-    maxGust: value,
-    direction: value,
-    speed: value,
-    position: value
+    transitionStatus: null,
+    size: "-",
+    strength: "-",
+    pressure: "-",
+    maxWind: "-",
+    maxGust: "-",
+    direction: "-",
+    speed: "-",
+    position: "-"
   };
 }
 

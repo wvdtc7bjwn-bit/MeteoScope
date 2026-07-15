@@ -96,6 +96,7 @@ export function createWeatherApp() {
   let activeKikikuruLayer = KIKIKURU_LAYER_OPTIONS[0]?.id ?? "land";
   let activeTyphoonId = "";
   let activeEarthquakeId = "";
+  let collapsedEarthquakeId = "";
   let earthquakeActiveFaultVisible = loadActiveFaultVisibility();
   let weatherMap = null;
   let latestDataByTab = {};
@@ -357,11 +358,18 @@ if (layerId === "river") {
   }
 
   function selectEarthquake(earthquakeId) {
-    activeEarthquakeId = String(earthquakeId ?? "");
+    const nextEarthquakeId = String(earthquakeId ?? "");
+    const isSelected = nextEarthquakeId === activeEarthquakeId;
+    if (isSelected) {
+      collapsedEarthquakeId = collapsedEarthquakeId === nextEarthquakeId ? "" : nextEarthquakeId;
+    } else {
+      activeEarthquakeId = nextEarthquakeId;
+      collapsedEarthquakeId = "";
+    }
     if (activeTab !== "earthquake") return;
     const tab = TABS.find((item) => item.id === "earthquake");
     updateCurrentView(tab, latestDataByTab.earthquake);
-    focusSelectedEarthquake();
+    if (!isSelected) focusSelectedEarthquake();
   }
 
   function setEarthquakeActiveFaultVisible(visible) {
@@ -547,6 +555,7 @@ if (layerId === "river") {
       ...data,
       activeFaultVisible: earthquakeActiveFaultVisible,
       selectedEarthquakeId: activeEarthquakeId,
+      collapsedEarthquakeId,
       selectedEarthquake: selected,
       latestTime: selected.reportTime ?? data.latestTime,
       updatedAt: selected.reportTime ?? data.updatedAt

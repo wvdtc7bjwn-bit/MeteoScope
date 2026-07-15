@@ -16,6 +16,7 @@ final class WeatherAppModel {
     var earthquakeState: LoadState<EarthquakeSnapshot> = .idle
     var remoteConfigState: LoadState<RemoteAppConfig> = .idle
     var selectedRadarFrameID: RadarFrame.ID?
+    var selectedEarthquakeID: EarthquakeSummary.ID?
     private(set) var lastSuccessfulFetchAt: [WeatherFeature: Date] = [:]
     private(set) var latestFetchError: [WeatherFeature: String] = [:]
     private(set) var dismissedNoticeIDs: Set<RemoteNotice.ID> = []
@@ -34,6 +35,15 @@ final class WeatherAppModel {
     var selectedRadarFrame: RadarFrame? {
         let frames = radarFrames
         return frames.first(where: { $0.id == selectedRadarFrameID }) ?? latestObservation(in: frames)
+    }
+
+    func selectedEarthquake(in snapshot: EarthquakeSnapshot) -> EarthquakeSummary? {
+        snapshot.earthquakes.first(where: { $0.id == selectedEarthquakeID })
+            ?? snapshot.earthquakes.first
+    }
+
+    func selectEarthquake(_ earthquake: EarthquakeSummary) {
+        selectedEarthquakeID = earthquake.id
     }
 
     var maintenanceConfiguration: MaintenanceConfiguration? {

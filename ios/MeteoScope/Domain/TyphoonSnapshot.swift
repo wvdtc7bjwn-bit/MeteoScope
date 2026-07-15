@@ -10,6 +10,7 @@ struct TyphoonSummary: Identifiable, Hashable, Sendable {
     let number: String
     let name: String
     let category: String
+    let transitionStatus: String?
     let updatedAt: String
     let location: String
     let pressure: String
@@ -21,6 +22,14 @@ struct TyphoonSummary: Identifiable, Hashable, Sendable {
     let forecastPoints: [TyphoonForecastPoint]
     let strongWindArea: TyphoonWindArea?
     let stormArea: TyphoonWindArea?
+
+    var movement: String {
+        let parts = [course, speed].filter {
+            let value = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+            return !value.isEmpty && !["-", "--", "未取得", "取得中"].contains(value)
+        }
+        return parts.isEmpty ? "-" : parts.joined(separator: " ")
+    }
 }
 
 struct TyphoonForecastPoint: Identifiable, Hashable, Sendable {
@@ -157,18 +166,29 @@ enum TyphoonSnapshotBuilder {
                 guard values.count >= 2 else { return nil }
                 return GeoCoordinate(latitude: values[0], longitude: values[1])
             } ?? points.first(where: { $0.advancedHours == 0 })?.coordinate
+            let number = title?.typhoonNumber ?? target.typhoonNumber ?? target.tropicalCyclone
+            let category = current?.category?.jp
+                ?? current?.category?.en
+                ?? title?.category?.jp
+                ?? title?.category?.en
+                ?? target.category
+                ?? "台風"
 
             return TyphoonSummary(
                 id: target.tropicalCyclone,
-                number: title?.typhoonNumber ?? target.typhoonNumber ?? target.tropicalCyclone,
+                number: number,
                 name: title?.name?.jp ?? title?.name?.en ?? "台風",
-                category: current?.category?.jp ?? title?.category?.jp ?? target.category ?? "台風",
-                updatedAt: title?.issue?.JST ?? title?.issue?.UTC ?? target.issue ?? "未取得",
-                location: current?.location ?? "位置情報なし",
+                category: category,
+                transitionStatus: transitionMessage(
+                    category: category,
+                    number: title?.typhoonNumber ?? target.typhoonNumber
+                ),
+                updatedAt: title?.issue?.JST ?? title?.issue?.UTC ?? target.issue ?? "-",
+                location: current?.location ?? "-",
                 pressure: valueWithUnit(current?.pressure, unit: "hPa"),
                 maximumWind: valueWithUnit(current?.maximumWind?.sustained?.metersPerSecond, unit: "m/s"),
                 maximumGust: valueWithUnit(current?.maximumWind?.gust?.metersPerSecond, unit: "m/s"),
-                course: current?.course ?? "--",
+                course: current?.course ?? "-",
                 speed: speedText(current?.speed),
                 coordinate: coordinate,
                 forecastPoints: points.sorted { $0.advancedHours < $1.advancedHours },
@@ -184,7 +204,7 @@ enum TyphoonSnapshotBuilder {
     }
 
     private static func valueWithUnit(_ value: String?, unit: String) -> String {
-        guard let value, !value.isEmpty, value != "-" else { return "--" }
+        guard let value, !value.isEmpty, value != "-" else { return "-" }
         return "\(value) \(unit)"
     }
 
@@ -192,7 +212,39 @@ enum TyphoonSnapshotBuilder {
         if let value = speed?.kilometersPerHour, !value.isEmpty {
             return "\(value) km/h"
         }
-        return speed?.note?.jp ?? speed?.note?.en ?? "--"
+        return speed?.note?.jp ?? speed?.note?.en ?? "-"
+    }
+
+    private static func transitionMessage(category: String, number: String?) -> String? {
+        let normalizedCategory = category.uppercased()
+        let changedTo: String?
+        if normalizedCategory.contains("温帯低気圧")
+            || normalizedCategory.contains("EXTRATROPICAL")
+            || ["EX", "ET"].contains(normalizedCategory) {
+            changedTo = "温帯低気圧"
+        } else if normalizedCategory.contains("熱帯低気圧")
+            || normalizedCategory.contains("TROPICAL DEPRESSION")
+            || normalizedCategory == "TD" {
+            changedTo = "熱帯低気圧"
+        } else {
+            changedTo = nil
+        }
+        guard let changedTo else { return nil }
+        guard let number = normalizedTyphoonNumber(number) else {
+            return "\(changedTo)に変わりました"
+        }
+        return "台風\(number)号は\(changedTo)に変わりました"
+    }
+
+    private static func normalizedTyphoonNumber(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let groups = value.split(whereSeparator: { !$0.isNumber })
+        guard var digits = groups.last.map(String.init), !digits.isEmpty else { return nil }
+        if digits.count >= 4 {
+            digits = String(digits.suffix(2))
+        }
+        guard let number = Int(digits), number > 0 else { return nil }
+        return String(number)
     }
 
     private static func windArea(
@@ -242,6 +294,7 @@ extension TyphoonSnapshot {
                 number: "11",
                 name: "ハイシェン",
                 category: "台風",
+                transitionStatus: nil,
                 updatedAt: "2026-07-13T19:10:00+09:00",
                 location: "フィリピンの東",
                 pressure: "1002 hPa",

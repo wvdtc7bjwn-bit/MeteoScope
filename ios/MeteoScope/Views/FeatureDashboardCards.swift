@@ -497,11 +497,21 @@ struct TyphoonDashboardCard: View {
                     }
                     Text(typhoon.location)
                         .font(.subheadline.weight(.semibold))
+                    if let transitionStatus = typhoon.transitionStatus {
+                        Label(transitionStatus, systemImage: "arrow.triangle.2.circlepath")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Color.meteoscopeAccent)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.meteoscopeAccent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+                            .accessibilityLabel("現在の状態 \(transitionStatus)")
+                    }
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
                         TyphoonValue(label: "中心気圧", value: typhoon.pressure)
                         TyphoonValue(label: "最大風速", value: typhoon.maximumWind)
                         TyphoonValue(label: "最大瞬間", value: typhoon.maximumGust)
-                        TyphoonValue(label: "移動", value: "\(typhoon.course) \(typhoon.speed)")
+                        TyphoonValue(label: "移動", value: typhoon.movement)
                     }
                     DataFreshnessLabel(feature: .typhoon, dataTime: typhoon.updatedAt, dataTimeLabel: "発表時刻")
                 }
@@ -530,18 +540,24 @@ private struct TyphoonValue: View {
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-            Text(value)
+            Text(displayValue)
                 .font(.caption.monospacedDigit().weight(.semibold))
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private var displayValue: String {
+        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.isEmpty || ["--", "未取得", "取得中"].contains(normalized) ? "-" : normalized
+    }
 }
 
 struct EarthquakeDashboardCard: View {
     @Environment(WeatherAppModel.self) private var model
     @Environment(AppPreferences.self) private var preferences
+    @State private var collapsedEarthquakeID: EarthquakeSummary.ID?
 
     var body: some View {
         @Bindable var preferences = preferences
@@ -551,7 +567,7 @@ struct EarthquakeDashboardCard: View {
         case .failed(let message):
             FeatureErrorCard(title: "地震情報を取得できません", message: message)
         case .loaded(let snapshot):
-            if let earthquake = snapshot.earthquakes.first {
+            if let selectedEarthquake = model.selectedEarthquake(in: snapshot) {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
                         Label("主要活断層帯", systemImage: "map")
@@ -561,36 +577,35 @@ struct EarthquakeDashboardCard: View {
                             .labelsHidden()
                             .toggleStyle(.switch)
                     }
-                    HStack(spacing: 12) {
-                        Text(earthquake.maximumIntensity)
-                            .font(.headline.weight(.black))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 9)
-                            .background(Color.intensityColor(earthquake.maximumIntensity), in: RoundedRectangle(cornerRadius: 12))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(earthquake.hypocenterName)
-                                .font(.headline)
-                            Text("\(earthquake.magnitude)・深さ \(earthquake.depth)")
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(.secondary)
+
+                    ScrollView(.vertical) {
+                        LazyVStack(spacing: 10) {
+                            ForEach(snapshot.earthquakes) { earthquake in
+                                let isSelected = earthquake.id == selectedEarthquake.id
+                                EarthquakeHistoryCard(
+                                    earthquake: earthquake,
+                                    isExpanded: isSelected && collapsedEarthquakeID != earthquake.id
+                                ) {
+                                    withAnimation(.easeInOut(duration: 0.18)) {
+                                        if isSelected && collapsedEarthquakeID != earthquake.id {
+                                            collapsedEarthquakeID = earthquake.id
+                                        } else {
+                                            collapsedEarthquakeID = nil
+                                            model.selectEarthquake(earthquake)
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        Spacer()
                     }
-                    if !earthquake.headline.isEmpty {
-                        Text(earthquake.headline)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-                    Text("発生 \(DateTextFormatter.shortDateTime(earthquake.eventTime))")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                    DataFreshnessLabel(feature: .earthquake, dataTime: earthquake.reportTime, dataTimeLabel: "発表時刻")
+                    .frame(maxHeight: 440)
+
+                    DataFreshnessLabel(
+                        feature: .earthquake,
+                        dataTime: selectedEarthquake.reportTime,
+                        dataTimeLabel: "発表時刻"
+                    )
                 }
-                .padding()
-                .meteoGlassSurface(cornerRadius: 18)
-                .shadow(color: .black.opacity(0.16), radius: 12, y: 5)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     FeatureEmptyCard(title: "表示できる地震情報はありません", systemImage: "waveform.path.ecg")
@@ -598,6 +613,171 @@ struct EarthquakeDashboardCard: View {
                 }
             }
         }
+    }
+}
+
+private struct EarthquakeHistoryCard: View {
+    let earthquake: EarthquakeSummary
+    let isExpanded: Bool
+    let onSelect: () -> Void
+
+    private var intensityText: String {
+        earthquake.maximumIntensity.replacingOccurrences(of: "震度", with: "")
+    }
+
+    private var orderedPoints: [EarthquakeIntensityPoint] {
+        earthquake.intensityPoints.sorted {
+            SeismicIntensityCatalog.rank($0.intensity) > SeismicIntensityCatalog.rank($1.intensity)
+        }
+    }
+
+    private var observationCount: Int {
+        orderedPoints.isEmpty ? earthquake.intensityAreas.count : orderedPoints.count
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button(action: onSelect) {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("震源地")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Text(earthquake.hypocenterName)
+                            .font(.headline.weight(.bold))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 12) {
+                            Text(earthquake.magnitude)
+                            Text("深さ \(earthquake.depth)")
+                        }
+                        .font(.caption.monospacedDigit().weight(.semibold))
+                        Text("発生時刻 \(DateTextFormatter.shortDateTime(earthquake.eventTime))頃")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    VStack(spacing: 5) {
+                        Text("最大震度")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        Text(intensityText)
+                            .font(.title2.weight(.black))
+                            .foregroundStyle(Color.intensityForeground(earthquake.maximumIntensity))
+                            .frame(width: 58, height: 58)
+                            .background(
+                                Color.intensityColor(earthquake.maximumIntensity),
+                                in: RoundedRectangle(cornerRadius: 14)
+                            )
+                    }
+
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                        .frame(minHeight: 58)
+                }
+                .padding(12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(
+                "最大\(earthquake.maximumIntensity)、震源地\(earthquake.hypocenterName)、\(earthquake.magnitude)、深さ\(earthquake.depth)"
+            )
+            .accessibilityValue(isExpanded ? "各地の震度を表示中" : "折りたたみ")
+
+            if isExpanded {
+                Divider().opacity(0.45)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(orderedPoints.isEmpty ? "各地の震度（地域）" : "各地の震度")
+                            .font(.subheadline.weight(.bold))
+                        Spacer()
+                        Text("\(observationCount)地点")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if !orderedPoints.isEmpty {
+                        LazyVStack(spacing: 0) {
+                            ForEach(orderedPoints) { point in
+                                EarthquakeObservationRow(
+                                    intensity: point.intensity,
+                                    prefecture: point.prefecture,
+                                    name: point.name
+                                )
+                                if point.id != orderedPoints.last?.id {
+                                    Divider().padding(.leading, 52)
+                                }
+                            }
+                        }
+                        .background(.black.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                    } else if !earthquake.intensityAreas.isEmpty {
+                        LazyVStack(spacing: 0) {
+                            ForEach(earthquake.intensityAreas) { area in
+                                EarthquakeObservationRow(
+                                    intensity: area.intensity,
+                                    prefecture: "",
+                                    name: area.name
+                                )
+                                if area.id != earthquake.intensityAreas.last?.id {
+                                    Divider().padding(.leading, 52)
+                                }
+                            }
+                        }
+                        .background(.black.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                    } else {
+                        Text("各地の震度情報はありません。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(10)
+                            .background(.black.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+                    }
+
+                    if !earthquake.headline.isEmpty {
+                        Text(earthquake.headline)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(12)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .meteoGlassSurface(
+            cornerRadius: 18,
+            interactive: true,
+            tint: isExpanded ? .blue.opacity(0.11) : nil
+        )
+        .shadow(color: .black.opacity(isExpanded ? 0.16 : 0.1), radius: 10, y: 4)
+    }
+}
+
+private struct EarthquakeObservationRow: View {
+    let intensity: String
+    let prefecture: String
+    let name: String
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Text(intensity.replacingOccurrences(of: "震度", with: ""))
+                .font(.subheadline.weight(.black))
+                .foregroundStyle(Color.intensityForeground(intensity))
+                .frame(width: 40, height: 36)
+                .background(Color.intensityColor(intensity), in: RoundedRectangle(cornerRadius: 9))
+            Text(prefecture.isEmpty ? "地域" : prefecture)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 58, alignment: .leading)
+            Text(name)
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -696,6 +876,13 @@ private extension Color {
         if label.contains("3") { return .yellow }
         if label.contains("2") { return .green }
         return .blue
+    }
+
+    static func intensityForeground(_ label: String) -> Color {
+        if label.contains("5") || label.contains("6") || label.contains("7") {
+            return .white
+        }
+        return .black
     }
 }
 

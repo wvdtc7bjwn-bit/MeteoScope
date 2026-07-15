@@ -168,6 +168,34 @@ final class FeatureDataTests: XCTestCase {
         XCTAssertEqual(snapshot.typhoons.first?.forecastPoints.last?.probabilityCircleRadiusMeters, 105_564)
     }
 
+    func testTyphoonBuilderShowsExtratropicalTransitionAndMissingValuesAsHyphen() throws {
+        let targets = try JSONDecoder().decode([TyphoonTargetRecord].self, from: """
+        [{"tropicalCyclone":"TC2609","typhoonNumber":"2609","category":"TS"}]
+        """.data(using: .utf8)!)
+        let specifications = try JSONDecoder().decode([TyphoonSpecificationRecord].self, from: """
+        [
+          {"part":"title","typhoonNumber":"9","name":{"jp":"バービー"}},
+          {"advancedHours":0,"category":{"jp":"温帯低気圧"},"position":{"deg":[35.0,140.0]}}
+        ]
+        """.data(using: .utf8)!)
+
+        let snapshot = TyphoonSnapshotBuilder.build(
+            targets: targets,
+            forecasts: [:],
+            specifications: ["TC2609": specifications]
+        )
+        let typhoon = try XCTUnwrap(snapshot.typhoons.first)
+
+        XCTAssertEqual(typhoon.transitionStatus, "台風9号は温帯低気圧に変わりました")
+        XCTAssertEqual(typhoon.location, "-")
+        XCTAssertEqual(typhoon.pressure, "-")
+        XCTAssertEqual(typhoon.maximumWind, "-")
+        XCTAssertEqual(typhoon.maximumGust, "-")
+        XCTAssertEqual(typhoon.course, "-")
+        XCTAssertEqual(typhoon.speed, "-")
+        XCTAssertEqual(typhoon.movement, "-")
+    }
+
     func testEarthquakeFeedAndDetailDecode() throws {
         let feed = """
         <feed xmlns="http://www.w3.org/2005/Atom">
@@ -182,7 +210,7 @@ final class FeatureDataTests: XCTestCase {
         <Report>
           <Control><DateTime>2026-07-13T10:01:00Z</DateTime></Control>
           <Head><ReportDateTime>2026-07-13T19:01:00+09:00</ReportDateTime><EventID>event-1</EventID><Headline><Text>津波の心配はありません。</Text></Headline></Head>
-          <Body><Earthquake><OriginTime>2026-07-13T18:58:00+09:00</OriginTime><Hypocenter><Area><Name>奈良県</Name><Coordinate>+34.6+135.8-10000/</Coordinate></Area></Hypocenter><Magnitude>3.2</Magnitude></Earthquake><Intensity><Observation><MaxInt>2</MaxInt><Pref><Area><Name>奈良県</Name><Code>560</Code><MaxInt>2</MaxInt><City><IntensityStation><Name>奈良市＊</Name><Code>2920100</Code><Int>2</Int></IntensityStation></City></Area></Pref></Observation></Intensity></Body>
+          <Body><Earthquake><OriginTime>2026-07-13T18:58:00+09:00</OriginTime><Hypocenter><Area><Name>奈良県</Name><Coordinate>+34.6+135.8-10000/</Coordinate></Area></Hypocenter><Magnitude>3.2</Magnitude></Earthquake><Intensity><Observation><MaxInt>2</MaxInt><Pref><Name>奈良県</Name><Area><Name>奈良県</Name><Code>560</Code><MaxInt>2</MaxInt><City><IntensityStation><Name>奈良市＊</Name><Code>2920100</Code><Int>2</Int></IntensityStation><IntensityStation><Name>座標未登録地点</Name><Code>unknown</Code><Int>1</Int></IntensityStation></City></Area></Pref></Observation></Intensity></Body>
         </Report>
         """.data(using: .utf8)!
 
@@ -204,7 +232,10 @@ final class FeatureDataTests: XCTestCase {
         XCTAssertEqual(earthquake.maximumIntensity, "震度2")
         XCTAssertEqual(earthquake.intensityAreas.first?.areaCode, "560")
         XCTAssertEqual(earthquake.intensityPoints.first?.name, "奈良市＊")
-        XCTAssertEqual(earthquake.intensityPoints.first?.coordinate.latitude, 34.68)
+        XCTAssertEqual(earthquake.intensityPoints.first?.prefecture, "奈良県")
+        XCTAssertEqual(earthquake.intensityPoints.first?.coordinate?.latitude, 34.68)
+        XCTAssertEqual(earthquake.intensityPoints.count, 2)
+        XCTAssertNil(earthquake.intensityPoints.last?.coordinate)
         XCTAssertEqual(EarthquakeStationLookup.normalizedName("八戸市南郷＊"), "八戸市南郷")
         let renamedStationLookup = EarthquakeStationLookup.makeLookup([
             EarthquakeStationRecord(name: "蓬田村蓬田", latitude: 40.97, longitude: 140.66)

@@ -103,7 +103,7 @@ struct MapDashboardView: View {
             return WeatherMapOverlayBuilder.typhoon(typhoon)
         case .earthquake:
             guard case .loaded(let snapshot) = model.earthquakeState,
-                  let earthquake = snapshot.earthquakes.first
+                  let earthquake = model.selectedEarthquake(in: snapshot)
             else {
                 return nil
             }
