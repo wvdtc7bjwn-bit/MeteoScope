@@ -101,7 +101,7 @@
         </button>
         <div id="legend-list" class="legend-list" hidden></div>
       </section>
-      <div id="map-attribution"><a href="https://www.jma.go.jp/" target="_blank" rel="noopener noreferrer">気象庁</a>の公開データをMeteoScopeが加工・可視化 / <a href="https://dmdata.jp/docs/manual" target="_blank" rel="noopener noreferrer">地震配信: DM-D.S.S</a> / <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">背景地図: 国土地理院</a> / <a href="https://www.arcgis.com/home/item.html?id=dd9f222b9b61428abd2d26414c10928f&amp;sublayer=0" target="_blank" rel="noopener noreferrer">河川形状: ESRIジャパン株式会社・気象庁</a> / <a href="https://www.j-shis.bosai.go.jp/" target="_blank" rel="noopener noreferrer">主要活断層帯: J-SHIS（防災科研）</a> / MapLibre GL JS</div>
+      <div id="map-attribution"><a href="https://www.jma.go.jp/" target="_blank" rel="noopener noreferrer">気象庁</a>の公開データをMeteoScopeが加工・可視化 / <a href="https://dmdata.jp/docs/manual" target="_blank" rel="noopener noreferrer">地震・津波配信: DM-D.S.S</a> / <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">背景地図: 国土地理院</a> / <a href="https://www.arcgis.com/home/item.html?id=dd9f222b9b61428abd2d26414c10928f&amp;sublayer=0" target="_blank" rel="noopener noreferrer">河川形状: ESRIジャパン株式会社・気象庁</a> / <a href="https://www.j-shis.bosai.go.jp/" target="_blank" rel="noopener noreferrer">主要活断層帯: J-SHIS（防災科研）</a> / MapLibre GL JS</div>
     </main>
 
     <div id="warning-modal" class="warning-modal" hidden>
@@ -220,7 +220,7 @@
             <div class="settings-group-content" hidden>
               <div class="settings-policy-copy settings-source-copy">
                 <p><strong>主な情報出典</strong><br><a href="https://www.jma.go.jp/" target="_blank" rel="noopener noreferrer">気象庁ホームページ</a>および<a href="https://www.data.jma.go.jp/developer/index.html" target="_blank" rel="noopener noreferrer">気象データ高度利用ポータルサイト</a></p>
-                <p><strong>地震情報の配信経路</strong><br>気象庁の地震電文を<a href="https://dmdata.jp/docs/manual" target="_blank" rel="noopener noreferrer">DM-D.S.S</a>からMeteoScope専用のCloudflare Workerが受信・正規化し、MeteoScopeが表示しています。津波情報は気象庁防災情報XMLを併用しています。</p>
+                <p><strong>地震・津波情報の配信経路</strong><br>気象庁の地震・津波電文を<a href="https://dmdata.jp/docs/manual" target="_blank" rel="noopener noreferrer">DM-D.S.S</a>からMeteoScope専用のCloudflare Workerが受信・正規化し、MeteoScopeが表示しています。地震・津波情報はDM-D.S.S経由の配信データに統一しています。</p>
                 <p><strong>区域の形状</strong><br>市区町村境界、地震区域、都道府県境界は、気象庁の<a href="https://www.data.jma.go.jp/developer/gis.html" target="_blank" rel="noopener noreferrer">予報区等GISデータ</a>をGeoJSONへ変換し、区域コード・名称・表示用属性を付加して利用しています。原データには国土地理院の測量成果が使用されています。</p>
                 <p><strong>震度観測点</strong><br>気象庁の<a href="https://www.data.jma.go.jp/eqev/data/intens-st/" target="_blank" rel="noopener noreferrer">震度観測点</a>で公開されている、気象庁・地方公共団体・防災科研の観測点名称、表示用座標、所属区分を加工して利用しています。</p>
                 <p><strong>背景地図</strong><br><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院の地理院タイル（標準地図）</a>を背景として利用し、その上に気象・防災情報を重ねています。</p>
