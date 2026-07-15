@@ -15,6 +15,10 @@ import {
   preserveJmaIntensityStationPoints,
   sanitizeJmaIntensityStationPoints
 } from "../workers/earthquake-realtime/src/earthquakeStationPolicy.js";
+import {
+  mapD1EarthquakeRow,
+  mapD1TsunamiRow
+} from "../workers/earthquake-realtime/src/d1ReadFallback.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pagesProxyUrl = pathToFileURL(
@@ -71,6 +75,28 @@ assert.equal(isJmaIntensityStationCode("17"), false);
 assert.equal(isJmaIntensityStationCode("391"), false);
 assert.equal(isJmaIntensityStationCode("cf-0"), false);
 assert.equal(normalizeJmaIntensityStationCode(" 0320224 "), "0320224");
+
+assert.deepEqual(
+  mapD1EarthquakeRow({
+    event_id: "20260716012301",
+    place: "石川県加賀地方",
+    max_scale: 20,
+    regions_json: '[{"code":"390","name":"石川県加賀","maxInt":"2"}]'
+  }).regions,
+  [{ code: "390", name: "石川県加賀", maxInt: "2" }]
+);
+assert.equal(mapD1EarthquakeRow({ max_scale: null }).max_scale, 0);
+assert.equal(mapD1TsunamiRow({ event_id: "x", revoked: 1 }), null);
+assert.deepEqual(
+  mapD1TsunamiRow({
+    event_id: "20260716012301",
+    revoked: 0,
+    areas_json: '[{"code":"100","kind":"津波注意報"}]',
+    observations_json: "[]",
+    estimations_json: "[]"
+  }).areas,
+  [{ code: "100", kind: "津波注意報" }]
+);
 
 const arrayCoordinateLookup = buildJmaIntensityStationCoordinateLookup([
   { name: "石狩市花川", latitude: 43.17, longitude: 141.32 },

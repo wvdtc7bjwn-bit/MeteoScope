@@ -1,4 +1,5 @@
 import { MeteoScopeEarthquakeHub } from "./MeteoScopeEarthquakeHub.js";
+import { fetchD1ReadFallback } from "./d1ReadFallback.js";
 import { isPublicReadMethod, resolvePublicEarthquakeRoute } from "./routePolicy.js";
 
 // Keep the deployed Durable Object class name so the existing namespace,
@@ -99,10 +100,22 @@ export default {
     }
 
     try {
-      return await fetchFromHub(request, env, route);
+      const response = await fetchFromHub(request, env, route);
+      if (!route.websocket && response.status >= 500) {
+        return await fetchD1ReadFallback(request, env, route, `hub_status_${response.status}`)
+          ?? response;
+      }
+      return response;
     }
     catch (error) {
       console.error("[MeteoScopeEarthquakeWorker] public route failed", error);
+      const fallback = await fetchD1ReadFallback(request, env, route, error).catch(
+        (fallbackError) => {
+          console.error("[MeteoScopeEarthquakeWorker] D1 fallback failed", fallbackError);
+          return null;
+        }
+      );
+      if (fallback) return fallback;
       return jsonResponse({ ok: false, error: "earthquake_service_unavailable" }, 503, {
         "retry-after": "30"
       });
