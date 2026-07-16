@@ -19,7 +19,7 @@ const STATE_KEY = "latest-state-v2";
 const HISTORY_KEY = "earthquake-history-v1";
 const RETENTION_CLEANUP_KEY = "retention-cleanup-v1";
 // Parser changes require one bounded replay so recent station rows are rebuilt safely.
-const DMDATA_TELEGRAM_CURSOR_KEY = "dmdata-telegram-cursor-v4";
+const DMDATA_TELEGRAM_CURSOR_KEY = "dmdata-telegram-cursor-v5";
 const REPLAY_TYPES = ["earthquake", "eew", "tsunami"];
 const HISTORY_MAX_ITEMS = 100;
 const FINALIZED_EEW_EVENT_IDS_MAX_SIZE = 200;
@@ -1884,6 +1884,16 @@ export class MeteoScopeEarthquakeHub {
           this.earthquakeHistory = savedHistory;
         }
       }
+      if (
+        this.latest.earthquake?.data &&
+        !isLikelyTestData(this.latest.earthquake.data) &&
+        !isUnresolvedEarthquakeData(this.latest.earthquake.data)
+      ) {
+        await this.appendEarthquakeHistory(
+          this.latest.earthquake.data,
+          this.latest.earthquake.timestamp ?? nowIso()
+        );
+      }
       const latestEewEventId = getEventIdFromData(this.latest.eew?.data);
       if (latestEewEventId && this.isEarthquakeEventFinalized(latestEewEventId)) {
         this.latest.eew = null;
@@ -2863,9 +2873,15 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
     const limit = Math.max(1, Math.min(100, Number(requestUrl.searchParams.get("limit") || "12")));
     const d1Items = await this.loadHistoryFromD1(limit);
     const memoryItems = this.earthquakeHistory.slice(0, limit);
+    const latestItem = this.latest.earthquake?.data
+      ? toHistoryItem(
+        this.latest.earthquake.data,
+        this.latest.earthquake.timestamp ?? nowIso()
+      )
+      : null;
 
     const merged = [];
-    const seen = new Set();
+    const indexByKey = new Map();
     const push = (item) => {
       if (isUnresolvedHistoryItem(item)) {
         return;
@@ -2875,10 +2891,15 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
       }
       const id = getHistoryItemEventId(item);
       const key = id || `${item?.place ?? ""}-${item?.origin_time ?? ""}`;
-      if (!key || seen.has(key)) {
+      if (!key) {
         return;
       }
-      seen.add(key);
+      const existingIndex = indexByKey.get(key);
+      if (existingIndex !== undefined) {
+        merged[existingIndex] = mergeHistoryItems(merged[existingIndex], item);
+        return;
+      }
+      indexByKey.set(key, merged.length);
       merged.push(item);
     };
 
@@ -2887,6 +2908,9 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
     }
     for (const item of memoryItems) {
       push(item);
+    }
+    if (latestItem) {
+      push(latestItem);
     }
 
     merged.sort((a, b) => {
