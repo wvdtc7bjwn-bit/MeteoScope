@@ -14,10 +14,13 @@ import {
 } from "./earthquakeStationPolicy.js";
 import { getJstDateString } from "./scheduledBackfillPolicy.js";
 import { collectDmdataIntensityRegions } from "./earthquakeRegionPolicy.js";
+import {
+  cleanupExpiredD1EarthquakeData
+} from "./retentionPolicy.js";
 
 const STATE_KEY = "latest-state-v2";
 const HISTORY_KEY = "earthquake-history-v1";
-const RETENTION_CLEANUP_KEY = "retention-cleanup-v1";
+const RETENTION_CLEANUP_KEY = "retention-cleanup-v2";
 // Parser changes require one bounded replay so recent station rows are rebuilt safely.
 const DMDATA_TELEGRAM_CURSOR_KEY = "dmdata-telegram-cursor-v5";
 const REPLAY_TYPES = ["earthquake", "eew", "tsunami"];
@@ -28,9 +31,6 @@ const MAX_CLIENT_CONNECTIONS = 25;
 const UNKNOWN_HYPOCENTER = "震源調査中";
 const TSUNAMI_FALLBACK_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 const RETENTION_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
-const EARTHQUAKE_HISTORY_RETENTION_DAYS = 30;
-const STATION_INTENSITY_RETENTION_DAYS = 30;
-const TSUNAMI_HISTORY_RETENTION_DAYS = 90;
 const GD_EARTHQUAKE_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const GD_EARTHQUAKE_BACKFILL_DAYS = 2;
 const DMDATA_TELEGRAM_POLL_INTERVAL_MS = 5 * 60 * 1000;
@@ -2536,55 +2536,7 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
   }
 
   async cleanupD1Retention() {
-    const db = this.env?.EQ_D1;
-    if (!db) {
-      return null;
-    }
-
-    const runDelete = async (sql, ...params) => {
-      const result = await db.prepare(sql).bind(...params).run();
-      return Number(result?.meta?.changes ?? 0);
-    };
-
-    const oldEarthquakeWhere = `
-      datetime(COALESCE(origin_time, updated_at, created_at)) < datetime('now', ?)
-    `;
-
-    const deletedStationByEarthquake = await runDelete(`
-      DELETE FROM station_intensities
-      WHERE event_id IN (
-        SELECT event_id
-        FROM earthquake_history
-        WHERE ${oldEarthquakeWhere}
-      )
-    `, `-${EARTHQUAKE_HISTORY_RETENTION_DAYS} days`);
-
-    const deletedOldStations = await runDelete(`
-      DELETE FROM station_intensities
-      WHERE datetime(COALESCE(updated_at, '1970-01-01T00:00:00Z')) < datetime('now', ?)
-    `, `-${STATION_INTENSITY_RETENTION_DAYS} days`);
-
-    const deletedEarthquakes = await runDelete(`
-      DELETE FROM earthquake_history
-      WHERE ${oldEarthquakeWhere}
-    `, `-${EARTHQUAKE_HISTORY_RETENTION_DAYS} days`);
-
-    const deletedTsunamis = await runDelete(`
-      DELETE FROM tsunami_history
-      WHERE datetime(COALESCE(issue_time, updated_at, created_at)) < datetime('now', ?)
-    `, `-${TSUNAMI_HISTORY_RETENTION_DAYS} days`);
-
-    return {
-      earthquakeHistoryRetentionDays: EARTHQUAKE_HISTORY_RETENTION_DAYS,
-      stationIntensityRetentionDays: STATION_INTENSITY_RETENTION_DAYS,
-      tsunamiHistoryRetentionDays: TSUNAMI_HISTORY_RETENTION_DAYS,
-      deleted: {
-        stationByEarthquake: deletedStationByEarthquake,
-        stationByUpdatedAt: deletedOldStations,
-        earthquakeHistory: deletedEarthquakes,
-        tsunamiHistory: deletedTsunamis
-      }
-    };
+    return cleanupExpiredD1EarthquakeData(this.env?.EQ_D1);
   }
 
   async appendEarthquakeHistory(earthquakeData, timestamp = nowIso()) {

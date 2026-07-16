@@ -69,5 +69,5 @@ Worker script `meteoscope-earthquake-realtime`、Durable Object class `MeteoScop
 - Web/iOSは`/api/stream`の更新通知を受けると、キャッシュ回避トークン付きで最新情報を再取得します。切断時は従来の定期更新へフォールバックします。
 - Durable Objects無料枠の実行時間を超えた場合、公開読み取りAPIはD1の直前正常データへ自動フォールバックします。この間はリアルタイム更新を利用できず、無料枠は00:00 UTCにリセットされます。
 - Cloudflareは2026年6月以降、外向きWebSocket接続中のDurable Objectを稼働状態として保持し、durationを計上します。24時間の即時受信を安定運用する場合はWorkers Paidを前提とし、FreeではD1フォールバックへ移行する時間帯が発生し得ます。上限は[Durable Objects pricing](https://developers.cloudflare.com/durable-objects/platform/pricing/)と[outbound connectionsの変更](https://developers.cloudflare.com/changelog/post/2026-06-19-outbound-connections-keep-dos-alive/)を公開前に再確認してください。
-- 地震・観測点は30日、津波履歴は90日でD1から削除します。
+- 地震履歴と紐づく観測点震度は1か月、津波履歴は90日でD1から自動削除します。削除処理はDurable ObjectのAlarmから1日1回だけ実行し、観測点震度を先に削除してから地震履歴を削除します。
 - 通常接続時のDurable Object alarmは30秒間隔です。概算で1日2,880回のalarm起動に加え、閲覧APIのリクエストが発生します。実際の使用量はCloudflare Analyticsで確認してください。

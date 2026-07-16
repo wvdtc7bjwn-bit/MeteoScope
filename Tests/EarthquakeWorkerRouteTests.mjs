@@ -24,6 +24,56 @@ import {
   getJstDateString
 } from "../workers/earthquake-realtime/src/scheduledBackfillPolicy.js";
 import { collectDmdataIntensityRegions } from "../workers/earthquake-realtime/src/earthquakeRegionPolicy.js";
+import {
+  cleanupExpiredD1EarthquakeData,
+  EARTHQUAKE_D1_RETENTION,
+  TSUNAMI_D1_RETENTION
+} from "../workers/earthquake-realtime/src/retentionPolicy.js";
+
+assert.deepEqual(EARTHQUAKE_D1_RETENTION, {
+  label: "1 month",
+  sqliteModifier: "-1 month"
+});
+assert.deepEqual(TSUNAMI_D1_RETENTION, {
+  label: "90 days",
+  sqliteModifier: "-90 days"
+});
+
+const retentionDeletes = [];
+const retentionResult = await cleanupExpiredD1EarthquakeData({
+  prepare(sql) {
+    return {
+      bind(...params) {
+        return {
+          async run() {
+            retentionDeletes.push({ sql, params });
+            return { meta: { changes: retentionDeletes.length } };
+          }
+        };
+      }
+    };
+  }
+});
+assert.deepEqual(
+  retentionDeletes.map(({ params }) => params),
+  [["-1 month"], ["-1 month"], ["-1 month"], ["-90 days"]]
+);
+assert.match(retentionDeletes[0].sql, /DELETE FROM station_intensities/u);
+assert.match(retentionDeletes[0].sql, /FROM earthquake_history/u);
+assert.match(retentionDeletes[1].sql, /DELETE FROM station_intensities/u);
+assert.match(retentionDeletes[2].sql, /DELETE FROM earthquake_history/u);
+assert.match(retentionDeletes[3].sql, /DELETE FROM tsunami_history/u);
+assert.deepEqual(retentionResult, {
+  earthquakeHistoryRetention: "1 month",
+  stationIntensityRetention: "1 month",
+  tsunamiHistoryRetention: "90 days",
+  deleted: {
+    stationByEarthquake: 1,
+    stationByUpdatedAt: 2,
+    earthquakeHistory: 3,
+    tsunamiHistory: 4
+  }
+});
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pagesProxyUrl = pathToFileURL(
@@ -304,6 +354,8 @@ assert.match(
   earthquakeHubSource,
   /json_array_length\(excluded\.regions_json\)\s*>=\s*json_array_length\(earthquake_history\.regions_json\)/u
 );
+assert.match(earthquakeHubSource, /retention-cleanup-v2/u);
+assert.match(earthquakeHubSource, /cleanupExpiredD1EarthquakeData/u);
 
 const [pagesWranglerSource, workerWranglerSource] = await Promise.all([
   fs.readFile(path.join(root, "wrangler.toml"), "utf8"),
