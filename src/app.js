@@ -20,7 +20,7 @@ import { fetchTyphoonList } from "./jma/typhoon.js";
 import {
   fetchDmdataEarthquakeList,
   hydrateDmdataEarthquakeStations,
-  mergeDmdataEarthquakeStationDetails
+  mergeDmdataEarthquakeDetails
 } from "./dmdata/earthquakes.js";
 import { startDmdataEarthquakeUpdates } from "./dmdata/earthquakeUpdates.js";
 import { fetchKikikuruTiles } from "./jma/kikikuru.js";
@@ -388,7 +388,7 @@ if (layerId === "river") {
         if ((hydratedEarthquake?.intensityStations ?? []).length > 0) {
           verifiedEarthquakeStationIds.add(String(hydratedEarthquake.eventId ?? nextEarthquakeId));
         }
-        const mergedData = mergeDmdataEarthquakeStationDetails(
+        const mergedData = mergeDmdataEarthquakeDetails(
           nextData,
           latestDataByTab.earthquake
         );
@@ -927,7 +927,7 @@ if (layerId === "river") {
       : loadTabData("earthquake");
     earthquakeRefreshRequest = loadEarthquake
       .then(async (nextData) => {
-        const mergedData = mergeDmdataEarthquakeStationDetails(previousData, nextData);
+        const mergedData = mergeDmdataEarthquakeDetails(previousData, nextData);
         const earthquakes = mergedData?.earthquakes ?? [];
         const nextLatestId = String(earthquakes[0]?.id ?? "");
         const selectedStillExists = earthquakes.some((earthquake) =>

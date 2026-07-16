@@ -97,7 +97,7 @@ export function sanitizeJmaIntensityStationPoints(data) {
   return points.length === data.points.length ? data : { ...data, points };
 }
 
-export function preserveJmaIntensityStationPoints(previous, next) {
+export function preserveJmaEarthquakeDetails(previous, next) {
   const sanitizedNext = sanitizeJmaIntensityStationPoints(next);
   if (!previous || !sanitizedNext) {
     return sanitizedNext;
@@ -109,8 +109,31 @@ export function preserveJmaIntensityStationPoints(previous, next) {
   }
   const previousPoints = sanitizeJmaIntensityStationPoints(previous)?.points ?? [];
   const nextPoints = Array.isArray(sanitizedNext.points) ? sanitizedNext.points : [];
-  if (nextPoints.length > 0 || previousPoints.length === 0) {
-    return sanitizedNext;
-  }
-  return { ...sanitizedNext, points: previousPoints };
+  const regions = mergeEarthquakeRegions(previous.regions, sanitizedNext.regions);
+
+  return {
+    ...sanitizedNext,
+    points: nextPoints.length > 0 || previousPoints.length === 0
+      ? nextPoints
+      : previousPoints,
+    regions
+  };
+}
+
+function mergeEarthquakeRegions(previousRegions, nextRegions) {
+  const merged = new Map();
+  const append = region => {
+    const code = String(
+      region?.code ?? region?.areaCode ?? region?.regionCode ?? ""
+    ).trim();
+    if (!code) {
+      return;
+    }
+    const current = merged.get(code);
+    merged.set(code, current ? { ...current, ...region } : region);
+  };
+
+  (Array.isArray(previousRegions) ? previousRegions : []).forEach(append);
+  (Array.isArray(nextRegions) ? nextRegions : []).forEach(append);
+  return [...merged.values()];
 }

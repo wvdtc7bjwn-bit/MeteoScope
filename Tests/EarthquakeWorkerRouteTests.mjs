@@ -12,7 +12,7 @@ import {
   findJmaIntensityStationCoordinate,
   isJmaIntensityStationCode,
   normalizeJmaIntensityStationCode,
-  preserveJmaIntensityStationPoints,
+  preserveJmaEarthquakeDetails,
   sanitizeJmaIntensityStationPoints
 } from "../workers/earthquake-realtime/src/earthquakeStationPolicy.js";
 import {
@@ -175,14 +175,34 @@ assert.deepEqual(
   [{ code: "1720130", name: "金沢市西念" }]
 );
 assert.deepEqual(
-  preserveJmaIntensityStationPoints(
-    { eventId: "20260716012301", points: [{ code: "1721020", name: "白山市別宮町＊" }] },
-    { eventId: "20260716012301", points: [], magnitude: "3.0" }
-  ).points,
-  [{ code: "1721020", name: "白山市別宮町＊" }]
+  preserveJmaEarthquakeDetails(
+    {
+      eventId: "20260716012301",
+      points: [{ code: "1721020", name: "白山市別宮町＊" }],
+      regions: [
+        { code: "390", name: "石川県加賀", maxInt: "2" },
+        { code: "391", name: "石川県能登", maxInt: "1" }
+      ]
+    },
+    {
+      eventId: "20260716012301",
+      points: [],
+      magnitude: "3.0",
+      regions: [{ code: "390", name: "石川県加賀", maxInt: "2" }]
+    }
+  ),
+  {
+    eventId: "20260716012301",
+    points: [{ code: "1721020", name: "白山市別宮町＊" }],
+    magnitude: "3.0",
+    regions: [
+      { code: "390", name: "石川県加賀", maxInt: "2" },
+      { code: "391", name: "石川県能登", maxInt: "1" }
+    ]
+  }
 );
 assert.deepEqual(
-  preserveJmaIntensityStationPoints(
+  preserveJmaEarthquakeDetails(
     { eventId: "old", points: [{ code: "1721020" }] },
     { eventId: "new", points: [] }
   ).points,

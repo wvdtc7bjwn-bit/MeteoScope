@@ -72,24 +72,46 @@ function appendRealtimeToken(url, token) {
   return `${url}${separator}_rt=${encodeURIComponent(token)}`;
 }
 
-export function mergeDmdataEarthquakeStationDetails(currentSnapshot, nextSnapshot) {
+export function mergeDmdataEarthquakeDetails(currentSnapshot, nextSnapshot) {
   if (!currentSnapshot || !nextSnapshot) return nextSnapshot;
   const currentById = new Map(
     (currentSnapshot.earthquakes ?? []).map((earthquake) => [String(earthquake.id), earthquake])
   );
   let changed = false;
   const earthquakes = (nextSnapshot.earthquakes ?? []).map((earthquake) => {
-    if ((earthquake.intensityStations ?? []).length > 0) return earthquake;
     const current = currentById.get(String(earthquake.id));
-    if (!current || (current.intensityStations ?? []).length === 0) return earthquake;
+    if (!current) return earthquake;
+
+    const nextStations = earthquake.intensityStations ?? [];
+    const currentStations = current.intensityStations ?? [];
+    const intensityStations = nextStations.length > 0 ? nextStations : currentStations;
+    const intensityAreas = mergeIntensityAreas(current.intensityAreas, earthquake.intensityAreas);
+    const shouldPreserveStations = nextStations.length === 0 && currentStations.length > 0;
+    const shouldMergeAreas = intensityAreas.length !== (earthquake.intensityAreas ?? []).length;
+    if (!shouldPreserveStations && !shouldMergeAreas) return earthquake;
+
     changed = true;
     return {
       ...earthquake,
-      intensityStations: current.intensityStations,
-      stationsLoaded: current.stationsLoaded
+      intensityAreas,
+      intensityStations,
+      stationsLoaded: shouldPreserveStations ? current.stationsLoaded : earthquake.stationsLoaded
     };
   });
   return changed ? { ...nextSnapshot, earthquakes } : nextSnapshot;
+}
+
+function mergeIntensityAreas(currentAreas, nextAreas) {
+  const merged = new Map();
+  const append = area => {
+    const code = String(area?.code ?? "").trim();
+    if (!code) return;
+    const current = merged.get(code);
+    merged.set(code, current ? { ...current, ...area } : area);
+  };
+  (Array.isArray(currentAreas) ? currentAreas : []).forEach(append);
+  (Array.isArray(nextAreas) ? nextAreas : []).forEach(append);
+  return [...merged.values()];
 }
 
 export async function mapDmdataTsunami(envelope, areaLookup = null) {
