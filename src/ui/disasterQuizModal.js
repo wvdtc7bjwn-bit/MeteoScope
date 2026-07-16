@@ -65,7 +65,6 @@ function renderDifficultySelection() {
     button.type = "button";
     button.className = "disaster-quiz-difficulty";
     button.dataset.quizDifficulty = difficulty.id;
-    button.dataset.difficulty = difficulty.id;
     button.setAttribute("aria-pressed", String(selectedDifficulty === difficulty.id));
     const title = document.createElement("strong");
     title.textContent = difficulty.label;
@@ -103,7 +102,10 @@ function renderQuestion() {
     return button;
   }));
   const feedback = document.getElementById("quiz-feedback");
-  if (feedback) feedback.hidden = true;
+  if (feedback) {
+    feedback.hidden = true;
+    delete feedback.dataset.result;
+  }
   window.requestAnimationFrame(() => choices?.querySelector("button")?.focus());
 }
 
@@ -121,7 +123,10 @@ function selectAnswer(index) {
     if (choiceIndex === index && !isCorrect) element.classList.add("is-incorrect");
   });
   const feedback = document.getElementById("quiz-feedback");
-  if (feedback) feedback.hidden = false;
+  if (feedback) {
+    feedback.hidden = false;
+    feedback.dataset.result = isCorrect ? "correct" : "incorrect";
+  }
   setText("quiz-feedback-title", isCorrect ? "正解です" : "不正解です");
   const title = document.getElementById("quiz-feedback-title");
   if (title) title.dataset.result = isCorrect ? "correct" : "incorrect";

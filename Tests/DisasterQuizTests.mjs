@@ -46,10 +46,15 @@ const [html, appSource, styleSource, iosDashboardSource] = await Promise.all([
   fs.readFile(path.join(root, "src", "style.css"), "utf8"),
   fs.readFile(path.join(root, "ios", "MeteoScope", "Views", "FeatureDashboardCards.swift"), "utf8")
 ]);
-assert.match(html, /id="disaster-map-button"[\s\S]*id="disaster-quiz-button"/u);
+assert.match(html, /id="disaster-quiz-button"[\s\S]*id="disaster-map-button"/u);
 assert.match(html, /id="disaster-quiz-modal"/u);
 assert.match(appSource, /setupDisasterQuizModal\(\)/u);
-assert.match(styleSource, /\.disaster-quiz-open-button\s*\{[\s\S]*top:\s*78px/u);
+assert.match(styleSource, /#disaster-map-button\s*\{\s*left:\s*78px/u);
+assert.match(styleSource, /\.disaster-quiz-open-button\s*\{\s*top:\s*20px;\s*left:\s*20px/u);
+assert.match(styleSource, /html\[data-theme="light"\] \.disaster-quiz-feedback\[data-result="correct"\]/u);
+assert.match(styleSource, /html\[data-theme="light"\] \.disaster-quiz-feedback\[data-result="incorrect"\]/u);
+assert.doesNotMatch(styleSource.slice(styleSource.indexOf("/* Disaster quiz */")), /\.disaster-quiz-primary\s*\{[^}]*linear-gradient/su);
 assert.match(iosDashboardSource, /case \.disasterQuiz:\s*DisasterQuizView\(\)/u);
+assert.match(iosDashboardSource, /Label\("防災クイズ"[\s\S]*Label\("防災マップ"/u);
 
 console.log("Disaster quiz tests passed.");

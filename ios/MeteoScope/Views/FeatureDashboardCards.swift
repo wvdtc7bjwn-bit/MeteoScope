@@ -300,16 +300,7 @@ struct WarningDashboardCard: View {
                 Label("警報・防災情報", systemImage: "exclamationmark.triangle.fill")
                     .font(.headline)
                 Spacer()
-                VStack(spacing: 8) {
-                    Button {
-                        presentedSheet = .disasterMap
-                    } label: {
-                        Label("防災マップ", systemImage: "map")
-                            .labelStyle(.iconOnly)
-                    }
-                    .accessibilityLabel("防災マップを開く")
-                    .meteoGlassButton()
-
+                HStack(spacing: 8) {
                     Button {
                         presentedSheet = .disasterQuiz
                     } label: {
@@ -317,6 +308,15 @@ struct WarningDashboardCard: View {
                             .labelStyle(.iconOnly)
                     }
                     .accessibilityLabel("防災クイズを開く")
+                    .meteoGlassButton()
+
+                    Button {
+                        presentedSheet = .disasterMap
+                    } label: {
+                        Label("防災マップ", systemImage: "map")
+                            .labelStyle(.iconOnly)
+                    }
+                    .accessibilityLabel("防災マップを開く")
                     .meteoGlassButton()
                 }
             }
