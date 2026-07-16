@@ -291,6 +291,16 @@ const earthquakeHubSource = await fs.readFile(
   ),
   "utf8"
 );
+const scheduledBackfillSource = await fs.readFile(
+  path.join(
+    root,
+    "workers",
+    "earthquake-realtime",
+    "src",
+    "scheduledD1Backfill.js"
+  ),
+  "utf8"
+);
 assert.match(
   earthquakeHubSource,
   /classifications:\s*\["telegram\.earthquake"\]/u
@@ -302,6 +312,10 @@ assert.doesNotMatch(
 assert.match(earthquakeHubSource, /protocol \|\| "dmdata\.v2"/u);
 assert.match(
   earthquakeHubSource,
+  /json_array_length\(excluded\.regions_json\)\s*>=\s*json_array_length\(earthquake_history\.regions_json\)/u
+);
+assert.match(
+  scheduledBackfillSource,
   /json_array_length\(excluded\.regions_json\)\s*>=\s*json_array_length\(earthquake_history\.regions_json\)/u
 );
 

@@ -98,7 +98,7 @@ function makeEarthquakeUpsert(db, earthquake, timestamp) {
       latitude = COALESCE(excluded.latitude, earthquake_history.latitude),
       longitude = COALESCE(excluded.longitude, earthquake_history.longitude),
       regions_json = CASE
-        WHEN excluded.regions_json IS NOT NULL AND excluded.regions_json <> '[]'
+        WHEN json_array_length(excluded.regions_json) >= json_array_length(earthquake_history.regions_json)
           THEN excluded.regions_json
         ELSE earthquake_history.regions_json
       END,
