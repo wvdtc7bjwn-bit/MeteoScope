@@ -14,6 +14,8 @@ on:
       - "public/privacy.html"
       - "public/terms.html"
       - "public/support.html"
+      - "workers/earthquake-realtime/**"
+      - "functions/api/earthquakes/**"
       - ".github/workflows/ios-build.yml"
   pull_request:
     paths:
@@ -25,6 +27,8 @@ on:
       - "public/privacy.html"
       - "public/terms.html"
       - "public/support.html"
+      - "workers/earthquake-realtime/**"
+      - "functions/api/earthquakes/**"
       - ".github/workflows/ios-build.yml"
 
 jobs:
