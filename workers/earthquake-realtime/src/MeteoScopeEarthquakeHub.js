@@ -2919,6 +2919,8 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
       return (Number.isFinite(bms) ? bms : 0) - (Number.isFinite(ams) ? ams : 0);
     });
 
+    await this.reconcileExpandedHistoryRegions(d1Items, merged);
+
     return new Response(
       JSON.stringify({
         enabled: true,
@@ -2930,6 +2932,37 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
         headers: { "content-type": "application/json; charset=utf-8" }
       }
     );
+  }
+
+  async reconcileExpandedHistoryRegions(d1Items, mergedItems) {
+    const db = this.env?.EQ_D1;
+    if (!db) return;
+
+    const d1RegionCounts = new Map(
+      (Array.isArray(d1Items) ? d1Items : []).map(item => [
+        getHistoryItemEventId(item),
+        Array.isArray(item?.regions) ? item.regions.length : 0
+      ])
+    );
+    const statements = (Array.isArray(mergedItems) ? mergedItems : [])
+      .filter(item => {
+        const eventId = getHistoryItemEventId(item);
+        const regionCount = Array.isArray(item?.regions) ? item.regions.length : 0;
+        return eventId && regionCount > (d1RegionCounts.get(eventId) ?? 0);
+      })
+      .map(item => db.prepare(`
+        UPDATE earthquake_history
+        SET regions_json = ?
+        WHERE event_id = ?
+      `).bind(JSON.stringify(item.regions), getHistoryItemEventId(item)));
+
+    if (statements.length === 0) return;
+    try {
+      await db.batch(statements);
+    }
+    catch (error) {
+      console.error("[DataHubDO] reconcile history regions failed", error);
+    }
   }
 
   async handleHistoryStations(eventId) {
