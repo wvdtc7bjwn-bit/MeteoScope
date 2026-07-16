@@ -100,6 +100,7 @@ assert.match(routeSource, /wvdtc7bjwn-bit\.github\.io/u);
 assert.match(routeSource, /PUBLIC_QUIZ_LEADERBOARD_SQL/u);
 assert.match(routeSource, /QUIZ_LEADERBOARD_CACHE_SECONDS/u);
 assert.match(routeSource, /quizRankingDate/u);
+assert.match(routeSource, /QUIZ_DIFFICULTIES\.map\(\(difficulty\) => invalidateLeaderboardCache\(difficulty\)\)/u);
 assert.doesNotMatch(routeSource, /function bestScoresCTE/u);
 assert.match(iosService, /kSecClassGenericPassword/u);
 assert.match(iosService, /kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly/u);

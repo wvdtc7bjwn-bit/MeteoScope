@@ -5,7 +5,7 @@ import {
   validateQuizLoginInput, verifyQuizPassword
 } from "../../_shared/quizSecurity.js";
 import {
-  QUIZ_QUESTION_COUNT, createQuizQuestionIDs, isQuizDifficulty, scoreQuizAnswers
+  QUIZ_DIFFICULTIES, QUIZ_QUESTION_COUNT, createQuizQuestionIDs, isQuizDifficulty, scoreQuizAnswers
 } from "../../_shared/quizCatalog.js";
 import {
   CURRENT_USER_QUIZ_RANK_SQL,
@@ -137,6 +137,7 @@ async function deleteAccount(request, env) {
     db.prepare("DELETE FROM quiz_sessions WHERE account_id = ?1").bind(auth.account.id),
     db.prepare("DELETE FROM quiz_accounts WHERE id = ?1").bind(auth.account.id)
   ]);
+  await Promise.all(QUIZ_DIFFICULTIES.map((difficulty) => invalidateLeaderboardCache(difficulty)));
   return json({ deleted: true }, { headers: { "Set-Cookie": expiredSessionCookie() } });
 }
 
