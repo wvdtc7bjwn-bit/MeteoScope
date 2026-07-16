@@ -126,7 +126,10 @@ struct DisasterQuizView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("ランキング参加").font(.caption2).foregroundStyle(.secondary)
-                    Text("MeteoScopeアカウント").font(.headline)
+                    Text("MeteoScopeアカウント")
+                        .font(.headline)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                 }
                 Spacer()
                 if ranking.account != nil {
@@ -134,6 +137,8 @@ struct DisasterQuizView: View {
                         Task { await ranking.logout(difficulty: selectedDifficulty) }
                     }
                     .buttonStyle(.bordered)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                 }
             }
 

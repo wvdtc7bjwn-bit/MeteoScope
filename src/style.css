@@ -6315,6 +6315,7 @@ html[data-theme="light"] {
 .quiz-section-heading div {
   display: grid;
   gap: 2px;
+  min-width: 0;
 }
 
 .quiz-section-heading span {
@@ -6323,7 +6324,11 @@ html[data-theme="light"] {
   font-weight: 750;
 }
 
-.quiz-section-heading strong { font-size: 17px; }
+.quiz-section-heading strong {
+  font-size: 17px;
+  white-space: nowrap;
+  word-break: keep-all;
+}
 
 .quiz-section-heading > button,
 .quiz-auth-tabs button,
@@ -6336,6 +6341,12 @@ html[data-theme="light"] {
   background: rgba(42, 63, 91, 0.78);
   font-weight: 750;
   cursor: pointer;
+}
+
+.quiz-section-heading > button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 #quiz-account-summary,
@@ -6396,12 +6407,17 @@ html[data-theme="light"] {
 
 .quiz-account-consent {
   display: flex !important;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px !important;
   font-weight: 500 !important;
 }
 
-.quiz-account-consent input { margin-top: 2px; }
+.quiz-account-consent input { flex: 0 0 auto; }
+.quiz-account-consent span {
+  min-width: 0;
+  white-space: nowrap;
+  word-break: keep-all;
+}
 .quiz-account-consent a { color: #78caef; }
 
 #quiz-account-delete {
@@ -6576,6 +6592,20 @@ html[data-theme="light"] .quiz-leaderboard-list li time { color: #60758a; }
   .disaster-quiz-body {
     max-height: calc(100dvh - 94px - max(20px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)));
     padding: 15px;
+  }
+
+  .quiz-account-card .quiz-section-heading {
+    gap: 8px;
+  }
+
+  .quiz-account-card .quiz-section-heading strong {
+    font-size: 16px;
+  }
+
+  .quiz-account-card .quiz-section-heading > button {
+    min-height: 32px;
+    padding: 5px 8px;
+    font-size: 13px;
   }
 
   .disaster-quiz-difficulties { grid-template-columns: 1fr; }
