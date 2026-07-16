@@ -331,7 +331,7 @@ extension WeatherAPIClient {
                     from: url,
                     session: session,
                     timeout: 12,
-                    cachePolicy: .returnCacheDataElseLoad
+                    cachePolicy: .reloadIgnoringLocalCacheData
                 )
                 let response = try JSONDecoder().decode(
                     DMDataEarthquakeStationResponse.self,

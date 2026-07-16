@@ -26,16 +26,28 @@ const SAMPLE_SOURCE_ID = "weather-samples";
 const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-wind-arrow", "sample-cross", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
 const SAMPLE_CIRCLE_BASE_RADIUS = ["coalesce", ["get", "radius"], 8];
-const AMEDAS_CIRCLE_RADIUS_EXPRESSION = buildAmedasZoomExpression(
-  [[3, 0.55], [5, 0.72], [7, 0.92], [9, 1.12], [10, 1.22]],
-  SAMPLE_CIRCLE_BASE_RADIUS,
-  (scale) => ["*", SAMPLE_CIRCLE_BASE_RADIUS, scale]
-);
-const AMEDAS_CIRCLE_STROKE_WIDTH_EXPRESSION = buildAmedasZoomExpression(
-  [[3, 0.9], [5, 1.2], [7, 1.6], [10, 2.2]],
-  2,
-  (width) => width
-);
+const SAMPLE_CIRCLE_RADIUS_EXPRESSION = buildCircleZoomExpression({
+  zoomStops: [
+    [3, 0.55, 0.3],
+    [5, 0.72, 0.42],
+    [7, 0.92, 0.65],
+    [9, 1.12, 0.85],
+    [10, 1.22, 1]
+  ],
+  fallbackValue: SAMPLE_CIRCLE_BASE_RADIUS,
+  createValue: (scale) => ["*", SAMPLE_CIRCLE_BASE_RADIUS, scale]
+});
+const SAMPLE_CIRCLE_STROKE_WIDTH_EXPRESSION = buildCircleZoomExpression({
+  zoomStops: [
+    [3, 0.9, 0.6],
+    [5, 1.2, 0.8],
+    [7, 1.6, 1.2],
+    [9, 1.9, 1.7],
+    [10, 2.2, 2]
+  ],
+  fallbackValue: 2,
+  createValue: (width) => width
+});
 const TYPHOON_SOURCE_ID = "jma-typhoon";
 const TYPHOON_LAYERS = [
   "typhoon-wind-area-fill",
@@ -509,9 +521,9 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       paint: {
         "circle-color": ["get", "color"],
         "circle-opacity": 0.92,
-        "circle-radius": AMEDAS_CIRCLE_RADIUS_EXPRESSION,
+        "circle-radius": SAMPLE_CIRCLE_RADIUS_EXPRESSION,
         "circle-stroke-color": "#f8fbff",
-        "circle-stroke-width": AMEDAS_CIRCLE_STROKE_WIDTH_EXPRESSION
+        "circle-stroke-width": SAMPLE_CIRCLE_STROKE_WIDTH_EXPRESSION
       }
     });
 
@@ -2428,15 +2440,26 @@ function getAmedasSortKey(metricId, value) {
   return metricId === "temperature" || metricId === "precipitation" ? value : 0;
 }
 
-function buildAmedasZoomExpression(stops, fallbackValue, createAmedasValue) {
-  const isAmedasCircle = ["==", ["get", "markerScaleMode"], "amedas-zoom"];
+function buildCircleZoomExpression({
+  zoomStops,
+  fallbackValue,
+  createValue
+}) {
+  const scaleMode = ["get", "markerScaleMode"];
   return [
     "interpolate",
     ["linear"],
     ["zoom"],
-    ...stops.flatMap(([zoom, value]) => [
+    ...zoomStops.flatMap(([zoom, amedasValue, earthquakeValue]) => [
       zoom,
-      ["case", isAmedasCircle, createAmedasValue(value), fallbackValue]
+      [
+        "case",
+        ["==", scaleMode, "amedas-zoom"],
+        createValue(amedasValue),
+        ["==", scaleMode, "earthquake-zoom"],
+        createValue(earthquakeValue),
+        fallbackValue
+      ]
     ])
   ];
 }
@@ -2479,6 +2502,7 @@ function createEarthquakeFeatures(data) {
       properties: {
         color: getEarthquakeIntensityColor(station.intensity),
         markerType: "circle",
+        markerScaleMode: "earthquake-zoom",
         radius: getEarthquakeIntensityRadius(station.intensity),
         sortKey: getEarthquakeIntensityRank(station.intensity),
         label: getEarthquakeStationLabel(station),

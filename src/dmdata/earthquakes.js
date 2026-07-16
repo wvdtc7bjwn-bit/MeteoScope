@@ -181,17 +181,22 @@ function formatDmdataTsunamiHeight(value, unit = "m", over = false) {
   return `${text}${suffix}${over === true ? "超" : ""}`;
 }
 
-export async function hydrateDmdataEarthquakeStations(snapshot, earthquakeId) {
+export async function hydrateDmdataEarthquakeStations(snapshot, earthquakeId, options = {}) {
   if (snapshot?.source !== "dmdata") return snapshot;
   const id = String(earthquakeId ?? "");
   const target = snapshot.earthquakes?.find((earthquake) => String(earthquake.id) === id);
-  if (!target || target.stationsLoaded) return snapshot;
+  const force = options.force === true;
+  if (!target || (!force && target.stationsLoaded)) return snapshot;
 
   const payload = await fetchJson(DMDATA_ENDPOINTS.earthquakeStations(target.eventId), {
-    ttlMs: 24 * 60 * 60 * 1000,
-    cache: "default"
+    ttlMs: force ? 0 : 5 * 60 * 1000,
+    cache: force ? "no-store" : "default"
   });
+  if (payload?.enabled !== true) {
+    throw new Error("DM-D.S.S earthquake station details are unavailable");
+  }
   const stations = Array.isArray(payload?.items) ? payload.items : [];
+  if (stations.length === 0) return snapshot;
   const [hydrated] = await attachEarthquakeMapDataList([{ ...target, ...mapDmdataStations(stations) }]);
   return {
     ...snapshot,

@@ -23,6 +23,7 @@ import {
   buildGdBackfillDates,
   getJstDateString
 } from "../workers/earthquake-realtime/src/scheduledBackfillPolicy.js";
+import { collectDmdataIntensityRegions } from "../workers/earthquake-realtime/src/earthquakeRegionPolicy.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pagesProxyUrl = pathToFileURL(
@@ -79,6 +80,27 @@ assert.equal(isJmaIntensityStationCode("17"), false);
 assert.equal(isJmaIntensityStationCode("391"), false);
 assert.equal(isJmaIntensityStationCode("cf-0"), false);
 assert.equal(normalizeJmaIntensityStationCode(" 0320224 "), "0320224");
+assert.deepEqual(
+  collectDmdataIntensityRegions({
+    prefectures: [{
+      code: "12",
+      name: "千葉県",
+      regions: [
+        { code: "340", name: "千葉県北東部", maxInt: "2" },
+        { code: "341", name: "千葉県北西部", maxInt: "1" }
+      ]
+    }, {
+      code: "08",
+      name: "茨城県",
+      regions: [{ code: "301", name: "茨城県南部", maxInt: "1" }]
+    }]
+  }),
+  [
+    { code: "340", name: "千葉県北東部", maxInt: "2" },
+    { code: "341", name: "千葉県北西部", maxInt: "1" },
+    { code: "301", name: "茨城県南部", maxInt: "1" }
+  ]
+);
 
 assert.deepEqual(
   mapD1EarthquakeRow({

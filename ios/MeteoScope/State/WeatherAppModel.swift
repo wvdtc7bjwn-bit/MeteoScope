@@ -21,6 +21,7 @@ final class WeatherAppModel {
     private(set) var latestFetchError: [WeatherFeature: String] = [:]
     private(set) var dismissedNoticeIDs: Set<RemoteNotice.ID> = []
     private var loadingEarthquakeStationIDs: Set<String> = []
+    private var verifiedEarthquakeStationIDs: Set<String> = []
     private var earthquakeRefreshSequence = 0
 
     private let client: WeatherAPIClient
@@ -51,8 +52,8 @@ final class WeatherAppModel {
 
     func selectEarthquake(_ earthquake: EarthquakeSummary) {
         selectedEarthquakeID = earthquake.id
-        guard earthquake.intensityPoints.isEmpty,
-              !earthquake.eventID.isEmpty,
+        guard !earthquake.eventID.isEmpty,
+              (earthquake.intensityPoints.isEmpty || !verifiedEarthquakeStationIDs.contains(earthquake.eventID)),
               loadingEarthquakeStationIDs.insert(earthquake.eventID).inserted
         else {
             return
@@ -71,6 +72,7 @@ final class WeatherAppModel {
             else {
                 return
             }
+            verifiedEarthquakeStationIDs.insert(eventID)
             let earthquakes = snapshot.earthquakes.map { earthquake in
                 earthquake.eventID == eventID
                     ? earthquake.replacingIntensityPoints(points)
@@ -193,6 +195,17 @@ final class WeatherAppModel {
             let snapshot = previous.map { fetched.preservingIntensityPoints(from: $0) } ?? fetched
             earthquakeState = .loaded(snapshot)
             markFetchSucceeded(.earthquake)
+            if let selected = selectedEarthquake(in: snapshot), !selected.eventID.isEmpty {
+                let freshSelected = fetched.earthquakes.first {
+                    $0.eventID == selected.eventID
+                }
+                if freshSelected?.intensityPoints.isEmpty == false {
+                    verifiedEarthquakeStationIDs.insert(selected.eventID)
+                } else if !verifiedEarthquakeStationIDs.contains(selected.eventID),
+                          loadingEarthquakeStationIDs.insert(selected.eventID).inserted {
+                    await loadEarthquakeStations(eventID: selected.eventID)
+                }
+            }
         } catch is CancellationError {
             return
         } catch {

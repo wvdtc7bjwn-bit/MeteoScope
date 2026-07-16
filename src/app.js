@@ -112,6 +112,7 @@ export function createWeatherApp() {
   let autoRefreshInFlight = false;
   let earthquakeRefreshRequest = null;
   let pendingEarthquakeRealtimeToken = "";
+  const verifiedEarthquakeStationIds = new Set();
   let lastAutoRefreshStartedAt = 0;
   let lastEarthquakeRefreshStartedAt = 0;
   let tabControls = null;
@@ -376,9 +377,17 @@ if (layerId === "river") {
     const tab = TABS.find((item) => item.id === "earthquake");
     updateCurrentView(tab, latestDataByTab.earthquake);
     if (!isSelected) focusSelectedEarthquake();
-    void hydrateDmdataEarthquakeStations(latestDataByTab.earthquake, nextEarthquakeId)
+    void hydrateDmdataEarthquakeStations(latestDataByTab.earthquake, nextEarthquakeId, {
+      force: true
+    })
       .then((nextData) => {
         if (!nextData) return;
+        const hydratedEarthquake = nextData.earthquakes?.find((earthquake) => (
+          String(earthquake.id) === nextEarthquakeId
+        ));
+        if ((hydratedEarthquake?.intensityStations ?? []).length > 0) {
+          verifiedEarthquakeStationIds.add(String(hydratedEarthquake.eventId ?? nextEarthquakeId));
+        }
         const mergedData = mergeDmdataEarthquakeStationDetails(
           nextData,
           latestDataByTab.earthquake
@@ -917,7 +926,7 @@ if (layerId === "river") {
       ? fetchDmdataEarthquakeList({ realtimeToken })
       : loadTabData("earthquake");
     earthquakeRefreshRequest = loadEarthquake
-      .then((nextData) => {
+      .then(async (nextData) => {
         const mergedData = mergeDmdataEarthquakeStationDetails(previousData, nextData);
         const earthquakes = mergedData?.earthquakes ?? [];
         const nextLatestId = String(earthquakes[0]?.id ?? "");
@@ -933,12 +942,41 @@ if (layerId === "river") {
           activeEarthquakeId = selectedIdAtStart;
         }
 
-        latestDataByTab.earthquake = mergedData;
+        let refreshedData = mergedData;
+        const selectedIdForRefresh = String(activeEarthquakeId);
+        const selectedEarthquake = earthquakes.find((earthquake) => (
+          String(earthquake.id) === selectedIdForRefresh
+        ));
+        const selectedEventId = String(selectedEarthquake?.eventId ?? "");
+        const freshSelectedEarthquake = nextData?.earthquakes?.find((earthquake) => (
+          String(earthquake.id) === selectedIdForRefresh
+        ));
+        if ((freshSelectedEarthquake?.intensityStations ?? []).length > 0) {
+          verifiedEarthquakeStationIds.add(selectedEventId);
+        } else if (selectedEventId && !verifiedEarthquakeStationIds.has(selectedEventId)) {
+          try {
+            refreshedData = await hydrateDmdataEarthquakeStations(
+              mergedData,
+              selectedIdForRefresh,
+              { force: true }
+            );
+            const refreshedEarthquake = refreshedData?.earthquakes?.find((earthquake) => (
+              String(earthquake.id) === selectedIdForRefresh
+            ));
+            if ((refreshedEarthquake?.intensityStations ?? []).length > 0) {
+              verifiedEarthquakeStationIds.add(selectedEventId);
+            }
+          } catch (error) {
+            console.warn("[MeteoScope] DM-D.S.S station coordinate refresh failed", error);
+          }
+        }
+
+        latestDataByTab.earthquake = refreshedData;
         if (activeTab === "earthquake") {
           const tab = TABS.find((item) => item.id === "earthquake");
-          updateCurrentView(tab, mergedData);
+          updateCurrentView(tab, refreshedData);
         }
-        return mergedData;
+        return refreshedData;
       })
       .catch((error) => {
         console.warn("[MeteoScope] earthquake realtime refresh failed", error);

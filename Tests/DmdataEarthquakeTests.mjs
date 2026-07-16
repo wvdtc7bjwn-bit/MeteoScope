@@ -64,6 +64,17 @@ assert.deepEqual(summary.intensityStations[0].coordinates, [141.9669, 39.7356]);
 assert.equal(summary.stationsLoaded, true);
 assert.match(summary.tsunamiComment, /津波の心配はありません/u);
 
+const hinoemata = mapDmdataHistoryItem(history, [{
+  station_code: "0736420",
+  station_name: "檜枝岐村上河原＊",
+  intensity: "2",
+  latitude: 37.0158,
+  longitude: 139.3806
+}]);
+assert.equal(hinoemata.intensityStations[0].code, "0736420");
+assert.equal(hinoemata.intensityStations[0].stationName, "檜枝岐村上河原＊");
+assert.deepEqual(hinoemata.intensityStations[0].coordinates, [139.3806, 37.0158]);
+
 const unloaded = mapDmdataHistoryItem(history);
 assert.equal(unloaded.stationsLoaded, false);
 assert.deepEqual(unloaded.intensityStations, []);

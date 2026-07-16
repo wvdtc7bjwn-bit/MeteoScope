@@ -13,12 +13,13 @@ import {
   sanitizeJmaIntensityStationPoints
 } from "./earthquakeStationPolicy.js";
 import { getJstDateString } from "./scheduledBackfillPolicy.js";
+import { collectDmdataIntensityRegions } from "./earthquakeRegionPolicy.js";
 
 const STATE_KEY = "latest-state-v2";
 const HISTORY_KEY = "earthquake-history-v1";
 const RETENTION_CLEANUP_KEY = "retention-cleanup-v1";
 // Parser changes require one bounded replay so recent station rows are rebuilt safely.
-const DMDATA_TELEGRAM_CURSOR_KEY = "dmdata-telegram-cursor-v2";
+const DMDATA_TELEGRAM_CURSOR_KEY = "dmdata-telegram-cursor-v3";
 const REPLAY_TYPES = ["earthquake", "eew", "tsunami"];
 const HISTORY_MAX_ITEMS = 100;
 const FINALIZED_EEW_EVENT_IDS_MAX_SIZE = 200;
@@ -1037,7 +1038,9 @@ async function normalizeEarthquake(
       nowIso(),
     points: isDistantEarthquake ? [] : points,
     scaleList: getScaleList(),
-    regions: isDistantEarthquake ? [] : normalizeRegions(intensity?.regions ?? body?.regions ?? []),
+    regions: isDistantEarthquake
+      ? []
+      : normalizeRegions(collectDmdataIntensityRegions(intensity, body)),
     telegramType,
     isDistantEarthquake
   };
