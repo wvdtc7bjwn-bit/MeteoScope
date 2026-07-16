@@ -328,7 +328,7 @@ assert.match(
   workerWranglerSource,
   /database_name\s*=\s*"meteoscope-earthquakes"/u
 );
-assert.doesNotMatch(workerWranglerSource, /\[triggers\]|crons\s*=/u);
+assert.match(workerWranglerSource, /\[triggers\]\s*crons\s*=\s*\[\]/u);
 assert.doesNotMatch(publicWorkerSource, /scheduledD1Backfill|runScheduledD1Backfill/u);
 for (const source of [pagesWranglerSource, workerWranglerSource, publicWorkerSource]) {
   assert.doesNotMatch(source, /eqapp-realtime|eq-signal-history|RealtimeHub/u);
