@@ -12,6 +12,7 @@ import {
   preserveJmaIntensityStationPoints,
   sanitizeJmaIntensityStationPoints
 } from "./earthquakeStationPolicy.js";
+import { getJstDateString } from "./scheduledBackfillPolicy.js";
 
 const STATE_KEY = "latest-state-v2";
 const HISTORY_KEY = "earthquake-history-v1";
@@ -1042,11 +1043,6 @@ async function normalizeEarthquake(
   };
 }
 
-function getJstDateString(offsetDays = 0) {
-  const date = new Date(Date.now() + 9 * 60 * 60 * 1000 - offsetDays * 24 * 60 * 60 * 1000);
-  return date.toISOString().slice(0, 10);
-}
-
 function getEarthquakeDataTimeMs(data) {
   return toTimeMs(
     data?.time ??
@@ -1059,7 +1055,7 @@ function getEarthquakeDataTimeMs(data) {
   );
 }
 
-function normalizeGdEarthquakeItem(item) {
+export function normalizeGdEarthquakeItem(item) {
   if (!item || typeof item !== "object") {
     return null;
   }

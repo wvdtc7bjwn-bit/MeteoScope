@@ -50,3 +50,9 @@ CREATE TABLE IF NOT EXISTS tsunami_history (
 
 CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
   ON tsunami_history(issue_time DESC);
+
+CREATE TABLE IF NOT EXISTS meteoscope_worker_state (
+  key TEXT PRIMARY KEY,
+  value TEXT,
+  updated_at TEXT NOT NULL
+);

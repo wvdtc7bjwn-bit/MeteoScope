@@ -60,7 +60,8 @@ Worker script `meteoscope-earthquake-realtime`、Durable Object class `MeteoScop
 
 ## 動作特性
 
-- DM-D.S.S WebSocket切断時は最大60秒の指数バックオフで再接続します。
+- DM-D.S.Sは`telegram.earthquake`だけを`dmdata.v2` WebSocketで購読し、ping/pong応答、チケット期限前の接続更新、切断時の指数バックオフ再接続、接続直後のGD補完を行います。`eew.forecast`は購読しません。
+- Durable Objectが無料枠超過等で停止しても、通常Workerの1分CronがDM-D.S.S GD地震履歴をMeteoScope D1へ補完します。公開APIがD1フォールバックへ移行した際も同じ処理を排他制御付きで起動します。地震一覧は最大約1分遅れで継続しますが、この経路だけでは新規観測点詳細や津波電文を補完しません。
 - GD地震履歴を5分ごとに直近2日分補完します。
 - Telegram List/Dataを5分ごとに差分取得し、地震別津波コメントとVTSE41/51/52を補完します。初回取得は最大40電文に制限し、DM-D.S.S Data APIの50リクエスト/5分上限を超えない構成です。
 - 震度観測点の座標はDM-D.S.S震度観測点パラメータAPIから起動時に取得し、24時間ごとに更新します。7桁の観測点コードだけを採用し、都道府県・地域コードを観測点として保存しません。取得状態は`/api/health`の`dmdataStationCatalog`で確認できます。

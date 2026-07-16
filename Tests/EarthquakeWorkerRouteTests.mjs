@@ -19,6 +19,10 @@ import {
   mapD1EarthquakeRow,
   mapD1TsunamiRow
 } from "../workers/earthquake-realtime/src/d1ReadFallback.js";
+import {
+  buildGdBackfillDates,
+  getJstDateString
+} from "../workers/earthquake-realtime/src/scheduledBackfillPolicy.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pagesProxyUrl = pathToFileURL(
@@ -163,6 +167,17 @@ assert.deepEqual(
   []
 );
 
+const scheduledAt = Date.parse("2026-07-16T00:05:00Z");
+assert.equal(getJstDateString(0, scheduledAt), "2026-07-16");
+assert.deepEqual(
+  buildGdBackfillDates(scheduledAt, null),
+  ["2026-07-15", "2026-07-16"]
+);
+assert.deepEqual(
+  buildGdBackfillDates(scheduledAt, "2026-07-16T00:01:00Z"),
+  ["2026-07-16"]
+);
+
 let forwardedUrl = "";
 const proxyResponse = await onRequest({
   request: new Request(
@@ -223,6 +238,26 @@ const publicWorkerSource = await fs.readFile(
 );
 assert.doesNotMatch(publicWorkerSource, /\/ingest|\/auth|\/discord/);
 assert.match(publicWorkerSource, /x-eew-authenticated/u);
+
+const earthquakeHubSource = await fs.readFile(
+  path.join(
+    root,
+    "workers",
+    "earthquake-realtime",
+    "src",
+    "MeteoScopeEarthquakeHub.js"
+  ),
+  "utf8"
+);
+assert.match(
+  earthquakeHubSource,
+  /classifications:\s*\["telegram\.earthquake"\]/u
+);
+assert.doesNotMatch(
+  earthquakeHubSource,
+  /classifications:\s*\[[^\]]*"eew\.forecast"[^\]]*\]/u
+);
+assert.match(earthquakeHubSource, /protocol \|\| "dmdata\.v2"/u);
 
 const [pagesWranglerSource, workerWranglerSource] = await Promise.all([
   fs.readFile(path.join(root, "wrangler.toml"), "utf8"),

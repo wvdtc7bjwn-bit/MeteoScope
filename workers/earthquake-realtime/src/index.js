@@ -1,6 +1,7 @@
 import { MeteoScopeEarthquakeHub } from "./MeteoScopeEarthquakeHub.js";
 import { fetchD1ReadFallback } from "./d1ReadFallback.js";
 import { isPublicReadMethod, resolvePublicEarthquakeRoute } from "./routePolicy.js";
+import { runScheduledD1Backfill } from "./scheduledD1Backfill.js";
 
 export { MeteoScopeEarthquakeHub };
 
@@ -82,7 +83,7 @@ async function fetchFromHub(request, env, route) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: JSON_HEADERS });
     }
@@ -100,8 +101,17 @@ export default {
     try {
       const response = await fetchFromHub(request, env, route);
       if (!route.websocket && response.status >= 500) {
-        return await fetchD1ReadFallback(request, env, route, `hub_status_${response.status}`)
-          ?? response;
+        const fallback = await fetchD1ReadFallback(
+          request,
+          env,
+          route,
+          `hub_status_${response.status}`
+        );
+        if (fallback) {
+          ctx?.waitUntil?.(runScheduledD1Backfill(env));
+          return fallback;
+        }
+        return response;
       }
       return response;
     }
@@ -113,10 +123,17 @@ export default {
           return null;
         }
       );
-      if (fallback) return fallback;
+      if (fallback) {
+        ctx?.waitUntil?.(runScheduledD1Backfill(env));
+        return fallback;
+      }
       return jsonResponse({ ok: false, error: "earthquake_service_unavailable" }, 503, {
         "retry-after": "30"
       });
     }
+  },
+
+  async scheduled(controller, env, ctx) {
+    ctx.waitUntil(runScheduledD1Backfill(env, { nowMs: controller.scheduledTime }));
   }
 };
