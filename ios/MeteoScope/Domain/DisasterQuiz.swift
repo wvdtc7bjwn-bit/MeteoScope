@@ -68,6 +68,14 @@ enum DisasterQuizCatalog {
             .map { $0.shufflingChoices() }
     }
 
+    static func questions(ids: [String]) -> [DisasterQuizQuestion] {
+        guard ids.count == questionCount, Set(ids).count == questionCount else { return [] }
+        let catalog = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
+        let selected = ids.compactMap { catalog[$0] }
+        guard selected.count == questionCount else { return [] }
+        return selected.map { $0.shufflingChoices() }
+    }
+
     private static func loadQuestions() -> [DisasterQuizQuestion] {
         let bundles = [Bundle.main, Bundle(for: DisasterQuizResourceLocator.self)]
         guard let url = bundles.lazy.compactMap({

@@ -22,6 +22,7 @@ const elements = {
   logoutButton: document.getElementById("logout-button"),
   refreshStatusButton: document.getElementById("refresh-status-button"),
   statusList: document.getElementById("status-list"),
+  quizMetricsList: document.getElementById("quiz-metrics-list"),
   maintenanceEnabled: document.getElementById("maintenance-enabled"),
   maintenanceMessage: document.getElementById("maintenance-message"),
   saveConfigButton: document.getElementById("save-config-button"),
@@ -316,6 +317,58 @@ function renderStatus(status) {
       <dd>${escapeHtml(value)}</dd>
     </div>
   `).join("");
+  renderQuizMetrics(status.quiz || {}, status.d1Usage || {});
+}
+
+function renderQuizMetrics(quiz, usage) {
+  if (!elements.quizMetricsList) return;
+  if (quiz.migrationRequired) {
+    elements.quizMetricsList.innerHTML = statusRow("状態", "D1 migration 0007までの適用が必要です");
+    return;
+  }
+  const rows = [
+    ["アカウント数", quiz.configured ? `${formatInteger(quiz.accountCount)}件` : "未設定"],
+    ["DAU（UTC当日）", quiz.configured ? `${formatInteger(quiz.dailyActiveAccounts)}人` : "--"],
+    ["クイズ完了（24時間）", quiz.configured ? `${formatInteger(quiz.attempts24h)}回` : "--"],
+    ["本日のランキング記録", quiz.configured ? `${formatInteger(quiz.dailyScoreRows)}件` : "--"],
+    ["詳細挑戦履歴", quiz.configured ? `${formatInteger(quiz.attemptRows)}件` : "--"],
+    ["挑戦履歴の保持", quiz.configured ? `${Number(quiz.attemptRetentionDays || 15)}日` : "--"],
+    ["最終自動整理", formatAdminDate(quiz.maintenance?.completedAt)],
+    ["D1読取（UTC当日）", formatD1Quota(usage.rowsRead, 5_000_000, usage)],
+    ["D1書込（UTC当日）", formatD1Quota(usage.rowsWritten, 100_000, usage)],
+    ["D1保存容量", formatStorageQuota(usage.storageBytes, 500 * 1024 * 1024, usage)]
+  ];
+  elements.quizMetricsList.innerHTML = rows.map(([label, value]) => statusRow(label, value)).join("");
+}
+
+function statusRow(label, value) {
+  return `<div><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`;
+}
+
+function formatInteger(value) {
+  return new Intl.NumberFormat("ja-JP").format(Number(value || 0));
+}
+
+function formatD1Quota(value, limit, usage) {
+  if (value === null || value === undefined) return usage.configured ? "取得不可" : "Analytics未設定";
+  const amount = Number(value);
+  return `${formatInteger(amount)}行 / ${formatInteger(limit)}行（${formatPercent(amount, limit)}）`;
+}
+
+function formatStorageQuota(value, limit, usage) {
+  if (value === null || value === undefined) return usage.configured ? "取得不可" : "Analytics未設定";
+  const amount = Number(value);
+  return `${formatBytes(amount)} / ${formatBytes(limit)}（${formatPercent(amount, limit)}）`;
+}
+
+function formatPercent(value, limit) {
+  return `${Math.min(999, Math.max(0, value / limit * 100)).toFixed(2)}%`;
+}
+
+function formatBytes(value) {
+  if (!Number.isFinite(value) || value < 0) return "--";
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function renderConfig() {

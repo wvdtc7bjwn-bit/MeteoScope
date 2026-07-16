@@ -5,7 +5,7 @@ import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTa
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
-import { setupDisasterQuizModal } from "./ui/disasterQuizModal.js";
+import { openDisasterQuizModal, setupDisasterQuizModal } from "./ui/disasterQuizModal.js";
 import { setupOnboardingModal } from "./ui/onboardingModal.js";
 import { openSettingsModal, refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
 import {
@@ -1478,6 +1478,7 @@ if (layerId === "river") {
       onActivateEarlyAccess: authenticateEarlyAccess,
       onDeactivateEarlyAccess: releaseEarlyAccess,
       onOpenGuide: onboarding.open,
+      onOpenAccount: openDisasterQuizModal,
       tabs: TABS,
       getTabOrder: () => tabControls?.getOrder?.() ?? TABS.map((tab) => tab.id),
       onTabOrderChange: (order) => tabControls?.setOrder?.(order) ?? order

@@ -42,4 +42,14 @@ final class DisasterQuizTests: XCTestCase {
         XCTAssertEqual(shuffled.choices[shuffled.correctIndex], correctAnswer)
         XCTAssertEqual(Set(shuffled.choices), Set(question.choices))
     }
+
+    func testServerSelectedQuestionIDsKeepOrderAndShuffleChoices() {
+        let ids = DisasterQuizCatalog.questions(for: .intermediate).dropFirst(5).prefix(10).map(\.id)
+        let selected = DisasterQuizCatalog.questions(ids: ids)
+
+        XCTAssertEqual(selected.map(\.id), ids)
+        XCTAssertEqual(selected.count, DisasterQuizCatalog.questionCount)
+        XCTAssertEqual(DisasterQuizCatalog.questions(ids: [ids[0]]), [])
+        XCTAssertEqual(DisasterQuizCatalog.questions(ids: Array(repeating: ids[0], count: 10)), [])
+    }
 }

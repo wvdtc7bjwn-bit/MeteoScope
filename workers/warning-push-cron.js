@@ -1,8 +1,17 @@
 import { runWarningPushCheck } from "../functions/api/push/[[path]].js";
+import { runQuizMaintenance } from "../functions/_shared/quizMaintenance.js";
+
+const QUIZ_MAINTENANCE_UTC_HOUR = 15;
+const QUIZ_MAINTENANCE_UTC_MINUTE = 0;
 
 export default {
   async scheduled(controller, env, ctx) {
-    ctx.waitUntil(runWarningPushCheck(env));
+    const scheduledAt = new Date(controller?.scheduledTime ?? Date.now());
+    const tasks = [runWarningPushCheck(env)];
+    if (shouldRunQuizMaintenance(scheduledAt)) {
+      tasks.push(runQuizMaintenance(env, { now: scheduledAt }));
+    }
+    ctx.waitUntil(Promise.all(tasks));
   },
 
   async fetch(request, env) {
@@ -20,3 +29,8 @@ export default {
     });
   }
 };
+
+export function shouldRunQuizMaintenance(date) {
+  return date.getUTCHours() === QUIZ_MAINTENANCE_UTC_HOUR
+    && date.getUTCMinutes() === QUIZ_MAINTENANCE_UTC_MINUTE;
+}

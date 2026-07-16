@@ -3,11 +3,51 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppPreferences.self) private var preferences
     @Environment(PushNotificationService.self) private var pushNotifications
+    @State private var account = QuizRankingModel()
 
     var body: some View {
         @Bindable var preferences = preferences
 
         Form {
+            Section("MeteoScopeアカウント") {
+                if account.enabled, let profile = account.account {
+                    LabeledContent("状態", value: "ログイン中")
+                    LabeledContent("表示名", value: profile.displayName)
+                } else if account.enabled {
+                    LabeledContent("状態", value: "未ログイン")
+                    Text("ログインまたは新規作成してMeteoScopeアカウントの機能を利用できます。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    LabeledContent("状態", value: account.isLoading ? "確認中" : "準備中")
+                    Text("MeteoScopeアカウントの対応機能は今後順次追加します。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                NavigationLink {
+                    DisasterQuizView()
+                } label: {
+                    Label(
+                        account.account == nil ? "ログイン・新規作成" : "アカウントを確認・管理",
+                        systemImage: "person.crop.circle"
+                    )
+                }
+
+                Button {
+                    Task { await account.refresh(difficulty: .beginner) }
+                } label: {
+                    Label(account.isLoading ? "確認中" : "アカウント状態を更新", systemImage: "arrow.clockwise")
+                }
+                .disabled(account.isLoading)
+
+                if let message = account.message {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section("表示") {
                 Picker("テーマ", selection: $preferences.theme) {
                     ForEach(AppPreferences.Theme.allCases) { theme in
@@ -120,6 +160,7 @@ struct SettingsView: View {
             Task { await pushNotifications.synchronize(preferences: preferences) }
         }
         .task {
+            await account.refresh(difficulty: .beginner)
             await pushNotifications.refreshServerStatus()
             await pushNotifications.refreshAuthorizationStatus()
             await pushNotifications.loadNotificationAreasIfNeeded()

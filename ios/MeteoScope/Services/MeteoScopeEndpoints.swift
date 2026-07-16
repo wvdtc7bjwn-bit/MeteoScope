@@ -5,6 +5,7 @@ enum MeteoScopeEndpoints {
     static let privacyPolicy = URL(string: "https://meteoscope.pages.dev/privacy.html")!
     static let termsOfUse = URL(string: "https://meteoscope.pages.dev/terms.html")!
     static let support = URL(string: "https://meteoscope.pages.dev/support.html")!
+    static let quizAPI = URL(string: "https://meteoscope.pages.dev/api/quiz")!
     static let jmaOfficial = URL(string: "https://www.jma.go.jp/bosai/")!
     static let jmaTsunamiInformation = URL(
         string: "https://www.jma.go.jp/bosai/map.html#contents=tsunami"

@@ -7,6 +7,7 @@ import {
   DISASTER_QUIZ_DIFFICULTIES,
   DISASTER_QUIZ_POOL_SIZE,
   DISASTER_QUIZ_QUESTION_COUNT,
+  disasterQuizQuestionsByIDs,
   getDisasterQuizQuestions,
   shuffledDisasterQuizQuestions,
   validateDisasterQuizQuestions
@@ -43,6 +44,11 @@ assert.notDeepEqual(shuffled, original.slice(0, DISASTER_QUIZ_QUESTION_COUNT));
 const alternateShuffle = shuffledDisasterQuizQuestions("beginner", () => 0.999).map((item) => item.id);
 assert.notDeepEqual(alternateShuffle, shuffled);
 assert.ok(shuffledDisasterQuizQuestions("beginner", () => 0).some((item) => item.correctIndex !== 0));
+const selectedByServer = disasterQuizQuestionsByIDs(original.slice(4, 14), () => 0);
+assert.deepEqual(selectedByServer.map((item) => item.id), original.slice(4, 14));
+assert.equal(selectedByServer.length, DISASTER_QUIZ_QUESTION_COUNT);
+assert.deepEqual(disasterQuizQuestionsByIDs([original[0]]), []);
+assert.deepEqual(disasterQuizQuestionsByIDs(Array(10).fill(original[0])), []);
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [html, appSource, styleSource, iosDashboardSource] = await Promise.all([
@@ -53,6 +59,8 @@ const [html, appSource, styleSource, iosDashboardSource] = await Promise.all([
 ]);
 assert.match(html, /id="disaster-quiz-button"[\s\S]*id="disaster-map-button"/u);
 assert.match(html, /id="disaster-quiz-modal"/u);
+assert.match(html, /id="quiz-register-form"/u);
+assert.match(html, /id="quiz-leaderboard-list"/u);
 assert.match(appSource, /setupDisasterQuizModal\(\)/u);
 assert.match(styleSource, /#disaster-map-button\s*\{\s*left:\s*78px/u);
 assert.match(styleSource, /\.disaster-quiz-open-button\s*\{\s*top:\s*20px;\s*left:\s*20px/u);

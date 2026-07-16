@@ -124,6 +124,20 @@
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-settings-modal-close>×</button>
         </header>
         <div class="settings-modal-body">
+          <section class="settings-group settings-account-group">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>MeteoScopeアカウント</button>
+            <div class="settings-group-content" hidden>
+              <div class="settings-account-row">
+                <div class="settings-account-info">
+                  <strong id="settings-account-name">確認中...</strong>
+                  <span id="settings-account-status" role="status">アカウント状態を確認しています。</span>
+                </div>
+                <button id="settings-account-refresh" type="button" data-settings-account-refresh>更新</button>
+              </div>
+              <button class="settings-account-open" type="button" data-settings-open-account>防災クイズで確認・管理</button>
+              <p class="settings-theme-help">MeteoScopeアカウントのログイン状態と登録情報を確認できます。対応機能は今後順次追加します。</p>
+            </div>
+          </section>
           <section class="settings-group settings-theme-group">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>外観</button>
             <div class="settings-group-content" hidden>
@@ -414,6 +428,48 @@
               <p>気象庁・内閣府・消防庁の公開情報をもとに、災害時の行動と情報の見方を確認できます。</p>
             </div>
             <div id="quiz-difficulty-options" class="disaster-quiz-difficulties" aria-label="難易度"></div>
+            <section class="quiz-account-card" aria-labelledby="quiz-account-title">
+              <div class="quiz-section-heading">
+                <div><span>ランキング参加</span><strong id="quiz-account-title">MeteoScopeアカウント</strong></div>
+                <button type="button" data-quiz-logout hidden>ログアウト</button>
+              </div>
+              <p id="quiz-account-summary">アカウント状態を確認しています。</p>
+              <div id="quiz-auth-panel" hidden>
+                <div class="quiz-auth-tabs" aria-label="アカウント操作">
+                  <button type="button" data-quiz-auth-mode="login" aria-pressed="true">ログイン</button>
+                  <button type="button" data-quiz-auth-mode="register" aria-pressed="false">新規作成</button>
+                </div>
+                <form id="quiz-login-form" class="quiz-account-form">
+                  <label>アカウントID<input name="username" autocomplete="username" minlength="4" maxlength="24" pattern="[A-Za-z0-9_]+" required></label>
+                  <label>パスワード<input name="password" type="password" autocomplete="current-password" minlength="10" maxlength="128" required></label>
+                  <button class="disaster-quiz-primary" type="submit">ログイン</button>
+                </form>
+                <form id="quiz-register-form" class="quiz-account-form" hidden>
+                  <label>アカウントID<input name="username" autocomplete="username" minlength="4" maxlength="24" pattern="[A-Za-z0-9_]+" required><small>半角英数字と_、4〜24文字。公開されません。</small></label>
+                  <label>ランキング表示名<input name="displayName" autocomplete="nickname" minlength="2" maxlength="20" required><small>表示名と当日の合計得点・達成日はランキングで公開されます。</small></label>
+                  <label>パスワード<input name="password" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label>
+                  <label class="quiz-account-consent"><input name="consent" type="checkbox" required>公開範囲と<a href="/privacy.html" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>を確認しました</label>
+                  <button class="disaster-quiz-primary" type="submit">アカウントを作成</button>
+                </form>
+              </div>
+              <p id="quiz-account-message" class="quiz-account-message" role="status"></p>
+              <details id="quiz-account-delete" hidden>
+                <summary>アカウントと記録を削除</summary>
+                <form id="quiz-delete-form" class="quiz-account-form">
+                  <label>確認用パスワード<input name="password" type="password" autocomplete="current-password" minlength="10" maxlength="128" required></label>
+                  <button class="quiz-danger-button" type="submit">完全に削除</button>
+                </form>
+              </details>
+            </section>
+            <section class="quiz-leaderboard" aria-labelledby="quiz-leaderboard-title">
+              <div class="quiz-section-heading">
+                <div><span id="quiz-leaderboard-difficulty">初級・本日</span><strong id="quiz-leaderboard-title">合計得点ランキング</strong></div>
+                <button type="button" data-quiz-ranking-refresh>更新</button>
+              </div>
+              <p id="quiz-current-rank" class="quiz-current-rank"></p>
+              <ol id="quiz-leaderboard-list" class="quiz-leaderboard-list"></ol>
+              <p id="quiz-leaderboard-empty" class="quiz-leaderboard-empty">ランキングを取得しています。</p>
+            </section>
             <button class="disaster-quiz-primary" type="button" data-quiz-start>この難易度で始める</button>
           </section>
           <section id="quiz-question-view" class="disaster-quiz-view" hidden>
@@ -435,6 +491,7 @@
             <span>結果</span>
             <strong id="quiz-result-score">0 / 10</strong>
             <p id="quiz-result-message"></p>
+            <p id="quiz-result-ranking" class="quiz-result-ranking"></p>
             <div class="disaster-quiz-result-actions">
               <button type="button" data-quiz-change-difficulty>難易度を選び直す</button>
               <button class="disaster-quiz-primary" type="button" data-quiz-retry>もう一度挑戦</button>

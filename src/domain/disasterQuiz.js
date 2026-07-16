@@ -55,6 +55,14 @@ export function shuffledDisasterQuizQuestions(difficulty, random = Math.random) 
     .map((question) => shuffleQuestionChoices(question, random));
 }
 
+export function disasterQuizQuestionsByIDs(ids, random = Math.random) {
+  if (!Array.isArray(ids) || ids.length !== DISASTER_QUIZ_QUESTION_COUNT || new Set(ids).size !== ids.length) return [];
+  const byID = new Map(questions.map((question) => [question.id, question]));
+  const selected = ids.map((id) => byID.get(String(id)));
+  if (selected.some((question) => !question)) return [];
+  return selected.map((question) => shuffleQuestionChoices({ ...question, choices: [...question.choices] }, random));
+}
+
 function shuffleQuestionChoices(question, random) {
   const choices = question.choices.map((choice, originalIndex) => ({ choice, originalIndex }));
   for (let index = choices.length - 1; index > 0; index -= 1) {

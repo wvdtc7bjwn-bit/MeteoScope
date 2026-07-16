@@ -1,3 +1,8 @@
+import { readJson, writeJson, requireD1 } from "../../_shared/d1Store.js";
+import { readCloudflareD1Usage } from "../../_shared/cloudflareD1Analytics.js";
+import { readQuizOperationalMetrics } from "../../_shared/quizMaintenance.js";
+import { listAdminPushBroadcasts, queueAdminPushBroadcast, readWarningCronHealth } from "../push/[[path]].js";
+
 const CONFIG_KEY = "app-config";
 const NOTICES_KEY = "app-notices";
 const FEEDBACK_KEY = "user-feedback";
@@ -99,9 +104,11 @@ async function sessionStatus(request, env) {
 }
 
 async function status(env) {
-  const [config, warningCron] = await Promise.all([
+  const [config, warningCron, quiz, d1Usage] = await Promise.all([
     readJson(env.NOTIFICATIONS_DB, CONFIG_KEY, DEFAULT_CONFIG),
-    readWarningCronHealth(env)
+    readWarningCronHealth(env),
+    readQuizOperationalMetrics(env),
+    readCloudflareD1Usage(env)
   ]);
   return json({
     ok: true,
@@ -112,10 +119,17 @@ async function status(env) {
     }).format(new Date()),
     configUpdatedAt: config?.updatedAt || "--",
     warningCron,
+    quiz,
+    d1Usage,
     bindings: {
       d1: Boolean(env.NOTIFICATIONS_DB),
       r2: Boolean(env.DISASTER_MAPS),
-      cachePurge: Boolean(env.CLOUDFLARE_ZONE_ID && env.CLOUDFLARE_API_TOKEN)
+      cachePurge: Boolean(env.CLOUDFLARE_ZONE_ID && env.CLOUDFLARE_API_TOKEN),
+      d1Analytics: Boolean(
+        env.CLOUDFLARE_ACCOUNT_ID
+          && env.D1_DATABASE_ID
+          && (env.CLOUDFLARE_ANALYTICS_API_TOKEN || env.CLOUDFLARE_API_TOKEN)
+      )
     }
   });
 }
@@ -495,5 +509,3 @@ function json(payload, init = {}) {
     }
   });
 }
-import { readJson, writeJson, requireD1 } from "../../_shared/d1Store.js";
-import { listAdminPushBroadcasts, queueAdminPushBroadcast, readWarningCronHealth } from "../push/[[path]].js";

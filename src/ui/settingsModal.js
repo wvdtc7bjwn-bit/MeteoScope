@@ -1,4 +1,5 @@
 import { getDefaultTabOrder, normalizeTabOrder } from "./tabOrder.js";
+import { QuizRankingClient } from "../domain/quizRankingClient.js";
 
 let settingsModalInitialized = false;
 let settingsOptions = {};
@@ -6,6 +7,7 @@ let settingsSearchRequestId = 0;
 let settingsPdfStatusRequestId = 0;
 let selectedTabOrderId = null;
 let earlyAccessBusy = false;
+let settingsAccountRequestId = 0;
 
 export function setupSettingsModal(options = {}) {
   settingsOptions = options;
@@ -66,6 +68,17 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    if (event.target.closest("[data-settings-account-refresh]")) {
+      void renderSettingsAccount();
+      return;
+    }
+
+    if (event.target.closest("[data-settings-open-account]")) {
+      closeSettingsModal();
+      settingsOptions.onOpenAccount?.();
+      return;
+    }
+
     const themeButton = event.target.closest("[data-settings-theme]");
     if (themeButton) {
       settingsOptions.onThemeChange?.(themeButton.dataset.settingsTheme);
@@ -120,6 +133,7 @@ export function refreshSettingsModalView() {
   renderSettingsPushNotifications();
   renderSettingsTheme();
   renderSettingsEarlyAccess();
+  void renderSettingsAccount();
   void renderSettingsDisasterMapPdf();
 }
 
@@ -136,6 +150,7 @@ export function openSettingsModal() {
   renderSettingsPushNotifications();
   renderSettingsTheme();
   renderSettingsEarlyAccess();
+  void renderSettingsAccount();
   void renderSettingsDisasterMapPdf();
 }
 
@@ -262,6 +277,58 @@ function renderSettingsEarlyAccess() {
   document.getElementById("settings-early-access-label").textContent = access.label || "認証済み";
   status.textContent = access.message || "";
   status.dataset.state = access.active ? "active" : access.status || "inactive";
+}
+
+async function renderSettingsAccount() {
+  const name = document.getElementById("settings-account-name");
+  const status = document.getElementById("settings-account-status");
+  const refreshButton = document.getElementById("settings-account-refresh");
+  const openButton = document.querySelector("[data-settings-open-account]");
+  if (!name || !status || !(refreshButton instanceof HTMLButtonElement)) return;
+
+  const requestId = ++settingsAccountRequestId;
+  name.textContent = "確認中...";
+  status.textContent = "MeteoScopeアカウントの状態を確認しています。";
+  status.dataset.state = "loading";
+  refreshButton.disabled = true;
+  refreshButton.textContent = "確認中";
+
+  try {
+    const configuration = await QuizRankingClient.configuration();
+    if (requestId !== settingsAccountRequestId) return;
+    if (!configuration.enabled) {
+      name.textContent = "ランキング基盤は準備中です";
+      status.textContent = "アカウント機能は現在準備中です。";
+      status.dataset.state = "unavailable";
+      if (openButton instanceof HTMLButtonElement) openButton.textContent = "防災クイズを開く";
+      return;
+    }
+
+    const result = await QuizRankingClient.account();
+    if (requestId !== settingsAccountRequestId) return;
+    if (result.authenticated && result.account?.displayName) {
+      name.textContent = result.account.displayName;
+      status.textContent = "MeteoScopeアカウントでログイン中";
+      status.dataset.state = "authenticated";
+      if (openButton instanceof HTMLButtonElement) openButton.textContent = "アカウントを確認・管理";
+    } else {
+      name.textContent = "未ログイン";
+      status.textContent = "ログインまたは新規作成してアカウント機能を利用できます。";
+      status.dataset.state = "signed-out";
+      if (openButton instanceof HTMLButtonElement) openButton.textContent = "ログイン・新規作成";
+    }
+  } catch (error) {
+    if (requestId !== settingsAccountRequestId) return;
+    name.textContent = "状態を確認できません";
+    status.textContent = error instanceof Error ? error.message : "アカウントサーバーへ接続できませんでした。";
+    status.dataset.state = "error";
+    if (openButton instanceof HTMLButtonElement) openButton.textContent = "防災クイズで確認";
+  } finally {
+    if (requestId === settingsAccountRequestId) {
+      refreshButton.disabled = false;
+      refreshButton.textContent = "更新";
+    }
+  }
 }
 
 async function submitEarlyAccessCode() {
