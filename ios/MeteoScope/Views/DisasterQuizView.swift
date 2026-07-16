@@ -73,7 +73,7 @@ struct DisasterQuizView: View {
                     .frame(maxWidth: .infinity)
             }
             .meteoGlassButton(prominent: true)
-            .disabled(DisasterQuizCatalog.questions(for: selectedDifficulty).count != 10)
+            .disabled(DisasterQuizCatalog.questions(for: selectedDifficulty).count < DisasterQuizCatalog.questionCount)
             .accessibilityHint("10問の防災クイズを開始します")
         }
     }
@@ -157,7 +157,7 @@ struct DisasterQuizView: View {
 
     private var resultView: some View {
         VStack(spacing: 18) {
-            Image(systemName: score == 10 ? "trophy.fill" : "checkmark.seal.fill")
+            Image(systemName: score == questions.count ? "trophy.fill" : "checkmark.seal.fill")
                 .font(.system(size: 46))
                 .foregroundStyle(difficultyColor)
             Text("結果")
@@ -206,7 +206,7 @@ struct DisasterQuizView: View {
     }
 
     private var resultMessage: String {
-        if score == 10 { return "全問正解です。日頃の備えを続けましょう。" }
+        if score == questions.count { return "全問正解です。日頃の備えを続けましょう。" }
         if score >= 7 { return "よくできました。解説を思い出しながら備えを確認しましょう。" }
         return "もう一度挑戦して、避難行動と情報の見方を確認しましょう。"
     }
@@ -214,6 +214,7 @@ struct DisasterQuizView: View {
     private func startQuiz() {
         questions = DisasterQuizCatalog.questions(for: selectedDifficulty)
             .shuffled()
+            .prefix(DisasterQuizCatalog.questionCount)
             .map { $0.shufflingChoices() }
         currentIndex = 0
         selectedAnswer = nil

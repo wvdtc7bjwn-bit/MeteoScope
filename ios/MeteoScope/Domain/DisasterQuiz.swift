@@ -54,6 +54,7 @@ struct DisasterQuizQuestion: Codable, Identifiable, Hashable {
 }
 
 enum DisasterQuizCatalog {
+    static let questionCount = 10
     static let all: [DisasterQuizQuestion] = loadQuestions()
 
     static func questions(for difficulty: DisasterQuizDifficulty) -> [DisasterQuizQuestion] {

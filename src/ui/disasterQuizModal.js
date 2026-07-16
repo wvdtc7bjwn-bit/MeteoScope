@@ -154,7 +154,7 @@ function advanceQuiz() {
 function renderResult() {
   showView("quiz-result-view");
   setText("quiz-result-score", `${score} / ${quizQuestions.length}`);
-  const message = score === 10
+  const message = score === quizQuestions.length
     ? "全問正解です。日頃の備えを続けましょう。"
     : score >= 7
       ? "よくできました。解説を思い出しながら備えを確認しましょう。"

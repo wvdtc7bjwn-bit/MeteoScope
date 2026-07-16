@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 
 import {
   DISASTER_QUIZ_DIFFICULTIES,
+  DISASTER_QUIZ_POOL_SIZE,
+  DISASTER_QUIZ_QUESTION_COUNT,
   getDisasterQuizQuestions,
   shuffledDisasterQuizQuestions,
   validateDisasterQuizQuestions
@@ -20,7 +22,7 @@ assert.deepEqual(DISASTER_QUIZ_DIFFICULTIES.map((item) => item.id), [
 const allIDs = new Set();
 for (const difficulty of DISASTER_QUIZ_DIFFICULTIES) {
   const questions = getDisasterQuizQuestions(difficulty.id);
-  assert.equal(questions.length, 10);
+  assert.equal(questions.length, DISASTER_QUIZ_POOL_SIZE);
   for (const question of questions) {
     assert.equal(allIDs.has(question.id), false);
     allIDs.add(question.id);
@@ -29,14 +31,17 @@ for (const difficulty of DISASTER_QUIZ_DIFFICULTIES) {
     assert.match(question.sourceURL, /^https:\/\/(?:www\.)?(?:data\.)?(?:jma\.go\.jp|bousai\.go\.jp|fdma\.go\.jp)\//u);
   }
 }
-assert.equal(allIDs.size, 30);
+assert.equal(allIDs.size, DISASTER_QUIZ_POOL_SIZE * DISASTER_QUIZ_DIFFICULTIES.length);
 assert.deepEqual(getDisasterQuizQuestions("unknown"), []);
 
 const original = getDisasterQuizQuestions("beginner").map((item) => item.id);
 const shuffled = shuffledDisasterQuizQuestions("beginner", () => 0).map((item) => item.id);
-assert.equal(shuffled.length, 10);
-assert.deepEqual([...shuffled].sort(), [...original].sort());
-assert.notDeepEqual(shuffled, original);
+assert.equal(shuffled.length, DISASTER_QUIZ_QUESTION_COUNT);
+assert.ok(shuffled.every((id) => original.includes(id)));
+assert.equal(new Set(shuffled).size, DISASTER_QUIZ_QUESTION_COUNT);
+assert.notDeepEqual(shuffled, original.slice(0, DISASTER_QUIZ_QUESTION_COUNT));
+const alternateShuffle = shuffledDisasterQuizQuestions("beginner", () => 0.999).map((item) => item.id);
+assert.notDeepEqual(alternateShuffle, shuffled);
 assert.ok(shuffledDisasterQuizQuestions("beginner", () => 0).some((item) => item.correctIndex !== 0));
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
