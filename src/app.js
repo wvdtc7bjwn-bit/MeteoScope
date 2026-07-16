@@ -5,6 +5,7 @@ import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTa
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
+import { setupDisasterQuizModal } from "./ui/disasterQuizModal.js";
 import { setupOnboardingModal } from "./ui/onboardingModal.js";
 import { openSettingsModal, refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
 import {
@@ -1482,6 +1483,7 @@ if (layerId === "river") {
       onTabOrderChange: (order) => tabControls?.setOrder?.(order) ?? order
     });
     setupDisasterMapModal();
+    setupDisasterQuizModal();
     setupFeedbackModal();
     document.getElementById("locate-button")?.addEventListener("click", locateCurrentPosition);
     startClock("clock");

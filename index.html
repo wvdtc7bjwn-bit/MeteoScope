@@ -92,6 +92,7 @@
       <div id="map"></div>
       <div id="clock"></div>
       <button id="disaster-map-button" class="disaster-map-open-button" type="button" aria-label="防災マップを開く" title="防災マップ"></button>
+      <button id="disaster-quiz-button" class="disaster-map-open-button disaster-quiz-open-button" type="button" aria-label="防災クイズを開く" title="防災クイズ"></button>
       <button id="locate-button" class="map-locate-button" type="button" aria-label="現在地の気象情報を表示" title="現在地"></button>
       <div id="radar-overlay-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs radar-overlay-tabs" hidden></div>
       <div id="kikikuru-layer-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs" hidden></div>
@@ -392,6 +393,54 @@
               PDFまたは画像を選択するとここに表示されます。
             </div>
           </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="disaster-quiz-modal" class="warning-modal disaster-quiz-modal" hidden>
+      <div class="warning-modal-backdrop disaster-quiz-overlay" data-disaster-quiz-close></div>
+      <section class="warning-modal-panel disaster-quiz-panel" role="dialog" aria-modal="true" aria-labelledby="disaster-quiz-title">
+        <header class="settings-modal-header disaster-quiz-header">
+          <div>
+            <span>知識を備えに変える</span>
+            <h2 id="disaster-quiz-title">防災クイズ</h2>
+          </div>
+          <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-disaster-quiz-close>×</button>
+        </header>
+        <div class="disaster-quiz-body">
+          <section id="quiz-start-view" class="disaster-quiz-view">
+            <div class="disaster-quiz-intro">
+              <strong>難易度を選んで10問に挑戦</strong>
+              <p>気象庁・内閣府・消防庁の公開情報をもとに、災害時の行動と情報の見方を確認できます。</p>
+            </div>
+            <div id="quiz-difficulty-options" class="disaster-quiz-difficulties" aria-label="難易度"></div>
+            <button class="disaster-quiz-primary" type="button" data-quiz-start>この難易度で始める</button>
+          </section>
+          <section id="quiz-question-view" class="disaster-quiz-view" hidden>
+            <div class="disaster-quiz-status">
+              <span id="quiz-progress">1 / 10</span>
+              <span id="quiz-score">正解 0</span>
+            </div>
+            <div class="disaster-quiz-progress-track" aria-hidden="true"><span id="quiz-progress-bar"></span></div>
+            <h3 id="quiz-question" class="disaster-quiz-question"></h3>
+            <div id="quiz-choices" class="disaster-quiz-choices"></div>
+            <div id="quiz-feedback" class="disaster-quiz-feedback" aria-live="polite" hidden>
+              <strong id="quiz-feedback-title"></strong>
+              <p id="quiz-explanation"></p>
+              <a id="quiz-source" target="_blank" rel="noopener noreferrer"></a>
+              <button class="disaster-quiz-primary" type="button" data-quiz-next>次の問題</button>
+            </div>
+          </section>
+          <section id="quiz-result-view" class="disaster-quiz-view disaster-quiz-result" aria-live="polite" hidden>
+            <span>結果</span>
+            <strong id="quiz-result-score">0 / 10</strong>
+            <p id="quiz-result-message"></p>
+            <div class="disaster-quiz-result-actions">
+              <button type="button" data-quiz-change-difficulty>難易度を選び直す</button>
+              <button class="disaster-quiz-primary" type="button" data-quiz-retry>もう一度挑戦</button>
+            </div>
+          </section>
+          <p class="disaster-quiz-note">クイズは学習用です。実際の災害時は、気象庁・自治体などの最新の公式情報を確認してください。</p>
         </div>
       </section>
     </div>

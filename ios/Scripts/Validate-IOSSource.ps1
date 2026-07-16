@@ -6,6 +6,7 @@ $requiredFiles = @(
     "MeteoScope/App/MeteoScopeApp.swift",
     "MeteoScope/Support/MeteoGlass.swift",
     "MeteoScope/Support/PrivacyInfo.xcprivacy",
+    "MeteoScope/Resources/disaster-quiz.json",
     "MeteoScope/Views/FeatureDashboardCards.swift",
     "MeteoScopeTests/FeatureDataTests.swift",
     "MeteoScopeTests/PushNotificationServiceTests.swift",

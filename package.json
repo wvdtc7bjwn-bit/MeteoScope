@@ -12,6 +12,7 @@
     "test:earthquake": "node Tests/EarthquakeStationLookupTests.mjs",
     "test:dmdata": "node Tests/DmdataEarthquakeTests.mjs && node Tests/EarthquakeTsunamiStatusTests.mjs && node Tests/DmdataTsunamiTests.mjs",
     "test:earthquake-worker": "node Tests/EarthquakeWorkerRouteTests.mjs",
+    "test:quiz": "node Tests/DisasterQuizTests.mjs",
     "test:tsunami": "node Tests/TsunamiXmlTests.mjs",
     "test:typhoon": "node Tests/TyphoonTests.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy dist --project-name meteoscope"

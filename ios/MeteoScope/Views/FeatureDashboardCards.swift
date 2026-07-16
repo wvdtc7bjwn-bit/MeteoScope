@@ -290,7 +290,7 @@ private struct AmedasRankingRow: View {
 
 struct WarningDashboardCard: View {
     @Environment(WeatherAppModel.self) private var model
-    @State private var presentsDisasterMap = false
+    @State private var presentedSheet: WarningDashboardSheet?
 
     var body: some View {
         @Bindable var model = model
@@ -300,14 +300,25 @@ struct WarningDashboardCard: View {
                 Label("警報・防災情報", systemImage: "exclamationmark.triangle.fill")
                     .font(.headline)
                 Spacer()
-                Button {
-                    presentsDisasterMap = true
-                } label: {
-                    Label("防災マップ", systemImage: "map")
-                        .labelStyle(.iconOnly)
+                VStack(spacing: 8) {
+                    Button {
+                        presentedSheet = .disasterMap
+                    } label: {
+                        Label("防災マップ", systemImage: "map")
+                            .labelStyle(.iconOnly)
+                    }
+                    .accessibilityLabel("防災マップを開く")
+                    .meteoGlassButton()
+
+                    Button {
+                        presentedSheet = .disasterQuiz
+                    } label: {
+                        Label("防災クイズ", systemImage: "questionmark.shield")
+                            .labelStyle(.iconOnly)
+                    }
+                    .accessibilityLabel("防災クイズを開く")
+                    .meteoGlassButton()
                 }
-                .accessibilityLabel("防災マップを開く")
-                .meteoGlassButton()
             }
 
             Picker("表示情報", selection: $model.warningMapMode) {
@@ -329,8 +340,22 @@ struct WarningDashboardCard: View {
         .padding()
         .meteoGlassSurface(cornerRadius: 18)
         .shadow(color: .black.opacity(0.16), radius: 12, y: 5)
-        .sheet(isPresented: $presentsDisasterMap) { DisasterMapView() }
+        .sheet(item: $presentedSheet) { sheet in
+            switch sheet {
+            case .disasterMap:
+                DisasterMapView()
+            case .disasterQuiz:
+                DisasterQuizView()
+            }
+        }
     }
+}
+
+private enum WarningDashboardSheet: String, Identifiable {
+    case disasterMap
+    case disasterQuiz
+
+    var id: String { rawValue }
 }
 
 private struct WarningAnnouncementContent: View {

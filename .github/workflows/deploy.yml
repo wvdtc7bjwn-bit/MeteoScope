@@ -30,6 +30,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test disaster quiz catalog
+        run: npm run test:quiz
+
       - name: Build
         run: npm run build
         env:
