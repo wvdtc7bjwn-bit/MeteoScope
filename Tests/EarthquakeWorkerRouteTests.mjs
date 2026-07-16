@@ -224,6 +224,33 @@ const publicWorkerSource = await fs.readFile(
 assert.doesNotMatch(publicWorkerSource, /\/ingest|\/auth|\/discord/);
 assert.match(publicWorkerSource, /x-eew-authenticated/u);
 
+const [pagesWranglerSource, workerWranglerSource] = await Promise.all([
+  fs.readFile(path.join(root, "wrangler.toml"), "utf8"),
+  fs.readFile(
+    path.join(root, "workers", "earthquake-realtime", "wrangler.toml"),
+    "utf8"
+  )
+]);
+assert.match(
+  pagesWranglerSource,
+  /service\s*=\s*"meteoscope-earthquake-realtime"/u
+);
+assert.match(
+  workerWranglerSource,
+  /name\s*=\s*"meteoscope-earthquake-realtime"/u
+);
+assert.match(
+  workerWranglerSource,
+  /class_name\s*=\s*"MeteoScopeEarthquakeHub"/u
+);
+assert.match(
+  workerWranglerSource,
+  /database_name\s*=\s*"meteoscope-earthquakes"/u
+);
+for (const source of [pagesWranglerSource, workerWranglerSource, publicWorkerSource]) {
+  assert.doesNotMatch(source, /eqapp-realtime|eq-signal-history|RealtimeHub/u);
+}
+
 for (const relativePath of [
   "src/config.js",
   "ios/MeteoScope/Services/MeteoScopeEndpoints.swift"

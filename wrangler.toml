@@ -9,4 +9,4 @@ database_id = "c1552aac-5617-4ed0-bf69-548a44ef363e"
 
 [[services]]
 binding = "EARTHQUAKE_REALTIME"
-service = "eqapp-realtime"
+service = "meteoscope-earthquake-realtime"

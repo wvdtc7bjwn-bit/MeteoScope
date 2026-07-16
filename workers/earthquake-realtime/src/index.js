@@ -2,9 +2,7 @@ import { MeteoScopeEarthquakeHub } from "./MeteoScopeEarthquakeHub.js";
 import { fetchD1ReadFallback } from "./d1ReadFallback.js";
 import { isPublicReadMethod, resolvePublicEarthquakeRoute } from "./routePolicy.js";
 
-// Keep the deployed Durable Object class name so the existing namespace,
-// alarms, and DM-D.S.S secret can be adopted without losing history.
-export { MeteoScopeEarthquakeHub, MeteoScopeEarthquakeHub as RealtimeHub };
+export { MeteoScopeEarthquakeHub };
 
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",

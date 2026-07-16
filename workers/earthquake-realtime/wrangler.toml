@@ -1,4 +1,4 @@
-name = "eqapp-realtime"
+name = "meteoscope-earthquake-realtime"
 main = "src/index.js"
 compatibility_date = "2026-07-15"
 
@@ -8,14 +8,15 @@ DMDATA_TEST_MODE = "excluding"
 
 [[durable_objects.bindings]]
 name = "EARTHQUAKE_HUB"
-class_name = "RealtimeHub"
+class_name = "MeteoScopeEarthquakeHub"
 
-# The v1 migration already exists on the adopted eqapp-realtime script.
+# This is a MeteoScope-owned Durable Object namespace. It does not share the
+# retired legacy Worker or its Durable Object namespace.
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["RealtimeHub"]
+new_sqlite_classes = ["MeteoScopeEarthquakeHub"]
 
 [[d1_databases]]
 binding = "EQ_D1"
-database_name = "eq-signal-history"
-database_id = "1b800abc-1bef-4bff-8966-27250b945e7c"
+database_name = "meteoscope-earthquakes"
+database_id = "3528edad-c190-42d7-8130-e82007abc14e"

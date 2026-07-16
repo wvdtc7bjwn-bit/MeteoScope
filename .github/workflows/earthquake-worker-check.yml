@@ -8,6 +8,7 @@ on:
     paths:
       - "workers/earthquake-realtime/**"
       - "functions/api/earthquakes/**"
+      - "wrangler.toml"
       - "public/data/jma-intensity-stations.json"
       - "src/config.js"
       - "Tests/EarthquakeWorkerRouteTests.mjs"
@@ -17,6 +18,7 @@ on:
     paths:
       - "workers/earthquake-realtime/**"
       - "functions/api/earthquakes/**"
+      - "wrangler.toml"
       - "public/data/jma-intensity-stations.json"
       - "src/config.js"
       - "Tests/EarthquakeWorkerRouteTests.mjs"
