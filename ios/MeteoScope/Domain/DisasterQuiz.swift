@@ -61,6 +61,13 @@ enum DisasterQuizCatalog {
         all.filter { $0.difficulty == difficulty }
     }
 
+    static func randomQuestions(for difficulty: DisasterQuizDifficulty) -> [DisasterQuizQuestion] {
+        questions(for: difficulty)
+            .shuffled()
+            .prefix(questionCount)
+            .map { $0.shufflingChoices() }
+    }
+
     private static func loadQuestions() -> [DisasterQuizQuestion] {
         let bundles = [Bundle.main, Bundle(for: DisasterQuizResourceLocator.self)]
         guard let url = bundles.lazy.compactMap({

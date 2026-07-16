@@ -2,14 +2,23 @@ import XCTest
 @testable import MeteoScope
 
 final class DisasterQuizTests: XCTestCase {
-    func testCatalogContainsTenValidQuestionsPerDifficulty() {
-        XCTAssertEqual(DisasterQuizCatalog.all.count, 30)
-        XCTAssertEqual(Set(DisasterQuizCatalog.all.map(\.id)).count, 30)
+    func testCatalogContainsThirtyValidQuestionsPerDifficulty() {
+        XCTAssertEqual(DisasterQuizCatalog.all.count, 90)
+        XCTAssertEqual(Set(DisasterQuizCatalog.all.map(\.id)).count, 90)
 
         for difficulty in DisasterQuizDifficulty.allCases {
             let questions = DisasterQuizCatalog.questions(for: difficulty)
-            XCTAssertEqual(questions.count, 10, difficulty.rawValue)
+            XCTAssertEqual(questions.count, 30, difficulty.rawValue)
             XCTAssertTrue(questions.allSatisfy(\.hasValidAnswer))
+        }
+    }
+
+    func testQuizDrawsTenUniqueQuestionsFromSelectedDifficulty() {
+        for difficulty in DisasterQuizDifficulty.allCases {
+            let questions = DisasterQuizCatalog.randomQuestions(for: difficulty)
+            XCTAssertEqual(questions.count, DisasterQuizCatalog.questionCount)
+            XCTAssertEqual(Set(questions.map(\.id)).count, DisasterQuizCatalog.questionCount)
+            XCTAssertTrue(questions.allSatisfy { $0.difficulty == difficulty })
         }
     }
 

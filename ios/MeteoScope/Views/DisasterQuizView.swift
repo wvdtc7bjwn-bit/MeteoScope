@@ -212,10 +212,7 @@ struct DisasterQuizView: View {
     }
 
     private func startQuiz() {
-        questions = DisasterQuizCatalog.questions(for: selectedDifficulty)
-            .shuffled()
-            .prefix(DisasterQuizCatalog.questionCount)
-            .map { $0.shufflingChoices() }
+        questions = DisasterQuizCatalog.randomQuestions(for: selectedDifficulty)
         currentIndex = 0
         selectedAnswer = nil
         score = 0
