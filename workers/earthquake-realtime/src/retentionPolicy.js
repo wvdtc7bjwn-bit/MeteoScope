@@ -19,7 +19,7 @@ export async function cleanupExpiredD1EarthquakeData(db) {
   };
 
   const oldEarthquakeWhere = `
-    datetime(COALESCE(origin_time, updated_at, created_at)) < datetime('now', ?)
+    datetime(COALESCE(origin_time, updated_at, created_at)) <= datetime('now', ?)
   `;
 
   // Delete dependent station rows first so old earthquakes never leave orphans.
@@ -34,7 +34,7 @@ export async function cleanupExpiredD1EarthquakeData(db) {
 
   const deletedOldStations = await runDelete(`
     DELETE FROM station_intensities
-    WHERE datetime(COALESCE(updated_at, '1970-01-01T00:00:00Z')) < datetime('now', ?)
+    WHERE datetime(COALESCE(updated_at, '1970-01-01T00:00:00Z')) <= datetime('now', ?)
   `, EARTHQUAKE_D1_RETENTION.sqliteModifier);
 
   const deletedEarthquakes = await runDelete(`

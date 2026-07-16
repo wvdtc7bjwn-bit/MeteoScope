@@ -20,7 +20,7 @@ import {
 
 const STATE_KEY = "latest-state-v2";
 const HISTORY_KEY = "earthquake-history-v1";
-const RETENTION_CLEANUP_KEY = "retention-cleanup-v2";
+const RETENTION_CLEANUP_KEY = "retention-cleanup-v3";
 // Parser changes require one bounded replay so recent station rows are rebuilt safely.
 const DMDATA_TELEGRAM_CURSOR_KEY = "dmdata-telegram-cursor-v5";
 const REPLAY_TYPES = ["earthquake", "eew", "tsunami"];

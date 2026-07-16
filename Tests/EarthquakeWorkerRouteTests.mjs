@@ -60,8 +60,11 @@ assert.deepEqual(
 );
 assert.match(retentionDeletes[0].sql, /DELETE FROM station_intensities/u);
 assert.match(retentionDeletes[0].sql, /FROM earthquake_history/u);
+assert.match(retentionDeletes[0].sql, /<= datetime\('now', \?\)/u);
 assert.match(retentionDeletes[1].sql, /DELETE FROM station_intensities/u);
+assert.match(retentionDeletes[1].sql, /<= datetime\('now', \?\)/u);
 assert.match(retentionDeletes[2].sql, /DELETE FROM earthquake_history/u);
+assert.match(retentionDeletes[2].sql, /<= datetime\('now', \?\)/u);
 assert.match(retentionDeletes[3].sql, /DELETE FROM tsunami_history/u);
 assert.deepEqual(retentionResult, {
   earthquakeHistoryRetention: "1 month",
@@ -354,7 +357,7 @@ assert.match(
   earthquakeHubSource,
   /json_array_length\(excluded\.regions_json\)\s*>=\s*json_array_length\(earthquake_history\.regions_json\)/u
 );
-assert.match(earthquakeHubSource, /retention-cleanup-v2/u);
+assert.match(earthquakeHubSource, /retention-cleanup-v3/u);
 assert.match(earthquakeHubSource, /cleanupExpiredD1EarthquakeData/u);
 
 const [pagesWranglerSource, workerWranglerSource] = await Promise.all([
