@@ -300,6 +300,10 @@ assert.doesNotMatch(
   /classifications:\s*\[[^\]]*"eew\.forecast"[^\]]*\]/u
 );
 assert.match(earthquakeHubSource, /protocol \|\| "dmdata\.v2"/u);
+assert.match(
+  earthquakeHubSource,
+  /json_array_length\(excluded\.regions_json\)\s*>=\s*json_array_length\(earthquake_history\.regions_json\)/u
+);
 
 const [pagesWranglerSource, workerWranglerSource] = await Promise.all([
   fs.readFile(path.join(root, "wrangler.toml"), "utf8"),

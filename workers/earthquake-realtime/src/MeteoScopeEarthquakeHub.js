@@ -2301,7 +2301,11 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
             tsunami_status=COALESCE(excluded.tsunami_status, earthquake_history.tsunami_status),
             latitude=excluded.latitude,
             longitude=excluded.longitude,
-            regions_json=excluded.regions_json,
+            regions_json=CASE
+              WHEN json_array_length(excluded.regions_json) >= json_array_length(earthquake_history.regions_json)
+                THEN excluded.regions_json
+              ELSE earthquake_history.regions_json
+            END,
             updated_at=excluded.updated_at
         `)
         .bind(
