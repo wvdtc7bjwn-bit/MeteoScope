@@ -1,7 +1,6 @@
 import { MeteoScopeEarthquakeHub } from "./MeteoScopeEarthquakeHub.js";
 import { fetchD1ReadFallback } from "./d1ReadFallback.js";
 import { isPublicReadMethod, resolvePublicEarthquakeRoute } from "./routePolicy.js";
-import { runScheduledD1Backfill } from "./scheduledD1Backfill.js";
 
 export { MeteoScopeEarthquakeHub };
 
@@ -108,7 +107,6 @@ export default {
           `hub_status_${response.status}`
         );
         if (fallback) {
-          ctx?.waitUntil?.(runScheduledD1Backfill(env));
           return fallback;
         }
         return response;
@@ -124,16 +122,11 @@ export default {
         }
       );
       if (fallback) {
-        ctx?.waitUntil?.(runScheduledD1Backfill(env));
         return fallback;
       }
       return jsonResponse({ ok: false, error: "earthquake_service_unavailable" }, 503, {
         "retry-after": "30"
       });
     }
-  },
-
-  async scheduled(controller, env, ctx) {
-    ctx.waitUntil(runScheduledD1Backfill(env, { nowMs: controller.scheduledTime }));
   }
 };

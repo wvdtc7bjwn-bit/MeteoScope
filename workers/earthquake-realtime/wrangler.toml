@@ -6,9 +6,6 @@ compatibility_date = "2026-07-15"
 DMDATA_APP_NAME = "meteoscope-earthquake"
 DMDATA_TEST_MODE = "excluding"
 
-[triggers]
-crons = ["* * * * *"]
-
 [[durable_objects.bindings]]
 name = "EARTHQUAKE_HUB"
 class_name = "MeteoScopeEarthquakeHub"
