@@ -85,15 +85,15 @@ final class QuizRankingModel {
     }
 
     func register(username: String, displayName: String, password: String, difficulty: DisasterQuizDifficulty) async {
-        await authenticate {
+        await authenticate(operation: {
             try await client.register(username, displayName, password)
-        } difficulty: difficulty
+        }, difficulty: difficulty)
     }
 
     func login(username: String, password: String, difficulty: DisasterQuizDifficulty) async {
-        await authenticate {
+        await authenticate(operation: {
             try await client.login(username, password)
-        } difficulty: difficulty
+        }, difficulty: difficulty)
     }
 
     func logout(difficulty: DisasterQuizDifficulty) async {
