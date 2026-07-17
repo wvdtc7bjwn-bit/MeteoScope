@@ -447,7 +447,7 @@ struct WeatherMapView: UIViewRepresentable {
             case .seismicIntensity(let label):
                 (intensityColor(label), CGSize(width: 13, height: 13), 1.5)
             case .communityReport(let weather, let hasHazard):
-                (hasHazard ? UIColor.systemOrange : communityReportColor(weather), CGSize(width: 18, height: 18), 2.5)
+                (hasHazard ? UIColor.systemOrange : communityReportColor(weather), CGSize(width: 14, height: 14), 2)
             }
         }
 

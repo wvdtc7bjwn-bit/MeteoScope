@@ -70,7 +70,7 @@ assert.match(prepared[0].sql, /LIMIT 200/u);
 assert.match(prepared[1].sql, /community_post_daily/u);
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const [route, migration, webModal, webMap, webSummary, webIndex, iosService, iosComposer, privacyManifest, privacyPage] = await Promise.all([
+const [route, migration, webModal, webMap, webSummary, webIndex, iosService, iosComposer, iosMap, privacyManifest, privacyPage] = await Promise.all([
   fs.readFile(path.join(root, "functions", "api", "community", "[[path]].js"), "utf8"),
   fs.readFile(path.join(root, "migrations", "0008_community_reports.sql"), "utf8"),
   fs.readFile(path.join(root, "src", "ui", "communityReportModal.js"), "utf8"),
@@ -79,6 +79,7 @@ const [route, migration, webModal, webMap, webSummary, webIndex, iosService, ios
   fs.readFile(path.join(root, "index.html"), "utf8"),
   fs.readFile(path.join(root, "ios", "MeteoScope", "Services", "CommunityReportService.swift"), "utf8"),
   fs.readFile(path.join(root, "ios", "MeteoScope", "Views", "CommunityReportComposerView.swift"), "utf8"),
+  fs.readFile(path.join(root, "ios", "MeteoScope", "Map", "WeatherMapView.swift"), "utf8"),
   fs.readFile(path.join(root, "ios", "MeteoScope", "Support", "PrivacyInfo.xcprivacy"), "utf8"),
   fs.readFile(path.join(root, "public", "privacy.html"), "utf8")
 ]);
@@ -95,12 +96,17 @@ assert.match(webModal, /roundReportCoordinate/u);
 assert.match(webModal, /data\.get\("comment"\)/u);
 assert.match(webModal, /input, select, textarea, button/u);
 assert.match(webMap, /community-report-cluster/u);
+assert.doesNotMatch(webMap, /community-report-label/u);
+assert.doesNotMatch(webMap, /shortLabel: meta\.short/u);
+assert.match(webMap, /4, 5, 8, 7\.5, 12, 9\.5/u);
+assert.match(webMap, /if \(!hitReport\) hideMapInfo\("community-report"\)/u);
 assert.match(webSummary, /mobile-dock-community-report-open/u);
 assert.match(webSummary, /data-community-report-open/u);
 assert.match(webIndex, /data-community-report-open/u);
 assert.match(iosService, /X-MeteoScope-Early-Access/u);
 assert.match(iosComposer, /roundedReportCoordinate/u);
 assert.match(iosComposer, /80文字/u);
+assert.match(iosMap, /communityReport[\s\S]*CGSize\(width: 14, height: 14\)/u);
 assert.match(privacyManifest, /NSPrivacyCollectedDataTypeOtherUserContent/u);
 assert.match(privacyPage, /5時間/u);
 assert.match(privacyPage, /約2km/u);

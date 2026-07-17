@@ -7438,21 +7438,45 @@ html[data-theme="light"] .tsunami-area-row.level-advisory .tsunami-level-badge {
 .community-report-status { min-height: 1.5em; color: #b8c8d8; font-size: 13px; font-weight: 700; }
 .community-report-status[data-state="error"] { color: #ffb3ad; }
 .community-report-status[data-state="success"] { color: #9be3b0; }
-.community-map-popup { display: grid; gap: 4px; min-width: 210px; }
-.community-map-popup > span,
-.community-map-popup small { color: #9fb2c8; font-size: 11px; }
-.community-map-popup strong { color: #f7fbff; font-size: 19px; }
-.community-map-popup p { margin: 0; color: #d7e3ef; font-size: 12px; line-height: 1.45; }
+.community-map-popup {
+  display: grid;
+  width: min(280px, calc(100vw - 32px));
+  box-sizing: border-box;
+  gap: 6px;
+  padding: 13px 14px;
+  border: 1px solid rgba(174, 206, 232, 0.34);
+  border-radius: 14px;
+  color: #f5f9fd;
+  background: rgba(9, 18, 32, 0.94);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(14px) saturate(1.25);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+}
+.community-map-popup > span {
+  color: #b7c9db;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.community-map-popup small {
+  color: #b7c9db;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.community-map-popup strong { color: #ffffff; font-size: 21px; line-height: 1.2; }
+.community-map-popup p { margin: 0; color: #e2ebf4; font-size: 13px; line-height: 1.5; }
 .community-map-popup .community-popup-comment {
-  margin: 3px 0;
-  padding: 7px 8px;
-  border-left: 3px solid rgba(116, 178, 216, 0.72);
-  border-radius: 3px;
-  background: rgba(28, 56, 84, 0.56);
-  color: #f1f6fb;
+  margin: 3px 0 1px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(174, 206, 232, 0.24);
+  border-bottom: 1px solid rgba(174, 206, 232, 0.16);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.55;
   overflow-wrap: anywhere;
 }
-.community-map-popup .community-popup-hazard { color: #ffd0a6; font-weight: 800; }
+.community-map-popup .community-popup-hazard { color: #ffd5ad; font-weight: 800; }
 
 html[data-theme="light"] .community-report-open {
   border-color: rgba(56, 91, 123, 0.28);
@@ -7477,7 +7501,22 @@ html[data-theme="light"] .community-report-form textarea {
   background: rgba(250, 252, 255, 0.94);
 }
 html[data-theme="light"] .community-report-comment-help { color: #5b7186; }
-html[data-theme="light"] .community-map-popup .community-popup-comment { color: #17314a; background: rgba(218, 231, 242, 0.8); }
+html[data-theme="light"] .community-map-popup {
+  border-color: rgba(58, 91, 122, 0.3);
+  color: #102b43;
+  background: rgba(248, 251, 255, 0.96);
+  box-shadow: 0 14px 34px rgba(43, 62, 84, 0.24);
+}
+html[data-theme="light"] .community-map-popup > span,
+html[data-theme="light"] .community-map-popup small { color: #536d84; }
+html[data-theme="light"] .community-map-popup strong { color: #10283e; }
+html[data-theme="light"] .community-map-popup p { color: #29465f; }
+html[data-theme="light"] .community-map-popup .community-popup-comment {
+  border-top-color: rgba(58, 91, 122, 0.2);
+  border-bottom-color: rgba(58, 91, 122, 0.14);
+  color: #153b55;
+}
+html[data-theme="light"] .community-map-popup .community-popup-hazard { color: #985016; }
 html[data-theme="light"] .community-report-caution,
 html[data-theme="light"] .community-report-status { color: #526b83; }
 html[data-theme="light"] .community-report-status[data-state="error"] { color: #a32e27; }

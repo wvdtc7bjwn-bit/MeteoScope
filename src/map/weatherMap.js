@@ -124,8 +124,7 @@ const COMMUNITY_REPORT_SOURCE_ID = "community-weather-reports";
 const COMMUNITY_REPORT_LAYERS = [
   "community-report-cluster",
   "community-report-cluster-count",
-  "community-report-point",
-  "community-report-label"
+  "community-report-point"
 ];
 const MUNICIPALITY_FILL_LAYER_ID = "jma-municipality-fill";
 const WARNING_OVERLAY_LAYER_ID = "jma-warning-overlay";
@@ -967,31 +966,10 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       layout: { visibility },
       paint: {
         "circle-color": ["case", [">", ["get", "hazardCount"], 0], "#e7792b", ["get", "color"]],
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 7, 8, 11, 12, 14],
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 5, 8, 7.5, 12, 9.5],
         "circle-stroke-color": "#f8fbff",
-        "circle-stroke-width": 2.5,
+        "circle-stroke-width": 1.5,
         "circle-opacity": 0.95
-      }
-    });
-    map.addLayer({
-      id: "community-report-label",
-      type: "symbol",
-      source: COMMUNITY_REPORT_SOURCE_ID,
-      filter: ["!", ["has", "point_count"]],
-      minzoom: 6,
-      layout: {
-        visibility,
-        "text-field": ["get", "shortLabel"],
-        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 6, 9, 10, 12],
-        "text-offset": [0, 1.5],
-        "text-anchor": "top",
-        "text-allow-overlap": false
-      },
-      paint: {
-        "text-color": "#f8fbff",
-        "text-halo-color": "rgba(5, 9, 20, 0.88)",
-        "text-halo-width": 2
       }
     });
   }
@@ -1010,6 +988,17 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       if (activeMode !== "radar") return;
       const feature = event.features?.[0];
       if (feature) showMapInfo("community-report", event.lngLat, buildCommunityReportPopup(feature.properties));
+    });
+    map.on("click", (event) => {
+      if (activeMode !== "radar") {
+        hideMapInfo("community-report");
+        return;
+      }
+      const layers = ["community-report-cluster", "community-report-point"]
+        .filter((layerID) => map.getLayer(layerID));
+      const hitReport = layers.length > 0
+        && map.queryRenderedFeatures(event.point, { layers }).length > 0;
+      if (!hitReport) hideMapInfo("community-report");
     });
     ["community-report-cluster", "community-report-point"].forEach((layerID) => {
       map.on("mouseenter", layerID, () => { if (activeMode === "radar") map.getCanvas().style.cursor = "pointer"; });
@@ -1164,7 +1153,6 @@ function createCommunityReportFeatureCollection(reports = []) {
         displayName: String(report.displayName || ""),
         weatherLabel: meta.label,
         comment: String(report.comment || ""),
-        shortLabel: meta.short,
         color: meta.color,
         sensationLabel: communitySensationLabel(report.sensation),
         temperatureText: Number.isFinite(Number(report.temperature)) ? `${Number(report.temperature).toFixed(1)}℃` : "",
@@ -1197,14 +1185,14 @@ function buildCommunityReportPopup(properties = {}) {
 
 function communityWeatherMeta(value) {
   return ({
-    sunny: { label: "晴れ", short: "晴", color: "#e8a52d" },
-    cloudy: { label: "くもり", short: "曇", color: "#78899c" },
-    "light-rain": { label: "弱い雨", short: "弱雨", color: "#378bc4" },
-    "heavy-rain": { label: "強い雨", short: "強雨", color: "#165ea8" },
-    snow: { label: "雪", short: "雪", color: "#8fbfd8" },
-    thunder: { label: "雷", short: "雷", color: "#8064b8" },
-    fog: { label: "霧", short: "霧", color: "#6f9298" }
-  })[value] || { label: "天気", short: "天気", color: "#457a99" };
+    sunny: { label: "晴れ", color: "#e8a52d" },
+    cloudy: { label: "くもり", color: "#78899c" },
+    "light-rain": { label: "弱い雨", color: "#378bc4" },
+    "heavy-rain": { label: "強い雨", color: "#165ea8" },
+    snow: { label: "雪", color: "#8fbfd8" },
+    thunder: { label: "雷", color: "#8064b8" },
+    fog: { label: "霧", color: "#6f9298" }
+  })[value] || { label: "天気", color: "#457a99" };
 }
 
 function communitySensationLabel(value) {
