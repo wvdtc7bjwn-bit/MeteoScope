@@ -15,7 +15,8 @@ export async function writeJson(db, key, value) {
 
 export async function deleteJson(db, key) {
   requireD1(db);
-  await db.prepare("DELETE FROM app_records WHERE key = ?").bind(key).run();
+  const result = await db.prepare("DELETE FROM app_records WHERE key = ?").bind(key).run();
+  return Math.max(0, Number(result?.meta?.changes ?? result?.changes) || 0);
 }
 
 export function requireD1(db) {
