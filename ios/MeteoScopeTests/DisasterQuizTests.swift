@@ -2,15 +2,28 @@ import XCTest
 @testable import MeteoScope
 
 final class DisasterQuizTests: XCTestCase {
-    func testCatalogContainsThirtyValidQuestionsPerDifficulty() {
-        XCTAssertEqual(DisasterQuizCatalog.all.count, 90)
-        XCTAssertEqual(Set(DisasterQuizCatalog.all.map(\.id)).count, 90)
+    func testCatalogContainsFortyValidQuestionsPerDifficulty() {
+        XCTAssertEqual(DisasterQuizCatalog.all.count, 120)
+        XCTAssertEqual(Set(DisasterQuizCatalog.all.map(\.id)).count, 120)
 
         for difficulty in DisasterQuizDifficulty.allCases {
             let questions = DisasterQuizCatalog.questions(for: difficulty)
-            XCTAssertEqual(questions.count, 30, difficulty.rawValue)
+            XCTAssertEqual(questions.count, 40, difficulty.rawValue)
             XCTAssertTrue(questions.allSatisfy(\.hasValidAnswer))
         }
+    }
+
+    func testCatalogDoesNotContainRetiredInformationNames() {
+        let retiredTerms = [
+            "土砂災害警戒情報",
+            "相当情報",
+            "災害切迫",
+            "竜巻注意情報",
+            "顕著な大雨に関する気象情報"
+        ]
+        XCTAssertTrue(DisasterQuizCatalog.all.allSatisfy { question in
+            retiredTerms.allSatisfy { !question.question.contains($0) }
+        })
     }
 
     func testQuizDrawsTenUniqueQuestionsFromSelectedDifficulty() {

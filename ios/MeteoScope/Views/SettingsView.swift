@@ -142,7 +142,7 @@ struct SettingsView: View {
                 Link("DM-D.S.S公式ドキュメント", destination: MeteoScopeEndpoints.dmdataDocumentation)
                 Link("DM-D.S.S利用規約", destination: MeteoScopeEndpoints.dmdataTerms)
                 Link("地理院タイル（背景地図）の出典", destination: MeteoScopeEndpoints.gsiTiles)
-                Text("防災クイズは、気象庁・内閣府・消防庁の公開する防災情報をもとにMeteoScopeが問題・選択肢・解説へ編集しています。各問題の解説から元の公式情報を確認できます。")
+                Text("防災クイズは、気象庁・内閣府・消防庁の公開情報を根拠にMeteoScopeが独自作成しています。気象予報士試験の過去問題・解答例は転載していません。各問題の解説から元の公式情報を確認できます。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Text("主要活断層帯は、防災科学技術研究所のJ-SHIS 2022年版・最大ケースを地図に重ね、断層帯名、想定規模（M／Mw）、30年確率を表示用に整形しています。")

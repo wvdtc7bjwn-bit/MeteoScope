@@ -48,7 +48,7 @@ struct DisasterQuizView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                Text("学習用のクイズです。実際の災害時は、気象庁・自治体などの最新の公式情報を確認してください。")
+                Text("MeteoScopeが独自に作成した学習用問題です。気象予報士試験の過去問題・解答例は転載していません。実際の災害時は、気象庁・自治体などの最新の公式情報を確認してください。")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -81,7 +81,7 @@ struct DisasterQuizView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("難易度を選んで10問に挑戦")
                     .font(.title3.bold())
-                Text("気象庁・内閣府・消防庁の公開情報をもとに、災害時の行動と情報の見方を確認できます。")
+                Text("気象庁・内閣府・消防庁の公開情報をもとに、災害時の行動と気象の仕組みを確認できます。")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

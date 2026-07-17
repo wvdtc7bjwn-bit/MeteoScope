@@ -17,9 +17,9 @@ enum DisasterQuizDifficulty: String, CaseIterable, Codable, Identifiable {
 
     var description: String {
         switch self {
-        case .beginner: "基本の備えと避難行動"
-        case .intermediate: "警戒レベルと災害別の行動"
-        case .advanced: "防災情報の意味と仕組み"
+        case .beginner: "基本の備えと天気の基礎"
+        case .intermediate: "現行の防災情報と気象の仕組み"
+        case .advanced: "気象予報士試験レベルの独自問題"
         }
     }
 }

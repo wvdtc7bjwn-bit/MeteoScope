@@ -1,12 +1,12 @@
 import questions from "../../ios/MeteoScope/Resources/disaster-quiz.json" with { type: "json" };
 
 export const DISASTER_QUIZ_QUESTION_COUNT = 10;
-export const DISASTER_QUIZ_POOL_SIZE = 30;
+export const DISASTER_QUIZ_POOL_SIZE = 40;
 
 export const DISASTER_QUIZ_DIFFICULTIES = Object.freeze([
-  Object.freeze({ id: "beginner", label: "初級", description: "基本の備えと避難行動" }),
-  Object.freeze({ id: "intermediate", label: "中級", description: "警戒レベルと災害別の行動" }),
-  Object.freeze({ id: "advanced", label: "上級", description: "防災情報の意味と仕組み" })
+  Object.freeze({ id: "beginner", label: "初級", description: "基本の備えと天気の基礎" }),
+  Object.freeze({ id: "intermediate", label: "中級", description: "現行の防災情報と気象の仕組み" }),
+  Object.freeze({ id: "advanced", label: "上級", description: "気象予報士試験レベルの独自問題" })
 ]);
 
 const difficultyIDs = new Set(DISASTER_QUIZ_DIFFICULTIES.map((item) => item.id));

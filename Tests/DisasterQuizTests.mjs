@@ -30,6 +30,7 @@ for (const difficulty of DISASTER_QUIZ_DIFFICULTIES) {
     assert.ok(question.choices.length >= 3);
     assert.ok(question.correctIndex >= 0 && question.correctIndex < question.choices.length);
     assert.match(question.sourceURL, /^https:\/\/(?:www\.)?(?:data\.)?(?:jma\.go\.jp|bousai\.go\.jp|fdma\.go\.jp)\//u);
+    assert.doesNotMatch(question.question, /土砂災害警戒情報|警戒レベル[0-9０-９].*相当情報|災害切迫|竜巻注意情報|顕著な大雨に関する気象情報/u);
   }
 }
 assert.equal(allIDs.size, DISASTER_QUIZ_POOL_SIZE * DISASTER_QUIZ_DIFFICULTIES.length);
@@ -61,6 +62,7 @@ assert.match(html, /id="disaster-quiz-button"[\s\S]*id="disaster-map-button"/u);
 assert.match(html, /id="disaster-quiz-modal"/u);
 assert.match(html, /id="quiz-register-form"/u);
 assert.match(html, /id="quiz-leaderboard-list"/u);
+assert.match(html, /気象予報士試験の過去問題・解答例は転載していません/u);
 assert.match(appSource, /setupDisasterQuizModal\(\)/u);
 assert.match(styleSource, /#disaster-map-button\s*\{\s*left:\s*78px/u);
 assert.match(styleSource, /\.disaster-quiz-open-button\s*\{\s*top:\s*20px;\s*left:\s*20px/u);

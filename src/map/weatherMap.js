@@ -79,10 +79,13 @@ const WEATHER_CHART_POINT_SOURCE_ID = "jma-weather-chart-points";
 const WEATHER_CHART_LAYERS = [
   "weather-chart-isobar-line",
   "weather-chart-front-line",
+  "weather-chart-front-cold-overview-symbol",
+  "weather-chart-front-warm-overview-symbol",
   "weather-chart-front-cold-symbol",
   "weather-chart-front-warm-symbol",
-  "weather-chart-front-occluded-triangle-symbol",
-  "weather-chart-front-occluded-semicircle-symbol",
+  "weather-chart-front-stationary-cold-symbol",
+  "weather-chart-front-stationary-warm-symbol",
+  "weather-chart-front-occluded-symbol",
   "weather-chart-pressure-point",
   "weather-chart-isobar-label",
   "weather-chart-pressure-label",
@@ -91,8 +94,10 @@ const WEATHER_CHART_LAYERS = [
 const WEATHER_CHART_MAX_ZOOM = 6.4;
 const WEATHER_FRONT_COLD_IMAGE_ID = "weather-front-cold-triangle";
 const WEATHER_FRONT_WARM_IMAGE_ID = "weather-front-warm-semicircle";
-const WEATHER_FRONT_OCCLUDED_TRIANGLE_IMAGE_ID = "weather-front-occluded-triangle";
-const WEATHER_FRONT_OCCLUDED_SEMICIRCLE_IMAGE_ID = "weather-front-occluded-semicircle";
+const WEATHER_FRONT_OCCLUDED_IMAGE_ID = "weather-front-occluded-pair";
+const WEATHER_FRONT_SYMBOL_SIZE = ["interpolate", ["linear"], ["zoom"], 3, 0.42, 6, 0.58, 8, 0.72];
+const WEATHER_FRONT_COMPACT_SYMBOL_SIZE = ["interpolate", ["linear"], ["zoom"], 2, 0.25, 3, 0.32, 6, 0.58, 8, 0.72];
+const WEATHER_FRONT_OVERVIEW_MAX_ZOOM = 4.25;
 const KIKIKURU_SOURCE_PREFIX = "jma-kikikuru";
 const KIKIKURU_LAYER_PREFIX = "jma-kikikuru";
 const RIVER_FLOOD_SOURCE_ID = "jma-river-flood";
@@ -1655,8 +1660,7 @@ function setupWarningHatchImage(map) {
 function setupWeatherFrontImages(map) {
   addWeatherFrontImage(map, WEATHER_FRONT_COLD_IMAGE_ID, "triangle-down", "#3f6dff");
   addWeatherFrontImage(map, WEATHER_FRONT_WARM_IMAGE_ID, "semicircle", "#d86c5f");
-  addWeatherFrontImage(map, WEATHER_FRONT_OCCLUDED_TRIANGLE_IMAGE_ID, "triangle", "#b579ff");
-  addWeatherFrontImage(map, WEATHER_FRONT_OCCLUDED_SEMICIRCLE_IMAGE_ID, "semicircle", "#b579ff");
+  addWeatherOccludedFrontImage(map, WEATHER_FRONT_OCCLUDED_IMAGE_ID, "#b579ff");
 }
 
 function addWeatherFrontImage(map, imageId, shape, color) {
@@ -1696,6 +1700,42 @@ function addWeatherFrontImage(map, imageId, shape, color) {
   }
 
   map.addImage(imageId, context.getImageData(0, 0, size, size), { pixelRatio: 1.5 });
+}
+
+function addWeatherOccludedFrontImage(map, imageId, color) {
+  if (map.hasImage(imageId)) return;
+
+  const width = 80;
+  const height = 64;
+  const baseY = 46;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+
+  context.clearRect(0, 0, width, height);
+  context.fillStyle = color;
+  context.strokeStyle = "rgba(5, 9, 20, 0.46)";
+  context.lineWidth = 1.5;
+
+  context.beginPath();
+  context.arc(24, baseY, 16, Math.PI, 0, false);
+  context.lineTo(40, baseY);
+  context.lineTo(8, baseY);
+  context.closePath();
+  context.fill();
+  context.stroke();
+
+  context.beginPath();
+  context.moveTo(56, baseY - 16);
+  context.lineTo(72, baseY);
+  context.lineTo(40, baseY);
+  context.closePath();
+  context.fill();
+  context.stroke();
+
+  map.addImage(imageId, context.getImageData(0, 0, width, height), { pixelRatio: 1.5 });
 }
 
 function addWeatherChartLayers(map) {
@@ -1748,32 +1788,61 @@ function addWeatherChartLayers(map) {
   });
 
   addWeatherFrontSymbolLayer(map, {
-    id: "weather-chart-front-cold-symbol",
-    frontSymbol: "cold",
+    id: "weather-chart-front-cold-overview-symbol",
+    frontStyle: "cold",
     imageId: WEATHER_FRONT_COLD_IMAGE_ID,
     offset: [0, 12],
-    spacing: 90
+    iconSize: WEATHER_FRONT_COMPACT_SYMBOL_SIZE,
+    spacing: 32,
+    maxzoom: WEATHER_FRONT_OVERVIEW_MAX_ZOOM
+  });
+  addWeatherFrontSymbolLayer(map, {
+    id: "weather-chart-front-warm-overview-symbol",
+    frontStyle: "warm",
+    imageId: WEATHER_FRONT_WARM_IMAGE_ID,
+    offset: [0, -12],
+    iconSize: WEATHER_FRONT_COMPACT_SYMBOL_SIZE,
+    spacing: 32,
+    maxzoom: WEATHER_FRONT_OVERVIEW_MAX_ZOOM
+  });
+  addWeatherFrontSymbolLayer(map, {
+    id: "weather-chart-front-cold-symbol",
+    frontStyle: "cold",
+    imageId: WEATHER_FRONT_COLD_IMAGE_ID,
+    offset: [0, 12],
+    spacing: 90,
+    minzoom: WEATHER_FRONT_OVERVIEW_MAX_ZOOM
   });
   addWeatherFrontSymbolLayer(map, {
     id: "weather-chart-front-warm-symbol",
-    frontSymbol: "warm",
+    frontStyle: "warm",
     imageId: WEATHER_FRONT_WARM_IMAGE_ID,
     offset: [0, -12],
-    spacing: 90
+    spacing: 90,
+    minzoom: WEATHER_FRONT_OVERVIEW_MAX_ZOOM
   });
   addWeatherFrontSymbolLayer(map, {
-    id: "weather-chart-front-occluded-triangle-symbol",
-    frontSymbol: "occluded",
-    imageId: WEATHER_FRONT_OCCLUDED_TRIANGLE_IMAGE_ID,
+    id: "weather-chart-front-stationary-cold-symbol",
+    frontStyle: "stationary-cold",
+    imageId: WEATHER_FRONT_COLD_IMAGE_ID,
     offset: [0, 12],
-    spacing: 104
+    placement: "line-center",
+    iconSize: WEATHER_FRONT_COMPACT_SYMBOL_SIZE
   });
   addWeatherFrontSymbolLayer(map, {
-    id: "weather-chart-front-occluded-semicircle-symbol",
-    frontSymbol: "occluded",
-    imageId: WEATHER_FRONT_OCCLUDED_SEMICIRCLE_IMAGE_ID,
+    id: "weather-chart-front-stationary-warm-symbol",
+    frontStyle: "stationary-warm",
+    imageId: WEATHER_FRONT_WARM_IMAGE_ID,
+    offset: [0, -12],
+    placement: "line-center",
+    iconSize: WEATHER_FRONT_COMPACT_SYMBOL_SIZE
+  });
+  addWeatherFrontSymbolLayer(map, {
+    id: "weather-chart-front-occluded-symbol",
+    frontStyle: "occluded",
+    imageId: WEATHER_FRONT_OCCLUDED_IMAGE_ID,
     offset: [0, -10],
-    spacing: 104
+    spacing: 112
   });
 
   map.addLayer({
@@ -1874,28 +1943,34 @@ function addWeatherChartLayers(map) {
 }
 
 function addWeatherFrontSymbolLayer(map, options) {
-  map.addLayer({
+  const placement = options.placement || "line";
+  const layout = {
+    visibility: "none",
+    "symbol-placement": placement,
+    "icon-image": options.imageId,
+    "icon-size": options.iconSize || WEATHER_FRONT_SYMBOL_SIZE,
+    "icon-offset": options.offset,
+    "icon-rotation-alignment": "map",
+    "icon-pitch-alignment": "map",
+    "icon-allow-overlap": true,
+    "icon-ignore-placement": true,
+    "icon-keep-upright": false
+  };
+  if (placement === "line") layout["symbol-spacing"] = options.spacing;
+
+  const layer = {
     id: options.id,
     type: "symbol",
     source: WEATHER_CHART_LINE_SOURCE_ID,
-    filter: ["all", ["==", ["get", "kind"], "front"], ["==", ["get", "frontSymbol"], options.frontSymbol]],
-    layout: {
-      visibility: "none",
-      "symbol-placement": "line",
-      "symbol-spacing": options.spacing,
-      "icon-image": options.imageId,
-      "icon-size": ["interpolate", ["linear"], ["zoom"], 3, 0.42, 6, 0.58, 8, 0.72],
-      "icon-offset": options.offset,
-      "icon-rotation-alignment": "map",
-      "icon-pitch-alignment": "map",
-      "icon-allow-overlap": true,
-      "icon-ignore-placement": true,
-      "icon-keep-upright": false
-    },
+    filter: ["all", ["==", ["get", "kind"], "front"], ["==", ["get", "frontStyle"], options.frontStyle]],
+    layout,
     paint: {
       "icon-opacity": 0.96
     }
-  });
+  };
+  if (Number.isFinite(options.minzoom)) layer.minzoom = options.minzoom;
+  if (Number.isFinite(options.maxzoom)) layer.maxzoom = options.maxzoom;
+  map.addLayer(layer);
 }
 
 function isSmallNaturalEarthJapanFeature(feature) {
