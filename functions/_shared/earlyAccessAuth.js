@@ -10,13 +10,14 @@ export async function validateEarlyAccessToken(db, token, options = {}) {
   const activation = await readJson(db, activationKey, null);
   if (!activation?.codeId) return { active: false, error: "認証の有効期限が切れています。" };
   if (activation.expiresAt && Date.parse(activation.expiresAt) <= Date.now()) {
-    await deleteJson(db, activationKey);
+    await releaseEarlyAccessActivation(db, activationKey, activation);
     return { active: false, error: "認証の有効期限が切れています。" };
   }
-  const entry = (await readEarlyAccessCodes(db)).find((item) => item.id === activation.codeId);
+  const codes = await readEarlyAccessCodes(db);
+  const entry = codes.find((item) => item.id === activation.codeId);
   const invalid = getEarlyAccessInvalidReason(entry, false);
   if (invalid) {
-    await deleteJson(db, activationKey);
+    await releaseEarlyAccessActivation(db, activationKey, activation, codes);
     return { active: false, error: invalid };
   }
 
@@ -35,6 +36,26 @@ export async function validateEarlyAccessToken(db, token, options = {}) {
     active: true,
     label: entry.label || "アーリーアクセス",
     expiresAt: entry.expiresAt || null
+  };
+}
+
+export async function releaseEarlyAccessToken(db, token) {
+  const normalizedToken = String(token ?? "").trim();
+  if (!normalizedToken) {
+    return { active: false, released: false, error: "解除する認証情報がありません。" };
+  }
+  const activationKey = `${EARLY_ACCESS_ACTIVATION_PREFIX}${await hashEarlyAccessValue(normalizedToken)}`;
+  const activation = await readJson(db, activationKey, null);
+  if (!activation?.codeId) {
+    return { active: false, released: false, message: "この端末の認証はすでに解除されています。" };
+  }
+  const released = await releaseEarlyAccessActivation(db, activationKey, activation);
+  return {
+    active: false,
+    released,
+    message: released
+      ? "この端末のアーリーアクセスを解除しました。"
+      : "この端末の認証はすでに解除されています。"
   };
 }
 
@@ -58,3 +79,19 @@ export async function hashEarlyAccessValue(value) {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+async function releaseEarlyAccessActivation(db, activationKey, activation, existingCodes = null) {
+  const deleted = await deleteJson(db, activationKey);
+  if (!deleted || !activation?.codeId) return false;
+
+  const codes = existingCodes ?? await readEarlyAccessCodes(db);
+  const entry = codes.find((item) => item.id === activation.codeId);
+  if (!entry) return true;
+
+  const previousUses = Math.max(0, Number(entry.uses) || 0);
+  const nextUses = Math.max(0, previousUses - 1);
+  if (nextUses !== previousUses) {
+    entry.uses = nextUses;
+    await writeJson(db, EARLY_ACCESS_CODES_KEY, codes);
+  }
+  return true;
+}
