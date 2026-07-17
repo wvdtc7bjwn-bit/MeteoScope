@@ -11,6 +11,9 @@ let currentNotices = [];
 let currentFeedback = [];
 let currentEarlyAccessCodes = [];
 let currentPushBroadcasts = [];
+let currentAccounts = [];
+let currentAccountTotal = 0;
+let nextAccountOffset = null;
 
 const elements = {
   loginView: document.getElementById("login-view"),
@@ -23,6 +26,10 @@ const elements = {
   refreshStatusButton: document.getElementById("refresh-status-button"),
   statusList: document.getElementById("status-list"),
   quizMetricsList: document.getElementById("quiz-metrics-list"),
+  accountList: document.getElementById("admin-account-list"),
+  accountCount: document.getElementById("admin-account-count"),
+  refreshAccountsButton: document.getElementById("refresh-accounts-button"),
+  loadMoreAccountsButton: document.getElementById("load-more-accounts-button"),
   maintenanceEnabled: document.getElementById("maintenance-enabled"),
   maintenanceMessage: document.getElementById("maintenance-message"),
   saveConfigButton: document.getElementById("save-config-button"),
@@ -126,6 +133,20 @@ function bindEvents() {
     event.preventDefault();
     void sendAdminPushBroadcast();
   });
+  elements.pushHistory?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-delete-push-broadcast]");
+    if (button) void deletePushBroadcast(button.dataset.deletePushBroadcast, button);
+  });
+  elements.refreshAccountsButton?.addEventListener("click", () => {
+    void refreshAccounts({ reset: true });
+  });
+  elements.loadMoreAccountsButton?.addEventListener("click", () => {
+    void refreshAccounts({ reset: false });
+  });
+  elements.accountList?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-delete-account]");
+    if (button) void deleteAccount(button.dataset.deleteAccount, button);
+  });
 }
 
 function showLogin() {
@@ -142,13 +163,14 @@ function showDashboard() {
 
 async function refreshDashboard() {
   setMessage(elements.dashboardMessage, "読み込み中...");
-  const [status, config, notices, feedback, earlyAccess, pushBroadcasts] = await Promise.all([
+  const [status, config, notices, feedback, earlyAccess, pushBroadcasts, accounts] = await Promise.all([
     requestJson("/status"),
     requestJson("/config"),
     requestJson("/notices"),
     requestJson("/feedback"),
     requestJson("/early-access/codes"),
-    requestJson("/push/broadcasts")
+    requestJson("/push/broadcasts"),
+    requestJson("/accounts?limit=100&offset=0")
   ]);
   renderStatus(status);
   currentConfig = normalizeConfig(config.config);
@@ -156,12 +178,92 @@ async function refreshDashboard() {
   currentFeedback = Array.isArray(feedback.feedback) ? feedback.feedback : [];
   currentEarlyAccessCodes = Array.isArray(earlyAccess.codes) ? earlyAccess.codes : [];
   currentPushBroadcasts = Array.isArray(pushBroadcasts.broadcasts) ? pushBroadcasts.broadcasts : [];
+  applyAccountPage(accounts, { append: false });
   renderConfig();
   renderNotices();
   renderFeedback();
   renderEarlyAccessCodes();
   renderPushBroadcasts();
+  renderAccounts();
   setMessage(elements.dashboardMessage, "読み込みました。", "success");
+}
+
+async function refreshAccounts({ reset }) {
+  const offset = reset ? 0 : nextAccountOffset;
+  if (offset === null) return;
+  const button = reset ? elements.refreshAccountsButton : elements.loadMoreAccountsButton;
+  if (button?.disabled) return;
+  if (button) button.disabled = true;
+  setMessage(elements.dashboardMessage, "アカウントを読み込み中...");
+  try {
+    const response = await requestJson(`/accounts?limit=100&offset=${encodeURIComponent(offset)}`);
+    applyAccountPage(response, { append: !reset });
+    renderAccounts();
+    setMessage(elements.dashboardMessage, "アカウント一覧を更新しました。", "success");
+  } catch (error) {
+    setMessage(elements.dashboardMessage, error.message || "アカウント一覧を取得できませんでした。", "error");
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+function applyAccountPage(page, { append }) {
+  const incoming = Array.isArray(page?.accounts) ? page.accounts : [];
+  if (append) {
+    const byID = new Map(currentAccounts.map((account) => [account.id, account]));
+    incoming.forEach((account) => byID.set(account.id, account));
+    currentAccounts = [...byID.values()];
+  } else {
+    currentAccounts = incoming;
+  }
+  currentAccountTotal = Math.max(0, Number(page?.total || 0));
+  nextAccountOffset = Number.isInteger(page?.nextOffset) ? page.nextOffset : null;
+}
+
+function renderAccounts() {
+  if (!elements.accountList) return;
+  if (elements.accountCount) elements.accountCount.textContent = `${formatInteger(currentAccountTotal)}件`;
+  if (!currentAccounts.length) {
+    elements.accountList.innerHTML = `<p class="admin-muted">登録済みアカウントはありません。</p>`;
+  } else {
+    elements.accountList.innerHTML = currentAccounts.map((account) => `
+      <article class="admin-account-item">
+        <div class="admin-account-name">
+          <strong>${escapeHtml(account.displayName || "名称未設定")}</strong>
+          <span>ログインID：${escapeHtml(account.username || "--")}</span>
+        </div>
+        <div class="admin-account-meta">
+          <span>作成 ${escapeHtml(formatAdminDate(account.createdAt))}</span>
+          <small>ID ${escapeHtml(account.id || "--")}</small>
+        </div>
+        <button class="admin-danger-button" type="button" data-delete-account="${escapeAttribute(account.id || "")}">完全に削除</button>
+      </article>
+    `).join("");
+  }
+  if (elements.loadMoreAccountsButton) {
+    elements.loadMoreAccountsButton.hidden = nextAccountOffset === null;
+    elements.loadMoreAccountsButton.textContent = `さらに表示（${formatInteger(currentAccounts.length)} / ${formatInteger(currentAccountTotal)}件）`;
+  }
+}
+
+async function deleteAccount(accountID, button) {
+  const account = currentAccounts.find((item) => item.id === accountID);
+  if (!account) return;
+  const confirmed = confirm(
+    `${account.displayName}（${account.username}）を完全に削除しますか？\n\nD1のセッション、クイズ記録、ランキング、現在地投稿、通報、アーリーアクセス紐付けも削除され、元に戻せません。`
+  );
+  if (!confirmed) return;
+  button.disabled = true;
+  setMessage(elements.dashboardMessage, "アカウントと関連データを削除中...");
+  try {
+    await requestJson(`/accounts/${encodeURIComponent(accountID)}`, { method: "DELETE" });
+    await refreshAccounts({ reset: true });
+    renderStatus(await requestJson("/status"));
+    setMessage(elements.dashboardMessage, `${account.displayName} と関連するD1データを削除しました。`, "success");
+  } catch (error) {
+    button.disabled = false;
+    setMessage(elements.dashboardMessage, error.message || "アカウントを削除できませんでした。", "error");
+  }
 }
 
 async function sendAdminPushBroadcast() {
@@ -209,7 +311,10 @@ function renderPushBroadcasts() {
     <article class="admin-push-history-item">
       <div class="admin-push-history-head">
         <strong>${escapeHtml(broadcast.title || "通知")}</strong>
-        <span data-status="${escapeAttribute(broadcast.status || "queued")}">${escapeHtml(pushBroadcastStatusLabel(broadcast.status))}</span>
+        <div class="admin-push-history-actions">
+          <span data-status="${escapeAttribute(broadcast.status || "queued")}">${escapeHtml(pushBroadcastStatusLabel(broadcast.status))}</span>
+          ${broadcast.status === "completed" ? `<button class="admin-danger-button" type="button" data-delete-push-broadcast="${escapeAttribute(broadcast.id || "")}">履歴を削除</button>` : ""}
+        </div>
       </div>
       <p>${escapeHtml(broadcast.body || "")}</p>
       <div class="admin-push-counts">
@@ -221,6 +326,22 @@ function renderPushBroadcasts() {
       <small>${escapeHtml(formatAdminDate(broadcast.createdAt))}</small>
     </article>
   `).join("");
+}
+
+async function deletePushBroadcast(broadcastID, button) {
+  const broadcast = currentPushBroadcasts.find((item) => item.id === broadcastID);
+  if (!broadcast || !confirm(`「${broadcast.title || "通知"}」の配信履歴をD1から削除しますか？`)) return;
+  button.disabled = true;
+  setMessage(elements.dashboardMessage, "通知履歴を削除中...");
+  try {
+    const response = await requestJson(`/push/broadcasts/${encodeURIComponent(broadcastID)}`, { method: "DELETE" });
+    currentPushBroadcasts = Array.isArray(response.broadcasts) ? response.broadcasts : [];
+    renderPushBroadcasts();
+    setMessage(elements.dashboardMessage, "通知履歴と関連するD1データを削除しました。", "success");
+  } catch (error) {
+    button.disabled = false;
+    setMessage(elements.dashboardMessage, error.message || "通知履歴を削除できませんでした。", "error");
+  }
 }
 
 function pushBroadcastStatusLabel(status) {

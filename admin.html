@@ -57,11 +57,20 @@
           <div class="admin-section-head">
             <div class="admin-section-title">
               <h3>MeteoScopeアカウント</h3>
-              <p>アカウント利用状況とD1無料枠</p>
+              <p>全ユーザーの確認・完全削除とD1利用状況</p>
             </div>
+            <button id="refresh-accounts-button" class="admin-small-button" type="button">更新</button>
           </div>
           <dl id="quiz-metrics-list" class="admin-status-list"></dl>
           <p class="admin-muted">DAUはUTC当日にアカウント状態確認・ログイン・クイズ開始を行った重複なしの利用者数です。</p>
+          <div class="admin-account-management">
+            <div class="admin-account-management-head">
+              <h4>全ユーザー</h4>
+              <span id="admin-account-count">0件</span>
+            </div>
+            <div id="admin-account-list" class="admin-account-list"></div>
+            <button id="load-more-accounts-button" class="admin-small-button admin-load-more" type="button" hidden>さらに表示</button>
+          </div>
         </section>
 
         <section class="admin-card">
@@ -85,8 +94,8 @@
         <section class="admin-card">
           <div class="admin-section-head">
             <div class="admin-section-title">
-              <h3>プッシュ通知配信</h3>
-              <p>通知を有効にしている端末へ一斉配信</p>
+              <h3>管理者通知管理</h3>
+              <p>通知の配信予約とD1に保存された過去履歴の削除</p>
             </div>
           </div>
           <form id="admin-push-form" class="admin-push-form">

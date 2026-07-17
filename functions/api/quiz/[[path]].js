@@ -1,4 +1,5 @@
 import { requireD1 } from "../../_shared/d1Store.js";
+import { deleteMeteoScopeAccount } from "../../_shared/adminManagement.js";
 import {
   QUIZ_SESSION_TTL_SECONDS, hashQuizPassword, hashQuizRateLimitKey, hashQuizToken,
   normalizeQuizDisplayName, randomQuizToken, validateQuizAccountInput,
@@ -13,6 +14,11 @@ import {
   UPSERT_QUIZ_DAILY_SCORE_SQL,
   quizRankingDate
 } from "../../_shared/quizStorage.js";
+import {
+  invalidateAllQuizLeaderboardCaches,
+  invalidateQuizLeaderboardCache,
+  quizLeaderboardCacheKey
+} from "../../_shared/quizLeaderboardCache.js";
 import { recordQuizDailyActivity } from "../../_shared/quizMaintenance.js";
 import {
   accountSessionCookie,
@@ -139,16 +145,8 @@ async function deleteAccount(request, env) {
     String(payload.password ?? ""), account.password_salt, account.password_hash, env.QUIZ_PASSWORD_PEPPER
   );
   if (!valid) throw json({ error: "パスワードが正しくありません。" }, { status: 401 });
-  await db.batch([
-    db.prepare("DELETE FROM community_report_flags WHERE reporter_account_id = ?1").bind(auth.account.id),
-    db.prepare("DELETE FROM community_reports WHERE account_id = ?1").bind(auth.account.id),
-    db.prepare("DELETE FROM community_post_daily WHERE account_id = ?1").bind(auth.account.id),
-    db.prepare("DELETE FROM quiz_challenges WHERE account_id = ?1").bind(auth.account.id),
-    db.prepare("DELETE FROM quiz_attempts WHERE account_id = ?1").bind(auth.account.id),
-    db.prepare("DELETE FROM quiz_sessions WHERE account_id = ?1").bind(auth.account.id),
-    db.prepare("DELETE FROM quiz_accounts WHERE id = ?1").bind(auth.account.id)
-  ]);
-  await Promise.all(QUIZ_DIFFICULTIES.map((difficulty) => invalidateLeaderboardCache(difficulty)));
+  await deleteMeteoScopeAccount(db, auth.account.id);
+  await invalidateAllQuizLeaderboardCaches();
   return json({ deleted: true }, { headers: expiredAccountSessionHeaders() });
 }
 
@@ -206,7 +204,7 @@ async function submitAttempt(request, env) {
       .bind(rankingDate, auth.account.id, challenge.difficulty, score, completedAt),
     db.prepare("DELETE FROM quiz_challenges WHERE id_hash = ?1").bind(idHash)
   ]);
-  await invalidateLeaderboardCache(challenge.difficulty, rankingDate);
+  await invalidateQuizLeaderboardCache(challenge.difficulty, rankingDate);
   return json({ recorded: true, difficulty: challenge.difficulty, score, total: QUIZ_QUESTION_COUNT, pointsEarned: score, rankingDate, completedAt });
 }
 
@@ -237,7 +235,7 @@ async function currentUserRanking(db, rankingDate, difficulty, accountID) {
 
 async function cachedPublicLeaderboard(db, rankingDate, difficulty, env) {
   const cache = globalThis.caches?.default;
-  const cacheKey = leaderboardCacheKey(rankingDate, difficulty);
+  const cacheKey = quizLeaderboardCacheKey(rankingDate, difficulty);
   if (cache) {
     const cached = await cache.match(cacheKey);
     if (cached) {
@@ -262,15 +260,6 @@ async function cachedPublicLeaderboard(db, rankingDate, difficulty, env) {
     }));
   }
   return entries;
-}
-
-async function invalidateLeaderboardCache(difficulty, rankingDate = quizRankingDate()) {
-  const cache = globalThis.caches?.default;
-  if (cache) await cache.delete(leaderboardCacheKey(rankingDate, difficulty));
-}
-
-function leaderboardCacheKey(rankingDate, difficulty) {
-  return new Request(`https://cache.meteoscope.invalid/quiz-leaderboard/v3/${encodeURIComponent(rankingDate)}/${encodeURIComponent(difficulty)}`);
 }
 
 function leaderboardCacheSeconds(env) {

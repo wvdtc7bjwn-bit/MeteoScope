@@ -15,6 +15,7 @@
     "test:quiz": "node Tests/DisasterQuizTests.mjs && node Tests/QuizAccountTests.mjs && node Tests/QuizStorageTests.mjs",
     "test:community": "node Tests/CommunityReportTests.mjs",
     "test:early-access": "node Tests/EarlyAccessReleaseTests.mjs",
+    "test:admin": "node Tests/AdminManagementTests.mjs",
     "test:tsunami": "node Tests/TsunamiXmlTests.mjs",
     "test:typhoon": "node Tests/TyphoonTests.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy dist --project-name meteoscope"

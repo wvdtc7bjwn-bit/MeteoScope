@@ -65,7 +65,8 @@ const [
   settingsScript,
   appSource,
   iosSettings,
-  accountAuthSource
+  accountAuthSource,
+  leaderboardCacheSource
 ] = await Promise.all([
   fs.readFile(path.join(root, "functions", "api", "quiz", "[[path]].js"), "utf8"),
   fs.readFile(path.join(root, "migrations", "0005_quiz_accounts.sql"), "utf8"),
@@ -80,7 +81,8 @@ const [
   fs.readFile(path.join(root, "src", "ui", "settingsModal.js"), "utf8"),
   fs.readFile(path.join(root, "src", "app.js"), "utf8"),
   fs.readFile(path.join(root, "ios", "MeteoScope", "Views", "SettingsView.swift"), "utf8"),
-  fs.readFile(path.join(root, "functions", "_shared", "accountAuth.js"), "utf8")
+  fs.readFile(path.join(root, "functions", "_shared", "accountAuth.js"), "utf8"),
+  fs.readFile(path.join(root, "functions", "_shared", "quizLeaderboardCache.js"), "utf8")
 ]);
 for (const table of ["quiz_accounts", "quiz_sessions", "quiz_challenges", "quiz_attempts", "quiz_rate_limits"]) {
   assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`, "u"));
@@ -102,7 +104,8 @@ assert.match(routeSource, /wvdtc7bjwn-bit\.github\.io/u);
 assert.match(routeSource, /PUBLIC_QUIZ_LEADERBOARD_SQL/u);
 assert.match(routeSource, /QUIZ_LEADERBOARD_CACHE_SECONDS/u);
 assert.match(routeSource, /quizRankingDate/u);
-assert.match(routeSource, /QUIZ_DIFFICULTIES\.map\(\(difficulty\) => invalidateLeaderboardCache\(difficulty\)\)/u);
+assert.match(routeSource, /invalidateAllQuizLeaderboardCaches\(\)/u);
+assert.match(leaderboardCacheSource, /QUIZ_DIFFICULTIES\.map\(\(difficulty\) => invalidateQuizLeaderboardCache\(difficulty, rankingDate\)\)/u);
 assert.doesNotMatch(routeSource, /function bestScoresCTE/u);
 assert.match(iosService, /kSecClassGenericPassword/u);
 assert.match(iosService, /kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly/u);

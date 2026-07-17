@@ -1,7 +1,11 @@
 import { readJson, writeJson, requireD1 } from "../../_shared/d1Store.js";
 import { readCloudflareD1Usage } from "../../_shared/cloudflareD1Analytics.js";
 import { readQuizOperationalMetrics } from "../../_shared/quizMaintenance.js";
-import { listAdminPushBroadcasts, queueAdminPushBroadcast, readWarningCronHealth } from "../push/[[path]].js";
+import { deleteMeteoScopeAccount, listMeteoScopeAccounts } from "../../_shared/adminManagement.js";
+import { invalidateAllQuizLeaderboardCaches } from "../../_shared/quizLeaderboardCache.js";
+import {
+  deleteAdminPushBroadcast, listAdminPushBroadcasts, queueAdminPushBroadcast, readWarningCronHealth
+} from "../push/[[path]].js";
 
 const CONFIG_KEY = "app-config";
 const NOTICES_KEY = "app-notices";
@@ -37,8 +41,15 @@ export async function onRequest({ request, env }) {
     if (route === "config" && method === "PUT") return await putConfig(request, env);
     if (route === "notices" && method === "GET") return await getNotices(env);
     if (route === "notices" && method === "PUT") return await putNotices(request, env);
+    if (route === "accounts" && method === "GET") return await getAccounts(url, env);
+    if (route.startsWith("accounts/") && method === "DELETE") {
+      return await deleteAccount(route.slice("accounts/".length), env);
+    }
     if (route === "push/broadcasts" && method === "GET") return await getPushBroadcasts(env);
     if (route === "push/broadcasts" && method === "POST") return await postPushBroadcast(request, env);
+    if (route.startsWith("push/broadcasts/") && method === "DELETE") {
+      return await deletePushBroadcast(route.slice("push/broadcasts/".length), env);
+    }
     if (route === "feedback" && method === "GET") return await getFeedback(env);
     if (route === "early-access/codes" && method === "GET") return await getEarlyAccessCodes(env);
     if (route === "early-access/codes" && method === "POST") return await createEarlyAccessCode(request, env);
@@ -164,15 +175,52 @@ async function putNotices(request, env) {
 }
 
 async function getPushBroadcasts(env) {
-  const broadcasts = await listAdminPushBroadcasts(env);
+  const broadcasts = await listAdminPushBroadcasts(env, 50);
   return json({ broadcasts });
+}
+
+async function getAccounts(url, env) {
+  const db = requireDb(env);
+  const result = await listMeteoScopeAccounts(db, {
+    limit: url.searchParams.get("limit"),
+    offset: url.searchParams.get("offset")
+  });
+  return json(result);
+}
+
+async function deleteAccount(accountID, env) {
+  const db = requireDb(env);
+  try {
+    const result = await deleteMeteoScopeAccount(db, accountID);
+    if (!result) return json({ error: "アカウントが見つかりません。" }, { status: 404 });
+    await invalidateAllQuizLeaderboardCaches();
+    return json({ deleted: true, ...result });
+  } catch (error) {
+    if (error instanceof TypeError) return json({ error: "アカウントIDが正しくありません。" }, { status: 400 });
+    throw error;
+  }
 }
 
 async function postPushBroadcast(request, env) {
   const payload = await request.json().catch(() => ({}));
   const broadcast = await queueAdminPushBroadcast(env, payload);
-  const broadcasts = await listAdminPushBroadcasts(env);
+  const broadcasts = await listAdminPushBroadcasts(env, 50);
   return json({ broadcast, broadcasts }, { status: 202 });
+}
+
+async function deletePushBroadcast(broadcastID, env) {
+  try {
+    const result = await deleteAdminPushBroadcast(env, broadcastID);
+    if (!result) return json({ error: "通知履歴が見つかりません。" }, { status: 404 });
+    if (!result.deleted && result.reason === "in-progress") {
+      return json({ error: "配信中または配信待ちの通知は削除できません。" }, { status: 409 });
+    }
+    const broadcasts = await listAdminPushBroadcasts(env, 50);
+    return json({ ...result, broadcasts });
+  } catch (error) {
+    if (error instanceof TypeError) return json({ error: "通知IDが正しくありません。" }, { status: 400 });
+    throw error;
+  }
 }
 
 async function getFeedback(env) {

@@ -413,6 +413,38 @@ export async function listAdminPushBroadcasts(env, limit = 20) {
   return (result.results || []).map(publicAdminBroadcast);
 }
 
+export async function deleteAdminPushBroadcast(env, broadcastID) {
+  requireNotificationStorage(env);
+  await ensureAdminBroadcastTables(env);
+  const id = String(broadcastID || "").trim().toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
+    throw new TypeError("Invalid broadcast ID.");
+  }
+  const broadcast = await env.NOTIFICATIONS_DB.prepare(
+    "SELECT id, status FROM admin_push_broadcasts WHERE id = ?1"
+  ).bind(id).first();
+  if (!broadcast) return null;
+  if (broadcast.status !== "completed") {
+    return { deleted: false, reason: "in-progress" };
+  }
+  const results = await env.NOTIFICATIONS_DB.batch([
+    env.NOTIFICATIONS_DB.prepare(
+      "DELETE FROM push_pending_messages WHERE json_extract(data, '$.id') = ?1"
+    ).bind(`admin-${id}`),
+    env.NOTIFICATIONS_DB.prepare(
+      "DELETE FROM admin_push_deliveries WHERE broadcast_id = ?1"
+    ).bind(id),
+    env.NOTIFICATIONS_DB.prepare(
+      "DELETE FROM admin_push_broadcasts WHERE id = ?1 AND status = 'completed'"
+    ).bind(id)
+  ]);
+  return {
+    deleted: getD1Changes(results[2]) > 0,
+    pendingMessages: getD1Changes(results[0]),
+    deliveries: getD1Changes(results[1])
+  };
+}
+
 export async function runAdminPushBroadcasts(env) {
   requireNotificationStorage(env);
   await ensureAdminBroadcastTables(env);
