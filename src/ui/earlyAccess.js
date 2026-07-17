@@ -89,7 +89,7 @@ function activeState(result) {
     active: true,
     label: String(result.label || "アーリーアクセス"),
     expiresAt: result.expiresAt || null,
-    message: "アーリーアクセスが有効です。"
+    message: "アーリーアクセスが有効です。Webアプリを削除する場合は、先に設定から解除してください。"
   };
 }
 
