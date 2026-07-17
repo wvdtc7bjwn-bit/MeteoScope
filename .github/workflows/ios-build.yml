@@ -16,6 +16,9 @@ on:
       - "public/support.html"
       - "workers/earthquake-realtime/**"
       - "functions/api/earthquakes/**"
+      - "functions/api/quiz/**"
+      - "functions/_shared/adminManagement.js"
+      - "functions/_shared/quizLeaderboardCache.js"
       - ".github/workflows/ios-build.yml"
   pull_request:
     paths:
@@ -29,6 +32,9 @@ on:
       - "public/support.html"
       - "workers/earthquake-realtime/**"
       - "functions/api/earthquakes/**"
+      - "functions/api/quiz/**"
+      - "functions/_shared/adminManagement.js"
+      - "functions/_shared/quizLeaderboardCache.js"
       - ".github/workflows/ios-build.yml"
 
 jobs:
