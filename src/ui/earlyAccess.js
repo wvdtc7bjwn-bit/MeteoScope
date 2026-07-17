@@ -13,7 +13,7 @@ export async function validateEarlyAccess() {
     if (!result.active) throw new Error(result.error || "認証の有効期限が切れています。");
     return activeState(result);
   } catch (error) {
-    removeToken();
+    if (Number(error?.status) === 401) removeToken();
     return inactiveState(error.message || "認証状態を確認できませんでした。");
   }
 }
@@ -73,7 +73,11 @@ async function requestAccess(payload, options = {}) {
       keepalive: Boolean(options.keepalive)
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || "認証サーバーへ接続できませんでした。");
+    if (!response.ok) {
+      const error = new Error(result.error || "認証サーバーへ接続できませんでした。");
+      error.status = response.status;
+      throw error;
+    }
     return result;
   } catch (error) {
     if (error?.name === "AbortError") throw new Error("認証サーバーが応答しませんでした。");
