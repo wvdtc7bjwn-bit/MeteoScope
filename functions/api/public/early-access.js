@@ -4,6 +4,7 @@ import {
   getEarlyAccessInvalidReason,
   hashEarlyAccessValue,
   readEarlyAccessCodes,
+  releaseEarlyAccessToken,
   validateEarlyAccessToken
 } from "../../_shared/earlyAccessAuth.js";
 import { writeJson } from "../../_shared/d1Store.js";
@@ -16,7 +17,8 @@ export async function onRequest({ request, env }) {
   if (!env.NOTIFICATIONS_DB) return withHeaders(response({ active: false, error: "認証機能が設定されていません。" }, 503), cors);
   const payload = await request.json().catch(() => ({}));
   let result;
-  if (payload.code) result = await activateCode(String(payload.code), env.NOTIFICATIONS_DB);
+  if (payload.action === "deactivate") result = await deactivateToken(String(payload.token ?? ""), env.NOTIFICATIONS_DB);
+  else if (payload.code) result = await activateCode(String(payload.code), env.NOTIFICATIONS_DB);
   else if (payload.token) result = await validateToken(String(payload.token), env.NOTIFICATIONS_DB);
   else result = response({ active: false, error: "シリアルコードを入力してください。" }, 400);
   return withHeaders(result, cors);
@@ -47,6 +49,11 @@ async function activateCode(code, db) {
 async function validateToken(token, db) {
   const result = await validateEarlyAccessToken(db, token);
   return response(result, result.active ? 200 : 401);
+}
+
+async function deactivateToken(token, db) {
+  if (!token.trim()) return response({ active: false, released: false, error: "解除する認証情報がありません。" }, 400);
+  return response(await releaseEarlyAccessToken(db, token));
 }
 
 async function readCodes(db) {
