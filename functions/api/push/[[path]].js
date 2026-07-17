@@ -21,8 +21,10 @@ import {
 const VAPID_KEYS_KEY = "push:vapid-keys";
 const JMA_WARNING_BASE = "https://www.jma.go.jp/bosai/warning/data/r8";
 const PUSH_TTL_SECONDS = 60;
+const PUSH_REQUEST_TIMEOUT_MS = 8000;
 const MAX_PENDING_MESSAGES = 6;
 const ADMIN_BROADCAST_BATCH_SIZE = 4;
+const ADMIN_BROADCAST_IMMEDIATE_BATCHES = 5;
 const ADMIN_BROADCAST_MAX_ATTEMPTS = 3;
 const RETENTION_DAYS = 30;
 const IOS_SUBSCRIPTION_RETENTION_DAYS = 180;
@@ -398,6 +400,7 @@ export async function queueAdminPushBroadcast(env, input) {
   }
 
   await runNotificationRetentionCleanup(env);
+  await drainNewAdminPushBroadcast(env, broadcast.id);
   return getAdminPushBroadcast(env, broadcast.id);
 }
 
@@ -445,16 +448,20 @@ export async function deleteAdminPushBroadcast(env, broadcastID) {
   };
 }
 
-export async function runAdminPushBroadcasts(env) {
+export async function runAdminPushBroadcasts(env, options = {}) {
   requireNotificationStorage(env);
   await ensureAdminBroadcastTables(env);
-  const broadcast = await env.NOTIFICATIONS_DB.prepare(
-    `SELECT id, title, body, url, status, total_count, sent_count, removed_count,
-            failed_count, created_at, completed_at
-     FROM admin_push_broadcasts
-     WHERE status IN ('queued', 'sending')
-     ORDER BY created_at ASC LIMIT 1`
-  ).first();
+  const broadcastID = String(options.broadcastID || "").trim();
+  const broadcastSelect = `SELECT id, title, body, url, status, total_count, sent_count, removed_count,
+                                  failed_count, created_at, completed_at
+                           FROM admin_push_broadcasts`;
+  const broadcast = broadcastID
+    ? await env.NOTIFICATIONS_DB.prepare(
+      `${broadcastSelect} WHERE id = ? AND status IN ('queued', 'sending')`
+    ).bind(broadcastID).first()
+    : await env.NOTIFICATIONS_DB.prepare(
+      `${broadcastSelect} WHERE status IN ('queued', 'sending') ORDER BY created_at ASC LIMIT 1`
+    ).first();
   if (!broadcast?.id) return { processed: 0, sent: 0, removed: 0, failed: 0 };
 
   const now = new Date().toISOString();
@@ -462,11 +469,13 @@ export async function runAdminPushBroadcasts(env) {
     "UPDATE admin_push_broadcasts SET status = 'sending' WHERE id = ?"
   ).bind(broadcast.id).run();
 
+  const unattemptedFilter = options.onlyUnattempted ? "AND d.attempts = 0" : "";
   const deliveryResult = await env.NOTIFICATIONS_DB.prepare(
     `SELECT d.subscription_id, d.attempts, d.enqueued, s.data
      FROM admin_push_deliveries d
      LEFT JOIN push_subscriptions s ON s.id = d.subscription_id
      WHERE d.broadcast_id = ? AND d.status = 'pending'
+       ${unattemptedFilter}
      ORDER BY d.updated_at ASC LIMIT ?`
   ).bind(broadcast.id, ADMIN_BROADCAST_BATCH_SIZE).all();
   const deliveries = deliveryResult.results || [];
@@ -519,6 +528,17 @@ export async function runAdminPushBroadcasts(env) {
     failed,
     status: updated?.status || "queued"
   };
+}
+
+async function drainNewAdminPushBroadcast(env, broadcastID) {
+  for (let batchIndex = 0; batchIndex < ADMIN_BROADCAST_IMMEDIATE_BATCHES; batchIndex += 1) {
+    const result = await runAdminPushBroadcasts(env, {
+      broadcastID,
+      onlyUnattempted: true
+    });
+    if (!result.processed || result.status === "completed") return result;
+  }
+  return getAdminPushBroadcast(env, broadcastID);
 }
 
 export function sameWarningState(previous, next) {
@@ -1224,14 +1244,21 @@ async function sendEmptyPush(pushSubscription, env, preparedVapidKeys = null) {
   }
 
   const token = await createVapidJwt(new URL(endpoint).origin, env, vapidKeys);
-  return fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "TTL": String(PUSH_TTL_SECONDS),
-      "Urgency": "high",
-      "Authorization": `vapid t=${token}, k=${vapidKeys.publicKey}`
-    }
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), PUSH_REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "TTL": String(PUSH_TTL_SECONDS),
+        "Urgency": "high",
+        "Authorization": `vapid t=${token}, k=${vapidKeys.publicKey}`
+      },
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function sendEmptyPushSafely(pushSubscription, env, preparedVapidKeys = null) {

@@ -923,24 +923,28 @@ h2 {
   white-space: nowrap;
 }
 
-.warning-badge-advisory {
+.warning-badge-advisory,
+.mobile-dock-warning-badge-advisory {
   background: #fff000;
   color: #000;
 }
 
-.warning-badge-warning {
+.warning-badge-warning,
+.mobile-dock-warning-badge-warning {
   background: #ff2b12;
   color: #fff;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
 }
 
-.warning-badge-danger {
+.warning-badge-danger,
+.mobile-dock-warning-badge-danger {
   background: #b400ff;
   color: #fff;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
 }
 
-.warning-badge-emergency {
+.warning-badge-emergency,
+.mobile-dock-warning-badge-emergency {
   background:
     repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.92) 0 5px, transparent 5px 10px),
     #b400ff;
@@ -948,12 +952,14 @@ h2 {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
 }
 
-.early-warning-badge-middle {
+.early-warning-badge-middle,
+.mobile-dock-warning-badge-middle {
   background: #ffc8b8;
   color: #24110e;
 }
 
-.early-warning-badge-high {
+.early-warning-badge-high,
+.mobile-dock-warning-badge-high {
   background: #ff6b73;
   color: #fff;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16) inset;
@@ -4239,7 +4245,7 @@ html[data-theme="light"] .legend-typhoon-center::after {
   transform: translate3d(0, var(--tab-indicator-y), 0);
   backdrop-filter: var(--tab-lens-filter);
   -webkit-backdrop-filter: var(--tab-lens-filter);
-  transition: transform 440ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease;
+  transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 140ms ease;
   will-change: transform;
 }
 
@@ -4256,6 +4262,8 @@ html[data-theme="light"] .legend-typhoon-center::after {
 }
 
 .tab-button {
+  appearance: none;
+  -webkit-appearance: none;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -4272,6 +4280,7 @@ html[data-theme="light"] .legend-typhoon-center::after {
   font-size: 0;
   cursor: pointer;
   background: transparent;
+  background-image: none;
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -4337,6 +4346,9 @@ html[data-theme="light"] .legend-typhoon-center::after {
 }
 
 .tab-button:hover {
+  background: transparent;
+  background-image: none;
+  box-shadow: none;
   transform: translateX(1px);
 }
 
@@ -5437,51 +5449,19 @@ html[data-theme="light"] .legend-typhoon-center::after {
 
   .mobile-dock-warning-badge {
     justify-self: start;
+    justify-content: center;
     max-width: 100%;
-    min-width: 74px;
-    padding: 6px 10px;
-    border: 1px solid rgba(213, 229, 247, 0.22);
+    min-width: 68px;
+    padding: 5px 9px;
+    border: 0;
     border-radius: 999px;
     overflow: hidden;
-    color: rgba(235, 244, 252, 0.92);
     font-size: 12px;
     font-weight: 900;
     line-height: 1.1;
     text-align: center;
     text-overflow: ellipsis;
     white-space: nowrap;
-    background: rgba(255, 255, 255, 0.075);
-  }
-
-  .mobile-dock-warning-badge-advisory {
-    border-color: rgba(255, 214, 68, 0.5);
-    color: #15170a;
-    background: linear-gradient(180deg, #ffe771, #f7c94d);
-  }
-
-  .mobile-dock-warning-badge-warning {
-    border-color: rgba(255, 115, 115, 0.58);
-    color: #fff;
-    background: linear-gradient(180deg, #ff5f65, #d92f42);
-  }
-
-  .mobile-dock-warning-badge-danger,
-  .mobile-dock-warning-badge-emergency {
-    border-color: rgba(213, 153, 255, 0.62);
-    color: #fff;
-    background: linear-gradient(180deg, #9c5cff, #5d2fc6);
-  }
-
-  .mobile-dock-warning-badge-high {
-    border-color: rgba(244, 141, 67, 0.65);
-    color: #fff;
-    background: linear-gradient(180deg, #ff8b45, #d85c24);
-  }
-
-  .mobile-dock-warning-badge-middle {
-    border-color: rgba(255, 214, 68, 0.5);
-    color: #15170a;
-    background: linear-gradient(180deg, #ffe771, #f7c94d);
   }
 
   .mobile-dock-warning-badge-none {
@@ -5912,9 +5892,9 @@ html[data-theme="light"] .legend-typhoon-center::after {
     opacity: 0.82;
     pointer-events: none;
     transform: translate3d(var(--tab-indicator-x), 0, 0);
-    backdrop-filter: blur(20px) saturate(1.7) contrast(1.06);
-    -webkit-backdrop-filter: blur(20px) saturate(1.7) contrast(1.06);
-    transition: transform 440ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 140ms ease;
     will-change: transform;
   }
 
@@ -5959,6 +5939,9 @@ html[data-theme="light"] .legend-typhoon-center::after {
   }
 
   .tab-button:hover {
+    background: transparent;
+    background-image: none;
+    box-shadow: none;
     transform: none;
   }
 

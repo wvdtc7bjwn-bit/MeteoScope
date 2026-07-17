@@ -73,7 +73,16 @@ enum RiverFloodXMLDecoder {
             ?? root.firstDescendant(named: "DateTime")?.text
             ?? entry.updated
         let eventID = root.firstDescendant(named: "EventID")?.text ?? entry.id
-        let level = warningLevel(in: "\(title) \(headline)")
+        let conditions = information.compactMap {
+            $0.firstDescendant(named: "Condition")?.text
+        }
+        let kindNames = information.compactMap {
+            $0.firstDescendant(named: "Kind")?.firstDescendant(named: "Name")?.text
+        }
+        let level = [conditions.joined(separator: " "), kindNames.joined(separator: " "), title]
+            .lazy
+            .map { warningLevel(in: $0) }
+            .first { $0 > 0 } ?? 0
         let active = !"\(title) \(headline)".contains("解除")
 
         return RiverFloodSummary(
@@ -93,7 +102,7 @@ enum RiverFloodXMLDecoder {
     private static func warningLevel(in value: String) -> Int {
         if value.range(of: #"レベル\s*5|氾濫(?:特別警報|発生情報)"#, options: .regularExpression) != nil { return 5 }
         if value.range(of: #"レベル\s*4|氾濫危険"#, options: .regularExpression) != nil { return 4 }
-        if value.range(of: #"レベル\s*3|氾濫警報"#, options: .regularExpression) != nil { return 3 }
+        if value.range(of: #"レベル\s*3|氾濫(?:警報|警戒情報)"#, options: .regularExpression) != nil { return 3 }
         if value.range(of: #"レベル\s*2|氾濫注意"#, options: .regularExpression) != nil { return 2 }
         return 0
     }

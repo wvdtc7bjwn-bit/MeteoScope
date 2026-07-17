@@ -406,7 +406,9 @@ struct WeatherMapView: UIViewRepresentable {
                 opacity = severity == .emergency ? 0.72 : 0.58
                 width = 1.4
             case .early(let level):
-                color = level == .high ? .systemRed : .systemOrange
+                color = level == .high
+                    ? .earlyWarningHigh
+                    : .earlyWarningMiddle
                 opacity = level == .high ? 0.52 : 0.42
                 width = 1.3
             case .river(let level):

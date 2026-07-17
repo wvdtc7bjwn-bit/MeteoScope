@@ -149,11 +149,12 @@ assert.match(pushDeleteSql, /DELETE FROM admin_push_deliveries/u);
 assert.match(pushDeleteSql, /DELETE FROM admin_push_broadcasts WHERE id = \?1 AND status = 'completed'/u);
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const [adminRoute, adminPage, adminScript, adminStyles] = await Promise.all([
+const [adminRoute, adminPage, adminScript, adminStyles, pushSource] = await Promise.all([
   fs.readFile(path.join(root, "functions", "api", "admin", "[[path]].js"), "utf8"),
   fs.readFile(path.join(root, "admin.html"), "utf8"),
   fs.readFile(path.join(root, "src", "admin.js"), "utf8"),
-  fs.readFile(path.join(root, "src", "admin.css"), "utf8")
+  fs.readFile(path.join(root, "src", "admin.css"), "utf8"),
+  fs.readFile(path.join(root, "functions", "api", "push", "[[path]].js"), "utf8")
 ]);
 assert.match(adminRoute, /route === "accounts" && method === "GET"/u);
 assert.match(adminRoute, /route\.startsWith\("accounts\/"\) && method === "DELETE"/u);
@@ -164,6 +165,13 @@ assert.match(adminPage, /id="admin-account-list"/u);
 assert.match(adminPage, /管理者通知管理/u);
 assert.match(adminScript, /data-delete-account/u);
 assert.match(adminScript, /data-delete-push-broadcast/u);
+assert.match(pushSource, /ADMIN_BROADCAST_IMMEDIATE_BATCHES = 5/u);
+assert.match(pushSource, /await drainNewAdminPushBroadcast\(env, broadcast\.id\)/u);
+assert.match(pushSource, /onlyUnattempted: true/u);
+assert.match(pushSource, /AND d\.attempts = 0/u);
+assert.match(pushSource, /PUSH_REQUEST_TIMEOUT_MS = 8000/u);
+assert.match(pushSource, /signal: controller\.signal/u);
+assert.match(adminScript, /残り\$\{pending\}件は再試行/u);
 assert.match(adminStyles, /\.admin-account-item/u);
 
 console.log("Admin account and notification management tests passed.");

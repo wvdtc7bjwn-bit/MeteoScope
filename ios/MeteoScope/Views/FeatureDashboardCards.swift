@@ -408,14 +408,15 @@ private struct EarlyWarningContent: View {
                     HStack(spacing: 10) {
                         Text(area.highestLevel.label)
                             .font(.caption2.weight(.black))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(area.highestLevel == .high ? Color.white : Color(red: 0.14, green: 0.07, blue: 0.05))
                             .frame(width: 24, height: 24)
-                            .background(area.highestLevel == .high ? Color.red : Color.orange, in: Circle())
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(area.areaName).font(.subheadline.weight(.semibold))
-                            Text(area.items.prefix(2).map(\.hazard).joined(separator: "・"))
-                                .font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                        }
+                            .background(
+                                area.highestLevel == .high
+                                    ? Color.earlyWarningHigh
+                                    : Color.earlyWarningMiddle,
+                                in: Circle()
+                            )
+                        Text(area.areaName).font(.subheadline.weight(.semibold))
                         Spacer()
                         Text(DateTextFormatter.shortDateTime(area.items.first?.validTime ?? ""))
                             .font(.caption2.monospacedDigit())

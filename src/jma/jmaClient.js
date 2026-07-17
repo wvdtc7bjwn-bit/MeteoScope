@@ -42,11 +42,16 @@ async function fetchCached(url, options) {
       "Accept": options.accept
     }
   })
-    .then((response) => {
+    .then(async (response) => {
       if (!response.ok) {
         throw new Error(`JMA request failed: ${response.status} ${response.statusText}`);
       }
-      return options.parse(response);
+      try {
+        return await options.parse(response);
+      } catch (error) {
+        const contentType = response.headers.get("content-type") || "unknown content type";
+        throw new Error(`JMA response parse failed: ${url} (${contentType})`, { cause: error });
+      }
     })
     .then((value) => {
       if (ttlMs > 0) {

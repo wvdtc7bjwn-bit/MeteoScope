@@ -279,9 +279,9 @@ async function sendAdminPushBroadcast() {
     setMessage(elements.dashboardMessage, "通知タイトルと本文を入力してください。", "error");
     return;
   }
-  if (!confirm(`「${title}」を通知購読端末へ配信予約しますか？`)) return;
+  if (!confirm(`「${title}」を通知購読端末へ配信しますか？`)) return;
 
-  setMessage(elements.dashboardMessage, "プッシュ通知を予約中...");
+  setMessage(elements.dashboardMessage, "プッシュ通知を配信中...");
   if (elements.pushSubmit) elements.pushSubmit.disabled = true;
   try {
     const response = await requestJson("/push/broadcasts", {
@@ -294,9 +294,15 @@ async function sendAdminPushBroadcast() {
     if (elements.pushBody) elements.pushBody.value = "";
     if (elements.pushUrl) elements.pushUrl.value = "/";
     const total = Number(response.broadcast?.total || 0);
+    const sent = Number(response.broadcast?.sent || 0);
+    const pending = Math.max(0, total - sent - Number(response.broadcast?.removed || 0) - Number(response.broadcast?.failed || 0));
     setMessage(
       elements.dashboardMessage,
-      total ? `${total}端末への通知を予約しました。` : "配信対象の通知購読端末はありませんでした。",
+      total
+        ? pending > 0
+          ? `${sent}/${total}端末へ配信しました。残り${pending}件は再試行します。`
+          : `${sent}/${total}端末への通知配信を処理しました。`
+        : "配信対象の通知購読端末はありませんでした。",
       total ? "success" : ""
     );
   } catch (error) {

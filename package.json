@@ -18,6 +18,8 @@
     "test:admin": "node Tests/AdminManagementTests.mjs",
     "test:tsunami": "node Tests/TsunamiXmlTests.mjs",
     "test:typhoon": "node Tests/TyphoonTests.mjs",
+    "test:warnings": "node Tests/WarningResponsivenessTests.mjs",
+    "data:build:warning-map": "node scripts/build-warning-geometry-fixes.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy dist --project-name meteoscope"
   },
   "dependencies": {

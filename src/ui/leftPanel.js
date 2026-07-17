@@ -29,6 +29,8 @@ let activeWarningDetailsLoaded = false;
 let activeRiverFloodReportsById = new Map();
 let warningAreaSelectionOptions = {};
 let mobileRadarDockSliding = false;
+let warningDetailsRenderFrame = 0;
+let warningDetailsRenderGeneration = 0;
 
 const AMEDAS_RANKING_LIMIT = 20;
 
@@ -1313,9 +1315,9 @@ function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLoc
   const warningBadges = warningView === "status" && !isLoading
     ? buildWarningBadgesMarkup(warnings)
     : "";
-  const summaryText = isLoading || warningView === "status" ? "" : buildMobileWarningSummary(warnings);
   const statusText = isLoading ? "取得中" : (topWarning?.label ?? "発表なし");
   const level = topWarning?.level ?? "none";
+  const badgeColorClass = getMobileWarningBadgeColorClass(warningView, level);
   return `
     <div class="mobile-dock-content mobile-dock-warning">
       <div class="mobile-dock-warning-head">
@@ -1326,11 +1328,10 @@ function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLoc
         : `<div class="mobile-dock-warning-main">
             <div class="mobile-dock-warning-text">
               <strong>${escapeHtml(isLoading ? "現在地を確認中" : area)}</strong>
-              ${summaryText ? `<span>${escapeHtml(summaryText)}</span>` : ""}
             </div>
             ${warningBadges
               ? `<div class="mobile-dock-warning-badges warning-badges">${warningBadges}</div>`
-              : `<span class="mobile-dock-warning-badge mobile-dock-warning-badge-${escapeHtml(level)}">${escapeHtml(statusText)}</span>`}
+              : `<span class="warning-badge mobile-dock-warning-badge ${escapeHtml(badgeColorClass)}">${escapeHtml(statusText)}</span>`}
           </div>`}
     </div>
   `;
@@ -1471,23 +1472,6 @@ function buildKikikuruMobileLayerRow(activeKikikuruLayer) {
     </div>
   `;
 }
-function buildMobileWarningSummary(warnings = []) {
-  const labels = warnings
-    .map((warning) => simplifyMobileWarningLabel(warning?.label))
-    .filter(Boolean);
-  const uniqueLabels = [...new Set(labels)];
-  if (!uniqueLabels.length) return "";
-  const visible = uniqueLabels.slice(0, 2).join("・");
-  return uniqueLabels.length > 2 ? `${visible} 他${uniqueLabels.length - 2}` : visible;
-}
-
-function simplifyMobileWarningLabel(label = "") {
-  return String(label)
-    .replace(/^レベル\d+\s*/, "")
-    .replace(/(特別警報|危険警報|警報|注意報)$/u, "")
-    .trim();
-}
-
 function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   const weatherChartEnabled = Boolean(state.weatherChartEnabled);
   const weatherChartLoading = weatherChartEnabled && state.weatherChartStatus === "loading";
@@ -1845,9 +1829,51 @@ function buildCurrentLocationCardContent(info, { warningView = "status", activeK
   };
 }
 
+function beginWarningDetailsRender() {
+  warningDetailsRenderGeneration += 1;
+  if (warningDetailsRenderFrame) {
+    window.cancelAnimationFrame(warningDetailsRenderFrame);
+    warningDetailsRenderFrame = 0;
+  }
+  return warningDetailsRenderGeneration;
+}
+
+function getMobileWarningBadgeColorClass(warningView, level) {
+  if (warningView === "early") return `early-warning-badge-${level}`;
+  if (["advisory", "warning", "danger", "emergency"].includes(level)) return `warning-badge-${level}`;
+  return "mobile-dock-warning-badge-none";
+}
+
+function renderWarningGroupsProgressively(root, groups, renderGeneration, buildGroupMarkup) {
+  let groupIndex = 0;
+  root.setAttribute("aria-busy", "true");
+  root.innerHTML = `<div class="warning-empty">一覧を表示中...</div>`;
+
+  const renderNextGroup = () => {
+    warningDetailsRenderFrame = 0;
+    if (warningDetailsRenderGeneration !== renderGeneration || root.hidden) return;
+
+    if (groupIndex === 0) root.innerHTML = "";
+    root.insertAdjacentHTML("beforeend", buildGroupMarkup(groups[groupIndex]));
+    groupIndex += 1;
+
+    if (groupIndex < groups.length) {
+      warningDetailsRenderFrame = window.requestAnimationFrame(renderNextGroup);
+      return;
+    }
+
+    root.removeAttribute("aria-busy");
+    refreshOpenWarningModal();
+  };
+
+  warningDetailsRenderFrame = window.requestAnimationFrame(renderNextGroup);
+}
+
 function renderWarningDetails(tab, state, warningView = "status") {
   const root = document.getElementById("warning-detail-list");
   if (!root) return;
+  const renderGeneration = beginWarningDetailsRender();
+  root.removeAttribute("aria-busy");
 
   const isWarnings = tab.id === "warnings" && (warningView === "status" || warningView === "early" || warningView === "river");
   root.hidden = !isWarnings;
@@ -1880,7 +1906,7 @@ if (warningView === "river") {
 
   if (warningView === "early") {
     activeWarningDetailsLoaded = Boolean(state.data?.detailsLoaded);
-    renderEarlyWarningDetails(root, state);
+    renderEarlyWarningDetails(root, state, renderGeneration);
     return;
   }
 
@@ -1899,18 +1925,17 @@ if (warningView === "river") {
     return;
   }
 
-  root.innerHTML = groups.map((group) => `
-    <div class="warning-prefecture-label">${escapeHtml(group.prefecture)}<span>${escapeHtml(group.count ?? group.areas.length)}件</span></div>
-    ${group.areas.map((area) => `
-      <article class="warning-area-row${String(area.areaCode) === selectedWarningAreaCode ? " selected" : ""}" data-warning-area-code="${escapeHtml(area.areaCode)}">
-        <strong>${escapeHtml(area.areaName)}</strong>
-        <div class="warning-badges">
-          ${buildWarningBadgesMarkup(area.warnings)}
-        </div>
-      </article>
-    `).join("")}
-  `).join("");
-  refreshOpenWarningModal();
+  renderWarningGroupsProgressively(root, groups, renderGeneration, (group) => `
+      <div class="warning-prefecture-label">${escapeHtml(group.prefecture)}<span>${escapeHtml(group.count ?? group.areas.length)}件</span></div>
+      ${group.areas.map((area) => `
+        <article class="warning-area-row${String(area.areaCode) === selectedWarningAreaCode ? " selected" : ""}" data-warning-area-code="${escapeHtml(area.areaCode)}">
+          <strong>${escapeHtml(area.areaName)}</strong>
+          <div class="warning-badges">
+            ${buildWarningBadgesMarkup(area.warnings)}
+          </div>
+        </article>
+      `).join("")}
+    `);
 }
 
 function renderRiverFloodDetails(root, riverFlood = {}) {
@@ -1940,7 +1965,7 @@ function renderRiverFloodDetails(root, riverFlood = {}) {
       </span>
     </button>`).join("")}</div>`;
 }
-function renderEarlyWarningDetails(root, state) {
+function renderEarlyWarningDetails(root, state, renderGeneration) {
   const groups = state.data?.earlyWarnings?.groups ?? [];
   const areas = state.data?.earlyWarnings?.areas ?? [];
   const municipalityAreas = state.data?.earlyWarnings?.municipalityAreas ?? [];
@@ -1964,20 +1989,19 @@ function renderEarlyWarningDetails(root, state) {
     ...municipalityAreas.map((area) => [String(area.areaCode), area])
   ]);
 
-  root.innerHTML = groups.map((group) => `
-    <div class="warning-prefecture-label">${escapeHtml(group.prefecture)}<span>${escapeHtml(group.count ?? group.areas.length)}件</span></div>
-    ${group.areas.map((area) => `
-      <article class="warning-area-row early-warning-row${String(area.areaCode) === selectedWarningAreaCode ? " selected" : ""}" data-warning-area-code="${escapeHtml(area.areaCode)}">
-        <strong>${escapeHtml(area.areaName)}</strong>
-        <div class="warning-badges">
-          ${area.probabilities.map((probability) => `
-            <span class="warning-badge early-warning-badge early-warning-badge-${escapeHtml(probability.level)}">${escapeHtml(formatEarlyProbabilityBadge(probability))}</span>
-          `).join("")}
-        </div>
-      </article>
-    `).join("")}
-  `).join("");
-  refreshOpenWarningModal();
+  renderWarningGroupsProgressively(root, groups, renderGeneration, (group) => `
+      <div class="warning-prefecture-label">${escapeHtml(group.prefecture)}<span>${escapeHtml(group.count ?? group.areas.length)}件</span></div>
+      ${group.areas.map((area) => `
+        <article class="warning-area-row early-warning-row${String(area.areaCode) === selectedWarningAreaCode ? " selected" : ""}" data-warning-area-code="${escapeHtml(area.areaCode)}">
+          <strong>${escapeHtml(area.areaName)}</strong>
+          <div class="warning-badges">
+            ${area.probabilities.map((probability) => `
+              <span class="warning-badge early-warning-badge early-warning-badge-${escapeHtml(probability.level)}">${escapeHtml(formatEarlyProbabilityBadge(probability))}</span>
+            `).join("")}
+          </div>
+        </article>
+      `).join("")}
+    `);
 }
 
 function openRiverFloodModal(reportId, fallback = {}) {

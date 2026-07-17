@@ -13,6 +13,8 @@ import {
 import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
 import { worldLandGeoJson } from "./data/worldLandGeoJson.js";
 import { worldCountriesGeoJson } from "./data/worldCountriesGeoJson.js";
+import { planWarningFeatureStateChanges } from "./warningFeatureState.js";
+import { WARNING_GEOMETRY_FIX_CODES } from "./warningGeometryFixCodes.js";
 
 const MODE_CLASS = {
   radar: "mode-radar",
@@ -117,8 +119,8 @@ const RADAR_ZOOM_LEVELS = [
   { id: "z10", z: 10, minzoom: 9, maxzoom: 22 }
 ];
 const MUNICIPALITY_SOURCE_ID = "jma-weather-warning-municipalities";
+const MUNICIPALITY_FIX_SOURCE_ID = "jma-weather-warning-municipality-fixes";
 const PREFECTURE_SOURCE_ID = "japan-prefectures";
-const WARNING_SOURCE_ID = "jma-active-warning-municipalities";
 const CURRENT_LOCATION_SOURCE_ID = "current-location";
 const COMMUNITY_REPORT_SOURCE_ID = "community-weather-reports";
 const COMMUNITY_REPORT_LAYERS = [
@@ -127,17 +129,22 @@ const COMMUNITY_REPORT_LAYERS = [
   "community-report-point"
 ];
 const MUNICIPALITY_FILL_LAYER_ID = "jma-municipality-fill";
+const MUNICIPALITY_FIX_FILL_LAYER_ID = "jma-municipality-fix-fill";
 const WARNING_OVERLAY_LAYER_ID = "jma-warning-overlay";
+const WARNING_FIX_OVERLAY_LAYER_ID = "jma-warning-fix-overlay";
 const WARNING_CLICK_LAYER_ID = "jma-warning-click-target";
+const WARNING_FIX_CLICK_LAYER_ID = "jma-warning-fix-click-target";
 const WARNING_HATCH_LAYER_ID = "jma-warning-emergency-hatch";
+const WARNING_FIX_HATCH_LAYER_ID = "jma-warning-fix-emergency-hatch";
+const MUNICIPALITY_LINE_LAYER_ID = "jma-municipality-line";
+const MUNICIPALITY_FIX_LINE_LAYER_ID = "jma-municipality-fix-line";
+const WARNING_OVERLAY_LAYER_IDS = [WARNING_OVERLAY_LAYER_ID, WARNING_FIX_OVERLAY_LAYER_ID];
+const WARNING_CLICK_LAYER_IDS = [WARNING_CLICK_LAYER_ID, WARNING_FIX_CLICK_LAYER_ID];
+const WARNING_HATCH_LAYER_IDS = [WARNING_HATCH_LAYER_ID, WARNING_FIX_HATCH_LAYER_ID];
 const WARNING_HATCH_IMAGE_ID = "jma-warning-emergency-hatch-pattern";
 const STORM_WARNING_ENDPOINT_SNAP_PX = 48;
 const STORM_WARNING_DUPLICATE_SEGMENT_PX = 18;
-const WARNING_GEOMETRY_FIX_CODES = new Set([
-  "0220100", // 青森市
-  "3820600", // 西条市
-  "4420200" // 別府市
-]);
+const warningGeometryFixCodeSet = new Set(WARNING_GEOMETRY_FIX_CODES);
 const MAP_THEME_COLORS = {
   dark: {
     background: "#0c1326",
@@ -195,10 +202,7 @@ const baseMapData = {
   worldLand: buildWorldLandWithoutJapanData(),
   worldCountries: buildWorldCountriesWithoutJapanData()
 };
-let warningMunicipalityDataPromise = null;
-let prefectureDataPromise = null;
-const baseMunicipalitySourceCache = new WeakMap();
-const warningFeatureCollectionCache = new WeakMap();
+const warningFeatureStateCache = new WeakMap();
 const kikikuruTileUrlCache = new Map();
 const weatherChartZoomLimitCache = new WeakMap();
 
@@ -233,7 +237,6 @@ export function createWeatherMap(elementId) {
     map.on("load", () => {
       setupSampleLayers();
       applyMapTheme(map, activeTheme);
-      void updateBaseMunicipalitySource(map);
       setMode(activeMode);
       if (pendingRender) {
         renderData(pendingRender.mode, pendingRender.data);
@@ -475,12 +478,23 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     map.addLayer({
       id: WARNING_HATCH_LAYER_ID,
       type: "fill",
-      source: WARNING_SOURCE_ID,
+      source: MUNICIPALITY_SOURCE_ID,
+      filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
       paint: {
         "fill-pattern": WARNING_HATCH_IMAGE_ID,
         "fill-opacity": 0
       }
-    }, "jma-municipality-line");
+    }, MUNICIPALITY_LINE_LAYER_ID);
+
+    map.addLayer({
+      id: WARNING_FIX_HATCH_LAYER_ID,
+      type: "fill",
+      source: MUNICIPALITY_FIX_SOURCE_ID,
+      paint: {
+        "fill-pattern": WARNING_HATCH_IMAGE_ID,
+        "fill-opacity": 0
+      }
+    }, MUNICIPALITY_LINE_LAYER_ID);
 
     map.addLayer({
       id: "sample-fill",
@@ -892,25 +906,27 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     setupActiveFaultInfo();
     setupCommunityReportInfo();
 
-    map.on("mouseenter", WARNING_CLICK_LAYER_ID, (event) => {
-      const feature = event.features?.[0];
-      const area = warningAreasByCode.get(String(feature?.properties?.code ?? ""));
-      if (area) map.getCanvas().style.cursor = "pointer";
-    });
-    map.on("mouseleave", WARNING_CLICK_LAYER_ID, () => {
-      map.getCanvas().style.cursor = "";
-    });
-    map.on("click", WARNING_CLICK_LAYER_ID, (event) => {
-      const feature = event.features?.[0];
-      const area = warningAreasByCode.get(String(feature?.properties?.code ?? ""));
-      if (!area) return;
-      const selectedAreaCode = area.displayAreaCode ?? area.areaCode;
-      window.dispatchEvent(new CustomEvent("weather-warning-area-select", {
-        detail: {
-          areaCode: selectedAreaCode,
-          areaName: area.displayAreaName ?? area.areaName
-        }
-      }));
+    WARNING_CLICK_LAYER_IDS.forEach((layerId) => {
+      map.on("mouseenter", layerId, (event) => {
+        const feature = event.features?.[0];
+        const area = warningAreasByCode.get(String(feature?.properties?.code ?? ""));
+        if (area) map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", layerId, () => {
+        map.getCanvas().style.cursor = "";
+      });
+      map.on("click", layerId, (event) => {
+        const feature = event.features?.[0];
+        const area = warningAreasByCode.get(String(feature?.properties?.code ?? ""));
+        if (!area) return;
+        const selectedAreaCode = area.displayAreaCode ?? area.areaCode;
+        window.dispatchEvent(new CustomEvent("weather-warning-area-select", {
+          detail: {
+            areaCode: selectedAreaCode,
+            areaName: area.displayAreaName ?? area.areaName
+          }
+        }));
+      });
     });
   }
 
@@ -1325,18 +1341,18 @@ function createBaseStyle(theme = "dark") {
       },
       [MUNICIPALITY_SOURCE_ID]: {
         type: "geojson",
-        data: createEmptyFeatureCollection(),
+        data: JMA_ENDPOINTS.warningMunicipalities,
+        promoteId: "code"
+      },
+      [MUNICIPALITY_FIX_SOURCE_ID]: {
+        type: "geojson",
+        data: JMA_ENDPOINTS.warningMunicipalityFixes,
         promoteId: "code"
       },
       [PREFECTURE_SOURCE_ID]: {
         type: "geojson",
-        data: createEmptyFeatureCollection()
+        data: JMA_ENDPOINTS.prefectures
       },
-      [WARNING_SOURCE_ID]: {
-        type: "geojson",
-        data: createEmptyFeatureCollection(),
-        promoteId: "code"
-      }
     },
     layers: [
       {
@@ -1378,6 +1394,17 @@ function createBaseStyle(theme = "dark") {
         id: MUNICIPALITY_FILL_LAYER_ID,
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
+        filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+        paint: {
+          "fill-color": colors.municipalityFill,
+          "fill-antialias": false,
+          "fill-opacity": 1
+        }
+      },
+      {
+        id: MUNICIPALITY_FIX_FILL_LAYER_ID,
+        type: "fill",
+        source: MUNICIPALITY_FIX_SOURCE_ID,
         paint: {
           "fill-color": colors.municipalityFill,
           "fill-antialias": false,
@@ -1387,7 +1414,18 @@ function createBaseStyle(theme = "dark") {
       {
         id: WARNING_OVERLAY_LAYER_ID,
         type: "fill",
-        source: WARNING_SOURCE_ID,
+        source: MUNICIPALITY_SOURCE_ID,
+        filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+        paint: {
+          "fill-color": "rgba(0, 0, 0, 0)",
+          "fill-antialias": true,
+          "fill-opacity": 0
+        }
+      },
+      {
+        id: WARNING_FIX_OVERLAY_LAYER_ID,
+        type: "fill",
+        source: MUNICIPALITY_FIX_SOURCE_ID,
         paint: {
           "fill-color": "rgba(0, 0, 0, 0)",
           "fill-antialias": true,
@@ -1398,15 +1436,56 @@ function createBaseStyle(theme = "dark") {
         id: WARNING_CLICK_LAYER_ID,
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
+        filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
         paint: {
           "fill-color": "rgba(0, 0, 0, 0)",
           "fill-opacity": 0.001
         }
       },
       {
-        id: "jma-municipality-line",
+        id: WARNING_FIX_CLICK_LAYER_ID,
+        type: "fill",
+        source: MUNICIPALITY_FIX_SOURCE_ID,
+        paint: {
+          "fill-color": "rgba(0, 0, 0, 0)",
+          "fill-opacity": 0.001
+        }
+      },
+      {
+        id: MUNICIPALITY_LINE_LAYER_ID,
         type: "line",
         source: MUNICIPALITY_SOURCE_ID,
+        filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+        paint: {
+          "line-color": colors.municipalityLine,
+          "line-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            4,
+            0.45,
+            7,
+            0.85,
+            10,
+            1.25
+          ],
+          "line-opacity": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            4,
+            0.55,
+            7,
+            0.82,
+            10,
+            0.95
+          ]
+        }
+      },
+      {
+        id: MUNICIPALITY_FIX_LINE_LAYER_ID,
+        type: "line",
+        source: MUNICIPALITY_FIX_SOURCE_ID,
         paint: {
           "line-color": colors.municipalityLine,
           "line-width": [
@@ -1479,7 +1558,9 @@ function applyMapTheme(map, theme) {
     ["world-land-fill", "fill-color", colors.worldLand],
     ["world-country-line", "line-color", colors.worldCountryLine],
     [MUNICIPALITY_FILL_LAYER_ID, "fill-color", colors.municipalityFill],
-    ["jma-municipality-line", "line-color", colors.municipalityLine],
+    [MUNICIPALITY_FIX_FILL_LAYER_ID, "fill-color", colors.municipalityFill],
+    [MUNICIPALITY_LINE_LAYER_ID, "line-color", colors.municipalityLine],
+    [MUNICIPALITY_FIX_LINE_LAYER_ID, "line-color", colors.municipalityLine],
     ["japan-prefecture-line", "line-color", colors.prefectureLine],
     ["weather-chart-isobar-line", "line-color", colors.weatherIsobar],
     ["weather-chart-isobar-label", "text-color", colors.weatherIsobarLabel],
@@ -1915,28 +1996,29 @@ function updateRiverFloodLayer(map, mode, data = {}) {
   });
 }
 function updateWarningMunicipalityPaint(map, mode, data = {}) {
-  if (!map?.getLayer(WARNING_OVERLAY_LAYER_ID)) return;
+  if (!map || !WARNING_OVERLAY_LAYER_IDS.some((layerId) => map.getLayer(layerId))) return;
 
   if (mode !== "warnings" || ["kikikuru", "river"].includes(data?.activeWarningView)) {
-    map.setPaintProperty(WARNING_OVERLAY_LAYER_ID, "fill-opacity", 0);
+    invalidateWarningFeatureStateUpdate(map);
+    setWarningOverlayPaint(map, "fill-opacity", 0);
     updateWarningHatchPaint(map, []);
     return;
   }
 
   const activeAreas = getActiveWarningOverlayAreas(mode, data);
-  void updateWarningMunicipalitySource(map, activeAreas);
+  void updateWarningFeatureStates(map, activeAreas);
 
   if (activeAreas.length === 0) {
-    map.setPaintProperty(WARNING_OVERLAY_LAYER_ID, "fill-color", "rgba(0, 0, 0, 0)");
-    map.setPaintProperty(WARNING_OVERLAY_LAYER_ID, "fill-opacity", 0);
+    setWarningOverlayPaint(map, "fill-color", "rgba(0, 0, 0, 0)");
+    setWarningOverlayPaint(map, "fill-opacity", 0);
     updateWarningHatchPaint(map, []);
     return;
   }
 
   const isEarlyWarningView = mode === "warnings" && data?.activeWarningView === "early";
-  map.setPaintProperty(WARNING_OVERLAY_LAYER_ID, "fill-color", [
+  setWarningOverlayPaint(map, "fill-color", [
     "match",
-    ["get", "warningLevel"],
+    ["feature-state", "warningLevel"],
     "high",
     getEarlyWarningColor("high"),
     "middle",
@@ -1951,7 +2033,7 @@ function updateWarningMunicipalityPaint(map, mode, data = {}) {
     getWarningColor("advisory"),
     "rgba(0, 0, 0, 0)"
   ]);
-  map.setPaintProperty(WARNING_OVERLAY_LAYER_ID, "fill-opacity", [
+  setWarningOverlayPaint(map, "fill-opacity", [
     "interpolate",
     ["linear"],
     ["zoom"],
@@ -1961,6 +2043,12 @@ function updateWarningMunicipalityPaint(map, mode, data = {}) {
     isEarlyWarningView ? 0.88 : 0.96
   ]);
   updateWarningHatchPaint(map, isEarlyWarningView ? [] : activeAreas);
+}
+
+function setWarningOverlayPaint(map, property, value) {
+  WARNING_OVERLAY_LAYER_IDS.forEach((layerId) => {
+    if (map.getLayer(layerId)) map.setPaintProperty(layerId, property, value);
+  });
 }
 
 function getActiveWarningOverlayAreas(mode, data = {}) {
@@ -1984,94 +2072,59 @@ function getSelectableWarningAreas(mode, data = {}) {
   ];
 }
 
-async function updateWarningMunicipalitySource(map, activeAreas) {
-  const source = map?.getSource(WARNING_SOURCE_ID);
-  if (!source?.setData) return;
+function getWarningFeatureStateCache(map) {
+  const cached = warningFeatureStateCache.get(map);
+  if (cached) return cached;
+  const next = { generation: 0, levels: new Map() };
+  warningFeatureStateCache.set(map, next);
+  return next;
+}
+
+function invalidateWarningFeatureStateUpdate(map) {
+  if (!map) return;
+  getWarningFeatureStateCache(map).generation += 1;
+}
+
+async function updateWarningFeatureStates(map, activeAreas) {
+  if (!map?.getSource(MUNICIPALITY_SOURCE_ID)) return;
+  const cache = getWarningFeatureStateCache(map);
+  const generation = ++cache.generation;
 
   try {
-    const signature = createWarningAreaSignature(activeAreas);
-    const cached = warningFeatureCollectionCache.get(map);
-    if (cached?.signature === signature) return;
+    const { operations } = planWarningFeatureStateChanges(cache.levels, activeAreas);
+    const chunkSize = 72;
+    for (let offset = 0; offset < operations.length; offset += chunkSize) {
+      await waitForMapUpdateTurn();
+      if (cache.generation !== generation) return;
 
-    if (activeAreas.length === 0) {
-      const empty = createEmptyFeatureCollection();
-      warningFeatureCollectionCache.set(map, { signature, collection: empty });
-      source.setData(empty);
+      operations.slice(offset, offset + chunkSize).forEach((operation) => {
+        const feature = {
+          source: warningGeometryFixCodeSet.has(operation.areaCode) ? MUNICIPALITY_FIX_SOURCE_ID : MUNICIPALITY_SOURCE_ID,
+          id: operation.areaCode
+        };
+        if (operation.type === "remove") {
+          map.removeFeatureState(feature, "warningLevel");
+          cache.levels.delete(operation.areaCode);
+          return;
+        }
+        map.setFeatureState(feature, { warningLevel: operation.level });
+        cache.levels.set(operation.areaCode, operation.level);
+      });
+    }
+    if (cache.generation === generation) map.triggerRepaint();
+  } catch (error) {
+    console.warn("[MeteoScope] warning municipality state update failed", error);
+  }
+}
+
+function waitForMapUpdateTurn() {
+  return new Promise((resolve) => {
+    if (document.hidden || typeof window.requestAnimationFrame !== "function") {
+      window.setTimeout(resolve, 0);
       return;
     }
-
-    const municipalityData = await loadWarningMunicipalityData();
-    const activeAreasByCode = new Map(activeAreas.map((area) => [String(area.areaCode), area]));
-    const collection = {
-      type: "FeatureCollection",
-      features: municipalityData.features
-        .map((feature) => {
-          const code = String(feature?.properties?.code ?? "");
-          const activeArea = activeAreasByCode.get(code);
-          if (!activeArea?.level) return null;
-          return {
-            ...feature,
-            properties: {
-              ...feature.properties,
-              warningLevel: activeArea.level
-            }
-          };
-        })
-        .filter(Boolean)
-    };
-    warningFeatureCollectionCache.set(map, { signature, collection });
-    source.setData(collection);
-    map.triggerRepaint();
-  } catch (error) {
-    console.warn("[MeteoScope] warning municipality source update failed", error);
-  }
-}
-
-async function updateBaseMunicipalitySource(map) {
-  const source = map?.getSource(MUNICIPALITY_SOURCE_ID);
-  const prefectureSource = map?.getSource(PREFECTURE_SOURCE_ID);
-  if (!source?.setData) return;
-
-  const cached = baseMunicipalitySourceCache.get(map);
-  if (cached?.loaded) return;
-  baseMunicipalitySourceCache.set(map, { loaded: true });
-
-  try {
-    const [municipalityData, prefectureData] = await Promise.all([
-      loadWarningMunicipalityData(),
-      loadPrefectureData()
-    ]);
-    source.setData(municipalityData);
-    if (prefectureSource?.setData) {
-      prefectureSource.setData(prefectureData);
-    }
-    map.triggerRepaint();
-  } catch (error) {
-    baseMunicipalitySourceCache.delete(map);
-    console.warn("[MeteoScope] base municipality source update failed", error);
-  }
-}
-
-function loadWarningMunicipalityData() {
-  if (!warningMunicipalityDataPromise) {
-    warningMunicipalityDataPromise = fetch(JMA_ENDPOINTS.warningMunicipalities)
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      })
-      .then((data) => normalizeWarningMunicipalityData(data));
-  }
-  return warningMunicipalityDataPromise;
-}
-
-function loadPrefectureData() {
-  if (!prefectureDataPromise) {
-    prefectureDataPromise = fetch(JMA_ENDPOINTS.prefectures).then((response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
-    });
-  }
-  return prefectureDataPromise;
+    window.requestAnimationFrame(resolve);
+  });
 }
 
 function removeNorthernTerritoryCountryParts(feature) {
@@ -2107,222 +2160,23 @@ function isNorthernTerritoryCountryPart(polygon) {
   );
 }
 
-function normalizeWarningMunicipalityData(data) {
-  if (!data || data.type !== "FeatureCollection" || !Array.isArray(data.features)) return data;
-  return {
-    ...data,
-    features: data.features.map((feature) => {
-      const code = String(feature?.properties?.code ?? "");
-      if (!WARNING_GEOMETRY_FIX_CODES.has(code)) return feature;
-      const geometry = normalizeWarningGeometry(feature?.geometry);
-      return geometry === feature?.geometry
-        ? feature
-        : { ...feature, geometry };
-    })
-  };
-}
-
-function normalizeWarningGeometry(geometry) {
-  if (!geometry?.coordinates) return geometry;
-  const polygons = geometry.type === "Polygon"
-    ? [geometry.coordinates]
-    : geometry.type === "MultiPolygon"
-      ? geometry.coordinates
-      : null;
-  if (!polygons) return geometry;
-
-  const normalizedPolygons = polygons.flatMap((polygon) => normalizeWarningPolygonParts(polygon));
-  if (geometry.type === "Polygon") {
-    if (normalizedPolygons.length <= 1) {
-      return { ...geometry, coordinates: normalizedPolygons[0] ?? [] };
-    }
-    return { type: "MultiPolygon", coordinates: normalizedPolygons };
-  }
-  return { ...geometry, coordinates: normalizedPolygons };
-}
-
-function normalizeWarningPolygonParts(polygon) {
-  if (!Array.isArray(polygon)) return [];
-  const rings = polygon
-    .map((ring) => normalizeWarningRing(ring))
-    .filter((ring) => ring.length >= 4 && Math.abs(getRingArea(ring)) > 1e-12);
-  if (rings.length <= 1) return rings.length === 1 ? [[rings[0]]] : [];
-
-  const ringInfos = rings
-    .map((ring) => ({
-      ring,
-      area: Math.abs(getRingArea(ring)),
-      point: getRingSamplePoint(ring)
-    }))
-    .sort((a, b) => b.area - a.area);
-
-  const outerInfos = [];
-  ringInfos.forEach((info) => {
-    const containingOuter = outerInfos
-      .filter((outer) => pointInRing(info.point, outer.ring))
-      .sort((a, b) => a.area - b.area)[0];
-    if (!containingOuter) {
-      outerInfos.push({ ...info, holes: [] });
-      return;
-    }
-    containingOuter.holes.push(info.ring);
-  });
-
-  return outerInfos.map((outer) => [outer.ring, ...outer.holes]);
-}
-
-function normalizeWarningRing(ring) {
-  let normalized = closeWarningRing(ring);
-  if (normalized.length < 4) return normalized;
-
-  for (let attempts = 0; attempts < 32; attempts += 1) {
-    const intersection = findLocalRingIntersection(normalized);
-    if (!intersection) break;
-    const next = [
-      ...normalized.slice(0, intersection.start),
-      ...normalized.slice(intersection.end)
-    ];
-    if (next.length < 4) break;
-    normalized = closeWarningRing(next);
-  }
-  if (hasStrictSelfIntersection(normalized) && Math.abs(getRingArea(normalized)) < 1e-5) {
-    const hull = createConvexHullRing(normalized);
-    if (hull.length >= 4 && Math.abs(getRingArea(hull)) > 1e-12) return hull;
-  }
-  return normalized;
-}
-
-function closeWarningRing(ring) {
-  if (!Array.isArray(ring)) return [];
-  const normalized = [];
-  ring.forEach((point) => {
-    if (!Array.isArray(point) || point.length < 2) return;
-    const lng = Number(point[0]);
-    const lat = Number(point[1]);
-    if (!Number.isFinite(lng) || !Number.isFinite(lat)) return;
-    const last = normalized.at(-1);
-    if (!last || last[0] !== lng || last[1] !== lat) normalized.push([lng, lat]);
-  });
-  if (normalized.length > 0) {
-    const first = normalized[0];
-    const last = normalized.at(-1);
-    if (first[0] !== last[0] || first[1] !== last[1]) normalized.push([...first]);
-  }
-  return normalized;
-}
-
-function findLocalRingIntersection(ring) {
-  const maxSegmentGap = 6;
-  for (let i = 0; i < ring.length - 1; i += 1) {
-    const limit = Math.min(ring.length - 2, i + maxSegmentGap);
-    for (let j = i + 2; j <= limit; j += 1) {
-      if (i === 0 && j === ring.length - 2) continue;
-      if (segmentsCrossStrictly(ring[i], ring[i + 1], ring[j], ring[j + 1])) {
-        return { start: i + 1, end: j + 1 };
-      }
-    }
-  }
-  return null;
-}
-
-function hasStrictSelfIntersection(ring) {
-  for (let i = 0; i < ring.length - 1; i += 1) {
-    for (let j = i + 2; j < ring.length - 1; j += 1) {
-      if (i === 0 && j === ring.length - 2) continue;
-      if (segmentsCrossStrictly(ring[i], ring[i + 1], ring[j], ring[j + 1])) return true;
-    }
-  }
-  return false;
-}
-
-function createConvexHullRing(ring) {
-  const points = [...new Map(
-    ring
-      .slice(0, -1)
-      .map((point) => [`${point[0]},${point[1]}`, point])
-  ).values()].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  if (points.length < 3) return [];
-
-  const lower = [];
-  points.forEach((point) => {
-    while (lower.length >= 2 && orientPoints(lower.at(-2), lower.at(-1), point) <= 0) lower.pop();
-    lower.push(point);
-  });
-
-  const upper = [];
-  [...points].reverse().forEach((point) => {
-    while (upper.length >= 2 && orientPoints(upper.at(-2), upper.at(-1), point) <= 0) upper.pop();
-    upper.push(point);
-  });
-
-  const hull = [...lower.slice(0, -1), ...upper.slice(0, -1)];
-  return closeWarningRing(hull);
-}
-
-function getRingSamplePoint(ring) {
-  return ring.find((point, index) => index < ring.length - 1) ?? ring[0] ?? [0, 0];
-}
-
-function pointInRing(point, ring) {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-    const xi = ring[i][0];
-    const yi = ring[i][1];
-    const xj = ring[j][0];
-    const yj = ring[j][1];
-    const intersects = (yi > point[1]) !== (yj > point[1])
-      && point[0] < ((xj - xi) * (point[1] - yi)) / (yj - yi) + xi;
-    if (intersects) inside = !inside;
-  }
-  return inside;
-}
-
-function segmentsCrossStrictly(a, b, c, d) {
-  if (samePoint(a, c) || samePoint(a, d) || samePoint(b, c) || samePoint(b, d)) return false;
-  const abC = orientPoints(a, b, c);
-  const abD = orientPoints(a, b, d);
-  const cdA = orientPoints(c, d, a);
-  const cdB = orientPoints(c, d, b);
-  return abC * abD < 0 && cdA * cdB < 0;
-}
-
-function orientPoints(a, b, c) {
-  return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
-}
-
-function samePoint(a, b) {
-  return a?.[0] === b?.[0] && a?.[1] === b?.[1];
-}
-
-function getRingArea(ring) {
-  let area = 0;
-  for (let i = 0; i < ring.length - 1; i += 1) {
-    area += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
-  }
-  return area / 2;
-}
-
-function createWarningAreaSignature(activeAreas) {
-  if (!activeAreas.length) return "";
-  return activeAreas
-    .map((area) => `${String(area.areaCode)}:${area.level ?? ""}`)
-    .sort()
-    .join("|");
-}
-
 function updateWarningHatchPaint(map, activeAreas) {
-  if (!map?.getLayer(WARNING_HATCH_LAYER_ID)) return;
+  if (!map) return;
 
-  map.setFilter(WARNING_HATCH_LAYER_ID, [
-    "==",
-    ["get", "warningLevel"],
-    "emergency"
-  ]);
-  map.setPaintProperty(
-    WARNING_HATCH_LAYER_ID,
-    "fill-opacity",
-    activeAreas.some((area) => area.level === "emergency") ? 0.7 : 0
-  );
+  const emergencyOpacity = activeAreas.some((area) => area.level === "emergency") ? 0.7 : 0;
+  WARNING_HATCH_LAYER_IDS.forEach((layerId) => {
+    if (!map.getLayer(layerId)) return;
+    map.setPaintProperty(
+      layerId,
+      "fill-opacity",
+      [
+        "case",
+        ["==", ["feature-state", "warningLevel"], "emergency"],
+        emergencyOpacity,
+        0
+      ]
+    );
+  });
 }
 
 function updateRadarLayer(map, mode, data = {}) {

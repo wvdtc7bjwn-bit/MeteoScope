@@ -37,6 +37,7 @@ import { setupTheme } from "./ui/theme.js";
 import { activateEarlyAccess, deactivateEarlyAccess, validateEarlyAccess } from "./ui/earlyAccess.js";
 import { CommunityReportClient } from "./domain/communityReportClient.js";
 import { openCommunityReportModal, setupCommunityReportModal } from "./ui/communityReportModal.js";
+import { yieldToMainThread } from "./scheduling.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -152,10 +153,13 @@ export function createWeatherApp() {
   let backgroundPrefetchStarted = false;
   let communityReports = [];
   let communityReportsRequest = null;
+  let scheduledMapRenderFrame = 0;
+  let mapRenderGeneration = 0;
 
   async function selectTab(tabId) {
     const tab = TABS.find((item) => item.id === tabId) ?? TABS[0];
     activeTab = tab.id;
+    invalidateScheduledMapRender();
     syncActiveTabToUrl(tab.id);
     tabControls?.setActiveButton(tab.id);
     try {
@@ -202,6 +206,8 @@ export function createWeatherApp() {
     }
 
     try {
+      await yieldToMainThread(tab.id === "warnings" ? 160 : 0);
+      if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
       const data = await loadTabData(tab.id);
       if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
       latestDataByTab[tab.id] = data;
@@ -533,7 +539,24 @@ if (layerId === "river") {
       weatherChartStatus,
       weatherChart: weatherChartData
     });
-    weatherMap?.renderData(tab.id, displayData);
+    scheduleMapRender(tab.id, displayData);
+  }
+
+  function invalidateScheduledMapRender() {
+    mapRenderGeneration += 1;
+    if (!scheduledMapRenderFrame) return;
+    window.cancelAnimationFrame(scheduledMapRenderFrame);
+    scheduledMapRenderFrame = 0;
+  }
+
+  function scheduleMapRender(tabId, displayData) {
+    const generation = ++mapRenderGeneration;
+    if (scheduledMapRenderFrame) window.cancelAnimationFrame(scheduledMapRenderFrame);
+    scheduledMapRenderFrame = window.requestAnimationFrame(() => {
+      scheduledMapRenderFrame = 0;
+      if (generation !== mapRenderGeneration || activeTab !== tabId) return;
+      weatherMap?.renderData(tabId, displayData);
+    });
   }
 
   function buildDisplayData(tab, data = {}) {

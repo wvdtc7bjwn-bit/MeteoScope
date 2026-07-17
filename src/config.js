@@ -62,6 +62,8 @@ export const JMA_ENDPOINTS = {
   riverFloodGeometry: "https://services.arcgis.com/wlVTGRSYTzAbjjiC/ArcGIS/rest/services/flood_risk_all/FeatureServer/0/query",
   areaConst: "https://www.jma.go.jp/bosai/common/const/area.json",
   warningMunicipalities: publicAsset("data/jma-weather-warning-municipalities.geojson"),
+  warningMunicipalityFixes: publicAsset("data/jma-weather-warning-municipality-fixes.geojson"),
+  warningMunicipalityIndex: publicAsset("data/jma-weather-warning-municipality-index.json"),
   prefectures: publicAsset("data/japan-prefectures.geojson"),
   earthquakeAreas: publicAsset("data/earthquake-areas.geojson"),
   tsunamiForecastAreas: publicAsset("data/jma-tsunami-forecast-areas.geojson"),

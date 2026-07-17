@@ -12,6 +12,12 @@ export function setupTabs({ onChange, tabs = [] }) {
   let pendingIndicatorOffset = 0;
   let suppressClickUntil = 0;
   let resizeFrame = 0;
+  let pendingActivationFrame = 0;
+  let pendingActivationTimer = 0;
+  let activationGeneration = 0;
+  let pointerStartTabId = null;
+  let pointerPreviewTabId = null;
+  let pointerPreviewChanged = false;
 
   function refreshButtons() {
     buttons = root ? [...root.querySelectorAll(".tab-button")] : [];
@@ -55,13 +61,29 @@ export function setupTabs({ onChange, tabs = [] }) {
     return previousTab !== tabId && activeIndex >= 0;
   }
 
-  function activateTab(tabId) {
+  function activateTab(tabId, { force = false } = {}) {
     if (!tabId) return;
-    if (!setActiveButton(tabId)) return;
-    const result = onChange?.(tabId);
-    if (result && typeof result.catch === "function") {
-      result.catch((error) => console.error("[MeteoScope] tab change failed", error));
-    }
+    const changed = setActiveButton(tabId);
+    if (!changed && !force) return;
+    scheduleTabChangeAfterPaint(tabId);
+  }
+
+  function scheduleTabChangeAfterPaint(tabId) {
+    const generation = ++activationGeneration;
+    if (pendingActivationFrame) window.cancelAnimationFrame(pendingActivationFrame);
+    if (pendingActivationTimer) window.clearTimeout(pendingActivationTimer);
+
+    pendingActivationFrame = window.requestAnimationFrame(() => {
+      pendingActivationFrame = 0;
+      pendingActivationTimer = window.setTimeout(() => {
+        pendingActivationTimer = 0;
+        if (generation !== activationGeneration || root?.dataset.activeTab !== tabId) return;
+        const result = onChange?.(tabId);
+        if (result && typeof result.catch === "function") {
+          result.catch((error) => console.error("[MeteoScope] tab change failed", error));
+        }
+      }, 0);
+    });
   }
 
   function getTabFromPoint(event, axis) {
@@ -150,7 +172,10 @@ export function setupTabs({ onChange, tabs = [] }) {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest(".tab-button");
     if (!button || !root.contains(button)) return;
-    activateTab(button.dataset.tab);
+    const tabId = button.dataset.tab;
+    const force = pointerPreviewChanged && pointerPreviewTabId === tabId;
+    activateTab(tabId, { force });
+    clearPointerPreview();
   });
 
   root?.addEventListener("pointerdown", (event) => {
@@ -159,15 +184,22 @@ export function setupTabs({ onChange, tabs = [] }) {
     dragStartCoord = getAxisCoordinate(event, dragAxis);
     dragStartIndicatorOffset = getActiveIndicatorOffset(dragAxis);
     dragMoved = false;
-    root.classList.add("is-dragging");
-    setIndicatorOffset(dragAxis, dragStartIndicatorOffset);
-    root.setPointerCapture?.(event.pointerId);
+    pointerStartTabId = getActiveTabId();
+    const button = event.target instanceof Element ? event.target.closest(".tab-button") : null;
+    pointerPreviewTabId = button && root.contains(button) ? button.dataset.tab : null;
+    pointerPreviewChanged = Boolean(pointerPreviewTabId && pointerPreviewTabId !== pointerStartTabId);
+    if (pointerPreviewChanged) setActiveButton(pointerPreviewTabId);
   });
 
   root?.addEventListener("pointermove", (event) => {
     if (dragPointerId !== event.pointerId) return;
     const delta = getAxisCoordinate(event, dragAxis) - dragStartCoord;
-    if (Math.abs(delta) > 6) dragMoved = true;
+    if (!dragMoved && Math.abs(delta) > 6) {
+      dragMoved = true;
+      root?.classList.add("is-dragging");
+      setIndicatorOffset(dragAxis, dragStartIndicatorOffset);
+      root?.setPointerCapture?.(event.pointerId);
+    }
     if (!dragMoved) return;
     event.preventDefault();
     setIndicatorOffset(dragAxis, dragStartIndicatorOffset + delta);
@@ -178,11 +210,21 @@ export function setupTabs({ onChange, tabs = [] }) {
     root?.releasePointerCapture?.(event.pointerId);
     if (dragMoved) {
       suppressClickUntil = Date.now() + 250;
-      activateTab(getTabFromPoint(event, dragAxis));
+      activateTab(getTabFromPoint(event, dragAxis), { force: true });
+      clearPointerPreview();
+    } else if (event.type === "pointercancel") {
+      if (pointerStartTabId) setActiveButton(pointerStartTabId);
+      clearPointerPreview();
     }
     stopIndicatorDrag();
     dragPointerId = null;
     dragMoved = false;
+  }
+
+  function clearPointerPreview() {
+    pointerStartTabId = null;
+    pointerPreviewTabId = null;
+    pointerPreviewChanged = false;
   }
 
   root?.addEventListener("pointerup", finishDrag);

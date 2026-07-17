@@ -47,15 +47,19 @@ export function parseRiverFloodReport(text, entry = {}) {
   const body = getFirstChild(report, "Body");
   const title = textOf(getFirstChild(head, "Title")) || entry.title || "指定河川洪水予報";
   const rawHeadline = textOf(getFirst(getFirstChild(head, "Headline"), "Text"));
-  const headline = stripRiverWarningLevelHeadings(rawHeadline);
+  const headline = normalizeRiverWarningText(rawHeadline);
   const updatedAtRaw = textOf(getFirstChild(head, "ReportDateTime")) || textOf(getFirstChild(control, "DateTime"));
   const eventId = textOf(getFirstChild(head, "EventID")) || entry.id || entry.url;
   const information = parseHeadlineInformation(head);
   const forecastArea = information.find((item) => item.type.includes("予報区域"))?.areas[0]
     ?? information.flatMap((item) => item.areas).find((area) => /^\d{12}$/u.test(area.code));
   const riverAreas = information.filter((item) => item.type.includes("河川")).flatMap((item) => item.areas);
-  const level = riverLevel([title, rawHeadline, ...information.map((item) => item.kindName)].join(" "));
   const condition = information.map((item) => item.condition).find(Boolean) ?? "";
+  const level = resolveRiverFloodLevel({
+    condition,
+    kindNames: information.map((item) => item.kindName),
+    title
+  });
   const active = !/解除/u.test(`${title} ${headline} ${condition}`);
   return {
     id: String(eventId || forecastArea?.code || entry.url),
@@ -103,14 +107,13 @@ function parseHeadlineInformation(head) {
 function parseWarningTexts(body) {
   return getElements(getFirst(body, "Warning"), "Item").flatMap((item) => getElements(item, "Property").flatMap((property) => {
     const type = textOf(getFirstChild(property, "Type"));
-    const value = stripRiverWarningLevelHeadings(textOf(getFirstChild(property, "Text")));
+    const value = normalizeRiverWarningText(textOf(getFirstChild(property, "Text")));
     return value && type.includes("主文") ? [value] : [];
   }));
 }
 
-function stripRiverWarningLevelHeadings(value) {
+export function normalizeRiverWarningText(value) {
   return String(value ?? "")
-    .replace(/^【警戒レベル[０-９0-9]+(?:情報)?(?:［洪水］)?】\s*/gmu, "")
     .replace(/[［[]洪水[］\]]/gu, "")
     .trim();
 }
@@ -266,9 +269,15 @@ function latestFeedTime(feeds) {
 function riverLevel(value) {
   if (/レベル\s*5|氾濫(?:特別警報|発生情報)/u.test(value)) return 5;
   if (/レベル\s*4|氾濫危険/u.test(value)) return 4;
-  if (/レベル\s*3|氾濫警報/u.test(value)) return 3;
+  if (/レベル\s*3|氾濫(?:警報|警戒情報)/u.test(value)) return 3;
   if (/レベル\s*2|氾濫注意/u.test(value)) return 2;
   return 0;
+}
+
+export function resolveRiverFloodLevel({ condition = "", kindNames = [], title = "" } = {}) {
+  return [condition, kindNames.join(" "), title]
+    .map((value) => riverLevel(value))
+    .find((level) => level > 0) ?? 0;
 }
 
 export function getRiverFloodLevelLabel(level) {

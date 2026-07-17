@@ -1,5 +1,6 @@
 import { JMA_ENDPOINTS, JMA_WARNING_OFFICE_CODES, STATIC_DATA_CACHE_TTL_MS } from "../config.js";
 import { fetchJson, parseJmaTime } from "./jmaClient.js";
+import { chunkItems, yieldToMainThread } from "../scheduling.js";
 import {
   PREFECTURE_NAMES,
   applyWarningKinds,
@@ -15,16 +16,18 @@ const EARLY_WARNING_WIND_ONLY_CLASS10_CODES = new Set([
   "460040",
   "471010", "471020", "471030", "472000", "473000", "474010", "474020"
 ]);
+const WARNING_OFFICE_BATCH_SIZE = 8;
 
 export { getPrefectureNameByCode } from "./warningCore.js";
 
 export async function fetchWarningMap(options = {}) {
   const includeDetails = Boolean(options.includeDetails);
-  const [warningReports, municipalityGeoJson] = await Promise.all([
+  const [warningReports, municipalityIndexData] = await Promise.all([
     fetchWarningReports(),
-    fetchJson(JMA_ENDPOINTS.warningMunicipalities, { ttlMs: STATIC_DATA_CACHE_TTL_MS, cache: "force-cache" })
+    fetchJson(JMA_ENDPOINTS.warningMunicipalityIndex, { ttlMs: STATIC_DATA_CACHE_TTL_MS, cache: "no-cache" })
   ]);
-  const municipalityIndex = buildMunicipalityIndex(municipalityGeoJson);
+  await yieldToMainThread();
+  const municipalityIndex = buildMunicipalityIndex(municipalityIndexData);
   let outlookByAreaCode = new Map();
   let earlyWarnings = buildEmptyEarlyWarningData();
 
@@ -38,10 +41,12 @@ export async function fetchWarningMap(options = {}) {
     const areaHierarchy = buildAreaHierarchy(areaConst, municipalityIndex);
     const noWaveTideIndex = buildNoWaveTideIndex(noWaveTideConst);
     outlookByAreaCode = buildWarningOutlookMap(warningTimelineReports, municipalityIndex);
+    await yieldToMainThread();
     earlyWarnings = buildEarlyWarningData(earlyWarningReports, municipalityIndex, areaHierarchy, noWaveTideIndex);
+    await yieldToMainThread();
   }
 
-  const areaMap = buildWarningAreaMap(warningReports, municipalityIndex, outlookByAreaCode);
+  const areaMap = await buildWarningAreaMap(warningReports, municipalityIndex, outlookByAreaCode);
   const activeAreas = [...areaMap.values()];
   const outlookAreas = buildWarningOutlookAreas(outlookByAreaCode, municipalityIndex, areaMap);
   const groups = buildWarningGroups(activeAreas);
@@ -67,32 +72,42 @@ export async function fetchWarningDetails() {
 }
 
 async function fetchWarningReports() {
-  const reportsByOffice = await Promise.all(
-    JMA_WARNING_OFFICE_CODES.map(async (officeCode) => {
-      try {
-        const reports = await fetchJson(`${JMA_ENDPOINTS.warningsBase}/${officeCode}.json`);
-        return Array.isArray(reports) ? reports : [];
-      } catch (error) {
-        console.warn(`[MeteoScope] warning JSON unavailable: ${officeCode}`, error);
-        return [];
-      }
-    })
-  );
+  const reportsByOffice = await fetchWarningOfficePayloads({
+    baseUrl: JMA_ENDPOINTS.warningsBase,
+    unavailableLabel: "warning JSON",
+    fallbackValue: []
+  });
   return reportsByOffice.flat();
 }
 
 async function fetchWarningTimelineReports() {
-  const reportsByOffice = await Promise.all(
-    JMA_WARNING_OFFICE_CODES.map(async (officeCode) => {
-      try {
-        return await fetchJson(`${JMA_ENDPOINTS.warningTimelineBase}/${officeCode}.json`);
-      } catch (error) {
-        console.warn(`[MeteoScope] warning timeline JSON unavailable: ${officeCode}`, error);
-        return null;
-      }
-    })
-  );
+  const reportsByOffice = await fetchWarningOfficePayloads({
+    baseUrl: JMA_ENDPOINTS.warningTimelineBase,
+    unavailableLabel: "warning timeline JSON",
+    fallbackValue: null
+  });
   return reportsByOffice.filter(Boolean);
+}
+
+async function fetchWarningOfficePayloads({ baseUrl, unavailableLabel, fallbackValue }) {
+  const payloads = [];
+  const officeCodeBatches = chunkItems(JMA_WARNING_OFFICE_CODES, WARNING_OFFICE_BATCH_SIZE);
+  for (let batchIndex = 0; batchIndex < officeCodeBatches.length; batchIndex += 1) {
+    const officeCodes = officeCodeBatches[batchIndex];
+    const batch = await Promise.all(officeCodes.map(async (officeCode) => {
+      try {
+        return await fetchJson(`${baseUrl}/${officeCode}.json`);
+      } catch (error) {
+        console.warn(`[MeteoScope] ${unavailableLabel} unavailable: ${officeCode}`, error);
+        return fallbackValue;
+      }
+    }));
+    payloads.push(...batch);
+    if (batchIndex + 1 < officeCodeBatches.length) {
+      await yieldToMainThread();
+    }
+  }
+  return payloads;
 }
 
 async function fetchEarlyWarningReports() {
@@ -125,13 +140,14 @@ function buildEmptyEarlyWarningData() {
   };
 }
 
-function buildWarningAreaMap(warningReports, municipalityIndex, outlookByAreaCode = new Map()) {
+async function buildWarningAreaMap(warningReports, municipalityIndex, outlookByAreaCode = new Map()) {
   const reports = Array.isArray(warningReports)
     ? [...warningReports].sort((a, b) => new Date(a.reportDatetime).getTime() - new Date(b.reportDatetime).getTime())
     : [];
   const areasByCode = new Map();
 
-  reports.forEach((report) => {
+  for (let reportIndex = 0; reportIndex < reports.length; reportIndex += 1) {
+    const report = reports[reportIndex];
     const areas = getMunicipalityAreas(report);
     areas.forEach((area) => {
       const areaCode = String(area.code ?? area.areaCode ?? "");
@@ -158,7 +174,8 @@ function buildWarningAreaMap(warningReports, municipalityIndex, outlookByAreaCod
         }
       });
     });
-  });
+    if (reportIndex > 0 && reportIndex % 4 === 0) await yieldToMainThread();
+  }
 
   return areasByCode;
 }
@@ -287,18 +304,20 @@ function outlookRowKey(row) {
   return `${row.type}|${row.localName}|${row.slots.map((slot) => `${slot.time}:${slot.code ?? slot.label}`).join(",")}`;
 }
 
-function buildMunicipalityIndex(geoJson) {
-  const features = Array.isArray(geoJson?.features) ? geoJson.features : [];
+function buildMunicipalityIndex(data) {
+  const areas = Array.isArray(data?.areas)
+    ? data.areas
+    : (Array.isArray(data?.features) ? data.features.map((feature) => feature?.properties ?? {}) : []);
   const byCode = new Map();
   const byParentCode = new Map();
 
-  features.forEach((feature) => {
-    const code = String(feature?.properties?.code ?? "");
+  areas.forEach((entry) => {
+    const code = String(entry?.code ?? "");
     if (!code) return;
 
     const area = {
       code,
-      name: feature.properties?.name ?? feature.properties?.regionName ?? ""
+      name: entry?.name ?? entry?.regionName ?? ""
     };
     byCode.set(code, area);
 
