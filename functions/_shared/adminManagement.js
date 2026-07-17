@@ -37,7 +37,12 @@ export async function deleteMeteoScopeAccount(db, accountID) {
   ).bind(id).first();
   if (!account) return null;
 
-  const results = await db.batch([
+  const optionalTablesResult = await db.prepare(
+    `SELECT name FROM sqlite_master
+     WHERE type = 'table' AND name IN ('quiz_best_scores')`
+  ).all();
+  const optionalTables = new Set((optionalTablesResult?.results || []).map((row) => String(row.name || "")));
+  const statements = [
     db.prepare(
       `DELETE FROM community_report_flags
        WHERE reporter_account_id = ?1
@@ -45,7 +50,6 @@ export async function deleteMeteoScopeAccount(db, accountID) {
     ).bind(id),
     db.prepare("DELETE FROM community_reports WHERE account_id = ?1").bind(id),
     db.prepare("DELETE FROM community_post_daily WHERE account_id = ?1").bind(id),
-    db.prepare("DELETE FROM quiz_best_scores WHERE account_id = ?1").bind(id),
     db.prepare("DELETE FROM quiz_daily_scores WHERE account_id = ?1").bind(id),
     db.prepare("DELETE FROM quiz_daily_active WHERE account_id = ?1").bind(id),
     db.prepare("DELETE FROM quiz_challenges WHERE account_id = ?1").bind(id),
@@ -57,7 +61,11 @@ export async function deleteMeteoScopeAccount(db, accountID) {
          AND json_extract(value, '$.accountId') = ?1`
     ).bind(id),
     db.prepare("DELETE FROM quiz_accounts WHERE id = ?1").bind(id)
-  ]);
+  ];
+  if (optionalTables.has("quiz_best_scores")) {
+    statements.splice(3, 0, db.prepare("DELETE FROM quiz_best_scores WHERE account_id = ?1").bind(id));
+  }
+  const results = await db.batch(statements);
   return {
     account: publicAccount(account),
     deletedRows: results.reduce((sum, result) => sum + d1Changes(result), 0)

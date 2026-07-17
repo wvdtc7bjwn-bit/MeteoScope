@@ -69,6 +69,10 @@ const deleteDb = {
           display_name: "天気ユーザー",
           created_at: "2026-07-17T00:00:00.000Z"
         };
+      },
+      async all() {
+        assert.match(sql, /sqlite_master/u);
+        return { results: [{ name: "quiz_best_scores" }] };
       }
     };
     return statement;
@@ -89,6 +93,29 @@ for (const table of [
   assert.match(accountDeleteSql, new RegExp(`DELETE FROM ${table}`, "u"));
 }
 assert.match(accountDeleteSql, /early-access-activation:%/u);
+
+const currentSchemaStatements = [];
+const currentSchemaDb = {
+  prepare(sql) {
+    return {
+      sql,
+      bind() { return this; },
+      async first() {
+        return sql.includes("FROM quiz_accounts")
+          ? { id: accountID, username_normalized: "weather_user", display_name: "天気ユーザー" }
+          : null;
+      },
+      async all() { return { results: [] }; }
+    };
+  },
+  async batch(statements) {
+    currentSchemaStatements.push(...statements);
+    return statements.map(() => ({ meta: { changes: 1 } }));
+  }
+};
+const currentSchemaDeletion = await deleteMeteoScopeAccount(currentSchemaDb, accountID);
+assert.equal(currentSchemaDeletion.deletedRows, 10);
+assert.doesNotMatch(currentSchemaStatements.map((statement) => statement.sql).join("\n"), /DELETE FROM quiz_best_scores/u);
 
 const pushDeleteBatches = [];
 const pushDb = {
