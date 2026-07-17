@@ -453,6 +453,8 @@ h3 { font-size: 15px; line-height: 1.4; }
 .admin-serial-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .admin-serial-item > div { display: grid; gap: 3px; min-width: 0; }
 .admin-serial-item span, .admin-serial-item small { color: var(--admin-muted); font-size: 11px; overflow-wrap: anywhere; }
+.admin-serial-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.admin-serial-actions button { white-space: nowrap; }
 
 .admin-button-row { flex-wrap: wrap; justify-content: flex-end; }
 .admin-notice-list { margin-top: 16px; }
@@ -541,6 +543,8 @@ h3 { font-size: 15px; line-height: 1.4; }
   .admin-section-head:has(.admin-button-row) { flex-wrap: wrap; }
   .admin-form-panel .admin-primary-button { width: 100%; }
   .admin-serial-item { align-items: flex-start; }
+  .admin-serial-actions { width: 100%; justify-content: stretch; }
+  .admin-serial-actions button { flex: 1 1 auto; }
   .admin-field input, .admin-field textarea, .admin-field select, .admin-login-form input { font-size: 16px; }
 }
 

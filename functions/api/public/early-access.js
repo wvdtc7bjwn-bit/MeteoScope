@@ -4,6 +4,7 @@ import {
   getEarlyAccessInvalidReason,
   hashEarlyAccessValue,
   readEarlyAccessCodes,
+  reconcileEarlyAccessCodeUsage,
   releaseEarlyAccessToken,
   validateEarlyAccessToken
 } from "../../_shared/earlyAccessAuth.js";
@@ -28,8 +29,16 @@ async function activateCode(code, db) {
   const codeHash = await hashEarlyAccessValue(normalizeSerial(code));
   const codes = await readCodes(db);
   const entry = codes.find((item) => item.codeHash === codeHash);
+  const previousUses = Math.max(0, Number(entry?.uses) || 0);
+  if (entry) {
+    const usage = await reconcileEarlyAccessCodeUsage(db, entry.id);
+    entry.uses = usage.activeUses;
+  }
   const invalid = getEarlyAccessInvalidReason(entry, true);
-  if (invalid) return response({ active: false, error: invalid }, 401);
+  if (invalid) {
+    if (entry && entry.uses !== previousUses) await writeJson(db, EARLY_ACCESS_CODES_KEY, codes);
+    return response({ active: false, error: invalid }, 401);
+  }
 
   const token = randomToken(24);
   const now = new Date().toISOString();

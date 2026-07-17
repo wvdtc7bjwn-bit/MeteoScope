@@ -2,6 +2,9 @@ import { deleteJson, readJson, writeJson } from "./d1Store.js";
 
 export const EARLY_ACCESS_CODES_KEY = "early-access-codes";
 export const EARLY_ACCESS_ACTIVATION_PREFIX = "early-access-activation:";
+export const EARLY_ACCESS_IDLE_RECLAIM_DAYS = 30;
+const EARLY_ACCESS_IDLE_RECLAIM_MS = EARLY_ACCESS_IDLE_RECLAIM_DAYS * 24 * 60 * 60 * 1000;
+const EARLY_ACCESS_VERIFICATION_WRITE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export async function validateEarlyAccessToken(db, token, options = {}) {
   const normalizedToken = String(token ?? "").trim();
@@ -9,9 +12,15 @@ export async function validateEarlyAccessToken(db, token, options = {}) {
   const activationKey = `${EARLY_ACCESS_ACTIVATION_PREFIX}${await hashEarlyAccessValue(normalizedToken)}`;
   const activation = await readJson(db, activationKey, null);
   if (!activation?.codeId) return { active: false, error: "認証の有効期限が切れています。" };
-  if (activation.expiresAt && Date.parse(activation.expiresAt) <= Date.now()) {
+  const now = Date.now();
+  if (activation.expiresAt && Date.parse(activation.expiresAt) <= now) {
     await releaseEarlyAccessActivation(db, activationKey, activation);
     return { active: false, error: "認証の有効期限が切れています。" };
+  }
+  const lastVerifiedAt = Date.parse(activation.lastVerifiedAt || activation.createdAt || "");
+  if (Number.isFinite(lastVerifiedAt) && now - lastVerifiedAt >= EARLY_ACCESS_IDLE_RECLAIM_MS) {
+    await releaseEarlyAccessActivation(db, activationKey, activation);
+    return { active: false, error: "長期間使用されなかった端末の認証枠を解放しました。シリアルコードを再入力してください。" };
   }
   const codes = await readEarlyAccessCodes(db);
   const entry = codes.find((item) => item.id === activation.codeId);
@@ -25,11 +34,14 @@ export async function validateEarlyAccessToken(db, token, options = {}) {
   if (accountID && activation.accountId && activation.accountId !== accountID) {
     return { active: false, error: "このアーリーアクセス認証は別のアカウントで使用されています。" };
   }
-  if (accountID && options.bindAccount && !activation.accountId) {
+  const shouldBindAccount = Boolean(accountID && options.bindAccount && !activation.accountId);
+  const shouldRefreshVerification = !Number.isFinite(lastVerifiedAt)
+    || now - lastVerifiedAt >= EARLY_ACCESS_VERIFICATION_WRITE_INTERVAL_MS;
+  if (shouldBindAccount || shouldRefreshVerification) {
     await writeJson(db, activationKey, {
       ...activation,
-      accountId: accountID,
-      lastVerifiedAt: new Date().toISOString()
+      ...(shouldBindAccount ? { accountId: accountID } : {}),
+      lastVerifiedAt: new Date(now).toISOString()
     });
   }
   return {
@@ -84,6 +96,39 @@ export async function deleteEarlyAccessActivationsForCode(db, codeID) {
   return Math.max(0, Number(result?.meta?.changes ?? result?.changes) || 0);
 }
 
+export async function reconcileEarlyAccessCodeUsage(db, codeID, now = new Date()) {
+  const normalizedCodeID = String(codeID ?? "").trim();
+  if (!normalizedCodeID) return { activeUses: 0, reclaimed: 0 };
+  const referenceTime = now instanceof Date ? now : new Date(now);
+  const timestamp = Number.isFinite(referenceTime.getTime()) ? referenceTime.getTime() : Date.now();
+  const cutoff = new Date(timestamp - EARLY_ACCESS_IDLE_RECLAIM_MS).toISOString();
+  const stale = await db.prepare(
+    `DELETE FROM app_records
+     WHERE key LIKE 'early-access-activation:%'
+       AND json_extract(value, '$.codeId') = ?
+       AND (
+         datetime(COALESCE(
+           json_extract(value, '$.lastVerifiedAt'),
+           json_extract(value, '$.createdAt')
+         )) <= datetime(?)
+         OR (
+           json_extract(value, '$.expiresAt') IS NOT NULL
+           AND datetime(json_extract(value, '$.expiresAt')) <= datetime(?)
+         )
+       )`
+  ).bind(normalizedCodeID, cutoff, new Date(timestamp).toISOString()).run();
+  const row = await db.prepare(
+    `SELECT COUNT(*) AS activeUses
+     FROM app_records
+     WHERE key LIKE 'early-access-activation:%'
+       AND json_extract(value, '$.codeId') = ?`
+  ).bind(normalizedCodeID).first();
+  return {
+    activeUses: Math.max(0, Number(row?.activeUses) || 0),
+    reclaimed: Math.max(0, Number(stale?.meta?.changes ?? stale?.changes) || 0)
+  };
+}
+
 export async function hashEarlyAccessValue(value) {
   const bytes = new TextEncoder().encode(String(value ?? ""));
   const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -99,7 +144,7 @@ async function releaseEarlyAccessActivation(db, activationKey, activation, exist
   if (!entry) return true;
 
   const previousUses = Math.max(0, Number(entry.uses) || 0);
-  const nextUses = Math.max(0, previousUses - 1);
+  const { activeUses: nextUses } = await reconcileEarlyAccessCodeUsage(db, activation.codeId);
   if (nextUses !== previousUses) {
     entry.uses = nextUses;
     await writeJson(db, EARLY_ACCESS_CODES_KEY, codes);

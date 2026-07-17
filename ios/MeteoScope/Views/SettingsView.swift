@@ -110,7 +110,10 @@ struct SettingsView: View {
                 LabeledContent("状態", value: earlyAccess.isActive ? "認証済み" : "未認証")
                 if earlyAccess.isActive {
                     if !earlyAccess.label.isEmpty { LabeledContent("権限", value: earlyAccess.label) }
-                    Button("この端末の認証を解除", role: .destructive) { earlyAccess.deactivate() }
+                    Button("この端末の認証を解除", role: .destructive) {
+                        Task { await earlyAccess.deactivate() }
+                    }
+                    .disabled(earlyAccess.isLoading)
                 } else {
                     TextField("シリアルコード", text: $earlyAccessCode)
                         .textInputAutocapitalization(.characters)

@@ -22,6 +22,7 @@ struct MeteoScopeApp: App {
                 .preferredColorScheme(preferences.colorScheme)
                 .task {
                     await pushNotifications.refreshAuthorizationStatus()
+                    await earlyAccess.refresh()
                 }
         }
     }

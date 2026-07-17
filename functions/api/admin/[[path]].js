@@ -2,7 +2,7 @@ import { readJson, writeJson, requireD1 } from "../../_shared/d1Store.js";
 import { readCloudflareD1Usage } from "../../_shared/cloudflareD1Analytics.js";
 import { readQuizOperationalMetrics } from "../../_shared/quizMaintenance.js";
 import { deleteMeteoScopeAccount, listMeteoScopeAccounts } from "../../_shared/adminManagement.js";
-import { deleteEarlyAccessActivationsForCode } from "../../_shared/earlyAccessAuth.js";
+import { deleteEarlyAccessActivationsForCode, reconcileEarlyAccessCodeUsage } from "../../_shared/earlyAccessAuth.js";
 import { invalidateAllQuizLeaderboardCaches } from "../../_shared/quizLeaderboardCache.js";
 import {
   deleteAdminPushBroadcast, listAdminPushBroadcasts, queueAdminPushBroadcast, readWarningCronHealth
@@ -54,6 +54,10 @@ export async function onRequest({ request, env }) {
     if (route === "feedback" && method === "GET") return await getFeedback(env);
     if (route === "early-access/codes" && method === "GET") return await getEarlyAccessCodes(env);
     if (route === "early-access/codes" && method === "POST") return await createEarlyAccessCode(request, env);
+    const earlyAccessActivationsRoute = route.match(/^early-access\/codes\/([^/]+)\/activations$/u);
+    if (earlyAccessActivationsRoute && method === "DELETE") {
+      return await resetEarlyAccessActivations(decodeURIComponent(earlyAccessActivationsRoute[1]), env);
+    }
     if (route.startsWith("early-access/codes/") && method === "DELETE") {
       return await deleteEarlyAccessCode(decodeURIComponent(route.slice("early-access/codes/".length)), env);
     }
@@ -234,8 +238,18 @@ async function getFeedback(env) {
 }
 
 async function getEarlyAccessCodes(env) {
-  const codes = await readJson(env.NOTIFICATIONS_DB, EARLY_ACCESS_CODES_KEY, []);
-  return json({ codes: Array.isArray(codes) ? codes.map(publicEarlyAccessCode) : [] });
+  const db = requireDb(env);
+  const value = await readJson(db, EARLY_ACCESS_CODES_KEY, []);
+  const codes = Array.isArray(value) ? value : [];
+  let changed = false;
+  for (const entry of codes) {
+    const usage = await reconcileEarlyAccessCodeUsage(db, entry.id);
+    if (Math.max(0, Number(entry.uses) || 0) === usage.activeUses) continue;
+    entry.uses = usage.activeUses;
+    changed = true;
+  }
+  if (changed) await writeJson(db, EARLY_ACCESS_CODES_KEY, codes);
+  return json({ codes: codes.map(publicEarlyAccessCode) });
 }
 
 async function createEarlyAccessCode(request, env) {
@@ -278,6 +292,17 @@ async function deleteEarlyAccessCode(id, env) {
   await writeJson(db, EARLY_ACCESS_CODES_KEY, nextCodes);
   const removedActivations = await deleteEarlyAccessActivationsForCode(db, id);
   return json({ codes: nextCodes.map(publicEarlyAccessCode), removedActivations });
+}
+
+async function resetEarlyAccessActivations(id, env) {
+  const db = requireDb(env);
+  const codes = await readJson(db, EARLY_ACCESS_CODES_KEY, []);
+  const entry = (Array.isArray(codes) ? codes : []).find((item) => item.id === id);
+  if (!entry) return json({ error: "対象のコードが見つかりません。" }, { status: 404 });
+  const removedActivations = await deleteEarlyAccessActivationsForCode(db, id);
+  entry.uses = 0;
+  await writeJson(db, EARLY_ACCESS_CODES_KEY, codes);
+  return json({ codes: codes.map(publicEarlyAccessCode), removedActivations });
 }
 
 function publicEarlyAccessCode(entry) {

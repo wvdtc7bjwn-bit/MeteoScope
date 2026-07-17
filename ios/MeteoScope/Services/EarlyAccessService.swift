@@ -25,11 +25,25 @@ final class EarlyAccessModel {
         await perform(payload: ["code": value], storesToken: true)
     }
 
-    func deactivate() {
-        EarlyAccessKeychain.delete()
-        isActive = false
-        label = ""
-        message = "この端末のアーリーアクセスを解除しました。"
+    func deactivate() async {
+        guard let token = EarlyAccessKeychain.load(), !token.isEmpty else {
+            isActive = false
+            label = ""
+            message = "この端末の認証はすでに解除されています。"
+            return
+        }
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            let result = try await request(payload: ["action": "deactivate", "token": token])
+            EarlyAccessKeychain.delete()
+            isActive = false
+            label = ""
+            message = result.message ?? "この端末のアーリーアクセスを解除しました。"
+        } catch {
+            message = "認証を解除できませんでした。通信状態を確認して再試行してください。"
+        }
     }
 
     var token: String? { EarlyAccessKeychain.load() }
@@ -39,15 +53,8 @@ final class EarlyAccessModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            var request = URLRequest(url: MeteoScopeEndpoints.earlyAccess)
-            request.httpMethod = "POST"
-            request.timeoutInterval = 12
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONEncoder().encode(payload)
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse else { throw EarlyAccessError.invalidResponse }
-            let result = try JSONDecoder().decode(EarlyAccessResponse.self, from: data)
-            guard 200..<300 ~= http.statusCode, result.active else {
+            let result = try await request(payload: payload)
+            guard result.active else {
                 if !storesToken { EarlyAccessKeychain.delete() }
                 throw EarlyAccessError.server(result.error ?? "認証できませんでした。")
             }
@@ -60,6 +67,21 @@ final class EarlyAccessModel {
             message = error.localizedDescription
         }
     }
+
+    private func request(payload: [String: String]) async throws -> EarlyAccessResponse {
+        var request = URLRequest(url: MeteoScopeEndpoints.earlyAccess)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 12
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(payload)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw EarlyAccessError.invalidResponse }
+        let result = try JSONDecoder().decode(EarlyAccessResponse.self, from: data)
+        guard 200..<300 ~= http.statusCode else {
+            throw EarlyAccessError.server(result.error ?? "認証サーバーの処理に失敗しました。")
+        }
+        return result
+    }
 }
 
 private struct EarlyAccessResponse: Decodable {
@@ -67,6 +89,7 @@ private struct EarlyAccessResponse: Decodable {
     let token: String?
     let label: String?
     let error: String?
+    let message: String?
 }
 
 private enum EarlyAccessError: LocalizedError {

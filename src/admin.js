@@ -126,8 +126,13 @@ function bindEvents() {
     void navigator.clipboard.writeText(elements.earlyAccessSerial.textContent || "");
   });
   elements.earlyAccessCodeList?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-revoke-early-access]");
-    if (button) void revokeEarlyAccessCode(button.dataset.revokeEarlyAccess);
+    const resetButton = event.target.closest("[data-reset-early-access]");
+    if (resetButton) {
+      void resetEarlyAccessActivations(resetButton.dataset.resetEarlyAccess);
+      return;
+    }
+    const revokeButton = event.target.closest("[data-revoke-early-access]");
+    if (revokeButton) void revokeEarlyAccessCode(revokeButton.dataset.revokeEarlyAccess);
   });
   elements.pushForm?.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -395,6 +400,14 @@ async function revokeEarlyAccessCode(id) {
   setMessage(elements.dashboardMessage, "シリアルコードを失効しました。", "success");
 }
 
+async function resetEarlyAccessActivations(id) {
+  if (!id || !confirm("このコードを使用中の全端末を解除し、利用数を0台に戻しますか？各端末ではシリアルコードの再入力が必要です。")) return;
+  const response = await requestJson(`/early-access/codes/${encodeURIComponent(id)}/activations`, { method: "DELETE" });
+  currentEarlyAccessCodes = Array.isArray(response.codes) ? response.codes : [];
+  renderEarlyAccessCodes();
+  setMessage(elements.dashboardMessage, `${Number(response.removedActivations || 0)}台分の認証枠をリセットしました。`, "success");
+}
+
 function renderEarlyAccessCodes() {
   if (!currentEarlyAccessCodes.length) {
     elements.earlyAccessCodeList.innerHTML = `<p class="admin-muted">発行済みコードはありません。</p>`;
@@ -405,7 +418,10 @@ function renderEarlyAccessCodes() {
       <strong>${escapeHtml(entry.label || "アーリーアクセス")}</strong>
       <span>${escapeHtml(formatAdminDate(entry.createdAt))} 発行</span>
       <small>利用 ${Number(entry.uses || 0)} / ${Number(entry.maxUses || 1)}台${entry.expiresAt ? ` ・ ${escapeHtml(formatAdminDate(entry.expiresAt))}まで` : " ・ 期限なし"}</small>
-    </div><button class="admin-danger-button" type="button" data-revoke-early-access="${escapeHtml(entry.id)}">失効</button></article>
+    </div><div class="admin-serial-actions">
+      <button class="admin-secondary-button" type="button" data-reset-early-access="${escapeHtml(entry.id)}">利用枠をリセット</button>
+      <button class="admin-danger-button" type="button" data-revoke-early-access="${escapeHtml(entry.id)}">失効</button>
+    </div></article>
   `).join("");
 }
 
