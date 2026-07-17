@@ -1,20 +1,32 @@
-const CODES_KEY = "early-access-codes";
-const ACTIVATION_PREFIX = "early-access-activation:";
+import {
+  EARLY_ACCESS_ACTIVATION_PREFIX,
+  EARLY_ACCESS_CODES_KEY,
+  getEarlyAccessInvalidReason,
+  hashEarlyAccessValue,
+  readEarlyAccessCodes,
+  validateEarlyAccessToken
+} from "../../_shared/earlyAccessAuth.js";
+import { writeJson } from "../../_shared/d1Store.js";
 
 export async function onRequest({ request, env }) {
-  if (request.method !== "POST") return response({ error: "Method not allowed" }, 405);
-  if (!env.NOTIFICATIONS_DB) return response({ active: false, error: "認証機能が設定されていません。" }, 503);
+  const cors = corsHeaders(request);
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+  if (request.headers.has("Origin") && !cors["Access-Control-Allow-Origin"]) return response({ error: "許可されていない接続元です。" }, 403);
+  if (request.method !== "POST") return withHeaders(response({ error: "Method not allowed" }, 405), cors);
+  if (!env.NOTIFICATIONS_DB) return withHeaders(response({ active: false, error: "認証機能が設定されていません。" }, 503), cors);
   const payload = await request.json().catch(() => ({}));
-  if (payload.code) return activateCode(String(payload.code), env.NOTIFICATIONS_DB);
-  if (payload.token) return validateToken(String(payload.token), env.NOTIFICATIONS_DB);
-  return response({ active: false, error: "シリアルコードを入力してください。" }, 400);
+  let result;
+  if (payload.code) result = await activateCode(String(payload.code), env.NOTIFICATIONS_DB);
+  else if (payload.token) result = await validateToken(String(payload.token), env.NOTIFICATIONS_DB);
+  else result = response({ active: false, error: "シリアルコードを入力してください。" }, 400);
+  return withHeaders(result, cors);
 }
 
 async function activateCode(code, db) {
-  const codeHash = await hashValue(normalizeSerial(code));
+  const codeHash = await hashEarlyAccessValue(normalizeSerial(code));
   const codes = await readCodes(db);
   const entry = codes.find((item) => item.codeHash === codeHash);
-  const invalid = getInvalidReason(entry, true);
+  const invalid = getEarlyAccessInvalidReason(entry, true);
   if (invalid) return response({ active: false, error: invalid }, 401);
 
   const token = randomToken(24);
@@ -22,8 +34,8 @@ async function activateCode(code, db) {
   const activationExpiresAt = entry.expiresAt || new Date(Date.now() + 60 * 60 * 24 * 366 * 1000).toISOString();
   entry.uses = Math.max(0, Number(entry.uses) || 0) + 1;
   entry.lastUsedAt = now;
-  await writeJson(db, CODES_KEY, codes);
-  await writeJson(db, `${ACTIVATION_PREFIX}${await hashValue(token)}`, {
+  await writeJson(db, EARLY_ACCESS_CODES_KEY, codes);
+  await writeJson(db, `${EARLY_ACCESS_ACTIVATION_PREFIX}${await hashEarlyAccessValue(token)}`, {
     codeId: entry.id,
     createdAt: now,
     lastVerifiedAt: now,
@@ -33,42 +45,16 @@ async function activateCode(code, db) {
 }
 
 async function validateToken(token, db) {
-  const activationKey = `${ACTIVATION_PREFIX}${await hashValue(token)}`;
-  const activation = await readJson(db, activationKey, null);
-  if (!activation?.codeId) return response({ active: false, error: "認証の有効期限が切れています。" }, 401);
-  if (activation.expiresAt && Date.parse(activation.expiresAt) <= Date.now()) {
-    await deleteJson(db, activationKey);
-    return response({ active: false, error: "認証の有効期限が切れています。" }, 401);
-  }
-  const entry = (await readCodes(db)).find((item) => item.id === activation.codeId);
-  const invalid = getInvalidReason(entry, false);
-  if (invalid) {
-    await deleteJson(db, activationKey);
-    return response({ active: false, error: invalid }, 401);
-  }
-  return response({ active: true, label: entry.label || "アーリーアクセス", expiresAt: entry.expiresAt || null });
-}
-
-function getInvalidReason(entry, newActivation) {
-  if (!entry) return "このシリアルコードは失効しています。";
-  if (entry.expiresAt && Date.parse(entry.expiresAt) <= Date.now()) return "このシリアルコードは有効期限切れです。";
-  if (newActivation && entry.maxUses && Number(entry.uses || 0) >= Number(entry.maxUses)) return "このシリアルコードは利用上限に達しています。";
-  return "";
+  const result = await validateEarlyAccessToken(db, token);
+  return response(result, result.active ? 200 : 401);
 }
 
 async function readCodes(db) {
-  const value = await readJson(db, CODES_KEY, []);
-  return Array.isArray(value) ? value : [];
+  return readEarlyAccessCodes(db);
 }
 
 function normalizeSerial(value) {
   return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-}
-
-async function hashValue(value) {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 function randomToken(size) {
@@ -82,4 +68,21 @@ function response(body, status = 200) {
     headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" }
   });
 }
-import { deleteJson, readJson, writeJson } from "../../_shared/d1Store.js";
+
+function corsHeaders(request) {
+  const origin = request.headers.get("Origin");
+  if (!origin) return {};
+  const allowed = origin === new URL(request.url).origin || origin === "https://wvdtc7bjwn-bit.github.io" || /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/u.test(origin);
+  return allowed ? {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin"
+  } : {};
+}
+
+function withHeaders(result, headers) {
+  const next = new Headers(result.headers);
+  Object.entries(headers).forEach(([key, value]) => next.set(key, value));
+  return new Response(result.body, { status: result.status, statusText: result.statusText, headers: next });
+}

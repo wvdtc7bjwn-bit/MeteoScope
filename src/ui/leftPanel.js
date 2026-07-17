@@ -1531,9 +1531,12 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
         <button type="button" class="mobile-dock-action${weatherChartEnabled ? "" : " active"}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "false" : "true"}"${weatherChartEnabled ? "" : " disabled"}>雨雲レーダー</button>
         <button type="button" class="mobile-dock-action${weatherChartEnabled ? " active" : ""}${weatherChartLoading ? " loading" : ""}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "true" : "false"}"${weatherChartEnabled ? " disabled" : ""}>${escapeHtml(weatherChartLoading ? "取得中" : "天気図")}</button>
       </div>
-      <div class="mobile-dock-row">
-        <strong data-mobile-radar-title>${escapeHtml(title)}</strong>
-        <span data-mobile-radar-meta>${escapeHtml(meta)}</span>
+      <div class="mobile-dock-row mobile-dock-radar-summary">
+        <div class="mobile-dock-radar-meta-line">
+          <strong data-mobile-radar-title>${escapeHtml(title)}</strong>
+          <span data-mobile-radar-meta>${escapeHtml(meta)}</span>
+        </div>
+        ${isChartMode ? "" : `<button type="button" class="community-report-open mobile-dock-community-report-open" data-mobile-dock-control data-community-report-open aria-haspopup="dialog" aria-controls="community-report-modal">投稿</button>`}
       </div>
       ${range}
     </div>

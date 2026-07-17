@@ -120,6 +120,13 @@ const MUNICIPALITY_SOURCE_ID = "jma-weather-warning-municipalities";
 const PREFECTURE_SOURCE_ID = "japan-prefectures";
 const WARNING_SOURCE_ID = "jma-active-warning-municipalities";
 const CURRENT_LOCATION_SOURCE_ID = "current-location";
+const COMMUNITY_REPORT_SOURCE_ID = "community-weather-reports";
+const COMMUNITY_REPORT_LAYERS = [
+  "community-report-cluster",
+  "community-report-cluster-count",
+  "community-report-point",
+  "community-report-label"
+];
 const MUNICIPALITY_FILL_LAYER_ID = "jma-municipality-fill";
 const WARNING_OVERLAY_LAYER_ID = "jma-warning-overlay";
 const WARNING_CLICK_LAYER_ID = "jma-warning-click-target";
@@ -206,6 +213,7 @@ export function createWeatherMap(elementId) {
   let mapInfoElement = null;
   let mapInfoLngLat = null;
   let mapInfoOwner = null;
+  let communityReports = [];
 
   function initialize() {
     map = new maplibregl.Map({
@@ -249,6 +257,7 @@ export function createWeatherMap(elementId) {
     }
     if (mode !== "warnings") updateWarningMunicipalityPaint(map, mode);
     syncActiveFaultVisibility();
+    syncCommunityReportVisibility();
   }
 
   function setActiveFaultVisible(visible) {
@@ -400,6 +409,13 @@ export function createWeatherMap(elementId) {
     map.addSource(CURRENT_LOCATION_SOURCE_ID, {
       type: "geojson",
       data: createEmptyFeatureCollection()
+    });
+    map.addSource(COMMUNITY_REPORT_SOURCE_ID, {
+      type: "geojson",
+      data: createCommunityReportFeatureCollection(communityReports),
+      cluster: true,
+      clusterMaxZoom: 10,
+      clusterRadius: 42
     });
     map.addSource(WEATHER_CHART_LINE_SOURCE_ID, {
       type: "geojson",
@@ -641,6 +657,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     });
 
     addWeatherChartLayers(map);
+    addCommunityReportLayers();
 
     map.addLayer({
       id: "current-location-halo",
@@ -874,6 +891,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     setupMapInfo();
     setupTyphoonForecastInfo();
     setupActiveFaultInfo();
+    setupCommunityReportInfo();
 
     map.on("mouseenter", WARNING_CLICK_LAYER_ID, (event) => {
       const feature = event.features?.[0];
@@ -894,6 +912,108 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           areaName: area.displayAreaName ?? area.areaName
         }
       }));
+    });
+  }
+
+  function setCommunityReports(reports = []) {
+    communityReports = Array.isArray(reports) ? reports : [];
+    const source = map?.getSource(COMMUNITY_REPORT_SOURCE_ID);
+    if (source?.setData) source.setData(createCommunityReportFeatureCollection(communityReports));
+    syncCommunityReportVisibility();
+  }
+
+  function syncCommunityReportVisibility() {
+    const visibility = activeMode === "radar" ? "visible" : "none";
+    COMMUNITY_REPORT_LAYERS.forEach((layerID) => {
+      if (map?.getLayer(layerID)) map.setLayoutProperty(layerID, "visibility", visibility);
+    });
+    if (activeMode !== "radar") hideMapInfo("community-report");
+  }
+
+  function addCommunityReportLayers() {
+    const visibility = activeMode === "radar" ? "visible" : "none";
+    map.addLayer({
+      id: "community-report-cluster",
+      type: "circle",
+      source: COMMUNITY_REPORT_SOURCE_ID,
+      filter: ["has", "point_count"],
+      layout: { visibility },
+      paint: {
+        "circle-color": "#245f85",
+        "circle-radius": ["step", ["get", "point_count"], 17, 10, 21, 30, 25],
+        "circle-stroke-color": "#f8fbff",
+        "circle-stroke-width": 2.5,
+        "circle-opacity": 0.92
+      }
+    });
+    map.addLayer({
+      id: "community-report-cluster-count",
+      type: "symbol",
+      source: COMMUNITY_REPORT_SOURCE_ID,
+      filter: ["has", "point_count"],
+      layout: {
+        visibility,
+        "text-field": ["get", "point_count_abbreviated"],
+        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-size": 12
+      },
+      paint: { "text-color": "#ffffff" }
+    });
+    map.addLayer({
+      id: "community-report-point",
+      type: "circle",
+      source: COMMUNITY_REPORT_SOURCE_ID,
+      filter: ["!", ["has", "point_count"]],
+      layout: { visibility },
+      paint: {
+        "circle-color": ["case", [">", ["get", "hazardCount"], 0], "#e7792b", ["get", "color"]],
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 7, 8, 11, 12, 14],
+        "circle-stroke-color": "#f8fbff",
+        "circle-stroke-width": 2.5,
+        "circle-opacity": 0.95
+      }
+    });
+    map.addLayer({
+      id: "community-report-label",
+      type: "symbol",
+      source: COMMUNITY_REPORT_SOURCE_ID,
+      filter: ["!", ["has", "point_count"]],
+      minzoom: 6,
+      layout: {
+        visibility,
+        "text-field": ["get", "shortLabel"],
+        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 6, 9, 10, 12],
+        "text-offset": [0, 1.5],
+        "text-anchor": "top",
+        "text-allow-overlap": false
+      },
+      paint: {
+        "text-color": "#f8fbff",
+        "text-halo-color": "rgba(5, 9, 20, 0.88)",
+        "text-halo-width": 2
+      }
+    });
+  }
+
+  function setupCommunityReportInfo() {
+    map.on("click", "community-report-cluster", async (event) => {
+      if (activeMode !== "radar") return;
+      const feature = event.features?.[0];
+      const clusterID = feature?.properties?.cluster_id;
+      const source = map.getSource(COMMUNITY_REPORT_SOURCE_ID);
+      if (clusterID == null || !source?.getClusterExpansionZoom) return;
+      const zoom = await source.getClusterExpansionZoom(clusterID).catch(() => Math.min(map.getZoom() + 2, 12));
+      map.easeTo({ center: feature.geometry.coordinates, zoom, duration: 500 });
+    });
+    map.on("click", "community-report-point", (event) => {
+      if (activeMode !== "radar") return;
+      const feature = event.features?.[0];
+      if (feature) showMapInfo("community-report", event.lngLat, buildCommunityReportPopup(feature.properties));
+    });
+    ["community-report-cluster", "community-report-point"].forEach((layerID) => {
+      map.on("mouseenter", layerID, () => { if (activeMode === "radar") map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", layerID, () => { map.getCanvas().style.cursor = ""; });
     });
   }
 
@@ -1026,7 +1146,85 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, setMode, setTheme, setActiveFaultVisible, renderData, resize, showCurrentLocation, flyToLocation, fitToCoordinates };
+  return { initialize, setMode, setTheme, setActiveFaultVisible, setCommunityReports, renderData, resize, showCurrentLocation, flyToLocation, fitToCoordinates };
+}
+
+function createCommunityReportFeatureCollection(reports = []) {
+  const now = Date.now();
+  const features = reports.filter((report) => Date.parse(report?.expiresAt || "") > now).flatMap((report) => {
+    const longitude = Number(report?.longitude);
+    const latitude = Number(report?.latitude);
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return [];
+    const meta = communityWeatherMeta(report.weather);
+    return [{
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [longitude, latitude] },
+      properties: {
+        id: String(report.id || ""),
+        displayName: String(report.displayName || ""),
+        weatherLabel: meta.label,
+        comment: String(report.comment || ""),
+        shortLabel: meta.short,
+        color: meta.color,
+        sensationLabel: communitySensationLabel(report.sensation),
+        temperatureText: Number.isFinite(Number(report.temperature)) ? `${Number(report.temperature).toFixed(1)}℃` : "",
+        hazardsText: (Array.isArray(report.hazards) ? report.hazards : []).map(communityHazardLabel).filter(Boolean).join("・"),
+        hazardCount: Array.isArray(report.hazards) ? report.hazards.length : 0,
+        areaName: String(report.areaName || "現在地周辺"),
+        createdText: formatCommunityReportTime(report.createdAt)
+      }
+    }];
+  });
+  return { type: "FeatureCollection", features };
+}
+
+function buildCommunityReportPopup(properties = {}) {
+  const facts = [properties.temperatureText, properties.sensationLabel].filter(Boolean).map(escapeHTML).join(" / ");
+  const hazard = properties.hazardsText
+    ? `<p class="community-popup-hazard">周辺の危険：${escapeHTML(properties.hazardsText)}</p>`
+    : "";
+  const comment = properties.comment
+    ? `<p class="community-popup-comment">${escapeHTML(properties.comment)}</p>`
+    : "";
+  return `<section class="community-map-popup">
+    <span>利用者の現在地投稿</span>
+    <strong>${escapeHTML(properties.weatherLabel || "天気")}</strong>
+    <p>${escapeHTML(properties.areaName || "現在地周辺")}・${escapeHTML(properties.createdText || "")}</p>
+    ${comment}${facts ? `<p>${facts}</p>` : ""}${hazard}
+    <small>${escapeHTML(properties.displayName || "MeteoScope利用者")} / 約2km単位の位置</small>
+  </section>`;
+}
+
+function communityWeatherMeta(value) {
+  return ({
+    sunny: { label: "晴れ", short: "晴", color: "#e8a52d" },
+    cloudy: { label: "くもり", short: "曇", color: "#78899c" },
+    "light-rain": { label: "弱い雨", short: "弱雨", color: "#378bc4" },
+    "heavy-rain": { label: "強い雨", short: "強雨", color: "#165ea8" },
+    snow: { label: "雪", short: "雪", color: "#8fbfd8" },
+    thunder: { label: "雷", short: "雷", color: "#8064b8" },
+    fog: { label: "霧", short: "霧", color: "#6f9298" }
+  })[value] || { label: "天気", short: "天気", color: "#457a99" };
+}
+
+function communitySensationLabel(value) {
+  return ({ cold: "寒い", cool: "涼しい", comfortable: "快適", hot: "暑い", "very-hot": "非常に暑い" })[value] || "";
+}
+
+function communityHazardLabel(value) {
+  return ({ "flooded-road": "道路冠水", "strong-wind": "強風", "poor-visibility": "視界不良", thunder: "雷", slippery: "路面凍結・滑りやすい" })[value] || "";
+}
+
+function formatCommunityReportTime(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "時刻不明";
+  return new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/gu, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+  })[character]);
 }
 
 function buildJshisMajorFaultPopup(properties = {}) {

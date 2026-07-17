@@ -6,6 +6,7 @@ import {
 } from "../../../src/jma/warningCore.js";
 import { JMA_WARNING_OFFICE_CODES } from "../../../src/jma/warningOfficeCodes.js";
 import { readJson, writeJson } from "../../_shared/d1Store.js";
+import { cleanupExpiredCommunityReports } from "../../_shared/communityReports.js";
 import {
   deleteIOSSubscription,
   isValidAPNSDeviceToken,
@@ -63,6 +64,13 @@ export async function onRequest({ request, env }) {
 
 export async function runWarningPushCheck(env) {
   requireNotificationStorage(env);
+  let communityReports;
+  try {
+    communityReports = await cleanupExpiredCommunityReports(env.NOTIFICATIONS_DB);
+  } catch (error) {
+    console.error("[Push API] community report cleanup failed", error);
+    communityReports = { ran: false, deleted: 0, error: true };
+  }
   let webSubscriptionMigration;
   try {
     webSubscriptionMigration = await migrateWebSubscriptionsToAdminOnly(env);
@@ -90,7 +98,7 @@ export async function runWarningPushCheck(env) {
   const result = state.phase === "notify"
     ? await runWarningNotificationBatch(env, state)
     : await runWarningOfficeFetchBatch(env, state);
-  return { ...result, adminBroadcast, retention, webSubscriptionMigration, storage: "d1" };
+  return { ...result, adminBroadcast, retention, communityReports, webSubscriptionMigration, storage: "d1" };
 }
 
 export async function readWarningCronHealth(env) {

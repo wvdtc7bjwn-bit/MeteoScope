@@ -1,5 +1,7 @@
 const TOKEN_STORAGE_KEY = "meteoscope-early-access-token";
-const ENDPOINT = "/api/public/early-access";
+const ENDPOINT = globalThis.location?.hostname?.endsWith("github.io")
+  ? "https://meteoscope.pages.dev/api/public/early-access"
+  : "/api/public/early-access";
 
 export async function validateEarlyAccess() {
   const token = readToken();
@@ -30,6 +32,10 @@ export async function activateEarlyAccess(serial) {
 export function deactivateEarlyAccess() {
   removeToken();
   return inactiveState("この端末のアーリーアクセスを解除しました。");
+}
+
+export function getEarlyAccessToken() {
+  return readToken();
 }
 
 async function requestAccess(payload) {

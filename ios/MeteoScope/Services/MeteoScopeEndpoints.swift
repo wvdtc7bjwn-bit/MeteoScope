@@ -36,6 +36,12 @@ enum MeteoScopeEndpoints {
     static let iosPushUnregister = URL(
         string: "https://meteoscope.pages.dev/api/push/ios/unregister"
     )!
+    static let communityReports = URL(
+        string: "https://meteoscope.pages.dev/api/community/reports"
+    )!
+    static let earlyAccess = URL(
+        string: "https://meteoscope.pages.dev/api/public/early-access"
+    )!
     static let amedasLatestTime = URL(
         string: "https://www.jma.go.jp/bosai/amedas/data/latest_time.txt"
     )!

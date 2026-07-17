@@ -13,6 +13,10 @@ function storedToken() {
   try { return sessionStorage.getItem(SESSION_KEY) ?? ""; } catch { return ""; }
 }
 
+export function getMeteoScopeAccountSessionToken() {
+  return storedToken();
+}
+
 function saveToken(token) {
   try {
     if (token) sessionStorage.setItem(SESSION_KEY, token);

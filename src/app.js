@@ -35,6 +35,8 @@ import { createAdminNoticePush } from "./push/adminNoticePush.js";
 import { setupRemoteConfig } from "./remoteConfig.js";
 import { setupTheme } from "./ui/theme.js";
 import { activateEarlyAccess, deactivateEarlyAccess, validateEarlyAccess } from "./ui/earlyAccess.js";
+import { CommunityReportClient } from "./domain/communityReportClient.js";
+import { openCommunityReportModal, setupCommunityReportModal } from "./ui/communityReportModal.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -148,6 +150,8 @@ export function createWeatherApp() {
   let warningKikikuruLoadedAt = 0;
   let riverFloodLoadedAt = 0;
   let backgroundPrefetchStarted = false;
+  let communityReports = [];
+  let communityReportsRequest = null;
 
   async function selectTab(tabId) {
     const tab = TABS.find((item) => item.id === tabId) ?? TABS[0];
@@ -157,6 +161,7 @@ export function createWeatherApp() {
     try {
       if (tab.id !== "radar") stopRadarPlayback();
       weatherMap?.setMode(tab.id);
+      if (tab.id === "radar") void refreshCommunityReports();
     } catch (error) {
       console.warn("[MeteoScope] tab map update failed", error);
     }
@@ -877,6 +882,23 @@ if (layerId === "river") {
     return request;
   }
 
+  async function refreshCommunityReports() {
+    if (communityReportsRequest) return communityReportsRequest;
+    communityReportsRequest = CommunityReportClient.list()
+      .then((result) => {
+        communityReports = Array.isArray(result?.reports) ? result.reports : [];
+        weatherMap?.setCommunityReports(communityReports);
+        return communityReports;
+      })
+      .catch((error) => {
+        console.warn("[MeteoScope] community reports refresh failed", error);
+        weatherMap?.setCommunityReports(communityReports);
+        return communityReports;
+      })
+      .finally(() => { communityReportsRequest = null; });
+    return communityReportsRequest;
+  }
+
   async function refreshActiveTab({ force = false } = {}) {
     if (document.hidden || autoRefreshInFlight) return;
     const now = Date.now();
@@ -896,6 +918,7 @@ if (layerId === "river") {
       if (activeTab !== tab.id) return;
       latestDataByTab[tab.id] = mergeRefreshedData(tab.id, latestDataByTab[tab.id], nextData);
       updateCurrentView(tab, latestDataByTab[tab.id]);
+      if (tab.id === "radar") await refreshCommunityReports();
       if (tab.id === "warnings") queueWarningFullRefresh({ force: true, delayMs: 0 });
     } catch (error) {
       console.warn(`[MeteoScope] ${tab.id} auto refresh failed`, error);
@@ -1485,7 +1508,21 @@ if (layerId === "river") {
     });
     setupDisasterMapModal();
     setupDisasterQuizModal();
+    setupCommunityReportModal({
+      getContext: () => ({ currentLocation: currentLocationInfo, earlyAccessState }),
+      onSubmitted: refreshCommunityReports,
+      onOpenAccount: openDisasterQuizModal,
+      onOpenSettings: openSettingsModal
+    });
     setupFeedbackModal();
+    document.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+      const button = event.target.closest("[data-community-report-open]");
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      void openCommunityReportModal();
+    });
     document.getElementById("locate-button")?.addEventListener("click", locateCurrentPosition);
     startClock("clock");
     startAutoRefresh();

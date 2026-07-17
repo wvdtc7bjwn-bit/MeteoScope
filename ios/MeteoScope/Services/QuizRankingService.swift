@@ -333,7 +333,7 @@ private enum QuizRankingError: LocalizedError {
     }
 }
 
-private enum QuizSessionKeychain {
+enum QuizSessionKeychain {
     private static let service = "jp.meteoscope.ios.quiz-ranking"
     private static let account = "session"
 

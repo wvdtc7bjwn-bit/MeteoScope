@@ -64,7 +64,8 @@ const [
   indexPage,
   settingsScript,
   appSource,
-  iosSettings
+  iosSettings,
+  accountAuthSource
 ] = await Promise.all([
   fs.readFile(path.join(root, "functions", "api", "quiz", "[[path]].js"), "utf8"),
   fs.readFile(path.join(root, "migrations", "0005_quiz_accounts.sql"), "utf8"),
@@ -78,7 +79,8 @@ const [
   fs.readFile(path.join(root, "index.html"), "utf8"),
   fs.readFile(path.join(root, "src", "ui", "settingsModal.js"), "utf8"),
   fs.readFile(path.join(root, "src", "app.js"), "utf8"),
-  fs.readFile(path.join(root, "ios", "MeteoScope", "Views", "SettingsView.swift"), "utf8")
+  fs.readFile(path.join(root, "ios", "MeteoScope", "Views", "SettingsView.swift"), "utf8"),
+  fs.readFile(path.join(root, "functions", "_shared", "accountAuth.js"), "utf8")
 ]);
 for (const table of ["quiz_accounts", "quiz_sessions", "quiz_challenges", "quiz_attempts", "quiz_rate_limits"]) {
   assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`, "u"));
@@ -91,7 +93,7 @@ assert.match(dailyRankingMigration, /DROP TABLE IF EXISTS quiz_best_scores/u);
 for (const route of ["register", "login", "logout", "leaderboard", "challenge", "submit"]) {
   assert.match(routeSource, new RegExp(`route === "${route}"`, "u"));
 }
-assert.match(routeSource, /HttpOnly; Secure; SameSite=Strict/u);
+assert.match(accountAuthSource, /HttpOnly; Secure; SameSite=Strict/u);
 assert.match(routeSource, /QUIZ_PASSWORD_PEPPER/u);
 assert.doesNotMatch(routeSource, /console\.(?:log|error).*password/iu);
 assert.match(webClient, /sessionStorage/u);

@@ -14,8 +14,14 @@ import {
   quizRankingDate
 } from "../../_shared/quizStorage.js";
 import { recordQuizDailyActivity } from "../../_shared/quizMaintenance.js";
+import {
+  accountSessionCookie,
+  accountSessionToken,
+  authenticateAccount,
+  expiredAccountSessionHeaders,
+  requireAccountAuthentication
+} from "../../_shared/accountAuth.js";
 
-const SESSION_COOKIE = "meteoscope_quiz_session";
 const CHALLENGE_TTL_SECONDS = 15 * 60;
 const MAX_REQUEST_BYTES = 8 * 1024;
 const LEADERBOARD_LIMIT = 20;
@@ -105,18 +111,20 @@ async function login(request, env) {
 
 async function getAccount(request, env) {
   const db = requireQuizConfiguration(env);
-  const auth = await authenticate(request, db);
+  const auth = await authenticateAccount(request, db);
   if (auth) await recordQuizDailyActivity(db, auth.account.id);
-  return auth
-    ? json({ authenticated: true, account: publicAccount(auth.account) })
-    : json({ authenticated: false });
+  if (!auth) return json({ authenticated: false });
+  const headers = auth.source === "legacy"
+    ? { "Set-Cookie": accountSessionCookie(auth.token, QUIZ_SESSION_TTL_SECONDS) }
+    : undefined;
+  return json({ authenticated: true, account: publicAccount(auth.account) }, { headers });
 }
 
 async function logout(request, env) {
   const db = requireQuizConfiguration(env);
-  const token = sessionToken(request);
+  const token = accountSessionToken(request).token;
   if (token) await db.prepare("DELETE FROM quiz_sessions WHERE token_hash = ?1").bind(await hashQuizToken(token)).run();
-  return json({ authenticated: false }, { headers: { "Set-Cookie": expiredSessionCookie() } });
+  return json({ authenticated: false }, { headers: expiredAccountSessionHeaders() });
 }
 
 async function deleteAccount(request, env) {
@@ -132,13 +140,16 @@ async function deleteAccount(request, env) {
   );
   if (!valid) throw json({ error: "パスワードが正しくありません。" }, { status: 401 });
   await db.batch([
+    db.prepare("DELETE FROM community_report_flags WHERE reporter_account_id = ?1").bind(auth.account.id),
+    db.prepare("DELETE FROM community_reports WHERE account_id = ?1").bind(auth.account.id),
+    db.prepare("DELETE FROM community_post_daily WHERE account_id = ?1").bind(auth.account.id),
     db.prepare("DELETE FROM quiz_challenges WHERE account_id = ?1").bind(auth.account.id),
     db.prepare("DELETE FROM quiz_attempts WHERE account_id = ?1").bind(auth.account.id),
     db.prepare("DELETE FROM quiz_sessions WHERE account_id = ?1").bind(auth.account.id),
     db.prepare("DELETE FROM quiz_accounts WHERE id = ?1").bind(auth.account.id)
   ]);
   await Promise.all(QUIZ_DIFFICULTIES.map((difficulty) => invalidateLeaderboardCache(difficulty)));
-  return json({ deleted: true }, { headers: { "Set-Cookie": expiredSessionCookie() } });
+  return json({ deleted: true }, { headers: expiredAccountSessionHeaders() });
 }
 
 async function createChallenge(request, env) {
@@ -204,7 +215,7 @@ async function leaderboard(request, env) {
   const difficulty = new URL(request.url).searchParams.get("difficulty") ?? "beginner";
   if (!isQuizDifficulty(difficulty)) throw json({ error: "難易度が正しくありません。" }, { status: 400 });
   const rankingDate = quizRankingDate();
-  const auth = await authenticate(request, db);
+  const auth = await authenticateAccount(request, db);
   const currentUser = auth ? await currentUserRanking(db, rankingDate, difficulty, auth.account.id) : null;
   const publicEntries = await cachedPublicLeaderboard(db, rankingDate, difficulty, env);
   const entries = publicEntries.map((entry) => ({
@@ -286,7 +297,7 @@ function accountResponse(account, session, client) {
     account: publicAccount(account),
     sessionToken: includeToken ? session.token : undefined,
     sessionExpiresAt: session.expiresAt
-  }, { headers: { "Set-Cookie": sessionCookie(session.token) } });
+  }, { headers: { "Set-Cookie": accountSessionCookie(session.token, QUIZ_SESSION_TTL_SECONDS) } });
 }
 
 function publicAccount(account) {
@@ -294,31 +305,7 @@ function publicAccount(account) {
 }
 
 async function requireAuthentication(request, db) {
-  const auth = await authenticate(request, db);
-  if (!auth) throw json({ error: "ランキングへの参加にはログインが必要です。" }, { status: 401 });
-  return auth;
-}
-
-async function authenticate(request, db) {
-  const token = sessionToken(request);
-  if (!token) return null;
-  const now = new Date().toISOString();
-  const account = await db.prepare(
-    `SELECT accounts.id, accounts.display_name
-     FROM quiz_sessions sessions JOIN quiz_accounts accounts ON accounts.id = sessions.account_id
-     WHERE sessions.token_hash = ?1 AND sessions.expires_at > ?2`
-  ).bind(await hashQuizToken(token), now).first();
-  return account ? { account } : null;
-}
-
-function sessionToken(request) {
-  const authorization = request.headers.get("Authorization") ?? "";
-  if (authorization.startsWith("Bearer ")) return authorization.slice(7).trim();
-  const cookies = Object.fromEntries((request.headers.get("Cookie") ?? "").split(";").map((item) => {
-    const [key, ...parts] = item.trim().split("=");
-    return [key, parts.join("=")];
-  }).filter(([key]) => key));
-  return cookies[SESSION_COOKIE] ?? "";
+  return requireAccountAuthentication(request, db, "ランキングへの参加にはログインが必要です。");
 }
 
 async function enforceRateLimit(request, env, db, action, limit, windowSeconds) {
@@ -361,14 +348,6 @@ async function readJSON(request) {
   catch { throw json({ error: "JSONが正しくありません。" }, { status: 400 }); }
 }
 
-function sessionCookie(token) {
-  return `${SESSION_COOKIE}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/api/quiz; Max-Age=${QUIZ_SESSION_TTL_SECONDS}`;
-}
-
-function expiredSessionCookie() {
-  return `${SESSION_COOKIE}=; HttpOnly; Secure; SameSite=Strict; Path=/api/quiz; Max-Age=0`;
-}
-
 function corsHeaders(request) {
   const origin = request.headers.get("Origin");
   if (!origin) return {};
@@ -391,8 +370,8 @@ function withHeaders(response, headers) {
 }
 
 function json(payload, init = {}) {
-  return new Response(JSON.stringify(payload), {
-    ...init,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...(init.headers ?? {}) }
-  });
+  const headers = new Headers(init.headers);
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json; charset=utf-8");
+  if (!headers.has("Cache-Control")) headers.set("Cache-Control", "no-store");
+  return new Response(JSON.stringify(payload), { ...init, headers });
 }

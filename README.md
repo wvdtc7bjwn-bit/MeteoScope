@@ -152,7 +152,8 @@ NOTIFICATIONS_DB        meteoscope-notifications
 D1のスキーマは `migrations/0001_notification_storage.sql`、
 `migrations/0002_app_storage.sql`、`migrations/0003_admin_push_broadcasts.sql`、
 `migrations/0004_ios_push_subscriptions.sql`、`migrations/0005_quiz_accounts.sql`、
-`migrations/0006_quiz_free_tier_optimization.sql`、`migrations/0007_quiz_daily_points_ranking.sql`を順番に適用します。通知購読、警報状態、
+`migrations/0006_quiz_free_tier_optimization.sql`、`migrations/0007_quiz_daily_points_ranking.sql`、
+`migrations/0008_community_reports.sql`を順番に適用します。通知購読、警報状態、
 保留通知、管理設定、お知らせ、利用者意見、アーリーアクセス認証、VAPID鍵は
 すべてD1へ保存し、Workers KVは使用しません。Web Pushは管理者からのお知らせ専用で、
 現在地、通知対象区域、警報状態を保存しません。iOS版の警報・注意報通知はAPNs用の
@@ -184,6 +185,22 @@ D1のスキーマは `migrations/0001_notification_storage.sql`、
 保留通知、期限切れのアーリーアクセス端末認証、孤立した配信明細を自動削除します。
 通知購読、現行設定、お知らせ、シリアルコード、VAPID鍵は自動削除しません。
 同じ1分Cronの15:00 UTC（日本時間00:00）実行で、前日以前のランキングとクイズ関連の期限切れデータを1日1回D1から削除します。
+
+### 現在地の様子の投稿（アーリーアクセス）
+
+雨雲レーダーには、MeteoScopeアカウントへログインし、アーリーアクセスを認証した利用者だけが
+現在の天気、体感、任意の気温、定型の危険情報、80文字以内の短文を投稿できます。写真は扱いません。
+短文は制御文字と余分な空白を正規化し、URLを拒否します。表示時はHTMLとして解釈せずエスケープします。
+クライアントは位置を0.02度単位（日本付近でおおむね約2km）へ丸めてから送信し、APIも同じ単位へ再丸めします。
+正確な緯度経度はMeteoScopeサーバーへ送信・保存しません。
+
+公開表示とD1の`community_reports`は投稿から5時間を有効期限とします。GET APIは期限切れ行を返さず、
+通知Cronが5分単位で最大200件ずつ物理削除するため、表示は5時間で終了し、D1からは通常5分以内に順次削除されます。
+投稿は同一アカウントで5分に1回、UTC日付ごとに24回までです。日次回数カウンターは2日で削除します。
+アーリーアクセス端末認証は最初の投稿時にアカウントへ結び付け、別アカウントでの共有を拒否します。
+
+APIは`GET/POST /api/community/reports`、`DELETE /api/community/reports/:id`、
+`POST /api/community/reports/:id/flag`です。GitHub Pages版は許可済みCORSでCloudflare Pages APIを使用します。
 
 `ADMIN_SESSION_SECRET` を省略した場合は `ADMIN_PASSWORD` を使ってセッション署名します。
 GitHub Pages では Pages Functions が動作しないため、管理者画面のAPI機能は Cloudflare Pages 配信時のみ利用できます。クイズランキングはGitHub Pagesから許可済みCORSでCloudflare Pages APIへ接続し、外部ホスト用セッションはブラウザのタブを閉じるまでのsessionStorageに限定します。通常のアプリ表示とクイズ本体は、APIが未設定でもそのまま動作します。

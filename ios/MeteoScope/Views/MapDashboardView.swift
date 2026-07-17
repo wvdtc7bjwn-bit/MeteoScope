@@ -4,6 +4,7 @@ struct MapDashboardView: View {
     @Environment(WeatherAppModel.self) private var model
     @Environment(AppPreferences.self) private var preferences
     @Environment(LocationService.self) private var locationService
+    @Environment(CommunityReportModel.self) private var communityReports
     @State private var selectedActiveFault: ActiveFaultInfo?
 
     var body: some View {
@@ -63,6 +64,13 @@ struct MapDashboardView: View {
         }
         .task(id: model.selectedFeature) {
             await model.loadSelectedFeatureIfNeeded()
+            guard model.selectedFeature == .radar else { return }
+            await communityReports.refresh()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(120))
+                guard !Task.isCancelled, model.selectedFeature == .radar else { return }
+                await communityReports.refresh()
+            }
         }
         .onChange(of: model.selectedFeature) { _, feature in
             if feature != .earthquake { selectedActiveFault = nil }
@@ -107,7 +115,9 @@ struct MapDashboardView: View {
                 model.selectedEarthquake(in: snapshot),
                 tsunami: snapshot.tsunami
             )
-        case .radar, .amedas:
+        case .radar:
+            return WeatherMapOverlayBuilder.communityReports(communityReports.reports)
+        case .amedas:
             return nil
         }
     }
@@ -230,6 +240,10 @@ private struct FeatureOverlay: View {
 
 private struct RadarTimelineCard: View {
     @Environment(WeatherAppModel.self) private var model
+    @Environment(LocationService.self) private var locationService
+    @Environment(CommunityReportModel.self) private var communityReports
+    @Environment(EarlyAccessModel.self) private var earlyAccess
+    @State private var showsReportComposer = false
 
     var body: some View {
         @Bindable var model = model
@@ -261,14 +275,15 @@ private struct RadarTimelineCard: View {
 
             case .loaded(let frames):
                 HStack {
-                    Label(
-                        model.selectedRadarFrame?.isForecast == true ? "予報" : "観測",
-                        systemImage: "clock"
-                    )
-                    .font(.caption.weight(.semibold))
-                    Spacer()
                     Text(model.selectedRadarFrame?.displayTime ?? "--:--")
                         .font(.callout.monospacedDigit().weight(.semibold))
+                    Text(model.selectedRadarFrame?.isForecast == true ? "予報" : "観測")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("投稿") { showsReportComposer = true }
+                        .font(.caption.weight(.bold))
+                        .buttonStyle(.bordered)
                 }
 
                 Picker("表示時刻", selection: $model.selectedRadarFrameID) {
@@ -283,6 +298,14 @@ private struct RadarTimelineCard: View {
         .padding()
         .meteoGlassSurface(cornerRadius: 18)
         .shadow(color: .black.opacity(0.18), radius: 14, y: 6)
+        .sheet(isPresented: $showsReportComposer) {
+            CommunityReportComposerView(
+                coordinate: locationService.coordinate,
+                isLoggedIn: QuizSessionKeychain.load() != nil,
+                earlyAccess: earlyAccess,
+                reports: communityReports
+            )
+        }
     }
 }
 
@@ -293,4 +316,6 @@ private struct RadarTimelineCard: View {
     .environment(WeatherAppModel.preview)
     .environment(AppPreferences(store: .preview))
     .environment(LocationService.preview)
+    .environment(CommunityReportModel())
+    .environment(EarlyAccessModel())
 }

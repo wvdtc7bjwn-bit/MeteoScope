@@ -3,7 +3,9 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(AppPreferences.self) private var preferences
     @Environment(PushNotificationService.self) private var pushNotifications
+    @Environment(EarlyAccessModel.self) private var earlyAccess
     @State private var account = QuizRankingModel()
+    @State private var earlyAccessCode = ""
 
     var body: some View {
         @Bindable var preferences = preferences
@@ -104,6 +106,27 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("アーリーアクセス") {
+                LabeledContent("状態", value: earlyAccess.isActive ? "認証済み" : "未認証")
+                if earlyAccess.isActive {
+                    if !earlyAccess.label.isEmpty { LabeledContent("権限", value: earlyAccess.label) }
+                    Button("この端末の認証を解除", role: .destructive) { earlyAccess.deactivate() }
+                } else {
+                    TextField("シリアルコード", text: $earlyAccessCode)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                    Button {
+                        Task { await earlyAccess.activate(code: earlyAccessCode) }
+                    } label: {
+                        Label(earlyAccess.isLoading ? "確認中" : "シリアルコードを認証", systemImage: "key")
+                    }
+                    .disabled(earlyAccess.isLoading || earlyAccessCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                Text(earlyAccess.message).font(.footnote).foregroundStyle(.secondary)
+                Text("現在地の様子の投稿は、MeteoScopeアカウントとアーリーアクセスの両方が必要です。")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+
             Section("アプリについて") {
                 LabeledContent("アプリ", value: "MeteoScope")
                 LabeledContent("バージョン", value: appVersion)
@@ -161,6 +184,7 @@ struct SettingsView: View {
         }
         .task {
             await account.refresh(difficulty: .beginner)
+            await earlyAccess.refresh()
             await pushNotifications.refreshServerStatus()
             await pushNotifications.refreshAuthorizationStatus()
             await pushNotifications.loadNotificationAreasIfNeeded()
@@ -246,4 +270,5 @@ private struct NotificationAreaPickerView: View {
     }
     .environment(AppPreferences(store: .preview))
     .environment(PushNotificationService())
+    .environment(EarlyAccessModel())
 }

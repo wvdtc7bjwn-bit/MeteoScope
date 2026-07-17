@@ -446,6 +446,21 @@ struct WeatherMapView: UIViewRepresentable {
                 (UIColor.black, CGSize(width: 22, height: 22), 3)
             case .seismicIntensity(let label):
                 (intensityColor(label), CGSize(width: 13, height: 13), 1.5)
+            case .communityReport(let weather, let hasHazard):
+                (hasHazard ? UIColor.systemOrange : communityReportColor(weather), CGSize(width: 18, height: 18), 2.5)
+            }
+        }
+
+        private func communityReportColor(_ weather: String) -> UIColor {
+            switch weather {
+            case "sunny": UIColor.systemYellow
+            case "cloudy": UIColor.systemGray
+            case "light-rain": UIColor.systemTeal
+            case "heavy-rain": UIColor.systemBlue
+            case "snow": UIColor.systemCyan
+            case "thunder": UIColor.systemPurple
+            case "fog": UIColor.systemGray2
+            default: UIColor.systemTeal
             }
         }
 

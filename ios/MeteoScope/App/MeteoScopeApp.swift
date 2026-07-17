@@ -7,6 +7,8 @@ struct MeteoScopeApp: App {
     @State private var preferences = AppPreferences()
     @State private var locationService = LocationService()
     @State private var pushNotifications = PushNotificationService()
+    @State private var communityReports = CommunityReportModel()
+    @State private var earlyAccess = EarlyAccessModel()
 
     var body: some Scene {
         WindowGroup {
@@ -15,6 +17,8 @@ struct MeteoScopeApp: App {
                 .environment(preferences)
                 .environment(locationService)
                 .environment(pushNotifications)
+                .environment(communityReports)
+                .environment(earlyAccess)
                 .preferredColorScheme(preferences.colorScheme)
                 .task {
                     await pushNotifications.refreshAuthorizationStatus()

@@ -28,6 +28,7 @@ struct WeatherMapPoint: Identifiable, Hashable, Sendable {
         case typhoonForecast
         case earthquakeHypocenter
         case seismicIntensity(String)
+        case communityReport(weather: String, hasHazard: Bool)
     }
 
     let id: String
@@ -87,6 +88,31 @@ struct WeatherMapGeoJSONLayer: Identifiable, Hashable, Sendable {
 }
 
 enum WeatherMapOverlayBuilder {
+    static func communityReports(_ reports: [CommunityReport]) -> WeatherMapOverlay {
+        let now = Date()
+        let formatter = ISO8601DateFormatter()
+        let points = reports.filter {
+            formatter.date(from: $0.expiresAt).map { $0 > now } ?? false
+        }.map { report in
+            let facts = [
+                report.temperature.map { String(format: "%.1f℃", $0) },
+                report.sensationLabel.isEmpty ? nil : report.sensationLabel,
+                report.hazardLabels.isEmpty ? nil : "危険：\(report.hazardLabels.joined(separator: "・"))"
+            ].compactMap { $0 }.joined(separator: " / ")
+            let details = [report.comment, facts.isEmpty ? nil : facts, "位置は約2km単位"]
+                .compactMap { value in value?.isEmpty == false ? value : nil }
+                .joined(separator: " / ")
+            return WeatherMapPoint(
+                id: "community-\(report.id)",
+                coordinate: report.coordinate,
+                title: "\(report.weatherLabel)・\(report.areaName)",
+                subtitle: details,
+                kind: .communityReport(weather: report.weather, hasHazard: !report.hazards.isEmpty)
+            )
+        }
+        return WeatherMapOverlay(id: "community-\(points.map(\.id).joined(separator: ","))", points: points)
+    }
+
     static func warnings(_ snapshot: WarningSnapshot) -> WeatherMapOverlay {
         let layers = WarningSeverity.allMapSeverities.compactMap { severity -> WeatherMapGeoJSONLayer? in
             let codes = snapshot.activeAreas
