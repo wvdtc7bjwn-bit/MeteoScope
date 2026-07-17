@@ -10,6 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const {
   EARLY_ACCESS_ACTIVATION_PREFIX,
   EARLY_ACCESS_CODES_KEY,
+  deleteEarlyAccessActivationsForCode,
   hashEarlyAccessValue,
   releaseEarlyAccessToken,
   validateEarlyAccessToken
@@ -36,6 +37,16 @@ class FakeStatement {
     if (this.sql.startsWith("INSERT INTO app_records")) {
       this.db.records.set(this.values[0], this.values[1]);
       return { meta: { changes: 1 } };
+    }
+    if (this.sql.includes("json_extract(value, '$.codeId')")) {
+      let changes = 0;
+      for (const [key, value] of this.db.records) {
+        if (!key.startsWith(EARLY_ACCESS_ACTIVATION_PREFIX)) continue;
+        if (JSON.parse(value)?.codeId !== this.values[0]) continue;
+        this.db.records.delete(key);
+        changes += 1;
+      }
+      return { meta: { changes } };
     }
     if (this.sql.startsWith("DELETE FROM app_records")) {
       return { meta: { changes: this.db.records.delete(this.values[0]) ? 1 : 0 } };
@@ -73,6 +84,17 @@ async function uses(db) {
   assert.equal((await validateEarlyAccessToken(db, token)).active, false);
   assert.equal(await uses(db), 0);
   assert.equal(db.records.has(activationKey), false);
+}
+
+{
+  const db = new FakeD1();
+  await writeJson(db, `${EARLY_ACCESS_ACTIVATION_PREFIX}first`, { codeId: "code-revoked" });
+  await writeJson(db, `${EARLY_ACCESS_ACTIVATION_PREFIX}second`, { codeId: "code-revoked" });
+  await writeJson(db, `${EARLY_ACCESS_ACTIVATION_PREFIX}other`, { codeId: "code-active" });
+  assert.equal(await deleteEarlyAccessActivationsForCode(db, "code-revoked"), 2);
+  assert.equal(db.records.has(`${EARLY_ACCESS_ACTIVATION_PREFIX}first`), false);
+  assert.equal(db.records.has(`${EARLY_ACCESS_ACTIVATION_PREFIX}second`), false);
+  assert.equal(db.records.has(`${EARLY_ACCESS_ACTIVATION_PREFIX}other`), true);
 }
 
 const webClient = await fs.readFile(path.join(root, "src", "ui", "earlyAccess.js"), "utf8");

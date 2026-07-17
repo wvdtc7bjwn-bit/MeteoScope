@@ -73,6 +73,17 @@ export async function readEarlyAccessCodes(db) {
   return Array.isArray(value) ? value : [];
 }
 
+export async function deleteEarlyAccessActivationsForCode(db, codeID) {
+  const normalizedCodeID = String(codeID ?? "").trim();
+  if (!normalizedCodeID) return 0;
+  const result = await db.prepare(
+    `DELETE FROM app_records
+     WHERE key LIKE 'early-access-activation:%'
+       AND json_extract(value, '$.codeId') = ?`
+  ).bind(normalizedCodeID).run();
+  return Math.max(0, Number(result?.meta?.changes ?? result?.changes) || 0);
+}
+
 export async function hashEarlyAccessValue(value) {
   const bytes = new TextEncoder().encode(String(value ?? ""));
   const digest = await crypto.subtle.digest("SHA-256", bytes);

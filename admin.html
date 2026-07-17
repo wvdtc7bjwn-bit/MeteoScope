@@ -3,187 +3,220 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#050914" />
+  <meta name="theme-color" content="#f4f6f8" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#11161c" media="(prefers-color-scheme: dark)" />
   <meta name="robots" content="noindex,nofollow" />
-  <title>MeteoScope Admin</title>
+  <title>MeteoScope 管理</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/src/admin.css" />
 </head>
 <body>
-  <main class="admin-shell">
-    <section class="admin-hero">
-      <div>
-        <span class="admin-eyebrow">MeteoScope</span>
-        <h1>管理者画面</h1>
-      </div>
-      <a class="admin-back-link" href="/">アプリへ戻る</a>
-    </section>
+  <header class="admin-topbar">
+    <a class="admin-brand" href="/" aria-label="MeteoScopeへ戻る">
+      <span class="admin-brand-mark" aria-hidden="true">M</span>
+      <span class="admin-brand-copy"><strong>MeteoScope</strong><small>運用管理</small></span>
+    </a>
+    <a class="admin-back-link" href="/">アプリへ戻る</a>
+  </header>
 
-    <section id="login-view" class="admin-card admin-login-card">
-      <h2>ログイン</h2>
-      <p>管理者パスワードを入力してください。</p>
-      <form id="login-form" class="admin-login-form">
-        <label for="admin-password">パスワード</label>
-        <input id="admin-password" type="password" autocomplete="current-password" required />
-        <button type="submit">ログイン</button>
-      </form>
-      <p id="login-message" class="admin-message" role="status"></p>
+  <main class="admin-shell">
+    <section id="login-view" class="admin-auth-layout">
+      <div class="admin-auth-intro">
+        <span class="admin-label">ADMINISTRATION</span>
+        <h1>管理者画面</h1>
+        <p>サービスの稼働状況、利用者アカウント、通知、公開情報を管理します。</p>
+      </div>
+      <div class="admin-card admin-login-card">
+        <div class="admin-login-heading">
+          <h2>ログイン</h2>
+          <p>管理者パスワードを入力してください。</p>
+        </div>
+        <form id="login-form" class="admin-login-form">
+          <label for="admin-password">パスワード</label>
+          <input id="admin-password" type="password" autocomplete="current-password" required />
+          <button type="submit">ログイン</button>
+        </form>
+        <p id="login-message" class="admin-message" role="status" aria-live="polite"></p>
+      </div>
     </section>
 
     <section id="dashboard-view" class="admin-dashboard" hidden>
-      <div class="admin-toolbar">
-        <div>
-          <span class="admin-eyebrow">Dashboard</span>
-          <h2>運用設定</h2>
+      <aside class="admin-sidebar" aria-label="管理メニュー">
+        <div class="admin-sidebar-heading">
+          <span class="admin-label">メニュー</span>
+          <strong>運用管理</strong>
         </div>
-        <button id="logout-button" class="admin-secondary-button" type="button">ログアウト</button>
-      </div>
+        <nav class="admin-nav">
+          <a href="#system-status">稼働状況</a>
+          <a href="#account-management">アカウント</a>
+          <a href="#maintenance-settings">メンテナンス</a>
+          <a href="#notification-management">管理者通知管理</a>
+          <a href="#early-access-management">アーリーアクセス</a>
+          <a href="#notice-management">お知らせ・意見</a>
+          <a href="#cache-management">キャッシュ</a>
+        </nav>
+        <div class="admin-sidebar-footer">
+          <button id="logout-button" class="admin-secondary-button" type="button">ログアウト</button>
+        </div>
+      </aside>
 
-      <div class="admin-grid">
-        <section class="admin-card">
-          <div class="admin-section-head">
-            <div class="admin-section-title">
-              <h3>状態</h3>
-              <p>APIと保存先の接続状態</p>
-            </div>
-            <button id="refresh-status-button" class="admin-small-button" type="button">更新</button>
+      <div class="admin-workspace">
+        <header class="admin-page-header">
+          <div>
+            <span class="admin-label">DASHBOARD</span>
+            <h1>運用管理</h1>
+            <p>各項目の状態確認と設定変更を行います。</p>
           </div>
-          <dl id="status-list" class="admin-status-list"></dl>
-        </section>
+          <p id="dashboard-message" class="admin-message admin-dashboard-message" role="status" aria-live="polite"></p>
+        </header>
 
-        <section class="admin-card">
-          <div class="admin-section-head">
-            <div class="admin-section-title">
-              <h3>MeteoScopeアカウント</h3>
-              <p>全ユーザーの確認・完全削除とD1利用状況</p>
-            </div>
-            <button id="refresh-accounts-button" class="admin-small-button" type="button">更新</button>
-          </div>
-          <dl id="quiz-metrics-list" class="admin-status-list"></dl>
-          <p class="admin-muted">DAUはUTC当日にアカウント状態確認・ログイン・クイズ開始を行った重複なしの利用者数です。</p>
-          <div class="admin-account-management">
-            <div class="admin-account-management-head">
-              <h4>全ユーザー</h4>
-              <span id="admin-account-count">0件</span>
-            </div>
-            <div id="admin-account-list" class="admin-account-list"></div>
-            <button id="load-more-accounts-button" class="admin-small-button admin-load-more" type="button" hidden>さらに表示</button>
-          </div>
-        </section>
-
-        <section class="admin-card">
-          <div class="admin-section-head">
-            <div class="admin-section-title">
-              <h3>メンテナンス表示</h3>
-              <p>利用者に一時案内を表示</p>
-            </div>
-            <button id="save-config-button" class="admin-small-button" type="button">保存</button>
-          </div>
-          <label class="admin-switch-row">
-            <span>表示する</span>
-            <input id="maintenance-enabled" type="checkbox" />
-          </label>
-          <label class="admin-field">
-            <span>表示文</span>
-            <textarea id="maintenance-message" rows="3" placeholder="現在メンテナンス中です。"></textarea>
-          </label>
-        </section>
-
-        <section class="admin-card">
-          <div class="admin-section-head">
-            <div class="admin-section-title">
-              <h3>管理者通知管理</h3>
-              <p>通知の配信予約とD1に保存された過去履歴の削除</p>
-            </div>
-          </div>
-          <form id="admin-push-form" class="admin-push-form">
-            <label class="admin-field">
-              <span>通知タイトル</span>
-              <input id="admin-push-title" type="text" maxlength="80" placeholder="MeteoScopeからのお知らせ" required />
-            </label>
-            <label class="admin-field">
-              <span>通知本文</span>
-              <textarea id="admin-push-body" rows="3" maxlength="400" placeholder="通知する内容を入力してください。" required></textarea>
-            </label>
-            <label class="admin-field">
-              <span>タップ時の移動先</span>
-              <select id="admin-push-url">
-                <option value="/">アプリトップ</option>
-                <option value="/?tab=radar">雨雲レーダー</option>
-                <option value="/?tab=amedas">アメダス</option>
-                <option value="/?tab=warnings">警報・注意報</option>
-                <option value="/?tab=typhoon">台風情報</option>
-                <option value="/?tab=earthquake">地震情報</option>
-              </select>
-            </label>
-            <button id="admin-push-submit" class="admin-primary-button" type="submit">通知を配信予約</button>
-            <p class="admin-muted">既存のお知らせ表示とは連動しません。予約後、1分間隔の通知処理で最大25端末ずつ配信します。</p>
-          </form>
-          <div id="admin-push-history" class="admin-push-history"></div>
-        </section>
-
-        <section class="admin-card">
-          <div class="admin-section-head">
-            <div class="admin-section-title">
-              <h3>アーリーアクセス</h3>
-              <p>D1に保存するシリアルコードを発行・失効</p>
-            </div>
-          </div>
-          <form id="early-access-form" class="admin-serial-form">
-            <label class="admin-field"><span>管理用ラベル</span><input id="early-access-label" type="text" maxlength="80" placeholder="テスト利用者" /></label>
-            <div class="admin-serial-options">
-              <label class="admin-field"><span>有効期限</span><input id="early-access-expires" type="datetime-local" /></label>
-              <label class="admin-field"><span>利用台数</span><input id="early-access-max-uses" type="number" min="1" max="10000" value="1" /></label>
-            </div>
-            <button class="admin-primary-button" type="submit">シリアルを発行</button>
-          </form>
-          <div id="early-access-generated" class="admin-generated-serial" hidden>
-            <span>発行したシリアル</span><strong id="early-access-serial"></strong>
-            <button id="copy-early-access-serial" class="admin-small-button" type="button">コピー</button>
-            <small>D1へ保存しました。このコード自体は再表示できません。</small>
-          </div>
-          <div id="early-access-code-list" class="admin-serial-list"></div>
-        </section>
-
-        <section class="admin-card admin-wide-card">
-          <div class="admin-section-head">
-            <div class="admin-section-title">
-              <h3>お知らせ</h3>
-              <p>アプリ内テロップとカード表示</p>
-            </div>
-            <div class="admin-button-row">
-              <button id="add-notice-button" class="admin-small-button" type="button">追加</button>
-              <button id="save-notices-button" class="admin-small-button" type="button">保存</button>
-            </div>
-          </div>
-          <div id="notice-list" class="admin-notice-list"></div>
-          <div class="admin-feedback-block">
+        <div class="admin-grid">
+          <section id="system-status" class="admin-card admin-span-2">
             <div class="admin-section-head">
               <div class="admin-section-title">
-                <h3>利用者意見</h3>
-                <p>送信された意見の確認</p>
+                <span class="admin-section-number">01</span>
+                <div><h2>稼働状況</h2><p>API、保存先、通知処理の状態</p></div>
               </div>
-              <button id="refresh-feedback-button" class="admin-small-button" type="button">更新</button>
+              <button id="refresh-status-button" class="admin-small-button" type="button">最新の状態に更新</button>
             </div>
-            <div id="feedback-list" class="admin-feedback-list"></div>
-          </div>
-        </section>
+            <dl id="status-list" class="admin-status-list admin-status-list--system"></dl>
+          </section>
 
-        <section class="admin-card">
-          <div class="admin-section-head">
-            <div class="admin-section-title">
-              <h3>キャッシュ</h3>
-              <p>Cloudflare CDNの更新</p>
+          <section id="account-management" class="admin-card admin-span-2">
+            <div class="admin-section-head">
+              <div class="admin-section-title">
+                <span class="admin-section-number">02</span>
+                <div><h2>MeteoScopeアカウント</h2><p>利用状況の確認とアカウント管理</p></div>
+              </div>
+              <button id="refresh-accounts-button" class="admin-small-button" type="button">一覧を更新</button>
             </div>
-            <button id="purge-cache-button" class="admin-small-button" type="button">削除API実行</button>
-          </div>
-          <p class="admin-muted">Cloudflare API トークンが設定されている場合のみ、CDNキャッシュ削除を実行します。</p>
-        </section>
+            <dl id="quiz-metrics-list" class="admin-status-list admin-status-list--metrics"></dl>
+            <p class="admin-note">DAUはUTC当日にアカウント状態確認・ログイン・クイズ開始を行った重複なしの利用者数です。</p>
+            <div class="admin-account-management">
+              <div class="admin-account-management-head">
+                <div><h3>登録アカウント</h3><p>削除すると関連するD1データも削除されます。</p></div>
+                <span id="admin-account-count">0件</span>
+              </div>
+              <div id="admin-account-list" class="admin-account-list"></div>
+              <button id="load-more-accounts-button" class="admin-small-button admin-load-more" type="button" hidden>さらに表示</button>
+            </div>
+          </section>
+
+          <section id="maintenance-settings" class="admin-card">
+            <div class="admin-section-head">
+              <div class="admin-section-title">
+                <span class="admin-section-number">03</span>
+                <div><h2>メンテナンス表示</h2><p>利用者への一時案内</p></div>
+              </div>
+              <button id="save-config-button" class="admin-small-button" type="button">変更を保存</button>
+            </div>
+            <label class="admin-switch-row">
+              <span><strong>表示する</strong><small>有効にするとアプリ内へ案内を表示します。</small></span>
+              <input id="maintenance-enabled" type="checkbox" aria-label="メンテナンス表示" />
+            </label>
+            <label class="admin-field">
+              <span>表示文</span>
+              <textarea id="maintenance-message" rows="4" placeholder="現在メンテナンス中です。"></textarea>
+            </label>
+          </section>
+
+          <section id="cache-management" class="admin-card">
+            <div class="admin-section-head">
+              <div class="admin-section-title">
+                <span class="admin-section-number">04</span>
+                <div><h2>キャッシュ</h2><p>Cloudflare CDNの更新</p></div>
+              </div>
+            </div>
+            <p class="admin-note">公開内容が更新されない場合に限り実行してください。Cloudflare APIトークンの設定が必要です。</p>
+            <button id="purge-cache-button" class="admin-secondary-button admin-block-action" type="button">キャッシュ削除APIを実行</button>
+          </section>
+
+          <section id="notification-management" class="admin-card admin-span-2">
+            <div class="admin-section-head">
+              <div class="admin-section-title">
+                <span class="admin-section-number">05</span>
+                <div><h2>管理者通知管理</h2><p>Web版への通知予約と配信履歴</p></div>
+              </div>
+            </div>
+            <div class="admin-split-layout">
+              <form id="admin-push-form" class="admin-push-form admin-form-panel">
+                <h3>新しい通知</h3>
+                <label class="admin-field">
+                  <span>通知タイトル</span>
+                  <input id="admin-push-title" type="text" maxlength="80" placeholder="MeteoScopeからのお知らせ" required />
+                </label>
+                <label class="admin-field">
+                  <span>通知本文</span>
+                  <textarea id="admin-push-body" rows="4" maxlength="400" placeholder="通知する内容を入力してください。" required></textarea>
+                </label>
+                <label class="admin-field">
+                  <span>タップ時の移動先</span>
+                  <select id="admin-push-url">
+                    <option value="/">アプリトップ</option>
+                    <option value="/?tab=radar">雨雲レーダー</option>
+                    <option value="/?tab=amedas">アメダス</option>
+                    <option value="/?tab=warnings">警報・注意報</option>
+                    <option value="/?tab=typhoon">台風情報</option>
+                    <option value="/?tab=earthquake">地震情報</option>
+                  </select>
+                </label>
+                <button id="admin-push-submit" class="admin-primary-button" type="submit">通知を配信予約</button>
+                <p class="admin-note">予約後、1分間隔の通知処理で最大25端末ずつ配信します。配信を保証するものではありません。</p>
+              </form>
+              <div class="admin-history-panel">
+                <div class="admin-subsection-head"><h3>配信履歴</h3><span>新しい順</span></div>
+                <div id="admin-push-history" class="admin-push-history"></div>
+              </div>
+            </div>
+          </section>
+
+          <section id="early-access-management" class="admin-card admin-span-2">
+            <div class="admin-section-head">
+              <div class="admin-section-title">
+                <span class="admin-section-number">06</span>
+                <div><h2>アーリーアクセス</h2><p>シリアルコードの発行と失効</p></div>
+              </div>
+            </div>
+            <form id="early-access-form" class="admin-serial-form admin-inline-form">
+              <label class="admin-field"><span>管理用ラベル</span><input id="early-access-label" type="text" maxlength="80" placeholder="テスト利用者" /></label>
+              <label class="admin-field"><span>有効期限</span><input id="early-access-expires" type="datetime-local" /></label>
+              <label class="admin-field admin-field--compact"><span>利用台数</span><input id="early-access-max-uses" type="number" min="1" max="10000" value="1" /></label>
+              <button class="admin-primary-button" type="submit">シリアルを発行</button>
+            </form>
+            <div id="early-access-generated" class="admin-generated-serial" hidden>
+              <span>発行したシリアル</span><strong id="early-access-serial"></strong>
+              <button id="copy-early-access-serial" class="admin-small-button" type="button">コピー</button>
+              <small>D1へ保存しました。このコード自体は再表示できません。</small>
+            </div>
+            <div id="early-access-code-list" class="admin-serial-list"></div>
+          </section>
+
+          <section id="notice-management" class="admin-card admin-span-2">
+            <div class="admin-section-head">
+              <div class="admin-section-title">
+                <span class="admin-section-number">07</span>
+                <div><h2>お知らせ</h2><p>アプリ内テロップとカード表示</p></div>
+              </div>
+              <div class="admin-button-row">
+                <button id="add-notice-button" class="admin-small-button" type="button">項目を追加</button>
+                <button id="save-notices-button" class="admin-primary-button admin-compact-button" type="button">変更を保存</button>
+              </div>
+            </div>
+            <div id="notice-list" class="admin-notice-list"></div>
+            <div class="admin-feedback-block">
+              <div class="admin-section-head">
+                <div class="admin-section-title admin-section-title--plain">
+                  <div><h2>利用者意見</h2><p>アプリから送信された意見</p></div>
+                </div>
+                <button id="refresh-feedback-button" class="admin-small-button" type="button">一覧を更新</button>
+              </div>
+              <div id="feedback-list" class="admin-feedback-list"></div>
+            </div>
+          </section>
+        </div>
       </div>
-
-      <p id="dashboard-message" class="admin-message" role="status"></p>
     </section>
   </main>
 

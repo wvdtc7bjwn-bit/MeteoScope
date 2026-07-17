@@ -159,6 +159,7 @@ assert.match(adminRoute, /route === "accounts" && method === "GET"/u);
 assert.match(adminRoute, /route\.startsWith\("accounts\/"\) && method === "DELETE"/u);
 assert.match(adminRoute, /route\.startsWith\("push\/broadcasts\/"\) && method === "DELETE"/u);
 assert.match(adminRoute, /listAdminPushBroadcasts\(env, 50\)/u);
+assert.match(adminRoute, /deleteEarlyAccessActivationsForCode\(db, id\)/u);
 assert.match(adminPage, /id="admin-account-list"/u);
 assert.match(adminPage, /管理者通知管理/u);
 assert.match(adminScript, /data-delete-account/u);

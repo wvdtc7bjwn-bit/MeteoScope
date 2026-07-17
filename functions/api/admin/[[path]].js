@@ -2,6 +2,7 @@ import { readJson, writeJson, requireD1 } from "../../_shared/d1Store.js";
 import { readCloudflareD1Usage } from "../../_shared/cloudflareD1Analytics.js";
 import { readQuizOperationalMetrics } from "../../_shared/quizMaintenance.js";
 import { deleteMeteoScopeAccount, listMeteoScopeAccounts } from "../../_shared/adminManagement.js";
+import { deleteEarlyAccessActivationsForCode } from "../../_shared/earlyAccessAuth.js";
 import { invalidateAllQuizLeaderboardCaches } from "../../_shared/quizLeaderboardCache.js";
 import {
   deleteAdminPushBroadcast, listAdminPushBroadcasts, queueAdminPushBroadcast, readWarningCronHealth
@@ -275,7 +276,8 @@ async function deleteEarlyAccessCode(id, env) {
   const nextCodes = (Array.isArray(codes) ? codes : []).filter((item) => item.id !== id);
   if (nextCodes.length === codes.length) return json({ error: "対象のコードが見つかりません。" }, { status: 404 });
   await writeJson(db, EARLY_ACCESS_CODES_KEY, nextCodes);
-  return json({ codes: nextCodes.map(publicEarlyAccessCode) });
+  const removedActivations = await deleteEarlyAccessActivationsForCode(db, id);
+  return json({ codes: nextCodes.map(publicEarlyAccessCode), removedActivations });
 }
 
 function publicEarlyAccessCode(entry) {
