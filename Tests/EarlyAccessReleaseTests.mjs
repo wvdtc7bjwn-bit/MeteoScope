@@ -78,6 +78,7 @@ async function uses(db) {
 const webClient = await fs.readFile(path.join(root, "src", "ui", "earlyAccess.js"), "utf8");
 assert.match(webClient, /action:\s*"deactivate"/u);
 assert.match(webClient, /PENDING_RELEASE_STORAGE_KEY/u);
+assert.match(webClient, /Number\(error\?\.status\) === 401/u);
 assert.match(webClient, /Webアプリを削除する場合は先に解除/u);
 
 console.log("Early access release tests passed.");
