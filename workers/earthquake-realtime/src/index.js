@@ -85,7 +85,7 @@ async function fetchFromHub(request, env, route) {
 async function fetchDirectD1(request, env, ctx, route) {
   const cache = caches.default;
   const cacheUrl = new URL(request.url);
-  cacheUrl.searchParams.set("_meteoscopeCache", "jma-distribution-v2");
+  cacheUrl.searchParams.set("_meteoscopeCache", "jma-distribution-v3");
   const cacheKey = new Request(cacheUrl, { method: "GET" });
   const cached = await cache.match(cacheKey);
   if (cached) return cached;

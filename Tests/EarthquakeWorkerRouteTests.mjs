@@ -329,7 +329,10 @@ const distributionResponse = await readJmaDailyHypocenterDistribution(
             return {
               async all() {
                 assert.match(sql, /SELECT daily\.source_date/u);
-                return { results: [{ source_date: "2026-07-17" }, { source_date: "2026-07-16" }] };
+                return { results: [
+                  { source_date: "2026-07-17", record_count: 2 },
+                  { source_date: "2026-07-16", record_count: 1 }
+                ] };
               },
               async first() {
                 if (/SELECT payload_json/u.test(sql)) {
@@ -350,6 +353,10 @@ const distributionResponse = await readJmaDailyHypocenterDistribution(
 );
 const selectedDistribution = await distributionResponse.json();
 assert.deepEqual(selectedDistribution.availableDates, ["2026-07-17", "2026-07-16"]);
+assert.deepEqual(selectedDistribution.dailyCounts, [
+  { sourceDate: "2026-07-17", count: 2 },
+  { sourceDate: "2026-07-16", count: 1 }
+]);
 assert.equal(selectedDistribution.selectedSourceDate, "2026-07-16");
 assert.equal(selectedDistribution.dayOffset, 1);
 assert.deepEqual(selectedDistribution.items.map((item) => item.place), ["前日の震源"]);

@@ -447,7 +447,7 @@ struct WeatherMapView: UIViewRepresentable {
             case .earthquakeHypocenter:
                 (UIColor.black, CGSize(width: 22, height: 22), 3)
             case .hypocenterDistribution(let depthKm):
-                (hypocenterDepthColor(depthKm), CGSize(width: 9, height: 9), 1.5)
+                (hypocenterDepthColor(depthKm).withAlphaComponent(0.68), CGSize(width: 9, height: 9), 0)
             case .seismicIntensity(let label):
                 (intensityColor(label), CGSize(width: 13, height: 13), 1.5)
             case .communityReport(let weather, let hasHazard):
@@ -457,10 +457,27 @@ struct WeatherMapView: UIViewRepresentable {
 
         private func hypocenterDepthColor(_ depthKm: Int?) -> UIColor {
             guard let depthKm else { return .systemGray }
-            if depthKm < 30 { return .systemRed }
-            if depthKm < 100 { return .systemOrange }
-            if depthKm < 300 { return .systemBlue }
-            return .systemPurple
+            let depth = min(700, max(0, depthKm))
+            let stops: [(depth: Int, red: CGFloat, green: CGFloat, blue: CGFloat)] = [
+                (0, 239, 54, 43),
+                (30, 255, 218, 71),
+                (100, 75, 224, 91),
+                (300, 69, 211, 238),
+                (700, 28, 68, 210)
+            ]
+            guard let upperIndex = stops.firstIndex(where: { depth <= $0.depth }), upperIndex > 0 else {
+                let color = stops[0]
+                return UIColor(red: color.red / 255, green: color.green / 255, blue: color.blue / 255, alpha: 1)
+            }
+            let lower = stops[upperIndex - 1]
+            let upper = stops[upperIndex]
+            let progress = CGFloat(depth - lower.depth) / CGFloat(upper.depth - lower.depth)
+            return UIColor(
+                red: (lower.red + (upper.red - lower.red) * progress) / 255,
+                green: (lower.green + (upper.green - lower.green) * progress) / 255,
+                blue: (lower.blue + (upper.blue - lower.blue) * progress) / 255,
+                alpha: 1
+            )
         }
 
         private func communityReportColor(_ weather: String) -> UIColor {

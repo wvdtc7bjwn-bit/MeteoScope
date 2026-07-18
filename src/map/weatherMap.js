@@ -48,7 +48,8 @@ const SAMPLE_CIRCLE_STROKE_WIDTH_EXPRESSION = buildCircleZoomExpression({
     [10, 2.2, 2]
   ],
   fallbackValue: 2,
-  createValue: (width) => width
+  createValue: (width) => width,
+  overrideProperty: "strokeWidth"
 });
 const TYPHOON_SOURCE_ID = "jma-typhoon";
 const TYPHOON_LAYERS = [
@@ -554,7 +555,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       },
       paint: {
         "circle-color": ["get", "color"],
-        "circle-opacity": 0.92,
+        "circle-opacity": ["coalesce", ["get", "opacity"], 0.92],
         "circle-radius": SAMPLE_CIRCLE_RADIUS_EXPRESSION,
         "circle-stroke-color": "#f8fbff",
         "circle-stroke-width": SAMPLE_CIRCLE_STROKE_WIDTH_EXPRESSION
@@ -2590,7 +2591,8 @@ function getAmedasSortKey(metricId, value) {
 function buildCircleZoomExpression({
   zoomStops,
   fallbackValue,
-  createValue
+  createValue,
+  overrideProperty = null
 }) {
   const scaleMode = ["get", "markerScaleMode"];
   return [
@@ -2599,7 +2601,19 @@ function buildCircleZoomExpression({
     ["zoom"],
     ...zoomStops.flatMap(([zoom, amedasValue, earthquakeValue]) => [
       zoom,
-      [
+      overrideProperty ? [
+        "case",
+        ["has", overrideProperty],
+        ["get", overrideProperty],
+        [
+          "case",
+          ["==", scaleMode, "amedas-zoom"],
+          createValue(amedasValue),
+          ["==", scaleMode, "earthquake-zoom"],
+          createValue(earthquakeValue),
+          fallbackValue
+        ]
+      ] : [
         "case",
         ["==", scaleMode, "amedas-zoom"],
         createValue(amedasValue),
@@ -2628,6 +2642,8 @@ function createEarthquakeFeatures(data) {
         geometry: { type: "Point", coordinates: [longitude, latitude] },
         properties: {
           color: getHypocenterDepthColor(Number.isFinite(depth) ? depth : null),
+          opacity: 0.68,
+          strokeWidth: 0,
           markerType: "circle",
           markerScaleMode: "fixed",
           radius: Number.isFinite(magnitude) ? Math.max(3.5, Math.min(11, 3 + magnitude * 1.2)) : 4,
@@ -2699,10 +2715,26 @@ function createEarthquakeFeatures(data) {
 
 function getHypocenterDepthColor(depthKm) {
   if (depthKm === null) return "#687487";
-  if (depthKm < 30) return "#ef4444";
-  if (depthKm < 100) return "#f59e0b";
-  if (depthKm < 300) return "#2583e8";
-  return "#7857d9";
+  const depth = Math.max(0, Math.min(700, Number(depthKm)));
+  const stops = [
+    [0, [239, 54, 43]],
+    [30, [255, 218, 71]],
+    [100, [75, 224, 91]],
+    [300, [69, 211, 238]],
+    [700, [28, 68, 210]]
+  ];
+  const upperIndex = stops.findIndex(([stopDepth]) => depth <= stopDepth);
+  if (upperIndex <= 0) return rgbToHex(stops[0][1]);
+  const [lowerDepth, lowerColor] = stops[upperIndex - 1];
+  const [upperDepth, upperColor] = stops[upperIndex];
+  const progress = (depth - lowerDepth) / (upperDepth - lowerDepth);
+  return rgbToHex(lowerColor.map((channel, index) => (
+    Math.round(channel + (upperColor[index] - channel) * progress)
+  )));
+}
+
+function rgbToHex(channels) {
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function buildHypocenterDistributionPopup(item) {

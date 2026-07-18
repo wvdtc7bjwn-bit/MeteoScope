@@ -2973,30 +2973,38 @@ h2 {
 .earthquake-view-toggle {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 3px;
+  gap: 2px;
+  height: 34px;
   margin-bottom: 10px;
   padding: 3px;
-  border: 1px solid rgba(137, 170, 220, 0.2);
-  border-radius: 12px;
-  background: rgba(8, 17, 31, 0.5);
+  border: 1px solid rgba(207, 232, 255, 0.2);
+  border-radius: 999px;
+  box-sizing: border-box;
+  background: rgba(7, 16, 34, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+  overflow: hidden;
 }
 
 .earthquake-view-toggle button {
-  min-height: 32px;
-  border: 0;
-  border-radius: 9px;
+  height: 26px;
+  min-height: 26px;
+  padding-block: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  box-sizing: border-box;
   background: transparent;
-  color: rgba(216, 230, 247, 0.72);
+  color: rgba(230, 241, 251, 0.76);
   font: inherit;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 900;
   cursor: pointer;
 }
 
 .earthquake-view-toggle button.active {
-  background: rgba(80, 145, 196, 0.25);
-  color: #f8fbff;
-  box-shadow: inset 0 0 0 1px rgba(111, 186, 235, 0.35);
+  border-color: rgba(211, 239, 255, 0.36);
+  background: rgba(79, 155, 226, 0.16);
+  color: #eaf9ff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 8px 18px rgba(20, 64, 150, 0.08);
 }
 
 .earthquake-distribution-panel {
@@ -3035,35 +3043,159 @@ h2 {
   font-weight: 750;
 }
 
-.earthquake-distribution-count {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
+.earthquake-distribution-result {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
   margin-top: 12px;
   padding-top: 10px;
   border-top: 1px solid rgba(137, 170, 220, 0.16);
 }
 
-.earthquake-distribution-count strong { font-size: 18px; }
-.earthquake-distribution-count span { color: rgba(216, 230, 247, 0.65); font-size: 10.5px; }
+.earthquake-distribution-result-date,
+.earthquake-distribution-result-count {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.earthquake-distribution-result-date span,
+.earthquake-distribution-result-count span {
+  color: rgba(216, 230, 247, 0.62);
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.earthquake-distribution-result-date strong {
+  overflow: hidden;
+  color: #edf7ff;
+  font-size: 15px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.earthquake-distribution-result-count { text-align: right; }
+.earthquake-distribution-result-count strong {
+  color: #f5fbff;
+  font-size: 21px;
+  line-height: 1;
+}
 
 .earthquake-depth-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px 10px;
-  margin-top: 10px;
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
   color: rgba(216, 230, 247, 0.72);
   font-size: 9.5px;
   font-weight: 700;
 }
 
-.earthquake-depth-legend span { display: inline-flex; align-items: center; gap: 4px; }
-.earthquake-depth-legend i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--depth-color);
+.earthquake-depth-legend-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(216, 230, 247, 0.68);
+  font-size: 9.5px;
+}
+
+.earthquake-depth-legend-title span:first-child {
+  color: rgba(238, 247, 255, 0.9);
+  font-weight: 800;
+}
+
+.earthquake-depth-gradient {
+  height: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ef362b 0%, #ffda47 4.2857%, #4be05b 14.2857%, #45d3ee 42.8571%, #1c44d2 100%);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.earthquake-depth-gradient-labels {
+  display: grid;
+  grid-template-columns: 1fr repeat(3, auto) 1fr;
+  align-items: center;
+  column-gap: 7px;
+}
+
+.earthquake-depth-gradient-labels span:last-child {
+  text-align: right;
+}
+
+.earthquake-distribution-analytics {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(137, 170, 220, 0.16);
+}
+
+.earthquake-distribution-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.earthquake-distribution-chart-head strong {
+  color: #edf7ff;
+  font-size: 11px;
+}
+
+.earthquake-distribution-chart-head span,
+.earthquake-distribution-chart-caption {
+  color: rgba(216, 230, 247, 0.58);
+  font-size: 8.5px;
+  font-weight: 650;
+}
+
+.earthquake-distribution-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 2px;
+  overflow: visible;
+}
+
+.earthquake-chart-grid {
+  stroke: rgba(151, 180, 214, 0.16);
+  stroke-width: 1;
+}
+
+.earthquake-chart-axis-text {
+  fill: rgba(216, 230, 247, 0.62);
+  font-family: inherit;
+  font-size: 8px;
+  font-weight: 700;
+}
+.earthquake-chart-line {
+  fill: none;
+  stroke: #55baf0;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.25;
+}
+.earthquake-chart-point {
+  fill: #78d2ff;
+  stroke: rgba(8, 17, 31, 0.8);
+  stroke-width: 1;
+}
+
+.earthquake-distribution-chart-caption {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.earthquake-distribution-chart-empty {
+  margin-top: 9px;
+  padding: 22px 10px;
+  border-radius: 9px;
+  background: rgba(95, 133, 175, 0.08);
+  color: rgba(216, 230, 247, 0.65);
+  font-size: 10px;
+  text-align: center;
 }
 
 .earthquake-distribution-note {
@@ -3129,6 +3261,8 @@ h2 {
   border: 0;
   background: transparent;
   cursor: pointer;
+  direction: rtl;
+  touch-action: none;
 }
 
 .mobile-dock-earthquake-date-range::-webkit-slider-runnable-track {
@@ -7563,7 +7697,21 @@ html[data-theme="light"] .earthquake-view-toggle button.active {
 html[data-theme="light"] .earthquake-distribution-filters label,
 html[data-theme="light"] .earthquake-depth-legend,
 html[data-theme="light"] .earthquake-distribution-note,
-html[data-theme="light"] .earthquake-distribution-count span { color: #536b82; }
+html[data-theme="light"] .earthquake-distribution-result-date span,
+html[data-theme="light"] .earthquake-distribution-result-count span { color: #536b82; }
+html[data-theme="light"] .earthquake-distribution-result-date strong,
+html[data-theme="light"] .earthquake-distribution-result-count strong,
+html[data-theme="light"] .earthquake-depth-legend-title span:first-child { color: #20364e; }
+html[data-theme="light"] .earthquake-distribution-chart-head strong { color: #20364e; }
+html[data-theme="light"] .earthquake-distribution-chart-head span,
+html[data-theme="light"] .earthquake-distribution-chart-caption,
+html[data-theme="light"] .earthquake-chart-axis-text { color: #536b82; fill: #536b82; }
+html[data-theme="light"] .earthquake-chart-grid { stroke: rgba(56, 85, 115, 0.16); }
+html[data-theme="light"] .earthquake-chart-point { stroke: rgba(255, 255, 255, 0.9); }
+html[data-theme="light"] .earthquake-distribution-chart-empty {
+  background: rgba(57, 91, 126, 0.06);
+  color: #536b82;
+}
 html[data-theme="light"] .earthquake-distribution-filters select {
   border-color: rgba(72, 100, 132, 0.22);
   background: #ffffff;

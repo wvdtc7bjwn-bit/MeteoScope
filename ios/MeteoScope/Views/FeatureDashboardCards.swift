@@ -700,14 +700,25 @@ struct EarthquakeDashboardCard: View {
                 }
             case .loaded(let snapshot):
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("\(snapshot.items.count.formatted())個").font(.title3.weight(.bold))
+                    HStack(alignment: .bottom, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("表示対象日")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Text(snapshot.selectedSourceDate.map(formatDistributionFullDate) ?? "取得日不明")
+                                .font(.subheadline.weight(.bold))
+                        }
                         Spacer()
-                        Text(snapshot.selectedSourceDate.map(formatDistributionDate) ?? "取得日不明")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("\(snapshot.items.count.formatted())個")
+                                .font(.title3.weight(.bold))
+                            Text("暫定値・\(snapshot.availableDayCount)日分収録")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
                     }
                     HypocenterDepthLegend()
+                    HypocenterDistributionTrendChart(snapshot: snapshot)
                     Text("震源要素は気象庁の暫定値で、後日変更される場合があります。")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -748,6 +759,15 @@ struct EarthquakeDashboardCard: View {
               let month = Int(parts[1]),
               let day = Int(parts[2]) else { return value }
         return "\(month)/\(day)"
+    }
+
+    private func formatDistributionFullDate(_ value: String) -> String {
+        let parts = value.split(separator: "-")
+        guard parts.count == 3,
+              let year = Int(parts[0]),
+              let month = Int(parts[1]),
+              let day = Int(parts[2]) else { return value }
+        return "\(year)年\(month)月\(day)日"
     }
 
     private var depthFilterTitle: String {
@@ -1110,21 +1130,108 @@ private struct TsunamiEventDetails: View {
 }
 
 private struct HypocenterDepthLegend: View {
-    private let items: [(Color, String)] = [
-        (.red, "30km未満"), (.orange, "30–100km"),
-        (.blue, "100–300km"), (.purple, "300km以上")
-    ]
-
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
-                HStack(spacing: 3) {
-                    Circle().fill(item.0).frame(width: 7, height: 7)
-                    Text(item.1)
-                }
+        VStack(spacing: 3) {
+            LinearGradient(
+                stops: [
+                    .init(color: Color(red: 239 / 255, green: 54 / 255, blue: 43 / 255), location: 0),
+                    .init(color: Color(red: 255 / 255, green: 218 / 255, blue: 71 / 255), location: 30 / 700),
+                    .init(color: Color(red: 75 / 255, green: 224 / 255, blue: 91 / 255), location: 100 / 700),
+                    .init(color: Color(red: 69 / 255, green: 211 / 255, blue: 238 / 255), location: 300 / 700),
+                    .init(color: Color(red: 28 / 255, green: 68 / 255, blue: 210 / 255), location: 1)
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(height: 8)
+            .clipShape(Capsule())
+            HStack {
+                Text("浅い・0km")
+                Spacer()
+                Text("30")
+                Spacer()
+                Text("100")
+                Spacer()
+                Text("300")
+                Spacer()
+                Text("700km・深い")
             }
         }
         .font(.system(size: 9, weight: .medium))
+    }
+}
+
+private struct HypocenterDistributionTrendChart: View {
+    let snapshot: HypocenterDistributionSnapshot
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            if trendCounts.isEmpty {
+                Text("日別件数はデータ更新後に表示されます。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 138)
+            } else {
+                chartHeader("日別の総地震回数", trailing: "古い日 → 最新")
+                Chart(trendCounts) { item in
+                    LineMark(
+                        x: .value("日付", item.sourceDate),
+                        y: .value("個数", item.count)
+                    )
+                    .foregroundStyle(Color.cyan)
+                    .lineStyle(StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+                    PointMark(
+                        x: .value("日付", item.sourceDate),
+                        y: .value("個数", item.count)
+                    )
+                    .foregroundStyle(Color.cyan)
+                    .symbolSize(20)
+                }
+                .chartYAxisLabel("個数")
+                .chartXAxis {
+                    AxisMarks(values: trendAxisDates) { value in
+                        AxisGridLine()
+                        AxisValueLabel {
+                            if let date = value.as(String.self) {
+                                Text(shortDate(date))
+                            }
+                        }
+                    }
+                }
+                .frame(height: 138)
+                Text("全規模・全深さの日別収録件数。グラフ専用のD1保存は行いません。")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.top, 2)
+    }
+
+    private var trendCounts: [DailyHypocenterCount] {
+        (snapshot.dailyCounts ?? []).sorted { $0.sourceDate < $1.sourceDate }
+    }
+
+    private var trendAxisDates: [String] {
+        guard let first = trendCounts.first?.sourceDate,
+              let last = trendCounts.last?.sourceDate else { return [] }
+        let middle = trendCounts[trendCounts.count / 2].sourceDate
+        return Array(Set([first, middle, last])).sorted()
+    }
+
+    private func chartHeader(_ title: String, trailing: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title).font(.caption.weight(.bold))
+            Spacer()
+            Text(trailing).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary)
+        }
+    }
+
+    private func shortDate(_ value: String) -> String {
+        let parts = value.split(separator: "-")
+        guard parts.count == 3,
+              let month = Int(parts[1]),
+              let day = Int(parts[2]) else { return value }
+        return "\(month)/\(day)"
     }
 }
 

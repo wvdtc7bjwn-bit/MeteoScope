@@ -24,6 +24,7 @@ struct HypocenterDistributionSnapshot: Decodable, Equatable, Sendable {
     let truncated: Bool
     let availableDates: [String]
     let availableDayCount: Int
+    let dailyCounts: [DailyHypocenterCount]?
     let selectedSourceDate: String?
     let dayOffset: Int
     let items: [DailyHypocenter]
@@ -38,6 +39,7 @@ struct HypocenterDistributionSnapshot: Decodable, Equatable, Sendable {
         case truncated
         case availableDates
         case availableDayCount
+        case dailyCounts
         case selectedSourceDate
         case dayOffset
         case items
@@ -53,6 +55,11 @@ struct HypocenterDistributionSnapshot: Decodable, Equatable, Sendable {
         truncated: false,
         availableDates: ["2026-07-17", "2026-07-16", "2026-07-15"],
         availableDayCount: 3,
+        dailyCounts: [
+            DailyHypocenterCount(sourceDate: "2026-07-17", count: 798),
+            DailyHypocenterCount(sourceDate: "2026-07-16", count: 642),
+            DailyHypocenterCount(sourceDate: "2026-07-15", count: 705)
+        ],
         selectedSourceDate: "2026-07-17",
         dayOffset: 0,
         items: [
@@ -68,6 +75,13 @@ struct HypocenterDistributionSnapshot: Decodable, Equatable, Sendable {
             )
         ]
     )
+}
+
+struct DailyHypocenterCount: Decodable, Identifiable, Equatable, Sendable {
+    let sourceDate: String
+    let count: Int
+
+    var id: String { sourceDate }
 }
 
 struct DailyHypocenter: Decodable, Identifiable, Equatable, Sendable {

@@ -214,7 +214,7 @@ async function syncOneDate(db, date, fetchImpl) {
 
 async function queryDistribution(db, { startDate, requestedDayOffset, minMagnitude, maxDepth }) {
   const datesResult = await db.prepare(`
-    SELECT daily.source_date
+    SELECT daily.source_date, daily.record_count
     FROM jma_daily_hypocenter_days AS daily
     INNER JOIN jma_daily_hypocenter_sync AS sync
       ON sync.source_date = daily.source_date AND sync.status = 'ok'
@@ -222,7 +222,11 @@ async function queryDistribution(db, { startDate, requestedDayOffset, minMagnitu
     ORDER BY daily.source_date DESC
     LIMIT 15
   `).bind(startDate).all();
-  const availableDates = (datesResult?.results ?? []).map((row) => row.source_date);
+  const dailyCounts = (datesResult?.results ?? []).map((row) => ({
+    sourceDate: row.source_date,
+    count: Math.max(0, Number(row.record_count) || 0)
+  }));
+  const availableDates = dailyCounts.map((row) => row.sourceDate);
   const dayOffset = availableDates.length
     ? Math.min(requestedDayOffset, availableDates.length - 1)
     : 0;
@@ -255,6 +259,7 @@ async function queryDistribution(db, { startDate, requestedDayOffset, minMagnitu
     failedDates: Number(sync?.failed_dates ?? 0),
     availableDates,
     availableDayCount: availableDates.length,
+    dailyCounts,
     selectedSourceDate,
     dayOffset,
     truncated: items.length > visibleItems.length,

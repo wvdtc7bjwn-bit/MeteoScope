@@ -316,9 +316,9 @@ export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
   root.addEventListener("pointercancel", finishRankingSliderDrag);
 }
 
-export function setupMobileDockSegmentedControls() {
-  const root = document.getElementById("mobile-context-dock");
-  if (!root) return;
+function setupSegmentedControls(root) {
+  if (!root || root.dataset.segmentedControlsReady === "true") return;
+  root.dataset.segmentedControlsReady = "true";
   let dragState = null;
   let suppressClickUntil = 0;
   let pendingFrame = 0;
@@ -415,6 +415,10 @@ export function setupMobileDockSegmentedControls() {
   root.addEventListener("pointercancel", finishDrag);
   window.addEventListener("resize", () => window.requestAnimationFrame(() => syncMobileDockSegmentIndicators(root)));
   syncMobileDockSegmentIndicators(root);
+}
+
+export function setupMobileDockSegmentedControls() {
+  setupSegmentedControls(document.getElementById("mobile-context-dock"));
 }
 
 export function setupKikikuruLayerToggles({ onChange }) {
@@ -625,7 +629,9 @@ export function setupEarthquakeSelector({
   onDistributionRetry
 }) {
   const root = document.getElementById("earthquake-list");
+  const mobileDock = document.getElementById("mobile-context-dock");
   if (!root) return;
+  setupSegmentedControls(root);
 
   const handleClick = (event) => {
     if (!(event.target instanceof Element)) return;
@@ -644,7 +650,7 @@ export function setupEarthquakeSelector({
     onChange?.(button.dataset.earthquakeId);
   };
   root.addEventListener("click", handleClick);
-  document.getElementById("mobile-context-dock")?.addEventListener("click", handleClick);
+  mobileDock?.addEventListener("click", handleClick);
 
   const handleFilterChange = (event) => {
     const target = event.target;
@@ -652,10 +658,50 @@ export function setupEarthquakeSelector({
     onDistributionFilterChange?.({ [target.dataset.earthquakeDistributionFilter]: target.value });
   };
   root.addEventListener("change", handleFilterChange);
-  document.getElementById("mobile-context-dock")?.addEventListener("change", (event) => {
+  let activeDateSlider = null;
+  let suppressDateSliderChangeUntil = 0;
+  const isDateSlider = (target) => (
+    target instanceof HTMLInputElement &&
+    target.matches(".mobile-dock-earthquake-date-range[data-earthquake-distribution-filter='dayOffset']")
+  );
+  const updateDateSliderFromPointer = (slider, clientX) => {
+    const rect = slider.getBoundingClientRect();
+    if (!rect.width) return;
+    const min = Number(slider.min) || 0;
+    const max = Number(slider.max) || 0;
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    slider.value = String(Math.round(max - ratio * (max - min)));
+  };
+  mobileDock?.addEventListener("pointerdown", (event) => {
+    if (!isDateSlider(event.target)) return;
+    activeDateSlider = event.target;
+    updateDateSliderFromPointer(activeDateSlider, event.clientX);
+    activeDateSlider.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  });
+  mobileDock?.addEventListener("pointermove", (event) => {
+    if (!activeDateSlider) return;
+    updateDateSliderFromPointer(activeDateSlider, event.clientX);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  });
+  const finishDateSlider = (event) => {
+    if (!activeDateSlider) return;
+    if (event.type !== "pointercancel") updateDateSliderFromPointer(activeDateSlider, event.clientX);
+    const value = activeDateSlider.value;
+    activeDateSlider.releasePointerCapture?.(event.pointerId);
+    activeDateSlider = null;
+    suppressDateSliderChangeUntil = Date.now() + 150;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    onDistributionFilterChange?.({ dayOffset: value });
+  };
+  mobileDock?.addEventListener("pointerup", finishDateSlider);
+  mobileDock?.addEventListener("pointercancel", finishDateSlider);
+  mobileDock?.addEventListener("change", (event) => {
     const target = event.target;
-    if (!(target instanceof HTMLInputElement) || target.type !== "range") return;
-    if (!target.dataset.earthquakeDistributionFilter) return;
+    if (!isDateSlider(target) || Date.now() < suppressDateSliderChangeUntil) return;
     onDistributionFilterChange?.({ [target.dataset.earthquakeDistributionFilter]: target.value });
   });
 }
@@ -2703,6 +2749,10 @@ function renderTyphoonDetails(tab, state) {
 function renderEarthquakeList(tab, state) {
   const root = document.getElementById("earthquake-list");
   if (!root) return;
+  const render = (markup) => {
+    root.innerHTML = markup;
+    initializeMobileDockSegmentIndicators(root);
+  };
 
   const isEarthquake = tab.id === "earthquake";
   root.hidden = !isEarthquake;
@@ -2714,29 +2764,29 @@ function renderEarthquakeList(tab, state) {
   const view = state.data?.earthquakeView ?? "recent";
   const viewToggle = buildEarthquakeViewToggle(view);
   if (view === "distribution") {
-    root.innerHTML = `${viewToggle}${buildEarthquakeDistributionMarkup(state.data ?? {})}`;
+    render(`${viewToggle}${buildEarthquakeDistributionMarkup(state.data ?? {})}`);
     return;
   }
 
   if (state.status === "loading") {
-    root.innerHTML = `${viewToggle}<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得中です。</div>`;
+    render(`${viewToggle}<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得中です。</div>`);
     return;
   }
 
   if (state.status === "error") {
-    root.innerHTML = `${viewToggle}<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得できませんでした。</div>`;
+    render(`${viewToggle}<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得できませんでした。</div>`);
     return;
   }
 
   const earthquakes = state.data?.earthquakes ?? [];
   if (!earthquakes.length) {
-    root.innerHTML = `${viewToggle}<div class="earthquake-empty">直近の地震情報はありません。</div>`;
+    render(`${viewToggle}<div class="earthquake-empty">直近の地震情報はありません。</div>`);
     return;
   }
 
   const selectedId = String(state.data?.selectedEarthquakeId ?? earthquakes[0]?.id ?? "");
   const collapsedId = String(state.data?.collapsedEarthquakeId ?? "");
-  root.innerHTML = viewToggle + earthquakes.map((earthquake, index) => {
+  render(viewToggle + earthquakes.map((earthquake, index) => {
     const isActive = String(earthquake.id) === selectedId;
     const isExpanded = isActive && String(earthquake.id) !== collapsedId;
     const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
@@ -2775,14 +2825,14 @@ function renderEarthquakeList(tab, state) {
         ${isExpanded ? renderEarthquakeTsunamiDetails(tsunamiState) : ""}
       </article>
     `;
-  }).join("");
+  }).join(""));
 }
 
 function buildEarthquakeViewToggle(activeView) {
   return `
-    <div class="earthquake-view-toggle" role="tablist" aria-label="地震情報の表示">
-      <button type="button" role="tab" data-earthquake-view="recent" aria-selected="${activeView === "recent"}" class="${activeView === "recent" ? "active" : ""}">最近の地震</button>
-      <button type="button" role="tab" data-earthquake-view="distribution" aria-selected="${activeView === "distribution"}" class="${activeView === "distribution" ? "active" : ""}">震央分布</button>
+    <div class="earthquake-view-toggle mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented" role="tablist" aria-label="地震情報の表示">
+      <button type="button" role="tab" data-earthquake-view="recent" aria-selected="${activeView === "recent"}" class="mobile-dock-action${activeView === "recent" ? " active" : ""}">最近の地震</button>
+      <button type="button" role="tab" data-earthquake-view="distribution" aria-selected="${activeView === "distribution"}" class="mobile-dock-action${activeView === "distribution" ? " active" : ""}">震央分布</button>
     </div>
   `;
 }
@@ -2792,28 +2842,107 @@ function buildEarthquakeDistributionMarkup(data) {
   const snapshot = data.distribution;
   const status = data.distributionStatus ?? "idle";
   const count = snapshot?.items?.length ?? 0;
+  const availableDates = Array.isArray(snapshot?.availableDates) ? snapshot.availableDates.slice(0, 15) : [];
+  const maximumOffset = Math.max(0, availableDates.length - 1);
+  const dayOffset = Math.min(maximumOffset, Math.max(0, Number(filters.dayOffset ?? snapshot?.dayOffset ?? 0)));
+  const selectedDate = availableDates[dayOffset] ?? snapshot?.selectedSourceDate ?? "";
+  const isPendingDate = snapshot && Number(snapshot.dayOffset) !== dayOffset;
+  const displayedCount = isPendingDate ? "取得中" : `${count.toLocaleString("ja-JP")}個`;
+  const resultMeta = status === "error"
+    ? "更新を確認できません"
+    : `暫定値・${snapshot?.availableDayCount ?? availableDates.length}日分収録`;
   const statusMarkup = status === "loading"
     ? `<div class="earthquake-empty">気象庁の震央分布を取得中です。</div>`
     : status === "error" && !snapshot
       ? `<div class="earthquake-empty">${escapeHtml(data.distributionError ?? "震央分布を取得できませんでした")}<button type="button" class="earthquake-distribution-retry" data-earthquake-distribution-retry>再試行</button></div>`
-      : `<div class="earthquake-distribution-count"><strong>${count.toLocaleString("ja-JP")}個</strong><span>${escapeHtml(snapshot?.latestSourceDate ? `${snapshot.latestSourceDate}まで` : "取得日不明")}${status === "refreshing" ? "・更新中" : ""}</span></div>`;
+      : `<div class="earthquake-distribution-result">
+          <div class="earthquake-distribution-result-date">
+            <span>表示対象日</span>
+            <strong>${escapeHtml(selectedDate ? formatDistributionFullDate(selectedDate) : "取得日不明")}</strong>
+          </div>
+          <div class="earthquake-distribution-result-count">
+            <strong>${escapeHtml(displayedCount)}</strong>
+            <span>${escapeHtml(isPendingDate || status === "refreshing" ? "日付を切り替えています" : resultMeta)}</span>
+          </div>
+        </div>`;
   return `
     <section class="earthquake-distribution-panel" aria-label="震央分布の条件">
       <div class="earthquake-distribution-filters">
-        ${buildDistributionSelect("dayOffset", "日付", snapshot?.dayOffset ?? filters.dayOffset, buildDistributionDateChoices(snapshot))}
+        ${buildDistributionSelect("dayOffset", "日付", filters.dayOffset ?? snapshot?.dayOffset ?? 0, buildDistributionDateChoices(snapshot))}
         ${buildDistributionSelect("minMagnitude", "規模", filters.minMagnitude, [["all", "すべて"], [0, "M0以上"], [1, "M1以上"], [2, "M2以上"], [3, "M3以上"], [4, "M4以上"], [5, "M5以上"]])}
         ${buildDistributionSelect("maxDepth", "深さ", filters.maxDepth, [["all", "すべて"], [30, "30km以内"], [100, "100km以内"], [300, "300km以内"], [700, "700km以内"]])}
       </div>
       ${statusMarkup}
       <div class="earthquake-depth-legend" aria-label="深さの色分け">
-        <span><i style="--depth-color:#ef4444"></i>30km未満</span>
-        <span><i style="--depth-color:#f59e0b"></i>30–100km</span>
-        <span><i style="--depth-color:#2583e8"></i>100–300km</span>
-        <span><i style="--depth-color:#7857d9"></i>300km以上</span>
+        <div class="earthquake-depth-legend-title"><span>震源の深さ</span><span>浅い → 深い</span></div>
+        <div class="earthquake-depth-gradient" aria-hidden="true"></div>
+        <div class="earthquake-depth-gradient-labels">
+          <span>浅い・0km</span><span>30</span><span>100</span><span>300</span><span>700km・深い</span>
+        </div>
       </div>
+      ${buildEarthquakeDistributionTrend(snapshot)}
       <p class="earthquake-distribution-note">出典：<a href="https://www.data.jma.go.jp/eqev/data/daily_map/index.html" target="_blank" rel="noopener noreferrer">気象庁「日々の震源リスト」</a>。震源要素は暫定値で、後日変更される場合があります。</p>
     </section>
   `;
+}
+
+function buildEarthquakeDistributionTrend(snapshot) {
+  if (!snapshot) return "";
+  return `
+    <section class="earthquake-distribution-analytics" aria-label="震央分布の集計グラフ">
+      ${buildEarthquakeDailyTrend(snapshot.dailyCounts)}
+    </section>
+  `;
+}
+
+function buildEarthquakeDailyTrend(dailyCounts) {
+  const points = (Array.isArray(dailyCounts) ? dailyCounts : [])
+    .map((item) => ({ sourceDate: String(item?.sourceDate ?? ""), count: Math.max(0, Number(item?.count) || 0) }))
+    .filter((item) => /^\d{4}-\d{2}-\d{2}$/u.test(item.sourceDate))
+    .sort((a, b) => a.sourceDate.localeCompare(b.sourceDate));
+  if (!points.length) {
+    return '<div class="earthquake-distribution-chart-empty">日別件数はデータ更新後に表示されます。</div>';
+  }
+  const maximum = getChartAxisMaximum(Math.max(0, ...points.map((point) => point.count)));
+  const width = 320;
+  const height = 142;
+  const left = 34;
+  const right = 8;
+  const top = 10;
+  const bottom = 28;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const coordinates = points.map((point, index) => ({
+    ...point,
+    x: left + (points.length === 1 ? plotWidth / 2 : plotWidth * index / (points.length - 1)),
+    y: top + plotHeight * (1 - point.count / maximum)
+  }));
+  const grid = [0, 0.5, 1].map((ratio) => {
+    const y = top + plotHeight * (1 - ratio);
+    const value = Math.round(maximum * ratio);
+    return `<line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" class="earthquake-chart-grid"></line><text x="${left - 6}" y="${y + 3}" text-anchor="end" class="earthquake-chart-axis-text">${value}</text>`;
+  }).join("");
+  const polyline = coordinates.map((point) => `${point.x},${point.y}`).join(" ");
+  const circles = coordinates.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="2.5" class="earthquake-chart-point"><title>${escapeHtml(formatDistributionFullDate(point.sourceDate))} ${point.count}個</title></circle>`).join("");
+  const labelIndexes = [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])];
+  const labels = labelIndexes.map((index) => {
+    const point = coordinates[index];
+    const anchor = index === 0 ? "start" : index === points.length - 1 ? "end" : "middle";
+    return `<text x="${point.x}" y="${height - 8}" text-anchor="${anchor}" class="earthquake-chart-axis-text">${escapeHtml(formatDistributionDate(point.sourceDate))}</text>`;
+  }).join("");
+  return `
+    <div class="earthquake-distribution-chart-head"><strong>日別の総地震回数</strong><span>古い日 → 最新</span></div>
+    <svg class="earthquake-distribution-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="収録15日間の日別総地震回数">${grid}<polyline points="${polyline}" class="earthquake-chart-line"></polyline>${circles}${labels}</svg>
+    <p class="earthquake-distribution-chart-caption">全規模・全深さの日別収録件数。グラフ専用のD1保存は行いません。</p>
+  `;
+}
+
+function getChartAxisMaximum(value) {
+  if (!Number.isFinite(value) || value <= 0) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  const normalized = value / magnitude;
+  const nice = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+  return nice * magnitude;
 }
 
 function buildDistributionSelect(key, label, selectedValue, choices) {
@@ -2835,23 +2964,31 @@ function formatDistributionDate(value) {
   return match ? `${Number(match[1])}/${Number(match[2])}` : String(value ?? "日付不明");
 }
 
+function formatDistributionFullDate(value) {
+  const match = String(value ?? "").match(/^(\d{4})-(\d{2})-(\d{2})$/u);
+  return match
+    ? `${Number(match[1])}年${Number(match[2])}月${Number(match[3])}日`
+    : String(value ?? "日付不明");
+}
+
 function buildEarthquakeDistributionMobileContextMarkup(data) {
   const snapshot = data.distribution;
   const filters = data.distributionFilters ?? {};
   const availableDates = Array.isArray(snapshot?.availableDates) ? snapshot.availableDates.slice(0, 15) : [];
   const maximumOffset = Math.max(0, availableDates.length - 1);
-  const dayOffset = Math.min(maximumOffset, Math.max(0, Number(snapshot?.dayOffset ?? filters.dayOffset ?? 0)));
-  const selectedDate = snapshot?.selectedSourceDate ?? availableDates[dayOffset] ?? "";
+  const dayOffset = Math.min(maximumOffset, Math.max(0, Number(filters.dayOffset ?? snapshot?.dayOffset ?? 0)));
+  const selectedDate = availableDates[dayOffset] ?? snapshot?.selectedSourceDate ?? "";
   const count = snapshot?.items?.length ?? 0;
+  const isPendingDate = snapshot && Number(snapshot.dayOffset) !== dayOffset;
   return `
     <div class="mobile-dock-content mobile-dock-earthquake-distribution">
       ${buildEarthquakeMobileViewSwitch("distribution")}
       <div class="mobile-dock-earthquake-distribution-summary">
         <div class="mobile-dock-earthquake-distribution-head">
           <span class="mobile-dock-kicker">震央分布・${escapeHtml(selectedDate ? formatDistributionDate(selectedDate) : "取得待ち")}・暫定値</span>
-          <strong>${count.toLocaleString("ja-JP")}個</strong>
+          <strong>${isPendingDate ? "取得中" : `${count.toLocaleString("ja-JP")}個`}</strong>
         </div>
-        <input class="mobile-dock-earthquake-date-range" type="range" min="0" max="${maximumOffset}" step="1" value="${dayOffset}" data-earthquake-distribution-filter="dayOffset" aria-label="震央分布の日付"${maximumOffset === 0 ? " disabled" : ""}>
+        <input class="mobile-dock-earthquake-date-range" type="range" min="0" max="${maximumOffset}" step="1" value="${dayOffset}" data-mobile-dock-control data-earthquake-distribution-filter="dayOffset" aria-label="震央分布の日付"${maximumOffset === 0 ? " disabled" : ""}>
       </div>
     </div>
   `;
