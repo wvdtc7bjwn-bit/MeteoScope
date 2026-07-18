@@ -1268,9 +1268,13 @@ function normalizeSummaryValue(value) {
 function buildEarthquakeMobileContextMarkup(earthquake, activeFaultVisible, tsunami, tsunamiStatus) {
   const intensityColor = getEarthquakeIntensityColor(earthquake?.maxIntensity);
   const intensityTextClass = getEarthquakeIntensityTextClass(earthquake?.maxIntensity);
-  const intensity = earthquake?.maxIntensityShort ?? earthquake?.maxIntensityLabel ?? "--";
+  const intensity = formatEarthquakeUnknownMetric(
+    earthquake?.maxIntensityShort ?? earthquake?.maxIntensityLabel
+  );
   const magnitude = formatEarthquakeMagnitude(earthquake?.magnitude, { prefix: true });
-  const depth = formatEarthquakeDepthText(earthquake?.depth, { compact: true });
+  const depth = formatEarthquakeUnknownMetric(
+    formatEarthquakeDepthText(earthquake?.depth, { compact: true })
+  );
   const time = formatMobileEarthquakeTime(earthquake?.eventTime ?? earthquake?.reportTime);
   const tsunamiMarkup = buildMobileTsunamiStatusMarkup(earthquake, tsunami, tsunamiStatus);
 
@@ -2707,30 +2711,25 @@ function renderEarthquakeList(tab, state) {
       state.data?.tsunami,
       state.data?.tsunamiStatus
     );
+    const summaryMarkup = renderExpandedEarthquakeSummary({
+      earthquake,
+      intensityColor,
+      intensityTextClass,
+      magnitude,
+      depthText,
+      tsunamiState
+    });
     return `
       <article class="earthquake-history-item${isActive ? " active" : ""}${isExpanded ? " expanded" : ""}">
         <button
           type="button"
-          class="earthquake-select-button"
+          class="earthquake-select-button earthquake-detail-button"
           data-earthquake-id="${escapeHtml(earthquake.id)}"
           aria-expanded="${isExpanded ? "true" : "false"}"
           aria-pressed="${isActive ? "true" : "false"}"
           aria-controls="${observationsId}"
         >
-          <span class="earthquake-card-intensity">
-            <small>最大震度</small>
-            <strong class="${intensityTextClass}" style="--earthquake-item-intensity-bg: ${escapeHtml(intensityColor)};">${escapeHtml(earthquake.maxIntensityShort ?? "--")}</strong>
-          </span>
-          <span class="earthquake-card-info">
-            <time>${escapeHtml(formatEarthquakeEventTime(earthquake.eventTime ?? earthquake.reportTime))}発生</time>
-            <small>震源地</small>
-            <strong>${escapeHtml(earthquake.hypocenterName ?? "震源調査中")}</strong>
-            <span class="earthquake-card-facts">
-              <span>${escapeHtml(magnitude)}</span>
-              <span>深さ ${escapeHtml(depthText)}</span>
-              ${tsunamiState.label ? `<span class="earthquake-tsunami-status level-${escapeHtml(tsunamiState.level)}">${escapeHtml(tsunamiState.label)}</span>` : ""}
-            </span>
-          </span>
+          ${summaryMarkup}
           <span class="earthquake-card-chevron" aria-hidden="true"></span>
         </button>
         ${isExpanded ? renderEarthquakeObservations(observations, observationsId) : ""}
@@ -2738,6 +2737,57 @@ function renderEarthquakeList(tab, state) {
       </article>
     `;
   }).join("");
+}
+
+function renderExpandedEarthquakeSummary({
+  earthquake,
+  intensityColor,
+  intensityTextClass,
+  magnitude,
+  depthText,
+  tsunamiState
+}) {
+  const tsunamiMetricText = getEarthquakeTsunamiMetricText(tsunamiState);
+  const magnitudeMetricText = String(magnitude).replace(/^M\s*/u, "M") || "M--";
+  const intensityMetricText = formatEarthquakeUnknownMetric(
+    earthquake.maxIntensityShort ?? earthquake.maxIntensityLabel
+  );
+  const depthMetricText = formatEarthquakeUnknownMetric(depthText);
+  const intensityUnknownClass = intensityMetricText === "不明" ? " is-unknown-value" : "";
+  return `
+    <span class="earthquake-card-intensity earthquake-card-intensity-detail">
+      <strong class="${intensityTextClass}" style="--earthquake-item-intensity-bg: ${escapeHtml(intensityColor)};">
+        <small>最大震度</small>
+        <span class="${intensityUnknownClass.trim()}">${escapeHtml(intensityMetricText)}</span>
+      </strong>
+    </span>
+    <span class="earthquake-detail-heading">
+      <time>${escapeHtml(formatEarthquakeEventTime(earthquake.eventTime ?? earthquake.reportTime))}発生</time>
+      <span class="earthquake-detail-epicenter-row">
+        <small>震源地</small>
+        <strong>${escapeHtml(earthquake.hypocenterName ?? "震源調査中")}</strong>
+      </span>
+    </span>
+    <span class="earthquake-detail-metrics">
+      <strong>${escapeHtml(magnitudeMetricText)}</strong>
+      <strong>${escapeHtml(depthMetricText)}</strong>
+      <strong class="earthquake-detail-tsunami level-${escapeHtml(tsunamiState.level)}">${escapeHtml(tsunamiMetricText)}</strong>
+    </span>
+  `;
+}
+
+function getEarthquakeTsunamiMetricText(state) {
+  if (state?.level === "none") return "津波の心配なし";
+  if (state?.level === "unknown" || state?.level === "unavailable") {
+    return "不明";
+  }
+  if (state?.level === "forecast") return "若干の海面変動";
+  return state?.label || "不明";
+}
+
+function formatEarthquakeUnknownMetric(value) {
+  const text = String(value ?? "").trim();
+  return !text || /^(?:--|-|不明|未確認|震度不明)$/u.test(text) ? "不明" : text;
 }
 
 function getEarthquakeTsunamiState(earthquake, tsunami, status) {
@@ -2838,8 +2888,8 @@ function renderEarthquakeObservations(observations, observationsId) {
 
 function buildMobileTsunamiStatusMarkup(earthquake, tsunami, status) {
   const tsunamiState = getEarthquakeTsunamiState(earthquake, tsunami, status);
-  if (!tsunamiState.label) return "";
-  return `<span class="earthquake-tsunami-status level-${escapeHtml(tsunamiState.level)}">${escapeHtml(tsunamiState.label)}</span>`;
+  const label = getEarthquakeTsunamiMetricText(tsunamiState);
+  return `<span class="earthquake-tsunami-status level-${escapeHtml(tsunamiState.level)}">${escapeHtml(label)}</span>`;
 }
 
 function formatEarthquakeMagnitude(value, options = {}) {

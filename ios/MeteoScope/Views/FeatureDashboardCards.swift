@@ -689,7 +689,10 @@ private struct EarthquakeHistoryCard: View {
     let onSelect: () -> Void
 
     private var intensityText: String {
-        earthquake.maximumIntensity.replacingOccurrences(of: "震度", with: "")
+        let value = earthquake.maximumIntensity
+            .replacingOccurrences(of: "震度", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty || value == "--" || value == "不明" ? "不明" : value
     }
 
     private var orderedPoints: [EarthquakeIntensityPoint] {
@@ -720,67 +723,22 @@ private struct EarthquakeHistoryCard: View {
         return "津波情報未確認"
     }
 
+    private var tsunamiMetricText: String {
+        let label = tsunamiLabel ?? "津波情報未確認"
+        if label == "津波の心配なし" { return "津波の心配なし" }
+        if label.contains("確認できません") || label.contains("未確認") { return "不明" }
+        if label.contains("若干の海面変動") { return "若干の海面変動" }
+        return label
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Button(action: onSelect) {
-                HStack(alignment: .top, spacing: 12) {
-                    VStack(spacing: 5) {
-                        Text("最大震度")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(intensityText)
-                            .font(.title2.weight(.black))
-                            .foregroundStyle(Color.intensityForeground(earthquake.maximumIntensity))
-                            .frame(width: 58, height: 58)
-                            .background(
-                                Color.intensityColor(earthquake.maximumIntensity),
-                                in: RoundedRectangle(cornerRadius: 14)
-                            )
-                    }
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("\(DateTextFormatter.shortDateTime(earthquake.eventTime))頃発生")
-                            .font(.caption2.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                        Text("震源地")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                        Text(earthquake.hypocenterName)
-                            .font(.headline.weight(.bold))
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                        HStack(spacing: 8) {
-                            Text(earthquake.magnitude)
-                            Text("深さ \(earthquake.depth)")
-                            if let tsunamiLabel {
-                                Text(tsunamiLabel)
-                                    .font(.caption2.weight(.bold))
-                                    .foregroundStyle(tsunamiAccent)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.72)
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 3)
-                                    .overlay(
-                                        Capsule().stroke(tsunamiAccent.opacity(0.7), lineWidth: 1)
-                                    )
-                            }
-                        }
-                        .font(.subheadline.monospacedDigit().weight(.semibold))
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Image(systemName: "chevron.down")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.secondary)
-                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                        .frame(minHeight: 58)
-                }
-                .padding(12)
-                .contentShape(Rectangle())
+                expandedSummary
             }
             .buttonStyle(.plain)
             .accessibilityLabel(
-                "最大\(earthquake.maximumIntensity)、震源地\(earthquake.hypocenterName)、\(earthquake.magnitude)、深さ\(earthquake.depth)"
+                "最大震度\(intensityText)、震源地\(earthquake.hypocenterName)、\(earthquake.magnitude)、深さ\(depthMetricText)"
             )
             .accessibilityValue(isExpanded ? "各地の震度を表示中" : "折りたたみ")
 
@@ -852,6 +810,93 @@ private struct EarthquakeHistoryCard: View {
             interactive: true
         )
         .shadow(color: .black.opacity(isExpanded ? 0.16 : 0.1), radius: 10, y: 4)
+    }
+
+    private var expandedSummary: some View {
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 8) {
+                intensityBadge(size: 54, cornerRadius: 12, font: .title2.weight(.black))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(DateTextFormatter.shortDateTime(earthquake.eventTime))頃発生")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Text("震源地")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .fixedSize()
+                        Text(earthquake.hypocenterName)
+                            .font(.title3.weight(.bold))
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                chevron
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 7)
+
+            Divider().opacity(0.4)
+
+            HStack(spacing: 0) {
+                Text(magnitudeMetricText)
+                    .frame(maxWidth: .infinity)
+                Divider().frame(height: 24)
+                Text(depthMetricText)
+                    .frame(maxWidth: .infinity)
+                Divider().frame(height: 24)
+                Text(tsunamiMetricText)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(tsunamiAccent)
+                    .frame(maxWidth: .infinity)
+            }
+            .font(.system(size: 15.5, weight: .semibold).monospacedDigit())
+            .lineLimit(1)
+            .minimumScaleFactor(0.68)
+            .padding(.vertical, 4)
+        }
+        .contentShape(Rectangle())
+    }
+
+    private var magnitudeMetricText: String {
+        let value = earthquake.magnitude
+            .replacingOccurrences(of: "M ", with: "")
+            .replacingOccurrences(of: "M", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? "M--" : "M\(value)"
+    }
+
+    private var depthMetricText: String {
+        let value = earthquake.depth.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, value != "--", value != "不明" else { return "不明" }
+        return value.replacingOccurrences(of: " ", with: "")
+    }
+
+    private func intensityBadge(size: CGFloat, cornerRadius: CGFloat, font: Font) -> some View {
+        VStack(spacing: 1) {
+            Text("最大震度")
+                .font(.system(size: 8.5, weight: .bold))
+                .opacity(0.9)
+                .offset(y: 1)
+            Text(intensityText)
+                .font(intensityText == "不明" ? .system(size: 16, weight: .black) : font)
+        }
+        .foregroundStyle(Color.intensityForeground(earthquake.maximumIntensity))
+        .frame(width: size, height: size)
+        .background(
+            Color.intensityColor(earthquake.maximumIntensity),
+            in: RoundedRectangle(cornerRadius: cornerRadius)
+        )
+    }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.down")
+            .font(.caption.weight(.bold))
+            .foregroundStyle(.secondary)
+            .rotationEffect(.degrees(isExpanded ? 180 : 0))
     }
 
     private var tsunamiAccent: Color {
@@ -1060,7 +1105,10 @@ private extension Color {
         if label.contains("5") || label.contains("6") || label.contains("7") {
             return .white
         }
-        return .black
+        if label.contains("1") || label.contains("2") || label.contains("3") || label.contains("4") {
+            return .black
+        }
+        return .white
     }
 }
 

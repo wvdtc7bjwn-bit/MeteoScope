@@ -2997,6 +2997,12 @@ h2 {
   -webkit-tap-highlight-color: transparent;
 }
 
+.earthquake-select-button.earthquake-detail-button {
+  grid-template-columns: 56px minmax(0, 1fr) 12px;
+  gap: 8px;
+  padding: 7px 9px;
+}
+
 .earthquake-select-button:is(:hover, :active) {
   background: transparent;
 }
@@ -3041,9 +3047,46 @@ h2 {
   line-height: 1;
 }
 
+.earthquake-detail-button .earthquake-card-intensity strong {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-items: center;
+  justify-items: center;
+  width: 54px;
+  height: 54px;
+  padding: 3px 2px 2px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.earthquake-detail-button .earthquake-card-intensity small {
+  color: inherit;
+  font-size: 8.5px;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0.9;
+  transform: translateY(1px);
+}
+
+.earthquake-detail-button .earthquake-card-intensity strong > span {
+  color: inherit;
+  font-size: 27px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.earthquake-detail-button .earthquake-card-intensity strong > span.is-unknown-value {
+  font-size: 16px;
+}
+
 .earthquake-card-intensity strong.is-bright-text,
 .earthquake-observation-intensity.is-bright-text {
   color: #ffffff;
+}
+
+.earthquake-card-intensity strong.is-dark-text,
+.earthquake-observation-intensity.is-dark-text {
+  color: #000000;
 }
 
 .earthquake-card-info {
@@ -3052,6 +3095,90 @@ h2 {
   gap: 3px;
   min-width: 0;
 }
+
+.earthquake-detail-heading {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.earthquake-detail-epicenter-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.earthquake-detail-epicenter-row small {
+  flex: none;
+  color: var(--type-date-color);
+  font-size: 10.5px;
+  font-weight: 800;
+  line-height: 1.12;
+  white-space: nowrap;
+}
+
+.earthquake-detail-epicenter-row strong {
+  min-width: 0;
+  color: #f8fbff;
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
+}
+
+.earthquake-detail-heading time {
+  color: var(--type-date-color);
+  font-size: 11.5px;
+  font-weight: var(--type-date-weight);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.earthquake-detail-metrics {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  width: calc(100% + 18px);
+  min-width: 0;
+  margin: 0 -9px -7px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.earthquake-detail-metrics > strong {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 36px;
+  padding: 5px 4px;
+  color: rgba(237, 244, 255, 0.94);
+  font-size: 14.5px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.earthquake-detail-metrics > .earthquake-detail-tsunami {
+  font-size: 11.5px;
+}
+
+.earthquake-detail-metrics > strong + strong {
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.earthquake-detail-tsunami.level-major-warning { color: #d591ff; }
+.earthquake-detail-tsunami.level-warning { color: #ff8171; }
+.earthquake-detail-tsunami.level-advisory { color: #ffe05a; }
+.earthquake-detail-tsunami.level-forecast { color: #76ceff; }
 
 .earthquake-card-info > strong {
   min-width: 0;
@@ -3099,6 +3226,8 @@ h2 {
 }
 
 .earthquake-card-chevron {
+  grid-column: 3;
+  grid-row: 1;
   align-self: center;
   width: 8px;
   height: 8px;
@@ -7824,13 +7953,33 @@ html[data-theme="light"] :is(.radar-action-button, .mobile-dock-action, .mobile-
   opacity: 0.82;
 }
 
-html[data-theme="light"] :is(.earthquake-card-intensity small, .earthquake-card-info > small, .earthquake-card-info time, .earthquake-observation-prefecture, .typhoon-detail-item span, .typhoon-select-button span) {
+html[data-theme="light"] :is(.earthquake-card-intensity small, .earthquake-card-info > small, .earthquake-card-info time, .earthquake-detail-heading time, .earthquake-observation-prefecture, .typhoon-detail-item span, .typhoon-select-button span) {
   color: #536b82;
+}
+
+html[data-theme="light"] .earthquake-detail-button .earthquake-card-intensity strong > :is(small, span) {
+  color: inherit;
+}
+
+html[data-theme="light"] :is(.earthquake-card-intensity strong, .earthquake-observation-intensity).is-dark-text {
+  color: #000000;
+}
+
+html[data-theme="light"] :is(.earthquake-card-intensity strong, .earthquake-observation-intensity).is-bright-text {
+  color: #ffffff;
 }
 
 html[data-theme="light"] :is(.earthquake-card-info > strong, .earthquake-card-facts, .earthquake-observations-heading h2, .earthquake-observation-name, .typhoon-detail-item strong, .typhoon-select-button strong) {
   color: #132c45;
 }
+
+html[data-theme="light"] .earthquake-detail-metrics { border-top-color: rgba(72, 100, 132, 0.14); }
+html[data-theme="light"] .earthquake-detail-metrics > strong { color: #243f5b; }
+html[data-theme="light"] .earthquake-detail-metrics > strong + strong { border-left-color: rgba(72, 100, 132, 0.14); }
+html[data-theme="light"] .earthquake-detail-tsunami.level-major-warning { color: #7d009f; }
+html[data-theme="light"] .earthquake-detail-tsunami.level-warning { color: #b51d10; }
+html[data-theme="light"] .earthquake-detail-tsunami.level-advisory { color: #806a00; }
+html[data-theme="light"] .earthquake-detail-tsunami.level-forecast { color: #006da8; }
 
 html[data-theme="light"] :is(
   .amedas-temperature-chart-head span,
