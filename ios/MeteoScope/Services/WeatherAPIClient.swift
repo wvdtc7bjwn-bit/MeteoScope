@@ -12,6 +12,7 @@ struct WeatherAPIClient: Sendable {
     var fetchEarthquakeSnapshot: @Sendable () async throws -> EarthquakeSnapshot
     var fetchRealtimeEarthquakeSnapshot: @Sendable (String) async throws -> EarthquakeSnapshot
     var fetchEarthquakeStations: @Sendable (String) async throws -> [EarthquakeIntensityPoint]
+    var fetchHypocenterDistribution: @Sendable (HypocenterDistributionFilter) async throws -> HypocenterDistributionSnapshot
 }
 
 extension WeatherAPIClient {
@@ -339,6 +340,19 @@ extension WeatherAPIClient {
                 )
                 guard response.enabled else { return [] }
                 return DMDataEarthquakeBuilder.intensityPoints(response.items)
+            },
+            fetchHypocenterDistribution: { filter in
+                let data = try await requestData(
+                    from: MeteoScopeEndpoints.hypocenterDistribution(
+                        dayOffset: filter.dayOffset,
+                        minMagnitude: filter.minMagnitude,
+                        maxDepth: filter.maxDepth
+                    ),
+                    session: session,
+                    timeout: 15,
+                    cachePolicy: .reloadRevalidatingCacheData
+                )
+                return try JSONDecoder().decode(HypocenterDistributionSnapshot.self, from: data)
             }
         )
     }
@@ -365,7 +379,8 @@ extension WeatherAPIClient {
             fetchTyphoonSnapshot: { .preview },
             fetchEarthquakeSnapshot: { .preview },
             fetchRealtimeEarthquakeSnapshot: { _ in .preview },
-            fetchEarthquakeStations: { _ in [] }
+            fetchEarthquakeStations: { _ in [] },
+            fetchHypocenterDistribution: { _ in .preview }
         )
     }
 }

@@ -26,6 +26,7 @@ import {
 import { startDmdataEarthquakeUpdates } from "./dmdata/earthquakeUpdates.js";
 import { fetchKikikuruTiles } from "./jma/kikikuru.js";
 import { fetchRiverFloodForecasts } from "./jma/riverFlood.js";
+import { fetchHypocenterDistribution } from "./jma/hypocenterDistribution.js";
 import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFrameIndex } from "./jma/weatherChart.js";
 import { resolveCurrentLocationInfo, searchMunicipalities } from "./location/currentLocation.js";
 import { addMyArea, getMyAreaLimit, loadMyAreas, removeMyArea } from "./location/myAreas.js";
@@ -106,6 +107,10 @@ export function createWeatherApp() {
   let activeTyphoonId = "";
   let activeEarthquakeId = "";
   let collapsedEarthquakeId = "";
+  let earthquakeView = "recent";
+  let earthquakeDistributionFilters = { dayOffset: 0, minMagnitude: "0", maxDepth: "all" };
+  let earthquakeDistributionState = { status: "idle", data: null, error: "" };
+  let earthquakeDistributionRequestId = 0;
   let earthquakeActiveFaultVisible = loadActiveFaultVisibility();
   let weatherMap = null;
   let latestDataByTab = {};
@@ -417,6 +422,61 @@ if (layerId === "river") {
       });
   }
 
+  function selectEarthquakeView(view) {
+    if (!["recent", "distribution"].includes(view)) return;
+    earthquakeView = view;
+    if (activeTab !== "earthquake") return;
+    const tab = TABS.find((item) => item.id === "earthquake");
+    updateCurrentView(tab, latestDataByTab.earthquake ?? {});
+    if (view === "distribution" && earthquakeDistributionState.status === "idle") {
+      void refreshEarthquakeDistribution();
+    }
+  }
+
+  function updateEarthquakeDistributionFilters(filters = {}) {
+    earthquakeDistributionFilters = {
+      dayOffset: Number.isInteger(Number(filters.dayOffset))
+        ? Math.min(14, Math.max(0, Number(filters.dayOffset)))
+        : earthquakeDistributionFilters.dayOffset,
+      minMagnitude: filters.minMagnitude ?? earthquakeDistributionFilters.minMagnitude,
+      maxDepth: filters.maxDepth ?? earthquakeDistributionFilters.maxDepth
+    };
+    if (activeTab === "earthquake") {
+      const tab = TABS.find((item) => item.id === "earthquake");
+      updateCurrentView(tab, latestDataByTab.earthquake ?? {});
+    }
+    void refreshEarthquakeDistribution();
+  }
+
+  async function refreshEarthquakeDistribution() {
+    const requestId = ++earthquakeDistributionRequestId;
+    earthquakeDistributionState = {
+      ...earthquakeDistributionState,
+      status: earthquakeDistributionState.data ? "refreshing" : "loading",
+      error: ""
+    };
+    if (activeTab === "earthquake" && earthquakeView === "distribution") {
+      const tab = TABS.find((item) => item.id === "earthquake");
+      updateCurrentView(tab, latestDataByTab.earthquake ?? {});
+    }
+    try {
+      const data = await fetchHypocenterDistribution(earthquakeDistributionFilters);
+      if (requestId !== earthquakeDistributionRequestId) return;
+      earthquakeDistributionState = { status: "ok", data, error: "" };
+    } catch (error) {
+      if (requestId !== earthquakeDistributionRequestId) return;
+      earthquakeDistributionState = {
+        ...earthquakeDistributionState,
+        status: "error",
+        error: error?.message ?? "震央分布を取得できませんでした"
+      };
+    }
+    if (activeTab === "earthquake" && earthquakeView === "distribution") {
+      const tab = TABS.find((item) => item.id === "earthquake");
+      updateCurrentView(tab, latestDataByTab.earthquake ?? {});
+    }
+  }
+
   function setEarthquakeActiveFaultVisible(visible) {
     earthquakeActiveFaultVisible = Boolean(visible);
     saveActiveFaultVisibility(earthquakeActiveFaultVisible);
@@ -603,10 +663,19 @@ if (layerId === "river") {
   }
 
   function buildEarthquakeDisplayData(data = {}) {
+    const distribution = earthquakeDistributionState.data;
+    const distributionData = {
+      earthquakeView,
+      distributionFilters: earthquakeDistributionFilters,
+      distributionStatus: earthquakeDistributionState.status,
+      distributionError: earthquakeDistributionState.error,
+      distribution,
+      distributionItems: distribution?.items ?? []
+    };
     const earthquakes = data.earthquakes ?? [];
     if (!earthquakes.length) {
       activeEarthquakeId = "";
-      return { ...data, activeFaultVisible: earthquakeActiveFaultVisible };
+      return { ...data, ...distributionData, activeFaultVisible: earthquakeActiveFaultVisible };
     }
 
     const selected = earthquakes.find((earthquake) => String(earthquake.id) === String(activeEarthquakeId))
@@ -615,6 +684,7 @@ if (layerId === "river") {
 
     return {
       ...data,
+      ...distributionData,
       activeFaultVisible: earthquakeActiveFaultVisible,
       selectedEarthquakeId: activeEarthquakeId,
       collapsedEarthquakeId,
@@ -1518,7 +1588,12 @@ if (layerId === "river") {
     setupKikikuruLayerToggles({ onChange: selectKikikuruLayer });
     setupWarningAreaSelection({ onDetailRequest: () => refreshWarningDetails() });
     setupTyphoonSelector({ onChange: selectTyphoon });
-    setupEarthquakeSelector({ onChange: selectEarthquake });
+    setupEarthquakeSelector({
+      onChange: selectEarthquake,
+      onViewChange: selectEarthquakeView,
+      onDistributionFilterChange: updateEarthquakeDistributionFilters,
+      onDistributionRetry: refreshEarthquakeDistribution
+    });
     setupEarthquakeActiveFaultToggle({ onChange: setEarthquakeActiveFaultVisible });
     setupRadarControls({
       onSeek: selectRadarFrame,

@@ -86,6 +86,22 @@ enum MeteoScopeEndpoints {
         return components.url!
     }()
     static let dmdataEarthquakeLatest = earthquakeAPIBase.appending(path: "latest")
+    static func hypocenterDistribution(
+        dayOffset: Int,
+        minMagnitude: String,
+        maxDepth: String
+    ) -> URL {
+        var components = URLComponents(
+            url: earthquakeAPIBase.appending(path: "distribution"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [
+            URLQueryItem(name: "dayOffset", value: String(dayOffset)),
+            URLQueryItem(name: "minMagnitude", value: minMagnitude),
+            URLQueryItem(name: "maxDepth", value: maxDepth)
+        ]
+        return components.url!
+    }
     static let dmdataEarthquakeStream: URL = {
         var components = URLComponents(
             url: earthquakeAPIBase.appending(path: "stream"),

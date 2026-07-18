@@ -1,5 +1,6 @@
 import { MeteoScopeEarthquakeHub } from "./MeteoScopeEarthquakeHub.js";
 import { fetchD1ReadFallback } from "./d1ReadFallback.js";
+import { readJmaDailyHypocenterDistribution, syncJmaDailyHypocenters } from "./jmaDailyHypocenters.js";
 import { isPublicReadMethod, resolvePublicEarthquakeRoute } from "./routePolicy.js";
 
 export { MeteoScopeEarthquakeHub };
@@ -81,6 +82,21 @@ async function fetchFromHub(request, env, route) {
   return response;
 }
 
+async function fetchDirectD1(request, env, ctx, route) {
+  const cache = caches.default;
+  const cacheUrl = new URL(request.url);
+  cacheUrl.searchParams.set("_meteoscopeCache", "jma-distribution-v2");
+  const cacheKey = new Request(cacheUrl, { method: "GET" });
+  const cached = await cache.match(cacheKey);
+  if (cached) return cached;
+
+  const response = await readJmaDailyHypocenterDistribution(request, env, ctx);
+  if (response.ok && route.cacheSeconds > 0) {
+    ctx.waitUntil(cache.put(cacheKey, response.clone()));
+  }
+  return response;
+}
+
 export default {
   async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") {
@@ -98,6 +114,9 @@ export default {
     }
 
     try {
+      if (route.directD1) {
+        return await fetchDirectD1(request, env, ctx, route);
+      }
       const response = await fetchFromHub(request, env, route);
       if (!route.websocket && response.status >= 500) {
         const fallback = await fetchD1ReadFallback(
@@ -128,5 +147,9 @@ export default {
         "retry-after": "30"
       });
     }
+  },
+
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(syncJmaDailyHypocenters(env, { maxDays: 1 }));
   }
 };

@@ -2970,6 +2970,190 @@ h2 {
   font-weight: var(--type-info-title-weight);
 }
 
+.earthquake-view-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px;
+  margin-bottom: 10px;
+  padding: 3px;
+  border: 1px solid rgba(137, 170, 220, 0.2);
+  border-radius: 12px;
+  background: rgba(8, 17, 31, 0.5);
+}
+
+.earthquake-view-toggle button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(216, 230, 247, 0.72);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.earthquake-view-toggle button.active {
+  background: rgba(80, 145, 196, 0.25);
+  color: #f8fbff;
+  box-shadow: inset 0 0 0 1px rgba(111, 186, 235, 0.35);
+}
+
+.earthquake-distribution-panel {
+  padding: 12px;
+  border: 1px solid rgba(137, 170, 220, 0.22);
+  border-radius: 14px;
+  background: rgba(8, 17, 31, 0.55);
+}
+
+.earthquake-distribution-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.earthquake-distribution-filters label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: rgba(216, 230, 247, 0.68);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.earthquake-distribution-filters select {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 24px 0 8px;
+  border: 1px solid rgba(137, 170, 220, 0.24);
+  border-radius: 9px;
+  background: #14243a;
+  color: #eef6ff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.earthquake-distribution-count {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(137, 170, 220, 0.16);
+}
+
+.earthquake-distribution-count strong { font-size: 18px; }
+.earthquake-distribution-count span { color: rgba(216, 230, 247, 0.65); font-size: 10.5px; }
+
+.earthquake-depth-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  margin-top: 10px;
+  color: rgba(216, 230, 247, 0.72);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.earthquake-depth-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.earthquake-depth-legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--depth-color);
+}
+
+.earthquake-distribution-note {
+  margin: 10px 0 0;
+  color: rgba(216, 230, 247, 0.62);
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.earthquake-distribution-note a { color: #78c9fa; }
+.earthquake-distribution-retry {
+  display: block;
+  margin-top: 9px;
+  padding: 6px 12px;
+  border: 1px solid rgba(137, 170, 220, 0.3);
+  border-radius: 8px;
+  background: rgba(73, 121, 162, 0.24);
+  color: inherit;
+  font: inherit;
+}
+
+.mobile-dock-earthquake-distribution {
+  display: grid;
+  gap: 8px;
+}
+
+.mobile-dock-earthquake-view-switch {
+  width: 100%;
+  max-width: none;
+}
+
+.mobile-dock-earthquake-distribution-summary {
+  display: grid;
+  gap: 4px;
+}
+
+.mobile-dock-earthquake-distribution-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mobile-dock-earthquake-distribution-head > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-dock-earthquake-distribution-head > strong {
+  flex: 0 0 auto;
+  font-size: 19px;
+  line-height: 1;
+}
+
+.mobile-dock-earthquake-date-range {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 14px;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mobile-dock-earthquake-date-range::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(73, 185, 235, 0.94), rgba(92, 211, 168, 0.82));
+}
+
+.mobile-dock-earthquake-date-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -4.5px;
+  border: 2px solid #eaf7ff;
+  border-radius: 50%;
+  background: #4bb9e9;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.24);
+}
+
+.mobile-dock-earthquake-date-range:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
 .earthquake-history-item {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -5260,6 +5444,7 @@ html[data-theme="light"] .legend-typhoon-center::after {
     width: min(390px, calc(100vw - 22px));
     height: 126px;
     min-height: 126px;
+    max-height: 126px;
     box-sizing: border-box;
     padding: 14px 18px 13px;
     border: 1px solid rgba(207, 232, 255, 0.22);
@@ -5693,44 +5878,53 @@ html[data-theme="light"] .legend-typhoon-center::after {
     font-weight: 800;
     line-height: 1;
   }
-  .mobile-dock-earthquake {
-    gap: 8px;
-  }
-
-  .mobile-dock-earthquake-head,
-  .mobile-dock-earthquake-main {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    min-width: 0;
-  }
-
-  .mobile-dock-earthquake-meta {
-    display: flex;
-    align-items: center;
+  .mobile-dock-earthquake,
+  .mobile-dock-earthquake-distribution {
+    display: grid;
+    grid-template-rows: 34px 50px;
+    align-content: center;
     gap: 7px;
+  }
+
+  .mobile-dock-earthquake-view-switch {
+    width: 100%;
+  }
+
+  .mobile-dock-earthquake-distribution-summary {
+    height: 50px;
+    align-content: center;
+    box-sizing: border-box;
+  }
+
+  .mobile-dock-earthquake-main {
+    display: grid;
+    grid-template-columns: 50px minmax(0, 1fr) 68px;
+    align-items: center;
+    gap: 9px;
     min-width: 0;
+    min-height: 50px;
   }
 
   .mobile-dock-earthquake-layer-control {
     display: flex;
-    flex: 0 0 auto;
-    align-items: center;
-    gap: 5px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    width: 68px;
   }
 
   .mobile-dock-earthquake-layer-control > span {
     color: rgba(211, 229, 246, 0.72);
-    font-size: 10px;
+    font-size: 9.5px;
     font-weight: 850;
     line-height: 1;
+    text-align: center;
     white-space: nowrap;
   }
 
   .mobile-dock-earthquake-layer-switch {
-    width: 82px;
-    min-width: 82px;
+    width: 68px;
+    min-width: 68px;
     padding: 2px;
   }
 
@@ -5740,29 +5934,30 @@ html[data-theme="light"] .legend-typhoon-center::after {
   }
 
   .mobile-dock-earthquake-layer-switch .mobile-dock-action {
-    min-height: 22px;
+    min-height: 23px;
     padding: 3px 5px;
-    font-size: 9px;
+    font-size: 9.5px;
   }
 
   .mobile-dock-earthquake-time {
-    flex: 0 0 auto;
+    display: block;
     color: rgba(218, 230, 244, 0.72);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 800;
     line-height: 1.1;
+    white-space: nowrap;
   }
 
   .mobile-dock-earthquake-text {
     display: grid;
-    gap: 3px;
+    gap: 2px;
     min-width: 0;
   }
 
   .mobile-dock-earthquake-text strong {
     overflow: hidden;
     color: #f5fbff;
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 900;
     line-height: 1.18;
     text-overflow: ellipsis;
@@ -5772,7 +5967,7 @@ html[data-theme="light"] .legend-typhoon-center::after {
   .mobile-dock-earthquake-text span {
     overflow: hidden;
     color: rgba(220, 233, 246, 0.72);
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 800;
     line-height: 1.2;
     text-overflow: ellipsis;
@@ -5782,7 +5977,7 @@ html[data-theme="light"] .legend-typhoon-center::after {
   .mobile-dock-earthquake-facts {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     min-width: 0;
   }
 
@@ -5793,26 +5988,39 @@ html[data-theme="light"] .legend-typhoon-center::after {
 
   .mobile-dock-earthquake-facts .earthquake-tsunami-status {
     flex: 0 1 auto;
-    padding: 2px 5px;
-    font-size: 9px;
+    max-width: 98px;
+    padding: 2px 4px;
+    font-size: 8.5px;
     line-height: 1.1;
   }
 
   .mobile-dock-earthquake-intensity {
-    display: grid;
-    flex: 0 0 48px;
-    width: 48px;
-    height: 40px;
-    place-items: center;
+    display: flex;
+    flex-direction: column;
+    width: 50px;
+    height: 50px;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
     border: 1px solid rgba(255, 255, 255, 0.22);
-    border-radius: 14px;
+    border-radius: 13px;
     color: #111827;
-    font-size: 20px;
     font-style: normal;
-    font-weight: 950;
     line-height: 1;
     background: var(--mobile-earthquake-intensity-bg, #4b5563);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.26), 0 10px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .mobile-dock-earthquake-intensity small {
+    font-size: 7px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .mobile-dock-earthquake-intensity span {
+    font-size: 21px;
+    font-weight: 950;
+    line-height: 1.05;
   }
 
   .mobile-dock-earthquake-intensity.is-bright-text {
@@ -7340,6 +7548,28 @@ html[data-theme="light"] :is(.earthquake-history-item, .earthquake-observation-l
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
+
+html[data-theme="light"] :is(.earthquake-view-toggle, .earthquake-distribution-panel, .earthquake-empty) {
+  border-color: rgba(72, 100, 132, 0.2);
+  background: rgba(246, 250, 255, 0.94);
+  color: #20364e;
+}
+
+html[data-theme="light"] .earthquake-view-toggle button { color: #60758a; }
+html[data-theme="light"] .earthquake-view-toggle button.active {
+  background: rgba(101, 183, 232, 0.17);
+  color: #163b58;
+}
+html[data-theme="light"] .earthquake-distribution-filters label,
+html[data-theme="light"] .earthquake-depth-legend,
+html[data-theme="light"] .earthquake-distribution-note,
+html[data-theme="light"] .earthquake-distribution-count span { color: #536b82; }
+html[data-theme="light"] .earthquake-distribution-filters select {
+  border-color: rgba(72, 100, 132, 0.22);
+  background: #ffffff;
+  color: #20364e;
+}
+html[data-theme="light"] .earthquake-distribution-note a { color: #087cb8; }
 
 html[data-theme="light"] .earthquake-tsunami-details {
   border-color: rgba(72, 100, 132, 0.22);

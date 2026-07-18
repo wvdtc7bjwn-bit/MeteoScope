@@ -27,6 +27,7 @@ struct WeatherMapPoint: Identifiable, Hashable, Sendable {
         case typhoonCenter
         case typhoonForecast
         case earthquakeHypocenter
+        case hypocenterDistribution(depthKm: Int?)
         case seismicIntensity(String)
         case communityReport(weather: String, hasHazard: Bool)
     }
@@ -338,6 +339,22 @@ enum WeatherMapOverlayBuilder {
             id: "earthquake-\(earthquake?.id ?? "none")-\(earthquake?.reportTime ?? "")-tsunami-\(tsunami?.reportTime ?? "none")",
             points: points,
             geoJSONSources: sources
+        )
+    }
+
+    static func hypocenterDistribution(_ snapshot: HypocenterDistributionSnapshot?) -> WeatherMapOverlay {
+        let points = (snapshot?.items ?? []).prefix(2_500).map { item in
+            WeatherMapPoint(
+                id: "distribution-\(item.id)",
+                coordinate: item.coordinate,
+                title: item.place,
+                subtitle: "\(item.magnitudeText)・深さ \(item.depthText)・気象庁暫定値",
+                kind: .hypocenterDistribution(depthKm: item.depthKm)
+            )
+        }
+        return WeatherMapOverlay(
+            id: "hypocenter-distribution-\(snapshot?.selectedSourceDate ?? "none")-\(snapshot?.dayOffset ?? 0)-\(points.count)",
+            points: Array(points)
         )
     }
 

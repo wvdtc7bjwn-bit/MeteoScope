@@ -29,6 +29,12 @@ import {
   EARTHQUAKE_D1_RETENTION,
   TSUNAMI_D1_RETENTION
 } from "../workers/earthquake-realtime/src/retentionPolicy.js";
+import {
+  buildJmaDailyPayload,
+  parseJmaDailyHypocenterHtml,
+  readJmaDailyHypocenterDistribution,
+  shouldAttemptDate
+} from "../workers/earthquake-realtime/src/jmaDailyHypocenters.js";
 
 assert.deepEqual(EARTHQUAKE_D1_RETENTION, {
   label: "1 month",
@@ -101,6 +107,20 @@ assert.deepEqual(
 assert.deepEqual(
   resolvePublicEarthquakeRoute(new URL("https://example.test/api/history?limit=11")),
   { internalPath: "/history?limit=11", cacheSeconds: 15 }
+);
+assert.deepEqual(
+  resolvePublicEarthquakeRoute(
+    new URL("https://example.test/api/earthquakes/distribution?dayOffset=14&minMagnitude=1&maxDepth=100")
+  ),
+  { internalPath: "/distribution", cacheSeconds: 300, directD1: true }
+);
+assert.equal(
+  resolvePublicEarthquakeRoute(new URL("https://example.test/api/distribution?dayOffset=15")).error,
+  "invalid_day_offset"
+);
+assert.equal(
+  resolvePublicEarthquakeRoute(new URL("https://example.test/api/distribution?dayOffset=-1")).error,
+  "invalid_day_offset"
 );
 assert.equal(
   resolvePublicEarthquakeRoute(new URL("https://example.test/api/history?limit=101")).error,
@@ -273,6 +293,80 @@ assert.deepEqual(
   ["2026-07-16"]
 );
 
+const parsedDailyHypocenters = parseJmaDailyHypocenterHtml(`
+  <html><body><pre>
+年   月 日 時 分 秒    緯度       経度       深さ(km)  Ｍ   震央地名
+2026  7 17 00:04 36.9  35°31.6'N 136°22.8'E   13     0.1  滋賀県北部
+2026  7 17 12:30 05.0  36°00.0'N 140°30.0'E   -      -    茨城県南部
+  </pre></body></html>
+`, "2026-07-17");
+assert.equal(parsedDailyHypocenters.length, 2);
+assert.equal(parsedDailyHypocenters[0].originTime, "2026-07-17T00:04:36.900+09:00");
+assert.equal(parsedDailyHypocenters[0].depthKm, 13);
+assert.equal(parsedDailyHypocenters[0].magnitude, 0.1);
+assert.equal(parsedDailyHypocenters[1].depthKm, null);
+assert.equal(parsedDailyHypocenters[1].magnitude, null);
+const dailyPayload = buildJmaDailyPayload(parsedDailyHypocenters);
+assert.equal(JSON.parse(dailyPayload.json).length, 2);
+assert.ok(dailyPayload.bytes > 0 && dailyPayload.bytes < 1_500_000);
+const storedPayloads = new Map([
+  ["2026-07-17", dailyPayload.json],
+  ["2026-07-16", JSON.stringify([{
+    ...parsedDailyHypocenters[0],
+    id: "previous-day",
+    sourceDate: "2026-07-16",
+    originTime: "2026-07-16T18:00:00+09:00",
+    place: "前日の震源"
+  }])]
+]);
+const distributionResponse = await readJmaDailyHypocenterDistribution(
+  new Request("https://example.test/api/distribution?dayOffset=1"),
+  {
+    EQ_D1: {
+      prepare(sql) {
+        return {
+          bind(...params) {
+            return {
+              async all() {
+                assert.match(sql, /SELECT daily\.source_date/u);
+                return { results: [{ source_date: "2026-07-17" }, { source_date: "2026-07-16" }] };
+              },
+              async first() {
+                if (/SELECT payload_json/u.test(sql)) {
+                  return { payload_json: storedPayloads.get(params[0]) };
+                }
+                return {
+                  latest_source_date: "2026-07-17",
+                  last_successful_fetch_at: "2026-07-18T01:17:00Z",
+                  failed_dates: 0
+                };
+              }
+            };
+          }
+        };
+      }
+    }
+  }
+);
+const selectedDistribution = await distributionResponse.json();
+assert.deepEqual(selectedDistribution.availableDates, ["2026-07-17", "2026-07-16"]);
+assert.equal(selectedDistribution.selectedSourceDate, "2026-07-16");
+assert.equal(selectedDistribution.dayOffset, 1);
+assert.deepEqual(selectedDistribution.items.map((item) => item.place), ["前日の震源"]);
+assert.throws(
+  () => buildJmaDailyPayload(Array.from({ length: 5_001 }, () => parsedDailyHypocenters[0])),
+  /jma_daily_record_limit_exceeded/u
+);
+assert.throws(
+  () => buildJmaDailyPayload([{ ...parsedDailyHypocenters[0], place: "震".repeat(600_000) }]),
+  /jma_daily_payload_too_large/u
+);
+const retryBase = Date.parse("2026-07-18T00:00:00Z");
+assert.equal(shouldAttemptDate(undefined, retryBase), true);
+assert.equal(shouldAttemptDate({ status: "ok", fetchedAt: "2026-07-17T00:00:00Z" }, retryBase), false);
+assert.equal(shouldAttemptDate({ status: "error", fetchedAt: "2026-07-17T23:00:00Z" }, retryBase), false);
+assert.equal(shouldAttemptDate({ status: "error", fetchedAt: "2026-07-17T17:59:59Z" }, retryBase), true);
+
 let forwardedUrl = "";
 const proxyResponse = await onRequest({
   request: new Request(
@@ -331,8 +425,18 @@ const publicWorkerSource = await fs.readFile(
   path.join(root, "workers", "earthquake-realtime", "src", "index.js"),
   "utf8"
 );
+const jmaDailySource = await fs.readFile(
+  path.join(root, "workers", "earthquake-realtime", "src", "jmaDailyHypocenters.js"),
+  "utf8"
+);
 assert.doesNotMatch(publicWorkerSource, /\/ingest|\/auth|\/discord/);
 assert.match(publicWorkerSource, /x-eew-authenticated/u);
+assert.match(jmaDailySource, /const RETENTION_DAYS = 15/u);
+assert.match(jmaDailySource, /RETENTION_DAYS - 1/u);
+assert.match(jmaDailySource, /const MAX_DAYS_PER_SYNC = 1/u);
+assert.match(jmaDailySource, /INSERT INTO jma_daily_hypocenter_days/u);
+assert.match(jmaDailySource, /WHERE source_date = \? LIMIT 1/u);
+assert.doesNotMatch(jmaDailySource, /INSERT INTO jma_daily_hypocenters/u);
 
 const earthquakeHubSource = await fs.readFile(
   path.join(
@@ -383,7 +487,9 @@ assert.match(
   workerWranglerSource,
   /database_name\s*=\s*"meteoscope-earthquakes"/u
 );
-assert.match(workerWranglerSource, /\[triggers\]\s*crons\s*=\s*\[\]/u);
+assert.match(workerWranglerSource, /\[triggers\]\s*crons\s*=\s*\["17 \* \* \* \*"\]/u);
+assert.match(publicWorkerSource, /maxDays:\s*1/u);
+assert.doesNotMatch(publicWorkerSource, /maxDays:\s*[2-9]/u);
 assert.doesNotMatch(publicWorkerSource, /scheduledD1Backfill|runScheduledD1Backfill/u);
 for (const source of [pagesWranglerSource, workerWranglerSource, publicWorkerSource]) {
   assert.doesNotMatch(source, /eqapp-realtime|eq-signal-history|RealtimeHub/u);

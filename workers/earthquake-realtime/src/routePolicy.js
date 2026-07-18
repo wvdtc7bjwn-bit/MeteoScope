@@ -18,6 +18,22 @@ export function resolvePublicEarthquakeRoute(url) {
     return { internalPath: "/health", cacheSeconds: 0 };
   }
 
+  if (pathname === "/api/distribution") {
+    const dayOffset = url.searchParams.get("dayOffset") ?? "0";
+    const minMagnitude = url.searchParams.get("minMagnitude") ?? "0";
+    const maxDepth = url.searchParams.get("maxDepth") ?? "all";
+    if (!/^\d{1,2}$/u.test(dayOffset) || Number(dayOffset) > 14) {
+      return { error: "invalid_day_offset", status: 400 };
+    }
+    if (!["all", "0", "1", "2", "3", "4", "5"].includes(minMagnitude)) {
+      return { error: "invalid_min_magnitude", status: 400 };
+    }
+    if (!["all", "30", "100", "300", "700"].includes(maxDepth)) {
+      return { error: "invalid_max_depth", status: 400 };
+    }
+    return { internalPath: "/distribution", cacheSeconds: 300, directD1: true };
+  }
+
   if (pathname === "/api/history") {
     const rawLimit = url.searchParams.get("limit") ?? "12";
     if (!/^\d{1,3}$/.test(rawLimit)) {

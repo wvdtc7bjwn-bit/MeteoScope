@@ -7,7 +7,7 @@ DMDATA_APP_NAME = "meteoscope-earthquake"
 DMDATA_TEST_MODE = "excluding"
 
 [triggers]
-crons = []
+crons = ["17 * * * *"]
 
 [[durable_objects.bindings]]
 name = "EARTHQUAKE_HUB"

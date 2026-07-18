@@ -14,6 +14,9 @@ final class WeatherAppModel {
     var riverFloodState: LoadState<RiverFloodSnapshot> = .idle
     var typhoonState: LoadState<TyphoonSnapshot> = .idle
     var earthquakeState: LoadState<EarthquakeSnapshot> = .idle
+    var earthquakeDisplayMode: EarthquakeDisplayMode = .recent
+    var hypocenterDistributionState: LoadState<HypocenterDistributionSnapshot> = .idle
+    var hypocenterDistributionFilter = HypocenterDistributionFilter()
     var remoteConfigState: LoadState<RemoteAppConfig> = .idle
     var selectedRadarFrameID: RadarFrame.ID?
     var selectedEarthquakeID: EarthquakeSummary.ID?
@@ -23,6 +26,7 @@ final class WeatherAppModel {
     private var loadingEarthquakeStationIDs: Set<String> = []
     private var verifiedEarthquakeStationIDs: Set<String> = []
     private var earthquakeRefreshSequence = 0
+    private var hypocenterDistributionRefreshSequence = 0
 
     private let client: WeatherAPIClient
     private let earthquakeUpdates: EarthquakeUpdateClient
@@ -60,6 +64,48 @@ final class WeatherAppModel {
         }
         Task { [weak self] in
             await self?.loadEarthquakeStations(eventID: earthquake.eventID)
+        }
+    }
+
+    func selectEarthquakeDisplayMode(_ mode: EarthquakeDisplayMode) {
+        earthquakeDisplayMode = mode
+        guard mode == .distribution, hypocenterDistributionState.isIdle else { return }
+        Task { [weak self] in await self?.refreshHypocenterDistribution() }
+    }
+
+    func updateHypocenterDistributionFilter(
+        dayOffset: Int? = nil,
+        minMagnitude: String? = nil,
+        maxDepth: String? = nil
+    ) {
+        if let dayOffset { hypocenterDistributionFilter.dayOffset = min(max(dayOffset, 0), 14) }
+        if let minMagnitude { hypocenterDistributionFilter.minMagnitude = minMagnitude }
+        if let maxDepth { hypocenterDistributionFilter.maxDepth = maxDepth }
+        Task { [weak self] in await self?.refreshHypocenterDistribution() }
+    }
+
+    func refreshHypocenterDistribution() async {
+        hypocenterDistributionRefreshSequence += 1
+        let refreshSequence = hypocenterDistributionRefreshSequence
+        let previous: HypocenterDistributionSnapshot?
+        if case .loaded(let snapshot) = hypocenterDistributionState {
+            previous = snapshot
+        } else {
+            previous = nil
+            hypocenterDistributionState = .loading
+        }
+        do {
+            let snapshot = try await client.fetchHypocenterDistribution(hypocenterDistributionFilter)
+            guard !Task.isCancelled, refreshSequence == hypocenterDistributionRefreshSequence else { return }
+            hypocenterDistributionFilter.dayOffset = snapshot.dayOffset
+            hypocenterDistributionState = .loaded(snapshot)
+        } catch is CancellationError {
+            return
+        } catch {
+            guard refreshSequence == hypocenterDistributionRefreshSequence else { return }
+            if previous == nil {
+                hypocenterDistributionState = .failed(error.localizedDescription)
+            }
         }
     }
 
@@ -356,6 +402,7 @@ extension WeatherAppModel {
         model.riverFloodState = .loaded(.preview)
         model.typhoonState = .loaded(.preview)
         model.earthquakeState = .loaded(.preview)
+        model.hypocenterDistributionState = .loaded(.preview)
         model.selectedRadarFrameID = frames[0].id
         return model
     }

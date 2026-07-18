@@ -446,11 +446,21 @@ struct WeatherMapView: UIViewRepresentable {
                 (UIColor.systemOrange, CGSize(width: 14, height: 14), 2)
             case .earthquakeHypocenter:
                 (UIColor.black, CGSize(width: 22, height: 22), 3)
+            case .hypocenterDistribution(let depthKm):
+                (hypocenterDepthColor(depthKm), CGSize(width: 9, height: 9), 1.5)
             case .seismicIntensity(let label):
                 (intensityColor(label), CGSize(width: 13, height: 13), 1.5)
             case .communityReport(let weather, let hasHazard):
                 (hasHazard ? UIColor.systemOrange : communityReportColor(weather), CGSize(width: 14, height: 14), 2)
             }
+        }
+
+        private func hypocenterDepthColor(_ depthKm: Int?) -> UIColor {
+            guard let depthKm else { return .systemGray }
+            if depthKm < 30 { return .systemRed }
+            if depthKm < 100 { return .systemOrange }
+            if depthKm < 300 { return .systemBlue }
+            return .systemPurple
         }
 
         private func communityReportColor(_ weather: String) -> UIColor {

@@ -586,7 +586,30 @@ struct EarthquakeDashboardCard: View {
     @State private var collapsedEarthquakeID: EarthquakeSummary.ID?
 
     var body: some View {
-        @Bindable var preferences = preferences
+        VStack(alignment: .leading, spacing: 10) {
+            Picker(
+                "地震情報の表示",
+                selection: Binding(
+                    get: { model.earthquakeDisplayMode },
+                    set: { model.selectEarthquakeDisplayMode($0) }
+                )
+            ) {
+                ForEach(EarthquakeDisplayMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if model.earthquakeDisplayMode == .distribution {
+                hypocenterDistributionContent
+            } else {
+                recentEarthquakeContent
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var recentEarthquakeContent: some View {
         switch model.earthquakeState {
         case .idle, .loading:
             FeatureLoadingCard(title: "地震情報を読み込んでいます")
@@ -595,14 +618,7 @@ struct EarthquakeDashboardCard: View {
         case .loaded(let snapshot):
             if let selectedEarthquake = model.selectedEarthquake(in: snapshot) {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        Label("主要活断層帯", systemImage: "map")
-                            .font(.caption.weight(.semibold))
-                        Spacer()
-                        Toggle("主要活断層帯を表示", isOn: $preferences.showsActiveFaults)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                    }
+                    activeFaultToggle
 
                     ScrollView(.vertical) {
                         LazyVStack(spacing: 10) {
@@ -641,6 +657,120 @@ struct EarthquakeDashboardCard: View {
                 }
             }
         }
+    }
+
+    private var activeFaultToggle: some View {
+        @Bindable var preferences = preferences
+        return HStack(spacing: 8) {
+            Label("主要活断層帯", systemImage: "map")
+                .font(.caption.weight(.semibold))
+            Spacer()
+            Toggle("主要活断層帯を表示", isOn: $preferences.showsActiveFaults)
+                .labelsHidden()
+                .toggleStyle(.switch)
+        }
+    }
+
+    @ViewBuilder
+    private var hypocenterDistributionContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                distributionMenu(
+                    title: distributionDateTitle,
+                    values: distributionDateChoices
+                ) { model.updateHypocenterDistributionFilter(dayOffset: $0) }
+                distributionStringMenu(
+                    title: magnitudeFilterTitle,
+                    values: [("all", "Mすべて"), ("0", "M0以上"), ("1", "M1以上"), ("2", "M2以上"), ("3", "M3以上"), ("4", "M4以上"), ("5", "M5以上")]
+                ) { model.updateHypocenterDistributionFilter(minMagnitude: $0) }
+                distributionStringMenu(
+                    title: depthFilterTitle,
+                    values: [("all", "深さすべて"), ("30", "30km以内"), ("100", "100km以内"), ("300", "300km以内"), ("700", "700km以内")]
+                ) { model.updateHypocenterDistributionFilter(maxDepth: $0) }
+            }
+
+            switch model.hypocenterDistributionState {
+            case .idle, .loading:
+                FeatureLoadingCard(title: "気象庁の震央分布を読み込んでいます")
+            case .failed(let message):
+                VStack(alignment: .leading, spacing: 8) {
+                    FeatureErrorCard(title: "震央分布を取得できません", message: message)
+                    Button("再試行") { Task { await model.refreshHypocenterDistribution() } }
+                        .buttonStyle(.bordered)
+                }
+            case .loaded(let snapshot):
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("\(snapshot.items.count.formatted())個").font(.title3.weight(.bold))
+                        Spacer()
+                        Text(snapshot.selectedSourceDate.map(formatDistributionDate) ?? "取得日不明")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    HypocenterDepthLegend()
+                    Text("震源要素は気象庁の暫定値で、後日変更される場合があります。")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    if let sourceURL = snapshot.sourceURL {
+                        Link("出典：気象庁 日々の震源リスト", destination: sourceURL)
+                            .font(.caption.weight(.semibold))
+                    }
+                }
+                .padding(12)
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+        }
+    }
+
+    private var magnitudeFilterTitle: String {
+        let value = model.hypocenterDistributionFilter.minMagnitude
+        return value == "all" ? "Mすべて" : "M\(value)以上"
+    }
+
+    private var distributionDateChoices: [(Int, String)] {
+        guard case .loaded(let snapshot) = model.hypocenterDistributionState,
+              !snapshot.availableDates.isEmpty else {
+            return [(0, "最新の1日")]
+        }
+        return Array(snapshot.availableDates.prefix(15).enumerated()).map { offset, date in
+            (offset, formatDistributionDate(date))
+        }
+    }
+
+    private var distributionDateTitle: String {
+        let offset = model.hypocenterDistributionFilter.dayOffset
+        return distributionDateChoices.first(where: { $0.0 == offset })?.1 ?? "最新の1日"
+    }
+
+    private func formatDistributionDate(_ value: String) -> String {
+        let parts = value.split(separator: "-")
+        guard parts.count == 3,
+              let month = Int(parts[1]),
+              let day = Int(parts[2]) else { return value }
+        return "\(month)/\(day)"
+    }
+
+    private var depthFilterTitle: String {
+        let value = model.hypocenterDistributionFilter.maxDepth
+        return value == "all" ? "深さすべて" : "\(value)km以内"
+    }
+
+    private func distributionMenu(title: String, values: [(Int, String)], action: @escaping (Int) -> Void) -> some View {
+        Menu(title) {
+            ForEach(values.indices, id: \.self) { index in
+                Button(values[index].1) { action(values[index].0) }
+            }
+        }
+        .font(.caption.weight(.semibold))
+    }
+
+    private func distributionStringMenu(title: String, values: [(String, String)], action: @escaping (String) -> Void) -> some View {
+        Menu(title) {
+            ForEach(values.indices, id: \.self) { index in
+                Button(values[index].1) { action(values[index].0) }
+            }
+        }
+        .font(.caption.weight(.semibold))
     }
 }
 
@@ -975,6 +1105,26 @@ private struct TsunamiEventDetails: View {
                     .font(.caption.weight(.semibold))
             }
         }
+    }
+
+}
+
+private struct HypocenterDepthLegend: View {
+    private let items: [(Color, String)] = [
+        (.red, "30km未満"), (.orange, "30–100km"),
+        (.blue, "100–300km"), (.purple, "300km以上")
+    ]
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                HStack(spacing: 3) {
+                    Circle().fill(item.0).frame(width: 7, height: 7)
+                    Text(item.1)
+                }
+            }
+        }
+        .font(.system(size: 9, weight: .medium))
     }
 }
 

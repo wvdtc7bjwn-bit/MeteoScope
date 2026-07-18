@@ -2,6 +2,43 @@ import XCTest
 @testable import MeteoScope
 
 final class FeatureDataTests: XCTestCase {
+    func testHypocenterDistributionDecodesJmaDailyListResponse() throws {
+        let data = """
+        {
+          "sourceLabel": "気象庁 日々の震源リスト",
+          "sourceUrl": "https://www.data.jma.go.jp/eqev/data/daily_map/index.html",
+          "provisional": true,
+          "latestSourceDate": "2026-07-17",
+          "lastSuccessfulFetchAt": "2026-07-18T01:17:00Z",
+          "failedDates": 0,
+          "truncated": false,
+          "availableDates": ["2026-07-17", "2026-07-16"],
+          "availableDayCount": 2,
+          "selectedSourceDate": "2026-07-16",
+          "dayOffset": 1,
+          "items": [{
+            "id": "jma-daily:20260717:000436900:35.5267:136.3800:13",
+            "sourceDate": "2026-07-17",
+            "originTime": "2026-07-17T00:04:36.900+09:00",
+            "latitude": 35.5267,
+            "longitude": 136.38,
+            "depthKm": 13,
+            "magnitude": 0.1,
+            "place": "滋賀県北部"
+          }]
+        }
+        """.data(using: .utf8)!
+
+        let snapshot = try JSONDecoder().decode(HypocenterDistributionSnapshot.self, from: data)
+        XCTAssertTrue(snapshot.provisional)
+        XCTAssertEqual(snapshot.availableDates, ["2026-07-17", "2026-07-16"])
+        XCTAssertEqual(snapshot.selectedSourceDate, "2026-07-16")
+        XCTAssertEqual(snapshot.dayOffset, 1)
+        XCTAssertEqual(snapshot.items.first?.place, "滋賀県北部")
+        XCTAssertEqual(snapshot.items.first?.magnitudeText, "M0.1")
+        XCTAssertEqual(snapshot.items.first?.depthText, "13km")
+    }
+
     func testActiveFaultInfoFormatsJshisAttributes() throws {
         let info = try XCTUnwrap(ActiveFaultInfo(attributes: [
             "FLT_ID": "F001",

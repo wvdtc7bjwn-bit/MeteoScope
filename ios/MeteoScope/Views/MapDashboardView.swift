@@ -111,11 +111,16 @@ struct MapDashboardView: View {
             }
             return WeatherMapOverlayBuilder.typhoon(typhoon)
         case .earthquake:
-            guard case .loaded(let snapshot) = model.earthquakeState else { return nil }
-            return WeatherMapOverlayBuilder.earthquake(
-                model.selectedEarthquake(in: snapshot),
-                tsunami: snapshot.tsunami
-            )
+            if model.earthquakeDisplayMode == .distribution {
+                guard case .loaded(let snapshot) = model.hypocenterDistributionState else { return nil }
+                return WeatherMapOverlayBuilder.hypocenterDistribution(snapshot)
+            } else {
+                guard case .loaded(let snapshot) = model.earthquakeState else { return nil }
+                return WeatherMapOverlayBuilder.earthquake(
+                    model.selectedEarthquake(in: snapshot),
+                    tsunami: snapshot.tsunami
+                )
+            }
         case .radar:
             return WeatherMapOverlayBuilder.communityReports(communityReports.reports)
         case .amedas:

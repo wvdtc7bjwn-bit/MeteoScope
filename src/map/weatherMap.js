@@ -910,6 +910,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     setupTyphoonForecastInfo();
     setupActiveFaultInfo();
     setupCommunityReportInfo();
+    setupEarthquakeDistributionInfo();
 
     WARNING_CLICK_LAYER_IDS.forEach((layerId) => {
       map.on("mouseenter", layerId, (event) => {
@@ -1024,6 +1025,37 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     ["community-report-cluster", "community-report-point"].forEach((layerID) => {
       map.on("mouseenter", layerID, () => { if (activeMode === "radar") map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", layerID, () => { map.getCanvas().style.cursor = ""; });
+    });
+  }
+
+  function setupEarthquakeDistributionInfo() {
+    map.on("click", "sample-circle", (event) => {
+      if (activeMode !== "earthquake") return;
+      const feature = event.features?.[0];
+      const popup = feature?.properties?.popup;
+      if (!popup) {
+        hideMapInfo("earthquake-distribution");
+        return;
+      }
+      showMapInfo("earthquake-distribution", event.lngLat, popup);
+    });
+    map.on("mouseenter", "sample-circle", (event) => {
+      if (activeMode === "earthquake" && event.features?.some((feature) => feature?.properties?.popup)) {
+        map.getCanvas().style.cursor = "pointer";
+      }
+    });
+    map.on("mouseleave", "sample-circle", () => {
+      if (activeMode === "earthquake") map.getCanvas().style.cursor = "";
+    });
+    map.on("click", (event) => {
+      if (activeMode !== "earthquake") {
+        hideMapInfo("earthquake-distribution");
+        return;
+      }
+      const features = map.queryRenderedFeatures(event.point, { layers: ["sample-circle"] });
+      if (!features.some((feature) => feature?.properties?.popup)) {
+        hideMapInfo("earthquake-distribution");
+      }
     });
   }
 
@@ -2584,6 +2616,28 @@ function createWarningFeatures(data) {
 }
 
 function createEarthquakeFeatures(data) {
+  if (data?.earthquakeView === "distribution") {
+    return (data?.distributionItems ?? []).flatMap((item) => {
+      const longitude = Number(item.longitude);
+      const latitude = Number(item.latitude);
+      if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return [];
+      const magnitude = Number(item.magnitude);
+      const depth = Number(item.depthKm);
+      return [{
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [longitude, latitude] },
+        properties: {
+          color: getHypocenterDepthColor(Number.isFinite(depth) ? depth : null),
+          markerType: "circle",
+          markerScaleMode: "fixed",
+          radius: Number.isFinite(magnitude) ? Math.max(3.5, Math.min(11, 3 + magnitude * 1.2)) : 4,
+          sortKey: Number.isFinite(magnitude) ? magnitude : -10,
+          label: "",
+          popup: buildHypocenterDistributionPopup(item)
+        }
+      }];
+    });
+  }
   const tsunamiFeatures = (data?.tsunami?.mapFeatures ?? []).map((feature) => ({
     ...feature,
     properties: {
@@ -2641,6 +2695,38 @@ function createEarthquakeFeatures(data) {
     : [];
 
   return [...tsunamiFeatures, ...areaFeatures, ...stationFeatures, ...epicenterFeature];
+}
+
+function getHypocenterDepthColor(depthKm) {
+  if (depthKm === null) return "#687487";
+  if (depthKm < 30) return "#ef4444";
+  if (depthKm < 100) return "#f59e0b";
+  if (depthKm < 300) return "#2583e8";
+  return "#7857d9";
+}
+
+function buildHypocenterDistributionPopup(item) {
+  const magnitude = Number.isFinite(Number(item.magnitude)) ? `M${Number(item.magnitude).toFixed(1)}` : "M不明";
+  const depth = Number.isFinite(Number(item.depthKm)) ? `${Number(item.depthKm)}km` : "不明";
+  return `
+    <strong>${escapePopup(item.place ?? "震央地名不明")}</strong><br>
+    <span>${escapePopup(formatDistributionOriginTime(item.originTime))}</span><br>
+    <span>${escapePopup(magnitude)}・深さ ${escapePopup(depth)}</span><br>
+    <small>気象庁の暫定値</small>
+  `;
+}
+
+function formatDistributionOriginTime(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return String(value ?? "時刻不明");
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit"
+  }).format(date);
 }
 
 function getEarthquakeIntensityRadius(value) {

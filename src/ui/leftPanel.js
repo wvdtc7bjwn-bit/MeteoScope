@@ -618,15 +618,45 @@ export function setupTyphoonSelector({ onChange }) {
   document.getElementById("mobile-context-dock")?.addEventListener("click", handleClick);
 }
 
-export function setupEarthquakeSelector({ onChange }) {
+export function setupEarthquakeSelector({
+  onChange,
+  onViewChange,
+  onDistributionFilterChange,
+  onDistributionRetry
+}) {
   const root = document.getElementById("earthquake-list");
   if (!root) return;
 
-  root.addEventListener("click", (event) => {
+  const handleClick = (event) => {
     if (!(event.target instanceof Element)) return;
+    const viewButton = event.target.closest("[data-earthquake-view]");
+    if (viewButton) {
+      onViewChange?.(viewButton.dataset.earthquakeView);
+      return;
+    }
+    const retryButton = event.target.closest("[data-earthquake-distribution-retry]");
+    if (retryButton) {
+      onDistributionRetry?.();
+      return;
+    }
     const button = event.target.closest("[data-earthquake-id]");
     if (!button) return;
     onChange?.(button.dataset.earthquakeId);
+  };
+  root.addEventListener("click", handleClick);
+  document.getElementById("mobile-context-dock")?.addEventListener("click", handleClick);
+
+  const handleFilterChange = (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLSelectElement) || !target.dataset.earthquakeDistributionFilter) return;
+    onDistributionFilterChange?.({ [target.dataset.earthquakeDistributionFilter]: target.value });
+  };
+  root.addEventListener("change", handleFilterChange);
+  document.getElementById("mobile-context-dock")?.addEventListener("change", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.type !== "range") return;
+    if (!target.dataset.earthquakeDistributionFilter) return;
+    onDistributionFilterChange?.({ [target.dataset.earthquakeDistributionFilter]: target.value });
   });
 }
 
@@ -1212,6 +1242,9 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     return buildTyphoonMobileContextMarkup(typhoons, state.data?.selectedTyphoonId);
   }
   if (tab.id === "earthquake") {
+    if (state.data?.earthquakeView === "distribution") {
+      return buildEarthquakeDistributionMobileContextMarkup(state.data);
+    }
     const earthquakes = state.data?.earthquakes ?? [];
     const earthquake = state.data?.selectedEarthquake ?? earthquakes[0];
     const activeFaultVisible = state.earthquakeActiveFaultVisible ?? state.data?.activeFaultVisible ?? true;
@@ -1280,10 +1313,19 @@ function buildEarthquakeMobileContextMarkup(earthquake, activeFaultVisible, tsun
 
   return `
     <div class="mobile-dock-content mobile-dock-earthquake" style="--mobile-earthquake-intensity-bg: ${escapeHtml(intensityColor)};">
-      <div class="mobile-dock-earthquake-head">
-        <div class="mobile-dock-earthquake-meta">
-          <span class="mobile-dock-kicker">最新地震</span>
-          <span class="mobile-dock-earthquake-time">${escapeHtml(time)}</span>
+      ${buildEarthquakeMobileViewSwitch("recent")}
+      <div class="mobile-dock-earthquake-main">
+        <em class="mobile-dock-earthquake-intensity ${intensityTextClass}">
+          <small>最大震度</small>
+          <span>${escapeHtml(intensity)}</span>
+        </em>
+        <div class="mobile-dock-earthquake-text">
+          <span class="mobile-dock-earthquake-time">最新 ${escapeHtml(time)}</span>
+          <strong>${escapeHtml(earthquake?.hypocenterName ?? "直近の地震情報はありません")}</strong>
+          <div class="mobile-dock-earthquake-facts">
+            <span>${escapeHtml([magnitude, `深さ ${depth}`].filter((item) => item && item !== "--").join(" / ") || "詳細確認中")}</span>
+            ${tsunamiMarkup}
+          </div>
         </div>
         <div class="mobile-dock-earthquake-layer-control">
           <span>活断層</span>
@@ -1292,16 +1334,6 @@ function buildEarthquakeMobileContextMarkup(earthquake, activeFaultVisible, tsun
             <button type="button" class="mobile-dock-action${activeFaultVisible ? " active" : ""}" data-mobile-dock-control data-earthquake-active-fault="on" aria-pressed="${activeFaultVisible ? "true" : "false"}">ON</button>
           </div>
         </div>
-      </div>
-      <div class="mobile-dock-earthquake-main">
-        <div class="mobile-dock-earthquake-text">
-          <strong>${escapeHtml(earthquake?.hypocenterName ?? "直近の地震情報はありません")}</strong>
-          <div class="mobile-dock-earthquake-facts">
-            <span>${escapeHtml([magnitude, `深さ ${depth}`].filter((item) => item && item !== "--").join(" / ") || "詳細確認中")}</span>
-            ${tsunamiMarkup}
-          </div>
-        </div>
-        <em class="mobile-dock-earthquake-intensity ${intensityTextClass}">${escapeHtml(intensity)}</em>
       </div>
     </div>
   `;
@@ -2679,25 +2711,32 @@ function renderEarthquakeList(tab, state) {
     return;
   }
 
+  const view = state.data?.earthquakeView ?? "recent";
+  const viewToggle = buildEarthquakeViewToggle(view);
+  if (view === "distribution") {
+    root.innerHTML = `${viewToggle}${buildEarthquakeDistributionMarkup(state.data ?? {})}`;
+    return;
+  }
+
   if (state.status === "loading") {
-    root.innerHTML = `<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得中です。</div>`;
+    root.innerHTML = `${viewToggle}<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得中です。</div>`;
     return;
   }
 
   if (state.status === "error") {
-    root.innerHTML = `<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得できませんでした。</div>`;
+    root.innerHTML = `${viewToggle}<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得できませんでした。</div>`;
     return;
   }
 
   const earthquakes = state.data?.earthquakes ?? [];
   if (!earthquakes.length) {
-    root.innerHTML = `<div class="earthquake-empty">直近の地震情報はありません。</div>`;
+    root.innerHTML = `${viewToggle}<div class="earthquake-empty">直近の地震情報はありません。</div>`;
     return;
   }
 
   const selectedId = String(state.data?.selectedEarthquakeId ?? earthquakes[0]?.id ?? "");
   const collapsedId = String(state.data?.collapsedEarthquakeId ?? "");
-  root.innerHTML = earthquakes.map((earthquake, index) => {
+  root.innerHTML = viewToggle + earthquakes.map((earthquake, index) => {
     const isActive = String(earthquake.id) === selectedId;
     const isExpanded = isActive && String(earthquake.id) !== collapsedId;
     const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
@@ -2737,6 +2776,94 @@ function renderEarthquakeList(tab, state) {
       </article>
     `;
   }).join("");
+}
+
+function buildEarthquakeViewToggle(activeView) {
+  return `
+    <div class="earthquake-view-toggle" role="tablist" aria-label="地震情報の表示">
+      <button type="button" role="tab" data-earthquake-view="recent" aria-selected="${activeView === "recent"}" class="${activeView === "recent" ? "active" : ""}">最近の地震</button>
+      <button type="button" role="tab" data-earthquake-view="distribution" aria-selected="${activeView === "distribution"}" class="${activeView === "distribution" ? "active" : ""}">震央分布</button>
+    </div>
+  `;
+}
+
+function buildEarthquakeDistributionMarkup(data) {
+  const filters = data.distributionFilters ?? { dayOffset: 0, minMagnitude: "0", maxDepth: "all" };
+  const snapshot = data.distribution;
+  const status = data.distributionStatus ?? "idle";
+  const count = snapshot?.items?.length ?? 0;
+  const statusMarkup = status === "loading"
+    ? `<div class="earthquake-empty">気象庁の震央分布を取得中です。</div>`
+    : status === "error" && !snapshot
+      ? `<div class="earthquake-empty">${escapeHtml(data.distributionError ?? "震央分布を取得できませんでした")}<button type="button" class="earthquake-distribution-retry" data-earthquake-distribution-retry>再試行</button></div>`
+      : `<div class="earthquake-distribution-count"><strong>${count.toLocaleString("ja-JP")}個</strong><span>${escapeHtml(snapshot?.latestSourceDate ? `${snapshot.latestSourceDate}まで` : "取得日不明")}${status === "refreshing" ? "・更新中" : ""}</span></div>`;
+  return `
+    <section class="earthquake-distribution-panel" aria-label="震央分布の条件">
+      <div class="earthquake-distribution-filters">
+        ${buildDistributionSelect("dayOffset", "日付", snapshot?.dayOffset ?? filters.dayOffset, buildDistributionDateChoices(snapshot))}
+        ${buildDistributionSelect("minMagnitude", "規模", filters.minMagnitude, [["all", "すべて"], [0, "M0以上"], [1, "M1以上"], [2, "M2以上"], [3, "M3以上"], [4, "M4以上"], [5, "M5以上"]])}
+        ${buildDistributionSelect("maxDepth", "深さ", filters.maxDepth, [["all", "すべて"], [30, "30km以内"], [100, "100km以内"], [300, "300km以内"], [700, "700km以内"]])}
+      </div>
+      ${statusMarkup}
+      <div class="earthquake-depth-legend" aria-label="深さの色分け">
+        <span><i style="--depth-color:#ef4444"></i>30km未満</span>
+        <span><i style="--depth-color:#f59e0b"></i>30–100km</span>
+        <span><i style="--depth-color:#2583e8"></i>100–300km</span>
+        <span><i style="--depth-color:#7857d9"></i>300km以上</span>
+      </div>
+      <p class="earthquake-distribution-note">出典：<a href="https://www.data.jma.go.jp/eqev/data/daily_map/index.html" target="_blank" rel="noopener noreferrer">気象庁「日々の震源リスト」</a>。震源要素は暫定値で、後日変更される場合があります。</p>
+    </section>
+  `;
+}
+
+function buildDistributionSelect(key, label, selectedValue, choices) {
+  return `
+    <label><span>${escapeHtml(label)}</span><select data-earthquake-distribution-filter="${escapeHtml(key)}">
+      ${choices.map(([value, text]) => `<option value="${escapeHtml(value)}"${String(value) === String(selectedValue) ? " selected" : ""}>${escapeHtml(text)}</option>`).join("")}
+    </select></label>
+  `;
+}
+
+function buildDistributionDateChoices(snapshot) {
+  const dates = Array.isArray(snapshot?.availableDates) ? snapshot.availableDates.slice(0, 15) : [];
+  if (!dates.length) return [[0, "最新の1日"]];
+  return dates.map((date, index) => [index, formatDistributionDate(date)]);
+}
+
+function formatDistributionDate(value) {
+  const match = String(value ?? "").match(/^\d{4}-(\d{2})-(\d{2})$/u);
+  return match ? `${Number(match[1])}/${Number(match[2])}` : String(value ?? "日付不明");
+}
+
+function buildEarthquakeDistributionMobileContextMarkup(data) {
+  const snapshot = data.distribution;
+  const filters = data.distributionFilters ?? {};
+  const availableDates = Array.isArray(snapshot?.availableDates) ? snapshot.availableDates.slice(0, 15) : [];
+  const maximumOffset = Math.max(0, availableDates.length - 1);
+  const dayOffset = Math.min(maximumOffset, Math.max(0, Number(snapshot?.dayOffset ?? filters.dayOffset ?? 0)));
+  const selectedDate = snapshot?.selectedSourceDate ?? availableDates[dayOffset] ?? "";
+  const count = snapshot?.items?.length ?? 0;
+  return `
+    <div class="mobile-dock-content mobile-dock-earthquake-distribution">
+      ${buildEarthquakeMobileViewSwitch("distribution")}
+      <div class="mobile-dock-earthquake-distribution-summary">
+        <div class="mobile-dock-earthquake-distribution-head">
+          <span class="mobile-dock-kicker">震央分布・${escapeHtml(selectedDate ? formatDistributionDate(selectedDate) : "取得待ち")}・暫定値</span>
+          <strong>${count.toLocaleString("ja-JP")}個</strong>
+        </div>
+        <input class="mobile-dock-earthquake-date-range" type="range" min="0" max="${maximumOffset}" step="1" value="${dayOffset}" data-earthquake-distribution-filter="dayOffset" aria-label="震央分布の日付"${maximumOffset === 0 ? " disabled" : ""}>
+      </div>
+    </div>
+  `;
+}
+
+function buildEarthquakeMobileViewSwitch(activeView) {
+  return `
+    <div class="mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented mobile-dock-earthquake-view-switch" role="tablist" aria-label="地震情報の表示">
+      <button type="button" role="tab" class="mobile-dock-action${activeView === "recent" ? " active" : ""}" data-mobile-dock-control data-earthquake-view="recent" aria-selected="${activeView === "recent"}">最近の地震</button>
+      <button type="button" role="tab" class="mobile-dock-action${activeView === "distribution" ? " active" : ""}" data-mobile-dock-control data-earthquake-view="distribution" aria-selected="${activeView === "distribution"}">震央分布</button>
+    </div>
+  `;
 }
 
 function renderExpandedEarthquakeSummary({
