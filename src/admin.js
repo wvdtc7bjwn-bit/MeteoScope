@@ -24,7 +24,12 @@ const elements = {
   dashboardMessage: document.getElementById("dashboard-message"),
   logoutButton: document.getElementById("logout-button"),
   refreshStatusButton: document.getElementById("refresh-status-button"),
+  refreshQuotaButton: document.getElementById("refresh-quota-button"),
   statusList: document.getElementById("status-list"),
+  quotaOverallStatus: document.getElementById("quota-overall-status"),
+  quotaPeriodLabel: document.getElementById("quota-period-label"),
+  quotaMetrics: document.getElementById("quota-metrics"),
+  quotaNote: document.getElementById("quota-note"),
   quizMetricsList: document.getElementById("quiz-metrics-list"),
   accountList: document.getElementById("admin-account-list"),
   accountCount: document.getElementById("admin-account-count"),
@@ -98,6 +103,10 @@ function bindEvents() {
     void refreshDashboard();
   });
 
+  elements.refreshQuotaButton?.addEventListener("click", () => {
+    void refreshCloudflareQuota();
+  });
+
   elements.saveConfigButton.addEventListener("click", () => {
     void saveConfig();
   });
@@ -168,8 +177,9 @@ function showDashboard() {
 
 async function refreshDashboard() {
   setMessage(elements.dashboardMessage, "読み込み中...");
-  const [status, config, notices, feedback, earlyAccess, pushBroadcasts, accounts] = await Promise.all([
+  const [status, quota, config, notices, feedback, earlyAccess, pushBroadcasts, accounts] = await Promise.all([
     requestJson("/status"),
+    requestJson("/quota"),
     requestJson("/config"),
     requestJson("/notices"),
     requestJson("/feedback"),
@@ -178,6 +188,7 @@ async function refreshDashboard() {
     requestJson("/accounts?limit=100&offset=0")
   ]);
   renderStatus(status);
+  renderCloudflareQuota(quota.usage || {});
   currentConfig = normalizeConfig(config.config);
   currentNotices = Array.isArray(notices.notices) ? notices.notices : [];
   currentFeedback = Array.isArray(feedback.feedback) ? feedback.feedback : [];
@@ -460,10 +471,141 @@ function renderStatus(status) {
       <dd>${escapeHtml(value)}</dd>
     </div>
   `).join("");
-  renderQuizMetrics(status.quiz || {}, status.d1Usage || {});
+  renderQuizMetrics(status.quiz || {});
 }
 
-function renderQuizMetrics(quiz, usage) {
+async function refreshCloudflareQuota() {
+  if (elements.refreshQuotaButton?.disabled) return;
+  elements.refreshQuotaButton.disabled = true;
+  if (elements.quotaOverallStatus) elements.quotaOverallStatus.textContent = "更新中";
+  try {
+    const response = await requestJson("/quota");
+    renderCloudflareQuota(response.usage || {});
+    setMessage(elements.dashboardMessage, "Cloudflare無料枠の使用量を更新しました。", "success");
+  } catch (error) {
+    if (elements.quotaOverallStatus) elements.quotaOverallStatus.textContent = "取得失敗";
+    setMessage(
+      elements.dashboardMessage,
+      error.message || "Cloudflare無料枠の使用量を取得できませんでした。",
+      "error"
+    );
+  } finally {
+    elements.refreshQuotaButton.disabled = false;
+  }
+}
+
+function renderCloudflareQuota(usage) {
+  if (!elements.quotaMetrics) return;
+  const resetTime = usage.period?.resetTimeJst || "09:00";
+  const updatedAt = formatAdminDate(usage.updatedAt);
+  if (elements.quotaPeriodLabel) {
+    elements.quotaPeriodLabel.textContent = `毎日${resetTime}（日本時間）に更新 ・ 最終取得 ${updatedAt}`;
+  }
+
+  if (!usage.configured) {
+    elements.quotaOverallStatus.textContent = "未設定";
+    elements.quotaOverallStatus.dataset.level = "unavailable";
+    elements.quotaMetrics.innerHTML = `
+      <div class="admin-quota-empty">
+        <strong>Analytics APIトークンが未設定です</strong>
+        <p>CLOUDFLARE_ACCOUNT_IDと、読取専用のCLOUDFLARE_ANALYTICS_API_TOKENを設定すると使用量を表示できます。</p>
+      </div>`;
+    elements.quotaNote.textContent = "秘密情報は管理画面へ返さず、Cloudflare Pagesの環境変数内だけで使用します。";
+    return;
+  }
+
+  const limits = usage.limits || {};
+  const metrics = [
+    quotaMetric("Workersリクエスト", usage.workers?.requests, limits.workerRequests, "count", usage.workers?.errors == null ? "" : `エラー ${formatInteger(usage.workers.errors)}件`),
+    quotaMetric("DOリクエスト", usage.durableObjects?.requests, limits.durableObjectRequests, "count"),
+    quotaMetric("DO実行時間", usage.durableObjects?.durationGbSeconds, limits.durableObjectDurationGbSeconds, "duration", usage.durableObjects?.fatalInternalErrors == null ? "" : `内部エラー ${formatInteger(usage.durableObjects.fatalInternalErrors)}件`),
+    quotaMetric("D1読取行数", usage.d1?.rowsRead, limits.d1RowsRead, "rows"),
+    quotaMetric("D1書込行数", usage.d1?.rowsWritten, limits.d1RowsWritten, "rows"),
+    quotaMetric("D1保存容量", usage.d1?.storageBytes, limits.d1StorageBytes, "bytes", usage.d1?.databaseCount == null ? "" : `${formatInteger(usage.d1.databaseCount)}データベース合計`)
+  ];
+  const availableMetrics = metrics.filter((metric) => metric.available);
+  const maximumPercent = availableMetrics.length
+    ? Math.max(...availableMetrics.map((metric) => metric.percent))
+    : null;
+  const overallLevel = maximumPercent == null
+    ? "unavailable"
+    : maximumPercent >= 90
+      ? "danger"
+      : maximumPercent >= 75
+        ? "warning"
+        : "ok";
+  const overallLabel = maximumPercent == null
+    ? "取得不可"
+    : usage.partial
+      ? "一部取得不可"
+      : overallLevel === "danger"
+        ? "上限接近"
+        : overallLevel === "warning"
+          ? "注意"
+          : "余裕あり";
+  elements.quotaOverallStatus.textContent = overallLabel;
+  elements.quotaOverallStatus.dataset.level = overallLevel;
+  elements.quotaMetrics.innerHTML = metrics.map(renderQuotaMetric).join("");
+
+  const largest = usage.d1?.largestDatabase;
+  const largestText = largest?.name
+    ? ` 最大のD1は${largest.name}（${formatBytes(Number(largest.storageBytes || 0))}）です。`
+    : "";
+  elements.quotaNote.textContent = `Cloudflareアカウント全体の当日概算です。請求・上限判定の確定値と一致しない場合があります。${largestText}`;
+}
+
+function quotaMetric(label, value, limit, format, detail = "") {
+  const amount = Number(value);
+  const maximum = Number(limit);
+  const available = value !== null
+    && value !== undefined
+    && Number.isFinite(amount)
+    && amount >= 0
+    && Number.isFinite(maximum)
+    && maximum > 0;
+  const percent = available ? amount / maximum * 100 : 0;
+  return {
+    label,
+    value: amount,
+    limit: maximum,
+    format,
+    detail,
+    available,
+    percent,
+    level: !available ? "unavailable" : percent >= 90 ? "danger" : percent >= 75 ? "warning" : "ok"
+  };
+}
+
+function renderQuotaMetric(metric) {
+  if (!metric.available) {
+    return `<article class="admin-quota-card" data-level="unavailable">
+      <div class="admin-quota-card-head"><span>${escapeHtml(metric.label)}</span><strong>取得不可</strong></div>
+      <p>Cloudflare Analyticsの権限または応答を確認してください。</p>
+    </article>`;
+  }
+  const percent = Math.max(0, metric.percent);
+  const width = Math.min(100, percent);
+  return `<article class="admin-quota-card" data-level="${metric.level}">
+    <div class="admin-quota-card-head">
+      <span>${escapeHtml(metric.label)}</span>
+      <strong>${escapeHtml(formatPercent(metric.value, metric.limit))}</strong>
+    </div>
+    <p><b>${escapeHtml(formatQuotaAmount(metric.value, metric.format))}</b><span> / ${escapeHtml(formatQuotaAmount(metric.limit, metric.format))}</span></p>
+    <div class="admin-quota-progress" role="progressbar" aria-label="${escapeAttribute(metric.label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(100, percent).toFixed(1)}">
+      <span style="--quota-progress:${width.toFixed(2)}%"></span>
+    </div>
+    <small>残り ${escapeHtml(formatQuotaAmount(Math.max(0, metric.limit - metric.value), metric.format))}${metric.detail ? ` ・ ${escapeHtml(metric.detail)}` : ""}</small>
+  </article>`;
+}
+
+function formatQuotaAmount(value, format) {
+  if (format === "bytes") return formatBytes(value);
+  if (format === "duration") return `${new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 1 }).format(value)} GB-s`;
+  if (format === "rows") return `${formatInteger(value)}行`;
+  return `${formatInteger(value)}回`;
+}
+
+function renderQuizMetrics(quiz) {
   if (!elements.quizMetricsList) return;
   if (quiz.migrationRequired) {
     elements.quizMetricsList.innerHTML = statusRow("状態", "D1 migration 0007までの適用が必要です");
@@ -476,10 +618,7 @@ function renderQuizMetrics(quiz, usage) {
     ["本日のランキング記録", quiz.configured ? `${formatInteger(quiz.dailyScoreRows)}件` : "--"],
     ["詳細挑戦履歴", quiz.configured ? `${formatInteger(quiz.attemptRows)}件` : "--"],
     ["挑戦履歴の保持", quiz.configured ? `${Number(quiz.attemptRetentionDays || 15)}日` : "--"],
-    ["最終自動整理", formatAdminDate(quiz.maintenance?.completedAt)],
-    ["D1読取（UTC当日）", formatD1Quota(usage.rowsRead, 5_000_000, usage)],
-    ["D1書込（UTC当日）", formatD1Quota(usage.rowsWritten, 100_000, usage)],
-    ["D1保存容量", formatStorageQuota(usage.storageBytes, 500 * 1024 * 1024, usage)]
+    ["最終自動整理", formatAdminDate(quiz.maintenance?.completedAt)]
   ];
   elements.quizMetricsList.innerHTML = rows.map(([label, value]) => statusRow(label, value)).join("");
 }
@@ -492,26 +631,15 @@ function formatInteger(value) {
   return new Intl.NumberFormat("ja-JP").format(Number(value || 0));
 }
 
-function formatD1Quota(value, limit, usage) {
-  if (value === null || value === undefined) return usage.configured ? "取得不可" : "Analytics未設定";
-  const amount = Number(value);
-  return `${formatInteger(amount)}行 / ${formatInteger(limit)}行（${formatPercent(amount, limit)}）`;
-}
-
-function formatStorageQuota(value, limit, usage) {
-  if (value === null || value === undefined) return usage.configured ? "取得不可" : "Analytics未設定";
-  const amount = Number(value);
-  return `${formatBytes(amount)} / ${formatBytes(limit)}（${formatPercent(amount, limit)}）`;
-}
-
 function formatPercent(value, limit) {
   return `${Math.min(999, Math.max(0, value / limit * 100)).toFixed(2)}%`;
 }
 
 function formatBytes(value) {
   if (!Number.isFinite(value) || value < 0) return "--";
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  if (value < 1_000_000) return `${(value / 1_000).toFixed(1)} KB`;
+  if (value < 1_000_000_000) return `${(value / 1_000_000).toFixed(1)} MB`;
+  return `${(value / 1_000_000_000).toFixed(2)} GB`;
 }
 
 function renderConfig() {

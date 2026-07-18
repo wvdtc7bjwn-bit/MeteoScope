@@ -4,7 +4,6 @@ import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 
-import { readCloudflareD1Usage } from "../functions/_shared/cloudflareD1Analytics.js";
 import {
   quizAttemptRetentionDays,
   readQuizOperationalMetrics,
@@ -125,32 +124,6 @@ assert.equal(quizAttemptRetentionDays({}), 15);
 
 assert.equal(shouldRunQuizMaintenance(new Date("2026-07-16T15:00:00.000Z")), true);
 assert.equal(shouldRunQuizMaintenance(new Date("2026-07-16T14:59:00.000Z")), false);
-
-const analyticsCalls = [];
-const usage = await readCloudflareD1Usage({
-  CLOUDFLARE_ACCOUNT_ID: "account",
-  D1_DATABASE_ID: "database",
-  CLOUDFLARE_ANALYTICS_API_TOKEN: "secret"
-}, {
-  now: maintenanceNow,
-  fetchImpl: async (url, options) => {
-    analyticsCalls.push({ url: String(url), authorization: options.headers.Authorization });
-    if (String(url).endsWith("/graphql")) {
-      return Response.json({
-        data: { viewer: { accounts: [{ d1AnalyticsAdaptiveGroups: [
-          { sum: { rowsRead: 1200, rowsWritten: 30 } },
-          { sum: { rowsRead: 300, rowsWritten: 2 } }
-        ] }] } }
-      });
-    }
-    return Response.json({ success: true, result: { file_size: 123456 } });
-  }
-});
-assert.equal(usage.rowsRead, 1500);
-assert.equal(usage.rowsWritten, 32);
-assert.equal(usage.storageBytes, 123456);
-assert.equal(analyticsCalls.length, 2);
-assert.equal(analyticsCalls.every((call) => call.authorization === "Bearer secret"), true);
 
 const leaderboardCache = new Map();
 const originalCaches = globalThis.caches;

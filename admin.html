@@ -50,6 +50,7 @@
         </div>
         <nav class="admin-nav">
           <a href="#system-status">稼働状況</a>
+          <a href="#free-tier-monitoring">無料枠</a>
           <a href="#account-management">アカウント</a>
           <a href="#maintenance-settings">メンテナンス</a>
           <a href="#notification-management">管理者通知管理</a>
@@ -84,10 +85,29 @@
             <dl id="status-list" class="admin-status-list admin-status-list--system"></dl>
           </section>
 
-          <section id="account-management" class="admin-card admin-span-2">
+          <section id="free-tier-monitoring" class="admin-card admin-span-2">
             <div class="admin-section-head">
               <div class="admin-section-title">
                 <span class="admin-section-number">02</span>
+                <div><h2>Cloudflare無料枠</h2><p>アカウント全体の当日使用量と残量</p></div>
+              </div>
+              <button id="refresh-quota-button" class="admin-small-button" type="button">使用量を更新</button>
+            </div>
+            <div class="admin-quota-overview">
+              <div>
+                <span class="admin-label">TODAY</span>
+                <strong id="quota-overall-status">確認中</strong>
+              </div>
+              <p id="quota-period-label">Cloudflare Analyticsから取得しています。</p>
+            </div>
+            <div id="quota-metrics" class="admin-quota-grid" aria-live="polite"></div>
+            <p id="quota-note" class="admin-note">数値はCloudflare Analyticsによる概算です。請求・上限判定の確定値と一致しない場合があります。</p>
+          </section>
+
+          <section id="account-management" class="admin-card admin-span-2">
+            <div class="admin-section-head">
+              <div class="admin-section-title">
+                <span class="admin-section-number">03</span>
                 <div><h2>MeteoScopeアカウント</h2><p>利用状況の確認とアカウント管理</p></div>
               </div>
               <button id="refresh-accounts-button" class="admin-small-button" type="button">一覧を更新</button>
@@ -107,7 +127,7 @@
           <section id="maintenance-settings" class="admin-card">
             <div class="admin-section-head">
               <div class="admin-section-title">
-                <span class="admin-section-number">03</span>
+                <span class="admin-section-number">04</span>
                 <div><h2>メンテナンス表示</h2><p>利用者への一時案内</p></div>
               </div>
               <button id="save-config-button" class="admin-small-button" type="button">変更を保存</button>
@@ -125,7 +145,7 @@
           <section id="cache-management" class="admin-card">
             <div class="admin-section-head">
               <div class="admin-section-title">
-                <span class="admin-section-number">04</span>
+                <span class="admin-section-number">05</span>
                 <div><h2>キャッシュ</h2><p>Cloudflare CDNの更新</p></div>
               </div>
             </div>
@@ -136,7 +156,7 @@
           <section id="notification-management" class="admin-card admin-span-2">
             <div class="admin-section-head">
               <div class="admin-section-title">
-                <span class="admin-section-number">05</span>
+                <span class="admin-section-number">06</span>
                 <div><h2>管理者通知管理</h2><p>Web版への通知予約と配信履歴</p></div>
               </div>
             </div>
@@ -175,7 +195,7 @@
           <section id="early-access-management" class="admin-card admin-span-2">
             <div class="admin-section-head">
               <div class="admin-section-title">
-                <span class="admin-section-number">06</span>
+                <span class="admin-section-number">07</span>
                 <div><h2>アーリーアクセス</h2><p>シリアルコードの発行と失効</p></div>
               </div>
             </div>
@@ -197,7 +217,7 @@
           <section id="notice-management" class="admin-card admin-span-2">
             <div class="admin-section-head">
               <div class="admin-section-title">
-                <span class="admin-section-number">07</span>
+                <span class="admin-section-number">08</span>
                 <div><h2>お知らせ</h2><p>アプリ内テロップとカード表示</p></div>
               </div>
               <div class="admin-button-row">

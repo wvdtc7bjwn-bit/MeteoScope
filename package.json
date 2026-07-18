@@ -15,7 +15,7 @@
     "test:quiz": "node Tests/DisasterQuizTests.mjs && node Tests/QuizAccountTests.mjs && node Tests/QuizStorageTests.mjs",
     "test:community": "node Tests/CommunityReportTests.mjs",
     "test:early-access": "node Tests/EarlyAccessReleaseTests.mjs",
-    "test:admin": "node Tests/AdminManagementTests.mjs",
+    "test:admin": "node Tests/AdminManagementTests.mjs && node Tests/CloudflareFreeTierAnalyticsTests.mjs",
     "test:tsunami": "node Tests/TsunamiXmlTests.mjs",
     "test:typhoon": "node Tests/TyphoonTests.mjs",
     "test:warnings": "node Tests/WarningResponsivenessTests.mjs",

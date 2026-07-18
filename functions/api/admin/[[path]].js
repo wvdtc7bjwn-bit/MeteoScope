@@ -1,5 +1,5 @@
 import { readJson, writeJson, requireD1 } from "../../_shared/d1Store.js";
-import { readCloudflareD1Usage } from "../../_shared/cloudflareD1Analytics.js";
+import { readCloudflareFreeTierUsage } from "../../_shared/cloudflareFreeTierAnalytics.js";
 import { readQuizOperationalMetrics } from "../../_shared/quizMaintenance.js";
 import { deleteMeteoScopeAccount, listMeteoScopeAccounts } from "../../_shared/adminManagement.js";
 import { deleteEarlyAccessActivationsForCode, reconcileEarlyAccessCodeUsage } from "../../_shared/earlyAccessAuth.js";
@@ -38,6 +38,7 @@ export async function onRequest({ request, env }) {
     if (!auth.ok) return json({ error: "認証が必要です。" }, { status: 401 });
 
     if ((route === "" || route === "status") && method === "GET") return await status(env);
+    if (route === "quota" && method === "GET") return await quota(env);
     if (route === "config" && method === "GET") return await getConfig(env);
     if (route === "config" && method === "PUT") return await putConfig(request, env);
     if (route === "notices" && method === "GET") return await getNotices(env);
@@ -120,11 +121,10 @@ async function sessionStatus(request, env) {
 }
 
 async function status(env) {
-  const [config, warningCron, quiz, d1Usage] = await Promise.all([
+  const [config, warningCron, quiz] = await Promise.all([
     readJson(env.NOTIFICATIONS_DB, CONFIG_KEY, DEFAULT_CONFIG),
     readWarningCronHealth(env),
-    readQuizOperationalMetrics(env),
-    readCloudflareD1Usage(env)
+    readQuizOperationalMetrics(env)
   ]);
   return json({
     ok: true,
@@ -136,18 +136,20 @@ async function status(env) {
     configUpdatedAt: config?.updatedAt || "--",
     warningCron,
     quiz,
-    d1Usage,
     bindings: {
       d1: Boolean(env.NOTIFICATIONS_DB),
       r2: Boolean(env.DISASTER_MAPS),
       cachePurge: Boolean(env.CLOUDFLARE_ZONE_ID && env.CLOUDFLARE_API_TOKEN),
       d1Analytics: Boolean(
         env.CLOUDFLARE_ACCOUNT_ID
-          && env.D1_DATABASE_ID
           && (env.CLOUDFLARE_ANALYTICS_API_TOKEN || env.CLOUDFLARE_API_TOKEN)
       )
     }
   });
+}
+
+async function quota(env) {
+  return json({ usage: await readCloudflareFreeTierUsage(env) });
 }
 
 async function getConfig(env) {

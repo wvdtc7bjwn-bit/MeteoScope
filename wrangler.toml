@@ -3,7 +3,7 @@ compatibility_date = "2026-07-06"
 pages_build_output_dir = "dist"
 
 [vars]
-D1_DATABASE_ID = "c1552aac-5617-4ed0-bf69-548a44ef363e"
+CLOUDFLARE_ACCOUNT_ID = "2a2eb25e3aa9744a586a8fa1165f6724"
 QUIZ_ATTEMPT_RETENTION_DAYS = "15"
 QUIZ_LEADERBOARD_CACHE_SECONDS = "60"
 

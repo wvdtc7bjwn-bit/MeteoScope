@@ -137,11 +137,10 @@ CLOUDFLARE_ZONE_ID      任意。キャッシュ削除APIを使う場合のみ
 CLOUDFLARE_API_TOKEN    任意。キャッシュ削除APIを使う場合のみ
 QUIZ_PASSWORD_PEPPER    MeteoScopeアカウントのパスワード保護用の長いランダム文字列
 QUIZ_RATE_LIMIT_SECRET  クイズAPIの短期レート制限キーを匿名化する長いランダム文字列
-CLOUDFLARE_ACCOUNT_ID   任意。管理画面にD1無料枠使用量を表示する場合
-CLOUDFLARE_ANALYTICS_API_TOKEN  任意。Account Analytics ReadとD1 Read権限を持つ専用トークン
+CLOUDFLARE_ACCOUNT_ID   管理画面のCloudflare無料枠監視で使うアカウントID（秘密情報ではない）
+CLOUDFLARE_ANALYTICS_API_TOKEN  任意。Account Analytics ReadとD1 Read権限を持つ読取専用トークン
 
 Non-secret variables (wrangler.toml):
-D1_DATABASE_ID                  D1データベースID
 QUIZ_ATTEMPT_RETENTION_DAYS     詳細挑戦履歴の保持日数（既定15、7〜365）
 QUIZ_LEADERBOARD_CACHE_SECONDS  上位20件のキャッシュ秒数（既定60、30〜300）
 
@@ -174,10 +173,16 @@ D1のスキーマは `migrations/0001_notification_storage.sql`、
 セッション、出題、レート制限、90日を超えた日次アクティブ記録も1日1回整理します。
 既存環境ではWorker／Pagesコードより先に`0006_quiz_free_tier_optimization.sql`と`0007_quiz_daily_points_ranking.sql`を順番に適用してください。
 
-管理画面でCloudflare D1の当日行読取・行書込・保存容量を表示するには、専用API Tokenに
-`Account Analytics Read`と`D1 Read`だけを付与し、`CLOUDFLARE_ACCOUNT_ID`と
-`CLOUDFLARE_ANALYTICS_API_TOKEN`をCloudflareのsecretとして設定します。取得不能時は利用量を
-0と推測せず「取得不可」と表示します。トークンはリポジトリへ保存しません。
+管理画面の「Cloudflare無料枠」では、アカウント全体のWorkersリクエスト、Durable Objectsの
+リクエストと実行時間、D1の行読取・行書込・全データベース保存容量をUTC当日分で表示します。
+Freeプランの日次枠が切り替わる日本時間9時と最終取得時刻、残量、75%・90%の注意状態も表示します。
+Cloudflare Analyticsは請求や上限判定の確定値ではないため、画面上でも概算として扱います。
+
+監視には専用API Tokenへ`Account Analytics Read`と`D1 Read`だけを付与し、
+`CLOUDFLARE_ANALYTICS_API_TOKEN`をCloudflare Pagesのsecretとして設定します。
+`CLOUDFLARE_ACCOUNT_ID`は`wrangler.toml`の非秘密変数です。取得不能な項目は0と推測せず
+「取得不可」と表示し、取得できた項目だけを残します。トークンはレスポンスやログへ出さず、
+リポジトリにも保存しません。
 
 通知CronはiOS版の警報・注意報通知を対象とします。Workers Freeの外部サブリクエスト上限50件/呼び出しとD1 Freeの50クエリ/呼び出しを超えないよう、58官署を15官署ずつ4回に分け、D1では4つのまとまりとして保存します。成功した官署スナップショットだけを更新し、取得失敗を「警報なし」として扱いません。1分cronでも全国一巡は約4分に実行時間を加えた値となり、iOS購読数が多い場合の配信はさらに複数分へ分割されます。管理画面で最終一巡、最終全官署成功、失敗官署数、通知結果を確認できます。Web版の管理者通知は同じCronの取得フェーズで別キューとして処理します。
 
