@@ -60,6 +60,7 @@ struct MapDashboardView: View {
             }
         }
         .task {
+            locationService.requestCurrentLocationOnLaunch()
             await model.loadRadarIfNeeded()
         }
         .task(id: model.selectedFeature) {

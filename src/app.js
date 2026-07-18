@@ -58,6 +58,7 @@ const LOCATION_WATCH_OPTIONS = {
 };
 const LOCATION_RESOLVE_MIN_DISTANCE_METERS = 250;
 const LOCATION_RESOLVE_MIN_INTERVAL_MS = 60 * 1000;
+const LOCATION_PERMISSION_STORAGE_KEY = "meteoscope-location-permission-granted-v1";
 const ACTIVE_FAULT_VISIBILITY_STORAGE_KEY = "meteoscope-earthquake-active-fault-visible-v1";
 
 function loadActiveFaultVisibility() {
@@ -127,6 +128,7 @@ export function createWeatherApp() {
   let currentKikikuruStatus = { status: "idle", elementId: activeKikikuruLayer };
   let currentKikikuruRequestId = 0;
   let locationWatchId = null;
+  let hasFocusedInitialLocation = false;
   let locationResolveRequestId = 0;
   let lastResolvedLocation = null;
   let weatherChartEnabled = false;
@@ -1055,7 +1057,6 @@ if (layerId === "river") {
     }
 
     setLocateButtonBusy(true);
-    if (locationWatchId === null) startLocationWatch();
     currentLocationInfo = {
       status: "loading",
       message: "現在地を取得中です..."
@@ -1065,7 +1066,9 @@ if (layerId === "river") {
     try {
       const position = await requestCurrentPosition();
       await applyCurrentPosition(position, { forceResolve: true, flyTo: true });
+      if (locationWatchId === null) startLocationWatch({ announceLoading: false });
     } catch (error) {
+      if (Number(error?.code) === 1) clearLocationPermissionGrant();
       currentLocationInfo = buildCurrentLocationError(error);
       refreshSettingsModalView();
       refreshActivePanel();
@@ -1074,7 +1077,17 @@ if (layerId === "river") {
     }
   }
 
-  function startLocationWatch() {
+  async function startLocationWatchOnLaunch() {
+    if (!navigator.geolocation) return;
+
+    const permissionState = await getGeolocationPermissionState();
+    const mayUseStoredGrant = permissionState === "unavailable" && loadLocationPermissionGrant();
+    if (permissionState === "granted" || mayUseStoredGrant) {
+      startLocationWatch();
+    }
+  }
+
+  function startLocationWatch({ announceLoading = true } = {}) {
     if (!navigator.geolocation) {
       currentLocationInfo = {
         status: "error",
@@ -1086,21 +1099,27 @@ if (layerId === "river") {
     }
     if (locationWatchId !== null) return;
 
-    currentLocationInfo = {
-      status: "loading",
-      message: "現在地を取得中です..."
-    };
-    refreshSettingsModalView();
-    refreshActivePanel();
+    if (announceLoading) {
+      currentLocationInfo = {
+        status: "loading",
+        message: "現在地を取得中です..."
+      };
+      refreshSettingsModalView();
+      refreshActivePanel();
+    }
 
     locationWatchId = navigator.geolocation.watchPosition(
       (position) => {
-        applyCurrentPosition(position).catch((error) => {
+        const shouldFocus = !hasFocusedInitialLocation && Boolean(getPositionCoordinates(position));
+        applyCurrentPosition(position, { flyTo: shouldFocus }).catch((error) => {
           console.warn("[MeteoScope] current location watch update failed", error);
         });
       },
       (error) => {
-        if (Number(error?.code) === 1) stopLocationWatch();
+        if (Number(error?.code) === 1) {
+          stopLocationWatch();
+          clearLocationPermissionGrant();
+        }
         currentLocationInfo = buildCurrentLocationError(error);
         refreshSettingsModalView();
         refreshActivePanel();
@@ -1121,8 +1140,12 @@ if (layerId === "river") {
       return;
     }
 
+    saveLocationPermissionGrant();
     weatherMap?.showCurrentLocation(coordinates, position.coords.accuracy);
-    if (options.flyTo) weatherMap?.flyToLocation(coordinates);
+    if (options.flyTo) {
+      hasFocusedInitialLocation = true;
+      weatherMap?.flyToLocation(coordinates);
+    }
 
     if (!shouldResolveCurrentLocation(coordinates, options.forceResolve)) return;
 
@@ -1555,7 +1578,7 @@ if (layerId === "river") {
       }
     });
     void adminNoticePush.initialize().then(() => refreshSettingsModalView());
-    startLocationWatch();
+    void startLocationWatchOnLaunch();
     selectTab(activeTab);
     void refreshEarlyAccess();
     onboarding.showFirstRun();
@@ -1671,6 +1694,40 @@ function requestCurrentPosition() {
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(resolve, reject, LOCATION_WATCH_OPTIONS);
   });
+}
+
+async function getGeolocationPermissionState() {
+  if (!navigator.permissions?.query) return "unavailable";
+  try {
+    const permission = await navigator.permissions.query({ name: "geolocation" });
+    return permission.state;
+  } catch {
+    return "unavailable";
+  }
+}
+
+function loadLocationPermissionGrant() {
+  try {
+    return localStorage.getItem(LOCATION_PERMISSION_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function saveLocationPermissionGrant() {
+  try {
+    localStorage.setItem(LOCATION_PERMISSION_STORAGE_KEY, "1");
+  } catch {
+    // Storage can be unavailable in privacy-restricted environments.
+  }
+}
+
+function clearLocationPermissionGrant() {
+  try {
+    localStorage.removeItem(LOCATION_PERMISSION_STORAGE_KEY);
+  } catch {
+    // Storage can be unavailable in privacy-restricted environments.
+  }
 }
 
 function getPositionCoordinates(position) {

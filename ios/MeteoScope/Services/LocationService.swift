@@ -62,6 +62,11 @@ final class LocationService: NSObject, @preconcurrency CLLocationManagerDelegate
         }
     }
 
+    func requestCurrentLocationOnLaunch() {
+        guard case .idle = state else { return }
+        requestCurrentLocation()
+    }
+
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         switch manager.authorizationStatus {
         case .authorizedWhenInUse, .authorizedAlways:
