@@ -432,7 +432,7 @@ const jmaDailySource = await fs.readFile(
 assert.doesNotMatch(publicWorkerSource, /\/ingest|\/auth|\/discord/);
 assert.match(publicWorkerSource, /x-eew-authenticated/u);
 assert.match(jmaDailySource, /const RETENTION_DAYS = 15/u);
-assert.match(jmaDailySource, /RETENTION_DAYS - 1/u);
+assert.match(jmaDailySource, /oldestRetainedDay = `-\$\{RETENTION_DAYS\} days`/u);
 assert.match(jmaDailySource, /const MAX_DAYS_PER_SYNC = 1/u);
 assert.match(jmaDailySource, /INSERT INTO jma_daily_hypocenter_days/u);
 assert.match(jmaDailySource, /WHERE source_date = \? LIMIT 1/u);

@@ -275,7 +275,9 @@ async function loadSyncStatuses(db, dates) {
 }
 
 async function cleanupJmaDailyHypocenters(db) {
-  const oldestRetainedDay = `-${RETENTION_DAYS - 1} days`;
+  // The published list starts with yesterday, so retaining 15 published days
+  // requires keeping source dates through 15 calendar days ago.
+  const oldestRetainedDay = `-${RETENTION_DAYS} days`;
   await db.batch([
     db.prepare("DELETE FROM jma_daily_hypocenter_days WHERE source_date < date('now', '+9 hours', ?)")
       .bind(oldestRetainedDay),
