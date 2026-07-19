@@ -494,4 +494,10 @@ final class FeatureDataTests: XCTestCase {
         XCTAssertEqual(earthquake.geoJSONSources.first?.layers.first?.values, ["560"])
         XCTAssertEqual(earthquake.geoJSONSources.count, 2)
     }
+
+    func testHypocenterMapPresentationCanAlwaysReturnToFlatMode() {
+        XCTAssertEqual(HypocenterMapPresentation.flat.title, "平面")
+        XCTAssertEqual(HypocenterMapPresentation.spatial.title, "立体")
+        XCTAssertEqual(HypocenterMapPresentation.allCases, [.flat, .spatial])
+    }
 }

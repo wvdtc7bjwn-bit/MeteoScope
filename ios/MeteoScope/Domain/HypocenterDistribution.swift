@@ -13,6 +13,14 @@ enum EarthquakeDisplayMode: String, CaseIterable, Identifiable, Sendable {
     var title: String { self == .recent ? "最近の地震" : "震央分布" }
 }
 
+enum HypocenterMapPresentation: String, CaseIterable, Identifiable, Sendable {
+    case flat
+    case spatial
+
+    var id: String { rawValue }
+    var title: String { self == .flat ? "平面" : "立体" }
+}
+
 struct HypocenterDistributionFilter: Equatable, Sendable {
     var dayOffset = 0
     var minMagnitude = "0"

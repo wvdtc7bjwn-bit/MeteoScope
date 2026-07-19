@@ -626,6 +626,7 @@ export function setupTyphoonSelector({ onChange }) {
 export function setupEarthquakeSelector({
   onChange,
   onViewChange,
+  onDistributionPresentationChange,
   onDistributionFilterChange,
   onDistributionRetry
 }) {
@@ -639,6 +640,11 @@ export function setupEarthquakeSelector({
     const viewButton = event.target.closest("[data-earthquake-view]");
     if (viewButton) {
       onViewChange?.(viewButton.dataset.earthquakeView);
+      return;
+    }
+    const presentationButton = event.target.closest("[data-earthquake-distribution-presentation]");
+    if (presentationButton) {
+      onDistributionPresentationChange?.(presentationButton.dataset.earthquakeDistributionPresentation);
       return;
     }
     const retryButton = event.target.closest("[data-earthquake-distribution-retry]");
@@ -2931,6 +2937,7 @@ function buildEarthquakeDistributionMarkup(data) {
         ${buildDistributionSelect("minMagnitude", "規模", filters.minMagnitude, [["all", "すべて"], [0, "M0以上"], [1, "M1以上"], [2, "M2以上"], [3, "M3以上"], [4, "M4以上"], [5, "M5以上"]])}
         ${buildDistributionSelect("maxDepth", "深さ", filters.maxDepth, [["all", "すべて"], [30, "30km以内"], [100, "100km以内"], [300, "300km以内"], [700, "700km以内"]])}
       </div>
+      ${buildHypocenterPresentationToggle(data.distribution3DEnabled === true)}
       ${statusMarkup}
       <div class="earthquake-depth-legend" aria-label="深さの色分け">
         <div class="earthquake-depth-legend-title"><span>震源の深さ</span><span>浅い → 深い</span></div>
@@ -3049,9 +3056,22 @@ function buildEarthquakeDistributionMobileContextMarkup(data) {
       <div class="mobile-dock-earthquake-distribution-summary">
         <div class="mobile-dock-earthquake-distribution-head">
           <span class="mobile-dock-kicker">震央分布・${escapeHtml(selectedDate ? formatDistributionDate(selectedDate) : "取得待ち")}・暫定値</span>
+          ${buildHypocenterPresentationToggle(data.distribution3DEnabled === true, true)}
           <strong>${isPendingDate ? "取得中" : `${count.toLocaleString("ja-JP")}個`}</strong>
         </div>
         <input class="mobile-dock-earthquake-date-range" type="range" min="0" max="${maximumOffset}" step="1" value="${dayOffset}" data-mobile-dock-control data-earthquake-distribution-filter="dayOffset" aria-label="震央分布の日付"${maximumOffset === 0 ? " disabled" : ""}>
+      </div>
+    </div>
+  `;
+}
+
+function buildHypocenterPresentationToggle(is3D, compact = false) {
+  return `
+    <div class="hypocenter-presentation${compact ? " compact" : ""}">
+      ${compact ? "" : `<span><strong>震源の立体表示</strong><small>模式表示・深さ方向を強調</small></span>`}
+      <div class="hypocenter-presentation-switch" role="group" aria-label="震央分布の立体表示">
+        <button type="button" class="${is3D ? "" : "active"}" data-earthquake-distribution-presentation="flat" aria-pressed="${is3D ? "false" : "true"}">平面</button>
+        <button type="button" class="${is3D ? "active" : ""}" data-earthquake-distribution-presentation="3d" aria-pressed="${is3D ? "true" : "false"}">立体</button>
       </div>
     </div>
   `;

@@ -18,6 +18,9 @@ struct MapDashboardView: View {
                 showsActiveFaults: model.selectedFeature == .earthquake && preferences.showsActiveFaults,
                 showsPlateBoundaries: model.selectedFeature == .earthquake && preferences.showsPlateBoundaries,
                 showsPlateDepthContours: model.selectedFeature == .earthquake && preferences.showsPlateDepthContours,
+                showsHypocenterDepth3D: model.selectedFeature == .earthquake
+                    && model.earthquakeDisplayMode == .distribution
+                    && model.hypocenterMapPresentation == .spatial,
                 selectedActiveFault: $selectedActiveFault
             )
                 .ignoresSafeArea(edges: .top)

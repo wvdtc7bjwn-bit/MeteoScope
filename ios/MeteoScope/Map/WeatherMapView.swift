@@ -10,6 +10,7 @@ struct WeatherMapView: UIViewRepresentable {
     let showsActiveFaults: Bool
     let showsPlateBoundaries: Bool
     let showsPlateDepthContours: Bool
+    let showsHypocenterDepth3D: Bool
     @Binding var selectedActiveFault: ActiveFaultInfo?
 
     func makeCoordinator() -> Coordinator {
@@ -31,6 +32,7 @@ struct WeatherMapView: UIViewRepresentable {
         context.coordinator.requestedShowsActiveFaults = showsActiveFaults
         context.coordinator.requestedShowsPlateBoundaries = showsPlateBoundaries
         context.coordinator.requestedShowsPlateDepthContours = showsPlateDepthContours
+        context.coordinator.requestedShowsHypocenterDepth3D = showsHypocenterDepth3D
         let activeFaultTap = UITapGestureRecognizer(
             target: context.coordinator,
             action: #selector(Coordinator.handleActiveFaultTap(_:))
@@ -48,6 +50,8 @@ struct WeatherMapView: UIViewRepresentable {
         context.coordinator.requestedShowsActiveFaults = showsActiveFaults
         context.coordinator.requestedShowsPlateBoundaries = showsPlateBoundaries
         context.coordinator.requestedShowsPlateDepthContours = showsPlateDepthContours
+        context.coordinator.requestedShowsHypocenterDepth3D = showsHypocenterDepth3D
+        context.coordinator.applyHypocenter3DPresentationIfNeeded()
         context.coordinator.applyRadarLayerIfPossible()
         context.coordinator.applyUserLocationIfNeeded()
         context.coordinator.applyPlateDepthContourLayerIfPossible()
@@ -79,6 +83,7 @@ struct WeatherMapView: UIViewRepresentable {
         var requestedShowsActiveFaults = false
         var requestedShowsPlateBoundaries = false
         var requestedShowsPlateDepthContours = false
+        var requestedShowsHypocenterDepth3D = false
         private var renderedFrameID: RadarFrame.ID?
         private var renderedUserCoordinate: CLLocationCoordinate2D?
         private var userAnnotation: MLNPointAnnotation?
@@ -87,6 +92,9 @@ struct WeatherMapView: UIViewRepresentable {
         private var polygonKinds: [ObjectIdentifier: WeatherMapPolygon.Kind] = [:]
         private var weatherSourceIdentifiers: [String] = []
         private var weatherLayerIdentifiers: [String] = []
+        private var renderedShowsHypocenterDepth3D: Bool?
+        private var previousMapPitch: CGFloat?
+        private var previousMapHeading: CLLocationDirection?
         private let selectedActiveFault: Binding<ActiveFaultInfo?>
 
         init(selectedActiveFault: Binding<ActiveFaultInfo?>) {
@@ -103,7 +111,32 @@ struct WeatherMapView: UIViewRepresentable {
             applyPlateDepthContourLayerIfPossible()
             applyPlateBoundaryLayerIfPossible()
             applyActiveFaultLayerIfPossible()
+            applyHypocenter3DPresentationIfNeeded()
             applyWeatherOverlayIfNeeded()
+        }
+
+        func applyHypocenter3DPresentationIfNeeded() {
+            guard let mapView else { return }
+            let previousValue = renderedShowsHypocenterDepth3D
+            guard previousValue != requestedShowsHypocenterDepth3D else { return }
+            renderedShowsHypocenterDepth3D = requestedShowsHypocenterDepth3D
+            renderedOverlayID = nil
+
+            if requestedShowsHypocenterDepth3D {
+                previousMapPitch = mapView.camera.pitch
+                previousMapHeading = mapView.camera.heading
+                let camera = mapView.camera
+                camera.pitch = 58
+                camera.heading = -18
+                mapView.setCamera(camera, animated: true)
+            } else if previousValue == true {
+                let camera = mapView.camera
+                camera.pitch = previousMapPitch ?? 0
+                camera.heading = previousMapHeading ?? 0
+                mapView.setCamera(camera, animated: true)
+                previousMapPitch = nil
+                previousMapHeading = nil
+            }
         }
 
         func applyRadarLayerIfPossible() {
@@ -469,6 +502,20 @@ struct WeatherMapView: UIViewRepresentable {
 
         func mapView(_ mapView: MLNMapView, viewFor annotation: MLNAnnotation) -> MLNAnnotationView? {
             guard let point = annotation as? WeatherPointAnnotation else { return nil }
+            if case .hypocenterDistribution(let depthKm) = point.kind,
+               requestedShowsHypocenterDepth3D {
+                let reuseIdentifier = "meteoscope-hypocenter-depth-3d"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: reuseIdentifier)
+                    as? HypocenterDepthAnnotationView
+                    ?? HypocenterDepthAnnotationView(reuseIdentifier: reuseIdentifier)
+                let appearance = markerAppearance(for: point.kind)
+                view.configure(
+                    color: appearance.color,
+                    pointSize: appearance.size.width,
+                    depthKm: depthKm
+                )
+                return view
+            }
             let reuseIdentifier = "meteoscope-weather-point"
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: reuseIdentifier)
                 ?? MLNAnnotationView(reuseIdentifier: reuseIdentifier)
@@ -661,6 +708,58 @@ struct WeatherMapView: UIViewRepresentable {
 
 private final class WeatherPointAnnotation: MLNPointAnnotation {
     var kind: WeatherMapPoint.Kind = .typhoonForecast
+}
+
+private final class HypocenterDepthAnnotationView: MLNAnnotationView {
+    private let stemView = UIView()
+    private let pointView = UIView()
+
+    override init(reuseIdentifier: String?) {
+        super.init(reuseIdentifier: reuseIdentifier)
+        prepareSubviews()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        prepareSubviews()
+    }
+
+    private func prepareSubviews() {
+        backgroundColor = .clear
+        isOpaque = false
+        addSubview(stemView)
+        addSubview(pointView)
+    }
+
+    func configure(color: UIColor, pointSize: CGFloat, depthKm: Int?) {
+        let normalizedDepth = CGFloat(min(700, max(0, depthKm ?? 0)))
+        let stemLength = 8 + normalizedDepth / 700 * 64
+        let width = max(14, pointSize)
+        let height = stemLength + pointSize
+        frame = CGRect(origin: .zero, size: CGSize(width: width, height: height))
+        centerOffset = CGVector(dx: 0, dy: height / 2)
+
+        stemView.frame = CGRect(
+            x: (width - 1.5) / 2,
+            y: 0,
+            width: 1.5,
+            height: stemLength
+        )
+        stemView.backgroundColor = color.withAlphaComponent(0.42)
+        stemView.layer.cornerRadius = 0.75
+
+        pointView.frame = CGRect(
+            x: (width - pointSize) / 2,
+            y: stemLength,
+            width: pointSize,
+            height: pointSize
+        )
+        pointView.backgroundColor = color.withAlphaComponent(0.86)
+        pointView.layer.cornerRadius = pointSize / 2
+        pointView.layer.shadowColor = UIColor.black.cgColor
+        pointView.layer.shadowOpacity = 0.22
+        pointView.layer.shadowRadius = 2
+    }
 }
 
 private extension GeoCoordinate {

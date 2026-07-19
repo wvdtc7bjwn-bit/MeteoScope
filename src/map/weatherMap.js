@@ -15,6 +15,7 @@ import { worldLandGeoJson } from "./data/worldLandGeoJson.js";
 import { worldCountriesGeoJson } from "./data/worldCountriesGeoJson.js";
 import { planWarningFeatureStateChanges } from "./warningFeatureState.js";
 import { WARNING_GEOMETRY_FIX_CODES } from "./warningGeometryFixCodes.js";
+import { createHypocenter3DLayer } from "./hypocenter3DLayer.js";
 
 const MODE_CLASS = {
   radar: "mode-radar",
@@ -252,6 +253,9 @@ export function createWeatherMap(elementId) {
   let mapInfoLngLat = null;
   let mapInfoOwner = null;
   let communityReports = [];
+  let hypocenter3DEnabled = false;
+  let previousHypocenterCamera = null;
+  const hypocenter3D = createHypocenter3DLayer(maplibregl, getHypocenterDepthColor);
 
   function initialize() {
     map = new maplibregl.Map({
@@ -297,6 +301,7 @@ export function createWeatherMap(elementId) {
     syncPlateBoundaryVisibility();
     syncActiveFaultVisibility();
     syncCommunityReportVisibility();
+    if (activeMode !== "earthquake") updateHypocenter3DPresentation(false);
   }
 
   function setActiveFaultVisible(visible) {
@@ -479,6 +484,7 @@ export function createWeatherMap(elementId) {
     const source = map.getSource(SAMPLE_SOURCE_ID);
     const collection = createSampleFeatureCollection(mode, data);
     source.setData(collection);
+    updateHypocenter3D(mode, data);
     const typhoonCollection = updateTyphoonLayers(mode, data);
     updateWarningAreaLookup(mode, data);
     updateRadarLayer(map, mode, data);
@@ -816,6 +822,11 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
 
     addWeatherChartLayers(map);
     addCommunityReportLayers();
+    try {
+      map.addLayer(hypocenter3D.layer);
+    } catch (error) {
+      console.warn("[MeteoScope] 震央分布の立体レイヤーを初期化できませんでした", error);
+    }
 
     map.addLayer({
       id: "current-location-halo",
@@ -1076,6 +1087,32 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     });
   }
 
+  function updateHypocenter3D(mode, data = {}) {
+    const enabled = mode === "earthquake"
+      && data.earthquakeView === "distribution"
+      && data.distribution3DEnabled === true;
+    hypocenter3D.setData(
+      enabled ? data.distributionItems ?? [] : [],
+      buildHypocenterDistributionPopup
+    );
+    hypocenter3D.setEnabled(enabled);
+    updateHypocenter3DPresentation(enabled);
+  }
+
+  function updateHypocenter3DPresentation(enabled) {
+    if (!map || hypocenter3DEnabled === enabled) return;
+    hypocenter3DEnabled = enabled;
+    map.getContainer().classList.toggle("hypocenter-3d-active", enabled);
+    if (enabled) {
+      previousHypocenterCamera = { pitch: map.getPitch(), bearing: map.getBearing() };
+      map.easeTo({ pitch: 58, bearing: -18, duration: 650, essential: true });
+      return;
+    }
+    const camera = previousHypocenterCamera ?? { pitch: 0, bearing: 0 };
+    previousHypocenterCamera = null;
+    map.easeTo({ pitch: camera.pitch, bearing: camera.bearing, duration: 500, essential: true });
+  }
+
   function setCommunityReports(reports = []) {
     communityReports = Array.isArray(reports) ? reports : [];
     const source = map?.getSource(COMMUNITY_REPORT_SOURCE_ID);
@@ -1107,6 +1144,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "circle-opacity": 0.92
       }
     });
+
     map.addLayer({
       id: "community-report-cluster-count",
       type: "symbol",
@@ -1192,10 +1230,23 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         hideMapInfo("earthquake-distribution");
         return;
       }
+      if (hypocenter3DEnabled) {
+        const point = hypocenter3D.pick(event.point);
+        if (point?.popup) {
+          showMapInfo("earthquake-distribution", event.lngLat, point.popup);
+        } else {
+          hideMapInfo("earthquake-distribution");
+        }
+        return;
+      }
       const features = map.queryRenderedFeatures(event.point, { layers: ["sample-circle"] });
       if (!features.some((feature) => feature?.properties?.popup)) {
         hideMapInfo("earthquake-distribution");
       }
+    });
+    map.on("mousemove", (event) => {
+      if (activeMode !== "earthquake" || !hypocenter3DEnabled) return;
+      map.getCanvas().style.cursor = hypocenter3D.pick(event.point) ? "pointer" : "";
     });
   }
 
@@ -2774,6 +2825,7 @@ function createWarningFeatures(data) {
 
 function createEarthquakeFeatures(data) {
   if (data?.earthquakeView === "distribution") {
+    const is3D = data?.distribution3DEnabled === true;
     return (data?.distributionItems ?? []).flatMap((item) => {
       const longitude = Number(item.longitude);
       const latitude = Number(item.latitude);
@@ -2785,11 +2837,13 @@ function createEarthquakeFeatures(data) {
         geometry: { type: "Point", coordinates: [longitude, latitude] },
         properties: {
           color: getHypocenterDepthColor(Number.isFinite(depth) ? depth : null),
-          opacity: 0.68,
+          opacity: is3D ? 0.2 : 0.68,
           strokeWidth: 0,
           markerType: "circle",
           markerScaleMode: "fixed",
-          radius: Number.isFinite(magnitude) ? Math.max(3.5, Math.min(11, 3 + magnitude * 1.2)) : 4,
+          radius: is3D
+            ? 2.5
+            : (Number.isFinite(magnitude) ? Math.max(3.5, Math.min(11, 3 + magnitude * 1.2)) : 4),
           sortKey: Number.isFinite(magnitude) ? magnitude : -10,
           label: "",
           popup: buildHypocenterDistributionPopup(item)

@@ -115,6 +115,7 @@ export function createWeatherApp() {
   let activeEarthquakeId = "";
   let collapsedEarthquakeId = "";
   let earthquakeView = "recent";
+  let earthquakeDistribution3DEnabled = false;
   let earthquakeDistributionFilters = { dayOffset: 0, minMagnitude: "0", maxDepth: "all" };
   let earthquakeDistributionState = { status: "idle", data: null, error: "" };
   let earthquakeDistributionRequestId = 0;
@@ -462,6 +463,13 @@ if (layerId === "river") {
     void refreshEarthquakeDistribution();
   }
 
+  function selectEarthquakeDistributionPresentation(presentation) {
+    earthquakeDistribution3DEnabled = presentation === "3d";
+    if (activeTab !== "earthquake" || earthquakeView !== "distribution") return;
+    const tab = TABS.find((item) => item.id === "earthquake");
+    updateCurrentView(tab, latestDataByTab.earthquake ?? {});
+  }
+
   async function refreshEarthquakeDistribution() {
     const requestId = ++earthquakeDistributionRequestId;
     earthquakeDistributionState = {
@@ -693,6 +701,7 @@ if (layerId === "river") {
     const distribution = earthquakeDistributionState.data;
     const distributionData = {
       earthquakeView,
+      distribution3DEnabled: earthquakeDistribution3DEnabled,
       distributionFilters: earthquakeDistributionFilters,
       distributionStatus: earthquakeDistributionState.status,
       distributionError: earthquakeDistributionState.error,
@@ -1650,6 +1659,7 @@ if (layerId === "river") {
     setupEarthquakeSelector({
       onChange: selectEarthquake,
       onViewChange: selectEarthquakeView,
+      onDistributionPresentationChange: selectEarthquakeDistributionPresentation,
       onDistributionFilterChange: updateEarthquakeDistributionFilters,
       onDistributionRetry: refreshEarthquakeDistribution
     });

@@ -15,6 +15,7 @@ final class WeatherAppModel {
     var typhoonState: LoadState<TyphoonSnapshot> = .idle
     var earthquakeState: LoadState<EarthquakeSnapshot> = .idle
     var earthquakeDisplayMode: EarthquakeDisplayMode = .recent
+    var hypocenterMapPresentation: HypocenterMapPresentation = .flat
     var hypocenterDistributionState: LoadState<HypocenterDistributionSnapshot> = .idle
     var hypocenterDistributionFilter = HypocenterDistributionFilter()
     var remoteConfigState: LoadState<RemoteAppConfig> = .idle
@@ -71,6 +72,10 @@ final class WeatherAppModel {
         earthquakeDisplayMode = mode
         guard mode == .distribution, hypocenterDistributionState.isIdle else { return }
         Task { [weak self] in await self?.refreshHypocenterDistribution() }
+    }
+
+    func selectHypocenterMapPresentation(_ presentation: HypocenterMapPresentation) {
+        hypocenterMapPresentation = presentation
     }
 
     func updateHypocenterDistributionFilter(

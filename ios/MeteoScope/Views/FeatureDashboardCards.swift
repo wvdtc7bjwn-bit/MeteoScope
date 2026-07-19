@@ -766,6 +766,32 @@ struct EarthquakeDashboardCard: View {
                 ) { model.updateHypocenterDistributionFilter(maxDepth: $0) }
             }
 
+            HStack(spacing: 10) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("震源の立体表示")
+                        .font(.caption.weight(.semibold))
+                    Text("模式表示・深さ方向を強調")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                Picker(
+                    "震央分布の立体表示",
+                    selection: Binding(
+                        get: { model.hypocenterMapPresentation },
+                        set: { model.selectHypocenterMapPresentation($0) }
+                    )
+                ) {
+                    ForEach(HypocenterMapPresentation.allCases) { presentation in
+                        Text(presentation.title).tag(presentation)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 120)
+            }
+            .padding(9)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+
             switch model.hypocenterDistributionState {
             case .idle, .loading:
                 FeatureLoadingCard(title: "気象庁の震央分布を読み込んでいます")
