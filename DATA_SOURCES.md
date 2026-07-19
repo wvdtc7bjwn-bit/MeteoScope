@@ -42,7 +42,7 @@
 
 - 提供者: U.S. Geological Survey（USGS）。[Slab2: A Comprehensive Subduction Zone Geometry Model](https://www.usgs.gov/data/slab2-a-comprehensive-subduction-zone-geometry-model)（[ScienceBase item / DOI 10.5066/F7PV6JNV](https://doi.org/10.5066/F7PV6JNV)）を使用する。
 - 利用条件: USGSのScienceBase配布ページでCC0として公開されている。画面内に「プレート等深線: USGS Slab2」を表示する。USGSロゴは使用しない。
-- 取得・加工: 2026-07-19に公式`Slab2_depth.kmz`を取得し、Kuril、Izu-Bonin、Ryukyuの深度コンターを抽出した。範囲`118,15,160,55`で切り出し、表示負荷を抑えるため0.012度の許容値で線形状を簡略化した。KurilとIzu-Boninの地域モデル境界（北緯35度）では、同じ深さの端点間が12km以内の場合に限りKuril側を基準としてIzu-Bonin側の端点を一致させ、表示上の空白を解消している。新たな補間線は追加せず、20km間隔・深さ20〜660kmの117形状を`public/data/usgs-slab2-depth-contours-japan.geojson`へ静的保存した。74,059 bytes、SHA-256 `60a4b8ec0242ca5897c8e64cdb054d7c003c4f7735da956cff869322e551e91b`。利用者ごとのUSGS APIアクセス、Worker処理、D1保存は行わない。
+- 取得・加工: 2026-07-19に公式`Slab2_depth.kmz`を取得し、Kuril、Izu-Bonin、Ryukyuの深度コンターを抽出した。範囲`118,15,160,55`で切り出し、表示負荷を抑えるため0.012度の許容値で線形状を簡略化した。KurilとIzu-Boninの地域モデル境界（北緯35度）ではKuril側を基準にIzu-Bonin側を、Izu-Bonin内部の分割境界（北緯約27度）では南側を基準に北側を、同じ深さの端点間が12km以内の場合に限って一致させ、表示上の空白を解消している。12kmを超える線は誤接続を避けるため調整しない。新たな補間線は追加せず、20km間隔・深さ20〜660kmの117形状を`public/data/usgs-slab2-depth-contours-japan.geojson`へ静的保存した。75,881 bytes、SHA-256 `d90214969b6fa4a4411d244694c0d337d073ba080c32b03edc66d47821a3d0f9`。利用者ごとのUSGS APIアクセス、Worker処理、D1保存は行わない。
 - 表示: 深さ属性を連続補間し、浅い側を赤、深い側を青のグラデーションで配色する。地震タブでのみ表示し、プレート境界とは独立してオン／オフできる。
 - 注意: Slab2は観測・解析に基づく0.05度格子のモデルで、等深線は沈み込むスラブ上面の推定深度を表す。地点ごとの地下構造や地震危険度を確定するものではなく、後日のモデル更新で変わる場合がある。
 

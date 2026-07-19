@@ -11,10 +11,20 @@ const TARGET_REGIONS = new Map([
 const BOUNDS = { west: 118, south: 15, east: 160, north: 55 };
 const SIMPLIFY_TOLERANCE = 0.012;
 const REGIONAL_SEAM_SNAPS = [{
+  id: "kuril-izu-35n",
   fixedRegion: "Kuril",
   adjustedRegion: "Izu-Bonin",
   latitude: 35,
   latitudeTolerance: 0.02,
+  maxGapKm: 12
+}, {
+  id: "izu-bonin-27n",
+  fixedRegion: "Izu-Bonin",
+  adjustedRegion: "Izu-Bonin",
+  fixedSide: "south",
+  adjustedSide: "north",
+  latitude: 27.025,
+  latitudeTolerance: 0.08,
   maxGapKm: 12
 }];
 
@@ -101,13 +111,20 @@ function snapRegionalSeams(sourceFeatures) {
       closest.adjusted.feature.geometry.coordinates[closest.adjusted.coordinateIndex] = [
         ...closest.fixed.point
       ];
+      const seamAdjustment = {
+        id: seam.id,
+        adjustedTo: seam.fixedRegion,
+        endpoint: closest.adjusted.endpointName,
+        distanceKm: round(closest.distanceKm, 2)
+      };
       Object.assign(closest.adjusted.feature.properties, {
         seamAdjusted: true,
-        seamAdjustedTo: seam.fixedRegion,
-        seamAdjustedEndpoint: closest.adjusted.endpointName,
-        seamAdjustmentKm: round(closest.distanceKm, 2)
+        seamAdjustments: [
+          ...(closest.adjusted.feature.properties.seamAdjustments ?? []),
+          seamAdjustment
+        ]
       });
-      adjustments.push({ depthKm, distanceKm: closest.distanceKm });
+      adjustments.push({ seamId: seam.id, depthKm, distanceKm: closest.distanceKm });
     }
   }
   return adjustments;
@@ -117,10 +134,11 @@ function findClosestSeamEndpoints(fixedFeatures, adjustedFeatures, seam) {
   let closest = null;
   for (const fixedFeature of fixedFeatures) {
     for (const adjustedFeature of adjustedFeatures) {
+      if (fixedFeature === adjustedFeature) continue;
       for (const fixed of lineEndpoints(fixedFeature)) {
-        if (Math.abs(fixed.point[1] - seam.latitude) > seam.latitudeTolerance) continue;
+        if (!isEndpointWithinSeam(fixed.point, seam.latitude, seam.latitudeTolerance, seam.fixedSide)) continue;
         for (const adjusted of lineEndpoints(adjustedFeature)) {
-          if (Math.abs(adjusted.point[1] - seam.latitude) > seam.latitudeTolerance) continue;
+          if (!isEndpointWithinSeam(adjusted.point, seam.latitude, seam.latitudeTolerance, seam.adjustedSide)) continue;
           const distanceKm = coordinateDistanceKm(fixed.point, adjusted.point);
           if (distanceKm > seam.maxGapKm || (closest && distanceKm >= closest.distanceKm)) continue;
           closest = { fixed, adjusted, distanceKm };
@@ -129,6 +147,13 @@ function findClosestSeamEndpoints(fixedFeatures, adjustedFeatures, seam) {
     }
   }
   return closest;
+}
+
+function isEndpointWithinSeam(point, latitude, tolerance, side) {
+  if (Math.abs(point[1] - latitude) > tolerance) return false;
+  if (side === "south") return point[1] <= latitude;
+  if (side === "north") return point[1] >= latitude;
+  return true;
 }
 
 function lineEndpoints(feature) {
