@@ -1,15 +1,28 @@
 export const DEPTH_3D_VERTEX_STRIDE = 8;
+export const DEPTH_3D_REFERENCE_ZOOM = 5;
+export const DEPTH_3D_MIN_ZOOM_SCALE = 1 / 32;
+
+export function getDepth3DZoomScale(zoom) {
+  const numericZoom = Number(zoom);
+  if (!Number.isFinite(numericZoom)) return 1;
+  return Math.max(
+    DEPTH_3D_MIN_ZOOM_SCALE,
+    Math.min(1, 2 ** (DEPTH_3D_REFERENCE_ZOOM - numericZoom))
+  );
+}
 
 export function createDepth3DProgram(gl) {
   const vertexShader = compileShader(gl, gl.VERTEX_SHADER, `#version 300 es
     precision highp float;
     uniform mat4 u_matrix;
+    uniform float u_depth_scale;
     in vec3 a_position;
     in vec4 a_color;
     in float a_size;
     out vec4 v_color;
     void main() {
-      gl_Position = u_matrix * vec4(a_position, 1.0);
+      vec3 scaledPosition = vec3(a_position.xy, a_position.z * u_depth_scale);
+      gl_Position = u_matrix * vec4(scaledPosition, 1.0);
       gl_PointSize = a_size;
       v_color = a_color;
     }
@@ -49,6 +62,7 @@ export function getDepth3DProgramBindings(gl, program) {
       size: gl.getAttribLocation(program, "a_size")
     },
     matrixUniform: gl.getUniformLocation(program, "u_matrix"),
+    depthScaleUniform: gl.getUniformLocation(program, "u_depth_scale"),
     pointModeUniform: gl.getUniformLocation(program, "u_point_mode")
   };
 }

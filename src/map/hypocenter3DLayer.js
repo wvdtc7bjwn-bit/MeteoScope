@@ -7,6 +7,7 @@ import {
 import {
   bindDepth3DVertexBuffer,
   createDepth3DProgram,
+  getDepth3DZoomScale,
   getDepth3DProgramBindings
 } from "./depth3DRenderer.js";
 
@@ -21,6 +22,7 @@ export function createHypocenter3DLayer(maplibregl, colorForDepth) {
     pointBuffer: null,
     attributes: null,
     matrixUniform: null,
+    depthScaleUniform: null,
     pointModeUniform: null,
     lineVertices: new Float32Array(),
     pointVertices: new Float32Array(),
@@ -43,6 +45,7 @@ export function createHypocenter3DLayer(maplibregl, colorForDepth) {
       const bindings = getDepth3DProgramBindings(gl, state.program);
       state.attributes = bindings.attributes;
       state.matrixUniform = bindings.matrixUniform;
+      state.depthScaleUniform = bindings.depthScaleUniform;
       state.pointModeUniform = bindings.pointModeUniform;
       uploadBuffers(state);
     },
@@ -59,6 +62,7 @@ export function createHypocenter3DLayer(maplibregl, colorForDepth) {
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.useProgram(state.program);
       gl.uniformMatrix4fv(state.matrixUniform, false, matrix);
+      gl.uniform1f(state.depthScaleUniform, getDepth3DZoomScale(state.map?.getZoom()));
 
       bindDepth3DVertexBuffer(gl, state.lineBuffer, state.attributes);
       gl.uniform1f(state.pointModeUniform, 0);

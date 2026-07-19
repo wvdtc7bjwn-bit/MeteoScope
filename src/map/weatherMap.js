@@ -17,6 +17,7 @@ import { planWarningFeatureStateChanges } from "./warningFeatureState.js";
 import { WARNING_GEOMETRY_FIX_CODES } from "./warningGeometryFixCodes.js";
 import { createHypocenter3DLayer } from "./hypocenter3DLayer.js";
 import { createPlateDepth3DLayer } from "./plateDepth3DLayer.js";
+import { getHypocenterDepthColor } from "./hypocenterDepthStyle.js";
 
 const MODE_CLASS = {
   radar: "mode-radar",
@@ -2948,30 +2949,6 @@ function createEarthquakeFeatures(data) {
     : [];
 
   return [...tsunamiFeatures, ...areaFeatures, ...stationFeatures, ...epicenterFeature];
-}
-
-function getHypocenterDepthColor(depthKm) {
-  if (depthKm === null) return "#687487";
-  const depth = Math.max(0, Math.min(700, Number(depthKm)));
-  const stops = [
-    [0, [239, 54, 43]],
-    [30, [255, 218, 71]],
-    [100, [75, 224, 91]],
-    [300, [69, 211, 238]],
-    [700, [28, 68, 210]]
-  ];
-  const upperIndex = stops.findIndex(([stopDepth]) => depth <= stopDepth);
-  if (upperIndex <= 0) return rgbToHex(stops[0][1]);
-  const [lowerDepth, lowerColor] = stops[upperIndex - 1];
-  const [upperDepth, upperColor] = stops[upperIndex];
-  const progress = (depth - lowerDepth) / (upperDepth - lowerDepth);
-  return rgbToHex(lowerColor.map((channel, index) => (
-    Math.round(channel + (upperColor[index] - channel) * progress)
-  )));
-}
-
-function rgbToHex(channels) {
-  return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
 function buildHypocenterDistributionPopup(item) {

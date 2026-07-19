@@ -14,6 +14,10 @@ import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
 import { buildEarthquakeObservationRows } from "../earthquakeDetails.js";
 import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
 import { HYPOCENTER_DISTRIBUTION_DAY_COUNT } from "../jma/hypocenterDistribution.js";
+import {
+  HYPOCENTER_DEPTH_STOPS,
+  HYPOCENTER_UNKNOWN_DEPTH_COLOR
+} from "../map/hypocenterDepthStyle.js";
 
 let selectedWarningAreaCode = "";
 const amedasRankingOrderByMetric = {
@@ -952,6 +956,7 @@ if (tabId === "warnings" && warningView === "early") {
     ];
   }
   if (tabId === "earthquake") {
+    const isHypocenterDistribution = data?.earthquakeView === "distribution";
     const tsunamiLevels = [...new Set((data?.tsunami?.areas ?? [])
       .map((area) => area.level)
       .filter((level) => level && level !== "none"))];
@@ -971,6 +976,22 @@ if (tabId === "warnings" && warningView === "early") {
         ? [["プレート等深線（浅い → 深い）", "legend-plate-depth"]]
         : [])
     ];
+    if (isHypocenterDistribution) {
+      const depthLegend = HYPOCENTER_DEPTH_STOPS.map((stop, index) => [
+        index === 0
+          ? `震源の深さ：浅い・${stop.depthKm}km`
+          : index === HYPOCENTER_DEPTH_STOPS.length - 1
+            ? `${stop.depthKm}km・深い`
+            : `${stop.depthKm}km`,
+        "legend-hypocenter-depth",
+        stop.color
+      ]);
+      return [
+        ...depthLegend,
+        ["深さ不明", "legend-hypocenter-depth", HYPOCENTER_UNKNOWN_DEPTH_COLOR],
+        ...mapLayerLegend
+      ];
+    }
     return [
       ...tsunamiLegend,
       ...legendsByTab.earthquake,

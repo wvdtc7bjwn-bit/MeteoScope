@@ -4474,6 +4474,12 @@ h2 {
   background: linear-gradient(90deg, #ef362b 0%, #ffda47 18%, #4be05b 42%, #45d3ee 68%, #1c44d2 100%);
 }
 
+.legend-hypocenter-depth {
+  border: 0;
+  border-radius: 50%;
+  opacity: 0.68;
+}
+
 .legend-amedas { background: var(--green); }
 .legend-advisory { background: var(--warning); }
 .legend-warning { background: #ff2b12; }

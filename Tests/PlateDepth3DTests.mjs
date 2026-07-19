@@ -4,6 +4,11 @@ import {
   countPlateDepthSegments,
   normalizePlateDepthContours
 } from "../src/map/plateDepth3DGeometry.js";
+import {
+  DEPTH_3D_MIN_ZOOM_SCALE,
+  DEPTH_3D_REFERENCE_ZOOM,
+  getDepth3DZoomScale
+} from "../src/map/depth3DRenderer.js";
 
 const contours = normalizePlateDepthContours({
   type: "FeatureCollection",
@@ -37,5 +42,11 @@ assert.equal(contours[1].lines.length, 1);
 assert.equal(countPlateDepthSegments(contours), 3);
 assert.equal(PLATE_DEPTH_3D_VERTICAL_EXAGGERATION, 3);
 assert.deepEqual(normalizePlateDepthContours(null), []);
+assert.equal(DEPTH_3D_REFERENCE_ZOOM, 5);
+assert.equal(getDepth3DZoomScale(3), 1);
+assert.equal(getDepth3DZoomScale(5), 1);
+assert.equal(getDepth3DZoomScale(6), 0.5);
+assert.equal(getDepth3DZoomScale(10), DEPTH_3D_MIN_ZOOM_SCALE);
+assert.equal(getDepth3DZoomScale("invalid"), 1);
 
 console.log("Plate depth 3D tests passed.");

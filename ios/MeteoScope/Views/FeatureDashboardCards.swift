@@ -834,7 +834,12 @@ struct EarthquakeDashboardCard: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    HypocenterDepthLegend()
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("震源の深さ")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                        HypocenterDepthLegend()
+                    }
                     HypocenterDistributionTrendChart(snapshot: snapshot)
                     Text("震源要素は気象庁の暫定値で、後日変更される場合があります。")
                         .font(.caption2)

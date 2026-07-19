@@ -6,6 +6,11 @@ import {
   parseHexColor,
   projectMercatorPoint
 } from "../src/map/hypocenter3DGeometry.js";
+import {
+  HYPOCENTER_DEPTH_STOPS,
+  HYPOCENTER_UNKNOWN_DEPTH_COLOR,
+  getHypocenterDepthColor
+} from "../src/map/hypocenterDepthStyle.js";
 
 const normalized = normalizeHypocenter3DItems([
   { id: "valid", longitude: 140, latitude: 35, depthKm: 40, magnitude: 4.5 },
@@ -19,6 +24,11 @@ assert.equal(normalized[0].pointSize, 14.1);
 assert.equal(normalized[1].depthKm, 700);
 assert.equal(normalized[1].pointSize, 20);
 assert.equal(HYPOCENTER_3D_VERTICAL_EXAGGERATION, 3);
+assert.deepEqual(HYPOCENTER_DEPTH_STOPS.map((stop) => stop.depthKm), [0, 30, 100, 300, 700]);
+assert.equal(getHypocenterDepthColor(0), "#ef362b");
+assert.equal(getHypocenterDepthColor(700), "#1c44d2");
+assert.equal(getHypocenterDepthColor(null), HYPOCENTER_UNKNOWN_DEPTH_COLOR);
+assert.equal(getHypocenterDepthColor("invalid"), HYPOCENTER_UNKNOWN_DEPTH_COLOR);
 
 const many = Array.from({ length: HYPOCENTER_3D_MAX_ITEMS + 5 }, (_, index) => ({
   id: String(index),

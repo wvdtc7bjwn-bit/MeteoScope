@@ -6,6 +6,7 @@ import {
   DEPTH_3D_VERTEX_STRIDE,
   bindDepth3DVertexBuffer,
   createDepth3DProgram,
+  getDepth3DZoomScale,
   getDepth3DProgramBindings
 } from "./depth3DRenderer.js";
 
@@ -48,6 +49,10 @@ export function createPlateDepth3DLayer(maplibregl, colorForDepth) {
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.useProgram(state.program);
       gl.uniformMatrix4fv(state.bindings.matrixUniform, false, matrix);
+      gl.uniform1f(
+        state.bindings.depthScaleUniform,
+        getDepth3DZoomScale(state.map?.getZoom())
+      );
       gl.uniform1f(state.bindings.pointModeUniform, 0);
       bindDepth3DVertexBuffer(gl, state.buffer, state.bindings.attributes);
       gl.drawArrays(gl.LINES, 0, state.vertices.length / DEPTH_3D_VERTEX_STRIDE);
