@@ -6,6 +6,8 @@ struct MapDashboardView: View {
     @Environment(LocationService.self) private var locationService
     @Environment(CommunityReportModel.self) private var communityReports
     @State private var selectedActiveFault: ActiveFaultInfo?
+    @State private var showsCurrentLocationMarker = true
+    @State private var suppressesNextLocationButtonTap = false
 
     var body: some View {
         @Bindable var model = model
@@ -14,6 +16,7 @@ struct MapDashboardView: View {
             WeatherMapView(
                 radarFrame: model.selectedFeature == .radar ? model.selectedRadarFrame : nil,
                 userCoordinate: locationService.coordinate,
+                showsUserLocationMarker: showsCurrentLocationMarker,
                 weatherOverlay: weatherOverlay,
                 showsActiveFaults: model.selectedFeature == .earthquake && preferences.showsActiveFaults,
                 showsPlateBoundaries: model.selectedFeature == .earthquake && preferences.showsPlateBoundaries,
@@ -47,11 +50,26 @@ struct MapDashboardView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button {
+                    if suppressesNextLocationButtonTap {
+                        suppressesNextLocationButtonTap = false
+                        return
+                    }
                     locationService.requestCurrentLocation()
                 } label: {
-                    Image(systemName: "location.fill")
+                    Image(systemName: showsCurrentLocationMarker ? "location.fill" : "location.slash")
                 }
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.65)
+                        .onEnded { _ in
+                            suppressesNextLocationButtonTap = true
+                            showsCurrentLocationMarker.toggle()
+                        }
+                )
                 .accessibilityLabel("現在地を表示")
+                .accessibilityHint(showsCurrentLocationMarker ? "長押しで現在地マーカーを非表示" : "長押しで現在地マーカーを表示")
+                .accessibilityAction(named: Text(showsCurrentLocationMarker ? "現在地マーカーを非表示" : "現在地マーカーを表示")) {
+                    showsCurrentLocationMarker.toggle()
+                }
                 .meteoGlassButton()
             }
             ToolbarItem(placement: .topBarTrailing) {

@@ -150,6 +150,7 @@ const MUNICIPALITY_SOURCE_ID = "jma-weather-warning-municipalities";
 const MUNICIPALITY_FIX_SOURCE_ID = "jma-weather-warning-municipality-fixes";
 const PREFECTURE_SOURCE_ID = "japan-prefectures";
 const CURRENT_LOCATION_SOURCE_ID = "current-location";
+const CURRENT_LOCATION_LAYER_IDS = ["current-location-halo", "current-location-dot"];
 const COMMUNITY_REPORT_SOURCE_ID = "community-weather-reports";
 const COMMUNITY_REPORT_LAYERS = [
   "community-report-cluster",
@@ -255,6 +256,7 @@ export function createWeatherMap(elementId) {
   let mapInfoLngLat = null;
   let mapInfoOwner = null;
   let communityReports = [];
+  let currentLocationVisible = true;
   let hypocenter3DEnabled = false;
   let previousHypocenterCamera = null;
   let plateDepth3DLayerAvailable = false;
@@ -525,6 +527,15 @@ export function createWeatherMap(elementId) {
     updateKikikuruLayer(map, mode, data);
     updateRiverFloodLayer(map, mode, data);
     updateWarningMunicipalityPaint(map, mode, data);
+  }
+
+  function setCurrentLocationVisible(visible) {
+    currentLocationVisible = Boolean(visible);
+    for (const layerId of CURRENT_LOCATION_LAYER_IDS) {
+      if (map?.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, "visibility", currentLocationVisible ? "visible" : "none");
+      }
+    }
   }
 
   function showCurrentLocation(coordinates, accuracy = null) {
@@ -871,6 +882,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       id: "current-location-halo",
       type: "circle",
       source: CURRENT_LOCATION_SOURCE_ID,
+      layout: { visibility: currentLocationVisible ? "visible" : "none" },
       paint: {
         "circle-radius": 17,
         "circle-color": "rgba(86, 183, 242, 0.18)",
@@ -883,6 +895,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       id: "current-location-dot",
       type: "circle",
       source: CURRENT_LOCATION_SOURCE_ID,
+      layout: { visibility: currentLocationVisible ? "visible" : "none" },
       paint: {
         "circle-radius": 6,
         "circle-color": "#56b7f2",
@@ -1420,7 +1433,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, setMode, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, renderData, resize, showCurrentLocation, flyToLocation, fitToCoordinates };
+  return { initialize, setMode, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, renderData, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates };
 }
 
 function createCommunityReportFeatureCollection(reports = []) {

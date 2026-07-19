@@ -42,6 +42,7 @@ import { activateEarlyAccess, deactivateEarlyAccess, validateEarlyAccess } from 
 import { CommunityReportClient } from "./domain/communityReportClient.js";
 import { openCommunityReportModal, setupCommunityReportModal } from "./ui/communityReportModal.js";
 import { yieldToMainThread } from "./scheduling.js";
+import { setupLongPressButton } from "./ui/longPressButton.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -137,6 +138,7 @@ export function createWeatherApp() {
   let lastEarthquakeRefreshStartedAt = 0;
   let tabControls = null;
   let currentLocationInfo = { status: "idle" };
+  let currentLocationMarkerVisible = true;
   let myAreas = loadMyAreas();
   let locationRadarTimeline = { status: "idle", points: [] };
   let locationRadarRequestId = 0;
@@ -1342,6 +1344,23 @@ if (layerId === "river") {
     button.setAttribute("aria-busy", isBusy ? "true" : "false");
   }
 
+  function setCurrentLocationMarkerVisible(isVisible) {
+    currentLocationMarkerVisible = Boolean(isVisible);
+    weatherMap?.setCurrentLocationVisible(currentLocationMarkerVisible);
+    const button = document.getElementById("locate-button");
+    if (!button) return;
+    button.classList.toggle("marker-hidden", !currentLocationMarkerVisible);
+    const label = currentLocationMarkerVisible
+      ? "現在地へ移動。長押しで現在地マーカーを非表示"
+      : "現在地へ移動。長押しで現在地マーカーを表示";
+    button.setAttribute("aria-label", label);
+    button.title = label;
+  }
+
+  function toggleCurrentLocationMarker() {
+    setCurrentLocationMarkerVisible(!currentLocationMarkerVisible);
+  }
+
   function startAutoRefresh() {
     if (autoRefreshTimer) window.clearInterval(autoRefreshTimer);
     autoRefreshTimer = window.setInterval(() => {
@@ -1642,6 +1661,7 @@ if (layerId === "river") {
     weatherMap.setPlateBoundaryVisible(earthquakePlateBoundaryVisible);
     weatherMap.setPlateDepthContoursVisible(earthquakePlateDepthContoursVisible);
     weatherMap.setTheme(themeController.getResolvedTheme());
+    weatherMap.setCurrentLocationVisible(currentLocationMarkerVisible);
     themeController.subscribe(({ resolvedTheme }) => weatherMap?.setTheme(resolvedTheme));
     weatherMap.initialize();
     tabControls = setupTabs({ onChange: selectTab, tabs: TABS });
@@ -1715,7 +1735,11 @@ if (layerId === "river") {
       event.stopPropagation();
       void openCommunityReportModal();
     });
-    document.getElementById("locate-button")?.addEventListener("click", locateCurrentPosition);
+    setupLongPressButton(document.getElementById("locate-button"), {
+      onPress: locateCurrentPosition,
+      onLongPress: toggleCurrentLocationMarker
+    });
+    setCurrentLocationMarkerVisible(currentLocationMarkerVisible);
     startClock("clock");
     startAutoRefresh();
     startDmdataEarthquakeUpdates({

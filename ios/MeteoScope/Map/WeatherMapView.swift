@@ -6,6 +6,7 @@ import UIKit
 struct WeatherMapView: UIViewRepresentable {
     let radarFrame: RadarFrame?
     let userCoordinate: CLLocationCoordinate2D?
+    let showsUserLocationMarker: Bool
     let weatherOverlay: WeatherMapOverlay?
     let showsActiveFaults: Bool
     let showsPlateBoundaries: Bool
@@ -28,6 +29,7 @@ struct WeatherMapView: UIViewRepresentable {
         context.coordinator.mapView = mapView
         context.coordinator.requestedFrame = radarFrame
         context.coordinator.requestedUserCoordinate = userCoordinate
+        context.coordinator.requestedShowsUserLocationMarker = showsUserLocationMarker
         context.coordinator.requestedWeatherOverlay = weatherOverlay
         context.coordinator.requestedShowsActiveFaults = showsActiveFaults
         context.coordinator.requestedShowsPlateBoundaries = showsPlateBoundaries
@@ -46,6 +48,7 @@ struct WeatherMapView: UIViewRepresentable {
     func updateUIView(_ mapView: MLNMapView, context: Context) {
         context.coordinator.requestedFrame = radarFrame
         context.coordinator.requestedUserCoordinate = userCoordinate
+        context.coordinator.requestedShowsUserLocationMarker = showsUserLocationMarker
         context.coordinator.requestedWeatherOverlay = weatherOverlay
         context.coordinator.requestedShowsActiveFaults = showsActiveFaults
         context.coordinator.requestedShowsPlateBoundaries = showsPlateBoundaries
@@ -87,6 +90,7 @@ struct WeatherMapView: UIViewRepresentable {
         weak var mapView: MLNMapView?
         var requestedFrame: RadarFrame?
         var requestedUserCoordinate: CLLocationCoordinate2D?
+        var requestedShowsUserLocationMarker = true
         var requestedWeatherOverlay: WeatherMapOverlay?
         var requestedShowsActiveFaults = false
         var requestedShowsPlateBoundaries = false
@@ -94,6 +98,7 @@ struct WeatherMapView: UIViewRepresentable {
         var requestedShowsHypocenterDepth3D = false
         private var renderedFrameID: RadarFrame.ID?
         private var renderedUserCoordinate: CLLocationCoordinate2D?
+        private var renderedShowsUserLocationMarker: Bool?
         private var userAnnotation: MLNPointAnnotation?
         private var renderedOverlayID: String?
         private var weatherAnnotations: [MLNAnnotation] = []
@@ -430,7 +435,9 @@ struct WeatherMapView: UIViewRepresentable {
 
         func applyUserLocationIfNeeded() {
             guard let mapView else { return }
-            guard !coordinatesMatch(renderedUserCoordinate, requestedUserCoordinate) else { return }
+            let coordinateChanged = !coordinatesMatch(renderedUserCoordinate, requestedUserCoordinate)
+            let visibilityChanged = renderedShowsUserLocationMarker != requestedShowsUserLocationMarker
+            guard coordinateChanged || visibilityChanged else { return }
 
             if let userAnnotation {
                 mapView.removeAnnotation(userAnnotation)
@@ -439,16 +446,22 @@ struct WeatherMapView: UIViewRepresentable {
 
             guard let requestedUserCoordinate else {
                 renderedUserCoordinate = nil
+                renderedShowsUserLocationMarker = requestedShowsUserLocationMarker
                 return
             }
 
-            let annotation = MLNPointAnnotation()
-            annotation.coordinate = requestedUserCoordinate
-            annotation.title = "現在地"
-            mapView.addAnnotation(annotation)
-            mapView.setCenter(requestedUserCoordinate, zoomLevel: max(mapView.zoomLevel, 7), animated: true)
-            userAnnotation = annotation
+            if requestedShowsUserLocationMarker {
+                let annotation = MLNPointAnnotation()
+                annotation.coordinate = requestedUserCoordinate
+                annotation.title = "現在地"
+                mapView.addAnnotation(annotation)
+                userAnnotation = annotation
+            }
+            if coordinateChanged {
+                mapView.setCenter(requestedUserCoordinate, zoomLevel: max(mapView.zoomLevel, 7), animated: true)
+            }
             renderedUserCoordinate = requestedUserCoordinate
+            renderedShowsUserLocationMarker = requestedShowsUserLocationMarker
         }
 
         func applyWeatherOverlayIfNeeded() {

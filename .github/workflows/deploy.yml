@@ -33,6 +33,9 @@ jobs:
       - name: Test disaster quiz catalog
         run: npm run test:quiz
 
+      - name: Test current-location marker controls
+        run: npm run test:location
+
       - name: Build
         run: npm run build
         env:

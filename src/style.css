@@ -5037,6 +5037,9 @@ html[data-theme="light"] .legend-typhoon-center::after {
   background: rgba(7, 14, 27, 0.78);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .map-locate-button::before {
@@ -5050,6 +5053,25 @@ html[data-theme="light"] .legend-typhoon-center::after {
 
 .map-locate-button:hover {
   background: rgba(15, 30, 52, 0.88);
+}
+
+.map-locate-button.pressing {
+  transform: scale(0.94);
+}
+
+.map-locate-button.marker-hidden::before {
+  opacity: 0.42;
+}
+
+.map-locate-button.marker-hidden::after {
+  content: "";
+  position: absolute;
+  width: 28px;
+  height: 3px;
+  border-radius: 999px;
+  background: #e45a55;
+  transform: rotate(-45deg);
+  box-shadow: 0 0 0 1px rgba(8, 17, 31, 0.45);
 }
 
 .map-locate-button.loading::before {
