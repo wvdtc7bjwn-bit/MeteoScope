@@ -657,7 +657,7 @@ async function iosPushConfig(env) {
       lastCycleCompletedAt: health.lastCycleCompletedAt || null,
       lastFullySuccessfulAt: health.lastFullySuccessfulAt || null,
       failedOfficeCount: Number(health.failedOfficeCount || 0),
-      maximumCollectionDelayMinutes: Number(health.maximumCollectionDelayMinutes || 4)
+      maximumCollectionDelayMinutes: Number(health.maximumCollectionDelayMinutes || 8)
     } : null,
     setup: {
       d1: Boolean(env.NOTIFICATIONS_DB),

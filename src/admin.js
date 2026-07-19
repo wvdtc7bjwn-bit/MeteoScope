@@ -463,7 +463,7 @@ function renderStatus(status) {
     ["通知処理結果", notificationResult.completedAt
       ? `送信 ${Number(notificationResult.notified || 0)}・失敗 ${Number(notificationResult.failed || 0)}・保留 ${Number(notificationResult.staleSkipped || 0)}`
       : "処理中または未実行"],
-    ["全国収集の目安", `最大約${Number(warningCron.maximumCollectionDelayMinutes || 4)}分＋通知キュー時間`]
+    ["全国収集の目安", `最大約${Number(warningCron.maximumCollectionDelayMinutes || 8)}分＋通知キュー時間`]
   ];
   elements.statusList.innerHTML = rows.map(([label, value]) => `
     <div>
