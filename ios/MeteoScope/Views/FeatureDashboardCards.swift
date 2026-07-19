@@ -743,7 +743,11 @@ struct EarthquakeDashboardCard: View {
               !snapshot.availableDates.isEmpty else {
             return [(0, "最新の1日")]
         }
-        return Array(snapshot.availableDates.prefix(15).enumerated()).map { offset, date in
+        return Array(
+            snapshot.availableDates
+                .prefix(HypocenterDistributionLimits.dayCount)
+                .enumerated()
+        ).map { offset, date in
             (offset, formatDistributionDate(date))
         }
     }

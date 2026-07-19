@@ -1,10 +1,12 @@
 import { fetchJson } from "./jmaClient.js";
 
 const ENDPOINT = "/api/earthquakes/distribution";
+export const HYPOCENTER_DISTRIBUTION_DAY_COUNT = 30;
+export const HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET = HYPOCENTER_DISTRIBUTION_DAY_COUNT - 1;
 
 export async function fetchHypocenterDistribution(filters = {}) {
   const dayOffset = Number.isInteger(Number(filters.dayOffset))
-    ? Math.min(14, Math.max(0, Number(filters.dayOffset)))
+    ? Math.min(HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET, Math.max(0, Number(filters.dayOffset)))
     : 0;
   const minMagnitude = ["all", "0", "1", "2", "3", "4", "5"].includes(String(filters.minMagnitude))
     ? String(filters.minMagnitude)

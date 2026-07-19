@@ -1,6 +1,10 @@
 import { MeteoScopeEarthquakeHub } from "./MeteoScopeEarthquakeHub.js";
 import { fetchD1ReadFallback } from "./d1ReadFallback.js";
-import { readJmaDailyHypocenterDistribution, syncJmaDailyHypocenters } from "./jmaDailyHypocenters.js";
+import {
+  JMA_DAILY_BACKFILL_DAYS_PER_SYNC,
+  readJmaDailyHypocenterDistribution,
+  syncJmaDailyHypocenters
+} from "./jmaDailyHypocenters.js";
 import { isPublicReadMethod, resolvePublicEarthquakeRoute } from "./routePolicy.js";
 
 export { MeteoScopeEarthquakeHub };
@@ -85,7 +89,7 @@ async function fetchFromHub(request, env, route) {
 async function fetchDirectD1(request, env, ctx, route) {
   const cache = caches.default;
   const cacheUrl = new URL(request.url);
-  cacheUrl.searchParams.set("_meteoscopeCache", "jma-distribution-v3");
+  cacheUrl.searchParams.set("_meteoscopeCache", "jma-distribution-v4");
   const cacheKey = new Request(cacheUrl, { method: "GET" });
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
@@ -150,6 +154,8 @@ export default {
   },
 
   async scheduled(_controller, env, ctx) {
-    ctx.waitUntil(syncJmaDailyHypocenters(env, { maxDays: 1 }));
+    ctx.waitUntil(syncJmaDailyHypocenters(env, {
+      maxDays: JMA_DAILY_BACKFILL_DAYS_PER_SYNC
+    }));
   }
 };

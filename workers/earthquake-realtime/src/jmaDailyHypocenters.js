@@ -1,8 +1,11 @@
 const JMA_DAILY_BASE_URL = "https://www.data.jma.go.jp/eqev/data/daily_map";
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
-const MAX_DAYS_PER_SYNC = 1;
-const RETENTION_DAYS = 15;
+export const JMA_DAILY_RETENTION_DAYS = 30;
+export const JMA_DAILY_MAX_DAY_OFFSET = JMA_DAILY_RETENTION_DAYS - 1;
+// 15日なら、外部fetch・D1 batch・管理クエリを合わせてもFreeの
+// 1回50クエリ/サブリクエスト以内に収まり、既存15日から1回で補完できる。
+export const JMA_DAILY_BACKFILL_DAYS_PER_SYNC = 15;
 const RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const MAX_RECORDS_PER_DAY = 5_000;
 const MAX_PAYLOAD_BYTES = 1_500_000;
@@ -107,8 +110,13 @@ export function shouldAttemptDate(syncState, now = Date.now()) {
 export async function syncJmaDailyHypocenters(env, options = {}) {
   const db = env?.EQ_D1;
   await ensureJmaDailyHypocenterSchema(db);
-  const maxDays = clampInteger(options.maxDays, 1, MAX_DAYS_PER_SYNC, 1);
-  const dates = buildRecentJstDates(RETENTION_DAYS);
+  const maxDays = clampInteger(
+    options.maxDays,
+    1,
+    JMA_DAILY_BACKFILL_DAYS_PER_SYNC,
+    JMA_DAILY_BACKFILL_DAYS_PER_SYNC
+  );
+  const dates = buildRecentJstDates(JMA_DAILY_RETENTION_DAYS);
   const statuses = await loadSyncStatuses(db, dates);
   const now = Number(options.now ?? Date.now());
   const pendingDates = dates.filter((date) => shouldAttemptDate(statuses.get(date), now)).slice(0, maxDays);
@@ -117,14 +125,35 @@ export async function syncJmaDailyHypocenters(env, options = {}) {
     results.push(await syncOneDate(db, date, options.fetchImpl ?? fetch));
   }
   await cleanupJmaDailyHypocenters(db);
-  return { attempted: pendingDates.length, results };
+  const previouslyStoredDayCount = [...statuses.values()]
+    .filter((state) => state.status === "ok")
+    .length;
+  const newlyStoredDayCount = results.filter((result) => result.ok).length;
+  const storedDayCount = Math.min(
+    JMA_DAILY_RETENTION_DAYS,
+    previouslyStoredDayCount + newlyStoredDayCount
+  );
+  return {
+    attempted: pendingDates.length,
+    results,
+    backfill: {
+      complete: storedDayCount >= JMA_DAILY_RETENTION_DAYS,
+      storedDayCount,
+      remainingDayCount: Math.max(0, JMA_DAILY_RETENTION_DAYS - storedDayCount)
+    }
+  };
 }
 
 export async function readJmaDailyHypocenterDistribution(request, env, ctx) {
   const db = env?.EQ_D1;
   if (!db) throw new Error("earthquake_database_unavailable");
   const url = new URL(request.url);
-  const requestedDayOffset = clampInteger(url.searchParams.get("dayOffset"), 0, 14, 0);
+  const requestedDayOffset = clampInteger(
+    url.searchParams.get("dayOffset"),
+    0,
+    JMA_DAILY_MAX_DAY_OFFSET,
+    0
+  );
   const minMagnitudeText = url.searchParams.get("minMagnitude") ?? "0";
   const minMagnitude = minMagnitudeText === "all"
     ? null
@@ -133,7 +162,7 @@ export async function readJmaDailyHypocenterDistribution(request, env, ctx) {
   const maxDepth = maxDepthText === "all"
     ? null
     : parseChoice(maxDepthText, [30, 100, 300, 700], 700);
-  const startDate = buildRecentJstDates(RETENTION_DAYS).at(-1);
+  const startDate = buildRecentJstDates(JMA_DAILY_RETENTION_DAYS).at(-1);
 
   const snapshot = await queryDistribution(db, {
     startDate,
@@ -148,6 +177,7 @@ export async function readJmaDailyHypocenterDistribution(request, env, ctx) {
     sourceLabel: "気象庁 日々の震源リスト",
     sourceUrl: `${JMA_DAILY_BASE_URL}/index.html`,
     provisional: true,
+    retentionDays: JMA_DAILY_RETENTION_DAYS,
     requestedDayOffset,
     minMagnitude: minMagnitudeText,
     maxDepth: maxDepthText,
@@ -220,7 +250,7 @@ async function queryDistribution(db, { startDate, requestedDayOffset, minMagnitu
       ON sync.source_date = daily.source_date AND sync.status = 'ok'
     WHERE daily.source_date >= ?
     ORDER BY daily.source_date DESC
-    LIMIT 15
+    LIMIT ${JMA_DAILY_RETENTION_DAYS}
   `).bind(startDate).all();
   const dailyCounts = (datesResult?.results ?? []).map((row) => ({
     sourceDate: row.source_date,
@@ -280,9 +310,9 @@ async function loadSyncStatuses(db, dates) {
 }
 
 async function cleanupJmaDailyHypocenters(db) {
-  // The published list starts with yesterday, so retaining 15 published days
-  // requires keeping source dates through 15 calendar days ago.
-  const oldestRetainedDay = `-${RETENTION_DAYS} days`;
+  // The published list starts with yesterday, so retaining 30 published days
+  // requires keeping source dates through 30 calendar days ago.
+  const oldestRetainedDay = `-${JMA_DAILY_RETENTION_DAYS} days`;
   await db.batch([
     db.prepare("DELETE FROM jma_daily_hypocenter_days WHERE source_date < date('now', '+9 hours', ?)")
       .bind(oldestRetainedDay),

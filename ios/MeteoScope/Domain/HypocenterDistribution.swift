@@ -1,5 +1,10 @@
 import Foundation
 
+enum HypocenterDistributionLimits {
+    static let dayCount = 30
+    static let maximumDayOffset = dayCount - 1
+}
+
 enum EarthquakeDisplayMode: String, CaseIterable, Identifiable, Sendable {
     case recent
     case distribution

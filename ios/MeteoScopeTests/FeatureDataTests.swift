@@ -3,6 +3,9 @@ import XCTest
 
 final class FeatureDataTests: XCTestCase {
     func testHypocenterDistributionDecodesJmaDailyListResponse() throws {
+        XCTAssertEqual(HypocenterDistributionLimits.dayCount, 30)
+        XCTAssertEqual(HypocenterDistributionLimits.maximumDayOffset, 29)
+
         let data = """
         {
           "sourceLabel": "気象庁 日々の震源リスト",

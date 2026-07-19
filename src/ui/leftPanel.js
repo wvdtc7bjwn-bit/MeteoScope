@@ -13,6 +13,7 @@ import { getTsunamiLevelColor, getTsunamiLevelLabel } from "../tsunami.js";
 import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
 import { buildEarthquakeObservationRows } from "../earthquakeDetails.js";
 import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
+import { HYPOCENTER_DISTRIBUTION_DAY_COUNT } from "../jma/hypocenterDistribution.js";
 
 let selectedWarningAreaCode = "";
 const amedasRankingOrderByMetric = {
@@ -2842,7 +2843,9 @@ function buildEarthquakeDistributionMarkup(data) {
   const snapshot = data.distribution;
   const status = data.distributionStatus ?? "idle";
   const count = snapshot?.items?.length ?? 0;
-  const availableDates = Array.isArray(snapshot?.availableDates) ? snapshot.availableDates.slice(0, 15) : [];
+  const availableDates = Array.isArray(snapshot?.availableDates)
+    ? snapshot.availableDates.slice(0, HYPOCENTER_DISTRIBUTION_DAY_COUNT)
+    : [];
   const maximumOffset = Math.max(0, availableDates.length - 1);
   const dayOffset = Math.min(maximumOffset, Math.max(0, Number(filters.dayOffset ?? snapshot?.dayOffset ?? 0)));
   const selectedDate = availableDates[dayOffset] ?? snapshot?.selectedSourceDate ?? "";
@@ -2932,7 +2935,7 @@ function buildEarthquakeDailyTrend(dailyCounts) {
   }).join("");
   return `
     <div class="earthquake-distribution-chart-head"><strong>日別の総地震回数</strong><span>古い日 → 最新</span></div>
-    <svg class="earthquake-distribution-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="収録15日間の日別総地震回数">${grid}<polyline points="${polyline}" class="earthquake-chart-line"></polyline>${circles}${labels}</svg>
+    <svg class="earthquake-distribution-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="収録${HYPOCENTER_DISTRIBUTION_DAY_COUNT}日間の日別総地震回数">${grid}<polyline points="${polyline}" class="earthquake-chart-line"></polyline>${circles}${labels}</svg>
     <p class="earthquake-distribution-chart-caption">全規模・全深さの日別収録件数。グラフ専用のD1保存は行いません。</p>
   `;
 }
@@ -2954,7 +2957,9 @@ function buildDistributionSelect(key, label, selectedValue, choices) {
 }
 
 function buildDistributionDateChoices(snapshot) {
-  const dates = Array.isArray(snapshot?.availableDates) ? snapshot.availableDates.slice(0, 15) : [];
+  const dates = Array.isArray(snapshot?.availableDates)
+    ? snapshot.availableDates.slice(0, HYPOCENTER_DISTRIBUTION_DAY_COUNT)
+    : [];
   if (!dates.length) return [[0, "最新の1日"]];
   return dates.map((date, index) => [index, formatDistributionDate(date)]);
 }
@@ -2974,7 +2979,9 @@ function formatDistributionFullDate(value) {
 function buildEarthquakeDistributionMobileContextMarkup(data) {
   const snapshot = data.distribution;
   const filters = data.distributionFilters ?? {};
-  const availableDates = Array.isArray(snapshot?.availableDates) ? snapshot.availableDates.slice(0, 15) : [];
+  const availableDates = Array.isArray(snapshot?.availableDates)
+    ? snapshot.availableDates.slice(0, HYPOCENTER_DISTRIBUTION_DAY_COUNT)
+    : [];
   const maximumOffset = Math.max(0, availableDates.length - 1);
   const dayOffset = Math.min(maximumOffset, Math.max(0, Number(filters.dayOffset ?? snapshot?.dayOffset ?? 0)));
   const selectedDate = availableDates[dayOffset] ?? snapshot?.selectedSourceDate ?? "";

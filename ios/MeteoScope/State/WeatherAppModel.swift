@@ -78,7 +78,12 @@ final class WeatherAppModel {
         minMagnitude: String? = nil,
         maxDepth: String? = nil
     ) {
-        if let dayOffset { hypocenterDistributionFilter.dayOffset = min(max(dayOffset, 0), 14) }
+        if let dayOffset {
+            hypocenterDistributionFilter.dayOffset = min(
+                max(dayOffset, 0),
+                HypocenterDistributionLimits.maximumDayOffset
+            )
+        }
         if let minMagnitude { hypocenterDistributionFilter.minMagnitude = minMagnitude }
         if let maxDepth { hypocenterDistributionFilter.maxDepth = maxDepth }
         Task { [weak self] in await self?.refreshHypocenterDistribution() }

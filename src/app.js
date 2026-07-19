@@ -26,7 +26,10 @@ import {
 import { startDmdataEarthquakeUpdates } from "./dmdata/earthquakeUpdates.js";
 import { fetchKikikuruTiles } from "./jma/kikikuru.js";
 import { fetchRiverFloodForecasts } from "./jma/riverFlood.js";
-import { fetchHypocenterDistribution } from "./jma/hypocenterDistribution.js";
+import {
+  HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET,
+  fetchHypocenterDistribution
+} from "./jma/hypocenterDistribution.js";
 import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFrameIndex } from "./jma/weatherChart.js";
 import { resolveCurrentLocationInfo, searchMunicipalities } from "./location/currentLocation.js";
 import { addMyArea, getMyAreaLimit, loadMyAreas, removeMyArea } from "./location/myAreas.js";
@@ -436,7 +439,7 @@ if (layerId === "river") {
   function updateEarthquakeDistributionFilters(filters = {}) {
     earthquakeDistributionFilters = {
       dayOffset: Number.isInteger(Number(filters.dayOffset))
-        ? Math.min(14, Math.max(0, Number(filters.dayOffset)))
+        ? Math.min(HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET, Math.max(0, Number(filters.dayOffset)))
         : earthquakeDistributionFilters.dayOffset,
       minMagnitude: filters.minMagnitude ?? earthquakeDistributionFilters.minMagnitude,
       maxDepth: filters.maxDepth ?? earthquakeDistributionFilters.maxDepth

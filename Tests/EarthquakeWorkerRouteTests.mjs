@@ -31,8 +31,12 @@ import {
 } from "../workers/earthquake-realtime/src/retentionPolicy.js";
 import {
   buildJmaDailyPayload,
+  JMA_DAILY_BACKFILL_DAYS_PER_SYNC,
+  JMA_DAILY_MAX_DAY_OFFSET,
+  JMA_DAILY_RETENTION_DAYS,
   parseJmaDailyHypocenterHtml,
   readJmaDailyHypocenterDistribution,
+  syncJmaDailyHypocenters,
   shouldAttemptDate
 } from "../workers/earthquake-realtime/src/jmaDailyHypocenters.js";
 
@@ -110,12 +114,12 @@ assert.deepEqual(
 );
 assert.deepEqual(
   resolvePublicEarthquakeRoute(
-    new URL("https://example.test/api/earthquakes/distribution?dayOffset=14&minMagnitude=1&maxDepth=100")
+    new URL("https://example.test/api/earthquakes/distribution?dayOffset=29&minMagnitude=1&maxDepth=100")
   ),
   { internalPath: "/distribution", cacheSeconds: 300, directD1: true }
 );
 assert.equal(
-  resolvePublicEarthquakeRoute(new URL("https://example.test/api/distribution?dayOffset=15")).error,
+  resolvePublicEarthquakeRoute(new URL("https://example.test/api/distribution?dayOffset=30")).error,
   "invalid_day_offset"
 );
 assert.equal(
@@ -359,6 +363,7 @@ assert.deepEqual(selectedDistribution.dailyCounts, [
 ]);
 assert.equal(selectedDistribution.selectedSourceDate, "2026-07-16");
 assert.equal(selectedDistribution.dayOffset, 1);
+assert.equal(selectedDistribution.retentionDays, 30);
 assert.deepEqual(selectedDistribution.items.map((item) => item.place), ["前日の震源"]);
 assert.throws(
   () => buildJmaDailyPayload(Array.from({ length: 5_001 }, () => parsedDailyHypocenters[0])),
@@ -373,6 +378,107 @@ assert.equal(shouldAttemptDate(undefined, retryBase), true);
 assert.equal(shouldAttemptDate({ status: "ok", fetchedAt: "2026-07-17T00:00:00Z" }, retryBase), false);
 assert.equal(shouldAttemptDate({ status: "error", fetchedAt: "2026-07-17T23:00:00Z" }, retryBase), false);
 assert.equal(shouldAttemptDate({ status: "error", fetchedAt: "2026-07-17T17:59:59Z" }, retryBase), true);
+
+let distributionPreparedStatements = 0;
+let distributionBatchCalls = 0;
+let distributionFetches = 0;
+const distributionSyncDb = {
+  prepare(sql) {
+    distributionPreparedStatements += 1;
+    return {
+      sql,
+      bind(...params) {
+        return {
+          sql,
+          params,
+          async all() {
+            assert.match(sql, /SELECT source_date, status, fetched_at/u);
+            return { results: [] };
+          },
+          async run() {
+            return { success: true };
+          }
+        };
+      }
+    };
+  },
+  async batch() {
+    distributionBatchCalls += 1;
+    return [];
+  }
+};
+const distributionSyncResult = await syncJmaDailyHypocenters(
+  { EQ_D1: distributionSyncDb },
+  {
+    maxDays: JMA_DAILY_BACKFILL_DAYS_PER_SYNC,
+    fetchImpl: async (url) => {
+      distributionFetches += 1;
+      const compactDate = String(url).match(/\/(\d{8})\.html$/u)?.[1];
+      assert.ok(compactDate);
+      const year = compactDate.slice(0, 4);
+      const month = Number(compactDate.slice(4, 6));
+      const day = Number(compactDate.slice(6, 8));
+      return new Response(
+        `<pre>${year} ${month} ${day} 00:00 00.0 35° 00.0'N 140° 00.0'E 10 1.0 テスト震源</pre>`,
+        { status: 200, headers: { "content-type": "text/html" } }
+      );
+    }
+  }
+);
+assert.equal(distributionSyncResult.attempted, 15);
+assert.equal(distributionFetches, 15);
+assert.equal(distributionBatchCalls, 17);
+assert.deepEqual(distributionSyncResult.backfill, {
+  complete: false,
+  storedDayCount: 15,
+  remainingDayCount: 15
+});
+assert.ok(
+  distributionPreparedStatements + distributionFetches <= 50,
+  `free tier query budget exceeded: ${distributionPreparedStatements + distributionFetches}`
+);
+
+let completedBackfillFetches = 0;
+const completedBackfillDb = {
+  prepare(sql) {
+    return {
+      sql,
+      bind(...params) {
+        return {
+          async all() {
+            return {
+              results: params.map((sourceDate) => ({
+                source_date: sourceDate,
+                status: "ok",
+                fetched_at: "2026-07-19T00:00:00.000Z"
+              }))
+            };
+          }
+        };
+      }
+    };
+  },
+  async batch() {
+    return [];
+  }
+};
+const completedBackfillResult = await syncJmaDailyHypocenters(
+  { EQ_D1: completedBackfillDb },
+  {
+    maxDays: JMA_DAILY_BACKFILL_DAYS_PER_SYNC,
+    fetchImpl: async () => {
+      completedBackfillFetches += 1;
+      throw new Error("completed backfill must not fetch");
+    }
+  }
+);
+assert.equal(completedBackfillResult.attempted, 0);
+assert.equal(completedBackfillFetches, 0);
+assert.deepEqual(completedBackfillResult.backfill, {
+  complete: true,
+  storedDayCount: 30,
+  remainingDayCount: 0
+});
 
 let forwardedUrl = "";
 const proxyResponse = await onRequest({
@@ -438,9 +544,12 @@ const jmaDailySource = await fs.readFile(
 );
 assert.doesNotMatch(publicWorkerSource, /\/ingest|\/auth|\/discord/);
 assert.match(publicWorkerSource, /x-eew-authenticated/u);
-assert.match(jmaDailySource, /const RETENTION_DAYS = 15/u);
-assert.match(jmaDailySource, /oldestRetainedDay = `-\$\{RETENTION_DAYS\} days`/u);
-assert.match(jmaDailySource, /const MAX_DAYS_PER_SYNC = 1/u);
+assert.equal(JMA_DAILY_RETENTION_DAYS, 30);
+assert.equal(JMA_DAILY_MAX_DAY_OFFSET, 29);
+assert.equal(JMA_DAILY_BACKFILL_DAYS_PER_SYNC, 15);
+assert.match(jmaDailySource, /oldestRetainedDay = `-\$\{JMA_DAILY_RETENTION_DAYS\} days`/u);
+assert.match(jmaDailySource, /DELETE FROM jma_daily_hypocenter_days WHERE source_date < date/u);
+assert.match(jmaDailySource, /DELETE FROM jma_daily_hypocenter_sync WHERE source_date < date/u);
 assert.match(jmaDailySource, /INSERT INTO jma_daily_hypocenter_days/u);
 assert.match(jmaDailySource, /WHERE source_date = \? LIMIT 1/u);
 assert.doesNotMatch(jmaDailySource, /INSERT INTO jma_daily_hypocenters/u);
@@ -495,8 +604,7 @@ assert.match(
   /database_name\s*=\s*"meteoscope-earthquakes"/u
 );
 assert.match(workerWranglerSource, /\[triggers\]\s*crons\s*=\s*\["17 \* \* \* \*"\]/u);
-assert.match(publicWorkerSource, /maxDays:\s*1/u);
-assert.doesNotMatch(publicWorkerSource, /maxDays:\s*[2-9]/u);
+assert.match(publicWorkerSource, /maxDays:\s*JMA_DAILY_BACKFILL_DAYS_PER_SYNC/u);
 assert.doesNotMatch(publicWorkerSource, /scheduledD1Backfill|runScheduledD1Backfill/u);
 for (const source of [pagesWranglerSource, workerWranglerSource, publicWorkerSource]) {
   assert.doesNotMatch(source, /eqapp-realtime|eq-signal-history|RealtimeHub/u);
