@@ -7,7 +7,7 @@ const QUIZ_MAINTENANCE_UTC_MINUTE = 0;
 export default {
   async scheduled(controller, env, ctx) {
     const scheduledAt = new Date(controller?.scheduledTime ?? Date.now());
-    const tasks = [runWarningPushCheck(env)];
+    const tasks = [runWarningPushCheck(env, { now: scheduledAt })];
     if (shouldRunQuizMaintenance(scheduledAt)) {
       tasks.push(runQuizMaintenance(env, { now: scheduledAt }));
     }

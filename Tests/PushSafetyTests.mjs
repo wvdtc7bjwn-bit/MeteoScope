@@ -31,8 +31,8 @@ assert.equal(
   "290000"
 );
 
-assert.equal(selectWarningOfficeBatch(0).length, 15);
-assert.ok(selectWarningOfficeBatch(45).length <= 15);
+assert.equal(selectWarningOfficeBatch(0).length, 8);
+assert.ok(selectWarningOfficeBatch(45).length <= 8);
 assert.equal(shouldPreserveWarningState("290000", ["290000"]), true);
 assert.equal(shouldPreserveWarningState("290000", []), false);
 assert.equal(shouldPreserveWarningState("", []), true);
@@ -309,9 +309,15 @@ globalThis.fetch = async (url) => {
   }
   throw new Error(`Unexpected fetch: ${url}`);
 };
-const freeTierCycle = await runWarningPushCheck({ NOTIFICATIONS_DB: countingD1 });
-assert.equal(freeTierCycle.attemptedOffices, 15);
-assert.equal(warningFetches, 15);
+const freeTierCycle = await runWarningPushCheck(
+  { NOTIFICATIONS_DB: countingD1 },
+  { now: new Date("2026-07-19T03:01:00.000Z") }
+);
+assert.equal(freeTierCycle.attemptedOffices, 8);
+assert.equal(warningFetches, 8);
+assert.equal(freeTierCycle.communityReports.skipped, true);
+assert.equal(freeTierCycle.retention.skipped, true);
+assert.equal(freeTierCycle.webSubscriptionMigration.skipped, true);
 assert.ok(countingD1.queries < 50, `D1 query budget exceeded: ${countingD1.queries}`);
 
 console.log("Push safety tests passed");

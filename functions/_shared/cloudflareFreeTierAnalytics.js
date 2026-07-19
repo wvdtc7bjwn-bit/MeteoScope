@@ -17,6 +17,7 @@ const WORKERS_QUERY = `query MeteoScopeWorkersUsage($accountTag: string, $start:
         limit: 10000
         filter: { datetime_geq: $start, datetime_leq: $end }
       ) {
+        dimensions { scriptName status }
         sum { requests errors subrequests }
       }
     }
@@ -137,7 +138,8 @@ export async function readCloudflareFreeTierUsage(env, options = {}) {
         available: true,
         requests: workers.requests,
         errors: workers.errors,
-        subrequests: workers.subrequests
+        subrequests: workers.subrequests,
+        errorBreakdown: buildWorkerErrorBreakdown(workersGroups)
       }
     : unavailableMetric(resultError(results[0]));
 
@@ -245,6 +247,30 @@ function sumGroups(groups, fields) {
     }
     return totals;
   }, Object.fromEntries(fields.map((field) => [field, 0])));
+}
+
+function buildWorkerErrorBreakdown(groups) {
+  const byStatus = new Map();
+  const byScript = new Map();
+  for (const group of groups) {
+    const errors = finiteNumber(group?.sum?.errors);
+    if (errors <= 0) continue;
+    const status = String(group?.dimensions?.status || "unknown");
+    const scriptName = String(group?.dimensions?.scriptName || "unknown").slice(0, 120);
+    byStatus.set(status, (byStatus.get(status) || 0) + errors);
+    byScript.set(scriptName, (byScript.get(scriptName) || 0) + errors);
+  }
+  return {
+    byStatus: sortedErrorEntries(byStatus, "status"),
+    byScript: sortedErrorEntries(byScript, "scriptName")
+  };
+}
+
+function sortedErrorEntries(values, key) {
+  return [...values.entries()]
+    .map(([name, errors]) => ({ [key]: name, errors }))
+    .sort((left, right) => right.errors - left.errors || String(left[key]).localeCompare(String(right[key])))
+    .slice(0, 12);
 }
 
 function fulfilledValue(result) {

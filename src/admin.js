@@ -516,7 +516,7 @@ function renderCloudflareQuota(usage) {
 
   const limits = usage.limits || {};
   const metrics = [
-    quotaMetric("Workersリクエスト", usage.workers?.requests, limits.workerRequests, "count", usage.workers?.errors == null ? "" : `エラー ${formatInteger(usage.workers.errors)}件`),
+    quotaMetric("Workersリクエスト", usage.workers?.requests, limits.workerRequests, "count", formatWorkerErrorDetail(usage.workers)),
     quotaMetric("DOリクエスト", usage.durableObjects?.requests, limits.durableObjectRequests, "count"),
     quotaMetric("DO実行時間", usage.durableObjects?.durationGbSeconds, limits.durableObjectDurationGbSeconds, "duration", usage.durableObjects?.fatalInternalErrors == null ? "" : `内部エラー ${formatInteger(usage.durableObjects.fatalInternalErrors)}件`),
     quotaMetric("D1読取行数", usage.d1?.rowsRead, limits.d1RowsRead, "rows"),
@@ -552,6 +552,28 @@ function renderCloudflareQuota(usage) {
     ? ` 最大のD1は${largest.name}（${formatBytes(Number(largest.storageBytes || 0))}）です。`
     : "";
   elements.quotaNote.textContent = `Cloudflareアカウント全体の当日概算です。請求・上限判定の確定値と一致しない場合があります。${largestText}`;
+}
+
+function formatWorkerErrorDetail(workers = {}) {
+  if (workers?.errors == null) return "";
+  const total = Number(workers.errors || 0);
+  if (total <= 0) return "エラー 0件";
+  const labels = {
+    exceededResources: "CPU・上限超過",
+    internalError: "Cloudflare内部",
+    scriptThrewException: "スクリプト例外",
+    clientDisconnected: "クライアント切断",
+    unknown: "分類不明"
+  };
+  const statuses = Array.isArray(workers?.errorBreakdown?.byStatus)
+    ? workers.errorBreakdown.byStatus
+    : [];
+  const breakdown = statuses
+    .filter((item) => Number(item?.errors || 0) > 0)
+    .slice(0, 4)
+    .map((item) => `${labels[item.status] || item.status} ${formatInteger(item.errors)}件`)
+    .join("・");
+  return breakdown || `エラー ${formatInteger(total)}件`;
 }
 
 function quotaMetric(label, value, limit, format, detail = "") {

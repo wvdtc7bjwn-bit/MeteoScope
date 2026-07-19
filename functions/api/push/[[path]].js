@@ -30,11 +30,16 @@ const RETENTION_DAYS = 30;
 const IOS_SUBSCRIPTION_RETENTION_DAYS = 180;
 const RETENTION_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const RETENTION_CLEANUP_KEY = "retention:last-cleanup";
-const WARNING_OFFICE_BATCH_SIZE = 15;
+// Workers Free の 1 分間隔 Cron は CPU 時間が短いため、1 回で扱う JSON を
+// 抑える。全国一巡は約 8 分だが、CPU 超過で処理自体が欠落する状態を避ける。
+const WARNING_OFFICE_BATCH_SIZE = 8;
 const WARNING_NOTIFICATION_BATCH_SIZE = 6;
+const WARNING_CRON_STATE_VERSION = 2;
+const WARNING_DAILY_MAINTENANCE_UTC_HOUR = 15;
+const WARNING_DAILY_MAINTENANCE_UTC_MINUTE = 10;
 const WARNING_CRON_STATE_KEY = "push:warning-cron-state";
 export const WARNING_CRON_HEALTH_KEY = "push:warning-cron-health";
-const WARNING_OFFICE_SNAPSHOT_BATCH_PREFIX = "push:warning-office-batch:";
+const WARNING_OFFICE_SNAPSHOT_BATCH_PREFIX = "push:warning-office-batch-v2:";
 const JMA_AREA_CATALOG_URL = "https://www.jma.go.jp/bosai/common/const/area.json";
 const WEB_REQUEST_MAX_BYTES = 8192;
 const IOS_REQUEST_MAX_BYTES = 4096;
@@ -64,30 +69,50 @@ export async function onRequest({ request, env }) {
   }
 }
 
-export async function runWarningPushCheck(env) {
+export async function runWarningPushCheck(env, options = {}) {
   requireNotificationStorage(env);
-  let communityReports;
-  try {
-    communityReports = await cleanupExpiredCommunityReports(env.NOTIFICATIONS_DB);
-  } catch (error) {
-    console.error("[Push API] community report cleanup failed", error);
-    communityReports = { ran: false, deleted: 0, error: true };
+  const now = validCronDate(options.now);
+  const fiveMinuteMaintenance = options.forceMaintenance === true || now.getUTCMinutes() % 5 === 0;
+  const dailyMaintenance = options.forceMaintenance === true
+    || (
+      now.getUTCHours() === WARNING_DAILY_MAINTENANCE_UTC_HOUR
+      && now.getUTCMinutes() === WARNING_DAILY_MAINTENANCE_UTC_MINUTE
+    );
+
+  let communityReports = { ran: false, deleted: 0, skipped: true };
+  if (fiveMinuteMaintenance) {
+    try {
+      communityReports = await cleanupExpiredCommunityReports(env.NOTIFICATIONS_DB, now);
+    } catch (error) {
+      console.error("[Push API] community report cleanup failed", error);
+      communityReports = { ran: false, deleted: 0, error: true };
+    }
   }
-  let webSubscriptionMigration;
-  try {
-    webSubscriptionMigration = await migrateWebSubscriptionsToAdminOnly(env);
-  } catch (error) {
-    console.error("[Push API] web subscription migration failed", error);
-    webSubscriptionMigration = { migrated: 0, error: true };
+
+  let webSubscriptionMigration = { migrated: 0, skipped: true };
+  let retention = { ran: false, skipped: true };
+  if (dailyMaintenance) {
+    try {
+      webSubscriptionMigration = await migrateWebSubscriptionsToAdminOnly(env, now);
+    } catch (error) {
+      console.error("[Push API] web subscription migration failed", error);
+      webSubscriptionMigration = { migrated: 0, error: true };
+    }
+    try {
+      retention = await runNotificationRetentionCleanup(env, now);
+    } catch (error) {
+      console.error("[Push API] retention cleanup failed", error);
+      retention = { ran: false, error: true };
+    }
   }
-  let retention;
-  try {
-    retention = await runNotificationRetentionCleanup(env);
-  } catch (error) {
-    console.error("[Push API] retention cleanup failed", error);
-    retention = { ran: false, error: true };
-  }
-  const state = await readJson(env.NOTIFICATIONS_DB, WARNING_CRON_STATE_KEY, initialWarningCronState());
+  const savedState = await readJson(
+    env.NOTIFICATIONS_DB,
+    WARNING_CRON_STATE_KEY,
+    initialWarningCronState()
+  );
+  const state = savedState?.version === WARNING_CRON_STATE_VERSION
+    ? savedState
+    : initialWarningCronState();
   let adminBroadcast = { processed: 0, sent: 0, removed: 0, failed: 0, deferred: state.phase === "notify" };
   if (state.phase !== "notify") {
     try {
@@ -97,9 +122,18 @@ export async function runWarningPushCheck(env) {
       adminBroadcast = { processed: 0, sent: 0, removed: 0, failed: 0, error: true };
     }
   }
-  const result = state.phase === "notify"
-    ? await runWarningNotificationBatch(env, state)
-    : await runWarningOfficeFetchBatch(env, state);
+  const result = dailyMaintenance
+    ? {
+        phase: state.phase,
+        maintenanceOnly: true,
+        attemptedOffices: 0,
+        checked: 0,
+        notified: 0,
+        removed: 0
+      }
+    : state.phase === "notify"
+      ? await runWarningNotificationBatch(env, state)
+      : await runWarningOfficeFetchBatch(env, state);
   return { ...result, adminBroadcast, retention, communityReports, webSubscriptionMigration, storage: "d1" };
 }
 
@@ -158,6 +192,7 @@ async function runWarningOfficeFetchBatch(env, state) {
   const previousHealth = await readWarningCronHealth(env) || {};
   const nextState = cycleComplete
     ? {
+        version: WARNING_CRON_STATE_VERSION,
         phase: "notify",
         nextOfficeIndex: 0,
         notificationCursor: "",
@@ -351,6 +386,7 @@ async function runIOSWarningPushCheck(env, warningAreas, subscriptions) {
 
 function initialWarningCronState() {
   return {
+    version: WARNING_CRON_STATE_VERSION,
     phase: "fetch",
     nextOfficeIndex: 0,
     notificationCursor: "",
@@ -1159,17 +1195,18 @@ async function getAdminPushBroadcast(env, id) {
   return row ? publicAdminBroadcast(row) : null;
 }
 
-async function runNotificationRetentionCleanup(env) {
+async function runNotificationRetentionCleanup(env, at = new Date()) {
+  const cleanupDate = validCronDate(at);
   await ensureAdminBroadcastTables(env);
   const marker = await env.NOTIFICATIONS_DB.prepare(
     "SELECT value FROM push_meta WHERE key = ?"
   ).bind(RETENTION_CLEANUP_KEY).first();
   const lastCleanupAt = Date.parse(String(marker?.value || ""));
-  if (Number.isFinite(lastCleanupAt) && Date.now() - lastCleanupAt < RETENTION_CLEANUP_INTERVAL_MS) {
+  if (Number.isFinite(lastCleanupAt) && cleanupDate.getTime() - lastCleanupAt < RETENTION_CLEANUP_INTERVAL_MS) {
     return { ran: false, retentionDays: RETENTION_DAYS, lastCleanupAt: marker.value };
   }
 
-  const now = new Date().toISOString();
+  const now = cleanupDate.toISOString();
   const results = await env.NOTIFICATIONS_DB.batch([
     env.NOTIFICATIONS_DB.prepare(
       `DELETE FROM admin_push_deliveries
@@ -1259,6 +1296,11 @@ async function sendEmptyPush(pushSubscription, env, preparedVapidKeys = null) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function validCronDate(value) {
+  const date = value instanceof Date ? value : new Date(value ?? Date.now());
+  return Number.isFinite(date.getTime()) ? date : new Date();
 }
 
 async function sendEmptyPushSafely(pushSubscription, env, preparedVapidKeys = null) {
@@ -1392,8 +1434,8 @@ async function listSubscriptions(env) {
   return (result.results || []).map((row) => parseJson(row.data, null)).filter(Boolean);
 }
 
-async function migrateWebSubscriptionsToAdminOnly(env) {
-  const now = new Date().toISOString();
+async function migrateWebSubscriptionsToAdminOnly(env, at = new Date()) {
+  const now = validCronDate(at).toISOString();
   const result = await env.NOTIFICATIONS_DB.prepare(
     `UPDATE push_subscriptions
      SET data = json_set(

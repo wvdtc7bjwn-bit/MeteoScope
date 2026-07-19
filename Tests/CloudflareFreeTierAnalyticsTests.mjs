@@ -25,8 +25,14 @@ const fetchImpl = async (url, options = {}) => {
   if (body.query.includes("workersInvocationsAdaptive")) {
     assert.equal(body.variables.start, "2026-07-19T00:00:00.000Z");
     return graphqlResponse("workersInvocationsAdaptive", [
-      { sum: { requests: 3_000, errors: 2, subrequests: 50 } },
-      { sum: { requests: 1_065, errors: 1, subrequests: 14 } }
+      {
+        dimensions: { scriptName: "meteoscope-warning-push-cron", status: "exceededResources" },
+        sum: { requests: 3_000, errors: 2, subrequests: 50 }
+      },
+      {
+        dimensions: { scriptName: "meteoscope", status: "internalError" },
+        sum: { requests: 1_065, errors: 1, subrequests: 14 }
+      }
     ]);
   }
   if (body.query.includes("durableObjectsInvocationsAdaptiveGroups")) {
@@ -60,6 +66,14 @@ assert.equal(usage.period.dateUtc, "2026-07-19");
 assert.equal(usage.period.resetTimeJst, "09:00");
 assert.equal(usage.workers.requests, 4_065);
 assert.equal(usage.workers.errors, 3);
+assert.deepEqual(usage.workers.errorBreakdown.byStatus, [
+  { status: "exceededResources", errors: 2 },
+  { status: "internalError", errors: 1 }
+]);
+assert.deepEqual(usage.workers.errorBreakdown.byScript, [
+  { scriptName: "meteoscope-warning-push-cron", errors: 2 },
+  { scriptName: "meteoscope", errors: 1 }
+]);
 assert.equal(usage.durableObjects.requests, 5_367);
 assert.equal(usage.durableObjects.durationGbSeconds, 11_027.790750464);
 assert.equal(usage.durableObjects.fatalInternalErrors, 10);

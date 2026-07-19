@@ -34,6 +34,7 @@ const RETENTION_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const GD_EARTHQUAKE_POLL_INTERVAL_MS = 5 * 60 * 1000;
 const GD_EARTHQUAKE_BACKFILL_DAYS = 2;
 const DMDATA_TELEGRAM_POLL_INTERVAL_MS = 5 * 60 * 1000;
+const DMDATA_CONNECTED_ALARM_INTERVAL_MS = 4 * 60 * 1000;
 const DMDATA_TELEGRAM_LIST_LIMIT = 40;
 const DMDATA_EARTHQUAKE_STATION_PARAMETER_URL =
   "https://api.dmdata.jp/v2/parameter/earthquake/station";
@@ -2008,7 +2009,9 @@ export class MeteoScopeEarthquakeHub {
         60_000,
         Math.max(5_000, 5_000 * (2 ** Math.min(this.dmdata.reconnectAttempt, 4)))
       );
-      await this.scheduleNextTick(this.dmdata.connected ? 30_000 : reconnectDelay);
+      await this.scheduleNextTick(
+        this.dmdata.connected ? DMDATA_CONNECTED_ALARM_INTERVAL_MS : reconnectDelay
+      );
     }
   }
 
@@ -3306,6 +3309,9 @@ CREATE INDEX IF NOT EXISTS idx_tsunami_history_issue_time
       this.dmdata.lastError = reason;
       this.dmdataSocket = null;
       this.dmdataSocketExpiresAt = null;
+      this.scheduleNextTick(1000).catch((error) => {
+        console.error("[DataHubDO] dmdata reconnect alarm failed", error);
+      });
     };
 
     this.dmdataSocket.addEventListener("close", () => onCloseOrError("dmdata_socket_closed"));
