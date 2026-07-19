@@ -38,6 +38,14 @@
 - 取得・加工: 2026-07-19にWGS84の範囲`118,15,160,55`と交差するフィーチャをGeoJSONで取得し、`public/data/usgs-plate-boundaries-japan.geojson`へ静的保存した。19形状、15,027 bytes、SHA-256 `ddbe6c7e2c0911bfbe42a5facd5e61b510bb86a9e186627f772c36bd7c626c25`。`NAME`と`LABEL`だけを保持し、収束境界、横ずれ境界、その他をMeteoScopeが配色・線種変換して表示する。利用者ごとのUSGS APIアクセスやD1保存は行わない。
 - 注意: 境界はBird (2003)の全球概略モデルであり、詳細な断層位置、境界幅、地点別の危険度を示すものではない。日本周辺のプレート区分には複数の学説・細分モデルがあるため、表示名と線位置を唯一の確定情報として扱わない。
 
+### USGS Slab2 プレート等深線
+
+- 提供者: U.S. Geological Survey（USGS）。[Slab2: A Comprehensive Subduction Zone Geometry Model](https://www.usgs.gov/data/slab2-a-comprehensive-subduction-zone-geometry-model)（[ScienceBase item / DOI 10.5066/F7PV6JNV](https://doi.org/10.5066/F7PV6JNV)）を使用する。
+- 利用条件: USGSのScienceBase配布ページでCC0として公開されている。画面内に「プレート等深線: USGS Slab2」を表示する。USGSロゴは使用しない。
+- 取得・加工: 2026-07-19に公式`Slab2_depth.kmz`を取得し、Kuril、Izu-Bonin、Ryukyuの深度コンターを抽出した。範囲`118,15,160,55`で切り出し、表示負荷を抑えるため0.012度の許容値で線形状を簡略化し、20km間隔・深さ20〜660kmの117形状を`public/data/usgs-slab2-depth-contours-japan.geojson`へ静的保存した。72,201 bytes、SHA-256 `0202ced3d750d9ff00fdf5aa02086a8faaaddc02595021b10a97b307eb7833b0`。利用者ごとのUSGS APIアクセス、Worker処理、D1保存は行わない。
+- 表示: 深さ属性を連続補間し、浅い側を赤、深い側を青のグラデーションで配色する。地震タブでのみ表示し、プレート境界とは独立してオン／オフできる。
+- 注意: Slab2は観測・解析に基づく0.05度格子のモデルで、等深線は沈み込むスラブ上面の推定深度を表す。地点ごとの地下構造や地震危険度を確定するものではなく、後日のモデル更新で変わる場合がある。
+
 ### ArcGIS 指定河川洪水予報河川
 
 - 使用URL: `https://services.arcgis.com/wlVTGRSYTzAbjjiC/ArcGIS/rest/services/flood_risk_all/FeatureServer/0/query`

@@ -9,6 +9,7 @@ struct WeatherMapView: UIViewRepresentable {
     let weatherOverlay: WeatherMapOverlay?
     let showsActiveFaults: Bool
     let showsPlateBoundaries: Bool
+    let showsPlateDepthContours: Bool
     @Binding var selectedActiveFault: ActiveFaultInfo?
 
     func makeCoordinator() -> Coordinator {
@@ -29,6 +30,7 @@ struct WeatherMapView: UIViewRepresentable {
         context.coordinator.requestedWeatherOverlay = weatherOverlay
         context.coordinator.requestedShowsActiveFaults = showsActiveFaults
         context.coordinator.requestedShowsPlateBoundaries = showsPlateBoundaries
+        context.coordinator.requestedShowsPlateDepthContours = showsPlateDepthContours
         let activeFaultTap = UITapGestureRecognizer(
             target: context.coordinator,
             action: #selector(Coordinator.handleActiveFaultTap(_:))
@@ -45,8 +47,10 @@ struct WeatherMapView: UIViewRepresentable {
         context.coordinator.requestedWeatherOverlay = weatherOverlay
         context.coordinator.requestedShowsActiveFaults = showsActiveFaults
         context.coordinator.requestedShowsPlateBoundaries = showsPlateBoundaries
+        context.coordinator.requestedShowsPlateDepthContours = showsPlateDepthContours
         context.coordinator.applyRadarLayerIfPossible()
         context.coordinator.applyUserLocationIfNeeded()
+        context.coordinator.applyPlateDepthContourLayerIfPossible()
         context.coordinator.applyPlateBoundaryLayerIfPossible()
         context.coordinator.applyActiveFaultLayerIfPossible()
         context.coordinator.applyWeatherOverlayIfNeeded()
@@ -64,6 +68,9 @@ struct WeatherMapView: UIViewRepresentable {
             "meteoscope-usgs-plate-boundary-transform",
             "meteoscope-usgs-plate-boundary-other"
         ]
+        private let plateDepthContourSourceIdentifier = "meteoscope-usgs-slab2-depth-source"
+        private let plateDepthContourLineIdentifier = "meteoscope-usgs-slab2-depth-line"
+        private let plateDepthContourLabelIdentifier = "meteoscope-usgs-slab2-depth-label"
 
         weak var mapView: MLNMapView?
         var requestedFrame: RadarFrame?
@@ -71,6 +78,7 @@ struct WeatherMapView: UIViewRepresentable {
         var requestedWeatherOverlay: WeatherMapOverlay?
         var requestedShowsActiveFaults = false
         var requestedShowsPlateBoundaries = false
+        var requestedShowsPlateDepthContours = false
         private var renderedFrameID: RadarFrame.ID?
         private var renderedUserCoordinate: CLLocationCoordinate2D?
         private var userAnnotation: MLNPointAnnotation?
@@ -92,6 +100,7 @@ struct WeatherMapView: UIViewRepresentable {
             weatherLayerIdentifiers = []
             applyRadarLayerIfPossible()
             applyUserLocationIfNeeded()
+            applyPlateDepthContourLayerIfPossible()
             applyPlateBoundaryLayerIfPossible()
             applyActiveFaultLayerIfPossible()
             applyWeatherOverlayIfNeeded()
@@ -199,6 +208,74 @@ struct WeatherMapView: UIViewRepresentable {
                 if let layer = style.layer(withIdentifier: identifier) { style.removeLayer(layer) }
             }
             if let source = style.source(withIdentifier: activeFaultSourceIdentifier) {
+                style.removeSource(source)
+            }
+        }
+
+        func applyPlateDepthContourLayerIfPossible() {
+            guard let style = mapView?.style else { return }
+            guard requestedShowsPlateDepthContours else {
+                removePlateDepthContourLayers(from: style)
+                return
+            }
+            guard style.source(withIdentifier: plateDepthContourSourceIdentifier) == nil else { return }
+
+            let source = MLNShapeSource(
+                identifier: plateDepthContourSourceIdentifier,
+                url: MeteoScopeEndpoints.plateDepthContourGeoJSON,
+                options: nil
+            )
+            style.addSource(source)
+
+            let depthStops: [NSNumber: UIColor] = [
+                0: UIColor(red: 0.94, green: 0.21, blue: 0.17, alpha: 1),
+                30: UIColor(red: 1.00, green: 0.85, blue: 0.28, alpha: 1),
+                100: UIColor(red: 0.29, green: 0.88, blue: 0.36, alpha: 1),
+                300: UIColor(red: 0.27, green: 0.83, blue: 0.93, alpha: 1),
+                700: UIColor(red: 0.11, green: 0.27, blue: 0.82, alpha: 1)
+            ]
+            let depthColor = NSExpression(
+                format: "mgl_interpolate:withCurveType:parameters:stops:(depthKm, 'linear', nil, %@)",
+                depthStops as NSDictionary
+            )
+
+            let lineLayer = MLNLineStyleLayer(identifier: plateDepthContourLineIdentifier, source: source)
+            lineLayer.minimumZoomLevel = 3
+            lineLayer.maximumZoomLevel = 12
+            lineLayer.lineColor = depthColor
+            lineLayer.lineOpacity = NSExpression(forConstantValue: 0.72)
+            lineLayer.lineWidth = NSExpression(
+                format: "mgl_interpolate:withCurveType:parameters:stops:($zoomLevel, 'linear', nil, %@)",
+                [3: 0.7, 7: 1.2, 11: 1.8] as NSDictionary
+            )
+            style.addLayer(lineLayer)
+
+            let labelLayer = MLNSymbolStyleLayer(identifier: plateDepthContourLabelIdentifier, source: source)
+            labelLayer.minimumZoomLevel = 5
+            labelLayer.maximumZoomLevel = 12
+            labelLayer.symbolPlacement = NSExpression(forConstantValue: "line")
+            labelLayer.symbolSpacing = NSExpression(forConstantValue: 260)
+            labelLayer.text = NSExpression(forKeyPath: "label")
+            labelLayer.textFontSize = NSExpression(forConstantValue: 10)
+            labelLayer.textColor = depthColor
+            labelLayer.textHaloColor = NSExpression(
+                forConstantValue: UIColor { traits in
+                    traits.userInterfaceStyle == .dark
+                        ? UIColor(red: 0.03, green: 0.07, blue: 0.14, alpha: 0.9)
+                        : UIColor(red: 0.96, green: 0.98, blue: 1, alpha: 0.92)
+                }
+            )
+            labelLayer.textHaloWidth = NSExpression(forConstantValue: 1.2)
+            labelLayer.textAllowsOverlap = NSExpression(forConstantValue: false)
+            labelLayer.keepsTextUpright = NSExpression(forConstantValue: true)
+            style.addLayer(labelLayer)
+        }
+
+        private func removePlateDepthContourLayers(from style: MLNStyle) {
+            for identifier in [plateDepthContourLabelIdentifier, plateDepthContourLineIdentifier] {
+                if let layer = style.layer(withIdentifier: identifier) { style.removeLayer(layer) }
+            }
+            if let source = style.source(withIdentifier: plateDepthContourSourceIdentifier) {
                 style.removeSource(source)
             }
         }

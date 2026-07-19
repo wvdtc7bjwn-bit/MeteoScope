@@ -600,6 +600,8 @@ struct EarthquakeDashboardCard: View {
             }
             .pickerStyle(.segmented)
 
+            earthquakeMapLayerControls
+
             if model.earthquakeDisplayMode == .distribution {
                 hypocenterDistributionContent
             } else {
@@ -618,8 +620,6 @@ struct EarthquakeDashboardCard: View {
         case .loaded(let snapshot):
             if let selectedEarthquake = model.selectedEarthquake(in: snapshot) {
                 VStack(alignment: .leading, spacing: 10) {
-                    activeFaultToggle
-
                     ScrollView(.vertical) {
                         LazyVStack(spacing: 10) {
                             ForEach(snapshot.earthquakes) { earthquake in
@@ -659,16 +659,93 @@ struct EarthquakeDashboardCard: View {
         }
     }
 
-    private var activeFaultToggle: some View {
+    private var earthquakeMapLayerControls: some View {
         @Bindable var preferences = preferences
-        return HStack(spacing: 8) {
-            Label("主要活断層帯", systemImage: "map")
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("地図表示")
                 .font(.caption.weight(.semibold))
-            Spacer()
-            Toggle("主要活断層帯を表示", isOn: $preferences.showsActiveFaults)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                earthquakeMapLayerToggle(
+                    title: "活断層",
+                    isOn: $preferences.showsActiveFaults
+                )
+                earthquakeMapLayerToggle(
+                    title: "境界",
+                    isOn: $preferences.showsPlateBoundaries
+                )
+                earthquakeMapLayerToggle(
+                    title: "等深線",
+                    isOn: $preferences.showsPlateDepthContours
+                )
+            }
+            if preferences.showsActiveFaults || preferences.showsPlateBoundaries {
+                HStack(spacing: 10) {
+                    if preferences.showsActiveFaults {
+                        earthquakeMapLineLegendItem("活断層", color: .orange)
+                    }
+                    if preferences.showsPlateBoundaries {
+                        earthquakeMapLineLegendItem(
+                            "収束",
+                            color: Color(red: 0.88, green: 0.24, blue: 0.21)
+                        )
+                        earthquakeMapLineLegendItem(
+                            "横ずれ",
+                            color: Color(red: 0.52, green: 0.35, blue: 0.75)
+                        )
+                        earthquakeMapLineLegendItem(
+                            "その他",
+                            color: Color(red: 0.10, green: 0.57, blue: 0.50)
+                        )
+                    }
+                }
+            }
+            if preferences.showsPlateDepthContours {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack {
+                        Text("プレート上面の深さ")
+                        Spacer()
+                        Text("浅い → 深い")
+                    }
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    HypocenterDepthLegend()
+                }
+            }
+        }
+        .padding(10)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func earthquakeMapLayerToggle(
+        title: String,
+        isOn: Binding<Bool>
+    ) -> some View {
+        VStack(spacing: 4) {
+            Text(title)
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+            Toggle(title, isOn: isOn)
                 .labelsHidden()
                 .toggleStyle(.switch)
+                .controlSize(.mini)
         }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func earthquakeMapLineLegendItem(
+        _ title: String,
+        color: Color
+    ) -> some View {
+        HStack(spacing: 4) {
+            Capsule()
+                .fill(color)
+                .frame(width: 14, height: 3)
+            Text(title)
+                .lineLimit(1)
+        }
+        .font(.system(size: 9, weight: .semibold))
+        .foregroundStyle(.secondary)
     }
 
     @ViewBuilder

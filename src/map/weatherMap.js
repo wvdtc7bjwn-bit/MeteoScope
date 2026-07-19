@@ -118,6 +118,18 @@ const PLATE_BOUNDARY_LAYER_IDS = {
   other: "usgs-plate-boundary-other"
 };
 const PLATE_BOUNDARY_LAYERS = Object.values(PLATE_BOUNDARY_LAYER_IDS);
+const PLATE_DEPTH_SOURCE_ID = "usgs-slab2-depth-contours";
+const PLATE_DEPTH_LINE_LAYER_ID = "usgs-slab2-depth-contour-line";
+const PLATE_DEPTH_LABEL_LAYER_ID = "usgs-slab2-depth-contour-label";
+const PLATE_DEPTH_LAYERS = [PLATE_DEPTH_LINE_LAYER_ID, PLATE_DEPTH_LABEL_LAYER_ID];
+const PLATE_DEPTH_COLOR_EXPRESSION = [
+  "interpolate", ["linear"], ["to-number", ["get", "depthKm"], 0],
+  0, "#ef362b",
+  30, "#ffda47",
+  100, "#4be05b",
+  300, "#45d3ee",
+  700, "#1c44d2"
+];
 const KIKIKURU_ZOOM_LEVELS = [
   { id: "z4", z: 4, minzoom: 3, maxzoom: 5 },
   { id: "z6", z: 6, minzoom: 5, maxzoom: 7 },
@@ -179,7 +191,8 @@ const MAP_THEME_COLORS = {
     activeFault: "#ff6a3d",
     plateConvergent: "#ff5a52",
     plateTransform: "#b77aff",
-    plateOther: "#41c7b5"
+    plateOther: "#41c7b5",
+    plateDepthLabelHalo: "rgba(5, 9, 20, 0.9)"
   },
   light: {
     background: "#eaf1f8",
@@ -201,7 +214,8 @@ const MAP_THEME_COLORS = {
     activeFault: "#d83b24",
     plateConvergent: "#c8322b",
     plateTransform: "#7650b5",
-    plateOther: "#148b7b"
+    plateOther: "#148b7b",
+    plateDepthLabelHalo: "rgba(248, 252, 255, 0.94)"
   }
 };
 const NATURAL_EARTH_JAPAN_MASK_BOUNDS = {
@@ -231,6 +245,8 @@ export function createWeatherMap(elementId) {
   let activeMode = "radar";
   let activeTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
   let activeFaultVisible = true;
+  let plateBoundaryVisible = true;
+  let plateDepthContoursVisible = true;
   let warningAreasByCode = new Map();
   let mapInfoElement = null;
   let mapInfoLngLat = null;
@@ -277,6 +293,7 @@ export function createWeatherMap(elementId) {
       setKikikuruVisible(map, false);
     }
     if (mode !== "warnings") updateWarningMunicipalityPaint(map, mode);
+    syncPlateDepthContourVisibility();
     syncPlateBoundaryVisibility();
     syncActiveFaultVisibility();
     syncCommunityReportVisibility();
@@ -286,6 +303,16 @@ export function createWeatherMap(elementId) {
     activeFaultVisible = Boolean(visible);
     if (!activeFaultVisible) hideMapInfo("active-fault");
     syncActiveFaultVisibility();
+  }
+
+  function setPlateBoundaryVisible(visible) {
+    plateBoundaryVisible = Boolean(visible);
+    syncPlateBoundaryVisibility();
+  }
+
+  function setPlateDepthContoursVisible(visible) {
+    plateDepthContoursVisible = Boolean(visible);
+    syncPlateDepthContourVisibility();
   }
 
   function syncActiveFaultVisibility() {
@@ -347,7 +374,7 @@ export function createWeatherMap(elementId) {
 
   function syncPlateBoundaryVisibility() {
     if (!map?.getSource(SAMPLE_SOURCE_ID)) return;
-    const shouldShow = activeMode === "earthquake";
+    const shouldShow = activeMode === "earthquake" && plateBoundaryVisible;
     if (shouldShow) ensurePlateBoundaryLayers();
     PLATE_BOUNDARY_LAYERS.forEach((layerId) => {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", shouldShow ? "visible" : "none");
@@ -375,7 +402,7 @@ export function createWeatherMap(elementId) {
         minzoom: 3,
         maxzoom: 11,
         filter: ["==", ["get", "LABEL"], label],
-        layout: { visibility: activeMode === "earthquake" ? "visible" : "none", "line-cap": "round", "line-join": "round" },
+        layout: { visibility: activeMode === "earthquake" && plateBoundaryVisible ? "visible" : "none", "line-cap": "round", "line-join": "round" },
         paint: {
           "line-color": color,
           "line-opacity": 0.86,
@@ -384,6 +411,62 @@ export function createWeatherMap(elementId) {
         }
       }, beforeLayerId);
     });
+  }
+
+  function syncPlateDepthContourVisibility() {
+    if (!map?.getSource(SAMPLE_SOURCE_ID)) return;
+    const shouldShow = activeMode === "earthquake" && plateDepthContoursVisible;
+    if (shouldShow) ensurePlateDepthContourLayers();
+    PLATE_DEPTH_LAYERS.forEach((layerId) => {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", shouldShow ? "visible" : "none");
+    });
+  }
+
+  function ensurePlateDepthContourLayers() {
+    if (!map || map.getSource(PLATE_DEPTH_SOURCE_ID)) return;
+    const colors = MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark;
+    const beforeLayerId = map.getLayer("sample-circle") ? "sample-circle" : undefined;
+    const visibility = activeMode === "earthquake" && plateDepthContoursVisible ? "visible" : "none";
+    map.addSource(PLATE_DEPTH_SOURCE_ID, {
+      type: "geojson",
+      data: MAP_DATA_ENDPOINTS.slab2DepthContours
+    });
+    map.addLayer({
+      id: PLATE_DEPTH_LINE_LAYER_ID,
+      type: "line",
+      source: PLATE_DEPTH_SOURCE_ID,
+      minzoom: 3,
+      maxzoom: 12,
+      layout: { visibility, "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": PLATE_DEPTH_COLOR_EXPRESSION,
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 3, 0.58, 6, 0.72, 10, 0.82],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 3, 0.8, 6, 1.25, 10, 2]
+      }
+    }, beforeLayerId);
+    map.addLayer({
+      id: PLATE_DEPTH_LABEL_LAYER_ID,
+      type: "symbol",
+      source: PLATE_DEPTH_SOURCE_ID,
+      minzoom: 5,
+      maxzoom: 12,
+      layout: {
+        visibility,
+        "symbol-placement": "line",
+        "symbol-spacing": 260,
+        "text-field": ["get", "label"],
+        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 5, 9, 9, 11],
+        "text-keep-upright": true,
+        "text-allow-overlap": false
+      },
+      paint: {
+        "text-color": PLATE_DEPTH_COLOR_EXPRESSION,
+        "text-halo-color": colors.plateDepthLabelHalo,
+        "text-halo-width": 1.4,
+        "text-opacity": 0.94
+      }
+    }, beforeLayerId);
   }
 
   function renderData(mode, data) {
@@ -1244,7 +1327,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, setMode, setTheme, setActiveFaultVisible, setCommunityReports, renderData, resize, showCurrentLocation, flyToLocation, fitToCoordinates };
+  return { initialize, setMode, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, renderData, resize, showCurrentLocation, flyToLocation, fitToCoordinates };
 }
 
 function createCommunityReportFeatureCollection(reports = []) {
@@ -1671,7 +1754,8 @@ function applyMapTheme(map, theme) {
     [JSHIS_MAJOR_FAULT_LINE_LAYER_ID, "line-color", colors.activeFault],
     [PLATE_BOUNDARY_LAYER_IDS.convergent, "line-color", colors.plateConvergent],
     [PLATE_BOUNDARY_LAYER_IDS.transform, "line-color", colors.plateTransform],
-    [PLATE_BOUNDARY_LAYER_IDS.other, "line-color", colors.plateOther]
+    [PLATE_BOUNDARY_LAYER_IDS.other, "line-color", colors.plateOther],
+    [PLATE_DEPTH_LABEL_LAYER_ID, "text-halo-color", colors.plateDepthLabelHalo]
   ];
   paintUpdates.forEach(([layerId, property, value]) => {
     if (map.getLayer(layerId)) map.setPaintProperty(layerId, property, value);

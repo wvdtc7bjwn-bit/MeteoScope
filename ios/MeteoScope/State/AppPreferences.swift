@@ -32,6 +32,14 @@ final class AppPreferences {
         didSet { store.set(showsActiveFaults, forKey: Keys.showsActiveFaults) }
     }
 
+    var showsPlateBoundaries: Bool {
+        didSet { store.set(showsPlateBoundaries, forKey: Keys.showsPlateBoundaries) }
+    }
+
+    var showsPlateDepthContours: Bool {
+        didSet { store.set(showsPlateDepthContours, forKey: Keys.showsPlateDepthContours) }
+    }
+
     var warningNotificationsEnabled: Bool {
         didSet { store.set(warningNotificationsEnabled, forKey: Keys.warningNotificationsEnabled) }
     }
@@ -67,6 +75,8 @@ final class AppPreferences {
         self.theme = Theme(rawValue: store.string(forKey: Keys.theme) ?? "") ?? .system
         self.automaticallyRefresh = store.object(forKey: Keys.automaticallyRefresh) as? Bool ?? true
         self.showsActiveFaults = store.object(forKey: Keys.showsActiveFaults) as? Bool ?? true
+        self.showsPlateBoundaries = store.object(forKey: Keys.showsPlateBoundaries) as? Bool ?? true
+        self.showsPlateDepthContours = store.object(forKey: Keys.showsPlateDepthContours) as? Bool ?? true
         self.warningNotificationsEnabled = store.object(forKey: Keys.warningNotificationsEnabled) as? Bool ?? false
         self.notifyAdvisories = store.object(forKey: Keys.notifyAdvisories) as? Bool ?? false
         self.notificationAreaCode = store.string(forKey: Keys.notificationAreaCode) ?? ""
@@ -88,6 +98,8 @@ final class AppPreferences {
         static let theme = "meteoscope.theme"
         static let automaticallyRefresh = "meteoscope.automaticallyRefresh"
         static let showsActiveFaults = "meteoscope.earthquake.showsActiveFaults"
+        static let showsPlateBoundaries = "meteoscope.earthquake.showsPlateBoundaries"
+        static let showsPlateDepthContours = "meteoscope.earthquake.showsPlateDepthContours"
         static let warningNotificationsEnabled = "meteoscope.warningNotificationsEnabled"
         static let notifyAdvisories = "meteoscope.notifyAdvisories"
         static let notificationAreaCode = "meteoscope.notificationAreaCode"

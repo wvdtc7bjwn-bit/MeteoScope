@@ -1,7 +1,7 @@
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeActiveFaultToggle, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupRadarControls, setupRadarOverlayToggle, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupRadarControls, setupRadarOverlayToggle, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
@@ -62,19 +62,23 @@ const LOCATION_WATCH_OPTIONS = {
 };
 const LOCATION_RESOLVE_MIN_DISTANCE_METERS = 250;
 const LOCATION_RESOLVE_MIN_INTERVAL_MS = 60 * 1000;
-const ACTIVE_FAULT_VISIBILITY_STORAGE_KEY = "meteoscope-earthquake-active-fault-visible-v1";
+const EARTHQUAKE_LAYER_VISIBILITY_STORAGE_KEYS = {
+  activeFault: "meteoscope-earthquake-active-fault-visible-v1",
+  plateBoundary: "meteoscope-earthquake-plate-boundary-visible-v1",
+  plateDepthContours: "meteoscope-earthquake-plate-depth-contours-visible-v1"
+};
 
-function loadActiveFaultVisibility() {
+function loadEarthquakeLayerVisibility(layerId) {
   try {
-    return localStorage.getItem(ACTIVE_FAULT_VISIBILITY_STORAGE_KEY) !== "0";
+    return localStorage.getItem(EARTHQUAKE_LAYER_VISIBILITY_STORAGE_KEYS[layerId]) !== "0";
   } catch {
     return true;
   }
 }
 
-function saveActiveFaultVisibility(visible) {
+function saveEarthquakeLayerVisibility(layerId, visible) {
   try {
-    localStorage.setItem(ACTIVE_FAULT_VISIBILITY_STORAGE_KEY, visible ? "1" : "0");
+    localStorage.setItem(EARTHQUAKE_LAYER_VISIBILITY_STORAGE_KEYS[layerId], visible ? "1" : "0");
   } catch {
     // Storage can be unavailable in privacy-restricted environments.
   }
@@ -114,7 +118,9 @@ export function createWeatherApp() {
   let earthquakeDistributionFilters = { dayOffset: 0, minMagnitude: "0", maxDepth: "all" };
   let earthquakeDistributionState = { status: "idle", data: null, error: "" };
   let earthquakeDistributionRequestId = 0;
-  let earthquakeActiveFaultVisible = loadActiveFaultVisibility();
+  let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
+  let earthquakePlateBoundaryVisible = loadEarthquakeLayerVisibility("plateBoundary");
+  let earthquakePlateDepthContoursVisible = loadEarthquakeLayerVisibility("plateDepthContours");
   let weatherMap = null;
   let latestDataByTab = {};
   let radarPlayTimer = null;
@@ -210,6 +216,8 @@ export function createWeatherApp() {
         myAreas,
         locationInsights: buildLocationInsights(tab.id, null),
         earthquakeActiveFaultVisible,
+        earthquakePlateBoundaryVisible,
+        earthquakePlateDepthContoursVisible,
         weatherChartEnabled,
         weatherChartStatus,
         weatherChart: weatherChartData
@@ -239,6 +247,8 @@ export function createWeatherApp() {
         myAreas,
         locationInsights: buildLocationInsights(tab.id, null),
         earthquakeActiveFaultVisible,
+        earthquakePlateBoundaryVisible,
+        earthquakePlateDepthContoursVisible,
         weatherChartEnabled,
         weatherChartStatus,
         weatherChart: weatherChartData
@@ -481,10 +491,21 @@ if (layerId === "river") {
     }
   }
 
-  function setEarthquakeActiveFaultVisible(visible) {
-    earthquakeActiveFaultVisible = Boolean(visible);
-    saveActiveFaultVisibility(earthquakeActiveFaultVisible);
-    weatherMap?.setActiveFaultVisible(earthquakeActiveFaultVisible);
+  function setEarthquakeMapLayerVisible(layerId, visible) {
+    const isVisible = Boolean(visible);
+    if (layerId === "activeFault") {
+      earthquakeActiveFaultVisible = isVisible;
+      weatherMap?.setActiveFaultVisible(isVisible);
+    } else if (layerId === "plateBoundary") {
+      earthquakePlateBoundaryVisible = isVisible;
+      weatherMap?.setPlateBoundaryVisible(isVisible);
+    } else if (layerId === "plateDepthContours") {
+      earthquakePlateDepthContoursVisible = isVisible;
+      weatherMap?.setPlateDepthContoursVisible(isVisible);
+    } else {
+      return;
+    }
+    saveEarthquakeLayerVisibility(layerId, isVisible);
     if (activeTab !== "earthquake") return;
     const tab = TABS.find((item) => item.id === "earthquake");
     updateCurrentView(tab, latestDataByTab.earthquake ?? {});
@@ -601,6 +622,8 @@ if (layerId === "river") {
       myAreas,
       locationInsights: buildLocationInsights(tab.id, displayData),
       earthquakeActiveFaultVisible,
+      earthquakePlateBoundaryVisible,
+      earthquakePlateDepthContoursVisible,
       weatherChartEnabled,
       weatherChartStatus,
       weatherChart: weatherChartData
@@ -679,7 +702,13 @@ if (layerId === "river") {
     const earthquakes = data.earthquakes ?? [];
     if (!earthquakes.length) {
       activeEarthquakeId = "";
-      return { ...data, ...distributionData, activeFaultVisible: earthquakeActiveFaultVisible };
+      return {
+        ...data,
+        ...distributionData,
+        activeFaultVisible: earthquakeActiveFaultVisible,
+        plateBoundaryVisible: earthquakePlateBoundaryVisible,
+        plateDepthContoursVisible: earthquakePlateDepthContoursVisible
+      };
     }
 
     const selected = earthquakes.find((earthquake) => String(earthquake.id) === String(activeEarthquakeId))
@@ -690,6 +719,8 @@ if (layerId === "river") {
       ...data,
       ...distributionData,
       activeFaultVisible: earthquakeActiveFaultVisible,
+      plateBoundaryVisible: earthquakePlateBoundaryVisible,
+      plateDepthContoursVisible: earthquakePlateDepthContoursVisible,
       selectedEarthquakeId: activeEarthquakeId,
       collapsedEarthquakeId,
       selectedEarthquake: selected,
@@ -1285,6 +1316,9 @@ if (layerId === "river") {
       currentLocation: currentLocationInfo,
       myAreas,
       locationInsights: buildLocationInsights(tab.id, null),
+      earthquakeActiveFaultVisible,
+      earthquakePlateBoundaryVisible,
+      earthquakePlateDepthContoursVisible,
       weatherChartEnabled,
       weatherChartStatus,
       weatherChart: weatherChartData
@@ -1596,6 +1630,8 @@ if (layerId === "river") {
   function start() {
     weatherMap = createWeatherMap("map");
     weatherMap.setActiveFaultVisible(earthquakeActiveFaultVisible);
+    weatherMap.setPlateBoundaryVisible(earthquakePlateBoundaryVisible);
+    weatherMap.setPlateDepthContoursVisible(earthquakePlateDepthContoursVisible);
     weatherMap.setTheme(themeController.getResolvedTheme());
     themeController.subscribe(({ resolvedTheme }) => weatherMap?.setTheme(resolvedTheme));
     weatherMap.initialize();
@@ -1617,7 +1653,7 @@ if (layerId === "river") {
       onDistributionFilterChange: updateEarthquakeDistributionFilters,
       onDistributionRetry: refreshEarthquakeDistribution
     });
-    setupEarthquakeActiveFaultToggle({ onChange: setEarthquakeActiveFaultVisible });
+    setupEarthquakeMapLayerToggles({ onChange: setEarthquakeMapLayerVisible });
     setupRadarControls({
       onSeek: selectRadarFrame,
       onStep: stepRadarFrame,

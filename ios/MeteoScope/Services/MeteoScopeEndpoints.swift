@@ -24,8 +24,14 @@ enum MeteoScopeEndpoints {
     static let plateBoundaryGeoJSON = URL(
         string: "https://meteoscope.pages.dev/data/usgs-plate-boundaries-japan.geojson"
     )!
+    static let plateDepthContourGeoJSON = URL(
+        string: "https://meteoscope.pages.dev/data/usgs-slab2-depth-contours-japan.geojson"
+    )!
     static let usgsPlateBoundarySource = URL(
         string: "https://earthquake.usgs.gov/arcgis/rest/services/eq/map_plateboundaries/MapServer"
+    )!
+    static let usgsSlab2Source = URL(
+        string: "https://www.usgs.gov/data/slab2-a-comprehensive-subduction-zone-geometry-model"
     )!
     static let usgsCopyright = URL(
         string: "https://www.usgs.gov/faqs/are-usgs-reportspublications-copyrighted"

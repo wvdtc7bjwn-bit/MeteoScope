@@ -9,6 +9,7 @@ $requiredFiles = @(
     "MeteoScope/Resources/disaster-quiz.json",
     "MeteoScope/Views/FeatureDashboardCards.swift",
     "MeteoScopeTests/FeatureDataTests.swift",
+    "MeteoScopeTests/AppPreferencesTests.swift",
     "MeteoScopeTests/PushNotificationServiceTests.swift",
     "MeteoScopeTests/WeatherFreshnessTests.swift",
     "Docs/APP_STORE_PREPARATION.md",
@@ -44,6 +45,15 @@ foreach ($legalPage in @("privacy.html", "terms.html", "support.html", "map-styl
     $path = Join-Path $repositoryRoot "public/$legalPage"
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "Public policy asset is missing: public/$legalPage"
+    }
+}
+foreach ($mapDataAsset in @(
+    "data/usgs-plate-boundaries-japan.geojson",
+    "data/usgs-slab2-depth-contours-japan.geojson"
+)) {
+    $path = Join-Path $repositoryRoot "public/$mapDataAsset"
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        throw "Public map asset is missing: public/$mapDataAsset"
     }
 }
 
@@ -86,6 +96,18 @@ foreach ($plateBoundaryMarker in @(
 )) {
     if (-not $plateBoundarySources.Contains($plateBoundaryMarker)) {
         throw "iOS USGS plate boundary integration is missing: $plateBoundaryMarker"
+    }
+}
+
+foreach ($plateDepthMarker in @(
+    "showsPlateDepthContours",
+    "plateDepthContourGeoJSON",
+    "meteoscope-usgs-slab2-depth-line",
+    "USGS Slab2",
+    "usgsSlab2Source"
+)) {
+    if (-not $plateBoundarySources.Contains($plateDepthMarker)) {
+        throw "iOS USGS Slab2 plate-depth integration is missing: $plateDepthMarker"
     }
 }
 

@@ -707,15 +707,21 @@ export function setupEarthquakeSelector({
   });
 }
 
-export function setupEarthquakeActiveFaultToggle({ onChange }) {
-  document.getElementById("mobile-context-dock")?.addEventListener("click", (event) => {
+export function setupEarthquakeMapLayerToggles({ onChange }) {
+  const handleClick = (event) => {
     if (!(event.target instanceof Element)) return;
-    const button = event.target.closest("[data-earthquake-active-fault]");
+    const button = event.target.closest("[data-earthquake-map-layer]");
     if (!button) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    onChange?.(button.dataset.earthquakeActiveFault === "on");
-  });
+    onChange?.(
+      button.dataset.earthquakeMapLayer,
+      button.dataset.earthquakeLayerVisible === "on"
+    );
+  };
+
+  document.getElementById("mobile-context-dock")?.addEventListener("click", handleClick);
+  document.getElementById("earthquake-list")?.addEventListener("click", handleClick);
 }
 
 function buildDescription(tab, state) {
@@ -948,9 +954,21 @@ if (tabId === "warnings" && warningView === "early") {
       "",
       getTsunamiLevelColor(level)
     ]);
+    const mapLayerLegend = [
+      ...(data?.activeFaultVisible !== false ? [["主要活断層帯", "legend-active-fault"]] : []),
+      ...(data?.plateBoundaryVisible !== false ? [
+        ["収束境界", "legend-plate-convergent"],
+        ["横ずれ境界", "legend-plate-transform"],
+        ["その他の境界", "legend-plate-other"]
+      ] : []),
+      ...(data?.plateDepthContoursVisible !== false
+        ? [["プレート等深線（浅い → 深い）", "legend-plate-depth"]]
+        : [])
+    ];
     return [
       ...tsunamiLegend,
       ...legendsByTab.earthquake,
+      ...mapLayerLegend,
       ...EARTHQUAKE_INTENSITY_LEVELS.map((level) => [level.label, "", level.color])
     ];
   }
@@ -1295,9 +1313,13 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     const earthquakes = state.data?.earthquakes ?? [];
     const earthquake = state.data?.selectedEarthquake ?? earthquakes[0];
     const activeFaultVisible = state.earthquakeActiveFaultVisible ?? state.data?.activeFaultVisible ?? true;
+    const plateBoundaryVisible = state.earthquakePlateBoundaryVisible ?? state.data?.plateBoundaryVisible ?? true;
+    const plateDepthContoursVisible = state.earthquakePlateDepthContoursVisible ?? state.data?.plateDepthContoursVisible ?? true;
     return buildEarthquakeMobileContextMarkup(
       earthquake,
       activeFaultVisible,
+      plateBoundaryVisible,
+      plateDepthContoursVisible,
       state.data?.tsunami,
       state.data?.tsunamiStatus
     );
@@ -1345,7 +1367,14 @@ function normalizeSummaryValue(value) {
   return text && !["--", "-", "未取得", "取得中"].includes(text) ? text : "-";
 }
 
-function buildEarthquakeMobileContextMarkup(earthquake, activeFaultVisible, tsunami, tsunamiStatus) {
+function buildEarthquakeMobileContextMarkup(
+  earthquake,
+  activeFaultVisible,
+  plateBoundaryVisible,
+  plateDepthContoursVisible,
+  tsunami,
+  tsunamiStatus
+) {
   const intensityColor = getEarthquakeIntensityColor(earthquake?.maxIntensity);
   const intensityTextClass = getEarthquakeIntensityTextClass(earthquake?.maxIntensity);
   const intensity = formatEarthquakeUnknownMetric(
@@ -1374,12 +1403,10 @@ function buildEarthquakeMobileContextMarkup(earthquake, activeFaultVisible, tsun
             ${tsunamiMarkup}
           </div>
         </div>
-        <div class="mobile-dock-earthquake-layer-control">
-          <span>活断層</span>
-          <div class="mobile-dock-action-row mobile-dock-segmented mobile-dock-earthquake-layer-switch" aria-label="活断層表示">
-            <button type="button" class="mobile-dock-action${activeFaultVisible ? "" : " active"}" data-mobile-dock-control data-earthquake-active-fault="off" aria-pressed="${activeFaultVisible ? "false" : "true"}">OFF</button>
-            <button type="button" class="mobile-dock-action${activeFaultVisible ? " active" : ""}" data-mobile-dock-control data-earthquake-active-fault="on" aria-pressed="${activeFaultVisible ? "true" : "false"}">ON</button>
-          </div>
+        <div class="mobile-dock-earthquake-layer-list" aria-label="地震地図の表示項目">
+          ${buildMobileEarthquakeLayerButton("activeFault", "活断層", activeFaultVisible)}
+          ${buildMobileEarthquakeLayerButton("plateBoundary", "境界", plateBoundaryVisible)}
+          ${buildMobileEarthquakeLayerButton("plateDepthContours", "等深線", plateDepthContoursVisible)}
         </div>
       </div>
     </div>
@@ -1919,6 +1946,10 @@ function beginWarningDetailsRender() {
     warningDetailsRenderFrame = 0;
   }
   return warningDetailsRenderGeneration;
+}
+
+function buildMobileEarthquakeLayerButton(layerId, label, visible) {
+  return `<button type="button" class="mobile-dock-earthquake-layer${visible ? " active" : ""}" data-mobile-dock-control data-earthquake-map-layer="${escapeHtml(layerId)}" data-earthquake-layer-visible="${visible ? "off" : "on"}" aria-pressed="${visible ? "true" : "false"}">${escapeHtml(label)}</button>`;
 }
 
 function getMobileWarningBadgeColorClass(warningView, level) {
@@ -2764,30 +2795,31 @@ function renderEarthquakeList(tab, state) {
 
   const view = state.data?.earthquakeView ?? "recent";
   const viewToggle = buildEarthquakeViewToggle(view);
+  const mapLayerControls = buildEarthquakeMapLayerControls(state.data ?? {});
   if (view === "distribution") {
-    render(`${viewToggle}${buildEarthquakeDistributionMarkup(state.data ?? {})}`);
+    render(`${viewToggle}${mapLayerControls}${buildEarthquakeDistributionMarkup(state.data ?? {})}`);
     return;
   }
 
   if (state.status === "loading") {
-    render(`${viewToggle}<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得中です。</div>`);
+    render(`${viewToggle}${mapLayerControls}<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得中です。</div>`);
     return;
   }
 
   if (state.status === "error") {
-    render(`${viewToggle}<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得できませんでした。</div>`);
+    render(`${viewToggle}${mapLayerControls}<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得できませんでした。</div>`);
     return;
   }
 
   const earthquakes = state.data?.earthquakes ?? [];
   if (!earthquakes.length) {
-    render(`${viewToggle}<div class="earthquake-empty">直近の地震情報はありません。</div>`);
+    render(`${viewToggle}${mapLayerControls}<div class="earthquake-empty">直近の地震情報はありません。</div>`);
     return;
   }
 
   const selectedId = String(state.data?.selectedEarthquakeId ?? earthquakes[0]?.id ?? "");
   const collapsedId = String(state.data?.collapsedEarthquakeId ?? "");
-  render(viewToggle + earthquakes.map((earthquake, index) => {
+  render(viewToggle + mapLayerControls + earthquakes.map((earthquake, index) => {
     const isActive = String(earthquake.id) === selectedId;
     const isExpanded = isActive && String(earthquake.id) !== collapsedId;
     const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
@@ -2827,6 +2859,30 @@ function renderEarthquakeList(tab, state) {
       </article>
     `;
   }).join(""));
+}
+
+function buildEarthquakeMapLayerControls(data) {
+  const layers = [
+    ["activeFault", "主要活断層", data.activeFaultVisible !== false],
+    ["plateBoundary", "プレート境界", data.plateBoundaryVisible !== false],
+    ["plateDepthContours", "プレート等深線", data.plateDepthContoursVisible !== false]
+  ];
+  return `
+    <section class="earthquake-map-layer-controls" aria-label="地震地図の表示項目">
+      ${layers.map(([id, label, visible]) => `
+        <button
+          type="button"
+          class="earthquake-map-layer-button${visible ? " active" : ""}"
+          data-earthquake-map-layer="${escapeHtml(id)}"
+          data-earthquake-layer-visible="${visible ? "off" : "on"}"
+          aria-pressed="${visible ? "true" : "false"}"
+        >
+          <span>${escapeHtml(label)}</span>
+          <strong>${visible ? "ON" : "OFF"}</strong>
+        </button>
+      `).join("")}
+    </section>
+  `;
 }
 
 function buildEarthquakeViewToggle(activeView) {

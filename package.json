@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "data:update:jma": "node scripts/update-jma-static-data.mjs",
+    "data:update:usgs-slab2": "node scripts/build-usgs-slab2-contours.mjs",
     "test:safety": "node Tests/PushSafetyTests.mjs",
     "test:earthquake": "node Tests/EarthquakeStationLookupTests.mjs && node Tests/PlateBoundaryTests.mjs",
     "test:dmdata": "node Tests/DmdataEarthquakeTests.mjs && node Tests/EarthquakeTsunamiStatusTests.mjs && node Tests/DmdataTsunamiTests.mjs",
