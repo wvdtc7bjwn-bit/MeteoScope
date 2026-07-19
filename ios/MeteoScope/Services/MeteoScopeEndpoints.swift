@@ -21,6 +21,15 @@ enum MeteoScopeEndpoints {
     static let jshisTerms = URL(string: "https://www.j-shis.bosai.go.jp/agreement")!
     static let jshisMajorFaultTileTemplate =
         "https://www.j-shis.bosai.go.jp/map/xyz/major_fault/Y2022/MAX/{z}/{x}/{y}.mvt?lang=ja"
+    static let plateBoundaryGeoJSON = URL(
+        string: "https://meteoscope.pages.dev/data/usgs-plate-boundaries-japan.geojson"
+    )!
+    static let usgsPlateBoundarySource = URL(
+        string: "https://earthquake.usgs.gov/arcgis/rest/services/eq/map_plateboundaries/MapServer"
+    )!
+    static let usgsCopyright = URL(
+        string: "https://www.usgs.gov/faqs/are-usgs-reportspublications-copyrighted"
+    )!
     static let radarTimeList = URL(
         string: "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json"
     )!

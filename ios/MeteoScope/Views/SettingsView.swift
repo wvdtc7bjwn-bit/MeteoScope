@@ -150,6 +150,11 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
                 Link("J-SHIS主要活断層帯の出典", destination: MeteoScopeEndpoints.jshisMajorFaultAPI)
                 Link("J-SHIS利用規約", destination: MeteoScopeEndpoints.jshisTerms)
+                Text("プレート境界は、USGS Tectonic Plate Boundaries（境界モデル: Bird, 2003）から日本周辺を抽出し、収束境界・横ずれ境界・その他を配色して表示しています。境界線は概略位置で、個別地点の危険度や断層位置を示すものではありません。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Link("USGSプレート境界の出典", destination: MeteoScopeEndpoints.usgsPlateBoundarySource)
+                Link("USGSの著作権・クレジット案内", destination: MeteoScopeEndpoints.usgsCopyright)
             }
 
             Section("規約とサポート") {

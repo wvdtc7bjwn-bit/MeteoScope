@@ -1,6 +1,6 @@
 # MeteoScope データソース台帳
 
-最終確認日: 2026-07-16
+最終確認日: 2026-07-19
 
 この台帳は、Web版とiOS版が直接または同梱ファイル経由で利用するデータ、地図、ライブラリの出所と再利用条件を追跡するためのものです。
 
@@ -29,6 +29,14 @@
 - 使用URL: `https://www.j-shis.bosai.go.jp/map/xyz/major_fault/Y2022/MAX/{z}/{x}/{y}.mvt?lang=ja`。2022年版の最大ケースを、地震タブのズーム4以上11未満でJ-SHISから直接取得する。MVTはリポジトリへ同梱・再配布しない。
 - 利用条件: [J-SHIS利用規約](https://www.j-shis.bosai.go.jp/agreement)。画面内に「主要活断層帯: J-SHIS（防災科研）」を表示する。
 - 加工内容: `major_fault`レイヤーの面形状をMeteoScopeの配色で重ね、クリック時に`LTENAME`、`MAG`、`MAX_T30P`から断層帯名、想定規模、最大ケースの30年確率を表示する。負の`MAG`はAPI仕様に従い絶対値をモーメントマグニチュード（Mw）として表示する。
+
+### USGS プレート境界
+
+- 提供者: U.S. Geological Survey（USGS）。[USGS Tectonic Plate Boundaries MapServer](https://earthquake.usgs.gov/arcgis/rest/services/eq/map_plateboundaries/MapServer)の`Plates`レイヤーを使用する。
+- 原典: サービスの著作権欄に、USGS Seismicity of the Earth Map Series、Bird, P. (2003)「An updated digital model of plate boundaries」([DOI](https://doi.org/10.1029/2001GC000252))、DeMets et al. (2010) が記載されている。
+- 利用条件: USGS作成のデータ・情報は、別記がない限り米国内でパブリックドメインで、USGSは出典表示を求めている。[USGSの著作権案内](https://www.usgs.gov/faqs/are-usgs-reportspublications-copyrighted)を参照する。第三者由来部分を含む可能性を考慮し、USGSとBird (2003) の両方を表示する。USGSロゴは使用しない。
+- 取得・加工: 2026-07-19にWGS84の範囲`118,15,160,55`と交差するフィーチャをGeoJSONで取得し、`public/data/usgs-plate-boundaries-japan.geojson`へ静的保存した。19形状、15,027 bytes、SHA-256 `ddbe6c7e2c0911bfbe42a5facd5e61b510bb86a9e186627f772c36bd7c626c25`。`NAME`と`LABEL`だけを保持し、収束境界、横ずれ境界、その他をMeteoScopeが配色・線種変換して表示する。利用者ごとのUSGS APIアクセスやD1保存は行わない。
+- 注意: 境界はBird (2003)の全球概略モデルであり、詳細な断層位置、境界幅、地点別の危険度を示すものではない。日本周辺のプレート区分には複数の学説・細分モデルがあるため、表示名と線位置を唯一の確定情報として扱わない。
 
 ### ArcGIS 指定河川洪水予報河川
 

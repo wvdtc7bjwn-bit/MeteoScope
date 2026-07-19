@@ -25,7 +25,11 @@ export function toDmdataWebSocketUrl(endpoint = DMDATA_ENDPOINTS.earthquakeStrea
   return url.toString();
 }
 
-export function startDmdataEarthquakeUpdates({ onUpdate, WebSocketClass = globalThis.WebSocket } = {}) {
+export function startDmdataEarthquakeUpdates({
+  onUpdate,
+  onConnectionChange,
+  WebSocketClass = globalThis.WebSocket
+} = {}) {
   if (typeof onUpdate !== "function" || typeof WebSocketClass !== "function") {
     return () => {};
   }
@@ -34,6 +38,14 @@ export function startDmdataEarthquakeUpdates({ onUpdate, WebSocketClass = global
   let reconnectTimer = null;
   let stopped = false;
   let retryMs = INITIAL_RETRY_MS;
+  let connected = false;
+
+  const setConnected = (nextConnected) => {
+    const normalized = Boolean(nextConnected);
+    if (connected === normalized) return;
+    connected = normalized;
+    if (typeof onConnectionChange === "function") onConnectionChange(connected);
+  };
 
   const scheduleReconnect = () => {
     if (stopped || reconnectTimer !== null) return;
@@ -51,6 +63,7 @@ export function startDmdataEarthquakeUpdates({ onUpdate, WebSocketClass = global
       socket = nextSocket;
       nextSocket.addEventListener("open", () => {
         retryMs = INITIAL_RETRY_MS;
+        setConnected(true);
       });
       nextSocket.addEventListener("message", (event) => {
         const update = parseDmdataEarthquakeUpdate(event.data);
@@ -58,6 +71,7 @@ export function startDmdataEarthquakeUpdates({ onUpdate, WebSocketClass = global
       });
       nextSocket.addEventListener("close", () => {
         if (socket === nextSocket) socket = null;
+        setConnected(false);
         scheduleReconnect();
       });
       nextSocket.addEventListener("error", () => {
@@ -65,6 +79,7 @@ export function startDmdataEarthquakeUpdates({ onUpdate, WebSocketClass = global
       });
     } catch {
       socket = null;
+      setConnected(false);
       scheduleReconnect();
     }
   };
@@ -76,6 +91,7 @@ export function startDmdataEarthquakeUpdates({ onUpdate, WebSocketClass = global
     reconnectTimer = null;
     const activeSocket = socket;
     socket = null;
+    setConnected(false);
     activeSocket?.close();
   };
 }

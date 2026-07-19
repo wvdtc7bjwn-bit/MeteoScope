@@ -8,6 +8,7 @@ struct WeatherMapView: UIViewRepresentable {
     let userCoordinate: CLLocationCoordinate2D?
     let weatherOverlay: WeatherMapOverlay?
     let showsActiveFaults: Bool
+    let showsPlateBoundaries: Bool
     @Binding var selectedActiveFault: ActiveFaultInfo?
 
     func makeCoordinator() -> Coordinator {
@@ -27,6 +28,7 @@ struct WeatherMapView: UIViewRepresentable {
         context.coordinator.requestedUserCoordinate = userCoordinate
         context.coordinator.requestedWeatherOverlay = weatherOverlay
         context.coordinator.requestedShowsActiveFaults = showsActiveFaults
+        context.coordinator.requestedShowsPlateBoundaries = showsPlateBoundaries
         let activeFaultTap = UITapGestureRecognizer(
             target: context.coordinator,
             action: #selector(Coordinator.handleActiveFaultTap(_:))
@@ -42,8 +44,10 @@ struct WeatherMapView: UIViewRepresentable {
         context.coordinator.requestedUserCoordinate = userCoordinate
         context.coordinator.requestedWeatherOverlay = weatherOverlay
         context.coordinator.requestedShowsActiveFaults = showsActiveFaults
+        context.coordinator.requestedShowsPlateBoundaries = showsPlateBoundaries
         context.coordinator.applyRadarLayerIfPossible()
         context.coordinator.applyUserLocationIfNeeded()
+        context.coordinator.applyPlateBoundaryLayerIfPossible()
         context.coordinator.applyActiveFaultLayerIfPossible()
         context.coordinator.applyWeatherOverlayIfNeeded()
     }
@@ -54,12 +58,19 @@ struct WeatherMapView: UIViewRepresentable {
         private let activeFaultSourceIdentifier = "meteoscope-jshis-major-fault-source"
         private let activeFaultFillLayerIdentifier = "meteoscope-jshis-major-fault-fill"
         private let activeFaultLineLayerIdentifier = "meteoscope-jshis-major-fault-line"
+        private let plateBoundarySourceIdentifier = "meteoscope-usgs-plate-boundaries-source"
+        private let plateBoundaryLayerIdentifiers = [
+            "meteoscope-usgs-plate-boundary-convergent",
+            "meteoscope-usgs-plate-boundary-transform",
+            "meteoscope-usgs-plate-boundary-other"
+        ]
 
         weak var mapView: MLNMapView?
         var requestedFrame: RadarFrame?
         var requestedUserCoordinate: CLLocationCoordinate2D?
         var requestedWeatherOverlay: WeatherMapOverlay?
         var requestedShowsActiveFaults = false
+        var requestedShowsPlateBoundaries = false
         private var renderedFrameID: RadarFrame.ID?
         private var renderedUserCoordinate: CLLocationCoordinate2D?
         private var userAnnotation: MLNPointAnnotation?
@@ -81,6 +92,7 @@ struct WeatherMapView: UIViewRepresentable {
             weatherLayerIdentifiers = []
             applyRadarLayerIfPossible()
             applyUserLocationIfNeeded()
+            applyPlateBoundaryLayerIfPossible()
             applyActiveFaultLayerIfPossible()
             applyWeatherOverlayIfNeeded()
         }
@@ -187,6 +199,53 @@ struct WeatherMapView: UIViewRepresentable {
                 if let layer = style.layer(withIdentifier: identifier) { style.removeLayer(layer) }
             }
             if let source = style.source(withIdentifier: activeFaultSourceIdentifier) {
+                style.removeSource(source)
+            }
+        }
+
+        func applyPlateBoundaryLayerIfPossible() {
+            guard let style = mapView?.style else { return }
+            guard requestedShowsPlateBoundaries else {
+                removePlateBoundaryLayers(from: style)
+                return
+            }
+            guard style.source(withIdentifier: plateBoundarySourceIdentifier) == nil else { return }
+
+            let source = MLNShapeSource(
+                identifier: plateBoundarySourceIdentifier,
+                url: MeteoScopeEndpoints.plateBoundaryGeoJSON,
+                options: nil
+            )
+            style.addSource(source)
+
+            let definitions: [(label: String, color: UIColor, dash: [NSNumber]?)] = [
+                ("Convergent Boundary", UIColor(red: 0.88, green: 0.24, blue: 0.21, alpha: 1), nil),
+                ("Transform Boundary", UIColor(red: 0.52, green: 0.35, blue: 0.75, alpha: 1), [2.5, 1.5]),
+                ("Other", UIColor(red: 0.10, green: 0.57, blue: 0.50, alpha: 1), [1, 1.5])
+            ]
+            for (index, definition) in definitions.enumerated() {
+                let layer = MLNLineStyleLayer(
+                    identifier: plateBoundaryLayerIdentifiers[index],
+                    source: source
+                )
+                layer.minimumZoomLevel = 3
+                layer.maximumZoomLevel = 11
+                layer.predicate = NSPredicate(format: "LABEL == %@", definition.label)
+                layer.lineColor = NSExpression(forConstantValue: definition.color)
+                layer.lineOpacity = NSExpression(forConstantValue: 0.86)
+                layer.lineWidth = NSExpression(forConstantValue: 2.2)
+                if let dash = definition.dash {
+                    layer.lineDashPattern = NSExpression(forConstantValue: dash)
+                }
+                style.addLayer(layer)
+            }
+        }
+
+        private func removePlateBoundaryLayers(from style: MLNStyle) {
+            for identifier in plateBoundaryLayerIdentifiers.reversed() {
+                if let layer = style.layer(withIdentifier: identifier) { style.removeLayer(layer) }
+            }
+            if let source = style.source(withIdentifier: plateBoundarySourceIdentifier) {
                 style.removeSource(source)
             }
         }

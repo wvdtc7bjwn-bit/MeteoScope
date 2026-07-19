@@ -7,6 +7,7 @@ import {
 } from "../src/dmdata/earthquakes.js";
 import {
   parseDmdataEarthquakeUpdate,
+  startDmdataEarthquakeUpdates,
   toDmdataWebSocketUrl
 } from "../src/dmdata/earthquakeUpdates.js";
 
@@ -23,6 +24,48 @@ assert.equal(
   toDmdataWebSocketUrl("https://meteoscope.pages.dev/api/earthquakes/stream"),
   "wss://meteoscope.pages.dev/api/earthquakes/stream"
 );
+
+class FakeWebSocket {
+  static instances = [];
+
+  constructor(url) {
+    this.url = url;
+    this.listeners = new Map();
+    FakeWebSocket.instances.push(this);
+  }
+
+  addEventListener(type, listener) {
+    const listeners = this.listeners.get(type) ?? [];
+    listeners.push(listener);
+    this.listeners.set(type, listeners);
+  }
+
+  dispatch(type, event = {}) {
+    for (const listener of this.listeners.get(type) ?? []) listener(event);
+  }
+
+  close() {
+    this.dispatch("close");
+  }
+}
+
+const connectionStates = [];
+const realtimeUpdates = [];
+const stopRealtimeUpdates = startDmdataEarthquakeUpdates({
+  WebSocketClass: FakeWebSocket,
+  onConnectionChange: (connected) => connectionStates.push(connected),
+  onUpdate: (update) => realtimeUpdates.push(update)
+});
+const fakeSocket = FakeWebSocket.instances[0];
+fakeSocket.dispatch("open");
+fakeSocket.dispatch("open");
+fakeSocket.dispatch("message", {
+  data: JSON.stringify({ type: "earthquake", timestamp: "2026-07-19T01:00:00Z" })
+});
+fakeSocket.dispatch("close");
+stopRealtimeUpdates();
+assert.deepEqual(connectionStates, [true, false]);
+assert.deepEqual(realtimeUpdates, [{ type: "earthquake", token: "2026-07-19T01:00:00Z" }]);
 
 assert.equal(normalizeDmdataIntensity("5弱"), "5-");
 assert.equal(normalizeDmdataIntensity("震度6強"), "6+");

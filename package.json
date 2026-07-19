@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "data:update:jma": "node scripts/update-jma-static-data.mjs",
     "test:safety": "node Tests/PushSafetyTests.mjs",
-    "test:earthquake": "node Tests/EarthquakeStationLookupTests.mjs",
+    "test:earthquake": "node Tests/EarthquakeStationLookupTests.mjs && node Tests/PlateBoundaryTests.mjs",
     "test:dmdata": "node Tests/DmdataEarthquakeTests.mjs && node Tests/EarthquakeTsunamiStatusTests.mjs && node Tests/DmdataTsunamiTests.mjs",
     "test:earthquake-worker": "node Tests/EarthquakeWorkerRouteTests.mjs",
     "test:quiz": "node Tests/DisasterQuizTests.mjs && node Tests/QuizAccountTests.mjs && node Tests/QuizStorageTests.mjs",

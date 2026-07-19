@@ -72,6 +72,23 @@ foreach ($activeFaultMarker in @(
     }
 }
 
+$plateBoundarySources = @(
+    Get-Content -LiteralPath (Join-Path $root "MeteoScope/Map/WeatherMapView.swift") -Raw -Encoding UTF8
+    Get-Content -LiteralPath (Join-Path $root "MeteoScope/Views/MapDashboardView.swift") -Raw -Encoding UTF8
+    Get-Content -LiteralPath (Join-Path $root "MeteoScope/Views/SettingsView.swift") -Raw -Encoding UTF8
+    $endpoints
+) -join "`n"
+foreach ($plateBoundaryMarker in @(
+    "showsPlateBoundaries",
+    "plateBoundaryGeoJSON",
+    "USGS Tectonic Plate Boundaries",
+    "usgsPlateBoundarySource"
+)) {
+    if (-not $plateBoundarySources.Contains($plateBoundaryMarker)) {
+        throw "iOS USGS plate boundary integration is missing: $plateBoundaryMarker"
+    }
+}
+
 $freshnessSources = @(
     Get-Content -LiteralPath (Join-Path $root "MeteoScope/State/WeatherAppModel.swift") -Raw -Encoding UTF8
     Get-Content -LiteralPath (Join-Path $root "MeteoScope/Views/FeatureDashboardCards.swift") -Raw -Encoding UTF8

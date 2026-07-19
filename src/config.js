@@ -24,7 +24,8 @@ function publicAsset(path) {
 }
 
 export const MAP_DATA_ENDPOINTS = {
-  jshisMajorFaultTiles: "https://www.j-shis.bosai.go.jp/map/xyz/major_fault/Y2022/MAX/{z}/{x}/{y}.mvt?lang=ja"
+  jshisMajorFaultTiles: "https://www.j-shis.bosai.go.jp/map/xyz/major_fault/Y2022/MAX/{z}/{x}/{y}.mvt?lang=ja",
+  tectonicPlateBoundaries: publicAsset("data/usgs-plate-boundaries-japan.geojson")
 };
 
 export const DMDATA_ENDPOINTS = {

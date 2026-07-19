@@ -123,6 +123,7 @@ export function createWeatherApp() {
   let activeLoadRequestId = 0;
   let autoRefreshInFlight = false;
   let earthquakeRefreshRequest = null;
+  let earthquakeRealtimeConnected = false;
   let pendingEarthquakeRealtimeToken = "";
   const verifiedEarthquakeStationIds = new Set();
   let lastAutoRefreshStartedAt = 0;
@@ -1304,10 +1305,7 @@ if (layerId === "river") {
       refreshActiveTab({ force: true });
     }, AUTO_REFRESH_INTERVAL_MS);
 
-    if (earthquakeRefreshTimer) window.clearInterval(earthquakeRefreshTimer);
-    earthquakeRefreshTimer = window.setInterval(() => {
-      refreshEarthquakeData();
-    }, EARTHQUAKE_REFRESH_INTERVAL_MS);
+    scheduleEarthquakeRefresh();
 
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) {
@@ -1319,6 +1317,28 @@ if (layerId === "river") {
       refreshActiveTab();
       refreshEarthquakeData({ force: true });
     });
+  }
+
+  function scheduleEarthquakeRefresh() {
+    if (earthquakeRefreshTimer) window.clearTimeout(earthquakeRefreshTimer);
+    earthquakeRefreshTimer = null;
+    // 接続中は全タブ共通の5分更新に任せ、地震専用タイマーとの二重取得を避ける。
+    if (earthquakeRealtimeConnected) return;
+    earthquakeRefreshTimer = window.setTimeout(async () => {
+      earthquakeRefreshTimer = null;
+      try {
+        await refreshEarthquakeData();
+      } finally {
+        scheduleEarthquakeRefresh();
+      }
+    }, EARTHQUAKE_REFRESH_INTERVAL_MS);
+  }
+
+  function setEarthquakeRealtimeConnected(isConnected) {
+    const nextConnected = Boolean(isConnected);
+    if (earthquakeRealtimeConnected === nextConnected) return;
+    earthquakeRealtimeConnected = nextConnected;
+    scheduleEarthquakeRefresh();
   }
 
   function scheduleBackgroundPrefetch(excludeTabId) {
@@ -1655,7 +1675,8 @@ if (layerId === "river") {
     startDmdataEarthquakeUpdates({
       onUpdate: ({ token }) => {
         void refreshEarthquakeData({ force: true, realtimeToken: token });
-      }
+      },
+      onConnectionChange: setEarthquakeRealtimeConnected
     });
     void adminNoticePush.initialize().then(() => refreshSettingsModalView());
     void startLocationWatchOnLaunch();

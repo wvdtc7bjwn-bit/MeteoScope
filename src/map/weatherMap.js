@@ -111,6 +111,13 @@ const ACTIVE_FAULT_LAYERS = [
   JSHIS_MAJOR_FAULT_LINE_LAYER_ID
 ];
 const JSHIS_MAJOR_FAULT_INTERACTIVE_LAYERS = [JSHIS_MAJOR_FAULT_FILL_LAYER_ID, JSHIS_MAJOR_FAULT_LINE_LAYER_ID];
+const PLATE_BOUNDARY_SOURCE_ID = "usgs-tectonic-plate-boundaries";
+const PLATE_BOUNDARY_LAYER_IDS = {
+  convergent: "usgs-plate-boundary-convergent",
+  transform: "usgs-plate-boundary-transform",
+  other: "usgs-plate-boundary-other"
+};
+const PLATE_BOUNDARY_LAYERS = Object.values(PLATE_BOUNDARY_LAYER_IDS);
 const KIKIKURU_ZOOM_LEVELS = [
   { id: "z4", z: 4, minzoom: 3, maxzoom: 5 },
   { id: "z6", z: 6, minzoom: 5, maxzoom: 7 },
@@ -169,7 +176,10 @@ const MAP_THEME_COLORS = {
     typhoonLabel: "#f8fbff",
     typhoonLabelHalo: "rgba(5, 9, 20, 0.9)",
     activeFaultFill: "#ff6a3d",
-    activeFault: "#ff6a3d"
+    activeFault: "#ff6a3d",
+    plateConvergent: "#ff5a52",
+    plateTransform: "#b77aff",
+    plateOther: "#41c7b5"
   },
   light: {
     background: "#eaf1f8",
@@ -188,7 +198,10 @@ const MAP_THEME_COLORS = {
     typhoonLabel: "#193650",
     typhoonLabelHalo: "rgba(248, 252, 255, 0.94)",
     activeFaultFill: "#e24a2d",
-    activeFault: "#d83b24"
+    activeFault: "#d83b24",
+    plateConvergent: "#c8322b",
+    plateTransform: "#7650b5",
+    plateOther: "#148b7b"
   }
 };
 const NATURAL_EARTH_JAPAN_MASK_BOUNDS = {
@@ -264,6 +277,7 @@ export function createWeatherMap(elementId) {
       setKikikuruVisible(map, false);
     }
     if (mode !== "warnings") updateWarningMunicipalityPaint(map, mode);
+    syncPlateBoundaryVisibility();
     syncActiveFaultVisibility();
     syncCommunityReportVisibility();
   }
@@ -328,6 +342,47 @@ export function createWeatherMap(elementId) {
       map.on("mouseleave", layerId, () => {
         if (activeMode === "earthquake") map.getCanvas().style.cursor = "";
       });
+    });
+  }
+
+  function syncPlateBoundaryVisibility() {
+    if (!map?.getSource(SAMPLE_SOURCE_ID)) return;
+    const shouldShow = activeMode === "earthquake";
+    if (shouldShow) ensurePlateBoundaryLayers();
+    PLATE_BOUNDARY_LAYERS.forEach((layerId) => {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", shouldShow ? "visible" : "none");
+    });
+  }
+
+  function ensurePlateBoundaryLayers() {
+    if (!map || map.getSource(PLATE_BOUNDARY_SOURCE_ID)) return;
+    const colors = MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark;
+    const beforeLayerId = map.getLayer("sample-circle") ? "sample-circle" : undefined;
+    map.addSource(PLATE_BOUNDARY_SOURCE_ID, {
+      type: "geojson",
+      data: MAP_DATA_ENDPOINTS.tectonicPlateBoundaries
+    });
+    const definitions = [
+      [PLATE_BOUNDARY_LAYER_IDS.convergent, "Convergent Boundary", colors.plateConvergent, null],
+      [PLATE_BOUNDARY_LAYER_IDS.transform, "Transform Boundary", colors.plateTransform, [2.5, 1.5]],
+      [PLATE_BOUNDARY_LAYER_IDS.other, "Other", colors.plateOther, [1, 1.5]]
+    ];
+    definitions.forEach(([id, label, color, dashArray]) => {
+      map.addLayer({
+        id,
+        type: "line",
+        source: PLATE_BOUNDARY_SOURCE_ID,
+        minzoom: 3,
+        maxzoom: 11,
+        filter: ["==", ["get", "LABEL"], label],
+        layout: { visibility: activeMode === "earthquake" ? "visible" : "none", "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": color,
+          "line-opacity": 0.86,
+          "line-width": ["interpolate", ["linear"], ["zoom"], 3, 1.4, 6, 2.2, 10, 3.4],
+          ...(dashArray ? { "line-dasharray": dashArray } : {})
+        }
+      }, beforeLayerId);
     });
   }
 
@@ -1613,7 +1668,10 @@ function applyMapTheme(map, theme) {
     ["typhoon-label", "text-color", colors.typhoonLabel],
     ["typhoon-label", "text-halo-color", colors.typhoonLabelHalo],
     [JSHIS_MAJOR_FAULT_FILL_LAYER_ID, "fill-color", colors.activeFaultFill],
-    [JSHIS_MAJOR_FAULT_LINE_LAYER_ID, "line-color", colors.activeFault]
+    [JSHIS_MAJOR_FAULT_LINE_LAYER_ID, "line-color", colors.activeFault],
+    [PLATE_BOUNDARY_LAYER_IDS.convergent, "line-color", colors.plateConvergent],
+    [PLATE_BOUNDARY_LAYER_IDS.transform, "line-color", colors.plateTransform],
+    [PLATE_BOUNDARY_LAYER_IDS.other, "line-color", colors.plateOther]
   ];
   paintUpdates.forEach(([layerId, property, value]) => {
     if (map.getLayer(layerId)) map.setPaintProperty(layerId, property, value);

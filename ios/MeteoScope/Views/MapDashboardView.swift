@@ -16,6 +16,7 @@ struct MapDashboardView: View {
                 userCoordinate: locationService.coordinate,
                 weatherOverlay: weatherOverlay,
                 showsActiveFaults: model.selectedFeature == .earthquake && preferences.showsActiveFaults,
+                showsPlateBoundaries: model.selectedFeature == .earthquake,
                 selectedActiveFault: $selectedActiveFault
             )
                 .ignoresSafeArea(edges: .top)
