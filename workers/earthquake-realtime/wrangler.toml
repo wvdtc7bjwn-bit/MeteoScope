@@ -7,7 +7,8 @@ DMDATA_APP_NAME = "meteoscope-earthquake"
 DMDATA_TEST_MODE = "excluding"
 
 [triggers]
-crons = ["17 * * * *"]
+# Cloudflare Cron is UTC. 15:00 UTC is 00:00 JST on the following day.
+crons = ["0 15 * * *"]
 
 [[durable_objects.bindings]]
 name = "EARTHQUAKE_HUB"

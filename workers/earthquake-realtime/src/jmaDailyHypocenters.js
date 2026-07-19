@@ -6,6 +6,7 @@ export const JMA_DAILY_MAX_DAY_OFFSET = JMA_DAILY_RETENTION_DAYS - 1;
 // 15日なら、外部fetch・D1 batch・管理クエリを合わせてもFreeの
 // 1回50クエリ/サブリクエスト以内に収まり、既存15日から1回で補完できる。
 export const JMA_DAILY_BACKFILL_DAYS_PER_SYNC = 15;
+const JMA_DAILY_SOURCE_LAG_BUFFER_DAYS = 7;
 const RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const MAX_RECORDS_PER_DAY = 5_000;
 const MAX_PAYLOAD_BYTES = 1_500_000;
@@ -116,19 +117,26 @@ export async function syncJmaDailyHypocenters(env, options = {}) {
     JMA_DAILY_BACKFILL_DAYS_PER_SYNC,
     JMA_DAILY_BACKFILL_DAYS_PER_SYNC
   );
-  const dates = buildRecentJstDates(JMA_DAILY_RETENTION_DAYS);
-  const statuses = await loadSyncStatuses(db, dates);
   const now = Number(options.now ?? Date.now());
-  const pendingDates = dates.filter((date) => shouldAttemptDate(statuses.get(date), now)).slice(0, maxDays);
+  const storedDates = await loadStoredDates(db);
+  const dates = buildRecentJstDates(
+    JMA_DAILY_RETENTION_DAYS + JMA_DAILY_SOURCE_LAG_BUFFER_DAYS,
+    now
+  );
+  const candidateDates = selectJmaDailySyncDates(dates, storedDates);
+  const statuses = await loadSyncStatuses(db, candidateDates);
+  const pendingDates = candidateDates
+    .filter((date) => shouldAttemptDate(statuses.get(date), now))
+    .slice(0, maxDays);
   const results = [];
   for (const date of pendingDates) {
     results.push(await syncOneDate(db, date, options.fetchImpl ?? fetch));
   }
-  await cleanupJmaDailyHypocenters(db);
-  const previouslyStoredDayCount = [...statuses.values()]
-    .filter((state) => state.status === "ok")
-    .length;
   const newlyStoredDayCount = results.filter((result) => result.ok).length;
+  const cleanup = storedDates.length + newlyStoredDayCount > JMA_DAILY_RETENTION_DAYS
+    ? await trimJmaDailyHypocenters(db)
+    : { deletedDays: 0, deletedSyncRows: 0 };
+  const previouslyStoredDayCount = Math.min(JMA_DAILY_RETENTION_DAYS, storedDates.length);
   const storedDayCount = Math.min(
     JMA_DAILY_RETENTION_DAYS,
     previouslyStoredDayCount + newlyStoredDayCount
@@ -136,6 +144,7 @@ export async function syncJmaDailyHypocenters(env, options = {}) {
   return {
     attempted: pendingDates.length,
     results,
+    cleanup,
     backfill: {
       complete: storedDayCount >= JMA_DAILY_RETENTION_DAYS,
       storedDayCount,
@@ -162,10 +171,7 @@ export async function readJmaDailyHypocenterDistribution(request, env, ctx) {
   const maxDepth = maxDepthText === "all"
     ? null
     : parseChoice(maxDepthText, [30, 100, 300, 700], 700);
-  const startDate = buildRecentJstDates(JMA_DAILY_RETENTION_DAYS).at(-1);
-
   const snapshot = await queryDistribution(db, {
-    startDate,
     requestedDayOffset,
     minMagnitude,
     maxDepth
@@ -242,16 +248,15 @@ async function syncOneDate(db, date, fetchImpl) {
   }
 }
 
-async function queryDistribution(db, { startDate, requestedDayOffset, minMagnitude, maxDepth }) {
+async function queryDistribution(db, { requestedDayOffset, minMagnitude, maxDepth }) {
   const datesResult = await db.prepare(`
     SELECT daily.source_date, daily.record_count
     FROM jma_daily_hypocenter_days AS daily
     INNER JOIN jma_daily_hypocenter_sync AS sync
       ON sync.source_date = daily.source_date AND sync.status = 'ok'
-    WHERE daily.source_date >= ?
     ORDER BY daily.source_date DESC
     LIMIT ${JMA_DAILY_RETENTION_DAYS}
-  `).bind(startDate).all();
+  `).bind().all();
   const dailyCounts = (datesResult?.results ?? []).map((row) => ({
     sourceDate: row.source_date,
     count: Math.max(0, Number(row.record_count) || 0)
@@ -276,13 +281,14 @@ async function queryDistribution(db, { startDate, requestedDayOffset, minMagnitu
     ))
     .sort((left, right) => right.originTime.localeCompare(left.originTime));
   const visibleItems = items.slice(0, 5000);
+  const oldestRetainedDate = availableDates.at(-1) ?? "0000-01-01";
   const sync = await db.prepare(`
     SELECT MAX(CASE WHEN status = 'ok' THEN source_date END) AS latest_source_date,
       MAX(CASE WHEN status = 'ok' THEN fetched_at END) AS last_successful_fetch_at,
       SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) AS failed_dates
     FROM jma_daily_hypocenter_sync
     WHERE source_date >= ?
-  `).bind(startDate).first();
+  `).bind(oldestRetainedDate).first();
   return {
     latestSourceDate: sync?.latest_source_date ?? availableDates[0] ?? null,
     lastSuccessfulFetchAt: sync?.last_successful_fetch_at ?? null,
@@ -298,6 +304,7 @@ async function queryDistribution(db, { startDate, requestedDayOffset, minMagnitu
 }
 
 async function loadSyncStatuses(db, dates) {
+  if (!dates.length) return new Map();
   const placeholders = dates.map(() => "?").join(",");
   const result = await db.prepare(`
     SELECT source_date, status, fetched_at FROM jma_daily_hypocenter_sync
@@ -309,16 +316,61 @@ async function loadSyncStatuses(db, dates) {
   }]));
 }
 
-async function cleanupJmaDailyHypocenters(db) {
-  // The published list starts with yesterday, so retaining 30 published days
-  // requires keeping source dates through 30 calendar days ago.
-  const oldestRetainedDay = `-${JMA_DAILY_RETENTION_DAYS} days`;
-  await db.batch([
-    db.prepare("DELETE FROM jma_daily_hypocenter_days WHERE source_date < date('now', '+9 hours', ?)")
-      .bind(oldestRetainedDay),
-    db.prepare("DELETE FROM jma_daily_hypocenter_sync WHERE source_date < date('now', '+9 hours', ?)")
-      .bind(oldestRetainedDay)
+async function loadStoredDates(db) {
+  const result = await db.prepare(`
+    SELECT source_date FROM jma_daily_hypocenter_days
+    ORDER BY source_date DESC
+    LIMIT ${JMA_DAILY_RETENTION_DAYS + 1}
+  `).bind().all();
+  return (result?.results ?? [])
+    .map((row) => String(row.source_date ?? ""))
+    .filter((date) => DATE_PATTERN.test(date));
+}
+
+export function selectJmaDailySyncDates(recentDates, storedDates) {
+  const availableDates = [...new Set((recentDates ?? []).filter((date) => DATE_PATTERN.test(date)))]
+    .sort((left, right) => right.localeCompare(left));
+  const retainedDates = [...new Set((storedDates ?? []).filter((date) => DATE_PATTERN.test(date)))]
+    .sort((left, right) => right.localeCompare(left))
+    .slice(0, JMA_DAILY_RETENTION_DAYS);
+  if (!retainedDates.length) return availableDates;
+
+  const retainedSet = new Set(retainedDates);
+  const newestRetainedDate = retainedDates[0];
+  const oldestRetainedDate = retainedDates.at(-1);
+  const newerDates = availableDates.filter((date) => date > newestRetainedDate);
+  const missingDatesWithinRange = availableDates.filter((date) => (
+    date <= newestRetainedDate
+    && date >= oldestRetainedDate
+    && !retainedSet.has(date)
+  ));
+  const missingDayCount = Math.max(0, JMA_DAILY_RETENTION_DAYS - retainedDates.length);
+  const olderBackfillDates = availableDates
+    .filter((date) => date < oldestRetainedDate)
+    .slice(0, missingDayCount);
+  return [...newerDates, ...missingDatesWithinRange, ...olderBackfillDates];
+}
+
+async function trimJmaDailyHypocenters(db) {
+  const results = await db.batch([
+    db.prepare(`
+      DELETE FROM jma_daily_hypocenter_days
+      WHERE source_date IN (
+        SELECT source_date FROM jma_daily_hypocenter_days
+        ORDER BY source_date DESC
+        LIMIT -1 OFFSET ?
+      )
+    `).bind(JMA_DAILY_RETENTION_DAYS),
+    db.prepare(`
+      DELETE FROM jma_daily_hypocenter_sync
+      WHERE EXISTS (SELECT 1 FROM jma_daily_hypocenter_days)
+        AND source_date < (SELECT MIN(source_date) FROM jma_daily_hypocenter_days)
+    `)
   ]);
+  return {
+    deletedDays: Number(results?.[0]?.meta?.changes ?? 0),
+    deletedSyncRows: Number(results?.[1]?.meta?.changes ?? 0)
+  };
 }
 
 function parseStoredPayload(value) {
@@ -348,8 +400,8 @@ function parseStoredPayload(value) {
   }
 }
 
-function buildRecentJstDates(count) {
-  const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
+function buildRecentJstDates(count, timestamp = Date.now()) {
+  const now = new Date(Number(timestamp) + 9 * 60 * 60 * 1000);
   const base = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   return Array.from({ length: count }, (_, index) => {
     const date = new Date(base - (index + 1) * 24 * 60 * 60 * 1000);
