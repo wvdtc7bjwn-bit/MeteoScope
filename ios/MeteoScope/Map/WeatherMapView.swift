@@ -257,6 +257,9 @@ struct WeatherMapView: UIViewRepresentable {
             labelLayer.symbolSpacing = NSExpression(forConstantValue: 260)
             labelLayer.text = NSExpression(forKeyPath: "label")
             labelLayer.textFontSize = NSExpression(forConstantValue: 10)
+            labelLayer.textOffset = NSExpression(
+                forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: -0.72))
+            )
             labelLayer.textColor = depthColor
             labelLayer.textHaloColor = NSExpression(
                 forConstantValue: UIColor { traits in
@@ -265,7 +268,7 @@ struct WeatherMapView: UIViewRepresentable {
                         : UIColor(red: 0.96, green: 0.98, blue: 1, alpha: 0.92)
                 }
             )
-            labelLayer.textHaloWidth = NSExpression(forConstantValue: 1.2)
+            labelLayer.textHaloWidth = NSExpression(forConstantValue: 1)
             labelLayer.textAllowsOverlap = NSExpression(forConstantValue: false)
             labelLayer.keepsTextUpright = NSExpression(forConstantValue: true)
             style.addLayer(labelLayer)

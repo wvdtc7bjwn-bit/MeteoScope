@@ -32,6 +32,8 @@ assert.deepEqual(actualLabels, expectedLabels);
 
 assert.equal(slab2Contours.type, "FeatureCollection");
 assert.equal(slab2Contours.features.length, 117);
+const slab2SeamAdjustedContours = slab2Contours.features.filter((feature) => feature.properties?.seamAdjusted);
+assert.equal(slab2SeamAdjustedContours.length, 19);
 const expectedRegions = new Set(["Kuril", "Izu-Bonin", "Ryukyu"]);
 const actualRegions = new Set();
 for (const feature of slab2Contours.features) {
@@ -52,6 +54,24 @@ for (const feature of slab2Contours.features) {
 }
 assert.deepEqual(actualRegions, expectedRegions);
 
+for (const feature of slab2SeamAdjustedContours) {
+  assert.equal(feature.properties.region, "Izu-Bonin");
+  assert.equal(feature.properties.seamAdjustedTo, "Kuril");
+  assert.ok(["start", "end"].includes(feature.properties.seamAdjustedEndpoint));
+  assert.ok(feature.properties.seamAdjustmentKm > 0 && feature.properties.seamAdjustmentKm <= 12);
+  const endpoint = feature.properties.seamAdjustedEndpoint === "start"
+    ? feature.geometry.coordinates[0]
+    : feature.geometry.coordinates.at(-1);
+  assert.equal(endpoint[1], 35);
+  const matchingKuril = slab2Contours.features.find((candidate) => (
+    candidate.properties.region === "Kuril"
+      && candidate.properties.depthKm === feature.properties.depthKm
+      && [candidate.geometry.coordinates[0], candidate.geometry.coordinates.at(-1)]
+        .some((candidateEndpoint) => candidateEndpoint[0] === endpoint[0] && candidateEndpoint[1] === endpoint[1])
+  ));
+  assert.ok(matchingKuril, `Kuril seam endpoint missing for ${feature.properties.depthKm}km`);
+}
+
 const index = await readFile(new URL("index.html", root), "utf8");
 const sources = await readFile(new URL("DATA_SOURCES.md", root), "utf8");
 const app = await readFile(new URL("src/app.js", root), "utf8");
@@ -61,7 +81,7 @@ assert.match(index, /プレート境界: USGS/u);
 assert.match(index, /境界モデル: Bird, 2003/u);
 assert.match(index, /プレート等深線: USGS Slab2/u);
 assert.match(sources, /ddbe6c7e2c0911bfbe42a5facd5e61b510bb86a9e186627f772c36bd7c626c25/u);
-assert.match(sources, /0202ced3d750d9ff00fdf5aa02086a8faaaddc02595021b10a97b307eb7833b0/u);
+assert.match(sources, /60a4b8ec0242ca5897c8e64cdb054d7c003c4f7735da956cff869322e551e91b/u);
 assert.match(app, /setPlateBoundaryVisible/u);
 assert.match(app, /setPlateDepthContoursVisible/u);
 assert.match(map, /activeMode === "earthquake" && plateBoundaryVisible/u);

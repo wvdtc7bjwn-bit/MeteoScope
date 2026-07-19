@@ -457,13 +457,14 @@ export function createWeatherMap(elementId) {
         "text-field": ["get", "label"],
         "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
         "text-size": ["interpolate", ["linear"], ["zoom"], 5, 9, 9, 11],
+        "text-offset": [0, -0.72],
         "text-keep-upright": true,
         "text-allow-overlap": false
       },
       paint: {
         "text-color": PLATE_DEPTH_COLOR_EXPRESSION,
         "text-halo-color": colors.plateDepthLabelHalo,
-        "text-halo-width": 1.4,
+        "text-halo-width": 1,
         "text-opacity": 0.94
       }
     }, beforeLayerId);

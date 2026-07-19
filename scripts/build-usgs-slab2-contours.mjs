@@ -10,6 +10,13 @@ const TARGET_REGIONS = new Map([
 ]);
 const BOUNDS = { west: 118, south: 15, east: 160, north: 55 };
 const SIMPLIFY_TOLERANCE = 0.012;
+const REGIONAL_SEAM_SNAPS = [{
+  fixedRegion: "Kuril",
+  adjustedRegion: "Izu-Bonin",
+  latitude: 35,
+  latitudeTolerance: 0.02,
+  maxGapKm: 12
+}];
 
 const response = await fetch(SOURCE_URL, {
   headers: { "User-Agent": "MeteoScope Slab2 data preparation" }
@@ -58,6 +65,8 @@ for (const match of kml.matchAll(/<Placemark\b[\s\S]*?<\/Placemark>/gu)) {
   }
 }
 
+const seamAdjustments = snapRegionalSeams(features);
+
 features.sort((left, right) => (
   left.properties.region.localeCompare(right.properties.region)
   || left.properties.depthKm - right.properties.depthKm
@@ -72,7 +81,75 @@ const collection = {
 await writeFile(OUTPUT_URL, `${JSON.stringify(collection)}\n`, "utf8");
 
 const depths = [...new Set(features.map((feature) => feature.properties.depthKm))].sort((a, b) => a - b);
-console.log(`Generated ${features.length} Slab2 contour lines (${depths[0]}-${depths.at(-1)} km)`);
+console.log(
+  `Generated ${features.length} Slab2 contour lines (${depths[0]}-${depths.at(-1)} km, ${seamAdjustments.length} regional seam endpoints snapped)`
+);
+
+function snapRegionalSeams(sourceFeatures) {
+  const adjustments = [];
+  const depths = [...new Set(sourceFeatures.map((feature) => feature.properties.depthKm))];
+  for (const seam of REGIONAL_SEAM_SNAPS) {
+    for (const depthKm of depths) {
+      const fixedFeatures = sourceFeatures.filter((feature) => (
+        feature.properties.region === seam.fixedRegion && feature.properties.depthKm === depthKm
+      ));
+      const adjustedFeatures = sourceFeatures.filter((feature) => (
+        feature.properties.region === seam.adjustedRegion && feature.properties.depthKm === depthKm
+      ));
+      const closest = findClosestSeamEndpoints(fixedFeatures, adjustedFeatures, seam);
+      if (!closest) continue;
+      closest.adjusted.feature.geometry.coordinates[closest.adjusted.coordinateIndex] = [
+        ...closest.fixed.point
+      ];
+      Object.assign(closest.adjusted.feature.properties, {
+        seamAdjusted: true,
+        seamAdjustedTo: seam.fixedRegion,
+        seamAdjustedEndpoint: closest.adjusted.endpointName,
+        seamAdjustmentKm: round(closest.distanceKm, 2)
+      });
+      adjustments.push({ depthKm, distanceKm: closest.distanceKm });
+    }
+  }
+  return adjustments;
+}
+
+function findClosestSeamEndpoints(fixedFeatures, adjustedFeatures, seam) {
+  let closest = null;
+  for (const fixedFeature of fixedFeatures) {
+    for (const adjustedFeature of adjustedFeatures) {
+      for (const fixed of lineEndpoints(fixedFeature)) {
+        if (Math.abs(fixed.point[1] - seam.latitude) > seam.latitudeTolerance) continue;
+        for (const adjusted of lineEndpoints(adjustedFeature)) {
+          if (Math.abs(adjusted.point[1] - seam.latitude) > seam.latitudeTolerance) continue;
+          const distanceKm = coordinateDistanceKm(fixed.point, adjusted.point);
+          if (distanceKm > seam.maxGapKm || (closest && distanceKm >= closest.distanceKm)) continue;
+          closest = { fixed, adjusted, distanceKm };
+        }
+      }
+    }
+  }
+  return closest;
+}
+
+function lineEndpoints(feature) {
+  const coordinates = feature.geometry.coordinates;
+  return [
+    { feature, point: coordinates[0], coordinateIndex: 0, endpointName: "start" },
+    {
+      feature,
+      point: coordinates.at(-1),
+      coordinateIndex: coordinates.length - 1,
+      endpointName: "end"
+    }
+  ];
+}
+
+function coordinateDistanceKm(first, second) {
+  const latitudeScale = Math.cos(((first[1] + second[1]) / 2) * Math.PI / 180);
+  const longitudeDistance = (first[0] - second[0]) * latitudeScale;
+  const latitudeDistance = first[1] - second[1];
+  return Math.hypot(longitudeDistance, latitudeDistance) * 111.2;
+}
 
 function readMatch(value, pattern) {
   return value.match(pattern)?.[1]?.trim() ?? "";
