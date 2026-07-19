@@ -3001,10 +3001,10 @@ h2 {
 }
 
 .earthquake-view-toggle button.active {
-  border-color: rgba(211, 239, 255, 0.36);
-  background: rgba(79, 155, 226, 0.16);
+  border-color: transparent;
+  background: transparent;
   color: #eaf9ff;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04), 0 8px 18px rgba(20, 64, 150, 0.08);
+  box-shadow: none;
 }
 
 .earthquake-map-layer-controls {
@@ -3086,6 +3086,53 @@ h2 {
   font-weight: 750;
 }
 
+.mobile-dock-segmented {
+  --mobile-dock-indicator-x: 0px;
+  --mobile-dock-indicator-width: 0px;
+  --mobile-dock-drag-x: 0px;
+  position: relative;
+  isolation: isolate;
+}
+
+.mobile-dock-segmented::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  z-index: 0;
+  width: var(--mobile-dock-indicator-width);
+  border: 1px solid rgba(211, 239, 255, 0.36);
+  border-radius: 999px;
+  box-sizing: border-box;
+  background: rgba(79, 155, 226, 0.16);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+    0 8px 18px rgba(20, 64, 150, 0.08);
+  transform: translate3d(calc(var(--mobile-dock-indicator-x) + var(--mobile-dock-drag-x)), 0, 0);
+  backdrop-filter: blur(16px) saturate(1.65);
+  -webkit-backdrop-filter: blur(16px) saturate(1.65);
+  pointer-events: none;
+  transition: transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.mobile-dock-segmented.is-dragging::before,
+.mobile-dock-segmented.is-initializing::before {
+  transition: none;
+}
+
+.mobile-dock-segmented.is-dragging .mobile-dock-action,
+.mobile-dock-segmented.is-dragging .mobile-dock-chip {
+  transform: none;
+}
+
+.mobile-dock-segmented button {
+  position: relative;
+  z-index: 1;
+  touch-action: pan-y;
+}
+
 .hypocenter-presentation {
   display: flex;
   align-items: center;
@@ -3141,9 +3188,9 @@ h2 {
 }
 
 .hypocenter-presentation-switch button.active {
-  background: rgba(61, 148, 206, 0.34);
+  background: transparent;
   color: #eefaff;
-  box-shadow: inset 0 0 0 1px rgba(130, 211, 251, 0.28);
+  box-shadow: none;
 }
 
 .earthquake-distribution-result {
@@ -5822,47 +5869,6 @@ html[data-theme="light"] .legend-typhoon-center::after {
     overflow: hidden;
   }
 
-  .mobile-dock-segmented {
-    --mobile-dock-indicator-x: 0px;
-    --mobile-dock-indicator-width: 0px;
-    --mobile-dock-drag-x: 0px;
-    position: relative;
-    isolation: isolate;
-  }
-
-  .mobile-dock-segmented::before {
-    content: "";
-    position: absolute;
-    top: 3px;
-    bottom: 3px;
-    left: 0;
-    z-index: 0;
-    width: var(--mobile-dock-indicator-width);
-    border: 1px solid rgba(211, 239, 255, 0.36);
-    border-radius: 999px;
-    box-sizing: border-box;
-    background: rgba(79, 155, 226, 0.16);
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-      0 8px 18px rgba(20, 64, 150, 0.08);
-    transform: translate3d(calc(var(--mobile-dock-indicator-x) + var(--mobile-dock-drag-x)), 0, 0);
-    backdrop-filter: blur(16px) saturate(1.65);
-    -webkit-backdrop-filter: blur(16px) saturate(1.65);
-    pointer-events: none;
-    transition: transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
-    will-change: transform;
-  }
-
-  .mobile-dock-segmented.is-dragging::before,
-  .mobile-dock-segmented.is-initializing::before {
-    transition: none;
-  }
-
-  .mobile-dock-segmented.is-dragging .mobile-dock-action,
-  .mobile-dock-segmented.is-dragging .mobile-dock-chip {
-    transform: none;
-  }
-
   .mobile-dock-action-row-single {
     justify-content: flex-end;
     margin-top: -2px;
@@ -7826,8 +7832,9 @@ html[data-theme="light"] :is(.earthquake-view-toggle, .earthquake-map-layer-butt
 
 html[data-theme="light"] .earthquake-view-toggle button { color: #60758a; }
 html[data-theme="light"] .earthquake-view-toggle button.active {
-  background: rgba(101, 183, 232, 0.17);
+  background: transparent;
   color: #163b58;
+  box-shadow: none;
 }
 html[data-theme="light"] .earthquake-map-layer-button { color: #60758a; }
 html[data-theme="light"] .earthquake-map-layer-button.active {
@@ -7886,8 +7893,9 @@ html[data-theme="light"] .hypocenter-presentation-switch {
 }
 html[data-theme="light"] .hypocenter-presentation-switch button { color: #61768a; }
 html[data-theme="light"] .hypocenter-presentation-switch button.active {
-  background: rgba(76, 166, 220, 0.22);
+  background: transparent;
   color: #143c57;
+  box-shadow: none;
 }
 html[data-theme="light"] .earthquake-distribution-note a { color: #087cb8; }
 

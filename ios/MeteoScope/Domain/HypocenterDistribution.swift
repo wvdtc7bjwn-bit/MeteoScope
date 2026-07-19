@@ -19,6 +19,15 @@ enum HypocenterMapPresentation: String, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
     var title: String { self == .flat ? "平面" : "立体" }
+
+    func afterHorizontalSwipe(
+        horizontal: Double,
+        vertical: Double,
+        threshold: Double = 18
+    ) -> Self {
+        guard abs(horizontal) >= threshold, abs(horizontal) > abs(vertical) else { return self }
+        return horizontal > 0 ? .spatial : .flat
+    }
 }
 
 struct HypocenterDistributionFilter: Equatable, Sendable {

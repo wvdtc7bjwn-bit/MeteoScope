@@ -75,6 +75,14 @@ struct WeatherMapView: UIViewRepresentable {
         private let plateDepthContourSourceIdentifier = "meteoscope-usgs-slab2-depth-source"
         private let plateDepthContourLineIdentifier = "meteoscope-usgs-slab2-depth-line"
         private let plateDepthContourLabelIdentifier = "meteoscope-usgs-slab2-depth-label"
+        private let plateDepthContourSpatialLineIdentifiers = [
+            "meteoscope-usgs-slab2-depth-spatial-0",
+            "meteoscope-usgs-slab2-depth-spatial-1",
+            "meteoscope-usgs-slab2-depth-spatial-2",
+            "meteoscope-usgs-slab2-depth-spatial-3",
+            "meteoscope-usgs-slab2-depth-spatial-4",
+            "meteoscope-usgs-slab2-depth-spatial-5"
+        ]
 
         weak var mapView: MLNMapView?
         var requestedFrame: RadarFrame?
@@ -93,6 +101,7 @@ struct WeatherMapView: UIViewRepresentable {
         private var weatherSourceIdentifiers: [String] = []
         private var weatherLayerIdentifiers: [String] = []
         private var renderedShowsHypocenterDepth3D: Bool?
+        private var renderedPlateDepthContoursSpatial: Bool?
         private var previousMapPitch: CGFloat?
         private var previousMapHeading: CLLocationDirection?
         private let selectedActiveFault: Binding<ActiveFaultInfo?>
@@ -251,14 +260,25 @@ struct WeatherMapView: UIViewRepresentable {
                 removePlateDepthContourLayers(from: style)
                 return
             }
-            guard style.source(withIdentifier: plateDepthContourSourceIdentifier) == nil else { return }
+            let spatial = requestedShowsHypocenterDepth3D
+            if style.source(withIdentifier: plateDepthContourSourceIdentifier) != nil,
+               renderedPlateDepthContoursSpatial == spatial {
+                return
+            }
 
-            let source = MLNShapeSource(
-                identifier: plateDepthContourSourceIdentifier,
-                url: MeteoScopeEndpoints.plateDepthContourGeoJSON,
-                options: nil
-            )
-            style.addSource(source)
+            removePlateDepthContourStyleLayers(from: style)
+            let source: MLNSource
+            if let existingSource = style.source(withIdentifier: plateDepthContourSourceIdentifier) {
+                source = existingSource
+            } else {
+                let shapeSource = MLNShapeSource(
+                    identifier: plateDepthContourSourceIdentifier,
+                    url: MeteoScopeEndpoints.plateDepthContourGeoJSON,
+                    options: nil
+                )
+                style.addSource(shapeSource)
+                source = shapeSource
+            }
 
             let depthStops: [NSNumber: UIColor] = [
                 0: UIColor(red: 0.94, green: 0.21, blue: 0.17, alpha: 1),
@@ -272,16 +292,52 @@ struct WeatherMapView: UIViewRepresentable {
                 depthStops as NSDictionary
             )
 
-            let lineLayer = MLNLineStyleLayer(identifier: plateDepthContourLineIdentifier, source: source)
-            lineLayer.minimumZoomLevel = 3
-            lineLayer.maximumZoomLevel = 12
-            lineLayer.lineColor = depthColor
-            lineLayer.lineOpacity = NSExpression(forConstantValue: 0.72)
-            lineLayer.lineWidth = NSExpression(
+            let surfaceLayer = MLNLineStyleLayer(identifier: plateDepthContourLineIdentifier, source: source)
+            surfaceLayer.minimumZoomLevel = 3
+            surfaceLayer.maximumZoomLevel = 12
+            surfaceLayer.lineColor = depthColor
+            surfaceLayer.lineOpacity = NSExpression(forConstantValue: spatial ? 0.16 : 0.72)
+            surfaceLayer.lineWidth = NSExpression(
                 format: "mgl_interpolate:withCurveType:parameters:stops:($zoomLevel, 'linear', nil, %@)",
                 [3: 0.7, 7: 1.2, 11: 1.8] as NSDictionary
             )
-            style.addLayer(lineLayer)
+            style.addLayer(surfaceLayer)
+
+            if spatial {
+                let bands: [(lower: Int, upper: Int, depth: Int)] = [
+                    (0, 80, 40),
+                    (80, 160, 120),
+                    (160, 260, 210),
+                    (260, 380, 320),
+                    (380, 520, 450),
+                    (520, 701, 610)
+                ]
+                for (index, band) in bands.enumerated() {
+                    let layer = MLNLineStyleLayer(
+                        identifier: plateDepthContourSpatialLineIdentifiers[index],
+                        source: source
+                    )
+                    layer.minimumZoomLevel = 3
+                    layer.maximumZoomLevel = 12
+                    layer.predicate = NSPredicate(
+                        format: "depthKm >= %d AND depthKm < %d",
+                        band.lower,
+                        band.upper
+                    )
+                    layer.lineColor = depthColor
+                    layer.lineOpacity = NSExpression(forConstantValue: 0.78)
+                    layer.lineWidth = NSExpression(
+                        format: "mgl_interpolate:withCurveType:parameters:stops:($zoomLevel, 'linear', nil, %@)",
+                        [3: 0.8, 7: 1.35, 11: 2.0] as NSDictionary
+                    )
+                    let offset = CGFloat(6 + band.depth * 58 / 700)
+                    layer.lineTranslation = NSExpression(
+                        forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: offset))
+                    )
+                    layer.lineTranslationAnchor = NSExpression(forConstantValue: "viewport")
+                    style.addLayer(layer)
+                }
+            }
 
             let labelLayer = MLNSymbolStyleLayer(identifier: plateDepthContourLabelIdentifier, source: source)
             labelLayer.minimumZoomLevel = 5
@@ -290,6 +346,7 @@ struct WeatherMapView: UIViewRepresentable {
             labelLayer.symbolSpacing = NSExpression(forConstantValue: 260)
             labelLayer.text = NSExpression(forKeyPath: "label")
             labelLayer.textFontSize = NSExpression(forConstantValue: 10)
+            labelLayer.textOpacity = NSExpression(forConstantValue: spatial ? 0.58 : 1)
             labelLayer.textOffset = NSExpression(
                 forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: -0.72))
             )
@@ -305,14 +362,22 @@ struct WeatherMapView: UIViewRepresentable {
             labelLayer.textAllowsOverlap = NSExpression(forConstantValue: false)
             labelLayer.keepsTextUpright = NSExpression(forConstantValue: true)
             style.addLayer(labelLayer)
+            renderedPlateDepthContoursSpatial = spatial
         }
 
         private func removePlateDepthContourLayers(from style: MLNStyle) {
-            for identifier in [plateDepthContourLabelIdentifier, plateDepthContourLineIdentifier] {
-                if let layer = style.layer(withIdentifier: identifier) { style.removeLayer(layer) }
-            }
+            removePlateDepthContourStyleLayers(from: style)
             if let source = style.source(withIdentifier: plateDepthContourSourceIdentifier) {
                 style.removeSource(source)
+            }
+            renderedPlateDepthContoursSpatial = nil
+        }
+
+        private func removePlateDepthContourStyleLayers(from style: MLNStyle) {
+            let identifiers = [plateDepthContourLabelIdentifier, plateDepthContourLineIdentifier]
+                + plateDepthContourSpatialLineIdentifiers
+            for identifier in identifiers {
+                if let layer = style.layer(withIdentifier: identifier) { style.removeLayer(layer) }
             }
         }
 

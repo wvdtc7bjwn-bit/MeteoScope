@@ -16,6 +16,7 @@ import { worldCountriesGeoJson } from "./data/worldCountriesGeoJson.js";
 import { planWarningFeatureStateChanges } from "./warningFeatureState.js";
 import { WARNING_GEOMETRY_FIX_CODES } from "./warningGeometryFixCodes.js";
 import { createHypocenter3DLayer } from "./hypocenter3DLayer.js";
+import { createPlateDepth3DLayer } from "./plateDepth3DLayer.js";
 
 const MODE_CLASS = {
   radar: "mode-radar",
@@ -255,7 +256,11 @@ export function createWeatherMap(elementId) {
   let communityReports = [];
   let hypocenter3DEnabled = false;
   let previousHypocenterCamera = null;
+  let plateDepth3DLayerAvailable = false;
+  let plateDepth3DReady = false;
+  let plateDepth3DLoadPromise = null;
   const hypocenter3D = createHypocenter3DLayer(maplibregl, getHypocenterDepthColor);
+  const plateDepth3D = createPlateDepth3DLayer(maplibregl, getHypocenterDepthColor);
 
   function initialize() {
     map = new maplibregl.Map({
@@ -422,9 +427,36 @@ export function createWeatherMap(elementId) {
     if (!map?.getSource(SAMPLE_SOURCE_ID)) return;
     const shouldShow = activeMode === "earthquake" && plateDepthContoursVisible;
     if (shouldShow) ensurePlateDepthContourLayers();
+    const wantsSpatialContours = shouldShow && hypocenter3DEnabled;
+    if (wantsSpatialContours && !plateDepth3DReady) void ensurePlateDepth3DData();
+    const showSpatialContours = wantsSpatialContours
+      && plateDepth3DLayerAvailable
+      && plateDepth3DReady;
     PLATE_DEPTH_LAYERS.forEach((layerId) => {
-      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", shouldShow ? "visible" : "none");
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, "visibility", shouldShow && !showSpatialContours ? "visible" : "none");
+      }
     });
+    plateDepth3D.setEnabled(showSpatialContours);
+  }
+
+  async function ensurePlateDepth3DData() {
+    if (plateDepth3DReady || plateDepth3DLoadPromise) return plateDepth3DLoadPromise;
+    plateDepth3DLoadPromise = fetch(MAP_DATA_ENDPOINTS.slab2DepthContours, { cache: "force-cache" })
+      .then((response) => {
+        if (!response.ok) throw new Error(`USGS Slab2 3D data request failed: ${response.status}`);
+        return response.json();
+      })
+      .then((collection) => {
+        plateDepth3D.setData(collection);
+        plateDepth3DReady = true;
+        syncPlateDepthContourVisibility();
+      })
+      .catch((error) => {
+        plateDepth3DLoadPromise = null;
+        console.warn("[MeteoScope] プレート等深線の立体表示を準備できませんでした", error);
+      });
+    return plateDepth3DLoadPromise;
   }
 
   function ensurePlateDepthContourLayers() {
@@ -823,6 +855,12 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     addWeatherChartLayers(map);
     addCommunityReportLayers();
     try {
+      map.addLayer(plateDepth3D.layer);
+      plateDepth3DLayerAvailable = true;
+    } catch (error) {
+      console.warn("[MeteoScope] プレート等深線の立体レイヤーを初期化できませんでした", error);
+    }
+    try {
       map.addLayer(hypocenter3D.layer);
     } catch (error) {
       console.warn("[MeteoScope] 震央分布の立体レイヤーを初期化できませんでした", error);
@@ -1097,12 +1135,14 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     );
     hypocenter3D.setEnabled(enabled);
     updateHypocenter3DPresentation(enabled);
+    syncPlateDepthContourVisibility();
   }
 
   function updateHypocenter3DPresentation(enabled) {
     if (!map || hypocenter3DEnabled === enabled) return;
     hypocenter3DEnabled = enabled;
     map.getContainer().classList.toggle("hypocenter-3d-active", enabled);
+    syncPlateDepthContourVisibility();
     if (enabled) {
       previousHypocenterCamera = { pitch: map.getPitch(), bearing: map.getBearing() };
       map.easeTo({ pitch: 58, bearing: -18, duration: 650, essential: true });

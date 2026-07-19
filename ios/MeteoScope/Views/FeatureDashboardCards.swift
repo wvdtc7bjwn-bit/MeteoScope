@@ -768,15 +768,15 @@ struct EarthquakeDashboardCard: View {
 
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("震源の立体表示")
+                    Text("地下の立体表示")
                         .font(.caption.weight(.semibold))
-                    Text("模式表示・深さ方向を強調")
+                    Text("震源・等深線の深さ方向を強調")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 8)
                 Picker(
-                    "震央分布の立体表示",
+                    "震源とプレート等深線の立体表示",
                     selection: Binding(
                         get: { model.hypocenterMapPresentation },
                         set: { model.selectHypocenterMapPresentation($0) }
@@ -788,6 +788,20 @@ struct EarthquakeDashboardCard: View {
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 120)
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 8)
+                        .onEnded { value in
+                            let current = model.hypocenterMapPresentation
+                            let next = current.afterHorizontalSwipe(
+                                horizontal: Double(value.translation.width),
+                                vertical: Double(value.translation.height)
+                            )
+                            guard next != current else { return }
+                            withAnimation(.easeOut(duration: 0.18)) {
+                                model.selectHypocenterMapPresentation(next)
+                            }
+                        }
+                )
             }
             .padding(9)
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 11, style: .continuous))

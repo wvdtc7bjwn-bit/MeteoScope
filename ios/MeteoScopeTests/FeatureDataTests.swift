@@ -499,5 +499,21 @@ final class FeatureDataTests: XCTestCase {
         XCTAssertEqual(HypocenterMapPresentation.flat.title, "平面")
         XCTAssertEqual(HypocenterMapPresentation.spatial.title, "立体")
         XCTAssertEqual(HypocenterMapPresentation.allCases, [.flat, .spatial])
+        XCTAssertEqual(
+            HypocenterMapPresentation.flat.afterHorizontalSwipe(horizontal: 30, vertical: 2),
+            .spatial
+        )
+        XCTAssertEqual(
+            HypocenterMapPresentation.spatial.afterHorizontalSwipe(horizontal: -30, vertical: 2),
+            .flat
+        )
+        XCTAssertEqual(
+            HypocenterMapPresentation.flat.afterHorizontalSwipe(horizontal: 8, vertical: 1),
+            .flat
+        )
+        XCTAssertEqual(
+            HypocenterMapPresentation.flat.afterHorizontalSwipe(horizontal: 30, vertical: 40),
+            .flat
+        )
     }
 }

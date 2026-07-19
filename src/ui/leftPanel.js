@@ -3067,9 +3067,9 @@ function buildEarthquakeDistributionMobileContextMarkup(data) {
 
 function buildHypocenterPresentationToggle(is3D, compact = false) {
   return `
-    <div class="hypocenter-presentation${compact ? " compact" : ""}">
-      ${compact ? "" : `<span><strong>震源の立体表示</strong><small>模式表示・深さ方向を強調</small></span>`}
-      <div class="hypocenter-presentation-switch" role="group" aria-label="震央分布の立体表示">
+    <div class="hypocenter-presentation${compact ? " compact" : ""}"${compact ? " data-mobile-dock-control" : ""}>
+      ${compact ? "" : `<span><strong>地下の立体表示</strong><small>震源・等深線の深さ方向を強調</small></span>`}
+      <div class="hypocenter-presentation-switch mobile-dock-segmented" role="group" aria-label="震源とプレート等深線の立体表示">
         <button type="button" class="${is3D ? "" : "active"}" data-earthquake-distribution-presentation="flat" aria-pressed="${is3D ? "false" : "true"}">平面</button>
         <button type="button" class="${is3D ? "active" : ""}" data-earthquake-distribution-presentation="3d" aria-pressed="${is3D ? "true" : "false"}">立体</button>
       </div>

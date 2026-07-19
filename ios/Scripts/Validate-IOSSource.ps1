@@ -103,6 +103,9 @@ foreach ($plateDepthMarker in @(
     "showsPlateDepthContours",
     "plateDepthContourGeoJSON",
     "meteoscope-usgs-slab2-depth-line",
+    "plateDepthContourSpatialLineIdentifiers",
+    "lineTranslationAnchor",
+    "2.5D",
     "USGS Slab2",
     "usgsSlab2Source"
 )) {
