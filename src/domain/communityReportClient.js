@@ -1,5 +1,7 @@
 import { getMeteoScopeAccountSessionToken } from "./quizRankingClient.js";
-import { getEarlyAccessToken } from "../ui/earlyAccess.js";
+
+const REPORT_LIST_CACHE_TTL_MS = 60 * 1000;
+const reportListCache = new Map();
 
 function apiURL(path = "reports") {
   const base = globalThis.location?.hostname?.endsWith("github.io")
@@ -12,10 +14,6 @@ async function request(path, options = {}) {
   const headers = new Headers(options.headers ?? {});
   const accountToken = getMeteoScopeAccountSessionToken();
   if (accountToken) headers.set("Authorization", `Bearer ${accountToken}`);
-  if (options.earlyAccess) {
-    const earlyAccessToken = getEarlyAccessToken();
-    if (earlyAccessToken) headers.set("X-MeteoScope-Early-Access", earlyAccessToken);
-  }
   if (options.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   let response;
   try {
@@ -34,16 +32,24 @@ async function request(path, options = {}) {
 }
 
 export const CommunityReportClient = Object.freeze({
-  list: ({ bounds, limit = 300 } = {}) => {
+  list: ({ bounds, limit = 100, force = false } = {}) => {
     const query = new URLSearchParams({ limit: String(limit) });
     if (Array.isArray(bounds) && bounds.length === 4) query.set("bbox", bounds.join(","));
-    return request(`reports?${query}`);
+    const cacheKey = `${getMeteoScopeAccountSessionToken() ?? "anonymous"}:${query}`;
+    const cached = reportListCache.get(cacheKey);
+    if (!force && cached && Date.now() - cached.createdAt < REPORT_LIST_CACHE_TTL_MS) return cached.promise;
+    const promise = request(`reports?${query}`).catch((error) => {
+      reportListCache.delete(cacheKey);
+      throw error;
+    });
+    reportListCache.set(cacheKey, { createdAt: Date.now(), promise });
+    return promise;
   },
-  create: (values) => request("reports", {
-    method: "POST",
-    body: JSON.stringify(values),
-    earlyAccess: true
-  }),
+  create: async (values) => {
+    const result = await request("reports", { method: "POST", body: JSON.stringify(values) });
+    reportListCache.clear();
+    return result;
+  },
   remove: (reportID) => request(`reports/${encodeURIComponent(reportID)}`, { method: "DELETE" }),
   flag: (reportID, reason = "misleading") => request(`reports/${encodeURIComponent(reportID)}/flag`, {
     method: "POST",

@@ -1476,12 +1476,23 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     map?.resize();
   }
 
+  function getVisibleBounds() {
+    if (!map) return null;
+    const bounds = map.getBounds();
+    const west = Math.max(120, bounds.getWest());
+    const south = Math.max(20, bounds.getSouth());
+    const east = Math.min(155, bounds.getEast());
+    const north = Math.min(50, bounds.getNorth());
+    if (![west, south, east, north].every(Number.isFinite) || west >= east || south >= north) return null;
+    return [west, south, east, north].map((value) => Number(value.toFixed(4)));
+  }
+
   function setTheme(theme) {
     activeTheme = theme === "light" ? "light" : "dark";
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, renderData, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates };
+  return { initialize, whenReady, setMode, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates };
 }
 
 function createCommunityReportFeatureCollection(reports = []) {

@@ -106,7 +106,7 @@ struct MapDashboardView: View {
             guard model.selectedFeature == .radar else { return }
             await communityReports.refresh()
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(120))
+                try? await Task.sleep(for: .seconds(300))
                 guard !Task.isCancelled, model.selectedFeature == .radar else { return }
                 await communityReports.refresh()
             }
@@ -347,7 +347,6 @@ private struct RadarTimelineCard: View {
     @Environment(WeatherAppModel.self) private var model
     @Environment(LocationService.self) private var locationService
     @Environment(CommunityReportModel.self) private var communityReports
-    @Environment(EarlyAccessModel.self) private var earlyAccess
     @State private var showsReportComposer = false
 
     var body: some View {
@@ -407,7 +406,6 @@ private struct RadarTimelineCard: View {
             CommunityReportComposerView(
                 coordinate: locationService.coordinate,
                 isLoggedIn: QuizSessionKeychain.load() != nil,
-                earlyAccess: earlyAccess,
                 reports: communityReports
             )
         }

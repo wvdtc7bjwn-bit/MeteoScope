@@ -1024,9 +1024,13 @@ if (layerId === "river") {
     return request;
   }
 
-  async function refreshCommunityReports() {
+  async function refreshCommunityReports({ force = false } = {}) {
     if (communityReportsRequest) return communityReportsRequest;
-    communityReportsRequest = CommunityReportClient.list()
+    communityReportsRequest = CommunityReportClient.list({
+      bounds: weatherMap?.getVisibleBounds?.(),
+      limit: 100,
+      force
+    })
       .then((result) => {
         communityReports = Array.isArray(result?.reports) ? result.reports : [];
         weatherMap?.setCommunityReports(communityReports);
@@ -1747,10 +1751,9 @@ if (layerId === "river") {
     setupDisasterMapModal();
     setupDisasterQuizModal();
     setupCommunityReportModal({
-      getContext: () => ({ currentLocation: currentLocationInfo, earlyAccessState }),
-      onSubmitted: refreshCommunityReports,
-      onOpenAccount: openDisasterQuizModal,
-      onOpenSettings: openSettingsModal
+      getContext: () => ({ currentLocation: currentLocationInfo }),
+      onSubmitted: () => refreshCommunityReports({ force: true }),
+      onOpenAccount: openDisasterQuizModal
     });
     setupFeedbackModal();
     document.addEventListener("click", (event) => {

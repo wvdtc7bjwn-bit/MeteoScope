@@ -456,6 +456,17 @@ function renderStatus(status) {
     ["キャッシュ削除", status.bindings?.cachePurge ? "設定済み" : "未設定"],
     ["現在時刻", status.nowJst || "--"],
     ["設定更新", status.configUpdatedAt || "--"],
+    ["現在地投稿（UTC当日）", status.communityReports?.migrationRequired
+      ? "D1 migration 0009の適用が必要"
+      : status.communityReports?.configured
+        ? `${formatInteger(status.communityReports.postsToday)} / ${formatInteger(status.communityReports.globalDailyLimit)}回`
+        : "未設定"],
+    ["投稿アカウント（UTC当日）", status.communityReports?.configured && !status.communityReports?.migrationRequired
+      ? `${formatInteger(status.communityReports.activeAccounts)}人・1人${formatInteger(status.communityReports.accountDailyLimit)}回まで`
+      : "--"],
+    ["地図に有効な投稿", status.communityReports?.configured && !status.communityReports?.migrationRequired
+      ? `${formatInteger(status.communityReports.activeReports)}件`
+      : "--"],
     ["警報取得フェーズ", warningCron.phase === "notify" ? "通知判定" : warningCron.phase === "fetch" ? "官署取得" : "未実行"],
     ["全国取得完了", formatAdminDate(warningCron.lastCycleCompletedAt)],
     ["全官署の最終成功", formatAdminDate(warningCron.lastFullySuccessfulAt)],

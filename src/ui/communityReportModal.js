@@ -1,18 +1,15 @@
 import { CommunityReportClient } from "../domain/communityReportClient.js";
 import { QuizRankingClient } from "../domain/quizRankingClient.js";
-import { validateEarlyAccess } from "./earlyAccess.js";
 
 let contextProvider = () => ({});
 let submittedHandler = () => {};
 let openAccountHandler = () => {};
-let openSettingsHandler = () => {};
 let initialized = false;
 
-export function setupCommunityReportModal({ getContext, onSubmitted, onOpenAccount, onOpenSettings } = {}) {
+export function setupCommunityReportModal({ getContext, onSubmitted, onOpenAccount } = {}) {
   contextProvider = typeof getContext === "function" ? getContext : contextProvider;
   submittedHandler = typeof onSubmitted === "function" ? onSubmitted : submittedHandler;
   openAccountHandler = typeof onOpenAccount === "function" ? onOpenAccount : openAccountHandler;
-  openSettingsHandler = typeof onOpenSettings === "function" ? onOpenSettings : openSettingsHandler;
   if (initialized) return;
   initialized = true;
   document.querySelectorAll("[data-community-report-close]").forEach((element) => {
@@ -34,10 +31,6 @@ export function setupCommunityReportModal({ getContext, onSubmitted, onOpenAccou
     closeCommunityReportModal();
     openAccountHandler();
   });
-  document.getElementById("community-report-open-settings")?.addEventListener("click", () => {
-    closeCommunityReportModal();
-    openSettingsHandler();
-  });
 }
 
 export async function openCommunityReportModal() {
@@ -49,20 +42,15 @@ export async function openCommunityReportModal() {
   setFormEnabled(false);
   const location = contextProvider()?.currentLocation;
   renderLocation(location);
-  const [accountResult, accessResult] = await Promise.allSettled([
-    QuizRankingClient.account(),
-    validateEarlyAccess()
-  ]);
-  const account = accountResult.status === "fulfilled" ? accountResult.value?.account : null;
-  const access = accessResult.status === "fulfilled" ? accessResult.value : { active: false };
+  let account = null;
+  try {
+    account = (await QuizRankingClient.account())?.account ?? null;
+  } catch {
+    account = null;
+  }
   document.getElementById("community-report-account-required")?.toggleAttribute("hidden", Boolean(account));
-  document.getElementById("community-report-access-required")?.toggleAttribute("hidden", Boolean(access.active));
   if (!account) {
     setStatus("投稿にはMeteoScopeアカウントへのログインが必要です。", "error");
-    return;
-  }
-  if (!access.active) {
-    setStatus("投稿はアーリーアクセス認証済みのアカウントで利用できます。", "error");
     return;
   }
   if (location?.status !== "found" || !Array.isArray(location.coordinates)) {
@@ -70,7 +58,7 @@ export async function openCommunityReportModal() {
     return;
   }
   setFormEnabled(true);
-  setStatus(`${account.displayName} で投稿できます。投稿は5時間後に自動で消えます。`, "ready");
+  setStatus(`${account.displayName} で投稿できます。投稿は5時間後に自動で消え、1日12回までです。`, "ready");
 }
 
 export function closeCommunityReportModal() {

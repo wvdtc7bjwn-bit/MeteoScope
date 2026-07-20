@@ -5,7 +5,6 @@ struct CommunityReportComposerView: View {
     @Environment(\.dismiss) private var dismiss
     let coordinate: CLLocationCoordinate2D?
     let isLoggedIn: Bool
-    let earlyAccess: EarlyAccessModel
     let reports: CommunityReportModel
 
     @State private var weather = ""
@@ -32,8 +31,6 @@ struct CommunityReportComposerView: View {
                 }
                 if !isLoggedIn {
                     Section { Label("投稿にはMeteoScopeアカウントへのログインが必要です。", systemImage: "person.crop.circle.badge.exclamationmark") }
-                } else if !earlyAccess.isActive {
-                    Section { Label("投稿はアーリーアクセス対象です。設定でシリアルコードを認証してください。", systemImage: "key") }
                 } else if coordinate == nil {
                     Section { Label("地図上部の現在地ボタンで投稿地点を取得してください。", systemImage: "location.slash") }
                 }
@@ -79,19 +76,18 @@ struct CommunityReportComposerView: View {
                     }
                     .disabled(!canSubmit)
                     if let message { Text(message).font(.footnote).foregroundStyle(.secondary) }
-                    Text("投稿は5時間後に地図から消え、D1からも順次削除されます。緊急通報には使用しないでください。")
+                    Text("投稿は1日12回までです。5時間後に地図から消え、D1からも順次削除されます。緊急通報には使用しないでください。")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
             .navigationTitle("現在地の様子を投稿")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("閉じる") { dismiss() } } }
-            .task { await earlyAccess.refresh() }
         }
     }
 
     private var canSubmit: Bool {
-        isLoggedIn && earlyAccess.isActive && coordinate != nil && !weather.isEmpty && !isSubmitting
+        isLoggedIn && coordinate != nil && !weather.isEmpty && !isSubmitting
     }
 
     private func submit() async {
@@ -111,7 +107,7 @@ struct CommunityReportComposerView: View {
                 longitude: roundedReportCoordinate(coordinate.longitude),
                 areaCode: "",
                 areaName: "現在地周辺"
-            ), earlyAccessToken: earlyAccess.token)
+            ))
             message = "投稿しました。雨雲レーダーへ反映しました。"
             try? await Task.sleep(for: .milliseconds(700))
             dismiss()

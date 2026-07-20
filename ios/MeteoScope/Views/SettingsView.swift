@@ -126,7 +126,7 @@ struct SettingsView: View {
                     .disabled(earlyAccess.isLoading || earlyAccessCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
                 Text(earlyAccess.message).font(.footnote).foregroundStyle(.secondary)
-                Text("現在地の様子の投稿は、MeteoScopeアカウントとアーリーアクセスの両方が必要です。")
+                Text("現在地の様子の投稿は、MeteoScopeアカウントへログインすると利用できます。アーリーアクセス認証の有無は投稿権限に影響しません。")
                     .font(.footnote).foregroundStyle(.secondary)
             }
 

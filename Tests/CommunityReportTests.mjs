@@ -4,15 +4,23 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
+  COMMUNITY_REPORT_ACCOUNT_DAILY_LIMIT,
+  COMMUNITY_REPORT_GLOBAL_DAILY_LIMIT,
+  COMMUNITY_REPORT_POST_COOLDOWN_MS,
   COMMUNITY_REPORT_RETENTION_MS,
   cleanupExpiredCommunityReports,
+  insertCommunityReportWithQuota,
   normalizeCommunityReportInput,
   normalizeCommunityReportComment,
+  readCommunityReportOperationalMetrics,
   roundCommunityCoordinate
 } from "../functions/_shared/communityReports.js";
 import { accountSessionToken } from "../functions/_shared/accountAuth.js";
 
 assert.equal(COMMUNITY_REPORT_RETENTION_MS, 5 * 60 * 60 * 1000);
+assert.equal(COMMUNITY_REPORT_POST_COOLDOWN_MS, 5 * 60 * 1000);
+assert.equal(COMMUNITY_REPORT_ACCOUNT_DAILY_LIMIT, 12);
+assert.equal(COMMUNITY_REPORT_GLOBAL_DAILY_LIMIT, 2400);
 assert.equal(roundCommunityCoordinate(139.7514), 139.76);
 assert.deepEqual(normalizeCommunityReportInput({
   weather: "heavy-rain",
@@ -60,19 +68,90 @@ const fakeDB = {
     return { bind(...values) { entry.values = values; return entry; } };
   },
   async batch(statements) {
-    assert.equal(statements.length, 2);
-    return [{ meta: { changes: 3 } }, { meta: { changes: 1 } }];
+    assert.equal(statements.length, 3);
+    return [{ meta: { changes: 3 } }, { meta: { changes: 1 } }, { meta: { changes: 1 } }];
   }
 };
 assert.deepEqual(await cleanupExpiredCommunityReports(fakeDB, new Date("2026-07-17T00:01:00Z")), { ran: false, deleted: 0 });
-assert.deepEqual(await cleanupExpiredCommunityReports(fakeDB, new Date("2026-07-17T00:05:00Z")), { ran: true, deleted: 3, countersDeleted: 1 });
+assert.deepEqual(await cleanupExpiredCommunityReports(fakeDB, new Date("2026-07-17T00:05:00Z")), {
+  ran: true,
+  deleted: 3,
+  countersDeleted: 1,
+  totalsDeleted: 1
+});
 assert.match(prepared[0].sql, /LIMIT 200/u);
 assert.match(prepared[1].sql, /community_post_daily/u);
+assert.match(prepared[2].sql, /community_post_totals/u);
+
+const quotaStatements = [];
+const quotaDB = {
+  prepare(sql) {
+    const entry = { sql, values: [] };
+    quotaStatements.push(entry);
+    return { bind(...values) { entry.values = values; return entry; } };
+  },
+  async batch(statements) {
+    assert.equal(statements.length, 4);
+    return [{ meta: { changes: 1 } }, { meta: { changes: 1 } }, { meta: { changes: 1 } }, { meta: { changes: 0 } }];
+  }
+};
+const quotaReport = {
+  id: "11111111-1111-4111-8111-111111111111",
+  accountID: "account-1",
+  weather: "sunny",
+  comment: null,
+  sensation: null,
+  temperatureTenths: null,
+  hazardsJSON: "[]",
+  latitude: 35.68,
+  longitude: 139.76,
+  areaCode: "1310100",
+  areaName: "千代田区",
+  createdAt: "2026-07-20T00:00:00.000Z",
+  expiresAt: "2026-07-20T05:00:00.000Z",
+  activityDate: "2026-07-20",
+  counterExpiresAt: "2026-07-22T00:00:00.000Z"
+};
+assert.equal(await insertCommunityReportWithQuota(quotaDB, quotaReport), true);
+assert.match(quotaStatements[0].sql, /post_count < 2400/u);
+assert.match(quotaStatements[1].sql, /post_count < 12/u);
+assert.match(quotaStatements[2].sql, /last_reservation_id/u);
+assert.match(quotaStatements[3].sql, /NOT EXISTS/u);
+
+const metricsStatements = [];
+const metrics = await readCommunityReportOperationalMetrics({
+  NOTIFICATIONS_DB: {
+    prepare(sql) {
+      const entry = { sql, values: [] };
+      metricsStatements.push(entry);
+      return { bind(...values) { entry.values = values; return entry; } };
+    },
+    async batch(statements) {
+      assert.equal(statements.length, 3);
+      return [
+        { results: [{ count: 42 }] },
+        { results: [{ count: 18 }] },
+        { results: [{ post_count: 75 }] }
+      ];
+    }
+  }
+}, new Date("2026-07-20T01:00:00.000Z"));
+assert.deepEqual(metrics, {
+  configured: true,
+  activeReports: 42,
+  activeAccounts: 18,
+  postsToday: 75,
+  accountDailyLimit: 12,
+  globalDailyLimit: 2400
+});
+assert.match(metricsStatements[2].sql, /community_post_totals/u);
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const [route, migration, webModal, webMap, webSummary, webIndex, iosService, iosComposer, iosMap, privacyManifest, privacyPage] = await Promise.all([
+const [route, migration, quotaMigration, webClient, webModal, webMap, webSummary, webIndex, iosService, iosComposer, iosMap, iosDashboard, privacyManifest, privacyPage] = await Promise.all([
   fs.readFile(path.join(root, "functions", "api", "community", "[[path]].js"), "utf8"),
   fs.readFile(path.join(root, "migrations", "0008_community_reports.sql"), "utf8"),
+  fs.readFile(path.join(root, "migrations", "0009_community_report_quota.sql"), "utf8"),
+  fs.readFile(path.join(root, "src", "domain", "communityReportClient.js"), "utf8"),
   fs.readFile(path.join(root, "src", "ui", "communityReportModal.js"), "utf8"),
   fs.readFile(path.join(root, "src", "map", "weatherMap.js"), "utf8"),
   fs.readFile(path.join(root, "src", "ui", "leftPanel.js"), "utf8"),
@@ -80,6 +159,7 @@ const [route, migration, webModal, webMap, webSummary, webIndex, iosService, ios
   fs.readFile(path.join(root, "ios", "MeteoScope", "Services", "CommunityReportService.swift"), "utf8"),
   fs.readFile(path.join(root, "ios", "MeteoScope", "Views", "CommunityReportComposerView.swift"), "utf8"),
   fs.readFile(path.join(root, "ios", "MeteoScope", "Map", "WeatherMapView.swift"), "utf8"),
+  fs.readFile(path.join(root, "ios", "MeteoScope", "Views", "MapDashboardView.swift"), "utf8"),
   fs.readFile(path.join(root, "ios", "MeteoScope", "Support", "PrivacyInfo.xcprivacy"), "utf8"),
   fs.readFile(path.join(root, "public", "privacy.html"), "utf8")
 ]);
@@ -87,12 +167,20 @@ for (const table of ["community_reports", "community_report_flags", "community_p
 assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`, "u"));
 }
 assert.match(migration, /comment TEXT/u);
+assert.match(quotaMigration, /CREATE TABLE IF NOT EXISTS community_post_totals/u);
+assert.match(quotaMigration, /last_reservation_id/u);
 assert.match(route, /requireAccountAuthentication/u);
-assert.match(route, /validateEarlyAccessToken/u);
+assert.doesNotMatch(route, /validateEarlyAccessToken|X-MeteoScope-Early-Access/u);
 assert.match(route, /POST_COOLDOWN_MS/u);
-assert.match(route, /MAX_POSTS_PER_24_HOURS/u);
+assert.match(route, /COMMUNITY_REPORT_ACCOUNT_DAILY_LIMIT/u);
+assert.match(route, /COMMUNITY_REPORT_GLOBAL_DAILY_LIMIT/u);
+assert.match(route, /insertCommunityReportWithQuota/u);
 assert.doesNotMatch(route, /console\.(?:log|error).*token/iu);
+assert.match(webClient, /REPORT_LIST_CACHE_TTL_MS = 60 \* 1000/u);
+assert.match(webClient, /limit = 100/u);
+assert.doesNotMatch(webClient, /getEarlyAccessToken|X-MeteoScope-Early-Access/u);
 assert.match(webModal, /roundReportCoordinate/u);
+assert.doesNotMatch(webModal, /validateEarlyAccess|community-report-access-required/u);
 assert.match(webModal, /data\.get\("comment"\)/u);
 assert.match(webModal, /input, select, textarea, button/u);
 assert.match(webMap, /community-report-cluster/u);
@@ -103,10 +191,13 @@ assert.match(webMap, /if \(!hitReport\) hideMapInfo\("community-report"\)/u);
 assert.match(webSummary, /mobile-dock-community-report-open/u);
 assert.match(webSummary, /data-community-report-open/u);
 assert.match(webIndex, /data-community-report-open/u);
-assert.match(iosService, /X-MeteoScope-Early-Access/u);
+assert.match(iosService, /URLQueryItem\(name: "limit", value: "100"\)/u);
+assert.doesNotMatch(iosService, /earlyAccessToken|X-MeteoScope-Early-Access|earlyAccessRequired/u);
 assert.match(iosComposer, /roundedReportCoordinate/u);
 assert.match(iosComposer, /80文字/u);
+assert.doesNotMatch(iosComposer, /earlyAccess/u);
 assert.match(iosMap, /communityReport[\s\S]*CGSize\(width: 14, height: 14\)/u);
+assert.match(iosDashboard, /Task\.sleep\(for: \.seconds\(300\)\)/u);
 assert.match(privacyManifest, /NSPrivacyCollectedDataTypeOtherUserContent/u);
 assert.match(privacyPage, /5時間/u);
 assert.match(privacyPage, /約2km/u);

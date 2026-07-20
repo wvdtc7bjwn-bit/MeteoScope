@@ -1,6 +1,7 @@
 import { readJson, writeJson, requireD1 } from "../../_shared/d1Store.js";
 import { readCloudflareFreeTierUsage } from "../../_shared/cloudflareFreeTierAnalytics.js";
 import { readQuizOperationalMetrics } from "../../_shared/quizMaintenance.js";
+import { readCommunityReportOperationalMetrics } from "../../_shared/communityReports.js";
 import { deleteMeteoScopeAccount, listMeteoScopeAccounts } from "../../_shared/adminManagement.js";
 import { deleteEarlyAccessActivationsForCode, reconcileEarlyAccessCodeUsage } from "../../_shared/earlyAccessAuth.js";
 import { invalidateAllQuizLeaderboardCaches } from "../../_shared/quizLeaderboardCache.js";
@@ -121,10 +122,11 @@ async function sessionStatus(request, env) {
 }
 
 async function status(env) {
-  const [config, warningCron, quiz] = await Promise.all([
+  const [config, warningCron, quiz, communityReports] = await Promise.all([
     readJson(env.NOTIFICATIONS_DB, CONFIG_KEY, DEFAULT_CONFIG),
     readWarningCronHealth(env),
-    readQuizOperationalMetrics(env)
+    readQuizOperationalMetrics(env),
+    readCommunityReportOperationalMetrics(env)
   ]);
   return json({
     ok: true,
@@ -136,6 +138,7 @@ async function status(env) {
     configUpdatedAt: config?.updatedAt || "--",
     warningCron,
     quiz,
+    communityReports,
     bindings: {
       d1: Boolean(env.NOTIFICATIONS_DB),
       r2: Boolean(env.DISASTER_MAPS),
