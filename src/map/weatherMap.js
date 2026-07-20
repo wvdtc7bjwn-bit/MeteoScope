@@ -17,6 +17,7 @@ import { planWarningFeatureStateChanges } from "./warningFeatureState.js";
 import { WARNING_GEOMETRY_FIX_CODES } from "./warningGeometryFixCodes.js";
 import { createHypocenter3DLayer } from "./hypocenter3DLayer.js";
 import { createPlateDepth3DLayer } from "./plateDepth3DLayer.js";
+import { createPlateDepthSurface3DLayer } from "./plateDepthSurface3DLayer.js";
 import { getHypocenterDepthColor } from "./hypocenterDepthStyle.js";
 
 const MODE_CLASS = {
@@ -260,10 +261,13 @@ export function createWeatherMap(elementId) {
   let hypocenter3DEnabled = false;
   let previousHypocenterCamera = null;
   let plateDepth3DLayerAvailable = false;
+  let plateDepthSurface3DLayerAvailable = false;
   let plateDepth3DReady = false;
+  let plateDepthSurface3DReady = false;
   let plateDepth3DLoadPromise = null;
   const hypocenter3D = createHypocenter3DLayer(maplibregl, getHypocenterDepthColor);
   const plateDepth3D = createPlateDepth3DLayer(maplibregl, getHypocenterDepthColor);
+  const plateDepthSurface3D = createPlateDepthSurface3DLayer(maplibregl, getHypocenterDepthColor);
 
   function initialize() {
     map = new maplibregl.Map({
@@ -440,19 +444,39 @@ export function createWeatherMap(elementId) {
         map.setLayoutProperty(layerId, "visibility", shouldShow && !showSpatialContours ? "visible" : "none");
       }
     });
+    plateDepthSurface3D.setEnabled(
+      showSpatialContours && plateDepthSurface3DLayerAvailable && plateDepthSurface3DReady
+    );
     plateDepth3D.setEnabled(showSpatialContours);
   }
 
   async function ensurePlateDepth3DData() {
     if (plateDepth3DReady || plateDepth3DLoadPromise) return plateDepth3DLoadPromise;
-    plateDepth3DLoadPromise = fetch(MAP_DATA_ENDPOINTS.slab2DepthContours, { cache: "force-cache" })
-      .then((response) => {
-        if (!response.ok) throw new Error(`USGS Slab2 3D data request failed: ${response.status}`);
+    const surfaceRequest = fetch(MAP_DATA_ENDPOINTS.slab2Surface, { cache: "force-cache" })
+      .then(async (response) => {
+        if (!response.ok) {
+          console.warn(`[MeteoScope] USGS Slab2 surface request failed: ${response.status}`);
+          return null;
+        }
         return response.json();
       })
-      .then((collection) => {
-        plateDepth3D.setData(collection);
+      .catch((error) => {
+        console.warn("[MeteoScope] プレート面データを取得できませんでした", error);
+        return null;
+      });
+    plateDepth3DLoadPromise = Promise.all([
+      fetch(MAP_DATA_ENDPOINTS.slab2DepthContours, { cache: "force-cache" }),
+      surfaceRequest
+    ])
+      .then(async ([contourResponse, surface]) => {
+        if (!contourResponse.ok) throw new Error(`USGS Slab2 contour request failed: ${contourResponse.status}`);
+        const contours = await contourResponse.json();
+        plateDepth3D.setData(contours);
         plateDepth3DReady = true;
+        if (surface) {
+          plateDepthSurface3D.setData(surface);
+          plateDepthSurface3DReady = true;
+        }
         syncPlateDepthContourVisibility();
       })
       .catch((error) => {
@@ -866,6 +890,12 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
 
     addWeatherChartLayers(map);
     addCommunityReportLayers();
+    try {
+      map.addLayer(plateDepthSurface3D.layer);
+      plateDepthSurface3DLayerAvailable = true;
+    } catch (error) {
+      console.warn("[MeteoScope] プレート面の立体レイヤーを初期化できませんでした", error);
+    }
     try {
       map.addLayer(plateDepth3D.layer);
       plateDepth3DLayerAvailable = true;

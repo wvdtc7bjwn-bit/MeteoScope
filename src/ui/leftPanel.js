@@ -973,7 +973,9 @@ if (tabId === "warnings" && warningView === "early") {
         ["その他の境界", "legend-plate-other"]
       ] : []),
       ...(data?.plateDepthContoursVisible !== false
-        ? [["プレート等深線（浅い → 深い）", "legend-plate-depth"]]
+        ? [[data?.distribution3DEnabled === true
+          ? "プレート面・等深線（浅い → 深い）"
+          : "プレート等深線（浅い → 深い）", "legend-plate-depth"]]
         : [])
     ];
     if (isHypocenterDistribution) {

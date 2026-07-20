@@ -27,6 +27,9 @@ enum MeteoScopeEndpoints {
     static let plateDepthContourGeoJSON = URL(
         string: "https://meteoscope.pages.dev/data/usgs-slab2-depth-contours-japan.geojson"
     )!
+    static let plateDepthSurfaceGeoJSON = URL(
+        string: "https://meteoscope.pages.dev/data/usgs-slab2-surface-japan.geojson?v=20260720-7"
+    )!
     static let usgsPlateBoundarySource = URL(
         string: "https://earthquake.usgs.gov/arcgis/rest/services/eq/map_plateboundaries/MapServer"
     )!

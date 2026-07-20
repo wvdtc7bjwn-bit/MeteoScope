@@ -10,6 +10,10 @@ const slab2Contours = JSON.parse(await readFile(
   new URL("public/data/usgs-slab2-depth-contours-japan.geojson", root),
   "utf8"
 ));
+const slab2Surface = JSON.parse(await readFile(
+  new URL("public/data/usgs-slab2-surface-japan.geojson", root),
+  "utf8"
+));
 
 assert.equal(geojson.type, "FeatureCollection");
 assert.equal(geojson.features.length, 19);
@@ -57,6 +61,14 @@ for (const feature of slab2Contours.features) {
   }
 }
 assert.deepEqual(actualRegions, expectedRegions);
+assert.equal(slab2Surface.type, "FeatureCollection");
+assert.equal(slab2Surface.features.length, 106);
+assert.deepEqual(
+  [...new Set(slab2Surface.features
+    .filter((feature) => feature.properties?.shallowDepthKm === 0)
+    .map((feature) => feature.properties.region))].sort(),
+  ["Izu-Bonin", "Kuril", "Ryukyu"]
+);
 
 const seamAdjustmentCounts = new Map();
 for (const { feature, adjustment } of slab2SeamAdjustments) {
@@ -87,6 +99,7 @@ const map = await readFile(new URL("src/map/weatherMap.js", root), "utf8");
 const depthRenderer = await readFile(new URL("src/map/depth3DRenderer.js", root), "utf8");
 const hypocenter3DLayer = await readFile(new URL("src/map/hypocenter3DLayer.js", root), "utf8");
 const plateDepth3DLayer = await readFile(new URL("src/map/plateDepth3DLayer.js", root), "utf8");
+const plateDepthSurface3DLayer = await readFile(new URL("src/map/plateDepthSurface3DLayer.js", root), "utf8");
 const panel = await readFile(new URL("src/ui/leftPanel.js", root), "utf8");
 const style = await readFile(new URL("src/style.css", root), "utf8");
 const iosMap = await readFile(new URL("ios/MeteoScope/Map/WeatherMapView.swift", root), "utf8");
@@ -94,14 +107,16 @@ const iosDashboard = await readFile(new URL("ios/MeteoScope/Views/FeatureDashboa
 const iosSettings = await readFile(new URL("ios/MeteoScope/Views/SettingsView.swift", root), "utf8");
 assert.match(index, /プレート境界: USGS/u);
 assert.match(index, /境界モデル: Bird, 2003/u);
-assert.match(index, /プレート等深線: USGS Slab2/u);
+assert.match(index, /プレート面・等深線: USGS Slab2/u);
 assert.match(sources, /ddbe6c7e2c0911bfbe42a5facd5e61b510bb86a9e186627f772c36bd7c626c25/u);
 assert.match(sources, /d90214969b6fa4a4411d244694c0d337d073ba080c32b03edc66d47821a3d0f9/u);
+assert.match(sources, /7bcf026d7309cf1bf47cb02ff8ba2074ec8a562b7229fd312efe8704f3d1f294/u);
 assert.match(app, /setPlateBoundaryVisible/u);
 assert.match(app, /setPlateDepthContoursVisible/u);
 assert.match(map, /activeMode === "earthquake" && plateBoundaryVisible/u);
 assert.match(map, /activeMode === "earthquake" && plateDepthContoursVisible/u);
 assert.match(map, /createPlateDepth3DLayer/u);
+assert.match(map, /createPlateDepthSurface3DLayer/u);
 assert.match(map, /plateDepth3D\.setEnabled/u);
 assert.match(map, /createHypocenter3DLayer/u);
 assert.match(map, /hypocenter3D\.setEnabled/u);
@@ -118,10 +133,14 @@ assert.match(depthRenderer, /uniform float u_depth_scale/u);
 assert.match(depthRenderer, /a_position\.z \* u_depth_scale/u);
 assert.match(hypocenter3DLayer, /getDepth3DZoomScale\(state\.map\?\.getZoom\(\)\)/u);
 assert.match(plateDepth3DLayer, /getDepth3DZoomScale\(state\.map\?\.getZoom\(\)\)/u);
-assert.match(index, /Web版は3倍、iOS版は2\.5D/u);
+assert.match(plateDepthSurface3DLayer, /gl\.TRIANGLES/u);
+assert.match(plateDepthSurface3DLayer, /getDepth3DZoomScale\(state\.map\?\.getZoom\(\)\)/u);
+assert.match(index, /Web版は3D、iOS版は2\.5D/u);
 assert.match(iosMap, /plateDepthContourSpatialLineIdentifiers/u);
+assert.match(iosMap, /plateDepthSurfaceFillIdentifiers/u);
+assert.match(iosMap, /fillTranslationAnchor/u);
 assert.match(iosMap, /lineTranslationAnchor/u);
 assert.match(iosDashboard, /Text\("震源の深さ"\)/u);
-assert.match(iosSettings, /2\.5Dの模式表示/u);
+assert.match(iosSettings, /2\.5Dの概略表現/u);
 
 console.log("USGS plate boundary and Slab2 contour data tests passed");

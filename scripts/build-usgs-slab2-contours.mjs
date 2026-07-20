@@ -1,5 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import AdmZip from "adm-zip";
+import { coordinateDistanceKm } from "../src/map/plateDepthSurfaceGeometry.js";
 
 const SOURCE_URL = "https://www.sciencebase.gov/catalog/file/get/5aa1b00ee4b0b1c392e86467?f=__disk__64%2F49%2Fc1%2F6449c188b9af0381e3722fc6809e343f75a809de";
 const OUTPUT_URL = new URL("../public/data/usgs-slab2-depth-contours-japan.geojson", import.meta.url);
@@ -167,13 +168,6 @@ function lineEndpoints(feature) {
       endpointName: "end"
     }
   ];
-}
-
-function coordinateDistanceKm(first, second) {
-  const latitudeScale = Math.cos(((first[1] + second[1]) / 2) * Math.PI / 180);
-  const longitudeDistance = (first[0] - second[0]) * latitudeScale;
-  const latitudeDistance = first[1] - second[1];
-  return Math.hypot(longitudeDistance, latitudeDistance) * 111.2;
 }
 
 function readMatch(value, pattern) {

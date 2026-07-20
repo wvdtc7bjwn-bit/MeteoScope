@@ -36,6 +36,9 @@ jobs:
       - name: Test current-location marker controls
         run: npm run test:location
 
+      - name: Test responsive layouts
+        run: npm run test:responsive
+
       - name: Build
         run: npm run build
         env:

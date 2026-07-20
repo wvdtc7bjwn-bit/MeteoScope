@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct MapDashboardView: View {
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Environment(WeatherAppModel.self) private var model
     @Environment(AppPreferences.self) private var preferences
     @Environment(LocationService.self) private var locationService
@@ -12,37 +13,42 @@ struct MapDashboardView: View {
     var body: some View {
         @Bindable var model = model
 
-        ZStack {
-            WeatherMapView(
-                radarFrame: model.selectedFeature == .radar ? model.selectedRadarFrame : nil,
-                userCoordinate: locationService.coordinate,
-                showsUserLocationMarker: showsCurrentLocationMarker,
-                weatherOverlay: weatherOverlay,
-                showsActiveFaults: model.selectedFeature == .earthquake && preferences.showsActiveFaults,
-                showsPlateBoundaries: model.selectedFeature == .earthquake && preferences.showsPlateBoundaries,
-                showsPlateDepthContours: model.selectedFeature == .earthquake && preferences.showsPlateDepthContours,
-                showsHypocenterDepth3D: model.selectedFeature == .earthquake
-                    && model.earthquakeDisplayMode == .distribution
-                    && model.hypocenterMapPresentation == .spatial,
-                selectedActiveFault: $selectedActiveFault
-            )
-                .ignoresSafeArea(edges: .top)
+        GeometryReader { geometry in
+            ZStack {
+                WeatherMapView(
+                    radarFrame: model.selectedFeature == .radar ? model.selectedRadarFrame : nil,
+                    userCoordinate: locationService.coordinate,
+                    showsUserLocationMarker: showsCurrentLocationMarker,
+                    weatherOverlay: weatherOverlay,
+                    showsActiveFaults: model.selectedFeature == .earthquake && preferences.showsActiveFaults,
+                    showsPlateBoundaries: model.selectedFeature == .earthquake && preferences.showsPlateBoundaries,
+                    showsPlateDepthContours: model.selectedFeature == .earthquake && preferences.showsPlateDepthContours,
+                    showsHypocenterDepth3D: model.selectedFeature == .earthquake
+                        && model.earthquakeDisplayMode == .distribution
+                        && model.hypocenterMapPresentation == .spatial,
+                    selectedActiveFault: $selectedActiveFault
+                )
+                    .ignoresSafeArea(edges: .top)
 
-            VStack(spacing: 12) {
-                FeaturePicker(selection: $model.selectedFeature)
-                if let statusMessage = locationService.statusMessage {
-                    LocationStatusBanner(message: statusMessage)
-                }
-                Spacer()
-                if model.selectedFeature == .earthquake, let selectedActiveFault {
-                    ActiveFaultInfoCard(info: selectedActiveFault) {
-                        self.selectedActiveFault = nil
+                if verticalSizeClass == .compact {
+                    HStack(alignment: .top, spacing: 12) {
+                        FeaturePicker(selection: $model.selectedFeature, axis: .vertical)
+                            .frame(width: 68)
+                        Spacer(minLength: 12)
+                        dashboardDetails
+                            .frame(width: min(370, max(290, geometry.size.width * 0.43)))
                     }
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 8)
+                } else {
+                    VStack(spacing: 12) {
+                        FeaturePicker(selection: $model.selectedFeature)
+                        dashboardDetails
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
                 }
-                FeatureOverlay()
             }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 8)
         }
         .navigationTitle("MeteoScope")
         .navigationBarTitleDisplayMode(.inline)
@@ -150,6 +156,21 @@ struct MapDashboardView: View {
             return nil
         }
     }
+
+    private var dashboardDetails: some View {
+        VStack(spacing: 12) {
+            if let statusMessage = locationService.statusMessage {
+                LocationStatusBanner(message: statusMessage)
+            }
+            Spacer()
+            if model.selectedFeature == .earthquake, let selectedActiveFault {
+                ActiveFaultInfoCard(info: selectedActiveFault) {
+                    self.selectedActiveFault = nil
+                }
+            }
+            FeatureOverlay()
+        }
+    }
 }
 
 private struct ActiveFaultInfoCard: View {
@@ -216,19 +237,23 @@ private struct LocationStatusBanner: View {
 
 private struct FeaturePicker: View {
     @Binding var selection: WeatherFeature
+    var axis: Axis.Set = .horizontal
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        let stack = axis == .horizontal
+            ? AnyLayout(HStackLayout(spacing: 8))
+            : AnyLayout(VStackLayout(spacing: 8))
+
+        ScrollView(axis, showsIndicators: false) {
             MeteoGlassGroup(spacing: 10) {
-                HStack(spacing: 8) {
+                stack {
                     ForEach(WeatherFeature.allCases) { feature in
                         Button {
                             withAnimation(.snappy(duration: 0.25)) {
                                 selection = feature
                             }
                         } label: {
-                            Label(feature.shortTitle, systemImage: feature.systemImage)
-                                .font(.caption.weight(.semibold))
+                            FeaturePickerLabel(feature: feature, isVertical: axis == .vertical)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 9)
                                 .foregroundStyle(selection == feature ? Color.white : Color.primary)
@@ -242,6 +267,29 @@ private struct FeaturePicker: View {
                         .accessibilityAddTraits(selection == feature ? .isSelected : [])
                     }
                 }
+            }
+        }
+    }
+}
+
+private struct FeaturePickerLabel: View {
+    let feature: WeatherFeature
+    let isVertical: Bool
+
+    var body: some View {
+        Group {
+            if isVertical {
+                VStack(spacing: 2) {
+                    Image(systemName: feature.systemImage)
+                        .font(.system(size: 17, weight: .semibold))
+                    Text(feature.shortTitle)
+                        .font(.caption2.weight(.semibold))
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                Label(feature.shortTitle, systemImage: feature.systemImage)
+                    .font(.caption.weight(.semibold))
             }
         }
     }

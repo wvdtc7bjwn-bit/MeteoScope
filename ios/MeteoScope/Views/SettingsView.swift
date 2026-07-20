@@ -154,10 +154,10 @@ struct SettingsView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 Link("USGSプレート境界の出典", destination: MeteoScopeEndpoints.usgsPlateBoundarySource)
-                Text("プレート等深線は、USGS Slab2の日本周辺モデルから沈み込むプレート上面の深さを20km間隔で抽出し、浅い側を赤、深い側を青の連続色で表示しています。立体表示では深さ帯を画面方向へずらした2.5Dの模式表示を行います。CC0の静的データです。モデル値であり、地点ごとの地下構造や危険度を確定するものではありません。")
+                Text("プレート面・等深線は、USGS Slab2の日本周辺モデルから沈み込むプレート上面の深さを20km間隔で抽出し、浅い側を赤、深い側を青の連続色で表示しています。立体表示の面は、USGSの収束境界を0km側の端とし、隣接する等深線間をMeteoScopeが補間した2.5Dの概略表現です。距離が離れた箇所やデータの裏付けがない隙間には面を張りません。CC0の静的データで、地下構造や危険度を地点単位で確定するものではありません。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                Link("USGS Slab2プレート等深線の出典", destination: MeteoScopeEndpoints.usgsSlab2Source)
+                Link("USGS Slab2プレート面・等深線の出典", destination: MeteoScopeEndpoints.usgsSlab2Source)
                 Link("USGSの著作権・クレジット案内", destination: MeteoScopeEndpoints.usgsCopyright)
             }
 

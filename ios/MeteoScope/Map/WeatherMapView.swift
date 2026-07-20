@@ -76,8 +76,17 @@ struct WeatherMapView: UIViewRepresentable {
             "meteoscope-usgs-plate-boundary-other"
         ]
         private let plateDepthContourSourceIdentifier = "meteoscope-usgs-slab2-depth-source"
+        private let plateDepthSurfaceSourceIdentifier = "meteoscope-usgs-slab2-surface-source"
         private let plateDepthContourLineIdentifier = "meteoscope-usgs-slab2-depth-line"
         private let plateDepthContourLabelIdentifier = "meteoscope-usgs-slab2-depth-label"
+        private let plateDepthSurfaceFillIdentifiers = [
+            "meteoscope-usgs-slab2-surface-spatial-0",
+            "meteoscope-usgs-slab2-surface-spatial-1",
+            "meteoscope-usgs-slab2-surface-spatial-2",
+            "meteoscope-usgs-slab2-surface-spatial-3",
+            "meteoscope-usgs-slab2-surface-spatial-4",
+            "meteoscope-usgs-slab2-surface-spatial-5"
+        ]
         private let plateDepthContourSpatialLineIdentifiers = [
             "meteoscope-usgs-slab2-depth-spatial-0",
             "meteoscope-usgs-slab2-depth-spatial-1",
@@ -272,6 +281,9 @@ struct WeatherMapView: UIViewRepresentable {
             }
 
             removePlateDepthContourStyleLayers(from: style)
+            if let surfaceSource = style.source(withIdentifier: plateDepthSurfaceSourceIdentifier) {
+                style.removeSource(surfaceSource)
+            }
             let source: MLNSource
             if let existingSource = style.source(withIdentifier: plateDepthContourSourceIdentifier) {
                 source = existingSource
@@ -317,7 +329,33 @@ struct WeatherMapView: UIViewRepresentable {
                     (380, 520, 450),
                     (520, 701, 610)
                 ]
+                let surfaceSource = MLNShapeSource(
+                    identifier: plateDepthSurfaceSourceIdentifier,
+                    url: MeteoScopeEndpoints.plateDepthSurfaceGeoJSON,
+                    options: nil
+                )
+                style.addSource(surfaceSource)
                 for (index, band) in bands.enumerated() {
+                    let offset = CGFloat(6 + band.depth * 58 / 700)
+                    let fillLayer = MLNFillStyleLayer(
+                        identifier: plateDepthSurfaceFillIdentifiers[index],
+                        source: surfaceSource
+                    )
+                    fillLayer.minimumZoomLevel = 3
+                    fillLayer.maximumZoomLevel = 12
+                    fillLayer.predicate = NSPredicate(
+                        format: "depthKm >= %d AND depthKm < %d",
+                        band.lower,
+                        band.upper
+                    )
+                    fillLayer.fillColor = depthColor
+                    fillLayer.fillOpacity = NSExpression(forConstantValue: 0.17)
+                    fillLayer.fillTranslation = NSExpression(
+                        forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: offset))
+                    )
+                    fillLayer.fillTranslationAnchor = NSExpression(forConstantValue: "viewport")
+                    style.addLayer(fillLayer)
+
                     let layer = MLNLineStyleLayer(
                         identifier: plateDepthContourSpatialLineIdentifiers[index],
                         source: source
@@ -335,7 +373,6 @@ struct WeatherMapView: UIViewRepresentable {
                         format: "mgl_interpolate:withCurveType:parameters:stops:($zoomLevel, 'linear', nil, %@)",
                         [3: 0.8, 7: 1.35, 11: 2.0] as NSDictionary
                     )
-                    let offset = CGFloat(6 + band.depth * 58 / 700)
                     layer.lineTranslation = NSExpression(
                         forConstantValue: NSValue(cgVector: CGVector(dx: 0, dy: offset))
                     )
@@ -375,12 +412,16 @@ struct WeatherMapView: UIViewRepresentable {
             if let source = style.source(withIdentifier: plateDepthContourSourceIdentifier) {
                 style.removeSource(source)
             }
+            if let surfaceSource = style.source(withIdentifier: plateDepthSurfaceSourceIdentifier) {
+                style.removeSource(surfaceSource)
+            }
             renderedPlateDepthContoursSpatial = nil
         }
 
         private func removePlateDepthContourStyleLayers(from style: MLNStyle) {
             let identifiers = [plateDepthContourLabelIdentifier, plateDepthContourLineIdentifier]
                 + plateDepthContourSpatialLineIdentifiers
+                + plateDepthSurfaceFillIdentifiers
             for identifier in identifiers {
                 if let layer = style.layer(withIdentifier: identifier) { style.removeLayer(layer) }
             }
