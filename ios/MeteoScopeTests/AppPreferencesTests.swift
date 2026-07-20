@@ -22,4 +22,24 @@ final class AppPreferencesTests: XCTestCase {
         XCTAssertFalse(restored.showsPlateBoundaries)
         XCTAssertFalse(restored.showsPlateDepthContours)
     }
+
+    func testLegalConsentIsRequiredUntilCurrentVersionIsAccepted() {
+        let suiteName = "jp.meteoscope.tests.legal-consent.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var preferences: AppPreferences? = AppPreferences(store: defaults)
+        XCTAssertFalse(preferences?.hasAcceptedLegalDocuments == true)
+
+        preferences?.acceptLegalDocuments()
+        XCTAssertTrue(preferences?.hasAcceptedLegalDocuments == true)
+        preferences = nil
+
+        let restored = AppPreferences(store: defaults)
+        XCTAssertTrue(restored.hasAcceptedLegalDocuments)
+        XCTAssertEqual(
+            restored.acceptedLegalConsentVersion,
+            AppPreferences.currentLegalConsentVersion
+        )
+    }
 }

@@ -20,7 +20,8 @@ struct MeteoScopeApp: App {
                 .environment(communityReports)
                 .environment(earlyAccess)
                 .preferredColorScheme(preferences.colorScheme)
-                .task {
+                .task(id: preferences.hasAcceptedLegalDocuments) {
+                    guard preferences.hasAcceptedLegalDocuments else { return }
                     await pushNotifications.refreshAuthorizationStatus()
                     await earlyAccess.refresh()
                 }

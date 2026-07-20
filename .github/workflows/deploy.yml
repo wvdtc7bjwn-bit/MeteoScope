@@ -39,6 +39,12 @@ jobs:
       - name: Test responsive layouts
         run: npm run test:responsive
 
+      - name: Test initial map loading gates
+        run: npm run test:startup
+
+      - name: Test legal consent gates
+        run: npm run test:consent
+
       - name: Build
         run: npm run build
         env:

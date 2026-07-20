@@ -23,6 +23,8 @@
     "test:warnings": "node Tests/WarningResponsivenessTests.mjs",
     "test:location": "node Tests/CurrentLocationMarkerTests.mjs",
     "test:responsive": "node Tests/ResponsiveLayoutTests.mjs",
+    "test:startup": "node Tests/InitialMapLoadingTests.mjs",
+    "test:consent": "node Tests/LegalConsentTests.mjs",
     "data:build:warning-map": "node scripts/build-warning-geometry-fixes.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy dist --project-name meteoscope"
   },

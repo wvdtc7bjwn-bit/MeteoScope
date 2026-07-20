@@ -6,6 +6,7 @@ struct MapDashboardView: View {
     @Environment(AppPreferences.self) private var preferences
     @Environment(LocationService.self) private var locationService
     @Environment(CommunityReportModel.self) private var communityReports
+    @State private var isMapReady = false
     @State private var selectedActiveFault: ActiveFaultInfo?
     @State private var showsCurrentLocationMarker = true
     @State private var suppressesNextLocationButtonTap = false
@@ -26,32 +27,40 @@ struct MapDashboardView: View {
                     showsHypocenterDepth3D: model.selectedFeature == .earthquake
                         && model.earthquakeDisplayMode == .distribution
                         && model.hypocenterMapPresentation == .spatial,
+                    isMapReady: $isMapReady,
                     selectedActiveFault: $selectedActiveFault
                 )
                     .ignoresSafeArea(edges: .top)
+                    .opacity(isMapReady ? 1 : 0)
+                    .allowsHitTesting(isMapReady)
 
-                if verticalSizeClass == .compact {
-                    HStack(alignment: .top, spacing: 12) {
-                        FeaturePicker(selection: $model.selectedFeature, axis: .vertical)
-                            .frame(width: 68)
-                        Spacer(minLength: 12)
-                        dashboardDetails
-                            .frame(width: min(370, max(290, geometry.size.width * 0.43)))
+                if isMapReady {
+                    if verticalSizeClass == .compact {
+                        HStack(alignment: .top, spacing: 12) {
+                            FeaturePicker(selection: $model.selectedFeature, axis: .vertical)
+                                .frame(width: 68)
+                            Spacer(minLength: 12)
+                            dashboardDetails
+                                .frame(width: min(370, max(290, geometry.size.width * 0.43)))
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.bottom, 8)
+                    } else {
+                        VStack(spacing: 12) {
+                            FeaturePicker(selection: $model.selectedFeature)
+                            dashboardDetails
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 8)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.bottom, 8)
                 } else {
-                    VStack(spacing: 12) {
-                        FeaturePicker(selection: $model.selectedFeature)
-                        dashboardDetails
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
+                    InitialMapLoadingView()
                 }
             }
         }
         .navigationTitle("MeteoScope")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(isMapReady ? .visible : .hidden, for: .navigationBar)
         .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -170,6 +179,25 @@ struct MapDashboardView: View {
             }
             FeatureOverlay()
         }
+    }
+}
+
+private struct InitialMapLoadingView: View {
+    var body: some View {
+        ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
+
+            VStack(spacing: 16) {
+                ProgressView()
+                    .controlSize(.large)
+                Text("地図を読み込み中")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .foregroundStyle(.primary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("地図を読み込み中")
     }
 }
 

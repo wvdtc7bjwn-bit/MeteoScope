@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" class="app-initializing">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -29,9 +29,63 @@
       }
     })();
   </script>
+  <style>
+    html.app-initializing #app {
+      visibility: hidden;
+    }
+
+    #app-startup-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 20000;
+      display: grid;
+      place-content: center;
+      justify-items: center;
+      gap: 16px;
+      background: #071225;
+      color: #f4f8ff;
+      font-family: "Noto Sans JP", system-ui, sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    html[data-theme="light"] #app-startup-loader {
+      background: #edf4fa;
+      color: #142338;
+    }
+
+    #app-startup-loader[hidden] {
+      display: none;
+    }
+
+    .app-startup-spinner {
+      width: 36px;
+      height: 36px;
+      box-sizing: border-box;
+      border: 3px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: app-startup-spin 0.8s linear infinite;
+    }
+
+    @keyframes app-startup-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .app-startup-spinner {
+        animation-duration: 1.6s;
+      }
+    }
+  </style>
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
+  <div id="app-startup-loader" role="status" aria-live="polite" aria-label="地図を読み込み中">
+    <span class="app-startup-spinner" aria-hidden="true"></span>
+    <span>地図を読み込み中</span>
+  </div>
   <div id="app">
     <nav id="main-tabs" aria-label="表示切替">
       <button class="tab-button active" data-tab="radar" aria-label="雨雲レーダー"><span class="tab-button-label">雨雲</span></button>
@@ -286,6 +340,35 @@
           </section>
           <p class="settings-source-note">気象庁公開データをもとにMeteoScopeが加工・可視化</p>
         </div>
+      </section>
+    </div>
+
+    <div id="legal-consent-modal" class="warning-modal legal-consent-modal" hidden>
+      <div class="warning-modal-backdrop legal-consent-backdrop" aria-hidden="true"></div>
+      <section class="warning-modal-panel legal-consent-panel" role="dialog" aria-modal="true" aria-labelledby="legal-consent-title" aria-describedby="legal-consent-description">
+        <header class="legal-consent-header">
+          <span class="legal-consent-product">MeteoScope</span>
+          <h2 id="legal-consent-title">はじめに</h2>
+        </header>
+        <p id="legal-consent-description" class="legal-consent-description">
+          ご利用前に、利用規約とプライバシーポリシーをご確認ください。本アプリは気象庁などの行政機関が提供する公式アプリではありません。
+        </p>
+        <div class="legal-consent-links">
+          <a href="%BASE_URL%terms.html" target="_blank" rel="noopener noreferrer"><span>利用規約</span><span aria-hidden="true">›</span></a>
+          <a href="%BASE_URL%privacy.html" target="_blank" rel="noopener noreferrer"><span>プライバシーポリシー</span><span aria-hidden="true">›</span></a>
+        </div>
+        <div class="legal-consent-checks">
+          <label>
+            <input id="legal-consent-terms" type="checkbox">
+            <span>利用規約を確認し、同意します</span>
+          </label>
+          <label>
+            <input id="legal-consent-privacy" type="checkbox">
+            <span>プライバシーポリシーを確認し、同意します</span>
+          </label>
+        </div>
+        <p class="legal-consent-note">同意しない場合はMeteoScopeを利用できません。同意状態はこの端末に保存されます。</p>
+        <button class="legal-consent-accept" type="button" data-legal-consent-accept disabled>同意して利用を開始</button>
       </section>
     </div>
 

@@ -269,6 +269,24 @@ export function createWeatherMap(elementId) {
   const plateDepth3D = createPlateDepth3DLayer(maplibregl, getHypocenterDepthColor);
   const plateDepthSurface3D = createPlateDepthSurface3DLayer(maplibregl, getHypocenterDepthColor);
 
+  function whenReady() {
+    if (!map) return Promise.resolve();
+
+    return new Promise((resolve) => {
+      const finishAfterPaint = () => {
+        requestAnimationFrame(() => requestAnimationFrame(resolve));
+      };
+
+      if (map.loaded() && !map.isMoving()) {
+        finishAfterPaint();
+        return;
+      }
+
+      map.once("idle", finishAfterPaint);
+      map.triggerRepaint();
+    });
+  }
+
   function initialize() {
     map = new maplibregl.Map({
       container: elementId,
@@ -1463,7 +1481,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, setMode, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, renderData, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates };
+  return { initialize, whenReady, setMode, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, renderData, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates };
 }
 
 function createCommunityReportFeatureCollection(reports = []) {

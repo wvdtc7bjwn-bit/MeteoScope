@@ -12,10 +12,11 @@ struct WeatherMapView: UIViewRepresentable {
     let showsPlateBoundaries: Bool
     let showsPlateDepthContours: Bool
     let showsHypocenterDepth3D: Bool
+    @Binding var isMapReady: Bool
     @Binding var selectedActiveFault: ActiveFaultInfo?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(selectedActiveFault: $selectedActiveFault)
+        Coordinator(isMapReady: $isMapReady, selectedActiveFault: $selectedActiveFault)
     }
 
     func makeUIView(context: Context) -> MLNMapView {
@@ -118,9 +119,13 @@ struct WeatherMapView: UIViewRepresentable {
         private var renderedPlateDepthContoursSpatial: Bool?
         private var previousMapPitch: CGFloat?
         private var previousMapHeading: CLLocationDirection?
+        private var didLoadInitialStyle = false
+        private var didReportInitialMapReady = false
+        private let isMapReady: Binding<Bool>
         private let selectedActiveFault: Binding<ActiveFaultInfo?>
 
-        init(selectedActiveFault: Binding<ActiveFaultInfo?>) {
+        init(isMapReady: Binding<Bool>, selectedActiveFault: Binding<ActiveFaultInfo?>) {
+            self.isMapReady = isMapReady
             self.selectedActiveFault = selectedActiveFault
         }
 
@@ -136,6 +141,15 @@ struct WeatherMapView: UIViewRepresentable {
             applyActiveFaultLayerIfPossible()
             applyHypocenter3DPresentationIfNeeded()
             applyWeatherOverlayIfNeeded()
+            didLoadInitialStyle = true
+        }
+
+        func mapViewDidBecomeIdle(_ mapView: MLNMapView) {
+            guard didLoadInitialStyle, !didReportInitialMapReady else { return }
+            didReportInitialMapReady = true
+            DispatchQueue.main.async { [isMapReady] in
+                isMapReady.wrappedValue = true
+            }
         }
 
         func applyHypocenter3DPresentationIfNeeded() {

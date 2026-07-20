@@ -4,6 +4,8 @@ import SwiftUI
 @MainActor
 @Observable
 final class AppPreferences {
+    static let currentLegalConsentVersion = "2026-07-16"
+
     enum Theme: String, CaseIterable, Identifiable {
         case system
         case dark
@@ -68,6 +70,10 @@ final class AppPreferences {
         didSet { store.set(registeredNotificationDeviceToken, forKey: Keys.registeredNotificationDeviceToken) }
     }
 
+    private(set) var acceptedLegalConsentVersion: String {
+        didSet { store.set(acceptedLegalConsentVersion, forKey: Keys.acceptedLegalConsentVersion) }
+    }
+
     private let store: UserDefaults
 
     init(store: UserDefaults = .standard) {
@@ -84,6 +90,15 @@ final class AppPreferences {
         self.notificationPrefecture = store.string(forKey: Keys.notificationPrefecture) ?? ""
         self.pendingUnregistrationDeviceToken = store.string(forKey: Keys.pendingUnregistrationDeviceToken) ?? ""
         self.registeredNotificationDeviceToken = store.string(forKey: Keys.registeredNotificationDeviceToken) ?? ""
+        self.acceptedLegalConsentVersion = store.string(forKey: Keys.acceptedLegalConsentVersion) ?? ""
+    }
+
+    var hasAcceptedLegalDocuments: Bool {
+        acceptedLegalConsentVersion == Self.currentLegalConsentVersion
+    }
+
+    func acceptLegalDocuments() {
+        acceptedLegalConsentVersion = Self.currentLegalConsentVersion
     }
 
     var colorScheme: ColorScheme? {
@@ -107,6 +122,7 @@ final class AppPreferences {
         static let notificationPrefecture = "meteoscope.notificationPrefecture"
         static let pendingUnregistrationDeviceToken = "meteoscope.pendingUnregistrationDeviceToken"
         static let registeredNotificationDeviceToken = "meteoscope.registeredNotificationDeviceToken"
+        static let acceptedLegalConsentVersion = "meteoscope.acceptedLegalConsentVersion"
     }
 }
 

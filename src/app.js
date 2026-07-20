@@ -7,6 +7,7 @@ import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
 import { openDisasterQuizModal, setupDisasterQuizModal } from "./ui/disasterQuizModal.js";
 import { setupOnboardingModal } from "./ui/onboardingModal.js";
+import { setupLegalConsentModal } from "./ui/legalConsentModal.js";
 import { openSettingsModal, refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
 import {
   clearStoredDisasterMapPdf,
@@ -1655,6 +1656,13 @@ if (layerId === "river") {
     refreshSettingsModalView();
   }
 
+  function finishInitialMapLoading() {
+    const loader = document.getElementById("app-startup-loader");
+    document.documentElement.classList.remove("app-initializing");
+    if (loader) loader.hidden = true;
+    requestAnimationFrame(() => weatherMap?.resize());
+  }
+
   function start() {
     weatherMap = createWeatherMap("map");
     weatherMap.setActiveFaultVisible(earthquakeActiveFaultVisible);
@@ -1700,6 +1708,24 @@ if (layerId === "river") {
     setupLegendToggle();
     setupPanelToggle({ onLayoutChange: () => weatherMap?.resize() });
     const onboarding = setupOnboardingModal({ onOpenSettings: openSettingsModal });
+    let userServicesStarted = false;
+    const startUserServices = () => {
+      if (userServicesStarted) return;
+      userServicesStarted = true;
+      startAutoRefresh();
+      startDmdataEarthquakeUpdates({
+        onUpdate: ({ token }) => {
+          void refreshEarthquakeData({ force: true, realtimeToken: token });
+        },
+        onConnectionChange: setEarthquakeRealtimeConnected
+      });
+      void adminNoticePush.initialize().then(() => refreshSettingsModalView());
+      void startLocationWatchOnLaunch();
+      void selectTab(activeTab);
+      void refreshEarlyAccess();
+      onboarding.showFirstRun();
+    };
+    const legalConsent = setupLegalConsentModal({ onAccepted: startUserServices });
     setupSettingsModal({
       getState: getSettingsState,
       onSearchArea: searchSettingsAreas,
@@ -1741,18 +1767,11 @@ if (layerId === "river") {
     });
     setCurrentLocationMarkerVisible(currentLocationMarkerVisible);
     startClock("clock");
-    startAutoRefresh();
-    startDmdataEarthquakeUpdates({
-      onUpdate: ({ token }) => {
-        void refreshEarthquakeData({ force: true, realtimeToken: token });
-      },
-      onConnectionChange: setEarthquakeRealtimeConnected
+    const initialMapReady = weatherMap.whenReady();
+    void initialMapReady.then(() => {
+      finishInitialMapLoading();
+      if (!legalConsent.showIfRequired()) startUserServices();
     });
-    void adminNoticePush.initialize().then(() => refreshSettingsModalView());
-    void startLocationWatchOnLaunch();
-    selectTab(activeTab);
-    void refreshEarlyAccess();
-    onboarding.showFirstRun();
   }
 
   return { start, selectTab };

@@ -2,51 +2,58 @@ import SwiftUI
 
 struct AppShellView: View {
     @Environment(WeatherAppModel.self) private var model
+    @Environment(AppPreferences.self) private var preferences
 
     var body: some View {
         @Bindable var model = model
 
         ZStack {
-            TabView(selection: $model.selectedRootTab) {
-                NavigationStack {
-                    MapDashboardView()
-                }
-                .tabItem {
-                    Label("地図", systemImage: "map.fill")
-                }
-                .tag(RootTab.map)
+            if preferences.hasAcceptedLegalDocuments {
+                TabView(selection: $model.selectedRootTab) {
+                    NavigationStack {
+                        MapDashboardView()
+                    }
+                    .tabItem {
+                        Label("地図", systemImage: "map.fill")
+                    }
+                    .tag(RootTab.map)
 
-                NavigationStack {
-                    FeatureListView()
-                }
-                .tabItem {
-                    Label("情報", systemImage: "list.bullet.rectangle")
-                }
-                .tag(RootTab.features)
+                    NavigationStack {
+                        FeatureListView()
+                    }
+                    .tabItem {
+                        Label("情報", systemImage: "list.bullet.rectangle")
+                    }
+                    .tag(RootTab.features)
 
-                NavigationStack {
-                    SettingsView()
+                    NavigationStack {
+                        SettingsView()
+                    }
+                    .tabItem {
+                        Label("設定", systemImage: "gearshape.fill")
+                    }
+                    .tag(RootTab.settings)
                 }
-                .tabItem {
-                    Label("設定", systemImage: "gearshape.fill")
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    if let notice = model.activeNotice {
+                        RemoteNoticeBanner(notice: notice)
+                    }
                 }
-                .tag(RootTab.settings)
-            }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if let notice = model.activeNotice {
-                    RemoteNoticeBanner(notice: notice)
-                }
-            }
 
-            if let maintenance = model.maintenanceConfiguration {
-                MaintenanceOverlay(configuration: maintenance)
+                if let maintenance = model.maintenanceConfiguration {
+                    MaintenanceOverlay(configuration: maintenance)
+                }
+            } else {
+                LegalConsentView(onAccept: preferences.acceptLegalDocuments)
             }
         }
         .tint(Color.meteoscopeAccent)
-        .task {
+        .task(id: preferences.hasAcceptedLegalDocuments) {
+            guard preferences.hasAcceptedLegalDocuments else { return }
             await model.loadRemoteConfigIfNeeded()
         }
-        .task {
+        .task(id: preferences.hasAcceptedLegalDocuments) {
+            guard preferences.hasAcceptedLegalDocuments else { return }
             await model.observeEarthquakeUpdates()
         }
     }

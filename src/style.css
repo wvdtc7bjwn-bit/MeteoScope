@@ -8608,6 +8608,184 @@ html[data-theme="light"] .amedas-temperature-chart-grid line {
   z-index: 1300;
 }
 
+.legal-consent-modal {
+  z-index: 1400;
+}
+
+.legal-consent-backdrop {
+  background: rgba(2, 8, 18, 0.72);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.legal-consent-panel {
+  width: min(480px, 100%);
+  max-height: calc(100dvh - 32px);
+  padding: 28px;
+  border: 1px solid #314158;
+  border-radius: 16px;
+  background: #0d192b;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.42);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.legal-consent-product {
+  display: block;
+  color: #94a6bd;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.legal-consent-header h2 {
+  margin: 7px 0 0;
+  color: #f5f7fa;
+  font-size: 26px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.legal-consent-description {
+  margin: 14px 0 20px;
+  color: #bac6d5;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.65;
+}
+
+.legal-consent-links {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid #33445c;
+  border-radius: 10px;
+}
+
+.legal-consent-links a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 0;
+  background: #142238;
+  color: #e4ebf4;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.legal-consent-links a + a {
+  border-top: 1px solid #33445c;
+}
+
+.legal-consent-links a span:last-child {
+  color: #8192aa;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.legal-consent-links a:hover,
+.legal-consent-links a:focus-visible {
+  outline: 2px solid #4aa9d6;
+  outline-offset: -2px;
+  background: #1a2c46;
+}
+
+.legal-consent-checks {
+  display: grid;
+  gap: 0;
+  margin: 20px 0 12px;
+  border-top: 1px solid #2d3c51;
+  border-bottom: 1px solid #2d3c51;
+}
+
+.legal-consent-checks label {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 8px 2px;
+  color: #eef2f7;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.legal-consent-checks label + label {
+  border-top: 1px solid #2d3c51;
+}
+
+.legal-consent-checks input {
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  accent-color: #2589bd;
+}
+
+.legal-consent-note {
+  margin: 0 0 16px;
+  color: #8fa0b6;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.55;
+}
+
+.legal-consent-accept {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #277ea8;
+  border-radius: 9px;
+  background: #197da8;
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.legal-consent-accept:disabled {
+  border-color: #344257;
+  background: #263348;
+  color: #74849a;
+  cursor: not-allowed;
+}
+
+html[data-theme="light"] .legal-consent-panel {
+  border-color: #c7d0da;
+  background: #fff;
+  box-shadow: 0 18px 50px rgba(28, 42, 60, 0.2);
+}
+
+html[data-theme="light"] .legal-consent-product { color: #65758a; }
+html[data-theme="light"] .legal-consent-header h2 { color: #162337; }
+html[data-theme="light"] .legal-consent-description { color: #45566d; }
+html[data-theme="light"] .legal-consent-links { border-color: #d6dde6; }
+html[data-theme="light"] .legal-consent-links a { background: #f7f9fb; color: #1f3148; }
+html[data-theme="light"] .legal-consent-links a + a { border-color: #d6dde6; }
+html[data-theme="light"] .legal-consent-links a:hover,
+html[data-theme="light"] .legal-consent-links a:focus-visible { background: #eef3f7; }
+html[data-theme="light"] .legal-consent-checks { border-color: #d9e0e7; }
+html[data-theme="light"] .legal-consent-checks label { color: #1d2c40; }
+html[data-theme="light"] .legal-consent-checks label + label { border-color: #d9e0e7; }
+html[data-theme="light"] .legal-consent-note { color: #617187; }
+
+@media (max-width: 520px) {
+  .legal-consent-modal { align-items: end; padding: 0; }
+  .legal-consent-panel {
+    width: 100%;
+    max-height: min(88dvh, 680px);
+    padding: 24px 20px calc(20px + env(safe-area-inset-bottom));
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: 18px 18px 0 0;
+  }
+}
+
 .onboarding-panel {
   width: 100%;
   max-width: 620px;
