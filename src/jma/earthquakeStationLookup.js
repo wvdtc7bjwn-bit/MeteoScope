@@ -30,7 +30,7 @@ export function buildStationCoordinateLookup(raw) {
     if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
 
     const record = {
-      code: String(code),
+      code: String(code).trim(),
       noCode: station?.noCode ? String(station.noCode) : "",
       name: station?.name ?? "",
       cityName: station?.cityName ?? "",
@@ -58,6 +58,11 @@ export function findStationCoordinate(station, lookup) {
 
   const cityPrefixedName = normalizeStationName(`${station?.cityName ?? ""}${station?.stationName ?? ""}`);
   if (cityPrefixedName && lookup.byName.has(cityPrefixedName)) return lookup.byName.get(cityPrefixedName);
+
+  // JMA XML station codes are authoritative. If a coded point is absent from
+  // the current coordinate catalogue, do not replace it with another station
+  // that merely shares the same municipality.
+  if (code) return null;
 
   const municipalityKeys = [
     ...getMunicipalityKeys(station?.cityName),

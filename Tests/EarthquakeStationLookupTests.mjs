@@ -40,7 +40,7 @@ assert.equal(station.intensity, "3");
 
 const [renamedStation] = attachIntensityStationCoordinates([
   {
-    code: "0230400",
+    code: "",
     stationName: "蓬田村阿弥陀川＊",
     cityName: "蓬田村",
     intensity: "2"
@@ -48,6 +48,22 @@ const [renamedStation] = attachIntensityStationCoordinates([
 ], lookup);
 
 assert.deepEqual(renamedStation.coordinates, [140.66, 40.97]);
+
+const codedLookup = buildStationCoordinateLookup([
+  { code: "0230400", name: "coded station", latitude: 40.97, longitude: 140.66 }
+]);
+const [codedStation] = attachIntensityStationCoordinates([
+  { code: "0230400", stationName: "renamed station", cityName: "unknown city", intensity: "2" }
+], codedLookup);
+assert.deepEqual(codedStation.coordinates, [140.66, 40.97]);
+
+const safeLookup = buildStationCoordinateLookup([
+  { name: "蓬田村蓬田", latitude: 40.97, longitude: 140.66 }
+]);
+const [unknownCodedStation] = attachIntensityStationCoordinates([
+  { code: "9999999", stationName: "蓬田村新地点＊", cityName: "蓬田村", intensity: "1" }
+], safeLookup);
+assert.equal(unknownCodedStation.coordinates, null);
 
 const ambiguousLookup = buildStationCoordinateLookup([
   { name: "八戸市南郷", latitude: 40.4, longitude: 141.43 },

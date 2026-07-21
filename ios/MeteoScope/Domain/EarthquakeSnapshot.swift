@@ -179,9 +179,17 @@ struct EarthquakeIntensityPoint: Identifiable, Hashable, Sendable {
 }
 
 struct EarthquakeStationRecord: Decodable, Sendable {
+    let code: String?
     let name: String
     let latitude: Double
     let longitude: Double
+
+    init(code: String? = nil, name: String, latitude: Double, longitude: Double) {
+        self.code = code
+        self.name = name
+        self.latitude = latitude
+        self.longitude = longitude
+    }
 }
 
 enum EarthquakeStationLookup {
@@ -195,12 +203,17 @@ enum EarthquakeStationLookup {
     }
 
     static func makeLookup(_ records: [EarthquakeStationRecord]) -> [String: EarthquakeStationRecord] {
-        var lookup = Dictionary(
-            records.map { (normalizedName($0.name), $0) },
-            uniquingKeysWith: { current, _ in current }
-        )
+        var lookup: [String: EarthquakeStationRecord] = [:]
         var municipalityGroups: [String: [EarthquakeStationRecord]] = [:]
         for record in records {
+            let nameKey = normalizedName(record.name)
+            if !nameKey.isEmpty && lookup[nameKey] == nil {
+                lookup[nameKey] = record
+            }
+            let codeKey = record.code?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !codeKey.isEmpty && lookup[codeKey] == nil {
+                lookup[codeKey] = record
+            }
             for key in municipalityKeys(record.name) {
                 municipalityGroups[key, default: []].append(record)
             }
@@ -216,6 +229,10 @@ enum EarthquakeStationLookup {
         for (key, record) in keyedRecords {
             lookup[normalizedName(key)] = record
             lookup[normalizedName(record.name)] = record
+            let codeKey = record.code?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !codeKey.isEmpty {
+                lookup[codeKey] = record
+            }
         }
         let uniqueRecords = Dictionary(
             keyedRecords.values.map { ("\($0.name)|\($0.latitude)|\($0.longitude)", $0) },
@@ -232,8 +249,12 @@ enum EarthquakeStationLookup {
         name: String,
         in stations: [String: EarthquakeStationRecord]
     ) -> EarthquakeStationRecord? {
-        if let direct = stations[code] ?? stations[normalizedName(name)] ?? stations[name] {
+        let codeKey = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let direct = stations[codeKey] ?? stations[normalizedName(name)] ?? stations[name] {
             return direct
+        }
+        if !codeKey.isEmpty {
+            return nil
         }
         for municipality in municipalityKeys(name) {
             if let station = stations["municipality:\(municipality)"] {

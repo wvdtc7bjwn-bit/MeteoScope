@@ -290,11 +290,37 @@ final class FeatureDataTests: XCTestCase {
         ])
         XCTAssertEqual(
             EarthquakeStationLookup.station(
-                code: "0230400",
+                code: "",
                 name: "蓬田村阿弥陀川＊",
                 in: renamedStationLookup
             )?.latitude,
             40.97
+        )
+        let codedLookup = EarthquakeStationLookup.makeLookup([
+            EarthquakeStationRecord(
+                code: "0230400",
+                name: "蓬田村蓬田",
+                latitude: 40.97,
+                longitude: 140.66
+            )
+        ])
+        XCTAssertEqual(
+            EarthquakeStationLookup.station(
+                code: "0230400",
+                name: "蓬田村新地点＊",
+                in: codedLookup
+            )?.longitude,
+            140.66
+        )
+        let safeLookup = EarthquakeStationLookup.makeLookup([
+            EarthquakeStationRecord(name: "蓬田村蓬田", latitude: 40.97, longitude: 140.66)
+        ])
+        XCTAssertNil(
+            EarthquakeStationLookup.station(
+                code: "9999999",
+                name: "蓬田村新地点＊",
+                in: safeLookup
+            )
         )
         let ambiguousLookup = EarthquakeStationLookup.makeLookup([
             EarthquakeStationRecord(name: "八戸市南郷", latitude: 40.4, longitude: 141.43),

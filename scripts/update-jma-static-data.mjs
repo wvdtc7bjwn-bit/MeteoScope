@@ -11,6 +11,7 @@ const PREFECTURE_URL = "https://www.data.jma.go.jp/developer/gis/20190125_AreaIn
 const OUTPUT_DIR = path.resolve("public/data");
 const STATION_OUTPUT = path.join(OUTPUT_DIR, "jma-intensity-stations.json");
 const PREFECTURE_OUTPUT = path.join(OUTPUT_DIR, "japan-prefectures.geojson");
+const STATION_CODE_REFERENCE = path.resolve("scripts/data/jma-intensity-station-codes-20260707.json");
 
 const PREFECTURE_NAMES = [
   "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
@@ -35,7 +36,7 @@ async function main() {
   try {
     const stationResult = await updateStations();
     const prefectureResult = await updatePrefectures(workDir);
-    console.log(`Updated ${path.relative(process.cwd(), STATION_OUTPUT)} (${stationResult.count} stations, source SHA-256 ${stationResult.hash})`);
+    console.log(`Updated ${path.relative(process.cwd(), STATION_OUTPUT)} (${stationResult.count} stations, ${stationResult.codedCount} coded, source SHA-256 ${stationResult.hash})`);
     console.log(`Updated ${path.relative(process.cwd(), PREFECTURE_OUTPUT)} (${prefectureResult.count} prefectures, source SHA-256 ${prefectureResult.hash})`);
   } finally {
     await rm(workDir, { recursive: true, force: true });
@@ -43,6 +44,23 @@ async function main() {
 }
 
 async function updateStations() {
+  const codeReference = JSON.parse(await readFile(STATION_CODE_REFERENCE, "utf8"));
+  const codeRows = Array.isArray(codeReference?.stations) ? codeReference.stations : [];
+  if (codeRows.length < 4300) {
+    throw new Error(`Unexpected JMA station code count: ${codeRows.length}`);
+  }
+  const codes = new Set();
+  const codeByName = new Map();
+  codeRows.forEach((station, index) => {
+    const code = String(station?.code ?? "").trim();
+    const name = normalizeStationName(station?.name);
+    if (!/^\d{7}$/.test(code) || !name || codes.has(code) || codeByName.has(name)) {
+      throw new Error(`Invalid or duplicate JMA station code at index ${index}`);
+    }
+    codes.add(code);
+    codeByName.set(name, code);
+  });
+
   const source = await download(STATION_URL);
   const raw = JSON.parse(source.toString("utf8"));
   if (!Array.isArray(raw) || raw.length < 4000) {
@@ -56,7 +74,9 @@ async function updateStations() {
     if (!name || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
       throw new Error(`Invalid JMA station at index ${index}`);
     }
+    const code = codeByName.get(normalizeStationName(name));
     return {
+      ...(code ? { code } : {}),
       name,
       latitude,
       longitude,
@@ -70,8 +90,13 @@ async function updateStations() {
     throw new Error(`JMA station data contains ${stations.length - unique.size} duplicate records`);
   }
 
+  const codedStations = stations.filter((station) => station.code);
+  if (codedStations.length < 4300 || new Set(codedStations.map((station) => station.code)).size !== codedStations.length) {
+    throw new Error(`Unexpected coded JMA station count: ${codedStations.length}`);
+  }
+
   await writeJson(STATION_OUTPUT, stations);
-  return { count: stations.length, hash: sha256(source) };
+  return { count: stations.length, codedCount: codedStations.length, hash: sha256(source) };
 }
 
 async function updatePrefectures(workDir) {
@@ -152,6 +177,14 @@ async function writeJson(filePath, value) {
 
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function normalizeStationName(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/\s+/g, "")
+    .replace(/[＊*]+$/u, "")
+    .trim();
 }
 
 try {
