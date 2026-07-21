@@ -33,7 +33,7 @@ export async function onRequest(context) {
     return jsonResponse({ ok: false, error: "earthquake_service_not_configured" }, 503);
   }
 
-  const target = new URL(`https://earthquake-worker.internal/api${suffix}`);
+  const target = new URL(`https://earthquake-worker.internal/api/earthquakes${suffix}`);
   target.search = sourceUrl.search;
 
   try {

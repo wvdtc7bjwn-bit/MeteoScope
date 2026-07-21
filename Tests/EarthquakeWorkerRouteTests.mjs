@@ -26,6 +26,7 @@ assert.match(migration, /DROP TABLE IF EXISTS earthquake_history/u);
 assert.match(migration, /DROP TABLE IF EXISTS station_intensities/u);
 assert.match(migration, /DROP TABLE IF EXISTS tsunami_history/u);
 assert.match(pagesRoute, /HYPOCENTER_ARCHIVE/u, "震央分布WorkerのService bindingを使用する");
+assert.match(pagesRoute, /earthquake-worker\.internal\/api\/earthquakes/u);
 
 const parsed = parseJmaDailyHypocenterHtml(`
   <html><body><pre>

@@ -37,6 +37,7 @@ assert.doesNotMatch(workerConfig, /^DMDATA_[A-Z_]+\s*=/mu);
 assert.doesNotMatch(workerConfig, /durable_objects/u);
 assert.match(workerConfig, /deleted_classes\s*=\s*\["MeteoScopeEarthquakeHub"\]/u);
 assert.match(pagesProxy, /HYPOCENTER_ARCHIVE/u);
+assert.match(pagesProxy, /earthquake-worker\.internal\/api\/earthquakes/u);
 assert.doesNotMatch(pagesProxy, /EARTHQUAKE_REALTIME/u);
 
 console.log("JMA earthquake source tests passed.");
