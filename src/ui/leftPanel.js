@@ -18,6 +18,7 @@ import {
   HYPOCENTER_DEPTH_STOPS,
   HYPOCENTER_UNKNOWN_DEPTH_COLOR
 } from "../map/hypocenterDepthStyle.js";
+import { createHypocenterDateWheel } from "./hypocenterDateWheel.js";
 
 let selectedWarningAreaCode = "";
 const amedasRankingOrderByMetric = {
@@ -632,15 +633,41 @@ export function setupEarthquakeSelector({
   onViewChange,
   onDistributionPresentationChange,
   onDistributionFilterChange,
-  onDistributionRetry
+  onDistributionRetry,
+  getDistributionDates
 }) {
   const root = document.getElementById("earthquake-list");
   const mobileDock = document.getElementById("mobile-context-dock");
   if (!root) return;
   setupSegmentedControls(root);
+  const dateWheel = createHypocenterDateWheel({
+    onSelect: ({ dayOffset }) => onDistributionFilterChange?.({ dayOffset })
+  });
 
   const handleClick = (event) => {
     if (!(event.target instanceof Element)) return;
+    const dateButton = event.target.closest("[data-earthquake-distribution-date-open]");
+    if (dateButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      dateWheel.open({
+        availableDates: getDistributionDates?.() ?? [],
+        currentDate: dateButton.dataset.selectedDate,
+        source: dateButton
+      });
+      return;
+    }
+    const dateStepButton = event.target.closest("[data-earthquake-distribution-date-step]");
+    if (dateStepButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      const currentOffset = Number(dateStepButton.dataset.currentDayOffset);
+      const step = Number(dateStepButton.dataset.earthquakeDistributionDateStep);
+      if (Number.isInteger(currentOffset) && Number.isInteger(step)) {
+        onDistributionFilterChange?.({ dayOffset: currentOffset + step });
+      }
+      return;
+    }
     const viewButton = event.target.closest("[data-earthquake-view]");
     if (viewButton) {
       onViewChange?.(viewButton.dataset.earthquakeView);
@@ -669,52 +696,6 @@ export function setupEarthquakeSelector({
     onDistributionFilterChange?.({ [target.dataset.earthquakeDistributionFilter]: target.value });
   };
   root.addEventListener("change", handleFilterChange);
-  let activeDateSlider = null;
-  let suppressDateSliderChangeUntil = 0;
-  const isDateSlider = (target) => (
-    target instanceof HTMLInputElement &&
-    target.matches(".mobile-dock-earthquake-date-range[data-earthquake-distribution-filter='dayOffset']")
-  );
-  const updateDateSliderFromPointer = (slider, clientX) => {
-    const rect = slider.getBoundingClientRect();
-    if (!rect.width) return;
-    const min = Number(slider.min) || 0;
-    const max = Number(slider.max) || 0;
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    slider.value = String(Math.round(max - ratio * (max - min)));
-  };
-  mobileDock?.addEventListener("pointerdown", (event) => {
-    if (!isDateSlider(event.target)) return;
-    activeDateSlider = event.target;
-    updateDateSliderFromPointer(activeDateSlider, event.clientX);
-    activeDateSlider.setPointerCapture?.(event.pointerId);
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  });
-  mobileDock?.addEventListener("pointermove", (event) => {
-    if (!activeDateSlider) return;
-    updateDateSliderFromPointer(activeDateSlider, event.clientX);
-    event.preventDefault();
-    event.stopImmediatePropagation();
-  });
-  const finishDateSlider = (event) => {
-    if (!activeDateSlider) return;
-    if (event.type !== "pointercancel") updateDateSliderFromPointer(activeDateSlider, event.clientX);
-    const value = activeDateSlider.value;
-    activeDateSlider.releasePointerCapture?.(event.pointerId);
-    activeDateSlider = null;
-    suppressDateSliderChangeUntil = Date.now() + 150;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    onDistributionFilterChange?.({ dayOffset: value });
-  };
-  mobileDock?.addEventListener("pointerup", finishDateSlider);
-  mobileDock?.addEventListener("pointercancel", finishDateSlider);
-  mobileDock?.addEventListener("change", (event) => {
-    const target = event.target;
-    if (!isDateSlider(target) || Date.now() < suppressDateSliderChangeUntil) return;
-    onDistributionFilterChange?.({ [target.dataset.earthquakeDistributionFilter]: target.value });
-  });
 }
 
 export function setupEarthquakeMapLayerToggles({ onChange }) {
@@ -2957,7 +2938,7 @@ function buildEarthquakeDistributionMarkup(data) {
   return `
     <section class="earthquake-distribution-panel" aria-label="震央分布の条件">
       <div class="earthquake-distribution-filters">
-        ${buildDistributionSelect("dayOffset", "日付", filters.dayOffset ?? snapshot?.dayOffset ?? 0, buildDistributionDateChoices(snapshot))}
+        ${buildDistributionDateButton(selectedDate, false, maximumOffset === 0, dayOffset, maximumOffset)}
         ${buildDistributionSelect("minMagnitude", "規模", filters.minMagnitude, [["all", "すべて"], [0, "M0以上"], [1, "M1以上"], [2, "M2以上"], [3, "M3以上"], [4, "M4以上"], [5, "M5以上"]])}
         ${buildDistributionSelect("maxDepth", "深さ", filters.maxDepth, [["all", "すべて"], [30, "30km以内"], [100, "100km以内"], [300, "300km以内"], [700, "700km以内"]])}
       </div>
@@ -3057,14 +3038,6 @@ function buildDistributionSelect(key, label, selectedValue, choices) {
   `;
 }
 
-function buildDistributionDateChoices(snapshot) {
-  const dates = Array.isArray(snapshot?.availableDates)
-    ? snapshot.availableDates.slice(0, HYPOCENTER_DISTRIBUTION_DAY_COUNT)
-    : [];
-  if (!dates.length) return [[0, "最新の1日"]];
-  return dates.map((date, index) => [index, formatDistributionDate(date)]);
-}
-
 function formatDistributionDate(value) {
   const match = String(value ?? "").match(/^\d{4}-(\d{2})-(\d{2})$/u);
   return match ? `${Number(match[1])}/${Number(match[2])}` : String(value ?? "日付不明");
@@ -3097,10 +3070,25 @@ function buildEarthquakeDistributionMobileContextMarkup(data) {
           ${buildHypocenterPresentationToggle(data.distribution3DEnabled === true, true)}
           <strong>${isPendingDate ? "取得中" : `${count.toLocaleString("ja-JP")}個`}</strong>
         </div>
-        <input class="mobile-dock-earthquake-date-range" type="range" min="0" max="${maximumOffset}" step="1" value="${dayOffset}" data-mobile-dock-control data-earthquake-distribution-filter="dayOffset" aria-label="震央分布の日付"${maximumOffset === 0 ? " disabled" : ""}>
+        ${buildDistributionDateButton(selectedDate, true, maximumOffset === 0, dayOffset, maximumOffset)}
       </div>
     </div>
   `;
+}
+
+function buildDistributionDateButton(selectedDate, compact = false, disabled = false, dayOffset = 0, maximumOffset = 0) {
+  const label = selectedDate ? formatDistributionFullDate(selectedDate) : "日付を選択";
+  return `
+    <div class="earthquake-distribution-date-navigation${compact ? " compact" : ""}">
+      <button type="button" class="earthquake-distribution-date-step" data-earthquake-distribution-date-step="1" data-current-day-offset="${dayOffset}"${compact ? " data-mobile-dock-control" : ""}${dayOffset >= maximumOffset ? " disabled" : ""} aria-label="前日の震央分布">前日</button>
+      <label class="earthquake-distribution-date-control${compact ? " compact" : ""}">
+      ${compact ? "" : "<span>日付</span>"}
+      <button type="button" data-earthquake-distribution-date-open data-selected-date="${escapeHtml(selectedDate)}"${compact ? " data-mobile-dock-control" : ""}${disabled ? " disabled" : ""} aria-label="震央分布の日付を選択">
+        <span>${escapeHtml(label)}</span><span aria-hidden="true">⌄</span>
+      </button>
+      </label>
+      <button type="button" class="earthquake-distribution-date-step" data-earthquake-distribution-date-step="-1" data-current-day-offset="${dayOffset}"${compact ? " data-mobile-dock-control" : ""}${dayOffset <= 0 ? " disabled" : ""} aria-label="翌日の震央分布">翌日</button>
+    </div>`;
 }
 
 function buildHypocenterPresentationToggle(is3D, compact = false) {

@@ -3,6 +3,13 @@ import Foundation
 enum HypocenterDistributionLimits {
     static let dayCount = 731
     static let maximumDayOffset = dayCount - 1
+
+    static func dayOffset(for sourceDate: String, in availableDates: [String]) -> Int {
+        let dates = Array(availableDates.prefix(dayCount))
+        if let exact = dates.firstIndex(of: sourceDate) { return exact }
+        if let nextOlder = dates.firstIndex(where: { $0 <= sourceDate }) { return nextOlder }
+        return max(0, dates.count - 1)
+    }
 }
 
 enum EarthquakeDisplayMode: String, CaseIterable, Identifiable, Sendable {

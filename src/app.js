@@ -1693,7 +1693,8 @@ if (layerId === "river") {
       onViewChange: selectEarthquakeView,
       onDistributionPresentationChange: selectEarthquakeDistributionPresentation,
       onDistributionFilterChange: updateEarthquakeDistributionFilters,
-      onDistributionRetry: refreshEarthquakeDistribution
+      onDistributionRetry: refreshEarthquakeDistribution,
+      getDistributionDates: () => earthquakeDistributionState.data?.availableDates ?? []
     });
     setupEarthquakeMapLayerToggles({ onChange: setEarthquakeMapLayerVisible });
     setupRadarControls({
