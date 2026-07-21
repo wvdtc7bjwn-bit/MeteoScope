@@ -1,13 +1,17 @@
 export const DEPTH_3D_VERTEX_STRIDE = 8;
 export const DEPTH_3D_REFERENCE_ZOOM = 5;
-export const DEPTH_3D_MIN_ZOOM_SCALE = 1 / 32;
+export const DEPTH_3D_ZOOM_FALLOFF = 0.65;
+export const DEPTH_3D_MIN_ZOOM_SCALE = 1 / 16;
 
 export function getDepth3DZoomScale(zoom) {
   const numericZoom = Number(zoom);
   if (!Number.isFinite(numericZoom)) return 1;
   return Math.max(
     DEPTH_3D_MIN_ZOOM_SCALE,
-    Math.min(1, 2 ** (DEPTH_3D_REFERENCE_ZOOM - numericZoom))
+    Math.min(
+      1,
+      2 ** ((DEPTH_3D_REFERENCE_ZOOM - numericZoom) * DEPTH_3D_ZOOM_FALLOFF)
+    )
   );
 }
 

@@ -7,6 +7,7 @@ import {
 import {
   DEPTH_3D_MIN_ZOOM_SCALE,
   DEPTH_3D_REFERENCE_ZOOM,
+  DEPTH_3D_ZOOM_FALLOFF,
   getDepth3DZoomScale
 } from "../src/map/depth3DRenderer.js";
 
@@ -43,10 +44,13 @@ assert.equal(countPlateDepthSegments(contours), 3);
 assert.equal(PLATE_DEPTH_3D_VERTICAL_EXAGGERATION, 3);
 assert.deepEqual(normalizePlateDepthContours(null), []);
 assert.equal(DEPTH_3D_REFERENCE_ZOOM, 5);
+assert.equal(DEPTH_3D_ZOOM_FALLOFF, 0.65);
 assert.equal(getDepth3DZoomScale(3), 1);
 assert.equal(getDepth3DZoomScale(5), 1);
-assert.equal(getDepth3DZoomScale(6), 0.5);
-assert.equal(getDepth3DZoomScale(10), DEPTH_3D_MIN_ZOOM_SCALE);
+assert.ok(Math.abs(getDepth3DZoomScale(6) - (2 ** -0.65)) < 1e-12);
+assert.ok(getDepth3DZoomScale(8) > 0.25);
+assert.ok(getDepth3DZoomScale(10) > DEPTH_3D_MIN_ZOOM_SCALE);
+assert.equal(getDepth3DZoomScale(12), DEPTH_3D_MIN_ZOOM_SCALE);
 assert.equal(getDepth3DZoomScale("invalid"), 1);
 
 console.log("Plate depth 3D tests passed.");
