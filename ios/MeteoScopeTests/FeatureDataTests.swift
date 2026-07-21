@@ -522,4 +522,12 @@ final class FeatureDataTests: XCTestCase {
             .flat
         )
     }
+
+    func testHypocenterDistributionDateSelectionUsesStoredDates() {
+        let dates = ["2026-07-19", "2026-07-17", "2026-07-16"]
+        XCTAssertEqual(HypocenterDistributionLimits.dayOffset(for: "2026-07-17", in: dates), 1)
+        XCTAssertEqual(HypocenterDistributionLimits.dayOffset(for: "2026-07-18", in: dates), 1)
+        XCTAssertEqual(HypocenterDistributionLimits.dayOffset(for: "2026-08-01", in: dates), 0)
+        XCTAssertEqual(HypocenterDistributionLimits.dayOffset(for: "2025-01-01", in: dates), 2)
+    }
 }

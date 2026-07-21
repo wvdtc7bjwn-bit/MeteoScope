@@ -584,6 +584,8 @@ struct EarthquakeDashboardCard: View {
     @Environment(WeatherAppModel.self) private var model
     @Environment(AppPreferences.self) private var preferences
     @State private var collapsedEarthquakeID: EarthquakeSummary.ID?
+    @State private var showsDistributionDatePicker = false
+    @State private var pendingDistributionDate = Date()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -752,10 +754,37 @@ struct EarthquakeDashboardCard: View {
     private var hypocenterDistributionContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                distributionMenu(
-                    title: distributionDateTitle,
-                    values: distributionDateChoices
-                ) { model.updateHypocenterDistributionFilter(dayOffset: $0) }
+                Button("前日") {
+                    model.updateHypocenterDistributionFilter(
+                        dayOffset: model.hypocenterDistributionFilter.dayOffset + 1
+                    )
+                }
+                .disabled(!canSelectPreviousDistributionDate)
+                Button {
+                    pendingDistributionDate = distributionSelectedDate ?? Date()
+                    showsDistributionDatePicker = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(distributionDateTitle)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.down")
+                            .font(.caption2.weight(.bold))
+                    }
+                }
+                .font(.caption.weight(.semibold))
+                .buttonStyle(.bordered)
+                .disabled(distributionAvailableDates.isEmpty)
+                Button("翌日") {
+                    model.updateHypocenterDistributionFilter(
+                        dayOffset: model.hypocenterDistributionFilter.dayOffset - 1
+                    )
+                }
+                .disabled(!canSelectNextDistributionDate)
+            }
+            .font(.caption.weight(.semibold))
+            .buttonStyle(.bordered)
+
+            HStack(spacing: 8) {
                 distributionStringMenu(
                     title: magnitudeFilterTitle,
                     values: [("all", "Mすべて"), ("0", "M0以上"), ("1", "M1以上"), ("2", "M2以上"), ("3", "M3以上"), ("4", "M4以上"), ("5", "M5以上")]
@@ -858,6 +887,34 @@ struct EarthquakeDashboardCard: View {
                 .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
         }
+        .sheet(isPresented: $showsDistributionDatePicker) {
+            NavigationStack {
+                DatePicker(
+                    "表示する日付",
+                    selection: $pendingDistributionDate,
+                    in: distributionDateRange,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.wheel)
+                .labelsHidden()
+                .environment(\.locale, Locale(identifier: "ja_JP"))
+                .navigationTitle("表示する日付")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("キャンセル") { showsDistributionDatePicker = false }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("完了") {
+                            model.updateHypocenterDistributionDate(sourceDate(from: pendingDistributionDate))
+                            showsDistributionDatePicker = false
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.height(330)])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     private var magnitudeFilterTitle: String {
@@ -875,54 +932,81 @@ struct EarthquakeDashboardCard: View {
         return "同期状況：" + values.map { "\($0.0) \($0.1)日" }.joined(separator: "・")
     }
 
-    private var distributionDateChoices: [(Int, String)] {
+    private var distributionAvailableDates: [String] {
         guard case .loaded(let snapshot) = model.hypocenterDistributionState,
               !snapshot.availableDates.isEmpty else {
-            return [(0, "最新の1日")]
+            return []
         }
-        return Array(
-            snapshot.availableDates
-                .prefix(HypocenterDistributionLimits.dayCount)
-                .enumerated()
-        ).map { offset, date in
-            (offset, formatDistributionDate(date))
-        }
+        return Array(snapshot.availableDates.prefix(HypocenterDistributionLimits.dayCount))
     }
 
     private var distributionDateTitle: String {
         let offset = model.hypocenterDistributionFilter.dayOffset
-        return distributionDateChoices.first(where: { $0.0 == offset })?.1 ?? "最新の1日"
+        guard distributionAvailableDates.indices.contains(offset) else { return "最新の1日" }
+        return formatDistributionDate(distributionAvailableDates[offset])
+    }
+
+    private var distributionSelectedDate: Date? {
+        let offset = model.hypocenterDistributionFilter.dayOffset
+        guard distributionAvailableDates.indices.contains(offset) else { return nil }
+        return date(from: distributionAvailableDates[offset])
+    }
+
+    private var distributionDateRange: ClosedRange<Date> {
+        let parsed = distributionAvailableDates.compactMap { date(from: $0) }
+        let latest = parsed.max() ?? Date()
+        let oldest = parsed.min() ?? latest
+        return oldest...latest
+    }
+
+    private var canSelectPreviousDistributionDate: Bool {
+        model.hypocenterDistributionFilter.dayOffset < max(0, distributionAvailableDates.count - 1)
+    }
+
+    private var canSelectNextDistributionDate: Bool {
+        model.hypocenterDistributionFilter.dayOffset > 0
     }
 
     private func formatDistributionDate(_ value: String) -> String {
-        let parts = value.split(separator: "-")
-        guard parts.count == 3,
-              let month = Int(parts[1]),
-              let day = Int(parts[2]) else { return value }
+        guard let parts = distributionDateComponents(value),
+              let month = parts.month,
+              let day = parts.day else { return value }
         return "\(month)/\(day)"
     }
 
     private func formatDistributionFullDate(_ value: String) -> String {
-        let parts = value.split(separator: "-")
-        guard parts.count == 3,
-              let year = Int(parts[0]),
-              let month = Int(parts[1]),
-              let day = Int(parts[2]) else { return value }
+        guard let parts = distributionDateComponents(value),
+              let year = parts.year,
+              let month = parts.month,
+              let day = parts.day else { return value }
         return "\(year)年\(month)月\(day)日"
+    }
+
+    private func date(from sourceDate: String) -> Date? {
+        guard let parts = distributionDateComponents(sourceDate) else { return nil }
+        return distributionCalendar.date(from: parts)
+    }
+
+    private func sourceDate(from date: Date) -> String {
+        let values = distributionCalendar.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", values.year ?? 0, values.month ?? 0, values.day ?? 0)
+    }
+
+    private func distributionDateComponents(_ value: String) -> DateComponents? {
+        let values = value.split(separator: "-").compactMap { Int($0) }
+        guard values.count == 3 else { return nil }
+        return DateComponents(year: values[0], month: values[1], day: values[2])
+    }
+
+    private var distributionCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Tokyo") ?? .current
+        return calendar
     }
 
     private var depthFilterTitle: String {
         let value = model.hypocenterDistributionFilter.maxDepth
         return value == "all" ? "深さすべて" : "\(value)km以内"
-    }
-
-    private func distributionMenu(title: String, values: [(Int, String)], action: @escaping (Int) -> Void) -> some View {
-        Menu(title) {
-            ForEach(values.indices, id: \.self) { index in
-                Button(values[index].1) { action(values[index].0) }
-            }
-        }
-        .font(.caption.weight(.semibold))
     }
 
     private func distributionStringMenu(title: String, values: [(String, String)], action: @escaping (String) -> Void) -> some View {

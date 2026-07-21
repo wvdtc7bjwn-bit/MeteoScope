@@ -94,6 +94,16 @@ final class WeatherAppModel {
         Task { [weak self] in await self?.refreshHypocenterDistribution() }
     }
 
+    func updateHypocenterDistributionDate(_ sourceDate: String) {
+        guard case .loaded(let snapshot) = hypocenterDistributionState else { return }
+        updateHypocenterDistributionFilter(
+            dayOffset: HypocenterDistributionLimits.dayOffset(
+                for: sourceDate,
+                in: snapshot.availableDates
+            )
+        )
+    }
+
     func refreshHypocenterDistribution() async {
         hypocenterDistributionRefreshSequence += 1
         let refreshSequence = hypocenterDistributionRefreshSequence
