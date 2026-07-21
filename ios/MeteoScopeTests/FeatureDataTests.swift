@@ -3,8 +3,8 @@ import XCTest
 
 final class FeatureDataTests: XCTestCase {
     func testHypocenterDistributionDecodesJmaDailyListResponse() throws {
-        XCTAssertEqual(HypocenterDistributionLimits.dayCount, 30)
-        XCTAssertEqual(HypocenterDistributionLimits.maximumDayOffset, 29)
+        XCTAssertEqual(HypocenterDistributionLimits.dayCount, 365)
+        XCTAssertEqual(HypocenterDistributionLimits.maximumDayOffset, 364)
 
         let data = """
         {
@@ -14,6 +14,9 @@ final class FeatureDataTests: XCTestCase {
           "latestSourceDate": "2026-07-17",
           "lastSuccessfulFetchAt": "2026-07-18T01:17:00Z",
           "failedDates": 0,
+          "failedSourceDateCount": 1,
+          "missingStoredDateCount": 335,
+          "pendingPublicationDateCount": 1,
           "truncated": false,
           "availableDates": ["2026-07-17", "2026-07-16"],
           "availableDayCount": 2,
@@ -37,6 +40,9 @@ final class FeatureDataTests: XCTestCase {
         XCTAssertEqual(snapshot.availableDates, ["2026-07-17", "2026-07-16"])
         XCTAssertEqual(snapshot.selectedSourceDate, "2026-07-16")
         XCTAssertEqual(snapshot.dayOffset, 1)
+        XCTAssertEqual(snapshot.failedSourceDateCount, 1)
+        XCTAssertEqual(snapshot.missingStoredDateCount, 335)
+        XCTAssertEqual(snapshot.pendingPublicationDateCount, 1)
         XCTAssertEqual(snapshot.items.first?.place, "滋賀県北部")
         XCTAssertEqual(snapshot.items.first?.magnitudeText, "M0.1")
         XCTAssertEqual(snapshot.items.first?.depthText, "13km")
