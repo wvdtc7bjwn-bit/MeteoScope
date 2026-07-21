@@ -118,12 +118,12 @@ assert.deepEqual(
 );
 assert.deepEqual(
   resolvePublicEarthquakeRoute(
-    new URL("https://example.test/api/earthquakes/distribution?dayOffset=1095&minMagnitude=1&maxDepth=100")
+    new URL("https://example.test/api/earthquakes/distribution?dayOffset=730&minMagnitude=1&maxDepth=100")
   ),
   { internalPath: "/distribution", cacheSeconds: 300, directD1: true }
 );
 assert.equal(
-  resolvePublicEarthquakeRoute(new URL("https://example.test/api/distribution?dayOffset=1096")).error,
+  resolvePublicEarthquakeRoute(new URL("https://example.test/api/distribution?dayOffset=731")).error,
   "invalid_day_offset"
 );
 assert.equal(
@@ -367,7 +367,7 @@ assert.deepEqual(selectedDistribution.dailyCounts, [
 ]);
 assert.equal(selectedDistribution.selectedSourceDate, "2026-07-16");
 assert.equal(selectedDistribution.dayOffset, 1);
-assert.equal(selectedDistribution.retentionDays, 1096);
+assert.equal(selectedDistribution.retentionDays, 731);
 assert.equal(selectedDistribution.trendDays, 90);
 assert.deepEqual(selectedDistribution.items.map((item) => item.place), ["前日の震源"]);
 const distributionSummary = buildDistributionSummary([
@@ -380,7 +380,7 @@ assert.equal(distributionSummary.pendingPublicationDateCount, 1);
 assert.deepEqual(distributionSummary.pendingPublicationDates, ["2026-07-18"]);
 assert.equal(distributionSummary.failedSourceDateCount, 1);
 assert.deepEqual(distributionSummary.failedSourceDates, ["2026-07-15"]);
-assert.equal(distributionSummary.missingStoredDateCount, 1_094);
+assert.equal(distributionSummary.missingStoredDateCount, 729);
 assert.equal(distributionSummary.dailyCounts.length, 2);
 const longDistributionSummary = buildDistributionSummary(Array.from({ length: 200 }, (_, index) => {
   const sourceDate = new Date(Date.UTC(2026, 6, 17 - index)).toISOString().slice(0, 10);
@@ -457,7 +457,7 @@ assert.equal(distributionBatchCalls, 16);
 assert.deepEqual(distributionSyncResult.backfill, {
   complete: false,
   storedDayCount: 15,
-  remainingDayCount: 1_081
+  remainingDayCount: 716
 });
 assert.deepEqual(distributionSyncResult.cleanup, {
   deletedDays: 0,
@@ -522,8 +522,8 @@ const completedBackfillDb = {
           async all() {
             if (/FROM jma_daily_hypocenter_days/u.test(sql)) {
               return {
-                results: Array.from({ length: 1096 }, (_, index) => ({
-                  source_date: new Date(Date.UTC(2099, 0, 1096 - index)).toISOString().slice(0, 10)
+                results: Array.from({ length: 731 }, (_, index) => ({
+                  source_date: new Date(Date.UTC(2099, 0, 731 - index)).toISOString().slice(0, 10)
                 }))
               };
             }
@@ -557,7 +557,7 @@ assert.equal(completedBackfillResult.attempted, 0);
 assert.equal(completedBackfillFetches, 0);
 assert.deepEqual(completedBackfillResult.backfill, {
   complete: true,
-  storedDayCount: 1096,
+  storedDayCount: 731,
   remainingDayCount: 0
 });
 assert.deepEqual(
@@ -570,7 +570,7 @@ assert.deepEqual(
 
 let unavailableLatestFetches = 0;
 let unavailableLatestBatchCalls = 0;
-const retainedPublishedDates = Array.from({ length: 1096 }, (_, index) => (
+const retainedPublishedDates = Array.from({ length: 731 }, (_, index) => (
   new Date(Date.UTC(2026, 6, 17 - index)).toISOString().slice(0, 10)
 ));
 const unavailableLatestDb = {
@@ -615,7 +615,7 @@ assert.deepEqual(unavailableLatestResult.cleanup, {
 });
 assert.deepEqual(unavailableLatestResult.backfill, {
   complete: true,
-  storedDayCount: 1096,
+  storedDayCount: 731,
   remainingDayCount: 0
 });
 
@@ -687,8 +687,8 @@ const earthquakeWranglerSource = await fs.readFile(
 );
 assert.doesNotMatch(publicWorkerSource, /\/ingest|\/auth|\/discord/);
 assert.match(publicWorkerSource, /x-eew-authenticated/u);
-assert.equal(JMA_DAILY_RETENTION_DAYS, 1096);
-assert.equal(JMA_DAILY_MAX_DAY_OFFSET, 1095);
+assert.equal(JMA_DAILY_RETENTION_DAYS, 731);
+assert.equal(JMA_DAILY_MAX_DAY_OFFSET, 730);
 assert.equal(JMA_DAILY_BACKFILL_DAYS_PER_SYNC, 15);
 assert.match(earthquakeWranglerSource, /"\* \* \* \* \*", "0 15 \* \* \*"/u);
 assert.match(jmaDailySource, /LIMIT -1 OFFSET \?/u);

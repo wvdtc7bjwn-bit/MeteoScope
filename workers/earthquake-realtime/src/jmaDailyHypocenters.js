@@ -1,7 +1,7 @@
 const JMA_DAILY_BASE_URL = "https://www.data.jma.go.jp/eqev/data/daily_map";
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
-export const JMA_DAILY_RETENTION_DAYS = 1096;
+export const JMA_DAILY_RETENTION_DAYS = 731;
 export const JMA_DAILY_MAX_DAY_OFFSET = JMA_DAILY_RETENTION_DAYS - 1;
 export const JMA_DAILY_TREND_DAYS = 90;
 export const JMA_DAILY_MONTHLY_SUMMARY_AFTER_DAYS = 183;

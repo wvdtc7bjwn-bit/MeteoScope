@@ -9,7 +9,7 @@ DMDATA_TEST_MODE = "excluding"
 [triggers]
 # Cloudflare Cron is UTC. 15:00 UTC is 00:00 JST on the following day.
 # The 1-minute trigger backfills at most 15 missing days per run. Once all
-# 1,096 days exist it performs no external fetch or D1 write; completion is
+# 731 days exist it performs no external fetch or D1 write; completion is
 # cached for six hours. The daily trigger keeps the rolling window current.
 crons = ["* * * * *", "0 15 * * *"]
 
