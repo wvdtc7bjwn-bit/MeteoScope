@@ -3,8 +3,8 @@ import XCTest
 
 final class FeatureDataTests: XCTestCase {
     func testHypocenterDistributionDecodesJmaDailyListResponse() throws {
-        XCTAssertEqual(HypocenterDistributionLimits.dayCount, 365)
-        XCTAssertEqual(HypocenterDistributionLimits.maximumDayOffset, 364)
+        XCTAssertEqual(HypocenterDistributionLimits.dayCount, 1_096)
+        XCTAssertEqual(HypocenterDistributionLimits.maximumDayOffset, 1_095)
 
         let data = """
         {

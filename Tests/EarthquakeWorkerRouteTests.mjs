@@ -33,10 +33,12 @@ import {
   buildJmaDailyPayload,
   buildDistributionSummary,
   JMA_DAILY_BACKFILL_DAYS_PER_SYNC,
+  JMA_DAILY_FAST_BACKFILL_CRON,
   JMA_DAILY_MAX_DAY_OFFSET,
   JMA_DAILY_RETENTION_DAYS,
   parseJmaDailyHypocenterHtml,
   readJmaDailyHypocenterDistribution,
+  runJmaDailyFastBackfill,
   selectJmaDailySyncDates,
   syncJmaDailyHypocenters,
   shouldAttemptDate
@@ -116,12 +118,12 @@ assert.deepEqual(
 );
 assert.deepEqual(
   resolvePublicEarthquakeRoute(
-    new URL("https://example.test/api/earthquakes/distribution?dayOffset=364&minMagnitude=1&maxDepth=100")
+    new URL("https://example.test/api/earthquakes/distribution?dayOffset=1095&minMagnitude=1&maxDepth=100")
   ),
   { internalPath: "/distribution", cacheSeconds: 300, directD1: true }
 );
 assert.equal(
-  resolvePublicEarthquakeRoute(new URL("https://example.test/api/distribution?dayOffset=365")).error,
+  resolvePublicEarthquakeRoute(new URL("https://example.test/api/distribution?dayOffset=1096")).error,
   "invalid_day_offset"
 );
 assert.equal(
@@ -365,7 +367,7 @@ assert.deepEqual(selectedDistribution.dailyCounts, [
 ]);
 assert.equal(selectedDistribution.selectedSourceDate, "2026-07-16");
 assert.equal(selectedDistribution.dayOffset, 1);
-assert.equal(selectedDistribution.retentionDays, 365);
+assert.equal(selectedDistribution.retentionDays, 1096);
 assert.equal(selectedDistribution.trendDays, 90);
 assert.deepEqual(selectedDistribution.items.map((item) => item.place), ["前日の震源"]);
 const distributionSummary = buildDistributionSummary([
@@ -378,7 +380,7 @@ assert.equal(distributionSummary.pendingPublicationDateCount, 1);
 assert.deepEqual(distributionSummary.pendingPublicationDates, ["2026-07-18"]);
 assert.equal(distributionSummary.failedSourceDateCount, 1);
 assert.deepEqual(distributionSummary.failedSourceDates, ["2026-07-15"]);
-assert.equal(distributionSummary.missingStoredDateCount, 363);
+assert.equal(distributionSummary.missingStoredDateCount, 1_094);
 assert.equal(distributionSummary.dailyCounts.length, 2);
 const longDistributionSummary = buildDistributionSummary(Array.from({ length: 200 }, (_, index) => {
   const sourceDate = new Date(Date.UTC(2026, 6, 17 - index)).toISOString().slice(0, 10);
@@ -416,6 +418,9 @@ const distributionSyncDb = {
             assert.match(sql, /SELECT source_date/u);
             return { results: [] };
           },
+          async first() {
+            return null;
+          },
           async run() {
             return { success: true };
           }
@@ -428,7 +433,7 @@ const distributionSyncDb = {
     return [];
   }
 };
-const distributionSyncResult = await syncJmaDailyHypocenters(
+const distributionSyncResult = await runJmaDailyFastBackfill(
   { EQ_D1: distributionSyncDb },
   {
     maxDays: JMA_DAILY_BACKFILL_DAYS_PER_SYNC,
@@ -452,7 +457,7 @@ assert.equal(distributionBatchCalls, 16);
 assert.deepEqual(distributionSyncResult.backfill, {
   complete: false,
   storedDayCount: 15,
-  remainingDayCount: 350
+  remainingDayCount: 1_081
 });
 assert.deepEqual(distributionSyncResult.cleanup, {
   deletedDays: 0,
@@ -462,6 +467,50 @@ assert.ok(
   distributionPreparedStatements + distributionFetches <= 50,
   `free tier query budget exceeded: ${distributionPreparedStatements + distributionFetches}`
 );
+
+let fastBackfillCompletionChecks = 0;
+let fastBackfillCacheWrites = 0;
+const fastBackfillCacheEntries = new Map();
+const fastBackfillCache = {
+  async match(request) {
+    return fastBackfillCacheEntries.get(request.url)?.clone() ?? undefined;
+  },
+  async put(request, response) {
+    fastBackfillCacheWrites += 1;
+    fastBackfillCacheEntries.set(request.url, response.clone());
+  }
+};
+const fastBackfillCompleteDb = {
+  prepare(sql) {
+    assert.match(sql, /LIMIT 1 OFFSET \?/u);
+    return {
+      bind(offset) {
+        assert.equal(offset, JMA_DAILY_MAX_DAY_OFFSET);
+        return {
+          async first() {
+            fastBackfillCompletionChecks += 1;
+            return { source_date: "2026-07-19" };
+          }
+        };
+      }
+    };
+  }
+};
+const fastBackfillComplete = await runJmaDailyFastBackfill(
+  { EQ_D1: fastBackfillCompleteDb },
+  { cache: fastBackfillCache }
+);
+assert.equal(JMA_DAILY_FAST_BACKFILL_CRON, "* * * * *");
+assert.equal(fastBackfillComplete.attempted, 0);
+assert.equal(fastBackfillComplete.skipped, "backfill_complete");
+assert.equal(fastBackfillCompletionChecks, 1);
+assert.equal(fastBackfillCacheWrites, 1);
+const fastBackfillCached = await runJmaDailyFastBackfill(
+  { EQ_D1: fastBackfillCompleteDb },
+  { cache: fastBackfillCache }
+);
+assert.equal(fastBackfillCached.skipped, "backfill_complete_cached");
+assert.equal(fastBackfillCompletionChecks, 1);
 
 let completedBackfillFetches = 0;
 const completedBackfillDb = {
@@ -473,8 +522,8 @@ const completedBackfillDb = {
           async all() {
             if (/FROM jma_daily_hypocenter_days/u.test(sql)) {
               return {
-                results: Array.from({ length: 365 }, (_, index) => ({
-                  source_date: new Date(Date.UTC(2099, 0, 365 - index)).toISOString().slice(0, 10)
+                results: Array.from({ length: 1096 }, (_, index) => ({
+                  source_date: new Date(Date.UTC(2099, 0, 1096 - index)).toISOString().slice(0, 10)
                 }))
               };
             }
@@ -508,7 +557,7 @@ assert.equal(completedBackfillResult.attempted, 0);
 assert.equal(completedBackfillFetches, 0);
 assert.deepEqual(completedBackfillResult.backfill, {
   complete: true,
-  storedDayCount: 365,
+  storedDayCount: 1096,
   remainingDayCount: 0
 });
 assert.deepEqual(
@@ -521,7 +570,7 @@ assert.deepEqual(
 
 let unavailableLatestFetches = 0;
 let unavailableLatestBatchCalls = 0;
-const retainedPublishedDates = Array.from({ length: 365 }, (_, index) => (
+const retainedPublishedDates = Array.from({ length: 1096 }, (_, index) => (
   new Date(Date.UTC(2026, 6, 17 - index)).toISOString().slice(0, 10)
 ));
 const unavailableLatestDb = {
@@ -566,7 +615,7 @@ assert.deepEqual(unavailableLatestResult.cleanup, {
 });
 assert.deepEqual(unavailableLatestResult.backfill, {
   complete: true,
-  storedDayCount: 365,
+  storedDayCount: 1096,
   remainingDayCount: 0
 });
 
@@ -632,11 +681,16 @@ const jmaDailySource = await fs.readFile(
   path.join(root, "workers", "earthquake-realtime", "src", "jmaDailyHypocenters.js"),
   "utf8"
 );
+const earthquakeWranglerSource = await fs.readFile(
+  path.join(root, "workers", "earthquake-realtime", "wrangler.toml"),
+  "utf8"
+);
 assert.doesNotMatch(publicWorkerSource, /\/ingest|\/auth|\/discord/);
 assert.match(publicWorkerSource, /x-eew-authenticated/u);
-assert.equal(JMA_DAILY_RETENTION_DAYS, 365);
-assert.equal(JMA_DAILY_MAX_DAY_OFFSET, 364);
+assert.equal(JMA_DAILY_RETENTION_DAYS, 1096);
+assert.equal(JMA_DAILY_MAX_DAY_OFFSET, 1095);
 assert.equal(JMA_DAILY_BACKFILL_DAYS_PER_SYNC, 15);
+assert.match(earthquakeWranglerSource, /"\* \* \* \* \*", "0 15 \* \* \*"/u);
 assert.match(jmaDailySource, /LIMIT -1 OFFSET \?/u);
 assert.match(jmaDailySource, /DELETE FROM jma_daily_hypocenter_days/u);
 assert.match(jmaDailySource, /source_date < \(SELECT MIN\(source_date\)/u);
@@ -693,7 +747,7 @@ assert.match(
   workerWranglerSource,
   /database_name\s*=\s*"meteoscope-earthquakes"/u
 );
-assert.match(workerWranglerSource, /\[triggers\][\s\S]*crons\s*=\s*\["0 15 \* \* \*"\]/u);
+assert.match(workerWranglerSource, /\[triggers\][\s\S]*crons\s*=\s*\["\* \* \* \* \*", "0 15 \* \* \*"\]/u);
 assert.match(publicWorkerSource, /maxDays:\s*JMA_DAILY_BACKFILL_DAYS_PER_SYNC/u);
 assert.doesNotMatch(publicWorkerSource, /scheduledD1Backfill|runScheduledD1Backfill/u);
 for (const source of [pagesWranglerSource, workerWranglerSource, publicWorkerSource]) {

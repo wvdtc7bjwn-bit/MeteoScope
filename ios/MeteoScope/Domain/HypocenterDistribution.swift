@@ -1,7 +1,7 @@
 import Foundation
 
 enum HypocenterDistributionLimits {
-    static let dayCount = 365
+    static let dayCount = 1_096
     static let maximumDayOffset = dayCount - 1
 }
 

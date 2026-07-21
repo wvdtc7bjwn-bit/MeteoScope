@@ -1,7 +1,7 @@
 import { fetchJson } from "./jmaClient.js";
 
 const ENDPOINT = "/api/earthquakes/distribution";
-export const HYPOCENTER_DISTRIBUTION_DAY_COUNT = 365;
+export const HYPOCENTER_DISTRIBUTION_DAY_COUNT = 1096;
 export const HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET = HYPOCENTER_DISTRIBUTION_DAY_COUNT - 1;
 
 export async function fetchHypocenterDistribution(filters = {}) {

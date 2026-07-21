@@ -1,19 +1,21 @@
 const JMA_DAILY_BASE_URL = "https://www.data.jma.go.jp/eqev/data/daily_map";
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
-export const JMA_DAILY_RETENTION_DAYS = 365;
+export const JMA_DAILY_RETENTION_DAYS = 1096;
 export const JMA_DAILY_MAX_DAY_OFFSET = JMA_DAILY_RETENTION_DAYS - 1;
 export const JMA_DAILY_TREND_DAYS = 90;
 export const JMA_DAILY_MONTHLY_SUMMARY_AFTER_DAYS = 183;
 // 15日なら、外部fetch・D1 batch・管理クエリを合わせてもFreeの
 // 1回50クエリ/サブリクエスト以内に収まり、既存15日から1回で補完できる。
 export const JMA_DAILY_BACKFILL_DAYS_PER_SYNC = 15;
+export const JMA_DAILY_FAST_BACKFILL_CRON = "* * * * *";
 const JMA_DAILY_SOURCE_LAG_BUFFER_DAYS = 7;
 const RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const MAX_RECORDS_PER_DAY = 5_000;
 const MAX_PAYLOAD_BYTES = 1_500_000;
 const SUMMARY_CACHE_SECONDS = 5 * 60;
 const SUMMARY_CACHE_VERSION = "jma-daily-summary-v1";
+const FAST_BACKFILL_COMPLETE_CACHE_SECONDS = 6 * 60 * 60;
 const MAX_STATUS_DATE_DETAILS = 31;
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -156,6 +158,57 @@ export async function syncJmaDailyHypocenters(env, options = {}) {
       remainingDayCount: Math.max(0, JMA_DAILY_RETENTION_DAYS - storedDayCount)
     }
   };
+}
+
+export async function runJmaDailyFastBackfill(env, options = {}) {
+  const db = env?.EQ_D1;
+  if (!db) throw new Error("earthquake_database_unavailable");
+  const cache = options.cache ?? null;
+  const cacheKey = new Request(
+    `https://meteoscope.internal/jma-daily-backfill-complete/${JMA_DAILY_RETENTION_DAYS}`
+  );
+  if (cache && await cache.match(cacheKey)) {
+    return {
+      attempted: 0,
+      skipped: "backfill_complete_cached",
+      backfill: { complete: true, storedDayCount: JMA_DAILY_RETENTION_DAYS, remainingDayCount: 0 }
+    };
+  }
+
+  const complete = await hasCompleteJmaDailyRetention(db);
+  if (complete) {
+    if (cache) {
+      await cache.put(cacheKey, new Response("complete", {
+        headers: { "cache-control": `max-age=${FAST_BACKFILL_COMPLETE_CACHE_SECONDS}` }
+      }));
+    }
+    return {
+      attempted: 0,
+      skipped: "backfill_complete",
+      backfill: { complete: true, storedDayCount: JMA_DAILY_RETENTION_DAYS, remainingDayCount: 0 }
+    };
+  }
+
+  return syncJmaDailyHypocenters(env, {
+    ...options,
+    cache: undefined,
+    maxDays: JMA_DAILY_BACKFILL_DAYS_PER_SYNC
+  });
+}
+
+async function hasCompleteJmaDailyRetention(db) {
+  try {
+    const row = await db.prepare(`
+      SELECT source_date FROM jma_daily_hypocenter_days
+      ORDER BY source_date DESC
+      LIMIT 1 OFFSET ?
+    `).bind(JMA_DAILY_MAX_DAY_OFFSET).first();
+    return DATE_PATTERN.test(String(row?.source_date ?? ""));
+  }
+  catch (error) {
+    if (/no such table/iu.test(String(error?.message ?? error ?? ""))) return false;
+    throw error;
+  }
 }
 
 export async function readJmaDailyHypocenterDistribution(request, env, ctx) {
