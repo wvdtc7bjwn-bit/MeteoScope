@@ -526,23 +526,41 @@ function renderCloudflareQuota(usage) {
   }
 
   const limits = usage.limits || {};
+  const earthquakeStorage = quotaMetric(
+    "地震D1保存容量",
+    usage.d1?.earthquakeDatabase?.storageBytes,
+    limits.d1DatabaseStorageBytes,
+    "bytes",
+    "100MB注意・200MB警戒・350MB危険"
+  );
+  if (earthquakeStorage.available) {
+    const storageLevel = usage.d1?.earthquakeStorageStatus?.level;
+    earthquakeStorage.level = storageLevel === "danger"
+      ? "danger"
+      : ["notice", "warning"].includes(storageLevel)
+        ? "warning"
+        : "ok";
+  }
   const metrics = [
     quotaMetric("Workersリクエスト", usage.workers?.requests, limits.workerRequests, "count", formatWorkerErrorDetail(usage.workers)),
     quotaMetric("DOリクエスト", usage.durableObjects?.requests, limits.durableObjectRequests, "count"),
     quotaMetric("DO実行時間", usage.durableObjects?.durationGbSeconds, limits.durableObjectDurationGbSeconds, "duration", usage.durableObjects?.fatalInternalErrors == null ? "" : `内部エラー ${formatInteger(usage.durableObjects.fatalInternalErrors)}件`),
     quotaMetric("D1読取行数", usage.d1?.rowsRead, limits.d1RowsRead, "rows"),
     quotaMetric("D1書込行数", usage.d1?.rowsWritten, limits.d1RowsWritten, "rows"),
-    quotaMetric("D1保存容量", usage.d1?.storageBytes, limits.d1StorageBytes, "bytes", usage.d1?.databaseCount == null ? "" : `${formatInteger(usage.d1.databaseCount)}データベース合計`)
+    quotaMetric("D1保存容量", usage.d1?.storageBytes, limits.d1StorageBytes, "bytes", usage.d1?.databaseCount == null ? "" : `${formatInteger(usage.d1.databaseCount)}データベース合計`),
+    earthquakeStorage
   ];
   const availableMetrics = metrics.filter((metric) => metric.available);
   const maximumPercent = availableMetrics.length
     ? Math.max(...availableMetrics.map((metric) => metric.percent))
     : null;
+  const hasDangerMetric = availableMetrics.some((metric) => metric.level === "danger");
+  const hasWarningMetric = availableMetrics.some((metric) => metric.level === "warning");
   const overallLevel = maximumPercent == null
     ? "unavailable"
-    : maximumPercent >= 90
+    : hasDangerMetric || maximumPercent >= 90
       ? "danger"
-      : maximumPercent >= 75
+      : hasWarningMetric || maximumPercent >= 75
         ? "warning"
         : "ok";
   const overallLabel = maximumPercent == null

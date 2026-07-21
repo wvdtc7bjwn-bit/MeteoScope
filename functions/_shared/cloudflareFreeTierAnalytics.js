@@ -7,7 +7,14 @@ export const CLOUDFLARE_FREE_TIER_LIMITS = Object.freeze({
   durableObjectDurationGbSeconds: 13_000,
   d1RowsRead: 5_000_000,
   d1RowsWritten: 100_000,
-  d1StorageBytes: 5_000_000_000
+  d1StorageBytes: 5_000_000_000,
+  d1DatabaseStorageBytes: 500_000_000
+});
+
+export const EARTHQUAKE_D1_STORAGE_THRESHOLDS = Object.freeze({
+  noticeBytes: 100_000_000,
+  warningBytes: 200_000_000,
+  dangerBytes: 350_000_000
 });
 
 const WORKERS_QUERY = `query MeteoScopeWorkersUsage($accountTag: string, $start: string, $end: string) {
@@ -170,6 +177,8 @@ export async function readCloudflareFreeTierUsage(env, options = {}) {
       storageBytes: d1Storage?.storageBytes ?? null,
       databaseCount: d1Storage?.databaseCount ?? null,
       largestDatabase: d1Storage?.largestDatabase ?? null,
+      earthquakeDatabase: d1Storage?.earthquakeDatabase ?? null,
+      earthquakeStorageStatus: d1Storage?.earthquakeStorageStatus ?? null,
       partial: !d1Rows || !d1Storage,
       message: [
         d1Rows ? null : resultError(results[3]),
@@ -233,10 +242,37 @@ async function readD1Storage(fetchImpl, headers, accountID) {
   const largestDatabase = normalized.reduce((largest, current) => (
     current.storageBytes > (largest?.storageBytes ?? -1) ? current : largest
   ), null);
+  const earthquakeDatabase = normalized.find((database) => (
+    database.name === "meteoscope-earthquakes"
+  )) ?? null;
   return {
     storageBytes: normalized.reduce((sum, database) => sum + database.storageBytes, 0),
     databaseCount: normalized.length,
-    largestDatabase
+    largestDatabase,
+    earthquakeDatabase,
+    earthquakeStorageStatus: classifyEarthquakeD1Storage(
+      earthquakeDatabase?.storageBytes ?? null
+    )
+  };
+}
+
+export function classifyEarthquakeD1Storage(value) {
+  const storageBytes = Number(value);
+  if (!Number.isFinite(storageBytes) || storageBytes < 0) {
+    return { available: false, level: "unavailable" };
+  }
+  const level = storageBytes >= EARTHQUAKE_D1_STORAGE_THRESHOLDS.dangerBytes
+    ? "danger"
+    : storageBytes >= EARTHQUAKE_D1_STORAGE_THRESHOLDS.warningBytes
+      ? "warning"
+      : storageBytes >= EARTHQUAKE_D1_STORAGE_THRESHOLDS.noticeBytes
+        ? "notice"
+        : "ok";
+  return {
+    available: true,
+    level,
+    storageBytes,
+    ...EARTHQUAKE_D1_STORAGE_THRESHOLDS
   };
 }
 

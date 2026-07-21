@@ -24,7 +24,7 @@ export function resolvePublicEarthquakeRoute(url) {
     const dayOffset = url.searchParams.get("dayOffset") ?? "0";
     const minMagnitude = url.searchParams.get("minMagnitude") ?? "0";
     const maxDepth = url.searchParams.get("maxDepth") ?? "all";
-    if (!/^\d{1,2}$/u.test(dayOffset) || Number(dayOffset) > JMA_DAILY_MAX_DAY_OFFSET) {
+    if (!/^\d{1,3}$/u.test(dayOffset) || Number(dayOffset) > JMA_DAILY_MAX_DAY_OFFSET) {
       return { error: "invalid_day_offset", status: 400 };
     }
     if (!["all", "0", "1", "2", "3", "4", "5"].includes(minMagnitude)) {

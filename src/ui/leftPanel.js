@@ -2939,6 +2939,7 @@ function buildEarthquakeDistributionMarkup(data) {
   const resultMeta = status === "error"
     ? "更新を確認できません"
     : `暫定値・${snapshot?.availableDayCount ?? availableDates.length}日分収録`;
+  const syncStatusMarkup = buildDistributionSyncStatus(snapshot);
   const statusMarkup = status === "loading"
     ? `<div class="earthquake-empty">気象庁の震央分布を取得中です。</div>`
     : status === "error" && !snapshot
@@ -2970,9 +2971,23 @@ function buildEarthquakeDistributionMarkup(data) {
         </div>
       </div>
       ${buildEarthquakeDistributionTrend(snapshot)}
+      ${syncStatusMarkup}
       <p class="earthquake-distribution-note">出典：<a href="https://www.data.jma.go.jp/eqev/data/daily_map/index.html" target="_blank" rel="noopener noreferrer">気象庁「日々の震源リスト」</a>。震源要素は暫定値で、後日変更される場合があります。</p>
     </section>
   `;
+}
+
+function buildDistributionSyncStatus(snapshot) {
+  if (!snapshot) return "";
+  const statuses = [
+    ["取得失敗", Number(snapshot.failedSourceDateCount ?? snapshot.failedDates ?? 0)],
+    ["未保存", Number(snapshot.missingStoredDateCount ?? 0)],
+    ["気象庁公開待ち", Number(snapshot.pendingPublicationDateCount ?? 0)]
+  ].filter(([, count]) => Number.isFinite(count) && count > 0);
+  if (!statuses.length) return "";
+  return `<p class="earthquake-distribution-note">同期状況：${statuses
+    .map(([label, count]) => `${escapeHtml(label)} ${escapeHtml(String(count))}日`)
+    .join("・")}</p>`;
 }
 
 function buildEarthquakeDistributionTrend(snapshot) {

@@ -31,6 +31,7 @@ import {
 } from "../workers/earthquake-realtime/src/retentionPolicy.js";
 import {
   buildJmaDailyPayload,
+  buildDistributionSummary,
   JMA_DAILY_BACKFILL_DAYS_PER_SYNC,
   JMA_DAILY_MAX_DAY_OFFSET,
   JMA_DAILY_RETENTION_DAYS,
@@ -115,12 +116,12 @@ assert.deepEqual(
 );
 assert.deepEqual(
   resolvePublicEarthquakeRoute(
-    new URL("https://example.test/api/earthquakes/distribution?dayOffset=29&minMagnitude=1&maxDepth=100")
+    new URL("https://example.test/api/earthquakes/distribution?dayOffset=364&minMagnitude=1&maxDepth=100")
   ),
   { internalPath: "/distribution", cacheSeconds: 300, directD1: true }
 );
 assert.equal(
-  resolvePublicEarthquakeRoute(new URL("https://example.test/api/distribution?dayOffset=30")).error,
+  resolvePublicEarthquakeRoute(new URL("https://example.test/api/distribution?dayOffset=365")).error,
   "invalid_day_offset"
 );
 assert.equal(
@@ -364,8 +365,27 @@ assert.deepEqual(selectedDistribution.dailyCounts, [
 ]);
 assert.equal(selectedDistribution.selectedSourceDate, "2026-07-16");
 assert.equal(selectedDistribution.dayOffset, 1);
-assert.equal(selectedDistribution.retentionDays, 30);
+assert.equal(selectedDistribution.retentionDays, 365);
+assert.equal(selectedDistribution.trendDays, 90);
 assert.deepEqual(selectedDistribution.items.map((item) => item.place), ["前日の震源"]);
+const distributionSummary = buildDistributionSummary([
+  { source_date: "2026-07-18", status: "error", error: "jma_daily_list_not_published", fetched_at: "2026-07-19T00:00:00Z" },
+  { source_date: "2026-07-17", status: "ok", record_count: 2, fetched_at: "2026-07-18T01:17:00Z" },
+  { source_date: "2026-07-16", status: "ok", record_count: 1, fetched_at: "2026-07-18T01:16:00Z" },
+  { source_date: "2026-07-15", status: "error", error: "jma_daily_list_http_503", fetched_at: "2026-07-18T01:15:00Z" }
+]);
+assert.equal(distributionSummary.pendingPublicationDateCount, 1);
+assert.deepEqual(distributionSummary.pendingPublicationDates, ["2026-07-18"]);
+assert.equal(distributionSummary.failedSourceDateCount, 1);
+assert.deepEqual(distributionSummary.failedSourceDates, ["2026-07-15"]);
+assert.equal(distributionSummary.missingStoredDateCount, 363);
+assert.equal(distributionSummary.dailyCounts.length, 2);
+const longDistributionSummary = buildDistributionSummary(Array.from({ length: 200 }, (_, index) => {
+  const sourceDate = new Date(Date.UTC(2026, 6, 17 - index)).toISOString().slice(0, 10);
+  return { source_date: sourceDate, status: "ok", record_count: index + 1, fetched_at: "2026-07-18T01:17:00Z" };
+}));
+assert.equal(longDistributionSummary.dailyCounts.length, 90);
+assert.ok(longDistributionSummary.monthlyCounts.length > 0);
 assert.throws(
   () => buildJmaDailyPayload(Array.from({ length: 5_001 }, () => parsedDailyHypocenters[0])),
   /jma_daily_record_limit_exceeded/u
@@ -432,7 +452,7 @@ assert.equal(distributionBatchCalls, 16);
 assert.deepEqual(distributionSyncResult.backfill, {
   complete: false,
   storedDayCount: 15,
-  remainingDayCount: 15
+  remainingDayCount: 350
 });
 assert.deepEqual(distributionSyncResult.cleanup, {
   deletedDays: 0,
@@ -453,8 +473,8 @@ const completedBackfillDb = {
           async all() {
             if (/FROM jma_daily_hypocenter_days/u.test(sql)) {
               return {
-                results: Array.from({ length: 30 }, (_, index) => ({
-                  source_date: new Date(Date.UTC(2099, 0, 30 - index)).toISOString().slice(0, 10)
+                results: Array.from({ length: 365 }, (_, index) => ({
+                  source_date: new Date(Date.UTC(2099, 0, 365 - index)).toISOString().slice(0, 10)
                 }))
               };
             }
@@ -488,7 +508,7 @@ assert.equal(completedBackfillResult.attempted, 0);
 assert.equal(completedBackfillFetches, 0);
 assert.deepEqual(completedBackfillResult.backfill, {
   complete: true,
-  storedDayCount: 30,
+  storedDayCount: 365,
   remainingDayCount: 0
 });
 assert.deepEqual(
@@ -501,7 +521,7 @@ assert.deepEqual(
 
 let unavailableLatestFetches = 0;
 let unavailableLatestBatchCalls = 0;
-const retainedPublishedDates = Array.from({ length: 30 }, (_, index) => (
+const retainedPublishedDates = Array.from({ length: 365 }, (_, index) => (
   new Date(Date.UTC(2026, 6, 17 - index)).toISOString().slice(0, 10)
 ));
 const unavailableLatestDb = {
@@ -546,7 +566,7 @@ assert.deepEqual(unavailableLatestResult.cleanup, {
 });
 assert.deepEqual(unavailableLatestResult.backfill, {
   complete: true,
-  storedDayCount: 30,
+  storedDayCount: 365,
   remainingDayCount: 0
 });
 
@@ -614,8 +634,8 @@ const jmaDailySource = await fs.readFile(
 );
 assert.doesNotMatch(publicWorkerSource, /\/ingest|\/auth|\/discord/);
 assert.match(publicWorkerSource, /x-eew-authenticated/u);
-assert.equal(JMA_DAILY_RETENTION_DAYS, 30);
-assert.equal(JMA_DAILY_MAX_DAY_OFFSET, 29);
+assert.equal(JMA_DAILY_RETENTION_DAYS, 365);
+assert.equal(JMA_DAILY_MAX_DAY_OFFSET, 364);
 assert.equal(JMA_DAILY_BACKFILL_DAYS_PER_SYNC, 15);
 assert.match(jmaDailySource, /LIMIT -1 OFFSET \?/u);
 assert.match(jmaDailySource, /DELETE FROM jma_daily_hypocenter_days/u);

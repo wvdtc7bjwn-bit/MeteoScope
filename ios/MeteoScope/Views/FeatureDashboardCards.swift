@@ -829,7 +829,7 @@ struct EarthquakeDashboardCard: View {
                         VStack(alignment: .trailing, spacing: 2) {
                             Text("\(snapshot.items.count.formatted())個")
                                 .font(.title3.weight(.bold))
-                            Text("暫定値・\(snapshot.availableDayCount)日分収録")
+                            Text("暫定値・最大\(HypocenterDistributionLimits.dayCount)日分収録")
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(.secondary)
                         }
@@ -841,6 +841,11 @@ struct EarthquakeDashboardCard: View {
                         HypocenterDepthLegend()
                     }
                     HypocenterDistributionTrendChart(snapshot: snapshot)
+                    if let statusText = distributionSyncStatusText(snapshot) {
+                        Text(statusText)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
                     Text("震源要素は気象庁の暫定値で、後日変更される場合があります。")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -858,6 +863,16 @@ struct EarthquakeDashboardCard: View {
     private var magnitudeFilterTitle: String {
         let value = model.hypocenterDistributionFilter.minMagnitude
         return value == "all" ? "Mすべて" : "M\(value)以上"
+    }
+
+    private func distributionSyncStatusText(_ snapshot: HypocenterDistributionSnapshot) -> String? {
+        let values = [
+            ("取得失敗", snapshot.failedSourceDateCount ?? snapshot.failedDates),
+            ("未保存", snapshot.missingStoredDateCount ?? 0),
+            ("気象庁公開待ち", snapshot.pendingPublicationDateCount ?? 0)
+        ].filter { $0.1 > 0 }
+        guard !values.isEmpty else { return nil }
+        return "同期状況：" + values.map { "\($0.0) \($0.1)日" }.joined(separator: "・")
     }
 
     private var distributionDateChoices: [(Int, String)] {

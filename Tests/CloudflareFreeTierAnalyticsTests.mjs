@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 
 import {
   CLOUDFLARE_FREE_TIER_LIMITS,
+  EARTHQUAKE_D1_STORAGE_THRESHOLDS,
+  classifyEarthquakeD1Storage,
   readCloudflareFreeTierUsage
 } from "../functions/_shared/cloudflareFreeTierAnalytics.js";
 
@@ -84,6 +86,20 @@ assert.equal(usage.d1.databaseCount, 2);
 assert.deepEqual(usage.d1.largestDatabase, {
   name: "meteoscope-earthquakes",
   storageBytes: 3_969_024
+});
+assert.deepEqual(usage.d1.earthquakeDatabase, {
+  name: "meteoscope-earthquakes",
+  storageBytes: 3_969_024
+});
+assert.equal(usage.d1.earthquakeStorageStatus.level, "ok");
+assert.equal(classifyEarthquakeD1Storage(99_999_999).level, "ok");
+assert.equal(classifyEarthquakeD1Storage(100_000_000).level, "notice");
+assert.equal(classifyEarthquakeD1Storage(200_000_000).level, "warning");
+assert.equal(classifyEarthquakeD1Storage(350_000_000).level, "danger");
+assert.deepEqual(EARTHQUAKE_D1_STORAGE_THRESHOLDS, {
+  noticeBytes: 100_000_000,
+  warningBytes: 200_000_000,
+  dangerBytes: 350_000_000
 });
 assert.deepEqual(usage.limits, CLOUDFLARE_FREE_TIER_LIMITS);
 assert.equal(calls.length, 5);

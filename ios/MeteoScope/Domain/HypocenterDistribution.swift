@@ -1,7 +1,7 @@
 import Foundation
 
 enum HypocenterDistributionLimits {
-    static let dayCount = 30
+    static let dayCount = 365
     static let maximumDayOffset = dayCount - 1
 }
 
@@ -43,6 +43,9 @@ struct HypocenterDistributionSnapshot: Decodable, Equatable, Sendable {
     let latestSourceDate: String?
     let lastSuccessfulFetchAt: String?
     let failedDates: Int
+    let failedSourceDateCount: Int?
+    let missingStoredDateCount: Int?
+    let pendingPublicationDateCount: Int?
     let truncated: Bool
     let availableDates: [String]
     let availableDayCount: Int
@@ -58,6 +61,9 @@ struct HypocenterDistributionSnapshot: Decodable, Equatable, Sendable {
         case latestSourceDate
         case lastSuccessfulFetchAt
         case failedDates
+        case failedSourceDateCount
+        case missingStoredDateCount
+        case pendingPublicationDateCount
         case truncated
         case availableDates
         case availableDayCount
@@ -74,6 +80,9 @@ struct HypocenterDistributionSnapshot: Decodable, Equatable, Sendable {
         latestSourceDate: "2026-07-17",
         lastSuccessfulFetchAt: "2026-07-18T01:17:00Z",
         failedDates: 0,
+        failedSourceDateCount: 0,
+        missingStoredDateCount: 0,
+        pendingPublicationDateCount: 0,
         truncated: false,
         availableDates: ["2026-07-17", "2026-07-16", "2026-07-15"],
         availableDayCount: 3,
