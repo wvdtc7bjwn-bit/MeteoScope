@@ -24,7 +24,8 @@ assert.match(consentModule, /localStorage\.setItem\(STORAGE_KEY, LEGAL_CONSENT_V
 assert.match(consentModule, /#app > :not\(#legal-consent-modal\)/);
 assert.match(app, /setupLegalConsentModal\(\{ onAccepted: startUserServices \}\)/);
 assert.match(app, /if \(!legalConsent\.showIfRequired\(\)\) startUserServices\(\)/);
-assert.match(app, /startDmdataEarthquakeUpdates\([\s\S]+void startLocationWatchOnLaunch\(\);[\s\S]+onboarding\.showFirstRun\(\);/);
+assert.match(app, /startAutoRefresh\(\);[\s\S]+void startLocationWatchOnLaunch\(\);[\s\S]+onboarding\.showFirstRun\(\);/);
+assert.doesNotMatch(app, /startDmdataEarthquakeUpdates/u);
 
 assert.match(preferences, /currentLegalConsentVersion = "2026-07-16"/);
 assert.match(preferences, /var hasAcceptedLegalDocuments: Bool/);

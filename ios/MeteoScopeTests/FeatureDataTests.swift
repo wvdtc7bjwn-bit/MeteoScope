@@ -337,89 +337,6 @@ final class FeatureDataTests: XCTestCase {
         XCTAssertEqual(overlay.geoJSONSources.first?.layers.first?.geometry, .line)
     }
 
-    func testDMDataEarthquakeHistoryAndLatestStationDecode() throws {
-        let historyData = """
-        {
-          "enabled":true,
-          "items":[{
-            "event_id":"20260715212943",
-            "telegram_type":"VXSE53",
-            "place":"岩手県沖",
-            "origin_time":"2026-07-15T21:29:00+09:00",
-            "magnitude":"4.4",
-            "depth":"40",
-            "max_intensity":"1",
-            "tsunami_status":"心配なし",
-            "latitude":40.1,
-            "longitude":142.5,
-            "regions":[{"code":"210","name":"岩手県沿岸北部","maxInt":"1"}],
-            "updated_at":"2026-07-15T12:33:00.000Z"
-          }]
-        }
-        """.data(using: .utf8)!
-        let latestData = """
-        {
-          "latest":{"earthquake":{"data":{
-            "eventId":"20260715212943",
-            "points":[{
-              "code":"0320224",
-              "name":"宮古市田老＊",
-              "intensity":"1",
-              "latitude":39.7356,
-              "longitude":141.9669
-            }]
-          },"receivedAt":"2026-07-15T12:33:00.000Z"},
-          "tsunami":{"data":{
-            "eventId":"20260715212943",
-            "reportTime":"2026-07-15T21:35:00+09:00",
-            "title":"津波警報・注意報・予報",
-            "headline":"海岸から離れてください。",
-            "isCanceled":false,
-            "areas":[{"code":"210","name":"青森県太平洋沿岸","kindCode":"62","kind":"津波注意報","height":1.0,"heightUnit":"m"}],
-            "observations":[{"code":"210","name":"青森県太平洋沿岸","stations":[{"code":"87110","name":"八戸港","maxHeight":0.4,"maxHeightUnit":"m","offshore":false}]}]
-          },"receivedAt":"2026-07-15T12:35:00.000Z"}}
-        }
-        """.data(using: .utf8)!
-
-        let history = try JSONDecoder().decode(DMDataEarthquakeHistoryResponse.self, from: historyData)
-        let latest = try JSONDecoder().decode(DMDataLatestResponse.self, from: latestData)
-        let earthquake = try XCTUnwrap(DMDataEarthquakeBuilder.build(
-            history: history.items,
-            latest: latest.latest.earthquake
-        ).first)
-
-        XCTAssertEqual(earthquake.eventID, "20260715212943")
-        XCTAssertEqual(earthquake.hypocenterName, "岩手県沖")
-        XCTAssertEqual(earthquake.magnitude, "M4.4")
-        XCTAssertEqual(earthquake.depth, "40 km")
-        XCTAssertEqual(earthquake.maximumIntensity, "震度1")
-        XCTAssertEqual(earthquake.intensityAreas.first?.areaCode, "210")
-        XCTAssertEqual(earthquake.intensityPoints.first?.prefecture, "岩手県")
-        XCTAssertEqual(earthquake.intensityPoints.first?.coordinate?.longitude, 141.9669)
-        XCTAssertEqual(earthquake.tsunamiComment, "この地震による津波の心配はありません。")
-
-        let stationData = #"{"enabled":true,"eventId":"20260714054626","items":[{"event_id":"20260714054626","station_code":"0736420","station_name":"檜枝岐村上河原＊","intensity":"2","latitude":37.0158,"longitude":139.3806}]}"#.data(using: .utf8)!
-        let stationResponse = try JSONDecoder().decode(
-            DMDataEarthquakeStationResponse.self,
-            from: stationData
-        )
-        let hinoemata = try XCTUnwrap(
-            DMDataEarthquakeBuilder.intensityPoints(stationResponse.items).first
-        )
-        XCTAssertEqual(hinoemata.stationCode, "0736420")
-        XCTAssertEqual(hinoemata.name, "檜枝岐村上河原＊")
-        XCTAssertEqual(hinoemata.coordinate?.latitude, 37.0158)
-        XCTAssertEqual(hinoemata.coordinate?.longitude, 139.3806)
-
-        let tsunami = try XCTUnwrap(DMDataTsunamiBuilder.build(latest.latest.tsunami))
-        XCTAssertEqual(tsunami.eventID, "20260715212943")
-        XCTAssertEqual(tsunami.highestLevel, .advisory)
-        XCTAssertEqual(tsunami.areas.first?.height, "1.0m")
-        XCTAssertEqual(tsunami.observations.first?.stationName, "八戸港")
-        XCTAssertEqual(tsunami.observations.first?.maximumHeight, "0.4m")
-
-    }
-
     func testEarthquakeRefreshPreservesLoadedIntensityPoints() throws {
         let previous = EarthquakeSnapshot.preview
         let earthquake = try XCTUnwrap(previous.earthquakes.first)
@@ -434,19 +351,6 @@ final class FeatureDataTests: XCTestCase {
 
         XCTAssertEqual(merged.updatedAt, "2026-07-16T01:00:00+09:00")
         XCTAssertEqual(merged.earthquakes.first?.intensityPoints, earthquake.intensityPoints)
-    }
-
-    func testEarthquakeRealtimeEnvelopeTriggersOnlySupportedUpdates() throws {
-        let earthquake = try XCTUnwrap(EarthquakeUpdateClient.decode(
-            Data(#"{"type":"earthquake","timestamp":"2026-07-16T01:23:45Z"}"#.utf8)
-        ))
-        XCTAssertEqual(earthquake.kind, .earthquake)
-        XCTAssertEqual(earthquake.token, "2026-07-16T01:23:45Z")
-
-        XCTAssertNil(EarthquakeUpdateClient.decode(
-            Data(#"{"type":"status","timestamp":"2026-07-16T01:23:45Z"}"#.utf8)
-        ))
-        XCTAssertNil(EarthquakeUpdateClient.decode(Data("invalid".utf8)))
     }
 
     func testEarlyWarningBuilderKeepsMiddleAndHighProbabilities() throws {

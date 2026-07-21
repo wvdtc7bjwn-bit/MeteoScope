@@ -5,7 +5,7 @@ import {
   JMA_ENDPOINTS,
   STATIC_DATA_CACHE_TTL_MS
 } from "../config.js";
-import { fetchJson, parseJmaTime } from "./jmaClient.js";
+import { fetchJson, fetchText, parseJmaTime } from "./jmaClient.js";
 import {
   attachIntensityStationCoordinates,
   buildEmptyStationLookup,
@@ -17,11 +17,75 @@ import {
   getTsunamiLevelRank
 } from "../tsunami.js";
 
+const EARTHQUAKE_XML_DETAIL_FETCH_LIMIT = 48;
+const EARTHQUAKE_HISTORY_DISPLAY_LIMIT = 11;
+const EARTHQUAKE_XML_CODES = /VXSE5[1-3]/;
+const TSUNAMI_XML_DETAIL_FETCH_LIMIT = 18;
+const TSUNAMI_XML_CODES = /VTSE(?:41|51|52)/;
 const EARTHQUAKE_SERIES_WINDOW_MS = 5 * 60 * 1000;
 const EARTHQUAKE_SERIES_COORDINATE_DISTANCE_KM = 120;
 let earthquakeAreaLookupPromise = null;
 let tsunamiAreaLookupPromise = null;
 let stationCoordinateLookupPromise = null;
+
+export async function fetchEarthquakeXmlList() {
+  const feeds = await fetchEarthquakeFeeds();
+  const currentFeedAvailable = feeds.some(({ url }) => url === JMA_ENDPOINTS.earthquakeXmlFeed);
+  const allEntries = getUniqueEarthquakeEntries(feeds.flatMap(({ feed }) => getElements(feed, "entry")
+    .map(parseFeedEntry)
+    .filter((entry) => entry.url)));
+  const earthquakeEntries = allEntries
+    .filter((entry) => EARTHQUAKE_XML_CODES.test(entry.code))
+    .slice(0, EARTHQUAKE_XML_DETAIL_FETCH_LIMIT);
+  const tsunamiEntries = allEntries
+    .filter((entry) => TSUNAMI_XML_CODES.test(entry.code))
+    .slice(0, TSUNAMI_XML_DETAIL_FETCH_LIMIT);
+  const [earthquakeResults, tsunamiResults] = await Promise.all([
+    Promise.allSettled(earthquakeEntries.map(fetchEarthquakeDetail)),
+    Promise.allSettled(tsunamiEntries.map(fetchTsunamiDetail))
+  ]);
+  const fulfilledEarthquakeResults = earthquakeResults
+    .filter((result) => result.status === "fulfilled" && result.value)
+    .map((result) => result.value);
+  if (earthquakeEntries.length > 0 && fulfilledEarthquakeResults.length === 0) {
+    throw new Error("Earthquake XML detail unavailable");
+  }
+  const baseEarthquakes = dedupeEarthquakes(fulfilledEarthquakeResults)
+    .slice(0, EARTHQUAKE_HISTORY_DISPLAY_LIMIT);
+  const [areaLookup, tsunamiLookup, stationLookup] = await Promise.all([
+    loadEarthquakeAreaLookup().catch(() => new Map()),
+    loadTsunamiAreaLookup().catch(() => new Map()),
+    loadStationCoordinateLookup().catch(() => buildEmptyStationLookup())
+  ]);
+  const earthquakes = baseEarthquakes.map((earthquake) => attachEarthquakeMapData(
+    earthquake,
+    areaLookup,
+    stationLookup
+  ));
+  const tsunamiReports = tsunamiResults
+    .filter((result) => result.status === "fulfilled" && result.value)
+    .map((result) => result.value);
+  const tsunami = attachTsunamiMapData(
+    mergeTsunamiReports(tsunamiReports),
+    currentFeedAvailable ? tsunamiLookup : new Map()
+  );
+  const tsunamiStatus = !currentFeedAvailable || (tsunamiEntries.length > 0 && tsunamiReports.length === 0)
+    ? "unavailable"
+    : tsunami ? "available" : "none";
+  const updatedAt = earthquakes[0]?.reportTime ?? getLatestFeedUpdatedTime(feeds) ?? "未取得";
+
+  return {
+    source: "xml",
+    sourceLabel: "気象庁防災情報XML",
+    earthquakes,
+    tsunami,
+    tsunamiStatus,
+    hasEarthquakes: earthquakes.length > 0,
+    latestTime: updatedAt,
+    updatedAt,
+    summary: earthquakes.length > 0 ? `地震情報 ${earthquakes.length} 件` : "地震情報はありません"
+  };
+}
 
 export async function attachEarthquakeMapDataList(earthquakes) {
   const [areaLookup, stationLookup] = await Promise.all([
@@ -39,6 +103,62 @@ export async function attachEarthquakeMapDataList(earthquakes) {
     areaLookup,
     stationLookup
   ));
+}
+
+async function fetchEarthquakeFeeds() {
+  const feedUrls = [JMA_ENDPOINTS.earthquakeXmlFeed, JMA_ENDPOINTS.earthquakeXmlLongFeed].filter(Boolean);
+  const results = await Promise.allSettled(feedUrls.map(async (url) => ({
+    url,
+    feed: parseXml(await fetchText(url, { ttlMs: 60 * 1000, cache: "no-store" }))
+  })));
+  const feeds = results
+    .filter((result) => result.status === "fulfilled" && result.value?.feed)
+    .map((result) => result.value);
+  if (feeds.length) return feeds;
+  throw results.find((result) => result.status === "rejected")?.reason
+    ?? new Error("Earthquake XML feed unavailable");
+}
+
+function getUniqueEarthquakeEntries(entries) {
+  const unique = new Map();
+  entries.forEach((entry) => {
+    const key = entry.url || entry.id;
+    if (key && !unique.has(key)) unique.set(key, entry);
+  });
+  return [...unique.values()].sort((a, b) => getDateMs(b.updated) - getDateMs(a.updated));
+}
+
+function getLatestFeedUpdatedTime(feeds) {
+  const updated = feeds
+    .map(({ feed }) => getText(getFirst(feed, "updated")))
+    .sort((a, b) => getDateMs(b) - getDateMs(a))[0];
+  return parseJmaTime(updated) ?? updated ?? null;
+}
+
+async function fetchEarthquakeDetail(entry) {
+  return parseEarthquakeReport(await fetchText(entry.url, {
+    ttlMs: 60 * 1000,
+    cache: "no-store"
+  }), entry);
+}
+
+async function fetchTsunamiDetail(entry) {
+  return parseTsunamiReport(await fetchText(entry.url, {
+    ttlMs: 60 * 1000,
+    cache: "no-store"
+  }), entry);
+}
+
+function parseFeedEntry(entry) {
+  const link = getChildren(entry, "link").find((element) => element.getAttribute("href"));
+  const url = link?.getAttribute("href") ?? "";
+  return {
+    id: getText(getFirstChild(entry, "id")),
+    title: getText(getFirstChild(entry, "title")),
+    updated: getText(getFirstChild(entry, "updated")),
+    url,
+    code: getXmlCodeFromUrl(url)
+  };
 }
 
 export function parseEarthquakeReport(text, entry) {

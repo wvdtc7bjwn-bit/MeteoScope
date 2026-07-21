@@ -11,7 +11,9 @@ on:
       - "wrangler.toml"
       - "public/data/jma-intensity-stations.json"
       - "src/config.js"
+      - "src/jma/earthquakeXml.js"
       - "Tests/EarthquakeWorkerRouteTests.mjs"
+      - "Tests/JmaEarthquakeSourceTests.mjs"
       - "package.json"
       - ".github/workflows/earthquake-worker-check.yml"
   pull_request:
@@ -21,7 +23,9 @@ on:
       - "wrangler.toml"
       - "public/data/jma-intensity-stations.json"
       - "src/config.js"
+      - "src/jma/earthquakeXml.js"
       - "Tests/EarthquakeWorkerRouteTests.mjs"
+      - "Tests/JmaEarthquakeSourceTests.mjs"
       - "package.json"
       - ".github/workflows/earthquake-worker-check.yml"
 
@@ -44,9 +48,6 @@ jobs:
 
       - name: Test public route policy and Pages proxy
         run: npm run test:earthquake-worker
-
-      - name: Test DM-D.S.S adapter
-        run: npm run test:dmdata
 
       - name: Bundle Worker without deployment
         run: >-

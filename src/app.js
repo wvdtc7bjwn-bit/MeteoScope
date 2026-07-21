@@ -19,12 +19,7 @@ import { fetchRadarTimes } from "./jma/radar.js";
 import { fetchAmedasDailySeries, fetchAmedasLatestTime } from "./jma/amedas.js";
 import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
-import {
-  fetchDmdataEarthquakeList,
-  hydrateDmdataEarthquakeStations,
-  mergeDmdataEarthquakeDetails
-} from "./dmdata/earthquakes.js";
-import { startDmdataEarthquakeUpdates } from "./dmdata/earthquakeUpdates.js";
+import { fetchEarthquakeXmlList } from "./jma/earthquakeXml.js";
 import { fetchKikikuruTiles } from "./jma/kikikuru.js";
 import { fetchRiverFloodForecasts } from "./jma/riverFlood.js";
 import {
@@ -50,7 +45,7 @@ const loaders = {
   amedas: fetchAmedasLatestTime,
   warnings: fetchWarningTabData,
   typhoon: fetchTyphoonList,
-  earthquake: fetchDmdataEarthquakeList
+  earthquake: fetchEarthquakeXmlList
 };
 
 const KIKIKURU_DATA_TTL_MS = 60 * 1000;
@@ -132,9 +127,6 @@ export function createWeatherApp() {
   let activeLoadRequestId = 0;
   let autoRefreshInFlight = false;
   let earthquakeRefreshRequest = null;
-  let earthquakeRealtimeConnected = false;
-  let pendingEarthquakeRealtimeToken = "";
-  const verifiedEarthquakeStationIds = new Set();
   let lastAutoRefreshStartedAt = 0;
   let lastEarthquakeRefreshStartedAt = 0;
   let tabControls = null;
@@ -414,30 +406,6 @@ if (layerId === "river") {
     const tab = TABS.find((item) => item.id === "earthquake");
     updateCurrentView(tab, latestDataByTab.earthquake);
     if (!isSelected) focusSelectedEarthquake();
-    void hydrateDmdataEarthquakeStations(latestDataByTab.earthquake, nextEarthquakeId, {
-      force: true
-    })
-      .then((nextData) => {
-        if (!nextData) return;
-        const hydratedEarthquake = nextData.earthquakes?.find((earthquake) => (
-          String(earthquake.id) === nextEarthquakeId
-        ));
-        if ((hydratedEarthquake?.intensityStations ?? []).length > 0) {
-          verifiedEarthquakeStationIds.add(String(hydratedEarthquake.eventId ?? nextEarthquakeId));
-        }
-        const mergedData = mergeDmdataEarthquakeDetails(
-          nextData,
-          latestDataByTab.earthquake
-        );
-        if (mergedData === latestDataByTab.earthquake) return;
-        latestDataByTab.earthquake = mergedData;
-        if (activeTab !== "earthquake") return;
-        updateCurrentView(tab, mergedData);
-        if (String(activeEarthquakeId) === nextEarthquakeId) focusSelectedEarthquake();
-      })
-      .catch((error) => {
-        console.warn("[MeteoScope] DM-D.S.S station detail request failed", error);
-      });
   }
 
   function selectEarthquakeView(view) {
@@ -473,7 +441,7 @@ if (layerId === "river") {
     updateCurrentView(tab, latestDataByTab.earthquake ?? {});
   }
 
-  async function refreshEarthquakeDistribution() {
+  async function refreshEarthquakeDistribution({ force = false } = {}) {
     const requestId = ++earthquakeDistributionRequestId;
     earthquakeDistributionState = {
       ...earthquakeDistributionState,
@@ -485,7 +453,10 @@ if (layerId === "river") {
       updateCurrentView(tab, latestDataByTab.earthquake ?? {});
     }
     try {
-      const data = await fetchHypocenterDistribution(earthquakeDistributionFilters);
+      const data = await fetchHypocenterDistribution(
+        earthquakeDistributionFilters,
+        { force }
+      );
       if (requestId !== earthquakeDistributionRequestId) return;
       earthquakeDistributionState = { status: "ok", data, error: "" };
     } catch (error) {
@@ -1053,7 +1024,11 @@ if (layerId === "river") {
     const tab = TABS.find((item) => item.id === activeTab) ?? TABS[0];
     if (!loaders[tab.id]) return;
     if (tab.id === "earthquake") {
-      await refreshEarthquakeData({ force });
+      const tasks = [refreshEarthquakeData({ force })];
+      if (earthquakeView === "distribution") {
+        tasks.push(refreshEarthquakeDistribution({ force }));
+      }
+      await Promise.all(tasks);
       return;
     }
 
@@ -1073,13 +1048,10 @@ if (layerId === "river") {
     }
   }
 
-  async function refreshEarthquakeData({ force = false, realtimeToken = "" } = {}) {
+  async function refreshEarthquakeData({ force = false } = {}) {
     if (activeTab !== "earthquake") return latestDataByTab.earthquake;
     if (document.hidden && !force) return latestDataByTab.earthquake;
-    if (earthquakeRefreshRequest) {
-      if (realtimeToken) pendingEarthquakeRealtimeToken = realtimeToken;
-      return earthquakeRefreshRequest;
-    }
+    if (earthquakeRefreshRequest) return earthquakeRefreshRequest;
 
     const now = Date.now();
     if (!force && now - lastEarthquakeRefreshStartedAt < EARTHQUAKE_REFRESH_INTERVAL_MS - 1000) {
@@ -1092,13 +1064,9 @@ if (layerId === "river") {
     const selectedWasLatest = !selectedIdAtStart || !previousLatestId || selectedIdAtStart === previousLatestId;
     lastEarthquakeRefreshStartedAt = now;
 
-    const loadEarthquake = realtimeToken
-      ? fetchDmdataEarthquakeList({ realtimeToken })
-      : loadTabData("earthquake");
-    earthquakeRefreshRequest = loadEarthquake
-      .then(async (nextData) => {
-        const mergedData = mergeDmdataEarthquakeDetails(previousData, nextData);
-        const earthquakes = mergedData?.earthquakes ?? [];
+    earthquakeRefreshRequest = loadTabData("earthquake")
+      .then((nextData) => {
+        const earthquakes = nextData?.earthquakes ?? [];
         const nextLatestId = String(earthquakes[0]?.id ?? "");
         const selectedStillExists = earthquakes.some((earthquake) =>
           String(earthquake.id) === selectedIdAtStart
@@ -1112,55 +1080,19 @@ if (layerId === "river") {
           activeEarthquakeId = selectedIdAtStart;
         }
 
-        let refreshedData = mergedData;
-        const selectedIdForRefresh = String(activeEarthquakeId);
-        const selectedEarthquake = earthquakes.find((earthquake) => (
-          String(earthquake.id) === selectedIdForRefresh
-        ));
-        const selectedEventId = String(selectedEarthquake?.eventId ?? "");
-        const freshSelectedEarthquake = nextData?.earthquakes?.find((earthquake) => (
-          String(earthquake.id) === selectedIdForRefresh
-        ));
-        if ((freshSelectedEarthquake?.intensityStations ?? []).length > 0) {
-          verifiedEarthquakeStationIds.add(selectedEventId);
-        } else if (selectedEventId && !verifiedEarthquakeStationIds.has(selectedEventId)) {
-          try {
-            refreshedData = await hydrateDmdataEarthquakeStations(
-              mergedData,
-              selectedIdForRefresh,
-              { force: true }
-            );
-            const refreshedEarthquake = refreshedData?.earthquakes?.find((earthquake) => (
-              String(earthquake.id) === selectedIdForRefresh
-            ));
-            if ((refreshedEarthquake?.intensityStations ?? []).length > 0) {
-              verifiedEarthquakeStationIds.add(selectedEventId);
-            }
-          } catch (error) {
-            console.warn("[MeteoScope] DM-D.S.S station coordinate refresh failed", error);
-          }
-        }
-
-        latestDataByTab.earthquake = refreshedData;
+        latestDataByTab.earthquake = nextData;
         if (activeTab === "earthquake") {
           const tab = TABS.find((item) => item.id === "earthquake");
-          updateCurrentView(tab, refreshedData);
+          updateCurrentView(tab, nextData);
         }
-        return refreshedData;
+        return nextData;
       })
       .catch((error) => {
-        console.warn("[MeteoScope] earthquake realtime refresh failed", error);
+        console.warn("[MeteoScope] earthquake XML refresh failed", error);
         return latestDataByTab.earthquake;
       })
       .finally(() => {
         earthquakeRefreshRequest = null;
-        const pendingToken = pendingEarthquakeRealtimeToken;
-        pendingEarthquakeRealtimeToken = "";
-        if (pendingToken && activeTab === "earthquake") {
-          queueMicrotask(() => {
-            void refreshEarthquakeData({ force: true, realtimeToken: pendingToken });
-          });
-        }
       });
 
     return earthquakeRefreshRequest;
@@ -1390,7 +1322,6 @@ if (layerId === "river") {
     if (earthquakeRefreshTimer) window.clearTimeout(earthquakeRefreshTimer);
     earthquakeRefreshTimer = null;
     // 接続中は全タブ共通の5分更新に任せ、地震専用タイマーとの二重取得を避ける。
-    if (earthquakeRealtimeConnected) return;
     earthquakeRefreshTimer = window.setTimeout(async () => {
       earthquakeRefreshTimer = null;
       try {
@@ -1399,13 +1330,6 @@ if (layerId === "river") {
         scheduleEarthquakeRefresh();
       }
     }, EARTHQUAKE_REFRESH_INTERVAL_MS);
-  }
-
-  function setEarthquakeRealtimeConnected(isConnected) {
-    const nextConnected = Boolean(isConnected);
-    if (earthquakeRealtimeConnected === nextConnected) return;
-    earthquakeRealtimeConnected = nextConnected;
-    scheduleEarthquakeRefresh();
   }
 
   function scheduleBackgroundPrefetch(excludeTabId) {
@@ -1718,12 +1642,6 @@ if (layerId === "river") {
       if (userServicesStarted) return;
       userServicesStarted = true;
       startAutoRefresh();
-      startDmdataEarthquakeUpdates({
-        onUpdate: ({ token }) => {
-          void refreshEarthquakeData({ force: true, realtimeToken: token });
-        },
-        onConnectionChange: setEarthquakeRealtimeConnected
-      });
       void adminNoticePush.initialize().then(() => refreshSettingsModalView());
       void startLocationWatchOnLaunch();
       void selectTab(activeTab);

@@ -14,10 +14,6 @@ export const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 export const AUTO_REFRESH_RESUME_THROTTLE_MS = 60 * 1000;
 export const EARTHQUAKE_REFRESH_INTERVAL_MS = 60 * 1000;
 export const STATIC_DATA_CACHE_TTL_MS = 60 * 60 * 1000;
-const EARTHQUAKE_API_BASE = String(
-  import.meta.env?.VITE_EARTHQUAKE_API_BASE ||
-  "/api/earthquakes"
-).replace(/\/+$/, "");
 
 function publicAsset(path) {
   return `${APP_BASE_URL}${path.replace(/^\/+/, "")}`;
@@ -28,15 +24,6 @@ export const MAP_DATA_ENDPOINTS = {
   tectonicPlateBoundaries: publicAsset("data/usgs-plate-boundaries-japan.geojson"),
   slab2DepthContours: publicAsset("data/usgs-slab2-depth-contours-japan.geojson"),
   slab2Surface: publicAsset("data/usgs-slab2-surface-japan.geojson?v=20260720-7")
-};
-
-export const DMDATA_ENDPOINTS = {
-  earthquakeHistory: `${EARTHQUAKE_API_BASE}/history`,
-  earthquakeLatest: `${EARTHQUAKE_API_BASE}/latest`,
-  earthquakeStream: `${EARTHQUAKE_API_BASE}/stream`,
-  earthquakeStations(eventId) {
-    return `${EARTHQUAKE_API_BASE}/history/${encodeURIComponent(String(eventId ?? ""))}/stations`;
-  }
 };
 
 export const DEFAULT_VIEW = {
@@ -62,6 +49,8 @@ export const JMA_ENDPOINTS = {
   weatherXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/regular_l.xml",
   riverFloodXmlFeed: "https://www.data.jma.go.jp/developer/xml/feed/extra.xml",
   riverFloodXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/extra_l.xml",
+  earthquakeXmlFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml",
+  earthquakeXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml",
   riverFloodGeometry: "https://services.arcgis.com/wlVTGRSYTzAbjjiC/ArcGIS/rest/services/flood_risk_all/FeatureServer/0/query",
   areaConst: "https://www.jma.go.jp/bosai/common/const/area.json",
   warningMunicipalities: publicAsset("data/jma-weather-warning-municipalities.geojson"),
@@ -121,7 +110,7 @@ export const TABS = [
     title: "",
     cardLabel: "震源",
     primary: "Quake",
-    description: "DM-D.S.S経由で取得した気象庁発表の地震・津波情報を表示します。"
+    description: "気象庁防災情報XMLから取得した地震・津波情報を表示します。"
   }
 ];
 

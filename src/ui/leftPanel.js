@@ -751,7 +751,7 @@ if (state.data?.activeWarningView === "early") {
     return "台風の解析値を表示しています。";
   }
   if (tab.id === "earthquake") {
-    if (state.status === "loading") return "DM-D.S.S経由の地震情報を取得中です。";
+    if (state.status === "loading") return "気象庁防災情報XMLから地震情報を取得中です。";
     if (state.status === "error") return "地震情報を取得できませんでした。";
     const count = state.data?.earthquakes?.length ?? 0;
     return count > 0 ? "" : "直近の地震情報はありません。";
@@ -2812,12 +2812,12 @@ function renderEarthquakeList(tab, state) {
   }
 
   if (state.status === "loading") {
-    render(`${viewToggle}${mapLayerControls}<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得中です。</div>`);
+    render(`${viewToggle}${mapLayerControls}<div class="earthquake-empty">気象庁防災情報XMLから地震情報を取得中です。</div>`);
     return;
   }
 
   if (state.status === "error") {
-    render(`${viewToggle}${mapLayerControls}<div class="earthquake-empty">DM-D.S.S経由の地震情報を取得できませんでした。</div>`);
+    render(`${viewToggle}${mapLayerControls}<div class="earthquake-empty">気象庁防災情報XMLから地震情報を取得できませんでした。</div>`);
     return;
   }
 

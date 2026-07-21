@@ -52,10 +52,6 @@ struct AppShellView: View {
             guard preferences.hasAcceptedLegalDocuments else { return }
             await model.loadRemoteConfigIfNeeded()
         }
-        .task(id: preferences.hasAcceptedLegalDocuments) {
-            guard preferences.hasAcceptedLegalDocuments else { return }
-            await model.observeEarthquakeUpdates()
-        }
     }
 }
 

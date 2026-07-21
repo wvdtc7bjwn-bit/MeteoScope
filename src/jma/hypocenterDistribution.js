@@ -4,7 +4,7 @@ const ENDPOINT = "/api/earthquakes/distribution";
 export const HYPOCENTER_DISTRIBUTION_DAY_COUNT = 731;
 export const HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET = HYPOCENTER_DISTRIBUTION_DAY_COUNT - 1;
 
-export async function fetchHypocenterDistribution(filters = {}) {
+export async function fetchHypocenterDistribution(filters = {}, options = {}) {
   const dayOffset = Number.isInteger(Number(filters.dayOffset))
     ? Math.min(HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET, Math.max(0, Number(filters.dayOffset)))
     : 0;
@@ -20,8 +20,8 @@ export async function fetchHypocenterDistribution(filters = {}) {
     maxDepth
   });
   const payload = await fetchJson(`${ENDPOINT}?${parameters}`, {
-    ttlMs: 5 * 60 * 1000,
-    cache: "default"
+    ttlMs: options.force ? 0 : 5 * 60 * 1000,
+    cache: options.force ? "no-store" : "default"
   });
   if (payload?.ok !== true || !Array.isArray(payload?.items)) {
     throw new Error("気象庁の震央分布を取得できませんでした");

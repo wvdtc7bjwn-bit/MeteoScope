@@ -24,26 +24,24 @@ export async function onRequest(context) {
   if (request.method !== "GET" && request.method !== "HEAD") {
     return jsonResponse({ ok: false, error: "method_not_allowed" }, 405);
   }
-  if (!env.EARTHQUAKE_REALTIME?.fetch) {
+  const sourceUrl = new URL(request.url);
+  const suffix = sourceUrl.pathname.replace(/^\/api\/earthquakes/, "") || "/";
+  if (suffix !== "/distribution") {
+    return jsonResponse({ ok: false, error: "not_found" }, 404);
+  }
+  if (!env.HYPOCENTER_ARCHIVE?.fetch) {
     return jsonResponse({ ok: false, error: "earthquake_service_not_configured" }, 503);
   }
 
-  const sourceUrl = new URL(request.url);
-  const suffix = sourceUrl.pathname.replace(/^\/api\/earthquakes/, "") || "/";
   const target = new URL(`https://earthquake-worker.internal/api${suffix}`);
   target.search = sourceUrl.search;
 
   try {
-    const isWebSocket = request.headers.get("upgrade")?.toLowerCase() === "websocket";
-    const upstream = await env.EARTHQUAKE_REALTIME.fetch(
+    const upstream = await env.HYPOCENTER_ARCHIVE.fetch(
       new Request(target, {
-        method: request.method,
-        headers: isWebSocket ? { upgrade: "websocket" } : undefined
+        method: request.method
       })
     );
-    if (isWebSocket) {
-      return upstream;
-    }
     const headers = new Headers(upstream.headers);
     Object.entries(RESPONSE_HEADERS).forEach(([key, value]) => headers.set(key, value));
     return new Response(upstream.body, {
@@ -53,7 +51,7 @@ export async function onRequest(context) {
     });
   }
   catch (error) {
-    console.error("[earthquakes-proxy] service binding failed", error);
+    console.error("[hypocenter-distribution-proxy] service binding failed", error);
     return jsonResponse({ ok: false, error: "earthquake_service_unavailable" }, 503);
   }
 }

@@ -12,8 +12,6 @@ enum MeteoScopeEndpoints {
     )!
     static let jmaTerms = URL(string: "https://www.jma.go.jp/jma/kishou/info/coment.html")!
     static let jmaDataPortal = URL(string: "https://www.data.jma.go.jp/developer/index.html")!
-    static let dmdataDocumentation = URL(string: "https://dmdata.jp/docs/manual")!
-    static let dmdataTerms = URL(string: "https://dmdata.jp/terms")!
     static let gsiTiles = URL(string: "https://maps.gsi.go.jp/development/ichiran.html")!
     static let jshisMajorFaultAPI = URL(
         string: "https://www.j-shis.bosai.go.jp/api-vectortile-majorfault"
@@ -92,18 +90,13 @@ enum MeteoScopeEndpoints {
         string: "https://www.jma.go.jp/bosai/typhoon/data/"
     )!
     static let typhoonTargets = typhoonBase.appending(path: "targetTc.json")
+    static let earthquakeFeeds = [
+        URL(string: "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml")!,
+        URL(string: "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml")!
+    ]
     private static let earthquakeAPIBase = URL(
         string: "https://meteoscope.pages.dev/api/earthquakes"
     )!
-    static let dmdataEarthquakeHistory: URL = {
-        var components = URLComponents(
-            url: earthquakeAPIBase.appending(path: "history"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [URLQueryItem(name: "limit", value: "11")]
-        return components.url!
-    }()
-    static let dmdataEarthquakeLatest = earthquakeAPIBase.appending(path: "latest")
     static func hypocenterDistribution(
         dayOffset: Int,
         minMagnitude: String,
@@ -119,35 +112,6 @@ enum MeteoScopeEndpoints {
             URLQueryItem(name: "maxDepth", value: maxDepth)
         ]
         return components.url!
-    }
-    static let dmdataEarthquakeStream: URL = {
-        var components = URLComponents(
-            url: earthquakeAPIBase.appending(path: "stream"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.scheme = "wss"
-        return components.url!
-    }()
-    static func dmdataEarthquakeHistory(realtimeToken: String) -> URL {
-        guard !realtimeToken.isEmpty,
-              var components = URLComponents(
-                url: dmdataEarthquakeHistory,
-                resolvingAgainstBaseURL: false
-              )
-        else {
-            return dmdataEarthquakeHistory
-        }
-        var items = components.queryItems ?? []
-        items.append(URLQueryItem(name: "_rt", value: realtimeToken))
-        components.queryItems = items
-        return components.url ?? dmdataEarthquakeHistory
-    }
-    static func dmdataEarthquakeStations(eventID: String) -> URL? {
-        guard !eventID.isEmpty else { return nil }
-        return earthquakeAPIBase
-            .appending(path: "history")
-            .appending(path: eventID)
-            .appending(path: "stations")
     }
     static let earthquakeStationCatalog = URL(
         string: "https://meteoscope.pages.dev/data/jma-intensity-stations.json"

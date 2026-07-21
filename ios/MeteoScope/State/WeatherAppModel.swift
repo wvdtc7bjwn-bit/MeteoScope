@@ -24,20 +24,13 @@ final class WeatherAppModel {
     private(set) var lastSuccessfulFetchAt: [WeatherFeature: Date] = [:]
     private(set) var latestFetchError: [WeatherFeature: String] = [:]
     private(set) var dismissedNoticeIDs: Set<RemoteNotice.ID> = []
-    private var loadingEarthquakeStationIDs: Set<String> = []
-    private var verifiedEarthquakeStationIDs: Set<String> = []
     private var earthquakeRefreshSequence = 0
     private var hypocenterDistributionRefreshSequence = 0
 
     private let client: WeatherAPIClient
-    private let earthquakeUpdates: EarthquakeUpdateClient
 
-    init(
-        client: WeatherAPIClient,
-        earthquakeUpdates: EarthquakeUpdateClient = .live()
-    ) {
+    init(client: WeatherAPIClient) {
         self.client = client
-        self.earthquakeUpdates = earthquakeUpdates
     }
 
     var radarFrames: [RadarFrame] {
@@ -57,15 +50,6 @@ final class WeatherAppModel {
 
     func selectEarthquake(_ earthquake: EarthquakeSummary) {
         selectedEarthquakeID = earthquake.id
-        guard !earthquake.eventID.isEmpty,
-              (earthquake.intensityPoints.isEmpty || !verifiedEarthquakeStationIDs.contains(earthquake.eventID)),
-              loadingEarthquakeStationIDs.insert(earthquake.eventID).inserted
-        else {
-            return
-        }
-        Task { [weak self] in
-            await self?.loadEarthquakeStations(eventID: earthquake.eventID)
-        }
     }
 
     func selectEarthquakeDisplayMode(_ mode: EarthquakeDisplayMode) {
@@ -126,34 +110,6 @@ final class WeatherAppModel {
             if previous == nil {
                 hypocenterDistributionState = .failed(error.localizedDescription)
             }
-        }
-    }
-
-    private func loadEarthquakeStations(eventID: String) async {
-        defer { loadingEarthquakeStationIDs.remove(eventID) }
-        do {
-            let points = try await client.fetchEarthquakeStations(eventID)
-            guard !Task.isCancelled, !points.isEmpty,
-                  case .loaded(let snapshot) = earthquakeState
-            else {
-                return
-            }
-            verifiedEarthquakeStationIDs.insert(eventID)
-            let earthquakes = snapshot.earthquakes.map { earthquake in
-                earthquake.eventID == eventID
-                    ? earthquake.replacingIntensityPoints(points)
-                    : earthquake
-            }
-            earthquakeState = .loaded(EarthquakeSnapshot(
-                updatedAt: snapshot.updatedAt,
-                earthquakes: earthquakes,
-                tsunami: snapshot.tsunami,
-                tsunamiStatus: snapshot.tsunamiStatus
-            ))
-        } catch is CancellationError {
-            return
-        } catch {
-            // Region-level intensity data remains available when station details fail.
         }
     }
 
@@ -231,7 +187,13 @@ final class WeatherAppModel {
         case .typhoon:
             await refresh(.typhoon, \.typhoonState, operation: client.fetchTyphoonSnapshot)
         case .earthquake:
-            await refreshEarthquake()
+            if earthquakeDisplayMode == .distribution {
+                async let earthquakeRefresh: Void = refreshEarthquake()
+                async let distributionRefresh: Void = refreshHypocenterDistribution()
+                _ = await (earthquakeRefresh, distributionRefresh)
+            } else {
+                await refreshEarthquake()
+            }
         }
     }
 
@@ -240,7 +202,7 @@ final class WeatherAppModel {
         await refreshEarthquake()
     }
 
-    private func refreshEarthquake(realtimeToken: String? = nil) async {
+    private func refreshEarthquake() async {
         earthquakeRefreshSequence += 1
         let refreshSequence = earthquakeRefreshSequence
         let previous: EarthquakeSnapshot?
@@ -252,26 +214,11 @@ final class WeatherAppModel {
         }
 
         do {
-            let fetched = if let realtimeToken, !realtimeToken.isEmpty {
-                try await client.fetchRealtimeEarthquakeSnapshot(realtimeToken)
-            } else {
-                try await client.fetchEarthquakeSnapshot()
-            }
+            let fetched = try await client.fetchEarthquakeSnapshot()
             guard !Task.isCancelled, refreshSequence == earthquakeRefreshSequence else { return }
             let snapshot = previous.map { fetched.preservingIntensityPoints(from: $0) } ?? fetched
             earthquakeState = .loaded(snapshot)
             markFetchSucceeded(.earthquake)
-            if let selected = selectedEarthquake(in: snapshot), !selected.eventID.isEmpty {
-                let freshSelected = fetched.earthquakes.first {
-                    $0.eventID == selected.eventID
-                }
-                if freshSelected?.intensityPoints.isEmpty == false {
-                    verifiedEarthquakeStationIDs.insert(selected.eventID)
-                } else if !verifiedEarthquakeStationIDs.contains(selected.eventID),
-                          loadingEarthquakeStationIDs.insert(selected.eventID).inserted {
-                    await loadEarthquakeStations(eventID: selected.eventID)
-                }
-            }
         } catch is CancellationError {
             return
         } catch {
@@ -279,27 +226,6 @@ final class WeatherAppModel {
             if previous == nil {
                 earthquakeState = .failed(error.localizedDescription)
             }
-        }
-    }
-
-    func observeEarthquakeUpdates() async {
-        var retrySeconds = 1
-        while !Task.isCancelled {
-            do {
-                for try await update in earthquakeUpdates.updates() {
-                    guard !Task.isCancelled else { return }
-                    retrySeconds = 1
-                    await refreshEarthquake(realtimeToken: update.token)
-                }
-            } catch is CancellationError {
-                return
-            } catch {
-                // The periodic refresh remains active while the stream reconnects.
-            }
-
-            guard !Task.isCancelled else { return }
-            try? await Task.sleep(for: .seconds(retrySeconds))
-            retrySeconds = min(30, retrySeconds * 2)
         }
     }
 
@@ -411,10 +337,7 @@ extension WeatherAppModel {
                 isForecast: true
             )
         ]
-        let model = WeatherAppModel(
-            client: .preview(frames: frames),
-            earthquakeUpdates: .empty
-        )
+        let model = WeatherAppModel(client: .preview(frames: frames))
         model.radarState = .loaded(frames)
         model.amedasState = .loaded(.preview)
         model.warningState = .loaded(.preview)

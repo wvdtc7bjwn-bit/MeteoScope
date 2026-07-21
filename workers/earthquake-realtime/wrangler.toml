@@ -2,25 +2,17 @@ name = "meteoscope-earthquake-realtime"
 main = "src/index.js"
 compatibility_date = "2026-07-15"
 
-[vars]
-DMDATA_APP_NAME = "meteoscope-earthquake"
-DMDATA_TEST_MODE = "excluding"
-
 [triggers]
 # The 1-minute trigger backfills one missing day per run to stay within the
 # Workers Free CPU limit. Once the latest 731 days exist it performs no
 # external fetch or D1 write; completion is cached per source date for six hours.
 crons = ["* * * * *"]
 
-[[durable_objects.bindings]]
-name = "EARTHQUAKE_HUB"
-class_name = "MeteoScopeEarthquakeHub"
-
-# This is a MeteoScope-owned Durable Object namespace. It does not share the
-# retired legacy Worker or its Durable Object namespace.
+# Delete the retired realtime-ingestion Durable Object class and its stored instances when
+# this Worker revision is deployed. No Durable Object binding remains.
 [[migrations]]
-tag = "v1"
-new_sqlite_classes = ["MeteoScopeEarthquakeHub"]
+tag = "v2"
+deleted_classes = ["MeteoScopeEarthquakeHub"]
 
 [[d1_databases]]
 binding = "EQ_D1"
