@@ -7,11 +7,10 @@ DMDATA_APP_NAME = "meteoscope-earthquake"
 DMDATA_TEST_MODE = "excluding"
 
 [triggers]
-# Cloudflare Cron is UTC. 15:00 UTC is 00:00 JST on the following day.
-# The 1-minute trigger backfills at most 15 missing days per run. Once all
-# 731 days exist it performs no external fetch or D1 write; completion is
-# cached for six hours. The daily trigger keeps the rolling window current.
-crons = ["* * * * *", "0 15 * * *"]
+# The 1-minute trigger backfills one missing day per run to stay within the
+# Workers Free CPU limit. Once the latest 731 days exist it performs no
+# external fetch or D1 write; completion is cached per source date for six hours.
+crons = ["* * * * *"]
 
 [[durable_objects.bindings]]
 name = "EARTHQUAKE_HUB"
