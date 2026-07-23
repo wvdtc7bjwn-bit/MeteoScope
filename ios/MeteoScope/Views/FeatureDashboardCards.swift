@@ -1486,7 +1486,7 @@ private struct EarthquakeObservationRow: View {
     }
 }
 
-private struct FeatureLoadingCard: View {
+struct FeatureLoadingCard: View {
     let title: String
 
     var body: some View {
@@ -1500,7 +1500,7 @@ private struct FeatureLoadingCard: View {
     }
 }
 
-private struct FeatureErrorCard: View {
+struct FeatureErrorCard: View {
     let title: String
     let message: String
 

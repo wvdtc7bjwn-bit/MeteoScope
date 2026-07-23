@@ -70,7 +70,9 @@ struct VolcanoDashboardCard: View {
                     if let detail = detailBulletin(for: volcano) {
                         bulletinDetail(volcano: volcano, bulletin: detail)
                     } else {
-                        VolcanoStatusRow(volcano: volcano)
+                Text(volcano.kindName.isEmpty ? "警戒状況未確認" : volcano.kindName)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.secondary)
                         Text("この火山の詳細な発表本文は現在取得できません。最新の警戒状況は気象庁の公式情報で確認してください。")
                             .font(.callout)
                             .foregroundStyle(.secondary)
