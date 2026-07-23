@@ -101,7 +101,7 @@ assert.equal(
   "要約バーの既定表示は警戒度を優先し、同じ警戒度では新しい発表を選ぶ"
 );
 
-const [config, map, app, panel, style, volcanoParser, longPressHint, swiftModel, swiftView, swiftMap, swiftVolcanoView, swiftVolcanoModel, swiftOverlay, swiftAPI, viteConfig] = await Promise.all([
+const [config, map, app, panel, style, volcanoParser, longPressHint, viteConfig] = await Promise.all([
   readFile(new URL("../src/config.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
@@ -109,13 +109,6 @@ const [config, map, app, panel, style, volcanoParser, longPressHint, swiftModel,
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
   readFile(new URL("../src/jma/volcanoXml.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/earthquakeLongPressHint.js", import.meta.url), "utf8"),
-  readFile(new URL("../ios/MeteoScope/State/WeatherAppModel.swift", import.meta.url), "utf8"),
-  readFile(new URL("../ios/MeteoScope/Views/MapDashboardView.swift", import.meta.url), "utf8"),
-  readFile(new URL("../ios/MeteoScope/Map/WeatherMapView.swift", import.meta.url), "utf8"),
-  readFile(new URL("../ios/MeteoScope/Views/VolcanoDashboardCard.swift", import.meta.url), "utf8"),
-  readFile(new URL("../ios/MeteoScope/Domain/VolcanoSnapshot.swift", import.meta.url), "utf8"),
-  readFile(new URL("../ios/MeteoScope/Map/WeatherMapOverlay.swift", import.meta.url), "utf8"),
-  readFile(new URL("../ios/MeteoScope/Services/WeatherAPIClient.swift", import.meta.url), "utf8"),
   readFile(new URL("../vite.config.js", import.meta.url), "utf8")
 ]);
 assert.match(config, /volcano\/data\/info\/900\.json/);
@@ -185,45 +178,5 @@ assert.match(volcanoParser, /"VFVO53"/);
 assert.match(volcanoParser, /function parseAshForecasts/);
 assert.match(volcanoParser, /export function groupVolcanoPolygonRings/);
 assert.match(volcanoParser, /targetAreas: entry\.code === "VFVO50" \? parseVolcanoTargetAreas\(body\) : \[\]/);
-assert.match(swiftModel, /toggleEarthquakeContentMode/);
-assert.match(swiftView, /LongPressGesture\(minimumDuration: 0\.65\)/);
-assert.match(swiftView, /@AppStorage\("meteoscope\.seenEarthquakeLongPressHint\.v4"\)/);
-assert.match(swiftView, /EarthquakeLongPressHintBubble/);
-assert.match(swiftView, /Text\("地震ボタンを長押し"\)/);
-assert.match(swiftVolcanoView, /level == 1 \? "活火山に留意" : keyword/);
-assert.match(swiftVolcanoView, /\.accessibilityLabel\(item\.keyword\)/);
-assert.match(swiftMap, /case \.volcano = point\.kind/);
-assert.match(swiftMap, /selectedVolcanoCode\.wrappedValue = volcanoCode/);
-assert.match(swiftMap, /case \.ashfall/);
-assert.match(swiftMap, /interiorPolygons:\s*interiorPolygons/);
-assert.match(swiftVolcanoView, /snapshot\.volcanoes\.first\(where: \{ \$0\.code == selectedVolcanoCode \}\)/);
-assert.match(swiftVolcanoView, /噴火警報・予報の対象市町村/);
-assert.match(swiftVolcanoView, /関連する発表/);
-assert.match(swiftVolcanoView, /selectedBulletinID = item\.id/);
-assert.doesNotMatch(swiftVolcanoView, /Link\(destination: item\.sourceURL\)/);
-assert.match(swiftVolcanoView, /selectedBulletinDetail\(volcano: volcano, bulletin: selectedBulletin\)/);
-assert.match(swiftVolcanoView, /volcanoLevelGuide\(\)/);
-assert.match(swiftVolcanoView, /private var volcanoGuideItems: \[VolcanoLevelGuideItem\]/);
-assert.doesNotMatch(swiftVolcanoView, /private func volcanoList\(/);
-assert.match(swiftVolcanoView, /Slider\(/);
-assert.match(swiftVolcanoView, /displayBulletinTitle\(bulletin\.title\)/);
-assert.match(swiftVolcanoView, /Label\("火山情報の見方", systemImage: "chevron\.left"\)/);
-assert.doesNotMatch(swiftVolcanoView, /Button\("一覧へ戻る"\)/);
-assert.match(swiftVolcanoView, /trimmed\.dropFirst\(3\)/);
-assert.match(swiftVolcanoModel, /enum VolcanoXMLDecoder/);
-assert.match(swiftVolcanoModel, /func preferredVolcano\(selectedCode: String\?\)/);
-assert.match(swiftOverlay, /snapshot\.preferredVolcano\(selectedCode: selectedVolcanoCode\)/);
-assert.match(swiftVolcanoModel, /targetAreaGroups: targetAreaGroups/);
-assert.match(swiftVolcanoModel, /struct VolcanoAshForecast/);
-assert.match(swiftVolcanoModel, /let holes:\s*\[\[GeoCoordinate\]\]/);
-assert.match(swiftVolcanoModel, /private static func groupPolygonRings/);
-assert.match(swiftVolcanoModel, /struct VolcanoBulletin:[\s\S]*let bulletinCode: String/);
-assert.match(swiftVolcanoModel, /"VFVO53"/);
-assert.match(swiftVolcanoModel, /enum VolcanoLevelPalette/);
-assert.match(swiftVolcanoModel, /red:\s*0xCA,\s*green:\s*0x01,\s*blue:\s*0xF9/);
-assert.match(swiftAPI, /fetchJMAVolcanoBulletins/);
-assert.match(swiftAPI, /warningDetailCodes = Set\(\["VFVO50", "VFVO51"\]\)/);
-assert.match(swiftVolcanoView, /\$0\.bulletinCode == "VFVO50" \|\| \$0\.bulletinCode == "VFVO51"/);
-assert.doesNotMatch(swiftVolcanoView, /\} \?\? volcano\.bulletins\.first/);
 
 console.log("Volcano tests passed");

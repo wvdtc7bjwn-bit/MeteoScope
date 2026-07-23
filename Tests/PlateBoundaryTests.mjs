@@ -102,9 +102,6 @@ const plateDepth3DLayer = await readFile(new URL("src/map/plateDepth3DLayer.js",
 const plateDepthSurface3DLayer = await readFile(new URL("src/map/plateDepthSurface3DLayer.js", root), "utf8");
 const panel = await readFile(new URL("src/ui/leftPanel.js", root), "utf8");
 const style = await readFile(new URL("src/style.css", root), "utf8");
-const iosMap = await readFile(new URL("ios/MeteoScope/Map/WeatherMapView.swift", root), "utf8");
-const iosDashboard = await readFile(new URL("ios/MeteoScope/Views/FeatureDashboardCards.swift", root), "utf8");
-const iosSettings = await readFile(new URL("ios/MeteoScope/Views/SettingsView.swift", root), "utf8");
 assert.match(index, /プレート境界: USGS/u);
 assert.match(index, /境界モデル: Bird, 2003/u);
 assert.match(index, /プレート面・等深線: USGS Slab2/u);
@@ -135,12 +132,6 @@ assert.match(hypocenter3DLayer, /getDepth3DZoomScale\(state\.map\?\.getZoom\(\)\
 assert.match(plateDepth3DLayer, /getDepth3DZoomScale\(state\.map\?\.getZoom\(\)\)/u);
 assert.match(plateDepthSurface3DLayer, /gl\.TRIANGLES/u);
 assert.match(plateDepthSurface3DLayer, /getDepth3DZoomScale\(state\.map\?\.getZoom\(\)\)/u);
-assert.match(index, /Web版は3D、iOS版は2\.5D/u);
-assert.match(iosMap, /plateDepthContourSpatialLineIdentifiers/u);
-assert.match(iosMap, /plateDepthSurfaceFillIdentifiers/u);
-assert.match(iosMap, /fillTranslationAnchor/u);
-assert.match(iosMap, /lineTranslationAnchor/u);
-assert.match(iosDashboard, /Text\("震源の深さ"\)/u);
-assert.match(iosSettings, /2\.5Dの概略表現/u);
+assert.match(index, /Web版で3D表示/u);
 
 console.log("USGS plate boundary and Slab2 contour data tests passed");

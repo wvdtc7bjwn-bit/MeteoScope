@@ -1,4 +1,4 @@
-import { runWarningPushCheck } from "../functions/api/push/[[path]].js";
+import { runPushMaintenance } from "../functions/api/push/[[path]].js";
 import { runQuizMaintenance } from "../functions/_shared/quizMaintenance.js";
 
 const QUIZ_MAINTENANCE_UTC_HOUR = 15;
@@ -7,7 +7,7 @@ const QUIZ_MAINTENANCE_UTC_MINUTE = 0;
 export default {
   async scheduled(controller, env, ctx) {
     const scheduledAt = new Date(controller?.scheduledTime ?? Date.now());
-    const tasks = [runWarningPushCheck(env, { now: scheduledAt })];
+    const tasks = [runPushMaintenance(env, { now: scheduledAt })];
     if (shouldRunQuizMaintenance(scheduledAt)) {
       tasks.push(runQuizMaintenance(env, { now: scheduledAt }));
     }
@@ -23,7 +23,7 @@ export default {
       const token = request.headers.get("X-Push-Check-Token") || url.searchParams.get("token");
       if (token !== env.PUSH_CHECK_TOKEN) return new Response("Forbidden", { status: 403 });
     }
-    const result = await runWarningPushCheck(env);
+    const result = await runPushMaintenance(env);
     return new Response(JSON.stringify({ ok: true, ...result }), {
       headers: { "Content-Type": "application/json; charset=utf-8" }
     });

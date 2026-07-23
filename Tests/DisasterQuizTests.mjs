@@ -52,11 +52,10 @@ assert.deepEqual(disasterQuizQuestionsByIDs([original[0]]), []);
 assert.deepEqual(disasterQuizQuestionsByIDs(Array(10).fill(original[0])), []);
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const [html, appSource, styleSource, iosDashboardSource] = await Promise.all([
+const [html, appSource, styleSource] = await Promise.all([
   fs.readFile(path.join(root, "index.html"), "utf8"),
   fs.readFile(path.join(root, "src", "app.js"), "utf8"),
-  fs.readFile(path.join(root, "src", "style.css"), "utf8"),
-  fs.readFile(path.join(root, "ios", "MeteoScope", "Views", "FeatureDashboardCards.swift"), "utf8")
+  fs.readFile(path.join(root, "src", "style.css"), "utf8")
 ]);
 assert.match(html, /id="disaster-quiz-button"[\s\S]*id="disaster-map-button"/u);
 assert.match(html, /id="disaster-quiz-modal"/u);
@@ -69,7 +68,4 @@ assert.match(styleSource, /\.disaster-quiz-open-button\s*\{\s*top:\s*20px;\s*lef
 assert.match(styleSource, /html\[data-theme="light"\] \.disaster-quiz-feedback\[data-result="correct"\]/u);
 assert.match(styleSource, /html\[data-theme="light"\] \.disaster-quiz-feedback\[data-result="incorrect"\]/u);
 assert.doesNotMatch(styleSource.slice(styleSource.indexOf("/* Disaster quiz */")), /\.disaster-quiz-primary\s*\{[^}]*linear-gradient/su);
-assert.match(iosDashboardSource, /case \.disasterQuiz:\s*DisasterQuizView\(\)/u);
-assert.match(iosDashboardSource, /Label\("防災クイズ"[\s\S]*Label\("防災マップ"/u);
-
 console.log("Disaster quiz tests passed.");

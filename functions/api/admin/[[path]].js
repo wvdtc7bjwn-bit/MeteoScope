@@ -6,7 +6,7 @@ import { deleteMeteoScopeAccount, listMeteoScopeAccounts } from "../../_shared/a
 import { deleteEarlyAccessActivationsForCode, reconcileEarlyAccessCodeUsage } from "../../_shared/earlyAccessAuth.js";
 import { invalidateAllQuizLeaderboardCaches } from "../../_shared/quizLeaderboardCache.js";
 import {
-  deleteAdminPushBroadcast, listAdminPushBroadcasts, queueAdminPushBroadcast, readWarningCronHealth
+  deleteAdminPushBroadcast, listAdminPushBroadcasts, queueAdminPushBroadcast
 } from "../push/[[path]].js";
 
 const CONFIG_KEY = "app-config";
@@ -122,9 +122,8 @@ async function sessionStatus(request, env) {
 }
 
 async function status(env) {
-  const [config, warningCron, quiz, communityReports] = await Promise.all([
+  const [config, quiz, communityReports] = await Promise.all([
     readJson(env.NOTIFICATIONS_DB, CONFIG_KEY, DEFAULT_CONFIG),
-    readWarningCronHealth(env),
     readQuizOperationalMetrics(env),
     readCommunityReportOperationalMetrics(env)
   ]);
@@ -136,7 +135,6 @@ async function status(env) {
       timeStyle: "medium"
     }).format(new Date()),
     configUpdatedAt: config?.updatedAt || "--",
-    warningCron,
     quiz,
     communityReports,
     bindings: {

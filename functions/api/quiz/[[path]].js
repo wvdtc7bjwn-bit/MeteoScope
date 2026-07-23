@@ -280,7 +280,7 @@ async function createSession(db, accountID) {
 }
 
 function accountResponse(account, session, client) {
-  const includeToken = client === "ios" || client === "web-external";
+  const includeToken = client === "web-external";
   return json({
     authenticated: true,
     account: publicAccount(account),

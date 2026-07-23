@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [styles, dashboard, index] = await Promise.all([
+const [styles, index] = await Promise.all([
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
-  readFile(new URL("../ios/MeteoScope/Views/MapDashboardView.swift", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8")
 ]);
 
@@ -15,15 +14,6 @@ assert.match(
 );
 assert.match(styles, /#main-tabs\s*\{[\s\S]*?bottom:\s*max\(8px,\s*env\(safe-area-inset-bottom\)\)/);
 assert.match(styles, /#map-attribution\s*\{[\s\S]*?max-height:\s*24px;[\s\S]*?white-space:\s*nowrap;/);
-
-assert.match(dashboard, /@Environment\(\\\.verticalSizeClass\)/);
-assert.match(dashboard, /if verticalSizeClass == \.compact/);
-assert.match(
-  dashboard,
-  /FeaturePicker\([\s\S]*?selection: \$model\.selectedFeature,[\s\S]*?axis: \.vertical,[\s\S]*?onEarthquakeLongPress:/
-);
-assert.match(dashboard, /AnyLayout\(VStackLayout\(spacing: 8\)\)/);
-assert.match(dashboard, /geometry\.size\.width \* 0\.43/);
 
 assert.match(index, /width=device-width/);
 assert.match(index, /viewport-fit=cover/);
