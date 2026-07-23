@@ -1,13 +1,10 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [html, app, consentModule, preferences, shell, consentView] = await Promise.all([
+const [html, app, consentModule] = await Promise.all([
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/ui/legalConsentModal.js", import.meta.url), "utf8"),
-  readFile(new URL("../ios/MeteoScope/State/AppPreferences.swift", import.meta.url), "utf8"),
-  readFile(new URL("../ios/MeteoScope/App/AppShellView.swift", import.meta.url), "utf8"),
-  readFile(new URL("../ios/MeteoScope/Views/LegalConsentView.swift", import.meta.url), "utf8")
+  readFile(new URL("../src/ui/legalConsentModal.js", import.meta.url), "utf8")
 ]);
 
 assert.match(html, /id="legal-consent-modal"[^>]*hidden/);
@@ -26,14 +23,5 @@ assert.match(app, /setupLegalConsentModal\(\{ onAccepted: startUserServices \}\)
 assert.match(app, /if \(!legalConsent\.showIfRequired\(\)\) startUserServices\(\)/);
 assert.match(app, /startAutoRefresh\(\);[\s\S]+void startLocationWatchOnLaunch\(\);[\s\S]+onboarding\.showFirstRun\(\);/);
 assert.doesNotMatch(app, /startDmdataEarthquakeUpdates/u);
-
-assert.match(preferences, /currentLegalConsentVersion = "2026-07-16"/);
-assert.match(preferences, /var hasAcceptedLegalDocuments: Bool/);
-assert.match(preferences, /func acceptLegalDocuments\(\)/);
-assert.match(shell, /if preferences\.hasAcceptedLegalDocuments/);
-assert.match(shell, /LegalConsentView\(onAccept: preferences\.acceptLegalDocuments\)/);
-assert.match(consentView, /legalLink\("利用規約"/);
-assert.match(consentView, /legalLink\("プライバシーポリシー"/);
-assert.match(consentView, /\.disabled\(!\(acceptsTerms && acceptsPrivacy\)\)/);
 
 console.log("Legal consent gates: OK");

@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import questions from "../ios/MeteoScope/Resources/disaster-quiz.json" with { type: "json" };
+import questions from "../data/disaster-quiz.json" with { type: "json" };
 import { onRequest } from "../functions/api/quiz/[[path]].js";
 import {
   hashQuizPassword,
@@ -57,14 +57,11 @@ const [
   optimizationMigration,
   dailyRankingMigration,
   webClient,
-  iosService,
-  privacyManifest,
   privacyPage,
   supportPage,
   indexPage,
   settingsScript,
   appSource,
-  iosSettings,
   accountAuthSource,
   leaderboardCacheSource
 ] = await Promise.all([
@@ -73,14 +70,11 @@ const [
   fs.readFile(path.join(root, "migrations", "0006_quiz_free_tier_optimization.sql"), "utf8"),
   fs.readFile(path.join(root, "migrations", "0007_quiz_daily_points_ranking.sql"), "utf8"),
   fs.readFile(path.join(root, "src", "domain", "quizRankingClient.js"), "utf8"),
-  fs.readFile(path.join(root, "ios", "MeteoScope", "Services", "QuizRankingService.swift"), "utf8"),
-  fs.readFile(path.join(root, "ios", "MeteoScope", "Support", "PrivacyInfo.xcprivacy"), "utf8"),
   fs.readFile(path.join(root, "public", "privacy.html"), "utf8"),
   fs.readFile(path.join(root, "public", "support.html"), "utf8"),
   fs.readFile(path.join(root, "index.html"), "utf8"),
   fs.readFile(path.join(root, "src", "ui", "settingsModal.js"), "utf8"),
   fs.readFile(path.join(root, "src", "app.js"), "utf8"),
-  fs.readFile(path.join(root, "ios", "MeteoScope", "Views", "SettingsView.swift"), "utf8"),
   fs.readFile(path.join(root, "functions", "_shared", "accountAuth.js"), "utf8"),
   fs.readFile(path.join(root, "functions", "_shared", "quizLeaderboardCache.js"), "utf8")
 ]);
@@ -107,10 +101,6 @@ assert.match(routeSource, /quizRankingDate/u);
 assert.match(routeSource, /invalidateAllQuizLeaderboardCaches\(\)/u);
 assert.match(leaderboardCacheSource, /QUIZ_DIFFICULTIES\.map\(\(difficulty\) => invalidateQuizLeaderboardCache\(difficulty, rankingDate\)\)/u);
 assert.doesNotMatch(routeSource, /function bestScoresCTE/u);
-assert.match(iosService, /kSecClassGenericPassword/u);
-assert.match(iosService, /kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly/u);
-assert.match(privacyManifest, /NSPrivacyCollectedDataTypeUserID/u);
-assert.match(privacyManifest, /NSPrivacyCollectedDataTypeGameplayContent/u);
 assert.match(privacyPage, /MeteoScopeアカウント/u);
 assert.match(supportPage, /MeteoScopeアカウント/u);
 assert.match(indexPage, /<div class="settings-modal-body">\s*<section class="settings-group settings-account-group">/u);
@@ -118,8 +108,6 @@ assert.match(indexPage, /data-settings-open-account/u);
 assert.match(settingsScript, /QuizRankingClient\.configuration\(\)/u);
 assert.match(settingsScript, /QuizRankingClient\.account\(\)/u);
 assert.match(appSource, /onOpenAccount: openDisasterQuizModal/u);
-assert.match(iosSettings, /Form \{\s*Section\("MeteoScopeアカウント"\)/u);
-assert.match(iosSettings, /account\.refresh\(difficulty: \.beginner\)/u);
-assert.doesNotMatch([privacyPage, supportPage, indexPage, iosSettings].join("\n"), /クイズアカウント/u);
+assert.doesNotMatch([privacyPage, supportPage, indexPage].join("\n"), /クイズアカウント/u);
 
 console.log("Quiz account and leaderboard tests passed.");

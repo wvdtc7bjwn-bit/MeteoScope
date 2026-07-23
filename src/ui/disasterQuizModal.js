@@ -259,7 +259,7 @@ function renderAccountState() {
     if (deletePanel) deletePanel.hidden = false;
     return;
   }
-  setText("quiz-account-summary", "ログインするとWeb版とiOS版で同じランキングに参加できます。");
+  setText("quiz-account-summary", "ログインするとWeb版の共有ランキングに参加できます。");
   if (authPanel) authPanel.hidden = false;
   if (logoutButton instanceof HTMLElement) logoutButton.hidden = true;
   if (deletePanel) deletePanel.hidden = true;

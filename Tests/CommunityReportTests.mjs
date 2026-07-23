@@ -54,8 +54,8 @@ assert.match(normalizeCommunityReportInput({
 }).error, /危険/u);
 
 assert.equal(accountSessionToken(new Request("https://example.com", {
-  headers: { Authorization: "Bearer ios-token" }
-})).token, "ios-token");
+  headers: { Authorization: "Bearer web-token" }
+})).token, "web-token");
 assert.equal(accountSessionToken(new Request("https://example.com", {
   headers: { Cookie: "meteoscope_quiz_session=legacy-token" }
 })).source, "legacy");
@@ -147,7 +147,7 @@ assert.deepEqual(metrics, {
 assert.match(metricsStatements[2].sql, /community_post_totals/u);
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const [route, migration, quotaMigration, webClient, webModal, webMap, webSummary, webIndex, iosService, iosComposer, iosMap, iosDashboard, privacyManifest, privacyPage] = await Promise.all([
+const [route, migration, quotaMigration, webClient, webModal, webMap, webSummary, webIndex, privacyPage] = await Promise.all([
   fs.readFile(path.join(root, "functions", "api", "community", "[[path]].js"), "utf8"),
   fs.readFile(path.join(root, "migrations", "0008_community_reports.sql"), "utf8"),
   fs.readFile(path.join(root, "migrations", "0009_community_report_quota.sql"), "utf8"),
@@ -156,11 +156,6 @@ const [route, migration, quotaMigration, webClient, webModal, webMap, webSummary
   fs.readFile(path.join(root, "src", "map", "weatherMap.js"), "utf8"),
   fs.readFile(path.join(root, "src", "ui", "leftPanel.js"), "utf8"),
   fs.readFile(path.join(root, "index.html"), "utf8"),
-  fs.readFile(path.join(root, "ios", "MeteoScope", "Services", "CommunityReportService.swift"), "utf8"),
-  fs.readFile(path.join(root, "ios", "MeteoScope", "Views", "CommunityReportComposerView.swift"), "utf8"),
-  fs.readFile(path.join(root, "ios", "MeteoScope", "Map", "WeatherMapView.swift"), "utf8"),
-  fs.readFile(path.join(root, "ios", "MeteoScope", "Views", "MapDashboardView.swift"), "utf8"),
-  fs.readFile(path.join(root, "ios", "MeteoScope", "Support", "PrivacyInfo.xcprivacy"), "utf8"),
   fs.readFile(path.join(root, "public", "privacy.html"), "utf8")
 ]);
 for (const table of ["community_reports", "community_report_flags", "community_post_daily"]) {
@@ -191,14 +186,6 @@ assert.match(webMap, /if \(!hitReport\) hideMapInfo\("community-report"\)/u);
 assert.match(webSummary, /mobile-dock-community-report-open/u);
 assert.match(webSummary, /data-community-report-open/u);
 assert.match(webIndex, /data-community-report-open/u);
-assert.match(iosService, /URLQueryItem\(name: "limit", value: "100"\)/u);
-assert.doesNotMatch(iosService, /earlyAccessToken|X-MeteoScope-Early-Access|earlyAccessRequired/u);
-assert.match(iosComposer, /roundedReportCoordinate/u);
-assert.match(iosComposer, /80文字/u);
-assert.doesNotMatch(iosComposer, /earlyAccess/u);
-assert.match(iosMap, /communityReport[\s\S]*CGSize\(width: 14, height: 14\)/u);
-assert.match(iosDashboard, /Task\.sleep\(for: \.seconds\(300\)\)/u);
-assert.match(privacyManifest, /NSPrivacyCollectedDataTypeOtherUserContent/u);
 assert.match(privacyPage, /5時間/u);
 assert.match(privacyPage, /約2km/u);
 

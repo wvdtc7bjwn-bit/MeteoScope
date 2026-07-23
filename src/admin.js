@@ -448,8 +448,6 @@ function formatAdminDate(value) {
 }
 
 function renderStatus(status) {
-  const warningCron = status.warningCron || {};
-  const notificationResult = warningCron.lastNotificationResult || {};
   const rows = [
     ["D1", status.bindings?.d1 ? "利用可能" : "未設定"],
     ["R2", status.bindings?.r2 ? "利用可能" : "未設定"],
@@ -466,15 +464,7 @@ function renderStatus(status) {
       : "--"],
     ["地図に有効な投稿", status.communityReports?.configured && !status.communityReports?.migrationRequired
       ? `${formatInteger(status.communityReports.activeReports)}件`
-      : "--"],
-    ["警報取得フェーズ", warningCron.phase === "notify" ? "通知判定" : warningCron.phase === "fetch" ? "官署取得" : "未実行"],
-    ["全国取得完了", formatAdminDate(warningCron.lastCycleCompletedAt)],
-    ["全官署の最終成功", formatAdminDate(warningCron.lastFullySuccessfulAt)],
-    ["取得失敗官署", `${Number(warningCron.failedOfficeCount || 0)}件`],
-    ["通知処理結果", notificationResult.completedAt
-      ? `送信 ${Number(notificationResult.notified || 0)}・失敗 ${Number(notificationResult.failed || 0)}・保留 ${Number(notificationResult.staleSkipped || 0)}`
-      : "処理中または未実行"],
-    ["全国収集の目安", `最大約${Number(warningCron.maximumCollectionDelayMinutes || 8)}分＋通知キュー時間`]
+      : "--"]
   ];
   elements.statusList.innerHTML = rows.map(([label, value]) => `
     <div>

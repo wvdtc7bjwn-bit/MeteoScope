@@ -1,4 +1,4 @@
-import questions from "../../ios/MeteoScope/Resources/disaster-quiz.json" with { type: "json" };
+import questions from "../../data/disaster-quiz.json" with { type: "json" };
 
 export const QUIZ_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 export const QUIZ_QUESTION_COUNT = 10;

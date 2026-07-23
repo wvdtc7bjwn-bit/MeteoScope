@@ -26,10 +26,9 @@ assert.equal(findHypocenterDateOffset(dates, "2026-08-01"), 0, "未来日は最�
 assert.equal(findHypocenterDateOffset(dates, "2025-01-01"), 2, "保存範囲より古い日は最古日に丸める");
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const [appSource, distributionClientSource, iosModelSource] = await Promise.all([
+const [appSource, distributionClientSource] = await Promise.all([
   fs.readFile(path.join(root, "src", "app.js"), "utf8"),
-  fs.readFile(path.join(root, "src", "jma", "hypocenterDistribution.js"), "utf8"),
-  fs.readFile(path.join(root, "ios", "MeteoScope", "State", "WeatherAppModel.swift"), "utf8")
+  fs.readFile(path.join(root, "src", "jma", "hypocenterDistribution.js"), "utf8")
 ]);
 assert.match(
   appSource,
@@ -38,10 +37,4 @@ assert.match(
 );
 assert.match(distributionClientSource, /ttlMs: options\.force \? 0/u);
 assert.match(distributionClientSource, /cache: options\.force \? "no-store"/u);
-assert.match(
-  iosModelSource,
-  /earthquakeDisplayMode == \.distribution[\s\S]*refreshHypocenterDistribution\(\)/u,
-  "iOS版の自動更新で震央分布も更新する"
-);
-
 console.log("Hypocenter date wheel tests passed.");

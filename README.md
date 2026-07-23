@@ -44,7 +44,7 @@ Pages プロジェクト名を `meteoscope` にした場合の標準 URL は `ht
 
 ## データ取得元
 
-通常の気象表示と地震・津波情報は、Web版・iOS版とも気象庁の公開データおよび気象庁防災情報XMLを取得します。Cloudflare Pages Functionsは管理機能、Web/iOS通知基盤、震央分布アーカイブへの読み取り専用プロキシに使用します。
+通常の気象表示と地震・津波情報は、Web版が気象庁の公開データおよび気象庁防災情報XMLを取得します。Cloudflare Pages Functionsは管理機能、Web通知基盤、震央分布アーカイブへの読み取り専用プロキシに使用します。
 
 - 雨雲レーダー: 気象庁降水ナウキャストタイル
 - アメダス: 気象庁アメダス JSON
@@ -150,13 +150,13 @@ NOTIFICATIONS_DB        meteoscope-notifications
 
 D1のスキーマは `migrations/0001_notification_storage.sql`、
 `migrations/0002_app_storage.sql`、`migrations/0003_admin_push_broadcasts.sql`、
-`migrations/0004_ios_push_subscriptions.sql`、`migrations/0005_quiz_accounts.sql`、
-`migrations/0006_quiz_free_tier_optimization.sql`、`migrations/0007_quiz_daily_points_ranking.sql`、
-`migrations/0008_community_reports.sql`、`migrations/0009_community_report_quota.sql`を順番に適用します。通知購読、警報状態、
-保留通知、管理設定、お知らせ、利用者意見、アーリーアクセス認証、VAPID鍵は
-すべてD1へ保存し、Workers KVは使用しません。Web Pushは管理者からのお知らせ専用で、
-現在地、通知対象区域、警報状態を保存しません。iOS版の警報・注意報通知はAPNs用の
-購読テーブルで分離して維持します。
+`migrations/0004_ios_push_subscriptions.sql`（過去の適用履歴）、
+`migrations/0005_quiz_accounts.sql`、`migrations/0006_quiz_free_tier_optimization.sql`、
+`migrations/0007_quiz_daily_points_ranking.sql`、`migrations/0008_community_reports.sql`、
+`migrations/0009_community_report_quota.sql`、`migrations/0010_remove_ios_push_storage.sql`を
+順番に適用します。Web通知購読、保留通知、管理設定、お知らせ、利用者意見、
+アーリーアクセス認証、VAPID鍵はすべてD1へ保存し、Workers KVは使用しません。
+Web Pushは管理者からのお知らせ専用で、現在地、通知対象区域、警報状態を保存しません。
 
 防災クイズの共有ランキングは、利用者が任意で作成したアカウントだけを対象にします。D1には
 アカウントID、公開用表示名、ソルト付きパスワードハッシュ、セッション、サーバー採点済みの
@@ -184,9 +184,8 @@ Cloudflare Analyticsは請求や上限判定の確定値ではないため、画
 「取得不可」と表示し、取得できた項目だけを残します。トークンはレスポンスやログへ出さず、
 リポジトリにも保存しません。
 
-通知CronはiOS版の警報・注意報通知を対象とします。Workers Freeの外部サブリクエスト上限50件/呼び出しと1分CronのCPU時間上限を超えないよう、58官署を8官署ずつ8回に分け、D1では8つのまとまりとして保存します。成功した官署スナップショットだけを更新し、取得失敗を「警報なし」として扱いません。1分cronでも全国一巡は約8分に実行時間を加えた値となり、iOS購読数が多い場合の配信はさらに複数分へ分割されます。管理画面で最終一巡、最終全官署成功、失敗官署数、通知結果を確認できます。Web版の管理者通知は同じCronの取得フェーズで別キューとして処理します。
-
-通知Cron内の保持期間整理は1日1回、完了から30日を過ぎた管理者通知履歴、30日以上未取得の
+保守CronはWeb版の管理者通知キュー、現在地投稿の期限切れ削除、クイズ関連の定期整理を処理します。
+保持期間整理は1日1回、完了から30日を過ぎた管理者通知履歴、30日以上未取得の
 保留通知、期限切れのアーリーアクセス端末認証、孤立した配信明細を自動削除します。
 通知購読、現行設定、お知らせ、シリアルコード、VAPID鍵は自動削除しません。
 同じ1分Cronの15:00 UTC（日本時間00:00）実行で、前日以前のランキングとクイズ関連の期限切れデータを1日1回D1から削除します。
@@ -204,21 +203,13 @@ Cloudflare Analyticsは請求や上限判定の確定値ではないため、画
 投稿は同一アカウントで5分に1回、UTC日付ごとに12回までです。サービス全体でもUTC日付ごとに
 2,400回を上限とし、無料枠と他機能の余裕を保護します。日次回数カウンターと全体カウンターは2日で削除します。
 投稿権限はアーリーアクセス端末認証と分離しており、ログイン済みの全MeteoScopeアカウントで利用できます。
-Web版は表示中の地図範囲を最大100件、iOS版は最大100件取得し、どちらも不要な再取得を抑制します。
+Web版は表示中の地図範囲を最大100件取得し、不要な再取得を抑制します。
 
 APIは`GET/POST /api/community/reports`、`DELETE /api/community/reports/:id`、
 `POST /api/community/reports/:id/flag`です。GitHub Pages版は許可済みCORSでCloudflare Pages APIを使用します。
 
 `ADMIN_SESSION_SECRET` を省略した場合は `ADMIN_PASSWORD` を使ってセッション署名します。
 GitHub Pages では Pages Functions が動作しないため、管理者画面のAPI機能は Cloudflare Pages 配信時のみ利用できます。クイズランキングはGitHub Pagesから許可済みCORSでCloudflare Pages APIへ接続し、外部ホスト用セッションはブラウザのタブを閉じるまでのsessionStorageに限定します。通常のアプリ表示とクイズ本体は、APIが未設定でもそのまま動作します。
-
-## iOS公開準備
-
-- APNs、Cloudflare、App Storeの準備と実機確認: `ios/Docs/APNS_BACKEND_PLAN.md`
-- App Store説明、プライバシー回答、審査メモ、素材チェック: `ios/Docs/APP_STORE_PREPARATION.md`
-- 安定URL候補: `/privacy.html`、`/terms.html`、`/support.html`
-
-APNsが未設定の環境ではiOS登録APIは503で安全停止し、アプリも「利用可能」と表示しません。device token、秘密鍵、Cloudflare tokenをリポジトリやログへ保存しないでください。通知は遅延・不達があり得る補助機能です。
 
 ## GitHub Pages へのデプロイ
 

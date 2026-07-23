@@ -92,18 +92,13 @@ async function testMovementCancelsLongPress() {
 }
 
 async function testPlatformWiring() {
-  const [app, map, dashboard, swiftMap] = await Promise.all([
+  const [app, map] = await Promise.all([
     readFile(new URL("../src/app.js", import.meta.url), "utf8"),
-    readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
-    readFile(new URL("../ios/MeteoScope/Views/MapDashboardView.swift", import.meta.url), "utf8"),
-    readFile(new URL("../ios/MeteoScope/Map/WeatherMapView.swift", import.meta.url), "utf8")
+    readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8")
   ]);
   assert.match(app, /setupLongPressButton\(document\.getElementById\("locate-button"\)/);
   assert.match(map, /setCurrentLocationVisible/);
   assert.match(map, /CURRENT_LOCATION_LAYER_IDS/);
-  assert.match(dashboard, /LongPressGesture\(minimumDuration: 0\.65\)/);
-  assert.match(dashboard, /accessibilityAction/);
-  assert.match(swiftMap, /showsUserLocationMarker/);
 }
 
 await testShortPress();

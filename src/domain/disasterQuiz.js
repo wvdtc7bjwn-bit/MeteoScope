@@ -1,4 +1,4 @@
-import questions from "../../ios/MeteoScope/Resources/disaster-quiz.json" with { type: "json" };
+import questions from "../../data/disaster-quiz.json" with { type: "json" };
 
 export const DISASTER_QUIZ_QUESTION_COUNT = 10;
 export const DISASTER_QUIZ_POOL_SIZE = 40;

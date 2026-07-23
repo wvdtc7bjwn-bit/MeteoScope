@@ -197,8 +197,4 @@ assert.match(adminApi, /resetEarlyAccessActivations/u);
 const adminClient = await fs.readFile(path.join(root, "src", "admin.js"), "utf8");
 assert.match(adminClient, /data-reset-early-access/u);
 
-const iosService = await fs.readFile(path.join(root, "ios", "MeteoScope", "Services", "EarlyAccessService.swift"), "utf8");
-assert.match(iosService, /func deactivate\(\) async/u);
-assert.match(iosService, /"action": "deactivate"/u);
-
 console.log("Early access release tests passed.");
