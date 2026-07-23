@@ -18,7 +18,10 @@ assert.match(styles, /#map-attribution\s*\{[\s\S]*?max-height:\s*24px;[\s\S]*?wh
 
 assert.match(dashboard, /@Environment\(\\\.verticalSizeClass\)/);
 assert.match(dashboard, /if verticalSizeClass == \.compact/);
-assert.match(dashboard, /FeaturePicker\(selection: \$model\.selectedFeature, axis: \.vertical\)/);
+assert.match(
+  dashboard,
+  /FeaturePicker\([\s\S]*?selection: \$model\.selectedFeature,[\s\S]*?axis: \.vertical,[\s\S]*?onEarthquakeLongPress:/
+);
 assert.match(dashboard, /AnyLayout\(VStackLayout\(spacing: 8\)\)/);
 assert.match(dashboard, /geometry\.size\.width \* 0\.43/);
 

@@ -94,6 +94,15 @@ enum MeteoScopeEndpoints {
         URL(string: "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml")!,
         URL(string: "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml")!
     ]
+    static let volcanoStatus = URL(
+        string: "https://www.jma.go.jp/bosai/volcano/data/info/900.json"
+    )!
+    static let volcanoCatalog = URL(
+        string: "https://www.jma.go.jp/bosai/volcano/const/volcano_list.json"
+    )!
+    static let jmaVolcanoInformation = URL(
+        string: "https://www.jma.go.jp/bosai/volcano/"
+    )!
     private static let earthquakeAPIBase = URL(
         string: "https://meteoscope.pages.dev/api/earthquakes"
     )!

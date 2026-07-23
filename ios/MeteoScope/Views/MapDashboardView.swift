@@ -8,6 +8,8 @@ struct MapDashboardView: View {
     @Environment(CommunityReportModel.self) private var communityReports
     @State private var isMapReady = false
     @State private var selectedActiveFault: ActiveFaultInfo?
+    @State private var selectedVolcanoCode: String?
+    @State private var selectedVolcanoAshForecastIndex = 0
     @State private var showsCurrentLocationMarker = true
     @State private var suppressesNextLocationButtonTap = false
 
@@ -21,14 +23,16 @@ struct MapDashboardView: View {
                     userCoordinate: locationService.coordinate,
                     showsUserLocationMarker: showsCurrentLocationMarker,
                     weatherOverlay: weatherOverlay,
-                    showsActiveFaults: model.selectedFeature == .earthquake && preferences.showsActiveFaults,
-                    showsPlateBoundaries: model.selectedFeature == .earthquake && preferences.showsPlateBoundaries,
-                    showsPlateDepthContours: model.selectedFeature == .earthquake && preferences.showsPlateDepthContours,
+                    showsActiveFaults: model.selectedFeature == .earthquake && model.earthquakeContentMode == .earthquake && preferences.showsActiveFaults,
+                    showsPlateBoundaries: model.selectedFeature == .earthquake && model.earthquakeContentMode == .earthquake && preferences.showsPlateBoundaries,
+                    showsPlateDepthContours: model.selectedFeature == .earthquake && model.earthquakeContentMode == .earthquake && preferences.showsPlateDepthContours,
                     showsHypocenterDepth3D: model.selectedFeature == .earthquake
+                        && model.earthquakeContentMode == .earthquake
                         && model.earthquakeDisplayMode == .distribution
                         && model.hypocenterMapPresentation == .spatial,
                     isMapReady: $isMapReady,
-                    selectedActiveFault: $selectedActiveFault
+                    selectedActiveFault: $selectedActiveFault,
+                    selectedVolcanoCode: $selectedVolcanoCode
                 )
                     .ignoresSafeArea(edges: .top)
                     .opacity(isMapReady ? 1 : 0)
@@ -37,7 +41,12 @@ struct MapDashboardView: View {
                 if isMapReady {
                     if verticalSizeClass == .compact {
                         HStack(alignment: .top, spacing: 12) {
-                            FeaturePicker(selection: $model.selectedFeature, axis: .vertical)
+                            FeaturePicker(
+                                selection: $model.selectedFeature,
+                                earthquakeContentMode: model.earthquakeContentMode,
+                                axis: .vertical,
+                                onEarthquakeLongPress: model.toggleEarthquakeContentMode
+                            )
                                 .frame(width: 68)
                             Spacer(minLength: 12)
                             dashboardDetails
@@ -47,7 +56,11 @@ struct MapDashboardView: View {
                         .padding(.bottom, 8)
                     } else {
                         VStack(spacing: 12) {
-                            FeaturePicker(selection: $model.selectedFeature)
+                            FeaturePicker(
+                                selection: $model.selectedFeature,
+                                earthquakeContentMode: model.earthquakeContentMode,
+                                onEarthquakeLongPress: model.toggleEarthquakeContentMode
+                            )
                             dashboardDetails
                         }
                         .padding(.horizontal, 12)
@@ -112,7 +125,19 @@ struct MapDashboardView: View {
             }
         }
         .onChange(of: model.selectedFeature) { _, feature in
-            if feature != .earthquake { selectedActiveFault = nil }
+            if feature != .earthquake {
+                selectedActiveFault = nil
+                selectedVolcanoCode = nil
+                selectedVolcanoAshForecastIndex = 0
+            }
+        }
+        .onChange(of: model.earthquakeContentMode) { _, mode in
+            if mode == .volcano {
+                selectedActiveFault = nil
+            } else {
+                selectedVolcanoCode = nil
+                selectedVolcanoAshForecastIndex = 0
+            }
         }
         .onChange(of: preferences.showsActiveFaults) { _, isVisible in
             if !isVisible { selectedActiveFault = nil }
@@ -149,7 +174,14 @@ struct MapDashboardView: View {
             }
             return WeatherMapOverlayBuilder.typhoon(typhoon)
         case .earthquake:
-            if model.earthquakeDisplayMode == .distribution {
+            if model.earthquakeContentMode == .volcano {
+                guard case .loaded(let snapshot) = model.volcanoState else { return nil }
+                return WeatherMapOverlayBuilder.volcano(
+                    snapshot,
+                    selectedVolcanoCode: selectedVolcanoCode,
+                    selectedAshForecastIndex: selectedVolcanoAshForecastIndex
+                )
+            } else if model.earthquakeDisplayMode == .distribution {
                 guard case .loaded(let snapshot) = model.hypocenterDistributionState else { return nil }
                 return WeatherMapOverlayBuilder.hypocenterDistribution(snapshot)
             } else {
@@ -172,12 +204,17 @@ struct MapDashboardView: View {
                 LocationStatusBanner(message: statusMessage)
             }
             Spacer()
-            if model.selectedFeature == .earthquake, let selectedActiveFault {
+            if model.selectedFeature == .earthquake,
+               model.earthquakeContentMode == .earthquake,
+               let selectedActiveFault {
                 ActiveFaultInfoCard(info: selectedActiveFault) {
                     self.selectedActiveFault = nil
                 }
             }
-            FeatureOverlay()
+            FeatureOverlay(
+                selectedVolcanoCode: $selectedVolcanoCode,
+                selectedVolcanoAshForecastIndex: $selectedVolcanoAshForecastIndex
+            )
         }
     }
 }
@@ -265,7 +302,13 @@ private struct LocationStatusBanner: View {
 
 private struct FeaturePicker: View {
     @Binding var selection: WeatherFeature
+    let earthquakeContentMode: EarthquakeContentMode
     var axis: Axis.Set = .horizontal
+    let onEarthquakeLongPress: () -> Void
+    @AppStorage("meteoscope.seenEarthquakeLongPressHint.v4")
+    private var hasSeenEarthquakeLongPressHint = false
+    @State private var suppressesNextEarthquakeTap = false
+    @State private var showsEarthquakeLongPressHint = false
 
     var body: some View {
         let stack = axis == .horizontal
@@ -277,11 +320,19 @@ private struct FeaturePicker: View {
                 stack {
                     ForEach(WeatherFeature.allCases) { feature in
                         Button {
+                            if feature == .earthquake, suppressesNextEarthquakeTap {
+                                suppressesNextEarthquakeTap = false
+                                return
+                            }
                             withAnimation(.snappy(duration: 0.25)) {
                                 selection = feature
                             }
                         } label: {
-                            FeaturePickerLabel(feature: feature, isVertical: axis == .vertical)
+                            FeaturePickerLabel(
+                                feature: feature,
+                                earthquakeContentMode: earthquakeContentMode,
+                                isVertical: axis == .vertical
+                            )
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 9)
                                 .foregroundStyle(selection == feature ? Color.white : Color.primary)
@@ -292,31 +343,129 @@ private struct FeaturePicker: View {
                                 )
                         }
                         .buttonStyle(.plain)
+                        .simultaneousGesture(
+                            LongPressGesture(minimumDuration: 0.65)
+                                .onEnded { _ in
+                                    guard feature == .earthquake else { return }
+                                    suppressesNextEarthquakeTap = true
+                                    dismissEarthquakeLongPressHint()
+                                    onEarthquakeLongPress()
+                                }
+                        )
+                        .accessibilityHint(
+                            feature == .earthquake
+                                ? (earthquakeContentMode == .volcano ? "長押しで地震情報へ切り替え" : "長押しで火山情報へ切り替え")
+                                : ""
+                        )
                         .accessibilityAddTraits(selection == feature ? .isSelected : [])
                     }
                 }
             }
         }
+        .scrollClipDisabled()
+        .overlay(
+            alignment: axis == .vertical ? .bottomTrailing : .topTrailing
+        ) {
+            if showsEarthquakeLongPressHint {
+                EarthquakeLongPressHintBubble(
+                    onDismiss: dismissEarthquakeLongPressHint
+                )
+                .offset(
+                    x: axis == .vertical ? 214 : 0,
+                    y: axis == .vertical ? 0 : -76
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                .zIndex(20)
+            }
+        }
+        .task {
+            guard !hasSeenEarthquakeLongPressHint else { return }
+            try? await Task.sleep(for: .milliseconds(900))
+            guard !Task.isCancelled else { return }
+            hasSeenEarthquakeLongPressHint = true
+            withAnimation(.easeOut(duration: 0.18)) {
+                showsEarthquakeLongPressHint = true
+            }
+            try? await Task.sleep(for: .seconds(15))
+            guard !Task.isCancelled else { return }
+            dismissEarthquakeLongPressHint()
+        }
+    }
+
+    private func dismissEarthquakeLongPressHint() {
+        withAnimation(.easeOut(duration: 0.14)) {
+            showsEarthquakeLongPressHint = false
+        }
+    }
+}
+
+private struct EarthquakeLongPressHintBubble: View {
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "hand.tap.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color.meteoscopeAccent)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("地震ボタンを長押し")
+                    .font(.caption.weight(.bold))
+                Text("火山情報へ切り替えられます")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.caption2.weight(.bold))
+                    .frame(width: 22, height: 22)
+                    .background(.thinMaterial, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("案内を閉じる")
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .frame(width: 226, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.primary.opacity(0.12), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.18), radius: 12, y: 6)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("地震ボタンを長押しすると火山情報へ切り替えられます")
     }
 }
 
 private struct FeaturePickerLabel: View {
     let feature: WeatherFeature
+    let earthquakeContentMode: EarthquakeContentMode
     let isVertical: Bool
+
+    private var title: String {
+        feature == .earthquake && earthquakeContentMode == .volcano ? "火山" : feature.shortTitle
+    }
+
+    private var systemImage: String {
+        feature == .earthquake && earthquakeContentMode == .volcano ? "mountain.2.fill" : feature.systemImage
+    }
 
     var body: some View {
         Group {
             if isVertical {
                 VStack(spacing: 2) {
-                    Image(systemName: feature.systemImage)
+                    Image(systemName: systemImage)
                         .font(.system(size: 17, weight: .semibold))
-                    Text(feature.shortTitle)
+                    Text(title)
                         .font(.caption2.weight(.semibold))
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity)
             } else {
-                Label(feature.shortTitle, systemImage: feature.systemImage)
+                Label(title, systemImage: systemImage)
                     .font(.caption.weight(.semibold))
             }
         }
@@ -325,6 +474,8 @@ private struct FeaturePickerLabel: View {
 
 private struct FeatureOverlay: View {
     @Environment(WeatherAppModel.self) private var model
+    @Binding var selectedVolcanoCode: String?
+    @Binding var selectedVolcanoAshForecastIndex: Int
 
     @ViewBuilder
     var body: some View {
@@ -338,7 +489,14 @@ private struct FeatureOverlay: View {
         case .typhoon:
             TyphoonDashboardCard()
         case .earthquake:
-            EarthquakeDashboardCard()
+            if model.earthquakeContentMode == .volcano {
+                VolcanoDashboardCard(
+                    selectedVolcanoCode: $selectedVolcanoCode,
+                    selectedAshForecastIndex: $selectedVolcanoAshForecastIndex
+                )
+            } else {
+                EarthquakeDashboardCard()
+            }
         }
     }
 }

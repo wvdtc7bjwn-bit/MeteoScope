@@ -10,6 +10,7 @@ struct WeatherAPIClient: Sendable {
     var fetchRiverFloodSnapshot: @Sendable () async throws -> RiverFloodSnapshot
     var fetchTyphoonSnapshot: @Sendable () async throws -> TyphoonSnapshot
     var fetchEarthquakeSnapshot: @Sendable () async throws -> EarthquakeSnapshot
+    var fetchVolcanoSnapshot: @Sendable () async throws -> VolcanoSnapshot
     var fetchHypocenterDistribution: @Sendable (HypocenterDistributionFilter) async throws -> HypocenterDistributionSnapshot
 }
 
@@ -316,6 +317,26 @@ extension WeatherAPIClient {
             fetchEarthquakeSnapshot: {
                 try await fetchJMAEarthquakeSnapshot(session: session)
             },
+            fetchVolcanoSnapshot: {
+                async let statusData = requestData(
+                    from: MeteoScopeEndpoints.volcanoStatus,
+                    session: session,
+                    timeout: 15,
+                    cachePolicy: .reloadRevalidatingCacheData
+                )
+                async let catalogData = requestData(
+                    from: MeteoScopeEndpoints.volcanoCatalog,
+                    session: session,
+                    timeout: 20,
+                    cachePolicy: .returnCacheDataElseLoad
+                )
+                async let bulletins = fetchJMAVolcanoBulletins(session: session)
+                return try await VolcanoSnapshotBuilder.build(
+                    statusData: statusData,
+                    catalogData: catalogData,
+                    bulletins: bulletins
+                )
+            },
             fetchHypocenterDistribution: { filter in
                 let data = try await requestData(
                     from: MeteoScopeEndpoints.hypocenterDistribution(
@@ -353,6 +374,7 @@ extension WeatherAPIClient {
             fetchRiverFloodSnapshot: { .preview },
             fetchTyphoonSnapshot: { .preview },
             fetchEarthquakeSnapshot: { .preview },
+            fetchVolcanoSnapshot: { .preview },
             fetchHypocenterDistribution: { _ in .preview }
         )
     }
@@ -361,6 +383,67 @@ extension WeatherAPIClient {
 private struct EarthquakeFeedBatch: Sendable {
     let url: URL
     let entries: [EarthquakeFeedEntry]
+}
+
+private func fetchJMAVolcanoBulletins(session: URLSession) async -> [VolcanoBulletin] {
+    let feedEntries = await withTaskGroup(of: [VolcanoFeedEntry].self) { group in
+        for url in MeteoScopeEndpoints.earthquakeFeeds {
+            group.addTask {
+                guard let data = try? await requestData(
+                    from: url,
+                    session: session,
+                    timeout: 15,
+                    cachePolicy: .reloadIgnoringLocalCacheData
+                ) else { return [] }
+                return (try? VolcanoXMLDecoder.feedEntries(data: data)) ?? []
+            }
+        }
+
+        var collected: [VolcanoFeedEntry] = []
+        for await entries in group { collected.append(contentsOf: entries) }
+        return collected
+    }
+
+    let allUniqueEntries = Dictionary(
+        feedEntries.map { ($0.url, $0) },
+        uniquingKeysWith: { current, candidate in
+            candidate.updated > current.updated ? candidate : current
+        }
+    )
+    .values
+    .sorted { $0.updated > $1.updated }
+    let warningDetailCodes = Set(["VFVO50", "VFVO51"])
+    let ashForecastCodes = Set(["VFVO53", "VFVO54", "VFVO55"])
+    let warningEntries = Array(allUniqueEntries.filter {
+        warningDetailCodes.contains($0.bulletinCode)
+    }.prefix(20))
+    let ashForecastEntries = Array(allUniqueEntries.filter {
+        ashForecastCodes.contains($0.bulletinCode)
+    }.prefix(max(0, min(10, 32 - warningEntries.count))))
+    let remainingEntries = allUniqueEntries.filter {
+        !warningDetailCodes.contains($0.bulletinCode) && !ashForecastCodes.contains($0.bulletinCode)
+    }
+    let uniqueEntries = Array((warningEntries + ashForecastEntries + remainingEntries).prefix(32))
+
+    return await withTaskGroup(of: VolcanoBulletin?.self) { group in
+        for entry in uniqueEntries {
+            group.addTask {
+                guard let data = try? await requestData(
+                    from: entry.url,
+                    session: session,
+                    timeout: 15,
+                    cachePolicy: .reloadRevalidatingCacheData
+                ) else { return nil }
+                return try? VolcanoXMLDecoder.bulletin(data: data, entry: entry)
+            }
+        }
+
+        var collected: [VolcanoBulletin] = []
+        for await bulletin in group {
+            if let bulletin { collected.append(bulletin) }
+        }
+        return collected.sorted { $0.reportTime > $1.reportTime }
+    }
 }
 
 private func fetchJMAEarthquakeSnapshot(session: URLSession) async throws -> EarthquakeSnapshot {

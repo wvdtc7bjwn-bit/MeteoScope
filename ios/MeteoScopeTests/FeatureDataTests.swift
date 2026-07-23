@@ -2,6 +2,29 @@ import XCTest
 @testable import MeteoScope
 
 final class FeatureDataTests: XCTestCase {
+    func testVolcanoLevelPaletteMatchesReferenceColors() {
+        XCTAssertEqual(
+            VolcanoLevelPalette.tone(for: 1),
+            VolcanoLevelTone(red: 0xF0, green: 0xF0, blue: 0xF8, usesLightText: false)
+        )
+        XCTAssertEqual(
+            VolcanoLevelPalette.tone(for: 3),
+            VolcanoLevelTone(red: 0xFF, green: 0xAD, blue: 0x00, usesLightText: false)
+        )
+        XCTAssertEqual(
+            VolcanoLevelPalette.tone(for: 5),
+            VolcanoLevelTone(red: 0xCA, green: 0x01, blue: 0xF9, usesLightText: true)
+        )
+    }
+
+    func testVolcanoTextNormalizerConvertsOnlyFullWidthDigits() {
+        XCTAssertEqual(
+            VolcanoTextNormalizer.halfWidthDigits("２０２６年７月・概ね２ｋｍ"),
+            "2026年7月・概ね2ｋｍ"
+        )
+        XCTAssertEqual(VolcanoTextNormalizer.halfWidthDigits(nil), "")
+    }
+
     func testHypocenterDistributionDecodesJmaDailyListResponse() throws {
         XCTAssertEqual(HypocenterDistributionLimits.dayCount, 731)
         XCTAssertEqual(HypocenterDistributionLimits.maximumDayOffset, 730)
@@ -333,6 +356,33 @@ final class FeatureDataTests: XCTestCase {
                 in: ambiguousLookup
             )
         )
+    }
+
+    func testVolcanoWarningDecodesSelectedDetailAndMunicipalities() throws {
+        let feed = """
+        <feed xmlns="http://www.w3.org/2005/Atom">
+          <entry><id>volcano-1</id><title>噴火警報・予報</title><updated>2026-07-17T16:00:00+09:00</updated><link href="https://example.com/20260717070000_0_VFVO50_400000.xml" /></entry>
+        </feed>
+        """.data(using: .utf8)!
+        let entry = try XCTUnwrap(VolcanoXMLDecoder.feedEntries(data: feed).first)
+        let report = """
+        <Report>
+          <Head><Title>霧島山（新燃岳）噴火警報</Title><ReportDateTime>2026-07-17T16:00:00+09:00</ReportDateTime><EventID>551</EventID><InfoKind>噴火警報・予報</InfoKind><Headline><Text>火口周辺警報が継続しています。</Text></Headline></Head>
+          <Body>
+            <VolcanoInfo type="噴火警報・予報（対象火山）"><Item><Kind><Name>レベル２（火口周辺規制）</Name></Kind><Areas codeType="火山名"><Area><Name>霧島山（新燃岳）</Name><Code>551</Code><CraterName>新燃岳</CraterName></Area></Areas></Item></VolcanoInfo>
+            <VolcanoInfo type="噴火警報・予報（対象市町村）"><Item><Kind><Name>火口周辺警報</Name></Kind><Areas codeType="気象・地震・火山情報／市町村等"><Area><Name>小林市</Name><Code>4520500</Code></Area><Area><Name>霧島市</Name><Code>4621800</Code></Area></Areas></Item></VolcanoInfo>
+            <VolcanoInfoContent><VolcanoHeadline>噴火警戒レベル２が継続。</VolcanoHeadline><VolcanoActivity>火山性地震が発生しています。</VolcanoActivity><VolcanoPrevention>火口から概ね２kmの範囲で警戒してください。</VolcanoPrevention><NextAdvisory>次回は金曜日に発表します。</NextAdvisory></VolcanoInfoContent>
+          </Body>
+        </Report>
+        """.data(using: .utf8)!
+
+        let bulletin = try VolcanoXMLDecoder.bulletin(data: report, entry: entry)
+
+        XCTAssertEqual(bulletin.volcanoCode, "551")
+        XCTAssertEqual(bulletin.craterName, "新燃岳")
+        XCTAssertEqual(bulletin.kindName, "レベル２（火口周辺規制）")
+        XCTAssertEqual(bulletin.prevention, "火口から概ね２kmの範囲で警戒してください。")
+        XCTAssertEqual(bulletin.targetAreaGroups.first?.areas, ["小林市", "霧島市"])
     }
 
     func testTsunamiDecodeMergeAndMapLayer() throws {

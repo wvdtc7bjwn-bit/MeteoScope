@@ -14,6 +14,8 @@ final class WeatherAppModel {
     var riverFloodState: LoadState<RiverFloodSnapshot> = .idle
     var typhoonState: LoadState<TyphoonSnapshot> = .idle
     var earthquakeState: LoadState<EarthquakeSnapshot> = .idle
+    var volcanoState: LoadState<VolcanoSnapshot> = .idle
+    var earthquakeContentMode: EarthquakeContentMode = .earthquake
     var earthquakeDisplayMode: EarthquakeDisplayMode = .recent
     var hypocenterMapPresentation: HypocenterMapPresentation = .flat
     var hypocenterDistributionState: LoadState<HypocenterDistributionSnapshot> = .idle
@@ -50,6 +52,12 @@ final class WeatherAppModel {
 
     func selectEarthquake(_ earthquake: EarthquakeSummary) {
         selectedEarthquakeID = earthquake.id
+    }
+
+    func toggleEarthquakeContentMode() {
+        earthquakeContentMode = earthquakeContentMode == .earthquake ? .volcano : .earthquake
+        selectedFeature = .earthquake
+        Task { [weak self] in await self?.loadSelectedFeatureIfNeeded() }
     }
 
     func selectEarthquakeDisplayMode(_ mode: EarthquakeDisplayMode) {
@@ -168,7 +176,11 @@ final class WeatherAppModel {
         case .typhoon:
             await loadIfNeeded(.typhoon, \.typhoonState, operation: client.fetchTyphoonSnapshot)
         case .earthquake:
-            await loadEarthquakeIfNeeded()
+            if earthquakeContentMode == .volcano {
+                await loadIfNeeded(.earthquake, \.volcanoState, operation: client.fetchVolcanoSnapshot)
+            } else {
+                await loadEarthquakeIfNeeded()
+            }
         }
     }
 
@@ -187,7 +199,9 @@ final class WeatherAppModel {
         case .typhoon:
             await refresh(.typhoon, \.typhoonState, operation: client.fetchTyphoonSnapshot)
         case .earthquake:
-            if earthquakeDisplayMode == .distribution {
+            if earthquakeContentMode == .volcano {
+                await refresh(.earthquake, \.volcanoState, operation: client.fetchVolcanoSnapshot)
+            } else if earthquakeDisplayMode == .distribution {
                 async let earthquakeRefresh: Void = refreshEarthquake()
                 async let distributionRefresh: Void = refreshHypocenterDistribution()
                 _ = await (earthquakeRefresh, distributionRefresh)
@@ -345,6 +359,7 @@ extension WeatherAppModel {
         model.riverFloodState = .loaded(.preview)
         model.typhoonState = .loaded(.preview)
         model.earthquakeState = .loaded(.preview)
+        model.volcanoState = .loaded(.preview)
         model.hypocenterDistributionState = .loaded(.preview)
         model.selectedRadarFrameID = frames[0].id
         return model

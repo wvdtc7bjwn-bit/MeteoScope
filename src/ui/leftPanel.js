@@ -19,6 +19,13 @@ import {
   HYPOCENTER_UNKNOWN_DEPTH_COLOR
 } from "../map/hypocenterDepthStyle.js";
 import { createHypocenterDateWheel } from "./hypocenterDateWheel.js";
+import { getVolcanoLevelColor } from "../volcanoLevels.js";
+import {
+  getAvailableVolcanoAshForecasts,
+  getHighestPriorityVolcanoReport,
+  getLatestVolcanoReportsByType,
+  getVolcanoWarningDetailReport
+} from "../jma/volcanoXml.js";
 
 let selectedWarningAreaCode = "";
 const amedasRankingOrderByMetric = {
@@ -64,7 +71,10 @@ export function updateLeftPanel(tab, state = {}) {
   const amedasMetric = getAmedasMetric(state.amedasMetric ?? state.data?.activeMetric);
   const warningView = state.warningView ?? state.data?.activeWarningView ?? "status";
   const activeKikikuruLayer = state.activeKikikuruLayer ?? state.data?.activeKikikuruLayer ?? KIKIKURU_LAYER_OPTIONS[0]?.id;
-  setText("mode-label", tab.id === "radar" && state.weatherChartEnabled ? "天気図" : tab.label);
+  const modeLabel = tab.id === "earthquake" && state.earthquakeContentMode === "volcano"
+    ? "火山情報"
+    : (tab.id === "radar" && state.weatherChartEnabled ? "天気図" : tab.label);
+  setText("mode-label", modeLabel);
   setText("panel-title", buildPanelTitle(tab, state));
   setPanelTitleVisible(false);
   setText("panel-description", buildDescription(tab, state));
@@ -630,6 +640,10 @@ export function setupTyphoonSelector({ onChange }) {
 
 export function setupEarthquakeSelector({
   onChange,
+  onVolcanoClear,
+  onVolcanoBulletinSelect,
+  onVolcanoBulletinBack,
+  onVolcanoAshForecastChange,
   onViewChange,
   onDistributionPresentationChange,
   onDistributionFilterChange,
@@ -646,6 +660,27 @@ export function setupEarthquakeSelector({
 
   const handleClick = (event) => {
     if (!(event.target instanceof Element)) return;
+    const volcanoClearButton = event.target.closest("[data-volcano-clear-selection]");
+    if (volcanoClearButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      onVolcanoClear?.();
+      return;
+    }
+    const volcanoBulletinButton = event.target.closest("[data-volcano-bulletin-id]");
+    if (volcanoBulletinButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      onVolcanoBulletinSelect?.(volcanoBulletinButton.dataset.volcanoBulletinId);
+      return;
+    }
+    const volcanoBulletinBackButton = event.target.closest("[data-volcano-bulletin-back]");
+    if (volcanoBulletinBackButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      onVolcanoBulletinBack?.();
+      return;
+    }
     const dateButton = event.target.closest("[data-earthquake-distribution-date-open]");
     if (dateButton) {
       event.preventDefault();
@@ -692,10 +727,15 @@ export function setupEarthquakeSelector({
 
   const handleFilterChange = (event) => {
     const target = event.target;
+    if (target instanceof HTMLInputElement && target.dataset.volcanoAshForecastIndex !== undefined) {
+      onVolcanoAshForecastChange?.(Number(target.value));
+      return;
+    }
     if (!(target instanceof HTMLSelectElement) || !target.dataset.earthquakeDistributionFilter) return;
     onDistributionFilterChange?.({ [target.dataset.earthquakeDistributionFilter]: target.value });
   };
   root.addEventListener("change", handleFilterChange);
+  mobileDock?.addEventListener("change", handleFilterChange);
 }
 
 export function setupEarthquakeMapLayerToggles({ onChange }) {
@@ -751,6 +791,11 @@ if (state.data?.activeWarningView === "early") {
     return "台風の解析値を表示しています。";
   }
   if (tab.id === "earthquake") {
+    if (state.earthquakeContentMode === "volcano" || state.data?.earthquakeContentMode === "volcano") {
+      if (state.status === "loading") return "気象庁防災情報XMLから火山情報を取得中です。";
+      if (state.status === "error") return "火山情報を取得できませんでした。前回取得した情報の最新性を確認できていません。";
+      return "気象庁発表の噴火警報・予報、解説情報、観測報、降灰予報を表示しています。";
+    }
     if (state.status === "loading") return "気象庁防災情報XMLから地震情報を取得中です。";
     if (state.status === "error") return "地震情報を取得できませんでした。";
     const count = state.data?.earthquakes?.length ?? 0;
@@ -937,6 +982,31 @@ if (tabId === "warnings" && warningView === "early") {
     ];
   }
   if (tabId === "earthquake") {
+    if (data?.earthquakeContentMode === "volcano") {
+      const reports = data?.mapVolcanoes ?? data?.reports ?? [];
+      const selected = reports.find((report) =>
+        String(report?.volcanoCode ?? report?.code ?? "") === String(data?.selectedVolcanoCode ?? "")
+      ) ?? getHighestPriorityVolcanoReport(reports);
+      const forecasts = getAvailableVolcanoAshForecasts(selected);
+      const forecastIndex = Math.max(0, Math.min(forecasts.length - 1, Number(data?.selectedVolcanoAshForecastIndex) || 0));
+      const ashForecast = forecasts[forecastIndex];
+      const ashLegend = ashForecast ? [
+        ...(ashForecast.areas.some((area) => area.category === "ashfall")
+          ? [["降灰予報範囲", "", "#969da6"]]
+          : []),
+        ...(ashForecast.areas.some((area) => area.category === "small-cinders")
+          ? [["小さな噴石の落下予測範囲", "", "#65329a"]]
+          : [])
+      ] : [];
+      return [
+        ...ashLegend,
+        ["噴火警戒レベル5", "", getVolcanoLevelColor(5)],
+        ["噴火警戒レベル4", "", getVolcanoLevelColor(4)],
+        ["噴火警戒レベル3", "", getVolcanoLevelColor(3)],
+        ["噴火警戒レベル2", "", getVolcanoLevelColor(2)],
+        ["噴火警戒レベル1", "", getVolcanoLevelColor(1)]
+      ];
+    }
     const isHypocenterDistribution = data?.earthquakeView === "distribution";
     const tsunamiLevels = [...new Set((data?.tsunami?.areas ?? [])
       .map((area) => area.level)
@@ -1317,6 +1387,9 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     return buildTyphoonMobileContextMarkup(typhoons, state.data?.selectedTyphoonId);
   }
   if (tab.id === "earthquake") {
+    if (state.earthquakeContentMode === "volcano" || state.data?.earthquakeContentMode === "volcano") {
+      return buildVolcanoMobileContextMarkup(state);
+    }
     if (state.data?.earthquakeView === "distribution") {
       return buildEarthquakeDistributionMobileContextMarkup(state.data);
     }
@@ -2803,6 +2876,11 @@ function renderEarthquakeList(tab, state) {
     return;
   }
 
+  if (state.earthquakeContentMode === "volcano" || state.data?.earthquakeContentMode === "volcano") {
+    renderVolcanoList(state, render);
+    return;
+  }
+
   const view = state.data?.earthquakeView ?? "recent";
   const viewToggle = buildEarthquakeViewToggle(view);
   const mapLayerControls = buildEarthquakeMapLayerControls(state.data ?? {});
@@ -2869,6 +2947,351 @@ function renderEarthquakeList(tab, state) {
       </article>
     `;
   }).join(""));
+}
+
+function buildVolcanoMobileContextMarkup(state) {
+  const reports = state.data?.reports ?? [];
+  const selectedCode = String(state.selectedVolcanoCode ?? state.data?.selectedVolcanoCode ?? "");
+  const report = reports.find((item) => String(item.volcanoCode ?? item.code ?? "") === selectedCode)
+    ?? getHighestPriorityVolcanoReport(reports);
+  if (state.status === "loading") return buildMobileContextMarkup("火山情報", "取得中", "気象庁XML");
+  if (!report) return buildMobileContextMarkup("火山情報", "直近の発表はありません", "長押しで地震へ");
+  const level = Math.max(0, Math.min(5, Number(report.level) || 0));
+  const priority = Math.max(0, Math.min(5, Number(report.alertPriority || level) || 0));
+  const forecasts = getAvailableVolcanoAshForecasts(report);
+  const forecastIndex = Math.max(0, Math.min(
+    forecasts.length - 1,
+    Number(state.selectedVolcanoAshForecastIndex ?? state.data?.selectedVolcanoAshForecastIndex) || 0
+  ));
+  const forecast = forecasts[forecastIndex];
+  const forecastTime = forecast
+    ? `${formatVolcanoForecastTime(forecast.startTime)}～${formatVolcanoForecastTime(forecast.endTime)}`
+    : "";
+  const rawStatus = String(report.currentStatus ?? report.kindName ?? report.infoKind ?? "警戒状況未確認");
+  const conciseStatus = level > 0
+    ? rawStatus
+      .replace(new RegExp(`^(?:噴火警戒)?レベル\\s*${level}\\s*`), "")
+      .replace(/^[(（]\s*|\s*[)）]$/g, "")
+      .trim() || rawStatus
+    : rawStatus;
+  return `
+    <div class="mobile-dock-content mobile-dock-volcano level-${priority}">
+      <div class="mobile-dock-volcano-main">
+        <div class="mobile-dock-volcano-copy">
+          <div class="mobile-dock-volcano-meta">
+            <span>気象庁発表</span>
+            <time>${escapeHtml(report.reportTime ?? "時刻不明")}</time>
+          </div>
+          <div class="mobile-dock-volcano-title">
+            <strong>${escapeHtml(report.volcanoName ?? "火山名不明")}</strong>
+            <span>${escapeHtml(conciseStatus)}</span>
+          </div>
+        </div>
+        <em>${level > 0 ? `レベル${level}` : "火山情報"}</em>
+      </div>
+      ${forecasts.length > 1 ? `
+        <div class="mobile-dock-volcano-forecast">
+          <span><b>降灰予報</b><strong>${escapeHtml(forecastTime)}</strong></span>
+          <input class="volcano-ash-slider" type="range" min="0" max="${forecasts.length - 1}" step="1" value="${forecastIndex}" data-mobile-dock-control data-volcano-ash-forecast-index aria-label="降灰予報の予測時間">
+        </div>` : forecast ? `<div class="mobile-dock-volcano-forecast"><span><b>降灰予報</b><strong>${escapeHtml(forecastTime)}</strong></span></div>` : ""}
+    </div>`;
+}
+
+function formatVolcanoForecastTime(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return String(value ?? "時刻不明");
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
+}
+
+const VOLCANO_ALERT_LEVEL_GUIDE = [
+  {
+    level: 5,
+    keyword: "避難",
+    range: "居住地域",
+    action: "危険な居住地域から避難します。対象地域と避難方法は、自治体の指示を確認してください。",
+    scope: 100
+  },
+  {
+    level: 4,
+    keyword: "高齢者等避難",
+    range: "居住地域",
+    action: "高齢者など避難に時間がかかる方は避難し、ほかの住民は避難の準備をします。",
+    scope: 88
+  },
+  {
+    level: 3,
+    keyword: "入山規制",
+    range: "火口から居住地域近くまで",
+    action: "登山禁止や入山規制が行われます。状況により、高齢者などは避難の準備をします。",
+    scope: 67
+  },
+  {
+    level: 2,
+    keyword: "火口周辺規制",
+    range: "火口周辺",
+    action: "火口周辺への立ち入りが規制されます。規制範囲には入らないでください。",
+    scope: 45
+  },
+  {
+    level: 1,
+    keyword: "活火山であることに留意",
+    range: "火口内など",
+    action: "最新の火山情報を確認します。状況により、火口内への立ち入りが規制されます。",
+    scope: 28
+  }
+];
+
+function buildVolcanoAlertLevelGuide() {
+  const scopeRows = VOLCANO_ALERT_LEVEL_GUIDE.map(({ level, keyword, scope }) => {
+    const chartKeyword = level === 1 ? "活火山に留意" : keyword;
+    return `
+    <div class="volcano-guide-scope-row level-${level}">
+      <b>L${level}</b>
+      <span
+        style="--volcano-guide-scope:${scope}%"
+        title="${escapeHtml(keyword)}"
+        aria-label="${escapeHtml(keyword)}"
+      >${escapeHtml(chartKeyword)}</span>
+    </div>
+  `;
+  }).join("");
+  const levelRows = VOLCANO_ALERT_LEVEL_GUIDE.map(({ level, keyword, range, action }) => `
+    <li class="volcano-guide-level level-${level}">
+      <span class="volcano-guide-level-number"><small>レベル</small>${level}</span>
+      <div class="volcano-guide-level-copy">
+        <div>
+          <strong>${escapeHtml(keyword)}</strong>
+          <span>${escapeHtml(range)}</span>
+        </div>
+        <p>${escapeHtml(action)}</p>
+      </div>
+    </li>
+  `).join("");
+
+  return `
+    <article class="volcano-level-guide">
+      <header class="volcano-level-guide-header">
+        <span>火山情報の見方</span>
+        <h2>噴火警戒レベル</h2>
+        <p>火山活動の状況と、防災上警戒すべき範囲を5段階で示します。</p>
+      </header>
+      <section class="volcano-guide-scope" aria-labelledby="volcano-guide-scope-title">
+        <div class="volcano-guide-section-title">
+          <h3 id="volcano-guide-scope-title">警戒範囲の目安</h3>
+          <span>活動に応じて範囲が広がります</span>
+        </div>
+        <div class="volcano-guide-scope-chart">${scopeRows}</div>
+        <div class="volcano-guide-scope-axis" aria-hidden="true">
+          <span>火口内</span>
+          <span>火口周辺</span>
+          <span>居住地域近く</span>
+          <span>居住地域</span>
+        </div>
+      </section>
+      <section class="volcano-guide-levels" aria-labelledby="volcano-guide-levels-title">
+        <div class="volcano-guide-section-title">
+          <h3 id="volcano-guide-levels-title">レベル別の行動</h3>
+          <span>対象範囲は火山ごとに異なります</span>
+        </div>
+        <ol>${levelRows}</ol>
+      </section>
+      <p class="volcano-guide-footnote">地図上の▲を選択すると、その火山の発表内容を表示します。噴火警戒レベルを運用していない火山では、警報・予報の表現が異なります。実際の規制や避難対象は、気象庁・自治体等の最新発表に従ってください。</p>
+    </article>
+  `;
+}
+
+function renderVolcanoList(state, render) {
+  if (state.status === "loading") {
+    render('<div class="earthquake-empty">気象庁防災情報XMLから火山情報を取得中です。</div>');
+    return;
+  }
+  if (state.status === "error") {
+    render('<div class="earthquake-empty">火山情報を取得できませんでした。最新性を確認できていません。</div>');
+    return;
+  }
+  const reports = state.data?.reports ?? [];
+  if (!reports.length) {
+    render('<div class="earthquake-empty">直近の火山情報はありません。</div>');
+    return;
+  }
+  const selectedCode = String(state.selectedVolcanoCode ?? state.data?.selectedVolcanoCode ?? "");
+  const selectedBulletinId = String(state.selectedVolcanoBulletinId ?? "");
+  const selectedReport = reports.find((report) =>
+    String(report.volcanoCode ?? report.code ?? "") === selectedCode
+  );
+  const selectedBulletin = (selectedReport?.relatedReports ?? [])
+    .find((item) => String(item.id ?? "") === selectedBulletinId);
+  render(`
+    ${selectedBulletin
+      ? ""
+      : selectedReport
+        ? `<div class="volcano-bulletin-detail-nav volcano-selection-nav">
+            <button type="button" data-volcano-clear-selection>← 火山情報の見方</button>
+            <span>地図で選択中</span>
+          </div>`
+        : `<section class="volcano-panel-intro">
+            <div>
+              <strong>火山防災情報</strong>
+              <span>噴火警戒レベルと、必要な行動を確認できます。</span>
+            </div>
+          </section>`}
+    <div class="volcano-report-list">
+      ${selectedReport
+        ? buildSelectedVolcanoDetail(selectedReport, selectedBulletinId)
+        : buildVolcanoAlertLevelGuide()}
+    </div>
+    <p class="volcano-source-note">出典：<a href="https://www.jma.go.jp/bosai/volcano/" target="_blank" rel="noopener noreferrer">気象庁「火山情報」</a>。MeteoScopeは気象庁の公式アプリではありません。避難や規制は自治体等の公式発表も確認してください。</p>
+  `);
+}
+
+function buildSelectedVolcanoDetail(report, selectedBulletinId = "") {
+  const relatedReports = report.relatedReports?.length ? report.relatedReports : [report];
+  const selectedBulletin = relatedReports.find((item) => String(item.id ?? "") === selectedBulletinId);
+  if (selectedBulletin) return buildVolcanoBulletinDetail(report, selectedBulletin);
+  const warningDetailReport = getVolcanoWarningDetailReport(report);
+  const detailReport = warningDetailReport ?? report;
+  const latestRelatedReports = getLatestVolcanoReportsByType(relatedReports);
+  const level = Math.max(0, Math.min(5, Number(report.level) || 0));
+  const priority = Math.max(0, Math.min(5, Number(report.alertPriority ?? level) || 0));
+  const statusText = report.currentStatus ?? report.kindName ?? detailReport.kindName ?? "警戒状況未確認";
+  const restriction = extractVolcanoRestriction(statusText, detailReport.condition);
+  const warningText = warningDetailReport
+    ? warningDetailReport.prevention || warningDetailReport.volcanoHeadline || warningDetailReport.headline
+    : "";
+  const targetAreaGroups = relatedReports.flatMap((item) => item.targetAreas ?? []);
+  const uniqueAreaGroups = [...new Map(targetAreaGroups.map((group) => [
+    `${group.kindName}:${group.areas?.map((area) => area.code || area.name).join(",")}`,
+    group
+  ])).values()];
+  const craterName = relatedReports.find((item) => item.craterName)?.craterName ?? "";
+  const volcanoName = report.volcanoName ?? "火山名不明";
+  const displayName = craterName && !volcanoName.includes(craterName)
+    ? `${volcanoName}（${craterName}）`
+    : volcanoName;
+  return `
+    <article class="volcano-selected-detail level-${priority}">
+      <header class="volcano-selected-header">
+        <div>
+          <h2>${escapeHtml(displayName)}</h2>
+          <time>${escapeHtml(detailReport.reportTime ?? report.reportTime ?? "発表時刻不明")}</time>
+        </div>
+      </header>
+      <section class="volcano-alert-summary" aria-label="現在の噴火警報・予報">
+        <span>${level > 0 ? `噴火警戒レベル${level}` : escapeHtml(detailReport.infoKind ?? "火山情報")}</span>
+        <strong>${escapeHtml(restriction)}</strong>
+      </section>
+      ${warningText ? `
+        <section class="volcano-detail-section">
+          <h3>現在の警戒事項等</h3>
+          ${formatVolcanoParagraphs(warningText)}
+        </section>` : ""}
+      ${detailReport.activity ? `
+        <section class="volcano-detail-section">
+          <h3>火山活動の状況</h3>
+          ${formatVolcanoParagraphs(detailReport.activity)}
+        </section>` : ""}
+      ${uniqueAreaGroups.length ? `
+        <section class="volcano-detail-section">
+          <h3>噴火警報・予報の対象市町村</h3>
+          <div class="volcano-target-groups">
+            ${uniqueAreaGroups.map(buildVolcanoTargetAreaGroup).join("")}
+          </div>
+        </section>` : ""}
+      ${detailReport.nextAdvisory ? `
+        <section class="volcano-detail-section volcano-next-advisory">
+          <h3>次回の情報</h3>
+          ${formatVolcanoParagraphs(detailReport.nextAdvisory)}
+        </section>` : ""}
+      <section class="volcano-detail-section volcano-history-section">
+        <h3>関連する発表</h3>
+        <div class="volcano-detail-history">
+          ${latestRelatedReports.map((item) => buildVolcanoHistoryItem(item, selectedBulletinId)).join("")}
+        </div>
+      </section>
+    </article>`;
+}
+
+function buildVolcanoBulletinDetail(volcano, bulletin) {
+  const volcanoName = volcano.volcanoName ?? "火山名不明";
+  const craterName = bulletin.craterName ?? "";
+  const displayName = craterName && !volcanoName.includes(craterName)
+    ? `${volcanoName}（${craterName}）`
+    : volcanoName;
+  const groups = bulletin.targetAreas ?? [];
+  const sections = [
+    bulletin.volcanoHeadline || bulletin.headline
+      ? `<section class="volcano-detail-section"><h3>発表内容</h3>${formatVolcanoParagraphs(bulletin.volcanoHeadline || bulletin.headline)}</section>`
+      : "",
+    bulletin.prevention
+      ? `<section class="volcano-detail-section"><h3>警戒事項等</h3>${formatVolcanoParagraphs(bulletin.prevention)}</section>`
+      : "",
+    bulletin.activity
+      ? `<section class="volcano-detail-section"><h3>火山活動の状況</h3>${formatVolcanoParagraphs(bulletin.activity)}</section>`
+      : "",
+    groups.length
+      ? `<section class="volcano-detail-section"><h3>対象地域</h3><div class="volcano-target-groups">${groups.map(buildVolcanoTargetAreaGroup).join("")}</div></section>`
+      : "",
+    bulletin.nextAdvisory
+      ? `<section class="volcano-detail-section volcano-next-advisory"><h3>次回の情報</h3>${formatVolcanoParagraphs(bulletin.nextAdvisory)}</section>`
+      : ""
+  ].filter(Boolean).join("");
+  return `
+    <article class="volcano-selected-detail volcano-bulletin-detail">
+      <div class="volcano-bulletin-detail-nav">
+        <button type="button" data-volcano-bulletin-back>← ${escapeHtml(volcanoName)}の情報へ戻る</button>
+        <span>選択した発表</span>
+      </div>
+      <header class="volcano-selected-header">
+        <span class="volcano-selected-kicker">${escapeHtml(displayName)}</span>
+        <h2>${escapeHtml(formatVolcanoBulletinTitle(bulletin.title ?? bulletin.infoKind ?? "火山情報"))}</h2>
+        <time>${escapeHtml(bulletin.reportTime ?? "発表時刻不明")}</time>
+      </header>
+      ${sections || '<section class="volcano-detail-section"><p>この発表の本文は取得できませんでした。気象庁XML原文を確認してください。</p></section>'}
+      ${bulletin.sourceUrl ? `<a class="volcano-xml-source-link" href="${escapeHtml(bulletin.sourceUrl)}" target="_blank" rel="noopener noreferrer">気象庁XML原文を確認</a>` : ""}
+    </article>`;
+}
+
+function extractVolcanoRestriction(statusText, fallback) {
+  const match = String(statusText ?? "").match(/[（(]([^）)]+)[）)]/u);
+  return match?.[1] ?? fallback ?? statusText ?? "警戒状況未確認";
+}
+
+function formatVolcanoParagraphs(value) {
+  return String(value ?? "")
+    .split(/\n{2,}/u)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+    .join("");
+}
+
+function buildVolcanoTargetAreaGroup(group) {
+  return `
+    <div class="volcano-target-group">
+      <strong>${escapeHtml(group.kindName ?? "対象地域")}</strong>
+      <ul>${(group.areas ?? []).map((area) => `<li>${escapeHtml(area.name ?? "地域名不明")}</li>`).join("")}</ul>
+    </div>`;
+}
+
+function buildVolcanoHistoryItem(report, selectedBulletinId = "") {
+  const summary = report.volcanoHeadline || report.headline || report.activity || report.prevention || "発表内容は気象庁の原文で確認してください。";
+  const reportId = String(report.id ?? "");
+  const selectedClass = reportId === selectedBulletinId ? " is-selected" : "";
+  return `
+    <button type="button" class="volcano-history-item${selectedClass}" data-volcano-bulletin-id="${escapeHtml(reportId)}"${reportId ? "" : " disabled"}>
+      <span><strong>${escapeHtml(formatVolcanoBulletinTitle(report.title ?? report.kindName ?? report.infoKind ?? "火山情報"))}</strong><time>${escapeHtml(report.reportTime ?? "発表時刻不明")}</time><small>${escapeHtml(summary)}</small></span>
+      <b aria-hidden="true">›</b>
+    </button>`;
+}
+
+function formatVolcanoBulletinTitle(value) {
+  return String(value ?? "火山情報").replace(/^火山名[\s\u3000]*/u, "").trim() || "火山情報";
 }
 
 function buildEarthquakeMapLayerControls(data) {

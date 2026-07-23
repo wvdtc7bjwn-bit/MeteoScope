@@ -51,6 +51,8 @@ export const JMA_ENDPOINTS = {
   riverFloodXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/extra_l.xml",
   earthquakeXmlFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml",
   earthquakeXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml",
+  volcanoStatus: "https://www.jma.go.jp/bosai/volcano/data/info/900.json",
+  volcanoCatalog: "https://www.jma.go.jp/bosai/volcano/const/volcano_list.json",
   riverFloodGeometry: "https://services.arcgis.com/wlVTGRSYTzAbjjiC/ArcGIS/rest/services/flood_risk_all/FeatureServer/0/query",
   areaConst: "https://www.jma.go.jp/bosai/common/const/area.json",
   warningMunicipalities: publicAsset("data/jma-weather-warning-municipalities.geojson"),

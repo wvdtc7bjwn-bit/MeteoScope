@@ -4850,6 +4850,11 @@ html[data-theme="light"] .legend-typhoon-center::after {
   transform: translate3d(12px, 12px, 0);
 }
 
+/* 火山選択時の地図カードは、地図上には残しつつ詳細パネルの背面へ置く。 */
+.map-info-popup[data-variant="volcano"] {
+  z-index: 410;
+}
+
 .map-info-popup[hidden] {
   display: none;
 }
@@ -5164,6 +5169,10 @@ html[data-theme="light"] .legend-typhoon-center::after {
   --tab-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='black' stroke-width='2.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h5l3-8 5 14 4-11 2 5h5'%2F%3E%3Cpath d='M9 6l2 3'%2F%3E%3Cpath d='M16 4v4'%2F%3E%3Cpath d='M23 6l-2 3'%2F%3E%3C%2Fsvg%3E");
 }
 
+.tab-button[data-tab="earthquake"].is-volcano-mode {
+  --tab-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 27 11.7 14.2 15.8 17.2 20.2 14.2 28 27H4Z' fill='black'%2F%3E%3Cpath d='M14.5 12.7c-1.8-1.2-1.6-3.4.2-4.3-1.1-1.8.2-4.1 2.3-4.1 2.2 0 3.4 2.5 2.1 4.2 1.7 1 1.7 3.3.1 4.3l-1.3.8-1.1-2-1.1 2-1.2-.9Z' fill='black'%2F%3E%3C%2Fsvg%3E");
+}
+
 .tab-button:hover {
   background: transparent;
   background-image: none;
@@ -5187,6 +5196,109 @@ html[data-theme="light"] .legend-typhoon-center::after {
 .tab-button.active .tab-button-label {
   color: #8bdcff;
   text-shadow: 0 0 8px rgba(81, 196, 255, 0.16);
+}
+
+.earthquake-long-press-hint {
+  --hint-arrow-offset: 50%;
+  position: fixed;
+  z-index: 760;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: min(226px, calc(100vw - 20px));
+  padding: 11px 10px 11px 13px;
+  border: 1px solid rgba(168, 208, 240, 0.38);
+  border-radius: 13px;
+  color: #f4f8ff;
+  background: rgba(10, 27, 51, 0.96);
+  box-shadow: 0 12px 28px rgba(2, 9, 22, 0.36);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.earthquake-long-press-hint.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.earthquake-long-press-hint::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-right: 1px solid rgba(168, 208, 240, 0.38);
+  border-bottom: 1px solid rgba(168, 208, 240, 0.38);
+  background: rgba(10, 27, 51, 0.96);
+}
+
+.earthquake-long-press-hint[data-placement="above"]::after {
+  bottom: -6px;
+  left: var(--hint-arrow-offset);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.earthquake-long-press-hint[data-placement="side"]::after {
+  top: var(--hint-arrow-offset);
+  left: -6px;
+  transform: translateY(-50%) rotate(135deg);
+}
+
+.earthquake-long-press-hint div {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 2px;
+  min-width: 0;
+}
+
+.earthquake-long-press-hint strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.earthquake-long-press-hint span {
+  color: rgba(226, 236, 249, 0.74);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.earthquake-long-press-hint button {
+  appearance: none;
+  display: grid;
+  flex: 0 0 24px;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: rgba(237, 246, 255, 0.8);
+  font: inherit;
+  font-size: 17px;
+  line-height: 1;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+
+html[data-theme="light"] .earthquake-long-press-hint {
+  color: #193149;
+  border-color: rgba(70, 110, 143, 0.28);
+  background: rgba(247, 251, 255, 0.97);
+  box-shadow: 0 12px 28px rgba(28, 52, 76, 0.2);
+}
+
+html[data-theme="light"] .earthquake-long-press-hint::after {
+  border-color: rgba(70, 110, 143, 0.28);
+  background: rgba(247, 251, 255, 0.97);
+}
+
+html[data-theme="light"] .earthquake-long-press-hint span {
+  color: rgba(36, 64, 91, 0.7);
+}
+
+html[data-theme="light"] .earthquake-long-press-hint button {
+  color: rgba(25, 49, 73, 0.8);
+  background: rgba(42, 91, 132, 0.08);
 }
 
 #clock,
@@ -8759,6 +8871,745 @@ html[data-theme="light"] :is(.earthquake-card-intensity strong, .earthquake-obse
 
 html[data-theme="light"] :is(.earthquake-card-info > strong, .earthquake-card-facts, .earthquake-observations-heading h2, .earthquake-observation-name, .typhoon-detail-item strong, .typhoon-select-button strong) {
   color: #132c45;
+}
+
+.volcano-panel-intro {
+  display: grid;
+  gap: 3px;
+  padding: 4px 2px 12px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.volcano-panel-intro > div {
+  min-width: 0;
+}
+
+.volcano-panel-intro span,
+.volcano-report-head time,
+.volcano-observation-facts,
+.volcano-source-note {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.volcano-report-list {
+  display: block;
+}
+
+.volcano-level-guide {
+  display: grid;
+  gap: 18px;
+  padding: 6px 0 10px;
+}
+
+.volcano-level-guide-header {
+  display: grid;
+  gap: 3px;
+}
+
+.volcano-level-guide-header > span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+}
+
+.volcano-level-guide-header h2,
+.volcano-guide-section-title h3,
+.volcano-level-guide p {
+  margin: 0;
+}
+
+.volcano-level-guide-header h2 {
+  color: var(--text);
+  font-size: clamp(1.32rem, 4vw, 1.72rem);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+.volcano-level-guide-header p {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.65;
+}
+
+.volcano-guide-scope,
+.volcano-guide-levels {
+  display: grid;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--panel-strong) 92%, transparent);
+}
+
+.volcano-guide-section-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.volcano-guide-section-title h3 {
+  color: var(--text);
+  font-size: 0.94rem;
+}
+
+.volcano-guide-section-title span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-align: right;
+}
+
+.volcano-guide-scope-chart {
+  display: grid;
+  gap: 5px;
+}
+
+.volcano-guide-scope-row {
+  --volcano-level-color: #6f879b;
+  --volcano-level-text: #fff;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+}
+
+.volcano-guide-scope-row b {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.volcano-guide-scope-row span {
+  width: var(--volcano-guide-scope);
+  min-width: 82px;
+  padding: 5px 9px;
+  border-radius: 4px;
+  color: var(--volcano-level-text);
+  background: var(--volcano-level-color);
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.volcano-guide-scope-row.level-1 span {
+  padding-inline: 7px;
+  font-size: 0.68rem;
+  letter-spacing: -0.025em;
+}
+
+.volcano-guide-scope-axis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-left: 35px;
+  padding-top: 7px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.58rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.volcano-guide-levels ol {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.volcano-guide-level {
+  --volcano-level-color: #6f879b;
+  --volcano-level-text: #fff;
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.volcano-guide-level:first-child {
+  padding-top: 2px;
+}
+
+.volcano-guide-level:last-child {
+  padding-bottom: 2px;
+  border-bottom: 0;
+}
+
+.volcano-guide-level-number {
+  display: grid;
+  place-content: center;
+  min-height: 50px;
+  border-radius: 8px;
+  color: var(--volcano-level-text);
+  background: var(--volcano-level-color);
+  font-size: 1.3rem;
+  font-weight: 850;
+  line-height: 1;
+  text-align: center;
+}
+
+.volcano-guide-level-number small {
+  margin-bottom: 3px;
+  font-size: 0.52rem;
+  font-weight: 800;
+}
+
+.volcano-guide-level-copy {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.volcano-guide-level-copy > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.volcano-guide-level-copy strong {
+  color: var(--text);
+  font-size: 0.86rem;
+}
+
+.volcano-guide-level-copy > div span {
+  color: var(--muted);
+  font-size: 0.65rem;
+  text-align: right;
+}
+
+.volcano-guide-level-copy p {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.55;
+}
+
+.volcano-guide-footnote {
+  padding: 0 2px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.55;
+}
+
+:is(.volcano-guide-scope-row, .volcano-guide-level).level-1 {
+  --volcano-level-color: #f0f0f8;
+  --volcano-level-text: #13233a;
+}
+
+:is(.volcano-guide-scope-row, .volcano-guide-level).level-2 {
+  --volcano-level-color: #faf700;
+  --volcano-level-text: #13233a;
+}
+
+:is(.volcano-guide-scope-row, .volcano-guide-level).level-3 {
+  --volcano-level-color: #ffad00;
+  --volcano-level-text: #13233a;
+}
+
+:is(.volcano-guide-scope-row, .volcano-guide-level).level-4 {
+  --volcano-level-color: #ff2900;
+  --volcano-level-text: #fff;
+}
+
+:is(.volcano-guide-scope-row, .volcano-guide-level).level-5 {
+  --volcano-level-color: #ca01f9;
+  --volcano-level-text: #fff;
+}
+
+.volcano-selected-detail,
+.volcano-report-card,
+.mobile-dock-volcano {
+  --volcano-level-color: #6f879b;
+  --volcano-level-text: #fff;
+}
+
+.volcano-selected-detail {
+  display: grid;
+  gap: 18px;
+  padding: 4px 2px 12px;
+}
+
+:is(.volcano-selected-detail, .volcano-report-card, .mobile-dock-volcano).level-1 {
+  --volcano-level-color: #f0f0f8;
+  --volcano-level-text: #13233a;
+}
+
+:is(.volcano-selected-detail, .volcano-report-card, .mobile-dock-volcano).level-2 {
+  --volcano-level-color: #faf700;
+  --volcano-level-text: #13233a;
+}
+
+:is(.volcano-selected-detail, .volcano-report-card, .mobile-dock-volcano).level-3 {
+  --volcano-level-color: #ffad00;
+  --volcano-level-text: #13233a;
+}
+
+:is(.volcano-selected-detail, .volcano-report-card, .mobile-dock-volcano).level-4 {
+  --volcano-level-color: #ff2900;
+  --volcano-level-text: #fff;
+}
+
+:is(.volcano-selected-detail, .volcano-report-card, .mobile-dock-volcano).level-5 {
+  --volcano-level-color: #ca01f9;
+  --volcano-level-text: #fff;
+}
+
+.volcano-selected-header h2 {
+  margin: 0;
+  font-size: clamp(1.45rem, 4vw, 2rem);
+  line-height: 1.2;
+}
+
+.volcano-selected-header time {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.volcano-selected-kicker {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.volcano-bulletin-detail-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.volcano-bulletin-detail-nav button {
+  padding: 0;
+  border: 0;
+  color: var(--accent);
+  background: transparent;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.volcano-bulletin-detail-nav span {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.volcano-selection-nav {
+  margin: 0 2px 2px;
+}
+
+.volcano-alert-summary {
+  display: grid;
+  place-items: center;
+  gap: 2px;
+  min-height: 76px;
+  padding: 11px 14px;
+  border-radius: 14px;
+  color: var(--volcano-level-text);
+  background: var(--volcano-level-color);
+  text-align: center;
+}
+
+.volcano-alert-summary span {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.volcano-alert-summary strong {
+  font-size: clamp(1.15rem, 4.5vw, 1.45rem);
+  line-height: 1.2;
+}
+
+.volcano-detail-section {
+  display: grid;
+  gap: 9px;
+}
+
+.volcano-detail-section + .volcano-detail-section {
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.volcano-detail-section h3 {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.volcano-detail-section p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.75;
+  white-space: pre-line;
+}
+
+.volcano-target-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.volcano-target-group {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-soft);
+}
+
+.volcano-target-group strong {
+  font-size: 0.86rem;
+}
+
+.volcano-target-group ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.volcano-target-group li {
+  font-size: 0.88rem;
+}
+
+.volcano-detail-history {
+  display: grid;
+  border-top: 1px solid var(--line);
+}
+
+.volcano-history-item {
+  -webkit-appearance: none;
+  appearance: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  width: 100%;
+  padding: 12px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.volcano-history-item:is(:hover, :focus-visible, .is-selected) {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.volcano-history-item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 75%, transparent);
+  outline-offset: -2px;
+}
+
+.volcano-history-item:last-child {
+  border-bottom: 0;
+}
+
+.volcano-history-item:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.volcano-history-item > span {
+  min-width: 0;
+}
+
+.volcano-history-item strong,
+.volcano-history-item time,
+.volcano-history-item small {
+  display: block;
+}
+
+.volcano-history-item strong {
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.volcano-history-item time {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.volcano-history-item small {
+  margin-top: 6px;
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.volcano-history-item b {
+  color: var(--muted);
+  font-size: 1.35rem;
+  font-weight: 400;
+}
+
+.volcano-xml-source-link {
+  justify-self: start;
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.volcano-report-card {
+  padding: 14px 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.volcano-report-head,
+.mobile-dock-volcano-head,
+.mobile-dock-volcano-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.volcano-report-head > div,
+.mobile-dock-volcano-main > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.volcano-report-head h2 {
+  margin: 0;
+  font-size: 1.12rem;
+}
+
+.volcano-level-badge,
+.mobile-dock-volcano-main em {
+  flex: 0 0 auto;
+  min-width: 46px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: var(--volcano-level-color, #6f879b);
+  color: var(--volcano-level-text, #fff);
+  text-align: center;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.volcano-report-kind {
+  display: block;
+  margin-top: 10px;
+}
+
+.volcano-report-card details {
+  margin: 10px 0;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  padding-top: 9px;
+}
+
+.volcano-related-list {
+  display: grid;
+}
+
+.volcano-related-report {
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 56%, transparent);
+}
+
+.volcano-related-report:last-child { border-bottom: 0; }
+
+.volcano-related-report > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.volcano-related-report time {
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.volcano-related-report strong { font-size: 0.84rem; text-align: right; }
+
+.volcano-report-card details p {
+  white-space: pre-line;
+  line-height: 1.65;
+}
+
+.volcano-source-note {
+  margin: 12px 4px 0;
+  line-height: 1.55;
+}
+
+.mobile-dock-volcano {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+}
+
+.mobile-dock-volcano-main {
+  justify-content: space-between;
+  gap: 14px;
+  min-width: 0;
+}
+
+.mobile-dock-volcano-copy {
+  flex: 1 1 auto;
+}
+
+.mobile-dock-volcano-meta,
+.mobile-dock-volcano-title {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.mobile-dock-volcano-meta {
+  justify-content: flex-start;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.mobile-dock-volcano-meta span {
+  font-weight: 800;
+}
+
+.mobile-dock-volcano-title {
+  gap: 9px;
+  margin-top: 3px;
+}
+
+.mobile-dock-volcano-title strong,
+.mobile-dock-volcano-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-dock-volcano-title strong {
+  flex: 0 1 auto;
+  color: var(--text);
+  font-size: 1.18rem;
+  line-height: 1.12;
+}
+
+.mobile-dock-volcano-title span {
+  flex: 1 1 auto;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.mobile-dock-volcano-main em {
+  min-width: 64px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.mobile-dock-volcano-forecast {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  padding-top: 5px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.mobile-dock-volcano-forecast span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.mobile-dock-volcano-forecast b {
+  font-weight: 750;
+}
+
+.mobile-dock-volcano-forecast strong {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+.mobile-dock-volcano-forecast input[type="range"] {
+  width: 100%;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  appearance: none;
+  cursor: pointer;
+  background: transparent;
+  touch-action: pan-x;
+}
+
+.volcano-ash-slider::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #42bff5 0%, #55dca8 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+
+.volcano-ash-slider::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  margin-top: -6px;
+  border: 3px solid #49c8f7;
+  border-radius: 50%;
+  appearance: none;
+  background: #f7fcff;
+  box-shadow: 0 2px 9px rgba(30, 176, 225, 0.38);
+}
+
+.volcano-ash-slider::-moz-range-track {
+  height: 6px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #42bff5 0%, #55dca8 100%);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+}
+
+.volcano-ash-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 3px solid #49c8f7;
+  border-radius: 50%;
+  background: #f7fcff;
+  box-shadow: 0 2px 9px rgba(30, 176, 225, 0.38);
+}
+
+html[data-theme="light"] .volcano-ash-slider::-webkit-slider-runnable-track,
+html[data-theme="light"] .volcano-ash-slider::-moz-range-track {
+  box-shadow: inset 0 0 0 1px rgba(22, 111, 151, 0.2);
 }
 
 html[data-theme="light"] .earthquake-detail-metrics { border-top-color: rgba(72, 100, 132, 0.14); }

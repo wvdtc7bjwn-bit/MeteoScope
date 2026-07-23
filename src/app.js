@@ -20,6 +20,7 @@ import { fetchAmedasDailySeries, fetchAmedasLatestTime } from "./jma/amedas.js";
 import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
 import { fetchEarthquakeXmlList } from "./jma/earthquakeXml.js";
+import { fetchVolcanoXmlList } from "./jma/volcanoXml.js";
 import { fetchKikikuruTiles } from "./jma/kikikuru.js";
 import { fetchRiverFloodForecasts } from "./jma/riverFlood.js";
 import {
@@ -39,6 +40,7 @@ import { CommunityReportClient } from "./domain/communityReportClient.js";
 import { openCommunityReportModal, setupCommunityReportModal } from "./ui/communityReportModal.js";
 import { yieldToMainThread } from "./scheduling.js";
 import { setupLongPressButton } from "./ui/longPressButton.js";
+import { setupEarthquakeLongPressHint } from "./ui/earthquakeLongPressHint.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -111,6 +113,12 @@ export function createWeatherApp() {
   let activeTyphoonId = "";
   let activeEarthquakeId = "";
   let collapsedEarthquakeId = "";
+  let earthquakeContentMode = "earthquake";
+  let volcanoData = null;
+  let selectedVolcanoCode = "";
+  let selectedVolcanoBulletinId = "";
+  let selectedVolcanoAshForecastIndex = 0;
+  let volcanoRefreshRequest = null;
   let earthquakeView = "recent";
   let earthquakeDistribution3DEnabled = false;
   let earthquakeDistributionFilters = { dayOffset: 0, minMagnitude: "0", maxDepth: "all" };
@@ -184,7 +192,9 @@ export function createWeatherApp() {
     }
 
     const requestId = ++activeLoadRequestId;
-    const cachedData = latestDataByTab[tab.id];
+    const cachedData = tab.id === "earthquake" && earthquakeContentMode === "volcano"
+      ? volcanoData
+      : latestDataByTab[tab.id];
     if (cachedData) {
       let cachedViewUpdated = false;
       try {
@@ -194,7 +204,8 @@ export function createWeatherApp() {
         console.warn("[MeteoScope] cached tab view update failed", error);
       }
       if (tab.id === "earthquake") {
-        refreshEarthquakeData({ force: true });
+        if (earthquakeContentMode === "volcano") refreshVolcanoData({ force: true });
+        else refreshEarthquakeData({ force: true });
       }
       if (tab.id === "warnings" && cachedViewUpdated) {
         queueWarningFullRefresh({ delayMs: 700 });
@@ -211,6 +222,7 @@ export function createWeatherApp() {
         currentLocation: currentLocationInfo,
         myAreas,
         locationInsights: buildLocationInsights(tab.id, null),
+        earthquakeContentMode,
         earthquakeActiveFaultVisible,
         earthquakePlateBoundaryVisible,
         earthquakePlateDepthContoursVisible,
@@ -223,9 +235,12 @@ export function createWeatherApp() {
     try {
       await yieldToMainThread(tab.id === "warnings" ? 160 : 0);
       if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
-      const data = await loadTabData(tab.id);
+      const data = tab.id === "earthquake" && earthquakeContentMode === "volcano"
+        ? await fetchVolcanoXmlList()
+        : await loadTabData(tab.id);
       if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
-      latestDataByTab[tab.id] = data;
+      if (tab.id === "earthquake" && earthquakeContentMode === "volcano") volcanoData = data;
+      else latestDataByTab[tab.id] = data;
       updateCurrentView(tab, data);
       if (tab.id === "warnings") queueWarningFullRefresh({ delayMs: 350 });
       scheduleBackgroundPrefetch(tab.id);
@@ -242,6 +257,7 @@ export function createWeatherApp() {
         currentLocation: currentLocationInfo,
         myAreas,
         locationInsights: buildLocationInsights(tab.id, null),
+        earthquakeContentMode,
         earthquakeActiveFaultVisible,
         earthquakePlateBoundaryVisible,
         earthquakePlateDepthContoursVisible,
@@ -406,6 +422,64 @@ if (layerId === "river") {
     const tab = TABS.find((item) => item.id === "earthquake");
     updateCurrentView(tab, latestDataByTab.earthquake);
     if (!isSelected) focusSelectedEarthquake();
+  }
+
+  function refreshVolcanoView({ scrollToTop = false } = {}) {
+    if (activeTab !== "earthquake" || earthquakeContentMode !== "volcano") return;
+    updateCurrentView(TABS.find((item) => item.id === "earthquake"), volcanoData ?? {});
+    if (scrollToTop) {
+      requestAnimationFrame(() => {
+        const sidebar = document.getElementById("sidebar");
+        if (sidebar) sidebar.scrollTop = 0;
+      });
+    }
+  }
+
+  function toggleEarthquakeContentMode() {
+    earthquakeContentMode = earthquakeContentMode === "volcano" ? "earthquake" : "volcano";
+    selectedVolcanoCode = "";
+    selectedVolcanoBulletinId = "";
+    selectedVolcanoAshForecastIndex = 0;
+    const button = document.querySelector('.tab-button[data-tab="earthquake"]');
+    const label = button?.querySelector(".tab-button-label");
+    if (label) label.textContent = earthquakeContentMode === "volcano" ? "火山" : "地震";
+    button?.classList.toggle("is-volcano-mode", earthquakeContentMode === "volcano");
+    button?.setAttribute("aria-label", earthquakeContentMode === "volcano" ? "火山情報" : "地震情報");
+    button?.setAttribute(
+      "aria-description",
+      earthquakeContentMode === "volcano" ? "長押しで地震情報へ切り替え" : "長押しで火山情報へ切り替え"
+    );
+    weatherMap?.setActiveFaultVisible(earthquakeContentMode === "earthquake" && earthquakeActiveFaultVisible);
+    weatherMap?.setPlateBoundaryVisible(earthquakeContentMode === "earthquake" && earthquakePlateBoundaryVisible);
+    weatherMap?.setPlateDepthContoursVisible(earthquakeContentMode === "earthquake" && earthquakePlateDepthContoursVisible);
+    void selectTab("earthquake");
+  }
+
+  async function refreshVolcanoData({ force = false } = {}) {
+    if (activeTab !== "earthquake" || earthquakeContentMode !== "volcano") return volcanoData;
+    if (document.hidden && !force) return volcanoData;
+    if (volcanoRefreshRequest) return volcanoRefreshRequest;
+    volcanoRefreshRequest = fetchVolcanoXmlList()
+      .then((nextData) => {
+        volcanoData = nextData;
+        if (activeTab === "earthquake" && earthquakeContentMode === "volcano") {
+          updateCurrentView(TABS.find((item) => item.id === "earthquake"), nextData);
+        }
+        return nextData;
+      })
+      .catch((error) => {
+        console.warn("[MeteoScope] volcano XML refresh failed", error);
+        if (!volcanoData && activeTab === "earthquake" && earthquakeContentMode === "volcano") {
+          updateLeftPanel(TABS.find((item) => item.id === "earthquake"), {
+            status: "error",
+            error,
+            earthquakeContentMode
+          });
+        }
+        return volcanoData;
+      })
+      .finally(() => { volcanoRefreshRequest = null; });
+    return volcanoRefreshRequest;
   }
 
   function selectEarthquakeView(view) {
@@ -603,6 +677,10 @@ if (layerId === "river") {
       currentLocation: currentLocationInfo,
       myAreas,
       locationInsights: buildLocationInsights(tab.id, displayData),
+      earthquakeContentMode,
+      selectedVolcanoCode,
+      selectedVolcanoBulletinId,
+      selectedVolcanoAshForecastIndex,
       earthquakeActiveFaultVisible,
       earthquakePlateBoundaryVisible,
       earthquakePlateDepthContoursVisible,
@@ -634,7 +712,18 @@ if (layerId === "river") {
     if (tab.id === "amedas") return { ...data, activeMetric: activeAmedasMetric };
     if (tab.id === "warnings") return { ...data, activeWarningView, activeKikikuruLayer, currentKikikuruStatus };
     if (tab.id === "typhoon") return buildTyphoonDisplayData(data);
-    if (tab.id === "earthquake") return buildEarthquakeDisplayData(data);
+    if (tab.id === "earthquake") {
+      if (earthquakeContentMode === "volcano") {
+        return {
+          ...(volcanoData ?? data ?? {}),
+          earthquakeContentMode: "volcano",
+          earthquakeView: "volcano",
+          selectedVolcanoCode,
+          selectedVolcanoAshForecastIndex
+        };
+      }
+      return { ...buildEarthquakeDisplayData(data), earthquakeContentMode: "earthquake" };
+    }
     if (tab.id !== "radar") return data;
 
     const frames = data.frames ?? [];
@@ -1024,6 +1113,10 @@ if (layerId === "river") {
     const tab = TABS.find((item) => item.id === activeTab) ?? TABS[0];
     if (!loaders[tab.id]) return;
     if (tab.id === "earthquake") {
+      if (earthquakeContentMode === "volcano") {
+        await refreshVolcanoData({ force });
+        return;
+      }
       const tasks = [refreshEarthquakeData({ force })];
       if (earthquakeView === "distribution") {
         tasks.push(refreshEarthquakeDistribution({ force }));
@@ -1601,6 +1694,14 @@ if (layerId === "river") {
     themeController.subscribe(({ resolvedTheme }) => weatherMap?.setTheme(resolvedTheme));
     weatherMap.initialize();
     tabControls = setupTabs({ onChange: selectTab, tabs: TABS });
+    const earthquakeTabButton = document.querySelector('.tab-button[data-tab="earthquake"]');
+    const earthquakeLongPressHint = setupEarthquakeLongPressHint(earthquakeTabButton);
+    setupLongPressButton(earthquakeTabButton, {
+      onLongPress: () => {
+        earthquakeLongPressHint.dismiss();
+        toggleEarthquakeContentMode();
+      }
+    });
     setupAmedasSubTabs({ onChange: selectAmedasMetric });
     setupAmedasDailyChartToggle({ onChange: selectAmedasDailyChartDay });
     setupMobileDockSegmentedControls();
@@ -1609,11 +1710,40 @@ if (layerId === "river") {
       const stationId = event.detail?.stationId;
       if (stationId) selectAmedasStation(stationId);
     });
+    window.addEventListener("volcano-select", (event) => {
+      const volcanoCode = String(event.detail?.volcanoCode ?? "").trim();
+      if (!volcanoCode || earthquakeContentMode !== "volcano") return;
+      const reports = volcanoData?.reports ?? [];
+      if (!reports.some((report) => String(report.volcanoCode ?? report.code ?? "") === volcanoCode)) return;
+      selectedVolcanoCode = volcanoCode;
+      selectedVolcanoBulletinId = "";
+      selectedVolcanoAshForecastIndex = 0;
+      refreshVolcanoView({ scrollToTop: true });
+    });
     setupKikikuruLayerToggles({ onChange: selectKikikuruLayer });
     setupWarningAreaSelection({ onDetailRequest: () => refreshWarningDetails() });
     setupTyphoonSelector({ onChange: selectTyphoon });
     setupEarthquakeSelector({
       onChange: selectEarthquake,
+      onVolcanoClear: () => {
+        selectedVolcanoCode = "";
+        selectedVolcanoBulletinId = "";
+        selectedVolcanoAshForecastIndex = 0;
+        refreshVolcanoView({ scrollToTop: true });
+      },
+      onVolcanoBulletinSelect: (bulletinId) => {
+        selectedVolcanoBulletinId = String(bulletinId ?? "").trim();
+        refreshVolcanoView({ scrollToTop: true });
+      },
+      onVolcanoBulletinBack: () => {
+        selectedVolcanoBulletinId = "";
+        refreshVolcanoView({ scrollToTop: true });
+      },
+      onVolcanoAshForecastChange: (index) => {
+        if (!Number.isInteger(index) || index < 0) return;
+        selectedVolcanoAshForecastIndex = index;
+        refreshVolcanoView();
+      },
       onViewChange: selectEarthquakeView,
       onDistributionPresentationChange: selectEarthquakeDistributionPresentation,
       onDistributionFilterChange: updateEarthquakeDistributionFilters,
@@ -1647,6 +1777,7 @@ if (layerId === "river") {
       void selectTab(activeTab);
       void refreshEarlyAccess();
       onboarding.showFirstRun();
+      earthquakeLongPressHint.showFirstRun();
     };
     const legalConsent = setupLegalConsentModal({ onAccepted: startUserServices });
     setupSettingsModal({

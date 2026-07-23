@@ -19,6 +19,11 @@ import { createHypocenter3DLayer } from "./hypocenter3DLayer.js";
 import { createPlateDepth3DLayer } from "./plateDepth3DLayer.js";
 import { createPlateDepthSurface3DLayer } from "./plateDepthSurface3DLayer.js";
 import { getHypocenterDepthColor } from "./hypocenterDepthStyle.js";
+import { getVolcanoLevelColor } from "../volcanoLevels.js";
+import {
+  getAvailableVolcanoAshForecasts,
+  getHighestPriorityVolcanoReport
+} from "../jma/volcanoXml.js";
 
 const MODE_CLASS = {
   radar: "mode-radar",
@@ -29,7 +34,7 @@ const MODE_CLASS = {
 };
 
 const SAMPLE_SOURCE_ID = "weather-samples";
-const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-wind-arrow", "sample-cross", "sample-label"];
+const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
 const SAMPLE_CIRCLE_BASE_RADIUS = ["coalesce", ["get", "radius"], 8];
 const SAMPLE_CIRCLE_RADIUS_EXPRESSION = buildCircleZoomExpression({
@@ -77,6 +82,7 @@ const TYPHOON_FORECAST_INFO_LAYERS = [
   "typhoon-forecast-label"
 ];
 const WIND_ARROW_IMAGE_ID = "amedas-wind-arrow";
+const VOLCANO_MARKER_IMAGE_ID = "volcano-filled-triangle";
 const RADAR_SOURCE_PREFIX = "jma-nowcast-radar-z";
 const RADAR_LAYER_PREFIX = "jma-nowcast-radar-z";
 const WEATHER_CHART_LINE_SOURCE_ID = "jma-weather-chart-lines";
@@ -709,6 +715,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "text-halo-width": 2
       }
     });    setupWindArrowImage(map);
+    setupVolcanoMarkerImage(map);
     setupWarningHatchImage(map);
     setupWeatherFrontImages(map);
 
@@ -779,7 +786,8 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       filter: ["all",
         ["==", ["geometry-type"], "Point"],
         ["!=", ["get", "markerType"], "wind"],
-        ["!=", ["get", "markerType"], "cross"]
+        ["!=", ["get", "markerType"], "cross"],
+        ["!=", ["get", "markerType"], "volcano"]
       ],
       layout: {
         "circle-sort-key": ["coalesce", ["get", "sortKey"], 0]
@@ -853,6 +861,27 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "text-halo-color": "rgba(5, 9, 20, 0.82)",
         "text-halo-width": 2.4,
         "text-halo-blur": 0.4
+      }
+    });
+
+    map.addLayer({
+      id: "sample-volcano",
+      type: "symbol",
+      source: SAMPLE_SOURCE_ID,
+      filter: ["all", ["==", ["geometry-type"], "Point"], ["==", ["get", "markerType"], "volcano"]],
+      layout: {
+        "icon-image": VOLCANO_MARKER_IMAGE_ID,
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 4, 0.34, 8, 0.46, 11, 0.56],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-padding": 0,
+        "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
+      },
+      paint: {
+        "icon-color": ["coalesce", ["get", "color"], "#6f879b"],
+        "icon-opacity": 0.96,
+        "icon-halo-color": "rgba(5, 9, 20, 0.42)",
+        "icon-halo-width": 0.65
       }
     });
 
@@ -1309,23 +1338,39 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   }
 
   function setupEarthquakeDistributionInfo() {
-    map.on("click", "sample-circle", (event) => {
-      if (activeMode !== "earthquake") return;
-      const feature = event.features?.[0];
-      const popup = feature?.properties?.popup;
-      if (!popup) {
-        hideMapInfo("earthquake-distribution");
-        return;
-      }
-      showMapInfo("earthquake-distribution", event.lngLat, popup);
-    });
-    map.on("mouseenter", "sample-circle", (event) => {
-      if (activeMode === "earthquake" && event.features?.some((feature) => feature?.properties?.popup)) {
-        map.getCanvas().style.cursor = "pointer";
-      }
-    });
-    map.on("mouseleave", "sample-circle", () => {
-      if (activeMode === "earthquake") map.getCanvas().style.cursor = "";
+    ["sample-circle", "sample-volcano", "sample-fill"].forEach((layerID) => {
+      map.on("click", layerID, (event) => {
+        if (activeMode !== "earthquake") return;
+        const feature = event.features?.[0];
+        if (layerID === "sample-fill" && feature?.properties?.markerType !== "ashfall") return;
+        const volcanoCode = String(feature?.properties?.volcanoCode ?? "").trim();
+        if (layerID === "sample-volcano" && volcanoCode) {
+          window.dispatchEvent(new CustomEvent("volcano-select", {
+            detail: { volcanoCode }
+          }));
+        }
+        const popup = feature?.properties?.popup;
+        if (!popup) {
+          hideMapInfo("earthquake-distribution");
+          return;
+        }
+        showMapInfo(
+          "earthquake-distribution",
+          event.lngLat,
+          popup,
+          (layerID === "sample-volcano" || feature?.properties?.markerType === "ashfall") ? "volcano" : ""
+        );
+      });
+      map.on("mouseenter", layerID, (event) => {
+        if (activeMode === "earthquake" && event.features?.some((feature) =>
+          feature?.properties?.popup && (layerID !== "sample-fill" || feature?.properties?.markerType === "ashfall")
+        )) {
+          map.getCanvas().style.cursor = "pointer";
+        }
+      });
+      map.on("mouseleave", layerID, () => {
+        if (activeMode === "earthquake") map.getCanvas().style.cursor = "";
+      });
     });
     map.on("click", (event) => {
       if (activeMode !== "earthquake") {
@@ -1341,7 +1386,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         }
         return;
       }
-      const features = map.queryRenderedFeatures(event.point, { layers: ["sample-circle"] });
+      const features = map.queryRenderedFeatures(event.point, { layers: ["sample-circle", "sample-volcano", "sample-fill"] });
       if (!features.some((feature) => feature?.properties?.popup)) {
         hideMapInfo("earthquake-distribution");
       }
@@ -1411,10 +1456,11 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     map.on("zoomend", () => hideMapInfo("active-fault"));
   }
 
-  function showMapInfo(owner, lngLat, html) {
+  function showMapInfo(owner, lngLat, html, variant = "") {
     if (!mapInfoElement) return;
     mapInfoOwner = owner;
     mapInfoLngLat = lngLat;
+    mapInfoElement.dataset.variant = variant;
     mapInfoElement.innerHTML = html;
     mapInfoElement.hidden = false;
     positionMapInfo();
@@ -1426,6 +1472,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     mapInfoLngLat = null;
     if (mapInfoElement) {
       mapInfoElement.hidden = true;
+      delete mapInfoElement.dataset.variant;
       mapInfoElement.innerHTML = "";
     }
   }
@@ -1972,6 +2019,28 @@ function setupWindArrowImage(map) {
   context.fill();
 
   map.addImage(WIND_ARROW_IMAGE_ID, context.getImageData(0, 0, size, size), { sdf: true });
+}
+
+function setupVolcanoMarkerImage(map) {
+  if (map.hasImage(VOLCANO_MARKER_IMAGE_ID)) return;
+
+  const size = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+
+  context.clearRect(0, 0, size, size);
+  context.fillStyle = "#ffffff";
+  context.beginPath();
+  context.moveTo(32, 4);
+  context.lineTo(60, 57);
+  context.lineTo(4, 57);
+  context.closePath();
+  context.fill();
+
+  map.addImage(VOLCANO_MARKER_IMAGE_ID, context.getImageData(0, 0, size, size), { sdf: true });
 }
 
 function setupWarningHatchImage(map) {
@@ -2937,6 +3006,59 @@ function createWarningFeatures(data) {
 }
 
 function createEarthquakeFeatures(data) {
+  if (data?.earthquakeContentMode === "volcano") {
+    const reports = [...(data?.mapVolcanoes ?? data?.reports ?? [])];
+    const selectedVolcanoCode = String(data?.selectedVolcanoCode ?? "");
+    const selectedVolcano = reports.find((report) =>
+      String(report?.volcanoCode ?? report?.code ?? "") === selectedVolcanoCode
+    ) ?? getHighestPriorityVolcanoReport(reports);
+    const activeVolcanoCode = String(selectedVolcano?.volcanoCode ?? selectedVolcano?.code ?? "");
+    const ashForecasts = getAvailableVolcanoAshForecasts(selectedVolcano);
+    const ashForecastIndex = Math.max(0, Math.min(
+      ashForecasts.length - 1,
+      Number(data?.selectedVolcanoAshForecastIndex) || 0
+    ));
+    const ashForecast = ashForecasts[ashForecastIndex];
+    const ashFeatures = ashForecast?.areas.map((area) => ({
+      type: "Feature",
+      geometry: {
+        type: "Polygon",
+        coordinates: [area.polygon, ...(Array.isArray(area.holes) ? area.holes : [])]
+      },
+      properties: {
+        color: ashfallColor(area),
+        fillOpacity: area.category === "small-cinders" ? 0.3 : ashfallOpacity(area.amount),
+        lineWidth: area.category === "small-cinders" ? 2 : 1.4,
+        markerType: "ashfall",
+        volcanoCode: activeVolcanoCode,
+        popup: buildAshfallPopup(selectedVolcano, ashForecast, area)
+      }
+    })) ?? [];
+    const volcanoFeatures = reports
+      .sort((left, right) => (Number(left.alertPriority || left.level) || 0) - (Number(right.alertPriority || right.level) || 0))
+      .flatMap((report) => {
+      if (!Array.isArray(report?.coordinates)) return [];
+      const level = Math.max(0, Math.min(5, Number(report.level) || 0));
+      const priority = Math.max(0, Math.min(5, Number(report.alertPriority || level) || 0));
+      return [{
+        type: "Feature",
+        geometry: { type: "Point", coordinates: report.coordinates },
+        properties: {
+          color: getVolcanoMarkerColor(priority),
+          opacity: 0.9,
+          strokeWidth: 1.5,
+          markerType: "volcano",
+          volcanoCode: String(report.volcanoCode ?? report.code ?? ""),
+          markerScaleMode: "fixed",
+          radius: 7 + Math.max(0, level - 1),
+          sortKey: 100 + priority,
+          label: "",
+          popup: buildVolcanoPopup(report)
+        }
+      }];
+    });
+    return [...ashFeatures, ...volcanoFeatures];
+  }
   if (data?.earthquakeView === "distribution") {
     const is3D = data?.distribution3DEnabled === true;
     return (data?.distributionItems ?? []).flatMap((item) => {
@@ -3021,6 +3143,43 @@ function createEarthquakeFeatures(data) {
     : [];
 
   return [...tsunamiFeatures, ...areaFeatures, ...stationFeatures, ...epicenterFeature];
+}
+
+function ashfallColor(area) {
+  if (area?.category === "small-cinders") return "#65329a";
+  return ({ heavy: "#747b84", moderate: "#969da6", light: "#b8bec5" })[area?.amount] ?? "#a7adb5";
+}
+
+function ashfallOpacity(amount) {
+  return ({ heavy: 0.4, moderate: 0.3, light: 0.2 })[amount] ?? 0.24;
+}
+
+function buildAshfallPopup(report, forecast, area) {
+  const time = [forecast?.startTime, forecast?.endTime].filter(Boolean).join(" ～ ");
+  const municipalities = (area?.municipalities ?? []).map((item) => item.name).filter(Boolean).slice(0, 4);
+  const remaining = Math.max(0, (area?.municipalities?.length ?? 0) - municipalities.length);
+  const place = municipalities.length ? `${municipalities.join("・")}${remaining ? `ほか${remaining}市町村` : ""}` : "予測範囲";
+  return `
+    <strong>${escapePopup(report?.volcanoName ?? "火山名不明")}・${escapePopup(area?.kindName ?? "降灰予報")}</strong><br>
+    <span>${escapePopup(place)}</span>
+    ${time ? `<br><small>${escapePopup(time)}</small>` : ""}<br>
+    <small>出典：気象庁 降灰予報</small>
+  `;
+}
+
+function getVolcanoMarkerColor(level) {
+  return getVolcanoLevelColor(level);
+}
+
+function buildVolcanoPopup(report) {
+  const level = Number(report.level) > 0 ? `噴火警戒レベル${Number(report.level)}` : "火山情報";
+  const facts = [report.craterName, report.plumeHeight, report.plumeDirection].filter(Boolean).join("・");
+  return `
+    <strong>${escapePopup(report.volcanoName ?? "火山名不明")}</strong><br>
+    <span>${escapePopup(level)}・${escapePopup(report.currentStatus ?? report.kindName ?? report.infoKind ?? "警戒状況未確認")}</span><br>
+    <span>気象庁発表 ${escapePopup(report.reportTime ?? "時刻不明")}</span>
+    ${facts ? `<br><small>${escapePopup(facts)}</small>` : ""}
+  `;
 }
 
 function buildHypocenterDistributionPopup(item) {

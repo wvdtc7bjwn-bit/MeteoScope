@@ -14,9 +14,14 @@ struct WeatherMapView: UIViewRepresentable {
     let showsHypocenterDepth3D: Bool
     @Binding var isMapReady: Bool
     @Binding var selectedActiveFault: ActiveFaultInfo?
+    @Binding var selectedVolcanoCode: String?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(isMapReady: $isMapReady, selectedActiveFault: $selectedActiveFault)
+        Coordinator(
+            isMapReady: $isMapReady,
+            selectedActiveFault: $selectedActiveFault,
+            selectedVolcanoCode: $selectedVolcanoCode
+        )
     }
 
     func makeUIView(context: Context) -> MLNMapView {
@@ -123,10 +128,16 @@ struct WeatherMapView: UIViewRepresentable {
         private var didReportInitialMapReady = false
         private let isMapReady: Binding<Bool>
         private let selectedActiveFault: Binding<ActiveFaultInfo?>
+        private let selectedVolcanoCode: Binding<String?>
 
-        init(isMapReady: Binding<Bool>, selectedActiveFault: Binding<ActiveFaultInfo?>) {
+        init(
+            isMapReady: Binding<Bool>,
+            selectedActiveFault: Binding<ActiveFaultInfo?>,
+            selectedVolcanoCode: Binding<String?>
+        ) {
             self.isMapReady = isMapReady
             self.selectedActiveFault = selectedActiveFault
+            self.selectedVolcanoCode = selectedVolcanoCode
         }
 
         func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
@@ -546,9 +557,21 @@ struct WeatherMapView: UIViewRepresentable {
             let polygonAnnotations: [MLNPolygon] = overlay.polygons.compactMap { polygon in
                 let coordinates = polygon.coordinates.map(\.clLocationCoordinate)
                 guard coordinates.count >= 4 else { return nil }
+                let interiorPolygons = polygon.interiorCoordinates.compactMap { interiorCoordinates -> MLNPolygon? in
+                    let coordinates = interiorCoordinates.map(\.clLocationCoordinate)
+                    guard coordinates.count >= 4 else { return nil }
+                    return coordinates.withUnsafeBufferPointer { buffer in
+                        guard let baseAddress = buffer.baseAddress else { return nil }
+                        return MLNPolygon(coordinates: baseAddress, count: UInt(coordinates.count))
+                    }
+                }
                 let annotation = coordinates.withUnsafeBufferPointer { buffer -> MLNPolygon? in
                     guard let baseAddress = buffer.baseAddress else { return nil }
-                    return MLNPolygon(coordinates: baseAddress, count: UInt(coordinates.count))
+                    return MLNPolygon(
+                        coordinates: baseAddress,
+                        count: UInt(coordinates.count),
+                        interiorPolygons: interiorPolygons
+                    )
                 }
                 if let annotation {
                     polygonKinds[ObjectIdentifier(annotation)] = polygon.kind
@@ -561,6 +584,7 @@ struct WeatherMapView: UIViewRepresentable {
                 annotation.title = point.title
                 annotation.subtitle = point.subtitle
                 annotation.kind = point.kind
+                annotation.selectionID = point.selectionID
                 return annotation
             }
             let annotations = polygonAnnotations.map { $0 as MLNAnnotation }
@@ -649,6 +673,14 @@ struct WeatherMapView: UIViewRepresentable {
                 )
                 return view
             }
+            if case .volcano(let level, let priority) = point.kind {
+                let reuseIdentifier = "meteoscope-volcano"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: reuseIdentifier)
+                    as? VolcanoAnnotationView
+                    ?? VolcanoAnnotationView(reuseIdentifier: reuseIdentifier)
+                view.configure(color: volcanoColor(level: level, priority: priority))
+                return view
+            }
             let reuseIdentifier = "meteoscope-weather-point"
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: reuseIdentifier)
                 ?? MLNAnnotationView(reuseIdentifier: reuseIdentifier)
@@ -666,6 +698,16 @@ struct WeatherMapView: UIViewRepresentable {
 
         func mapView(_ mapView: MLNMapView, annotationCanShowCallout annotation: MLNAnnotation) -> Bool {
             annotation is WeatherPointAnnotation
+        }
+
+        func mapView(_ mapView: MLNMapView, didSelect annotation: MLNAnnotation) {
+            guard let point = annotation as? WeatherPointAnnotation,
+                  case .volcano = point.kind,
+                  let volcanoCode = point.selectionID
+            else { return }
+            DispatchQueue.main.async { [selectedVolcanoCode] in
+                selectedVolcanoCode.wrappedValue = volcanoCode
+            }
         }
 
         func mapView(_ mapView: MLNMapView, strokeColorForShapeAnnotation annotation: MLNShape) -> UIColor {
@@ -700,11 +742,27 @@ struct WeatherMapView: UIViewRepresentable {
         ) -> (fill: UIColor, stroke: UIColor, lineWidth: CGFloat) {
             switch kind {
             case .typhoonProbability:
-                (UIColor.systemOrange.withAlphaComponent(0.16), UIColor.systemOrange, 2)
+                return (UIColor.systemOrange.withAlphaComponent(0.16), UIColor.systemOrange, 2)
             case .typhoonStrongWind:
-                (UIColor.systemYellow.withAlphaComponent(0.14), UIColor.systemYellow, 2)
+                return (UIColor.systemYellow.withAlphaComponent(0.14), UIColor.systemYellow, 2)
             case .typhoonStorm:
-                (UIColor.systemRed.withAlphaComponent(0.18), UIColor.systemRed, 2.5)
+                return (UIColor.systemRed.withAlphaComponent(0.18), UIColor.systemRed, 2.5)
+            case .ashfall(let amount):
+                let color: UIColor
+                switch amount {
+                case .heavy:
+                    color = UIColor(red: 0.45, green: 0.48, blue: 0.52, alpha: 1)
+                case .moderate:
+                    color = UIColor(red: 0.59, green: 0.62, blue: 0.65, alpha: 1)
+                case .light:
+                    color = UIColor(red: 0.72, green: 0.75, blue: 0.78, alpha: 1)
+                case .unknown:
+                    color = UIColor(red: 0.65, green: 0.68, blue: 0.71, alpha: 1)
+                }
+                return (color.withAlphaComponent(0.28), color, 1.5)
+            case .smallVolcanicFragments:
+                let color = UIColor(red: 0.40, green: 0.20, blue: 0.61, alpha: 1)
+                return (color.withAlphaComponent(0.30), color, 2)
             }
         }
 
@@ -765,6 +823,8 @@ struct WeatherMapView: UIViewRepresentable {
                 (UIColor.systemOrange, CGSize(width: 14, height: 14), 2)
             case .earthquakeHypocenter:
                 (UIColor.black, CGSize(width: 22, height: 22), 3)
+            case .volcano(let level, let priority):
+                (volcanoColor(level: level, priority: priority), CGSize(width: 22, height: 22), 0)
             case .hypocenterDistribution(let depthKm):
                 (hypocenterDepthColor(depthKm).withAlphaComponent(0.68), CGSize(width: 9, height: 9), 0)
             case .seismicIntensity(let label):
@@ -772,6 +832,16 @@ struct WeatherMapView: UIViewRepresentable {
             case .communityReport(let weather, let hasHazard):
                 (hasHazard ? UIColor.systemOrange : communityReportColor(weather), CGSize(width: 14, height: 14), 2)
             }
+        }
+
+        private func volcanoColor(level: Int, priority: Int) -> UIColor {
+            let tone = VolcanoLevelPalette.tone(for: max(level, priority))
+            return UIColor(
+                red: CGFloat(tone.redUnit),
+                green: CGFloat(tone.greenUnit),
+                blue: CGFloat(tone.blueUnit),
+                alpha: 1
+            )
         }
 
         private func hypocenterDepthColor(_ depthKm: Int?) -> UIColor {
@@ -841,6 +911,32 @@ struct WeatherMapView: UIViewRepresentable {
 
 private final class WeatherPointAnnotation: MLNPointAnnotation {
     var kind: WeatherMapPoint.Kind = .typhoonForecast
+    var selectionID: String?
+}
+
+private final class VolcanoAnnotationView: MLNAnnotationView {
+    private let symbolLabel = UILabel()
+
+    override init(reuseIdentifier: String?) {
+        super.init(reuseIdentifier: reuseIdentifier)
+        frame = CGRect(x: 0, y: 0, width: 24, height: 24)
+        backgroundColor = .clear
+        symbolLabel.frame = bounds
+        symbolLabel.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        symbolLabel.text = "▲"
+        symbolLabel.textAlignment = .center
+        symbolLabel.font = .systemFont(ofSize: 22, weight: .bold)
+        symbolLabel.layer.shadowColor = UIColor.black.cgColor
+        symbolLabel.layer.shadowOpacity = 0.18
+        symbolLabel.layer.shadowRadius = 1
+        addSubview(symbolLabel)
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    func configure(color: UIColor) {
+        symbolLabel.textColor = color
+    }
 }
 
 private final class HypocenterDepthAnnotationView: MLNAnnotationView {

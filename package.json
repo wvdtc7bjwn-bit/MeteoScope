@@ -12,6 +12,7 @@
     "data:build:usgs-surface": "node scripts/build-usgs-slab2-surface.mjs",
     "test:safety": "node Tests/PushSafetyTests.mjs",
     "test:earthquake": "node Tests/JmaEarthquakeSourceTests.mjs && node Tests/EarthquakeStationLookupTests.mjs && node Tests/EarthquakeStationCodeTests.mjs && node Tests/PlateBoundaryTests.mjs && node Tests/HypocenterDateWheelTests.mjs && node Tests/Hypocenter3DTests.mjs && node Tests/PlateDepth3DTests.mjs && node Tests/PlateDepthSurfaceTests.mjs",
+    "test:volcano": "node Tests/VolcanoTests.mjs",
     "test:earthquake-worker": "node Tests/EarthquakeWorkerRouteTests.mjs",
     "test:quiz": "node Tests/DisasterQuizTests.mjs && node Tests/QuizAccountTests.mjs && node Tests/QuizStorageTests.mjs",
     "test:community": "node Tests/CommunityReportTests.mjs",

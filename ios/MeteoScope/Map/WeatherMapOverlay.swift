@@ -27,6 +27,7 @@ struct WeatherMapPoint: Identifiable, Hashable, Sendable {
         case typhoonCenter
         case typhoonForecast
         case earthquakeHypocenter
+        case volcano(level: Int, priority: Int)
         case hypocenterDistribution(depthKm: Int?)
         case seismicIntensity(String)
         case communityReport(weather: String, hasHazard: Bool)
@@ -37,6 +38,23 @@ struct WeatherMapPoint: Identifiable, Hashable, Sendable {
     let title: String
     let subtitle: String
     let kind: Kind
+    let selectionID: String?
+
+    init(
+        id: String,
+        coordinate: GeoCoordinate,
+        title: String,
+        subtitle: String,
+        kind: Kind,
+        selectionID: String? = nil
+    ) {
+        self.id = id
+        self.coordinate = coordinate
+        self.title = title
+        self.subtitle = subtitle
+        self.kind = kind
+        self.selectionID = selectionID
+    }
 }
 
 struct WeatherMapPolyline: Identifiable, Hashable, Sendable {
@@ -54,11 +72,26 @@ struct WeatherMapPolygon: Identifiable, Hashable, Sendable {
         case typhoonProbability
         case typhoonStrongWind
         case typhoonStorm
+        case ashfall(VolcanoAshfallAmount)
+        case smallVolcanicFragments
     }
 
     let id: String
     let coordinates: [GeoCoordinate]
+    let interiorCoordinates: [[GeoCoordinate]]
     let kind: Kind
+
+    init(
+        id: String,
+        coordinates: [GeoCoordinate],
+        interiorCoordinates: [[GeoCoordinate]] = [],
+        kind: Kind
+    ) {
+        self.id = id
+        self.coordinates = coordinates
+        self.interiorCoordinates = interiorCoordinates
+        self.kind = kind
+    }
 }
 
 struct WeatherMapGeoJSONSource: Identifiable, Hashable, Sendable {
@@ -89,6 +122,41 @@ struct WeatherMapGeoJSONLayer: Identifiable, Hashable, Sendable {
 }
 
 enum WeatherMapOverlayBuilder {
+    static func volcano(
+        _ snapshot: VolcanoSnapshot,
+        selectedVolcanoCode: String?,
+        selectedAshForecastIndex: Int
+    ) -> WeatherMapOverlay {
+        let points = snapshot.volcanoes.compactMap { volcano -> WeatherMapPoint? in
+            guard let coordinate = volcano.coordinate else { return nil }
+            return WeatherMapPoint(
+                id: "volcano-\(volcano.code)",
+                coordinate: coordinate,
+                title: volcano.name,
+                subtitle: volcano.kindName,
+                kind: .volcano(level: volcano.level, priority: volcano.alertPriority),
+                selectionID: volcano.code
+            )
+        }
+        let selectedVolcano = snapshot.preferredVolcano(selectedCode: selectedVolcanoCode)
+        let forecasts = selectedVolcano?.availableAshForecasts() ?? []
+        let forecastIndex = forecasts.isEmpty ? 0 : min(max(0, selectedAshForecastIndex), forecasts.count - 1)
+        let forecast = forecasts.isEmpty ? nil : forecasts[forecastIndex]
+        let polygons = forecast?.areas.map { area in
+            WeatherMapPolygon(
+                id: "ashfall-\(selectedVolcano?.code ?? "unknown")-\(forecast?.id ?? "unknown")-\(area.id)",
+                coordinates: area.polygon,
+                interiorCoordinates: area.holes,
+                kind: area.category == .smallCinders ? .smallVolcanicFragments : .ashfall(area.amount)
+            )
+        } ?? []
+        return WeatherMapOverlay(
+            id: "volcano-\(snapshot.updatedAt)-\(selectedVolcano?.code ?? "none")-\(forecast?.id ?? "none")-\(points.count)",
+            points: points,
+            polygons: polygons
+        )
+    }
+
     static func communityReports(_ reports: [CommunityReport]) -> WeatherMapOverlay {
         let now = Date()
         let formatter = ISO8601DateFormatter()
