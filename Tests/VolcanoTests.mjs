@@ -15,6 +15,11 @@ import {
   volcanoAlertLevel
 } from "../src/jma/volcanoXml.js";
 import { getVolcanoLevelColor, getVolcanoLevelTextColor } from "../src/volcanoLevels.js";
+import {
+  getVolcanoAshfallLegendItems,
+  getVolcanoAshfallLevel,
+  VOLCANO_SMALL_CINDERS_STYLE
+} from "../src/volcanoAshfall.js";
 
 assert.deepEqual(
   [1, 2, 3, 4, 5].map(getVolcanoLevelColor),
@@ -22,6 +27,31 @@ assert.deepEqual(
 );
 assert.equal(getVolcanoLevelTextColor(3), "#13233a");
 assert.equal(getVolcanoLevelTextColor(4), "#ffffff");
+const ashfallArea = { category: "ashfall", amount: "heavy" };
+assert.deepEqual(
+  getVolcanoAshfallLegendItems({ bulletinCode: "VFVO53", areas: [ashfallArea] }),
+  [["降灰予報範囲", "", "#969da6"]],
+  "降灰予報（定時）は従来の簡潔な凡例を維持する"
+);
+for (const bulletinCode of ["VFVO54", "VFVO55"]) {
+  assert.deepEqual(
+    getVolcanoAshfallLegendItems({ bulletinCode, areas: [ashfallArea] }).map(([label]) => label),
+    ["降灰 多量", "降灰 やや多量", "降灰 少量"],
+    `${bulletinCode} は降灰量3階級の専用凡例を表示する`
+  );
+}
+assert.deepEqual(
+  getVolcanoAshfallLegendItems({
+    bulletinCode: "VFVO54",
+    areas: [{ category: "small-cinders" }]
+  }),
+  [],
+  "降灰域がない場合は降灰量凡例を表示しない"
+);
+assert.equal(getVolcanoAshfallLevel("heavy").color, "#747b84");
+assert.equal(getVolcanoAshfallLevel("moderate").opacity, 0.3);
+assert.equal(getVolcanoAshfallLevel("light").color, "#b8bec5");
+assert.equal(VOLCANO_SMALL_CINDERS_STYLE.color, "#65329a");
 
 const feedSelection = selectVolcanoFeedEntries([
   ...Array.from({ length: 40 }, (_, index) => ({
@@ -170,8 +200,28 @@ assert.doesNotMatch(panel, /<a class="volcano-history-item"/);
 assert.match(panel, /function buildVolcanoBulletinDetail/);
 assert.match(panel, /data-volcano-ash-forecast-index/);
 assert.match(panel, /data-mobile-dock-control data-volcano-ash-forecast-index/);
+assert.match(panel, /class="volcano-ash-timeline"/);
+assert.match(panel, /class="volcano-ash-timeline-rail"/);
+assert.match(panel, /forecasts\.map\(\(\) => "<i><\/i>"\)/);
+assert.match(panel, /data-volcano-ash-forecast-times="\$\{escapeHtml\(JSON\.stringify\(forecastTimes\)\)\}"/);
+assert.match(panel, /aria-valuetext="\$\{escapeHtml\(forecastTime\)\}"/);
 assert.doesNotMatch(panel, /mobileDock\?\.addEventListener\("input", handleFilterChange\)/, "ドラッグ中にモバイル降灰予報スライダーを再描画しない");
-assert.match(style, /\.volcano-ash-slider::\-webkit-slider-runnable-track[\s\S]*linear-gradient/);
+assert.match(panel, /function previewVolcanoAshForecast|const previewVolcanoAshForecast/);
+assert.match(panel, /mobileDock\?\.addEventListener\("input", \(event\) => \{[\s\S]*?previewVolcanoAshForecast\(target\)/);
+assert.match(panel, /mobileVolcanoAshSliderDragging[\s\S]*?state\.earthquakeContentMode === "volcano"/);
+assert.match(panel, /const updateVolcanoAshSliderFromPointer = \(slider, clientX\) =>/);
+assert.match(panel, /slider\.value = String\(nextValue\);[\s\S]*?previewVolcanoAshForecast\(slider\)/);
+assert.match(panel, /mobileDock\?\.addEventListener\("pointermove", \(event\) => \{[\s\S]*?updateVolcanoAshSliderFromPointer/);
+assert.match(
+  app,
+  /onVolcanoAshForecastChange: \(index\) => \{[\s\S]*?selectedVolcanoAshForecastIndex = index;[\s\S]*?refreshVolcanoView\(\)/
+);
+assert.match(app, /function refreshVolcanoView[\s\S]*?updateCurrentView/);
+assert.match(app, /function updateCurrentView[\s\S]*?scheduleMapRender\(tab\.id, displayData\)/);
+assert.match(style, /\.volcano-ash-timeline\s*\{[\s\S]*?height:\s*28px;/);
+assert.match(style, /\.volcano-ash-timeline-rail\s*\{[\s\S]*?justify-content:\s*space-between;/);
+assert.match(style, /\.volcano-ash-slider::\-webkit-slider-thumb[\s\S]*?width:\s*44px;[\s\S]*?border-radius:\s*999px;/);
+assert.doesNotMatch(style, /\.volcano-ash-timeline-rail i\.active/);
 assert.match(panel, /function formatVolcanoBulletinTitle/);
 assert.match(panel, /replace\(\/\^火山名\[\\s\\u3000\]\*\/u/);
 assert.match(panel, /volcano-bulletin-detail-nav volcano-selection-nav/);

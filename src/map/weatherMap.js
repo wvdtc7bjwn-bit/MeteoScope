@@ -24,6 +24,10 @@ import {
   getAvailableVolcanoAshForecasts,
   getHighestPriorityVolcanoReport
 } from "../jma/volcanoXml.js";
+import {
+  getVolcanoAshfallLevel,
+  VOLCANO_SMALL_CINDERS_STYLE
+} from "../volcanoAshfall.js";
 
 const MODE_CLASS = {
   radar: "mode-radar",
@@ -3032,8 +3036,10 @@ function createEarthquakeFeatures(data) {
       },
       properties: {
         color: ashfallColor(area),
-        fillOpacity: area.category === "small-cinders" ? 0.3 : ashfallOpacity(area.amount),
-        lineWidth: area.category === "small-cinders" ? 2 : 1.4,
+        fillOpacity: area.category === "small-cinders"
+          ? VOLCANO_SMALL_CINDERS_STYLE.opacity
+          : getVolcanoAshfallLevel(area.amount).opacity,
+        lineWidth: area.category === "small-cinders" ? VOLCANO_SMALL_CINDERS_STYLE.lineWidth : 1.4,
         markerType: "ashfall",
         volcanoCode: activeVolcanoCode
       }
@@ -3149,12 +3155,8 @@ function createEarthquakeFeatures(data) {
 }
 
 function ashfallColor(area) {
-  if (area?.category === "small-cinders") return "#65329a";
-  return ({ heavy: "#747b84", moderate: "#969da6", light: "#b8bec5" })[area?.amount] ?? "#a7adb5";
-}
-
-function ashfallOpacity(amount) {
-  return ({ heavy: 0.4, moderate: 0.3, light: 0.2 })[amount] ?? 0.24;
+  if (area?.category === "small-cinders") return VOLCANO_SMALL_CINDERS_STYLE.color;
+  return getVolcanoAshfallLevel(area?.amount).color;
 }
 
 function getVolcanoMarkerColor(level) {

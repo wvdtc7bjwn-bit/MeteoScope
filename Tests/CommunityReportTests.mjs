@@ -183,9 +183,9 @@ assert.doesNotMatch(webMap, /community-report-label/u);
 assert.doesNotMatch(webMap, /shortLabel: meta\.short/u);
 assert.match(webMap, /4, 5, 8, 7\.5, 12, 9\.5/u);
 assert.match(webMap, /if \(!hitReport\) hideMapInfo\("community-report"\)/u);
-assert.match(webSummary, /mobile-dock-community-report-open/u);
-assert.match(webSummary, /data-community-report-open/u);
+assert.doesNotMatch(webSummary, /mobile-dock-community-report-open/u);
 assert.match(webIndex, /data-community-report-open/u);
+assert.match(webIndex, /map-community-report-button/u);
 assert.match(privacyPage, /5時間/u);
 assert.match(privacyPage, /約2km/u);
 

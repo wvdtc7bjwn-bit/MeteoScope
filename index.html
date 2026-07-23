@@ -121,7 +121,7 @@
               <strong id="radar-time-label">--:--</strong>
               <span id="radar-time-kind">観測</span>
             </div>
-            <button id="community-report-open" class="community-report-open" type="button" data-community-report-open aria-haspopup="dialog" aria-controls="community-report-modal">投稿</button>
+            <button id="community-report-open" class="community-report-open" type="button" data-community-report-open aria-label="投稿" title="投稿" aria-haspopup="dialog" aria-controls="community-report-modal"></button>
           </div>
           <div id="radar-location-insight-panel" class="location-insight-panel" hidden></div>
           <div id="radar-time-timeline" class="weather-time-timeline">
@@ -131,10 +131,10 @@
             <input id="radar-time-slider" class="weather-time-range" type="range" min="0" max="0" value="0" aria-label="雨雲レーダーの時刻を選択" />
           </div>
           <div class="radar-time-actions">
-            <button id="radar-prev" class="radar-action-button" type="button">5分前</button>
-            <button id="radar-play" class="radar-action-button radar-play-button" type="button">再生</button>
-            <button id="radar-now" class="radar-action-button" type="button">現在</button>
-            <button id="radar-next" class="radar-action-button" type="button">5分後</button>
+            <button id="radar-prev" class="radar-action-button" type="button" aria-label="5分前" title="5分前"></button>
+            <button id="radar-play" class="radar-action-button radar-play-button" type="button" aria-label="再生" title="再生" aria-pressed="false"></button>
+            <button id="radar-now" class="radar-action-button" type="button" aria-label="現在" title="現在"></button>
+            <button id="radar-next" class="radar-action-button" type="button" aria-label="5分後" title="5分後"></button>
           </div>
           <div id="weather-chart-controls" class="weather-chart-controls" hidden></div>
         </div>
@@ -156,6 +156,7 @@
       <button id="disaster-quiz-button" class="disaster-map-open-button disaster-quiz-open-button" type="button" aria-label="防災クイズを開く" title="防災クイズ"></button>
       <button id="disaster-map-button" class="disaster-map-open-button" type="button" aria-label="防災マップを開く" title="防災マップ"></button>
       <button id="locate-button" class="map-locate-button" type="button" aria-label="現在地へ移動。長押しで現在地マーカーを非表示" title="現在地へ移動。長押しで現在地マーカーを非表示" aria-keyshortcuts="Shift+Enter"></button>
+      <button id="community-report-map-open" class="map-community-report-button" type="button" data-community-report-open aria-label="現在地の様子を投稿" title="現在地の様子を投稿" aria-haspopup="dialog" aria-controls="community-report-modal" hidden></button>
       <div id="radar-overlay-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs radar-overlay-tabs" hidden></div>
       <div id="kikikuru-layer-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs" hidden></div>
       <section id="map-legend" class="map-legend collapsed" aria-label="凡例">

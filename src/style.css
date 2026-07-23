@@ -1,5 +1,6 @@
 :root {
   color-scheme: dark;
+  --community-report-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7l-5 4v-4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z'/%3E%3Cpath d='M12 8v5M9.5 10.5h5'/%3E%3C/g%3E%3C/svg%3E");
   --sidebar-width: clamp(300px, 24vw, 380px);
   --bg: #050914;
   --panel: rgba(21, 30, 47, 0.97);
@@ -4536,6 +4537,13 @@ h2 {
   margin: -2px 0 10px;
   overflow: hidden;
   touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+.weather-time-timeline,
+.weather-time-timeline * {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .weather-time-labels,
@@ -4546,6 +4554,10 @@ h2 {
   pointer-events: none;
   transform: translateX(var(--weather-time-shift));
   transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.weather-time-timeline.is-dragging :is(.weather-time-labels, .weather-time-ticks) {
+  transition: none;
 }
 
 .weather-time-labels {
@@ -4592,6 +4604,10 @@ h2 {
   opacity: 0;
 }
 
+.weather-time-timeline.is-dragging .weather-time-ticks span.active {
+  opacity: 1;
+}
+
 .weather-time-active-marker {
   position: absolute;
   z-index: 2;
@@ -4622,6 +4638,7 @@ h2 {
   appearance: none;
   opacity: 0;
   cursor: ew-resize;
+  -webkit-user-drag: none;
 }
 
 .weather-time-range:disabled {
@@ -4641,8 +4658,11 @@ h2 {
 }
 
 .radar-action-button {
+  display: grid;
+  place-items: center;
   min-width: 0;
   min-height: 34px;
+  padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.06);
@@ -4650,6 +4670,38 @@ h2 {
   font-size: var(--type-bottom-nav-size);
   font-weight: var(--type-bottom-nav-weight);
   cursor: pointer;
+}
+
+.radar-action-button::before {
+  content: "";
+  width: 20px;
+  height: 20px;
+  background: currentColor;
+  -webkit-mask: var(--radar-action-icon) center / contain no-repeat;
+  mask: var(--radar-action-icon) center / contain no-repeat;
+}
+
+#radar-prev,
+[data-weather-chart-action="prev"] {
+  --radar-action-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 5v14'/%3E%3Cpath d='m18 6-8 6 8 6Z'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+#radar-play {
+  --radar-action-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m8 5 11 7-11 7Z' fill='black'/%3E%3C/svg%3E");
+}
+
+#radar-play.playing {
+  --radar-action-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 5h4v14H7zM14 5h4v14h-4z' fill='black'/%3E%3C/svg%3E");
+}
+
+#radar-now,
+[data-weather-chart-action="latest"] {
+  --radar-action-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+#radar-next,
+[data-weather-chart-action="next"] {
+  --radar-action-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 5v14'/%3E%3Cpath d='m6 6 8 6-8 6Z'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 .radar-action-button.playing {
@@ -5370,7 +5422,8 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 #clock,
 #map-attribution,
 .map-legend,
-.map-locate-button {
+.map-locate-button,
+.map-community-report-button {
   position: absolute;
   z-index: 450;
   color: #d8e6f7;
@@ -5393,6 +5446,46 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   cursor: pointer;
   touch-action: manipulation;
   -webkit-touch-callout: none;
+}
+
+.map-community-report-button {
+  right: 9px;
+  bottom: 82px;
+  display: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(7, 14, 27, 0.78);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
+.map-community-report-button[hidden] {
+  display: none !important;
+}
+
+.map-community-report-button::before {
+  content: "";
+  width: 23px;
+  height: 23px;
+  background: #f8fbff;
+  -webkit-mask: var(--community-report-icon) center / contain no-repeat;
+  mask: var(--community-report-icon) center / contain no-repeat;
+}
+
+.map-community-report-button:is(:hover, :focus-visible) {
+  border-color: rgba(86, 183, 242, 0.46);
+  background: rgba(15, 30, 52, 0.88);
+}
+
+.map-community-report-button:focus-visible {
+  outline: 2px solid #56b7f2;
+  outline-offset: 3px;
 }
 
 .map-locate-button::before {
@@ -6171,12 +6264,6 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     contain: layout paint;
   }
 
-  .mobile-context-dock[data-tab="radar"] {
-    height: 148px;
-    min-height: 148px;
-    max-height: 148px;
-  }
-
   .mobile-context-dock::before {
     content: "";
     position: absolute;
@@ -6933,6 +7020,20 @@ html[data-theme="light"] .earthquake-long-press-hint button {
       calc(var(--mobile-sidebar-visible-height, 48dvh) + 70px),
       calc(max(0px, env(safe-area-inset-bottom)) + 220px)
     );
+  }
+
+  .map-community-report-button {
+    right: 17px;
+    bottom: max(
+      calc(var(--mobile-sidebar-visible-height, 48dvh) + 70px),
+      calc(max(0px, env(safe-area-inset-bottom)) + 220px)
+    );
+    display: grid;
+  }
+
+  .mobile-drawer-open .map-community-report-button {
+    opacity: 0;
+    pointer-events: none;
   }
 
   .map-kikikuru-tabs {
@@ -7901,7 +8002,7 @@ html[data-theme="light"] #map-attribution {
   background: rgba(247, 251, 255, 0.78);
 }
 
-html[data-theme="light"] :is(.map-legend, .map-locate-button, .map-kikikuru-tabs) {
+html[data-theme="light"] :is(.map-legend, .map-locate-button, .map-community-report-button, .map-kikikuru-tabs) {
   border-color: rgba(67, 91, 118, 0.2);
   color: #1b2d43;
   background: rgba(250, 253, 255, 0.8);
@@ -7909,6 +8010,10 @@ html[data-theme="light"] :is(.map-legend, .map-locate-button, .map-kikikuru-tabs
 }
 
 html[data-theme="light"] .map-locate-button::before {
+  background: #243d58;
+}
+
+html[data-theme="light"] .map-community-report-button::before {
   background: #243d58;
 }
 
@@ -8343,31 +8448,23 @@ html[data-theme="light"] .tsunami-area-row.level-advisory .tsunami-level-badge {
   cursor: pointer;
 }
 
-@media (max-width: 800px) and (orientation: portrait) {
-  .mobile-dock-radar-summary {
-    align-items: center;
-  }
+#community-report-open {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  min-width: 34px;
+  padding: 0;
+  border-radius: 10px;
+  font-size: 0;
+}
 
-  .mobile-dock-radar-meta-line {
-    display: flex;
-    min-width: 0;
-    align-items: baseline;
-    gap: 8px;
-  }
-
-  .mobile-dock-radar-meta-line strong {
-    flex: 0 1 auto;
-  }
-
-  .mobile-dock-community-report-open {
-    flex: 0 0 auto;
-    min-height: 27px;
-    padding: 3px 12px;
-    border-radius: 999px;
-    font-size: 12px;
-    line-height: 1.1;
-    touch-action: manipulation;
-  }
+#community-report-open::before {
+  content: "";
+  width: 19px;
+  height: 19px;
+  background: currentColor;
+  -webkit-mask: var(--community-report-icon) center / contain no-repeat;
+  mask: var(--community-report-icon) center / contain no-repeat;
 }
 
 .community-report-modal { z-index: 1320; }
@@ -9630,55 +9727,104 @@ html[data-theme="light"] :is(.earthquake-card-info > strong, .earthquake-card-fa
   text-overflow: ellipsis;
 }
 
+.volcano-ash-timeline {
+  position: relative;
+  height: 28px;
+  margin-top: -1px;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.volcano-ash-timeline-rail {
+  position: absolute;
+  top: 50%;
+  right: 22px;
+  left: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 2px;
+  background: rgba(190, 198, 207, 0.5);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.volcano-ash-timeline-rail i {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+  background: #9ba3ac;
+  box-shadow: 0 0 0 2px rgba(10, 20, 38, 0.54);
+}
+
 .mobile-dock-volcano-forecast input[type="range"] {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  height: 16px;
+  height: 28px;
   margin: 0;
   padding: 0;
   border: 0;
   appearance: none;
-  cursor: pointer;
+  cursor: grab;
   background: transparent;
-  touch-action: pan-x;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.mobile-dock-volcano-forecast input[type="range"]:active {
+  cursor: grabbing;
 }
 
 .volcano-ash-slider::-webkit-slider-runnable-track {
-  height: 6px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #42bff5 0%, #55dca8 100%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  height: 2px;
+  background: transparent;
 }
 
 .volcano-ash-slider::-webkit-slider-thumb {
-  width: 18px;
-  height: 18px;
-  margin-top: -6px;
-  border: 3px solid #49c8f7;
-  border-radius: 50%;
+  width: 44px;
+  height: 26px;
+  margin-top: -12px;
+  border: 1px solid rgba(234, 253, 255, 0.72);
+  border-radius: 999px;
   appearance: none;
-  background: #f7fcff;
-  box-shadow: 0 2px 9px rgba(30, 176, 225, 0.38);
+  background: linear-gradient(135deg, #bceff5 0%, #91dce8 100%);
+  box-shadow:
+    0 3px 12px rgba(42, 197, 224, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .volcano-ash-slider::-moz-range-track {
-  height: 6px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #42bff5 0%, #55dca8 100%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  height: 2px;
+  background: transparent;
 }
 
 .volcano-ash-slider::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
-  border: 3px solid #49c8f7;
-  border-radius: 50%;
-  background: #f7fcff;
-  box-shadow: 0 2px 9px rgba(30, 176, 225, 0.38);
+  width: 44px;
+  height: 26px;
+  border: 1px solid rgba(234, 253, 255, 0.72);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #bceff5 0%, #91dce8 100%);
+  box-shadow:
+    0 3px 12px rgba(42, 197, 224, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
-html[data-theme="light"] .volcano-ash-slider::-webkit-slider-runnable-track,
-html[data-theme="light"] .volcano-ash-slider::-moz-range-track {
-  box-shadow: inset 0 0 0 1px rgba(22, 111, 151, 0.2);
+.volcano-ash-slider:focus-visible {
+  outline: 2px solid rgba(105, 218, 242, 0.86);
+  outline-offset: 2px;
+}
+
+html[data-theme="light"] .volcano-ash-timeline-rail {
+  background: rgba(73, 91, 112, 0.42);
+}
+
+html[data-theme="light"] .volcano-ash-timeline-rail i {
+  background: #8a949f;
+  box-shadow: 0 0 0 2px rgba(237, 247, 255, 0.72);
 }
 
 html[data-theme="light"] .earthquake-detail-metrics { border-top-color: rgba(72, 100, 132, 0.14); }
