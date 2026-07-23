@@ -380,8 +380,8 @@ final class FeatureDataTests: XCTestCase {
 
         XCTAssertEqual(bulletin.volcanoCode, "551")
         XCTAssertEqual(bulletin.craterName, "新燃岳")
-        XCTAssertEqual(bulletin.kindName, "レベル２（火口周辺規制）")
-        XCTAssertEqual(bulletin.prevention, "火口から概ね２kmの範囲で警戒してください。")
+        XCTAssertEqual(bulletin.kindName, "レベル2（火口周辺規制）")
+        XCTAssertEqual(bulletin.prevention, "火口から概ね2kmの範囲で警戒してください。")
         XCTAssertEqual(bulletin.targetAreaGroups.first?.areas, ["小林市", "霧島市"])
     }
 
