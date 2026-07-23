@@ -53,6 +53,9 @@ let warningDetailsRenderFrame = 0;
 let warningDetailsRenderGeneration = 0;
 
 const AMEDAS_RANKING_LIMIT = 20;
+const MOBILE_WEATHER_TIMELINE_TAP_DELAY_MS = 360;
+const MOBILE_WEATHER_TIMELINE_TAP_MAX_DURATION_MS = 500;
+const MOBILE_WEATHER_TIMELINE_TAP_MOVE_THRESHOLD_PX = 8;
 
 const legendsByTab = {
   amedas: [["観測地点", "legend-amedas"]],
@@ -458,96 +461,203 @@ export function setupKikikuruLayerToggles({ onChange }) {
   document.getElementById("mobile-context-dock")?.addEventListener("click", handleClick);
 }
 export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest }) {
-  document.getElementById("radar-time-slider")?.addEventListener("input", (event) => {
-    onSeek?.(Number(event.currentTarget.value));
-  });
   document.getElementById("radar-prev")?.addEventListener("click", () => onStep?.(-1));
   document.getElementById("radar-next")?.addEventListener("click", () => onStep?.(1));
   document.getElementById("radar-play")?.addEventListener("click", () => onTogglePlay?.());
   document.getElementById("radar-now")?.addEventListener("click", () => onGoLatest?.());
 
+  const detailRoot = document.getElementById("radar-time-controls");
   const mobileDock = document.getElementById("mobile-context-dock");
+  const sliderRoots = [detailRoot, mobileDock].filter(Boolean);
+  const isRadarSlider = (slider) => (
+    slider?.id === "radar-time-slider"
+    || slider?.matches?.("[data-mobile-radar-slider]")
+  );
   const preventTimelineSelection = (event) => {
     if (!(event.target instanceof Element)) return;
     if (event.target.closest(".weather-time-timeline")) event.preventDefault();
   };
-  [document.getElementById("radar-time-controls"), mobileDock]
-    .filter(Boolean)
-    .forEach((root) => {
-      root.addEventListener("selectstart", preventTimelineSelection);
-      root.addEventListener("dragstart", preventTimelineSelection);
-    });
-  let activeMobileSlider = null;
-  let activeMobileSliderValue = null;
-  let activeMobileSliderStartX = null;
-  let activeMobileSliderStartValue = null;
-  const previewMobileSlider = (slider, clientX) => {
-    const previousValue = activeMobileSliderValue;
+  let activeSlider = null;
+  let activeSliderValue = null;
+  let activeSliderStartX = null;
+  let activeSliderStartValue = null;
+  const isMobileRadarSlider = (slider) => slider?.matches?.("[data-mobile-radar-slider]");
+  const updateRadarSliderPresentation = (slider, value) => {
+    if (!isMobileRadarSlider(slider)) return;
+    updateMobileRadarSliderProgress(slider);
+    updateMobileWeatherDate(slider, value);
+  };
+  const previewSlider = (slider, clientX) => {
+    const previousValue = activeSliderValue;
     const value = updateSliderFromTimelineDrag(
       slider,
-      activeMobileSliderStartX,
-      activeMobileSliderStartValue,
+      activeSliderStartX,
+      activeSliderStartValue,
       clientX,
     );
     if (!Number.isFinite(value)) return null;
-    updateMobileRadarSliderProgress(slider);
-    updateMobileWeatherDate(slider, value);
+    updateRadarSliderPresentation(slider, value);
+    activeSliderValue = value;
+    if (value !== previousValue) onSeek?.(value);
     updateWeatherTimelineDragPosition(
       slider,
-      activeMobileSliderStartX,
-      activeMobileSliderStartValue,
+      activeSliderStartX,
+      activeSliderStartValue,
       clientX,
     );
-    activeMobileSliderValue = value;
-    if (value !== previousValue) onSeek?.(value);
     return value;
   };
 
-  mobileDock?.addEventListener("pointerdown", (event) => {
+  const handlePointerDown = (event) => {
     if (!(event.target instanceof HTMLInputElement)) return;
-    if (!event.target.matches("[data-mobile-radar-slider]")) return;
-    activeMobileSlider = event.target;
-    activeMobileSliderValue = Number(activeMobileSlider.value) || 0;
-    activeMobileSliderStartX = event.clientX;
-    activeMobileSliderStartValue = activeMobileSliderValue;
-    mobileRadarDockSliding = true;
+    if (!isRadarSlider(event.target)) return;
+    activeSlider = event.target;
+    activeSliderValue = Number(activeSlider.value) || 0;
+    activeSliderStartX = event.clientX;
+    activeSliderStartValue = activeSliderValue;
+    if (isMobileRadarSlider(activeSlider)) mobileRadarDockSliding = true;
     event.preventDefault();
     event.stopPropagation();
-    activeMobileSlider.setPointerCapture?.(event.pointerId);
-    beginWeatherTimelineDrag(activeMobileSlider);
-  });
+    activeSlider.setPointerCapture?.(event.pointerId);
+    beginWeatherTimelineDrag(activeSlider);
+  };
 
-  mobileDock?.addEventListener("pointermove", (event) => {
-    if (!activeMobileSlider) return;
+  const handlePointerMove = (event) => {
+    if (!activeSlider) return;
     event.preventDefault();
     event.stopPropagation();
-    previewMobileSlider(activeMobileSlider, event.clientX);
-  });
+    previewSlider(activeSlider, event.clientX);
+  };
 
-  const finishMobileSlider = (event) => {
-    if (!activeMobileSlider) return;
+  const finishSlider = (event, { updateFromPointer = true } = {}) => {
+    if (!activeSlider) return;
     event.preventDefault();
     event.stopPropagation();
-    const value = activeMobileSliderValue;
-    finishWeatherTimelineDrag(activeMobileSlider, value);
-    activeMobileSlider.releasePointerCapture?.(event.pointerId);
-    activeMobileSlider = null;
-    activeMobileSliderValue = null;
-    activeMobileSliderStartX = null;
-    activeMobileSliderStartValue = null;
-    mobileRadarDockSliding = false;
+    if (updateFromPointer) previewSlider(activeSlider, event.clientX);
+    const finishedSlider = activeSlider;
+    const value = activeSliderValue;
+    finishWeatherTimelineDrag(finishedSlider, value);
+    finishedSlider.releasePointerCapture?.(event.pointerId);
+    if (isMobileRadarSlider(finishedSlider)) mobileRadarDockSliding = false;
+    activeSlider = null;
+    activeSliderValue = null;
+    activeSliderStartX = null;
+    activeSliderStartValue = null;
     if (Number.isFinite(value)) onSeek?.(value);
   };
 
-  mobileDock?.addEventListener("pointerup", finishMobileSlider);
-  mobileDock?.addEventListener("pointercancel", finishMobileSlider);
-
-  mobileDock?.addEventListener("change", (event) => {
+  const handleInput = (event) => {
     if (!(event.target instanceof HTMLInputElement)) return;
-    if (!event.target.matches("[data-mobile-radar-slider]")) return;
-    updateMobileRadarSliderProgress(event.target);
-    updateMobileWeatherDate(event.target);
-    onSeek?.(Number(event.target.value));
+    if (!isRadarSlider(event.target)) return;
+    const value = Number(event.target.value);
+    updateRadarSliderPresentation(event.target, value);
+    if (event.target !== activeSlider) onSeek?.(value);
+  };
+
+  sliderRoots.forEach((root) => {
+    root.addEventListener("selectstart", preventTimelineSelection);
+    root.addEventListener("dragstart", preventTimelineSelection);
+    root.addEventListener("pointerdown", handlePointerDown);
+    root.addEventListener("pointermove", handlePointerMove);
+    root.addEventListener("pointerup", finishSlider);
+    root.addEventListener("pointercancel", (event) => finishSlider(event, { updateFromPointer: false }));
+    root.addEventListener("input", handleInput);
+  });
+}
+
+export function setupMobileWeatherTimelineTapControls({
+  onRadarPlay,
+  onRadarStop,
+  onRadarGoLatest,
+  onWeatherChartPlay,
+  onWeatherChartStop,
+  onWeatherChartGoLatest
+}) {
+  const mobileDock = document.getElementById("mobile-context-dock");
+  if (!mobileDock) return;
+
+  let activePointer = null;
+  let tapCount = 0;
+  let tapMode = "";
+  let tapTimer = null;
+
+  const getTapMode = (target) => {
+    if (!(target instanceof HTMLInputElement)) return "";
+    if (target.matches("[data-mobile-radar-slider]")) return "radar";
+    if (target.matches("[data-mobile-weather-chart-slider]")) return "weather-chart";
+    return "";
+  };
+  const clearTapTimer = () => {
+    if (tapTimer === null) return;
+    window.clearTimeout(tapTimer);
+    tapTimer = null;
+  };
+  const resetTapSequence = () => {
+    clearTapTimer();
+    tapCount = 0;
+    tapMode = "";
+  };
+  const runTapAction = (mode, count) => {
+    const actions = mode === "weather-chart"
+      ? [onWeatherChartPlay, onWeatherChartStop, onWeatherChartGoLatest]
+      : [onRadarPlay, onRadarStop, onRadarGoLatest];
+    actions[count - 1]?.();
+  };
+  const commitTapSequence = () => {
+    const mode = tapMode;
+    const count = tapCount;
+    resetTapSequence();
+    if (mode && count >= 1 && count <= 3) runTapAction(mode, count);
+  };
+
+  mobileDock.addEventListener("pointerdown", (event) => {
+    const mode = getTapMode(event.target);
+    if (!mode || event.button !== 0) return;
+
+    clearTapTimer();
+    if (tapMode && tapMode !== mode) {
+      tapCount = 0;
+    }
+    tapMode = mode;
+    activePointer = {
+      id: event.pointerId,
+      mode,
+      startX: event.clientX,
+      startY: event.clientY,
+      startedAt: Date.now()
+    };
+  });
+
+  mobileDock.addEventListener("pointerup", (event) => {
+    const pointer = activePointer;
+    activePointer = null;
+    if (!pointer || pointer.id !== event.pointerId) return;
+
+    const moveDistance = Math.hypot(
+      event.clientX - pointer.startX,
+      event.clientY - pointer.startY
+    );
+    const duration = Date.now() - pointer.startedAt;
+    if (
+      pointer.mode !== tapMode
+      || moveDistance > MOBILE_WEATHER_TIMELINE_TAP_MOVE_THRESHOLD_PX
+      || duration > MOBILE_WEATHER_TIMELINE_TAP_MAX_DURATION_MS
+    ) {
+      resetTapSequence();
+      return;
+    }
+
+    tapCount = Math.min(3, tapCount + 1);
+    if (tapCount === 3) {
+      commitTapSequence();
+      return;
+    }
+    tapTimer = window.setTimeout(commitTapSequence, MOBILE_WEATHER_TIMELINE_TAP_DELAY_MS);
+  });
+
+  mobileDock.addEventListener("pointercancel", () => {
+    activePointer = null;
+    resetTapSequence();
   });
 }
 
@@ -1877,7 +1987,7 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
         <button type="button" class="mobile-dock-action${weatherChartEnabled ? "" : " active"}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "false" : "true"}"${weatherChartEnabled ? "" : " disabled"}>雨雲レーダー</button>
         <button type="button" class="mobile-dock-action${weatherChartEnabled ? " active" : ""}${weatherChartLoading ? " loading" : ""}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "true" : "false"}"${weatherChartEnabled ? " disabled" : ""}>${escapeHtml(weatherChartLoading ? "取得中" : "天気図")}</button>
       </div>
-      <div class="mobile-dock-weather-timeline">
+      <div class="mobile-dock-weather-timeline" data-mobile-weather-tap-controls>
         <time class="mobile-dock-date" data-mobile-weather-date>${escapeHtml(activeDate)}</time>
         ${range}
       </div>

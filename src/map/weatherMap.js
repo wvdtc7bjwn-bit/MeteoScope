@@ -19,7 +19,7 @@ import { createHypocenter3DLayer } from "./hypocenter3DLayer.js";
 import { createPlateDepth3DLayer } from "./plateDepth3DLayer.js";
 import { createPlateDepthSurface3DLayer } from "./plateDepthSurface3DLayer.js";
 import { getHypocenterDepthColor } from "./hypocenterDepthStyle.js";
-import { getVolcanoLevelColor } from "../volcanoLevels.js";
+import { getVolcanoLevelColor, VOLCANO_UNKNOWN_LEVEL_COLOR } from "../volcanoLevels.js";
 import {
   getAvailableVolcanoAshForecasts,
   getHighestPriorityVolcanoReport
@@ -207,15 +207,18 @@ const MAP_THEME_COLORS = {
     plateConvergent: "#ff5a52",
     plateTransform: "#b77aff",
     plateOther: "#41c7b5",
-    plateDepthLabelHalo: "rgba(5, 9, 20, 0.9)"
+    plateDepthLabelHalo: "rgba(5, 9, 20, 0.9)",
+    volcanoLevel1: "#f0f0f8",
+    volcanoBaseHalo: "rgba(5, 9, 20, 0.42)",
+    volcanoBaseHaloWidth: 0.65
   },
   light: {
-    background: "#eaf1f8",
-    worldLand: "#d7dee5",
+    background: "#e3edf6",
+    worldLand: "#cbd6e0",
     worldCountryLine: "#7f8d9b",
-    municipalityFill: "#f4f5f6",
-    municipalityLine: "#9aa5af",
-    prefectureLine: "#536373",
+    municipalityFill: "#f8fafc",
+    municipalityLine: "#788797",
+    prefectureLine: "#3f5266",
     weatherIsobar: "rgba(48, 66, 85, 0.82)",
     weatherIsobarLabel: "rgba(37, 55, 74, 0.92)",
     weatherIsobarHalo: "rgba(247, 251, 255, 0.9)",
@@ -230,7 +233,10 @@ const MAP_THEME_COLORS = {
     plateConvergent: "#c8322b",
     plateTransform: "#7650b5",
     plateOther: "#148b7b",
-    plateDepthLabelHalo: "rgba(248, 252, 255, 0.94)"
+    plateDepthLabelHalo: "rgba(248, 252, 255, 0.94)",
+    volcanoLevel1: "#8fa5b9",
+    volcanoBaseHalo: "rgba(0, 0, 0, 0)",
+    volcanoBaseHaloWidth: 0
   }
 };
 const NATURAL_EARTH_JAPAN_MASK_BOUNDS = {
@@ -875,17 +881,17 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       filter: ["all", ["==", ["geometry-type"], "Point"], ["==", ["get", "markerType"], "volcano"]],
       layout: {
         "icon-image": VOLCANO_MARKER_IMAGE_ID,
-        "icon-size": ["interpolate", ["linear"], ["zoom"], 4, 0.34, 8, 0.46, 11, 0.56],
+        "icon-size": buildVolcanoIconSizeExpression(activeTheme),
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
         "icon-padding": 0,
         "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
       },
       paint: {
-        "icon-color": ["coalesce", ["get", "color"], "#6f879b"],
+        "icon-color": buildVolcanoIconColorExpression(activeTheme),
         "icon-opacity": 0.96,
-        "icon-halo-color": "rgba(5, 9, 20, 0.42)",
-        "icon-halo-width": 0.65
+        "icon-halo-color": (MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark).volcanoBaseHalo,
+        "icon-halo-width": (MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark).volcanoBaseHaloWidth
       }
     });
 
@@ -1971,6 +1977,9 @@ function applyMapTheme(map, theme) {
     ["typhoon-forecast-label", "text-halo-color", colors.typhoonLabelHalo],
     ["typhoon-label", "text-color", colors.typhoonLabel],
     ["typhoon-label", "text-halo-color", colors.typhoonLabelHalo],
+    ["sample-volcano", "icon-color", buildVolcanoIconColorExpression(theme)],
+    ["sample-volcano", "icon-halo-color", colors.volcanoBaseHalo],
+    ["sample-volcano", "icon-halo-width", colors.volcanoBaseHaloWidth],
     [JSHIS_MAJOR_FAULT_FILL_LAYER_ID, "fill-color", colors.activeFaultFill],
     [JSHIS_MAJOR_FAULT_LINE_LAYER_ID, "line-color", colors.activeFault],
     [PLATE_BOUNDARY_LAYER_IDS.convergent, "line-color", colors.plateConvergent],
@@ -1981,8 +1990,40 @@ function applyMapTheme(map, theme) {
   paintUpdates.forEach(([layerId, property, value]) => {
     if (map.getLayer(layerId)) map.setPaintProperty(layerId, property, value);
   });
+  if (map.getLayer("sample-volcano")) {
+    map.setLayoutProperty("sample-volcano", "icon-size", buildVolcanoIconSizeExpression(theme));
+  }
   map.getContainer().dataset.theme = theme;
   map.triggerRepaint();
+}
+
+function buildVolcanoIconSizeExpression(theme) {
+  const levelOneScale = theme === "light" ? 1.15 : 1;
+  return [
+    "interpolate",
+    ["linear"],
+    ["zoom"],
+    4,
+    ["case", buildVolcanoLevelOneCondition(), 0.34 * levelOneScale, 0.34],
+    8,
+    ["case", buildVolcanoLevelOneCondition(), 0.46 * levelOneScale, 0.46],
+    11,
+    ["case", buildVolcanoLevelOneCondition(), 0.56 * levelOneScale, 0.56]
+  ];
+}
+
+function buildVolcanoIconColorExpression(theme) {
+  const colors = MAP_THEME_COLORS[theme] ?? MAP_THEME_COLORS.dark;
+  return [
+    "case",
+    buildVolcanoLevelOneCondition(),
+    colors.volcanoLevel1,
+    ["coalesce", ["get", "color"], VOLCANO_UNKNOWN_LEVEL_COLOR]
+  ];
+}
+
+function buildVolcanoLevelOneCondition() {
+  return ["==", ["to-number", ["get", "level"], 0], 1];
 }
 
 function buildWorldLandWithoutJapanData() {
@@ -3058,6 +3099,7 @@ function createEarthquakeFeatures(data) {
           opacity: 0.9,
           strokeWidth: 1.5,
           markerType: "volcano",
+          level: priority,
           volcanoCode: String(report.volcanoCode ?? report.code ?? ""),
           markerScaleMode: "fixed",
           radius: 7 + Math.max(0, level - 1),

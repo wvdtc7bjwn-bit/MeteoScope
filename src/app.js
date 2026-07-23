@@ -1,7 +1,7 @@
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupRadarControls, setupRadarOverlayToggle, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
@@ -130,6 +130,7 @@ export function createWeatherApp() {
   let weatherMap = null;
   let latestDataByTab = {};
   let radarPlayTimer = null;
+  let weatherChartPlayTimer = null;
   let autoRefreshTimer = null;
   let earthquakeRefreshTimer = null;
   let activeLoadRequestId = 0;
@@ -184,7 +185,10 @@ export function createWeatherApp() {
     syncActiveTabToUrl(tab.id);
     tabControls?.setActiveButton(tab.id);
     try {
-      if (tab.id !== "radar") stopRadarPlayback();
+      if (tab.id !== "radar") {
+        stopRadarPlayback();
+        stopWeatherChartPlayback();
+      }
       weatherMap?.setMode(tab.id);
       if (tab.id === "radar") void refreshCommunityReports();
     } catch (error) {
@@ -921,6 +925,7 @@ if (layerId === "river") {
   function goLatestRadarObservation() {
     const radarData = latestDataByTab.radar;
     if (!radarData?.frames?.length) return;
+    stopRadarPlayback();
     const latestObservationIndex = findLatestRadarObservationIndex(radarData.frames);
     selectRadarFrame(latestObservationIndex >= 0 ? latestObservationIndex : radarData.frames.length - 1);
   }
@@ -963,19 +968,15 @@ if (layerId === "river") {
 
   function goLatestWeatherChartFrame() {
     if (!weatherChartData?.frames?.length) return;
+    stopWeatherChartPlayback();
     selectWeatherChartFrame(findLatestWeatherChartFrameIndex(weatherChartData.frames));
   }
 
-  function toggleRadarPlayback() {
-    if (radarPlayTimer) {
-      stopRadarPlayback();
-      refreshRadarPanel();
-      return;
-    }
-
+  function startRadarPlayback() {
+    if (radarPlayTimer || weatherChartEnabled || !latestDataByTab.radar?.frames?.length) return;
     radarPlayTimer = window.setInterval(() => {
       const radarData = latestDataByTab.radar;
-      if (!radarData?.frames?.length || activeTab !== "radar") {
+      if (!radarData?.frames?.length || activeTab !== "radar" || weatherChartEnabled) {
         stopRadarPlayback();
         return;
       }
@@ -985,10 +986,42 @@ if (layerId === "river") {
     refreshRadarPanel();
   }
 
+  function toggleRadarPlayback() {
+    if (!radarPlayTimer) {
+      startRadarPlayback();
+      return;
+    }
+    stopRadarPlayback();
+    refreshRadarPanel();
+  }
+
   function stopRadarPlayback() {
     if (!radarPlayTimer) return;
     window.clearInterval(radarPlayTimer);
     radarPlayTimer = null;
+  }
+
+  function startWeatherChartPlayback() {
+    if (weatherChartPlayTimer || !weatherChartEnabled || !weatherChartData?.frames?.length) return;
+    weatherChartPlayTimer = window.setInterval(() => {
+      if (!weatherChartEnabled || !weatherChartData?.frames?.length || activeTab !== "radar") {
+        stopWeatherChartPlayback();
+        return;
+      }
+      const currentIndex = weatherChartData.activeFrameIndex ?? activeWeatherChartFrameIndex;
+      selectWeatherChartFrame((currentIndex + 1) % weatherChartData.frames.length);
+    }, 850);
+  }
+
+  function stopWeatherChartPlayback() {
+    if (!weatherChartPlayTimer) return;
+    window.clearInterval(weatherChartPlayTimer);
+    weatherChartPlayTimer = null;
+  }
+
+  function stopRadarPlaybackAndRefresh() {
+    stopRadarPlayback();
+    refreshRadarPanel();
   }
 
   function refreshRadarPanel() {
@@ -1001,6 +1034,7 @@ if (layerId === "river") {
     if (overlayId !== "weather-chart") return;
     weatherChartEnabled = !weatherChartEnabled;
     if (weatherChartEnabled) stopRadarPlayback();
+    else stopWeatherChartPlayback();
 
     if (!weatherChartEnabled) {
       weatherChartStatus = weatherChartData ? "ok" : "idle";
@@ -1763,6 +1797,14 @@ if (layerId === "river") {
       onPreview: previewWeatherChartFrame,
       onStep: stepWeatherChartFrame,
       onGoLatest: goLatestWeatherChartFrame
+    });
+    setupMobileWeatherTimelineTapControls({
+      onRadarPlay: startRadarPlayback,
+      onRadarStop: stopRadarPlaybackAndRefresh,
+      onRadarGoLatest: goLatestRadarObservation,
+      onWeatherChartPlay: startWeatherChartPlayback,
+      onWeatherChartStop: stopWeatherChartPlayback,
+      onWeatherChartGoLatest: goLatestWeatherChartFrame
     });
     setupLegendToggle();
     setupPanelToggle({ onLayoutChange: () => weatherMap?.resize() });

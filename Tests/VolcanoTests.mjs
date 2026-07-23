@@ -164,6 +164,24 @@ assert.match(config, /volcano\/data\/info\/900\.json/);
 assert.match(config, /volcano\/const\/volcano_list\.json/);
 assert.match(map, /VOLCANO_MARKER_IMAGE_ID = "volcano-filled-triangle"/);
 assert.match(map, /"icon-image": VOLCANO_MARKER_IMAGE_ID/);
+assert.match(map, /function buildVolcanoIconColorExpression\(theme\)/);
+assert.match(map, /function buildVolcanoIconSizeExpression\(theme\)/);
+assert.match(map, /function buildVolcanoLevelOneCondition\(\)/);
+assert.match(
+  map,
+  /function buildVolcanoIconSizeExpression\(theme\)[\s\S]*?return \[\s*"interpolate",\s*\["linear"\],\s*\["zoom"\]/
+);
+assert.doesNotMatch(
+  map,
+  /function buildVolcanoIconSizeExpression\(theme\)[\s\S]*?return \[\s*"\*",\s*\["interpolate"/
+);
+assert.match(map, /\["to-number", \["get", "level"\], 0\], 1/);
+assert.match(map, /volcanoLevel1:\s*"#8fa5b9"/);
+assert.match(map, /volcanoBaseHaloWidth:\s*0/);
+assert.match(map, /\["sample-volcano", "icon-halo-width", colors\.volcanoBaseHaloWidth\]/);
+assert.doesNotMatch(map, /function buildVolcanoHalo(?:Color|Width)Expression/);
+assert.match(map, /const levelOneScale = theme === "light" \? 1\.15 : 1/);
+assert.match(map, /level:\s*priority/);
 assert.match(map, /function setupVolcanoMarkerImage/);
 assert.doesNotMatch(map, /"text-field": "△"/);
 assert.match(map, /CustomEvent\("volcano-select"/);

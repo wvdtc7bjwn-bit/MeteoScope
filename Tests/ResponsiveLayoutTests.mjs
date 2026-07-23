@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [styles, index, panel] = await Promise.all([
+const [styles, index, panel, app] = await Promise.all([
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
-  readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8")
+  readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/app.js", import.meta.url), "utf8")
 ]);
 
 assert.match(styles, /--sidebar-width:\s*clamp\(300px,\s*24vw,\s*380px\)/);
@@ -42,9 +43,41 @@ assert.match(panel, /--weather-time-shift:/);
 assert.match(panel, /const step = compact \? 30 : 40/);
 assert.match(panel, /data-mobile-weather-chart-slider/);
 assert.match(panel, /data-mobile-radar-slider/);
+assert.match(panel, /data-mobile-weather-tap-controls/);
+const mobileTapControlsStart = panel.indexOf("export function setupMobileWeatherTimelineTapControls");
+const mobileTapControlsEnd = panel.indexOf("\nexport function ", mobileTapControlsStart + 1);
+const mobileTapControls = panel.slice(mobileTapControlsStart, mobileTapControlsEnd);
+assert.ok(mobileTapControlsStart >= 0);
+assert.match(mobileTapControls, /getElementById\("mobile-context-dock"\)/);
+assert.doesNotMatch(mobileTapControls, /getElementById\("(?:radar-time-controls|weather-chart-controls)"\)/);
+assert.match(mobileTapControls, /MOBILE_WEATHER_TIMELINE_TAP_MOVE_THRESHOLD_PX/);
+assert.match(mobileTapControls, /tapCount === 3/);
+assert.match(mobileTapControls, /\[onWeatherChartPlay, onWeatherChartStop, onWeatherChartGoLatest\]/);
+assert.match(mobileTapControls, /\[onRadarPlay, onRadarStop, onRadarGoLatest\]/);
+assert.match(app, /let weatherChartPlayTimer = null/);
+assert.match(
+  app,
+  /setupMobileWeatherTimelineTapControls\(\{[\s\S]*?onRadarPlay: startRadarPlayback,[\s\S]*?onRadarStop: stopRadarPlaybackAndRefresh,[\s\S]*?onRadarGoLatest: goLatestRadarObservation,[\s\S]*?onWeatherChartPlay: startWeatherChartPlayback,[\s\S]*?onWeatherChartStop: stopWeatherChartPlayback,[\s\S]*?onWeatherChartGoLatest: goLatestWeatherChartFrame/
+);
 assert.match(panel, /function updateSliderFromTimelineDrag/);
 assert.match(panel, /Math\.round\(\(startX - clientX\) \/ frameWidth\)/);
 assert.equal(panel.match(/function updateSliderFromTimelineDrag/g)?.length, 1);
+assert.match(
+  panel,
+  /function setupRadarControls[\s\S]*?slider\?\.id === "radar-time-slider"[\s\S]*?slider\?\.matches\?\.\("\[data-mobile-radar-slider\]"\)/
+);
+assert.match(
+  panel,
+  /function setupRadarControls[\s\S]*?sliderRoots\.forEach\(\(root\) => \{[\s\S]*?root\.addEventListener\("pointerdown", handlePointerDown\)[\s\S]*?root\.addEventListener\("pointermove", handlePointerMove\)[\s\S]*?root\.addEventListener\("pointerup", finishSlider\)/
+);
+assert.match(
+  panel,
+  /function setupRadarControls[\s\S]*?previewSlider[\s\S]*?updateSliderFromTimelineDrag\([\s\S]*?onSeek\?\.\(value\)[\s\S]*?updateWeatherTimelineDragPosition\(/
+);
+assert.match(
+  styles,
+  /\.weather-time-range:focus-visible,\s*\.weather-time-timeline:focus-within\s*\{\s*outline:\s*none;/
+);
 assert.match(panel, /function updateWeatherTimelineDragPosition/);
 assert.match(panel, /startValue \+ \(\(startX - clientX\) \/ frameWidth\)/);
 assert.match(panel, /if \(value !== previousValue\) onSeek\?\.\(value\)/);
@@ -109,5 +142,29 @@ assert.match(styles, /\.weather-time-timeline\.is-dragging :is\(\.weather-time-l
 assert.match(styles, /\.weather-time-timeline\.is-dragging \.weather-time-ticks span\.active\s*\{[\s\S]*?opacity:\s*1;/);
 assert.match(styles, /\.weather-time-active-marker\s*\{[\s\S]*?left:\s*50%/);
 assert.match(styles, /\.weather-time-(?:labels|ticks)[\s\S]*?translateX\(var\(--weather-time-shift\)\)/);
+assert.match(
+  styles,
+  /html\[data-theme="light"\] :is\(#main-tabs, \.mobile-context-dock\)\s*\{[\s\S]*?background:\s*rgba\(244, 249, 253, 0\.9\)/
+);
+assert.match(
+  styles,
+  /html\[data-theme="light"\] \.weather-time-labels span\s*\{[\s\S]*?color:\s*#405a73;/
+);
+assert.match(
+  styles,
+  /html\[data-theme="light"\] \.weather-time-active-marker\s*\{[\s\S]*?background:\s*#08a9df;/
+);
+assert.match(
+  styles,
+  /html\[data-theme="light"\] \.volcano-ash-slider::\-webkit-slider-thumb\s*\{[\s\S]*?border-color:\s*#147b9f;/
+);
+assert.match(
+  styles,
+  /html\[data-theme="light"\] \.volcano-selected-header h2\s*\{[\s\S]*?color:\s*#0c2b47;[\s\S]*?font-weight:\s*950;/
+);
+assert.match(
+  styles,
+  /@media \(max-width: 800px\) and \(orientation: portrait\)\s*\{[\s\S]*?html\[data-theme="light"\] #sidebar\s*\{[\s\S]*?background:\s*rgba\(246, 250, 254, 0\.94\)/
+);
 
 console.log("Responsive layouts: OK");
