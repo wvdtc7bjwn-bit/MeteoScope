@@ -7,7 +7,8 @@ import {
   getLatestVolcanoReportsByType,
   getVolcanoWarningDetailReport,
   groupVolcanoPolygonRings,
-  normalizeVolcanoDigits,
+  normalizeVolcanoAscii,
+  parseVolcanoSeismicCountTable,
   parseVolcanoCoordinate,
   parseVolcanoPolygon,
   selectVolcanoFeedEntries,
@@ -52,7 +53,25 @@ assert.ok(Math.abs(coordinate[0] - 130.2171667) < 0.0001);
 assert.ok(Math.abs(coordinate[1] - 30.4433333) < 0.0001);
 assert.equal(volcanoAlertLevel("レベル３（入山規制）", "13"), 3);
 assert.equal(volcanoAlertLevel("噴火警戒レベル４（避難準備）", ""), 4);
-assert.equal(normalizeVolcanoDigits("２０２６年７月・概ね２ｋｍ"), "2026年7月・概ね2ｋｍ");
+assert.equal(normalizeVolcanoAscii("２０２６年７月・概ね２ｋｍ"), "2026年7月・概ね2km");
+assert.equal(normalizeVolcanoAscii("半径２ＫＭ・噴石"), "半径2KM・噴石");
+assert.deepEqual(
+  parseVolcanoSeismicCountTable(`火山性地震　爆発
+7月 17日 5回 0回
+18日 10回 0回
+19日 9回 0回
+20日15時まで 7回 0回`),
+  {
+    before: [],
+    rows: [
+      { period: "7月17日", earthquakeCount: "5", explosionCount: "0" },
+      { period: "18日", earthquakeCount: "10", explosionCount: "0" },
+      { period: "19日", earthquakeCount: "9", explosionCount: "0" },
+      { period: "20日15時まで", earthquakeCount: "7", explosionCount: "0" }
+    ],
+    after: []
+  }
+);
 
 assert.deepEqual(parseVolcanoPolygon("+31.500+130.500/+31.600+130.500/+31.600+130.600/"), [
   [130.5, 31.5], [130.5, 31.6], [130.6, 31.6], [130.5, 31.5]
@@ -118,6 +137,11 @@ assert.match(map, /"icon-image": VOLCANO_MARKER_IMAGE_ID/);
 assert.match(map, /function setupVolcanoMarkerImage/);
 assert.doesNotMatch(map, /"text-field": "△"/);
 assert.match(map, /CustomEvent\("volcano-select"/);
+assert.match(map, /CustomEvent\("volcano-select"[\s\S]*hideMapInfo\("earthquake-distribution"\);[\s\S]*return;/);
+assert.doesNotMatch(map, /popup:\s*buildVolcanoPopup/);
+assert.doesNotMatch(map, /function buildVolcanoPopup/);
+assert.doesNotMatch(map, /popup:\s*buildAshfallPopup/);
+assert.doesNotMatch(map, /function buildAshfallPopup/);
 assert.match(map, /markerType:\s*"ashfall"/);
 assert.match(map, /coordinates:\s*\[area\.polygon,\s*\.\.\.\(Array\.isArray\(area\.holes\)/);
 assert.match(map, /getAvailableVolcanoAshForecasts/);

@@ -24,7 +24,8 @@ import {
   getAvailableVolcanoAshForecasts,
   getHighestPriorityVolcanoReport,
   getLatestVolcanoReportsByType,
-  getVolcanoWarningDetailReport
+  getVolcanoWarningDetailReport,
+  parseVolcanoSeismicCountTable
 } from "../jma/volcanoXml.js";
 
 let selectedWarningAreaCode = "";
@@ -462,14 +463,16 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
   const mobileDock = document.getElementById("mobile-context-dock");
   let activeMobileSlider = null;
   let activeMobileSliderValue = null;
+  let activeMobileSliderStartX = null;
+  let activeMobileSliderStartValue = null;
   const previewMobileSlider = (slider, clientX) => {
-    const rect = slider.getBoundingClientRect();
-    if (!rect.width) return null;
-    const min = Number(slider.min) || 0;
-    const max = Number(slider.max) || 0;
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const value = Math.round(min + (max - min) * ratio);
-    slider.value = String(value);
+    const value = updateSliderFromTimelineDrag(
+      slider,
+      activeMobileSliderStartX,
+      activeMobileSliderStartValue,
+      clientX,
+    );
+    if (!Number.isFinite(value)) return null;
     updateMobileRadarSliderProgress(slider);
     updateMobileRadarSliderLabel(slider, value);
     activeMobileSliderValue = value;
@@ -482,11 +485,12 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
     if (!event.target.matches("[data-mobile-radar-slider]")) return;
     activeMobileSlider = event.target;
     activeMobileSliderValue = Number(activeMobileSlider.value) || 0;
+    activeMobileSliderStartX = event.clientX;
+    activeMobileSliderStartValue = activeMobileSliderValue;
     mobileRadarDockSliding = true;
     event.preventDefault();
     event.stopPropagation();
     activeMobileSlider.setPointerCapture?.(event.pointerId);
-    previewMobileSlider(activeMobileSlider, event.clientX);
   });
 
   mobileDock?.addEventListener("pointermove", (event) => {
@@ -504,6 +508,8 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
     activeMobileSlider.releasePointerCapture?.(event.pointerId);
     activeMobileSlider = null;
     activeMobileSliderValue = null;
+    activeMobileSliderStartX = null;
+    activeMobileSliderStartValue = null;
     mobileRadarDockSliding = false;
     if (Number.isFinite(value)) onSeek?.(value);
   };
@@ -539,6 +545,8 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
   const mobileDock = document.getElementById("mobile-context-dock");
   const sliderRoots = [root, mobileDock].filter(Boolean);
   let draggingSlider = null;
+  let draggingSliderStartX = null;
+  let draggingSliderStartValue = null;
   let previewedSliderValue = null;
   const isWeatherChartSlider = (slider) => slider?.id === "weather-chart-time-slider" || slider?.matches?.("[data-mobile-weather-chart-slider]");
   const commitSlider = (slider) => {
@@ -570,8 +578,12 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     if (!(event.target instanceof HTMLInputElement)) return;
     if (!isWeatherChartSlider(event.target)) return;
     draggingSlider = event.target;
+    draggingSliderStartX = event.clientX;
+    draggingSliderStartValue = Number(event.target.value) || 0;
     previewedSliderValue = null;
-    updateSliderFromPointer(event.target, event);
+    if (!event.target.matches("[data-mobile-weather-chart-slider]")) {
+      updateSliderFromPointer(event.target, event);
+    }
     previewSlider(event.target);
     event.target.setPointerCapture?.(event.pointerId);
   };
@@ -585,7 +597,16 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
 
   const handlePointerMove = (event) => {
     if (!draggingSlider) return;
-    updateSliderFromPointer(draggingSlider, event);
+    if (draggingSlider.matches("[data-mobile-weather-chart-slider]")) {
+      updateSliderFromTimelineDrag(
+        draggingSlider,
+        draggingSliderStartX,
+        draggingSliderStartValue,
+        event.clientX,
+      );
+    } else {
+      updateSliderFromPointer(draggingSlider, event);
+    }
     previewSlider(draggingSlider);
   };
 
@@ -598,11 +619,15 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     previewSlider(draggingSlider);
     commitSlider(draggingSlider);
     draggingSlider = null;
+    draggingSliderStartX = null;
+    draggingSliderStartValue = null;
     previewedSliderValue = null;
   };
 
   const handlePointerCancel = () => {
     draggingSlider = null;
+    draggingSliderStartX = null;
+    draggingSliderStartValue = null;
     previewedSliderValue = null;
   };
 
@@ -1101,7 +1126,12 @@ function renderRadarControls(tab, state) {
   slider.max = String(Math.max(0, frames.length - 1));
   slider.value = String(Math.min(activeIndex, Math.max(0, frames.length - 1)));
   slider.disabled = frames.length <= 1 || state.status === "loading" || state.status === "error";
-  slider.style.background = buildSliderBackground(activeIndex, frames.length);
+  renderWeatherTimeTimeline(
+    document.getElementById("radar-time-timeline"),
+    frames,
+    activeIndex,
+    (frame) => compactWeatherTimeLabel(frame?.label)
+  );
 
   label.textContent = activeFrame?.label
     ? `更新時刻: ${activeFrame.label}`
@@ -1166,27 +1196,35 @@ function renderWeatherChartControls(tab, enabled = false, status = "idle", weath
   const frameMeta = frames.map((frame) => ({
     timeText: frame?.latestTime ? formatWarningTime(frame.latestTime) : "--",
     kindText: getWeatherChartFrameKindLabel(frame),
-    isForecast: frame?.chartKind === "forecast"
+    isForecast: frame?.chartKind === "forecast",
+    timelineLabel: compactWeatherTimeLabel(frame?.latestTime ? formatWarningTime(frame.latestTime) : "--")
   }));
+  const timelineMarkup = buildWeatherTimeTimelineMarkup(
+    frameMeta,
+    activeIndex,
+    (frame) => frame.timelineLabel,
+    `
+      <input
+        id="weather-chart-time-slider"
+        class="weather-time-range"
+        type="range"
+        min="0"
+        max="${Math.max(0, frames.length - 1)}"
+        value="${activeIndex}"
+        ${frames.length <= 1 ? "disabled" : ""}
+        data-frame-count="${frames.length}"
+        data-frame-meta="${escapeHtml(JSON.stringify(frameMeta))}"
+        aria-label="天気図の時刻を選択"
+      />
+    `
+  );
 
   root.innerHTML = `
     <div class="weather-chart-head">
       <span class="weather-chart-kind${activeFrame?.chartKind === "forecast" ? " forecast" : ""}">${escapeHtml(kindText)}</span>
       <strong>${escapeHtml(timeText)}</strong>
     </div>
-    <input
-      id="weather-chart-time-slider"
-      class="radar-time-slider weather-chart-time-slider"
-      type="range"
-      min="0"
-      max="${Math.max(0, frames.length - 1)}"
-      value="${activeIndex}"
-      ${frames.length <= 1 ? "disabled" : ""}
-      data-frame-count="${frames.length}"
-      data-frame-meta="${escapeHtml(JSON.stringify(frameMeta))}"
-      style="background:${escapeHtml(buildSliderBackground(activeIndex, frames.length))};"
-      aria-label="天気図の時刻を選択"
-    />
+    ${timelineMarkup}
     <div class="weather-chart-actions">
       <button class="radar-action-button" type="button" data-weather-chart-action="prev"${activeIndex <= 0 ? " disabled" : ""}>前</button>
       <button class="radar-action-button" type="button" data-weather-chart-action="latest">最新</button>
@@ -1697,10 +1735,21 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
     ? (chartFrame ? getWeatherChartFrameKindLabel(chartFrame) : "天気図")
     : (radarFrame?.isForecast ? "予測" : "観測");
   const frameMeta = isChartMode ? chartFrameMeta : radarFrameMeta;
-  const progress = buildProgressPercent(activeIndex, length);
   const range = length > 1
-    ? `<input type="range" class="mobile-dock-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : "data-mobile-radar-slider"} data-frame-meta="${escapeHtml(JSON.stringify(frameMeta))}" aria-label="${isChartMode ? "天気図" : "雨雲レーダー"}時刻" style="--mobile-dock-progress:${escapeHtml(progress)}">`
-    : `<div class="mobile-dock-range mobile-dock-range-placeholder" style="--mobile-dock-progress:${escapeHtml(progress)}"><span></span></div>`;
+    ? buildWeatherTimeTimelineMarkup(
+      frameMeta,
+      activeIndex,
+      (item) => compactWeatherTimeLabel(item?.title),
+      `<input type="range" class="weather-time-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : "data-mobile-radar-slider"} data-frame-meta="${escapeHtml(JSON.stringify(frameMeta))}" aria-label="${isChartMode ? "天気図" : "雨雲レーダー"}時刻">`,
+      { compact: true }
+    )
+    : buildWeatherTimeTimelineMarkup(
+      frameMeta,
+      activeIndex,
+      (item) => compactWeatherTimeLabel(item?.title),
+      '<span class="weather-time-range-placeholder" aria-hidden="true"></span>',
+      { compact: true }
+    );
 
   return `
     <div class="mobile-dock-content mobile-dock-radar">
@@ -1720,11 +1769,8 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   `;
 }
 function updateMobileRadarSliderProgress(slider) {
-  const min = Number(slider.min) || 0;
-  const max = Number(slider.max) || 0;
   const value = Number(slider.value) || 0;
-  const percent = max > min ? `${((value - min) / (max - min)) * 100}%` : "0%";
-  slider.style.setProperty("--mobile-dock-progress", percent);
+  updateWeatherTimelinePosition(slider.closest(".weather-time-timeline"), value);
 }
 
 function updateMobileWeatherChartSliderPreview(slider) {
@@ -1855,15 +1901,13 @@ function clampIndex(index, length) {
   return Math.max(0, Math.min(length - 1, Number(index) || 0));
 }
 
-function buildProgressPercent(index, length) {
-  if (!length || length <= 1 || index < 0) return "0%";
-  return `${Math.max(0, Math.min(100, (index / (length - 1)) * 100))}%`;
-}
-
 function updateWeatherChartSliderPreview(slider) {
   const activeIndex = Number(slider.value);
-  const length = Number(slider.dataset.frameCount) || Number(slider.max) + 1;
-  slider.style.background = buildSliderBackground(activeIndex, length);
+  const timeline = slider.closest(".weather-time-timeline");
+  if (timeline) {
+    updateWeatherTimelinePosition(timeline, activeIndex);
+    syncWeatherTimelineActiveTick(timeline, activeIndex);
+  }
 
   const meta = parseWeatherChartFrameMeta(slider.dataset.frameMeta);
   const activeMeta = meta[clampIndex(activeIndex, meta.length)];
@@ -1889,12 +1933,82 @@ function parseWeatherChartFrameMeta(value) {
   }
 }
 
-function buildSliderBackground(activeIndex, length) {
-  const active = buildProgressPercent(activeIndex, length);
-  const trackSize = "center / 100% 6px no-repeat";
-  return `linear-gradient(to right,
-    #51c2ff 0%, #65e0a7 ${active},
-    rgba(255,255,255,0.16) ${active}, rgba(255,255,255,0.16) 100%) ${trackSize}`;
+function buildWeatherTimeTimelineMarkup(frames, activeIndex, getLabel, inputMarkup, { compact = false } = {}) {
+  const step = compact ? 30 : 40;
+  const labelEvery = 2;
+  const shift = -(Math.max(0, activeIndex) * step);
+  const labels = frames
+    .map((frame, frameIndex) => ({ frame, frameIndex }))
+    .filter(({ frameIndex }) => frameIndex % labelEvery === 0)
+    .map(({ frame, frameIndex }) => `
+      <span style="--weather-time-index:${frameIndex}">${escapeHtml(getLabel(frame) || "--")}</span>
+    `)
+    .join("");
+  const ticks = frames.map((_, frameIndex) => `
+    <span
+      class="${frameIndex % labelEvery === 0 ? "major" : "minor"}${frameIndex === activeIndex ? " active" : ""}"
+      data-weather-time-index="${frameIndex}"
+      style="--weather-time-index:${frameIndex}"
+    ></span>
+  `).join("");
+  return `
+    <div class="weather-time-timeline${compact ? " compact" : ""}" style="--weather-time-step:${step}px;--weather-time-shift:${shift}px">
+      <div class="weather-time-labels" aria-hidden="true">${labels}</div>
+      <div class="weather-time-ticks" aria-hidden="true">${ticks}</div>
+      <span class="weather-time-active-marker" aria-hidden="true"></span>
+      ${inputMarkup}
+    </div>
+  `;
+}
+
+function renderWeatherTimeTimeline(root, frames, activeIndex, getLabel) {
+  if (!root) return;
+  const markup = buildWeatherTimeTimelineMarkup(frames, activeIndex, getLabel, "");
+  const template = document.createElement("template");
+  template.innerHTML = markup.trim();
+  const timeline = template.content.firstElementChild;
+  const labels = timeline?.querySelector(".weather-time-labels");
+  const ticks = timeline?.querySelector(".weather-time-ticks");
+  const step = timeline?.style.getPropertyValue("--weather-time-step") || "40px";
+  const shift = timeline?.style.getPropertyValue("--weather-time-shift") || "0px";
+  root.style.setProperty("--weather-time-step", step);
+  root.style.setProperty("--weather-time-shift", shift);
+  const targetLabels = root.querySelector(".weather-time-labels");
+  const targetTicks = root.querySelector(".weather-time-ticks");
+  if (targetLabels && labels) targetLabels.innerHTML = labels.innerHTML;
+  if (targetTicks && ticks) targetTicks.innerHTML = ticks.innerHTML;
+}
+
+function updateWeatherTimelinePosition(timeline, activeIndex) {
+  if (!timeline) return;
+  const step = timeline.classList.contains("compact") ? 30 : 40;
+  timeline.style.setProperty("--weather-time-step", `${step}px`);
+  timeline.style.setProperty("--weather-time-shift", `${-(Math.max(0, activeIndex) * step)}px`);
+}
+
+function updateSliderFromTimelineDrag(slider, startX, startValue, clientX) {
+  if (!slider || !Number.isFinite(startX) || !Number.isFinite(startValue) || !Number.isFinite(clientX)) return null;
+  const min = Number(slider.min) || 0;
+  const max = Number(slider.max) || 0;
+  const frameWidth = slider.closest(".weather-time-timeline")?.classList.contains("compact") ? 30 : 40;
+  const frameDelta = Math.round((startX - clientX) / frameWidth);
+  const value = Math.max(min, Math.min(max, startValue + frameDelta));
+  slider.value = String(value);
+  return value;
+}
+
+function compactWeatherTimeLabel(value) {
+  const text = String(value ?? "--").trim();
+  const dateTime = text.match(/(?:\d{4}\/)?(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})/u);
+  if (dateTime) return `${dateTime[3].padStart(2, "0")}:${dateTime[4]}`;
+  const time = text.match(/(\d{1,2}):(\d{2})/u);
+  return time ? `${time[1].padStart(2, "0")}:${time[2]}` : text;
+}
+
+function syncWeatherTimelineActiveTick(timeline, activeIndex) {
+  timeline.querySelectorAll("[data-weather-time-index]").forEach((tick) => {
+    tick.classList.toggle("active", Number(tick.dataset.weatherTimeIndex) === activeIndex);
+  });
 }
 
 function renderCurrentLocationCard(tab, info, context = {}) {
@@ -3267,8 +3381,40 @@ function formatVolcanoParagraphs(value) {
     .split(/\n{2,}/u)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean)
-    .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+    .map(formatVolcanoParagraph)
     .join("");
+}
+
+function formatVolcanoParagraph(paragraph) {
+  const countTable = parseVolcanoSeismicCountTable(paragraph);
+  if (!countTable) return `<p>${escapeHtml(paragraph)}</p>`;
+  const before = countTable.before.length
+    ? `<p>${escapeHtml(countTable.before.join("\n"))}</p>`
+    : "";
+  const after = countTable.after.length
+    ? `<p>${escapeHtml(countTable.after.join("\n"))}</p>`
+    : "";
+  const rows = countTable.rows.map((row) => `
+    <tr>
+      <th scope="row">${escapeHtml(row.period)}</th>
+      <td>${escapeHtml(row.earthquakeCount)}回</td>
+      <td>${escapeHtml(row.explosionCount)}回</td>
+    </tr>`).join("");
+  return `${before}
+    <div class="volcano-seismic-table-wrap">
+      <table class="volcano-seismic-table">
+        <caption>火山性地震・爆発の回数</caption>
+        <thead>
+          <tr>
+            <th scope="col">期間</th>
+            <th scope="col">火山性地震</th>
+            <th scope="col">爆発</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${after}`;
 }
 
 function buildVolcanoTargetAreaGroup(group) {

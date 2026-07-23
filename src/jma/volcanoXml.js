@@ -142,16 +142,16 @@ async function fetchVolcanoBaseline() {
       id: `current-${volcano.code}`,
       bulletinCode: "CURRENT",
       volcanoCode: String(volcano.code),
-      volcanoName: normalizeVolcanoDigits(volcano.name_jp) || "火山名不明",
+      volcanoName: normalizeVolcanoAscii(volcano.name_jp) || "火山名不明",
       coordinates: coordinates?.every(Number.isFinite) ? coordinates : null,
       reportTime: parseJmaTime(status.reportDatetime) ?? status.reportDatetime ?? "未取得",
       reportTimeRaw: status.reportDatetime ?? "",
       infoKind: "現在の噴火警報・予報",
-      kindName: normalizeVolcanoDigits(item?.name) || "警戒状況未確認",
+      kindName: normalizeVolcanoAscii(item?.name) || "警戒状況未確認",
       kindCode,
       level,
       alertPriority: volcanoAlertPriority(level, kindCode),
-      headline: normalizeVolcanoDigits(item?.name) || "現在の警戒状況を確認できません",
+      headline: normalizeVolcanoAscii(item?.name) || "現在の警戒状況を確認できません",
       sourceUrl: "https://www.jma.go.jp/bosai/volcano/"
     };
   });
@@ -433,7 +433,7 @@ export function parseVolcanoCoordinate(value) {
 }
 
 export function volcanoAlertLevel(name, code) {
-  const match = normalizeVolcanoDigits(name).match(/レベル\s*([1-5])/u);
+  const match = normalizeVolcanoAscii(name).match(/レベル\s*([1-5])/u);
   if (match) return Number(match[1]);
   const numericCode = Number(code);
   if (numericCode >= 11 && numericCode <= 15) return numericCode - 10;
@@ -482,13 +482,43 @@ function extractVolcanoName(title) {
 }
 
 function normalizeText(value) {
-  return normalizeVolcanoDigits(value).replace(/\r\n?/gu, "\n").replace(/[ \t　]+/gu, " ").trim();
+  return normalizeVolcanoAscii(value).replace(/\r\n?/gu, "\n").replace(/[ \t　]+/gu, " ").trim();
 }
 
-export function normalizeVolcanoDigits(value) {
-  return String(value ?? "").replace(/[０-９]/gu, (digit) =>
-    String.fromCharCode(digit.charCodeAt(0) - 0xfee0)
+export function normalizeVolcanoAscii(value) {
+  return String(value ?? "").replace(/[０-９Ａ-Ｚａ-ｚ]/gu, (character) =>
+    String.fromCharCode(character.charCodeAt(0) - 0xfee0)
   );
+}
+
+export function parseVolcanoSeismicCountTable(value) {
+  const lines = normalizeVolcanoAscii(value)
+    .split(/\r?\n/gu)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const headerIndex = lines.findIndex((line) => /^火山性地震\s+爆発$/u.test(line));
+  if (headerIndex < 0) return null;
+
+  const rows = [];
+  let lineIndex = headerIndex + 1;
+  for (; lineIndex < lines.length; lineIndex += 1) {
+    const match = lines[lineIndex].match(
+      /^((?:\d{1,2}月\s*)?\d{1,2}日(?:\s*\d{1,2}時(?:\d{1,2}分)?(?:まで)?)?)\s+(\d[\d,]*)回\s+(\d[\d,]*)回$/u
+    );
+    if (!match) break;
+    rows.push({
+      period: match[1].replace(/\s+/gu, ""),
+      earthquakeCount: match[2],
+      explosionCount: match[3]
+    });
+  }
+  if (!rows.length) return null;
+
+  return {
+    before: lines.slice(0, headerIndex),
+    rows,
+    after: lines.slice(lineIndex)
+  };
 }
 
 function dateMs(value) {
@@ -524,5 +554,5 @@ function getFirstChild(root, name) {
 }
 
 function getText(element) {
-  return normalizeVolcanoDigits(element?.textContent).trim();
+  return normalizeVolcanoAscii(element?.textContent).trim();
 }

@@ -124,7 +124,12 @@
             <button id="community-report-open" class="community-report-open" type="button" data-community-report-open aria-haspopup="dialog" aria-controls="community-report-modal">投稿</button>
           </div>
           <div id="radar-location-insight-panel" class="location-insight-panel" hidden></div>
-          <input id="radar-time-slider" class="radar-time-slider" type="range" min="0" max="0" value="0" />
+          <div id="radar-time-timeline" class="weather-time-timeline">
+            <div class="weather-time-labels" aria-hidden="true"></div>
+            <div class="weather-time-ticks" aria-hidden="true"></div>
+            <span class="weather-time-active-marker" aria-hidden="true"></span>
+            <input id="radar-time-slider" class="weather-time-range" type="range" min="0" max="0" value="0" aria-label="雨雲レーダーの時刻を選択" />
+          </div>
           <div class="radar-time-actions">
             <button id="radar-prev" class="radar-action-button" type="button">5分前</button>
             <button id="radar-play" class="radar-action-button radar-play-button" type="button">再生</button>

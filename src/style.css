@@ -4432,7 +4432,7 @@ h2 {
 
 .radar-time-controls.weather-chart-active > .radar-time-head,
 .radar-time-controls.weather-chart-active > .location-insight-panel,
-.radar-time-controls.weather-chart-active > .radar-time-slider,
+.radar-time-controls.weather-chart-active > .weather-time-timeline,
 .radar-time-controls.weather-chart-active > .radar-time-actions {
   display: none;
 }
@@ -4488,10 +4488,6 @@ h2 {
   color: #ffd4d4;
 }
 
-.weather-chart-time-slider {
-  margin-bottom: 12px;
-}
-
 .weather-chart-actions {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -4531,57 +4527,111 @@ h2 {
   text-align: right;
 }
 
-.radar-time-slider {
-  --radar-progress: 0%;
-  --radar-observed: 50%;
+.weather-time-timeline {
+  --weather-time-step: 40px;
+  --weather-time-shift: 0px;
+  position: relative;
   width: 100%;
-  height: 20px;
+  height: 68px;
   margin: -2px 0 10px;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.weather-time-labels,
+.weather-time-ticks {
+  position: absolute;
+  left: 50%;
+  width: max-content;
+  pointer-events: none;
+  transform: translateX(var(--weather-time-shift));
+  transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.weather-time-labels {
+  top: 0;
+  height: 22px;
+}
+
+.weather-time-labels span {
+  position: absolute;
+  left: calc(var(--weather-time-index) * var(--weather-time-step));
+  max-width: 62px;
+  overflow: hidden;
+  transform: translateX(-50%);
+  color: rgba(231, 239, 248, 0.68);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weather-time-ticks {
+  top: 27px;
+  bottom: 3px;
+}
+
+.weather-time-ticks span {
+  position: absolute;
+  bottom: 2px;
+  left: calc(var(--weather-time-index) * var(--weather-time-step));
+  width: 3px;
+  height: 14px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(235, 240, 246, 0.48);
+}
+
+.weather-time-ticks span.major {
+  height: 28px;
+  background: rgba(244, 247, 250, 0.68);
+}
+
+.weather-time-ticks span.active {
+  opacity: 0;
+}
+
+.weather-time-active-marker {
+  position: absolute;
+  z-index: 2;
+  top: 22px;
+  bottom: 2px;
+  left: 50%;
+  width: 7px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  pointer-events: none;
+  background: #68d5ff;
+  box-shadow: 0 0 12px rgba(80, 198, 244, 0.2);
+}
+
+.weather-time-range,
+.weather-time-range-placeholder {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.weather-time-range {
   appearance: none;
-  border-radius: 999px;
-  background:
-    linear-gradient(
-      to right,
-      #51c2ff 0%,
-      #65e0a7 var(--radar-progress),
-      rgba(101, 224, 167, 0.42) var(--radar-progress),
-      rgba(101, 224, 167, 0.42) var(--radar-observed),
-      rgba(255, 255, 255, 0.14) var(--radar-observed),
-      rgba(255, 255, 255, 0.14) 100%
-    ) center / 100% 6px no-repeat;
-  cursor: pointer;
+  opacity: 0;
+  cursor: ew-resize;
 }
 
-.radar-time-slider::-webkit-slider-runnable-track {
-  height: 6px;
-  border-radius: 999px;
-  background: transparent;
+.weather-time-range:disabled {
+  cursor: default;
 }
 
-.radar-time-slider::-webkit-slider-thumb {
-  width: 20px;
-  height: 20px;
-  margin-top: -7px;
-  appearance: none;
-  border: 3px solid #5fcfff;
-  border-radius: 50%;
-  background: #f5fbff;
-  box-shadow: 0 0 16px rgba(90, 206, 255, 0.42);
-}
-
-.radar-time-slider::-moz-range-track {
-  height: 6px;
-  border-radius: 999px;
-  background: transparent;
-}
-
-.radar-time-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border: 3px solid #5fcfff;
-  border-radius: 50%;
-  background: #f5fbff;
-  box-shadow: 0 0 16px rgba(90, 206, 255, 0.36);
+.weather-time-range:focus-visible + *,
+.weather-time-timeline:focus-within {
+  outline: 2px solid rgba(104, 213, 255, 0.72);
+  outline-offset: 2px;
 }
 
 .radar-time-actions {
@@ -6121,6 +6171,12 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     contain: layout paint;
   }
 
+  .mobile-context-dock[data-tab="radar"] {
+    height: 148px;
+    min-height: 148px;
+    max-height: 148px;
+  }
+
   .mobile-context-dock::before {
     content: "";
     position: absolute;
@@ -6631,99 +6687,47 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     color: #fff;
   }
 
-  .mobile-dock-range {
-    position: relative;
-    height: 6px;
-    overflow: hidden;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.14);
-  }
-
-  .mobile-dock-range span {
-    position: absolute;
-    inset: 0 auto 0 0;
-    width: var(--mobile-dock-progress, 0%);
-    min-width: 10px;
-    border-radius: inherit;
-    background: linear-gradient(90deg, #51c2ff, #65e0a7);
-  }
-
-  .mobile-dock-range-placeholder {
-    height: 20px;
-    overflow: visible;
-    background: transparent;
-  }
-
-  .mobile-dock-range-placeholder::before {
-    content: "";
-    position: absolute;
-    top: 7px;
-    right: 0;
-    left: 0;
-    height: 6px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.14);
-  }
-
-  .mobile-dock-range-placeholder span {
-    top: 7px;
-    bottom: auto;
-    height: 6px;
-  }
-
   .mobile-dock-range-input {
     width: 100%;
-    height: 20px;
+    height: 100%;
     padding: 0;
     border: 0;
-    overflow: visible;
-    appearance: none;
     cursor: pointer;
-    touch-action: pan-x;
-    background: transparent;
+    touch-action: none;
   }
 
-  .mobile-dock-range-input::-webkit-slider-runnable-track {
-    height: 6px;
-    border-radius: 999px;
-    background: linear-gradient(
-      90deg,
-      #51c2ff 0%,
-      #65e0a7 var(--mobile-dock-progress, 0%),
-      rgba(255, 255, 255, 0.14) var(--mobile-dock-progress, 0%),
-      rgba(255, 255, 255, 0.14) 100%
-    );
+  .mobile-dock-radar .weather-time-timeline {
+    height: 48px;
+    margin: 1px 0 0;
   }
 
-  .mobile-dock-range-input::-webkit-slider-thumb {
-    width: 20px;
+  .mobile-dock-radar .weather-time-labels {
+    height: 17px;
+  }
+
+  .mobile-dock-radar .weather-time-labels span {
+    max-width: 52px;
+    font-size: 9px;
+  }
+
+  .mobile-dock-radar .weather-time-ticks {
+    top: 20px;
+    bottom: 1px;
+  }
+
+  .mobile-dock-radar .weather-time-ticks span {
+    width: 2px;
+    height: 11px;
+  }
+
+  .mobile-dock-radar .weather-time-ticks span.major {
     height: 20px;
-    margin-top: -7px;
-    border: 3px solid #5fcfff;
-    border-radius: 50%;
-    appearance: none;
-    background: #f5fbff;
-    box-shadow: 0 0 16px rgba(90, 206, 255, 0.42);
   }
 
-  .mobile-dock-range-input::-moz-range-track {
-    height: 6px;
-    border-radius: 999px;
-    background: linear-gradient(
-      90deg,
-      #51c2ff 0%,
-      #65e0a7 var(--mobile-dock-progress, 0%),
-      rgba(255, 255, 255, 0.14) var(--mobile-dock-progress, 0%),
-      rgba(255, 255, 255, 0.14) 100%
-    );
-  }
-
-  .mobile-dock-range-input::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
-    border: 3px solid #5fcfff;
-    border-radius: 50%;
-    background: #f5fbff;
+  .mobile-dock-radar .weather-time-active-marker {
+    top: 15px;
+    bottom: 1px;
+    width: 6px;
   }
 
   .mobile-dock-chip-grid {
@@ -7729,19 +7733,6 @@ html[data-theme="light"] .radar-action-button:is(:hover, :focus-visible, .playin
   border-color: rgba(20, 132, 190, 0.38);
   color: #075f8b;
   background: rgba(91, 185, 236, 0.2);
-}
-
-html[data-theme="light"] .radar-time-slider {
-  background:
-    linear-gradient(
-      to right,
-      #2eaee9 0%,
-      #41ce98 var(--radar-progress),
-      rgba(65, 206, 152, 0.42) var(--radar-progress),
-      rgba(65, 206, 152, 0.42) var(--radar-observed),
-      rgba(67, 91, 119, 0.22) var(--radar-observed),
-      rgba(67, 91, 119, 0.22) 100%
-    ) center / 100% 6px no-repeat;
 }
 
 html[data-theme="light"] :is(.amedas-sub-button, .kikikuru-layer-button).active {
@@ -9267,6 +9258,71 @@ html[data-theme="light"] :is(.earthquake-card-info > strong, .earthquake-card-fa
   font-size: 0.92rem;
   line-height: 1.75;
   white-space: pre-line;
+}
+
+.volcano-seismic-table-wrap {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+}
+
+.volcano-seismic-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  color: var(--text);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.volcano-seismic-table caption {
+  padding: 10px 11px;
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+  background: color-mix(in srgb, var(--panel-strong) 84%, transparent);
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-align: left;
+}
+
+.volcano-seismic-table th,
+.volcano-seismic-table td {
+  padding: 9px 7px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.volcano-seismic-table tr > :last-child {
+  border-right: 0;
+}
+
+.volcano-seismic-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.volcano-seismic-table thead th {
+  color: var(--muted);
+  background: color-mix(in srgb, var(--panel-strong) 68%, transparent);
+  font-size: 0.68rem;
+  font-weight: 750;
+  text-align: center;
+}
+
+.volcano-seismic-table thead th:first-child,
+.volcano-seismic-table tbody th {
+  width: 42%;
+  text-align: left;
+}
+
+.volcano-seismic-table tbody th {
+  font-weight: 750;
+}
+
+.volcano-seismic-table tbody td {
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .volcano-target-groups {

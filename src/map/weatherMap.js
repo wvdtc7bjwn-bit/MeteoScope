@@ -1348,6 +1348,8 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           window.dispatchEvent(new CustomEvent("volcano-select", {
             detail: { volcanoCode }
           }));
+          hideMapInfo("earthquake-distribution");
+          return;
         }
         const popup = feature?.properties?.popup;
         if (!popup) {
@@ -1362,8 +1364,11 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         );
       });
       map.on("mouseenter", layerID, (event) => {
-        if (activeMode === "earthquake" && event.features?.some((feature) =>
-          feature?.properties?.popup && (layerID !== "sample-fill" || feature?.properties?.markerType === "ashfall")
+        if (activeMode === "earthquake" && (
+          layerID === "sample-volcano"
+          || event.features?.some((feature) =>
+            feature?.properties?.popup && (layerID !== "sample-fill" || feature?.properties?.markerType === "ashfall")
+          )
         )) {
           map.getCanvas().style.cursor = "pointer";
         }
@@ -3030,8 +3035,7 @@ function createEarthquakeFeatures(data) {
         fillOpacity: area.category === "small-cinders" ? 0.3 : ashfallOpacity(area.amount),
         lineWidth: area.category === "small-cinders" ? 2 : 1.4,
         markerType: "ashfall",
-        volcanoCode: activeVolcanoCode,
-        popup: buildAshfallPopup(selectedVolcano, ashForecast, area)
+        volcanoCode: activeVolcanoCode
       }
     })) ?? [];
     const volcanoFeatures = reports
@@ -3052,8 +3056,7 @@ function createEarthquakeFeatures(data) {
           markerScaleMode: "fixed",
           radius: 7 + Math.max(0, level - 1),
           sortKey: 100 + priority,
-          label: "",
-          popup: buildVolcanoPopup(report)
+          label: ""
         }
       }];
     });
@@ -3154,32 +3157,8 @@ function ashfallOpacity(amount) {
   return ({ heavy: 0.4, moderate: 0.3, light: 0.2 })[amount] ?? 0.24;
 }
 
-function buildAshfallPopup(report, forecast, area) {
-  const time = [forecast?.startTime, forecast?.endTime].filter(Boolean).join(" ～ ");
-  const municipalities = (area?.municipalities ?? []).map((item) => item.name).filter(Boolean).slice(0, 4);
-  const remaining = Math.max(0, (area?.municipalities?.length ?? 0) - municipalities.length);
-  const place = municipalities.length ? `${municipalities.join("・")}${remaining ? `ほか${remaining}市町村` : ""}` : "予測範囲";
-  return `
-    <strong>${escapePopup(report?.volcanoName ?? "火山名不明")}・${escapePopup(area?.kindName ?? "降灰予報")}</strong><br>
-    <span>${escapePopup(place)}</span>
-    ${time ? `<br><small>${escapePopup(time)}</small>` : ""}<br>
-    <small>出典：気象庁 降灰予報</small>
-  `;
-}
-
 function getVolcanoMarkerColor(level) {
   return getVolcanoLevelColor(level);
-}
-
-function buildVolcanoPopup(report) {
-  const level = Number(report.level) > 0 ? `噴火警戒レベル${Number(report.level)}` : "火山情報";
-  const facts = [report.craterName, report.plumeHeight, report.plumeDirection].filter(Boolean).join("・");
-  return `
-    <strong>${escapePopup(report.volcanoName ?? "火山名不明")}</strong><br>
-    <span>${escapePopup(level)}・${escapePopup(report.currentStatus ?? report.kindName ?? report.infoKind ?? "警戒状況未確認")}</span><br>
-    <span>気象庁発表 ${escapePopup(report.reportTime ?? "時刻不明")}</span>
-    ${facts ? `<br><small>${escapePopup(facts)}</small>` : ""}
-  `;
 }
 
 function buildHypocenterDistributionPopup(item) {
