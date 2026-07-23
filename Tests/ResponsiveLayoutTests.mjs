@@ -48,6 +48,37 @@ assert.equal(panel.match(/function updateSliderFromTimelineDrag/g)?.length, 1);
 assert.match(panel, /function updateWeatherTimelineDragPosition/);
 assert.match(panel, /startValue \+ \(\(startX - clientX\) \/ frameWidth\)/);
 assert.match(panel, /if \(value !== previousValue\) onSeek\?\.\(value\)/);
+assert.match(panel, /import \{ findLatestRadarObservationIndex \} from "\.\.\/jma\/radar\.js"/);
+assert.doesNotMatch(panel, /function findLatestRadarObservationIndex/);
+assert.match(panel, /const currentChartIndex = findLatestWeatherChartAnalysisIndex\(chartFrames\)/);
+assert.match(panel, /frameIndex === currentRadarIndex/);
+assert.match(panel, /frameIndex === currentChartIndex/);
+assert.match(panel, /const currentIndex = frames\.findIndex\(\(frame\) => frame\?\.isCurrent === true\)/);
+assert.match(panel, /class="\$\{frame\?\.isCurrent \? "is-current" : ""\}"/);
+assert.match(
+  styles,
+  /\.weather-time-labels span\.is-current\s*\{[\s\S]*?border:\s*1px solid #68d5ff;[\s\S]*?border-radius:\s*999px;/
+);
+assert.doesNotMatch(panel, /function updateSliderFromPointer/);
+assert.match(
+  panel,
+  /function setupWeatherChartControls[\s\S]*?beginWeatherTimelineDrag\(event\.target\)[\s\S]*?updateSliderFromTimelineDrag\([\s\S]*?updateWeatherTimelineDragPosition\(/
+);
+assert.match(
+  panel,
+  /const handlePointerUp = \(event\) => \{[\s\S]*?updateSliderFromTimelineDrag\([\s\S]*?commitSlider\(draggingSlider\)/
+);
+assert.match(panel, /data-mobile-weather-date/);
+assert.match(panel, /data-mobile-weather-dates=/);
+assert.match(panel, /class="mobile-dock-weather-timeline"/);
+assert.match(panel, /function compactWeatherDateLabel/);
+assert.match(panel, /updateMobileWeatherDate\(slider/);
+assert.match(
+  styles,
+  /\.mobile-dock-date\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*0;[\s\S]*?left:\s*2px;/
+);
+assert.match(styles, /\.mobile-dock-weather-timeline\s*\{[\s\S]*?height:\s*52px;/);
+assert.match(styles, /\.mobile-dock-radar \.weather-time-timeline\s*\{[\s\S]*?height:\s*42px;[\s\S]*?margin:\s*10px 0 0;/);
 assert.match(
   panel,
   /function updateMobileRadarSliderProgress[\s\S]*?syncWeatherTimelineActiveTick\(timeline,\s*value\)/

@@ -15,7 +15,7 @@ import {
   setupDisasterMapModal
 } from "./ui/disasterMapModal.js";
 import { startClock } from "./ui/time.js";
-import { fetchRadarTimes } from "./jma/radar.js";
+import { fetchRadarTimes, findLatestRadarObservationIndex } from "./jma/radar.js";
 import { fetchAmedasDailySeries, fetchAmedasLatestTime } from "./jma/amedas.js";
 import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
@@ -921,7 +921,7 @@ if (layerId === "river") {
   function goLatestRadarObservation() {
     const radarData = latestDataByTab.radar;
     if (!radarData?.frames?.length) return;
-    const latestObservationIndex = findLatestObservationIndex(radarData.frames);
+    const latestObservationIndex = findLatestRadarObservationIndex(radarData.frames);
     selectRadarFrame(latestObservationIndex >= 0 ? latestObservationIndex : radarData.frames.length - 1);
   }
 
@@ -2009,8 +2009,8 @@ function mergeRefreshedData(tabId, currentData, nextData) {
 
   const currentIndex = clampIndex(currentData.activeFrameIndex, currentData.frames);
   const currentFrame = currentData.frames[currentIndex] ?? null;
-  const currentLatestObservationIndex = findLatestObservationIndex(currentData.frames);
-  const nextLatestObservationIndex = findLatestObservationIndex(nextData.frames);
+  const currentLatestObservationIndex = findLatestRadarObservationIndex(currentData.frames);
+  const nextLatestObservationIndex = findLatestRadarObservationIndex(nextData.frames);
 
   if (currentIndex === currentLatestObservationIndex && nextLatestObservationIndex >= 0) {
     return { ...nextData, activeFrameIndex: nextLatestObservationIndex };
@@ -2066,10 +2066,6 @@ function mergeWarningTabData(currentData, nextData = {}) {
     riverFlood: currentData.riverFlood ?? nextData.riverFlood,
     detailsLoaded: Boolean(nextData.detailsLoaded)
   };
-}
-
-function findLatestObservationIndex(frames = []) {
-  return frames.reduce((latestIndex, frame, index) => frame.isForecast ? latestIndex : index, -1);
 }
 
 function clampIndex(index, items = []) {

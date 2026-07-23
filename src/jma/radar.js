@@ -10,7 +10,7 @@ const FORECAST_FRAME_COUNT = 12;
 export async function fetchRadarTimes() {
   const times = await fetchJson(JMA_ENDPOINTS.radarTimeList);
   const frames = Array.isArray(times) ? buildRadarFrames(times) : [];
-  const latestObservationIndex = findLatestObservationIndex(frames);
+  const latestObservationIndex = findLatestRadarObservationIndex(frames);
   const activeFrameIndex = latestObservationIndex >= 0 ? latestObservationIndex : Math.max(0, frames.length - 1);
   const activeFrame = frames[activeFrameIndex] ?? null;
 
@@ -59,8 +59,11 @@ function buildRadarFrame(item, isForecast) {
   };
 }
 
-function findLatestObservationIndex(frames) {
-  return frames.reduce((latestIndex, frame, index) => frame.isForecast ? latestIndex : index, -1);
+export function findLatestRadarObservationIndex(frames = []) {
+  return frames.reduce(
+    (latestIndex, frame, index) => frame?.isForecast ? latestIndex : index,
+    -1
+  );
 }
 
 function supportsRadarTile(item) {

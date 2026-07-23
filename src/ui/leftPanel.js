@@ -31,6 +31,7 @@ import {
   getVolcanoAshfallLegendItems,
   VOLCANO_SMALL_CINDERS_STYLE
 } from "../volcanoAshfall.js";
+import { findLatestRadarObservationIndex } from "../jma/radar.js";
 
 let selectedWarningAreaCode = "";
 const amedasRankingOrderByMetric = {
@@ -490,6 +491,7 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
     );
     if (!Number.isFinite(value)) return null;
     updateMobileRadarSliderProgress(slider);
+    updateMobileWeatherDate(slider, value);
     updateWeatherTimelineDragPosition(
       slider,
       activeMobileSliderStartX,
@@ -544,6 +546,7 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
     if (!(event.target instanceof HTMLInputElement)) return;
     if (!event.target.matches("[data-mobile-radar-slider]")) return;
     updateMobileRadarSliderProgress(event.target);
+    updateMobileWeatherDate(event.target);
     onSeek?.(Number(event.target.value));
   });
 }
@@ -584,17 +587,6 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     else updateWeatherChartSliderPreview(slider);
     onPreview?.(value);
   };
-  const updateSliderFromPointer = (slider, event) => {
-    const rect = slider.getBoundingClientRect();
-    if (!rect.width) return;
-    const min = Number(slider.min) || 0;
-    const max = Number(slider.max) || 0;
-    const step = Number(slider.step) || 1;
-    const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    const rawValue = min + (max - min) * ratio;
-    const steppedValue = Math.round((rawValue - min) / step) * step + min;
-    slider.value = String(Math.max(min, Math.min(max, steppedValue)));
-  };
 
   const handlePointerDown = (event) => {
     if (!(event.target instanceof HTMLInputElement)) return;
@@ -603,13 +595,11 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     draggingSliderStartX = event.clientX;
     draggingSliderStartValue = Number(event.target.value) || 0;
     previewedSliderValue = null;
-    if (event.target.matches("[data-mobile-weather-chart-slider]")) {
-      mobileRadarDockSliding = true;
-      beginWeatherTimelineDrag(event.target);
-    } else {
-      updateSliderFromPointer(event.target, event);
-    }
+    if (event.target.matches("[data-mobile-weather-chart-slider]")) mobileRadarDockSliding = true;
+    beginWeatherTimelineDrag(event.target);
     previewSlider(event.target);
+    event.preventDefault();
+    event.stopPropagation();
     event.target.setPointerCapture?.(event.pointerId);
   };
 
@@ -622,26 +612,21 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
 
   const handlePointerMove = (event) => {
     if (!draggingSlider) return;
-    const isMobileSlider = draggingSlider.matches("[data-mobile-weather-chart-slider]");
-    if (isMobileSlider) {
-      updateSliderFromTimelineDrag(
-        draggingSlider,
-        draggingSliderStartX,
-        draggingSliderStartValue,
-        event.clientX,
-      );
-    } else {
-      updateSliderFromPointer(draggingSlider, event);
-    }
+    updateSliderFromTimelineDrag(
+      draggingSlider,
+      draggingSliderStartX,
+      draggingSliderStartValue,
+      event.clientX,
+    );
     previewSlider(draggingSlider);
-    if (isMobileSlider) {
-      updateWeatherTimelineDragPosition(
-        draggingSlider,
-        draggingSliderStartX,
-        draggingSliderStartValue,
-        event.clientX,
-      );
-    }
+    updateWeatherTimelineDragPosition(
+      draggingSlider,
+      draggingSliderStartX,
+      draggingSliderStartValue,
+      event.clientX,
+    );
+    event.preventDefault();
+    event.stopPropagation();
   };
 
   const handleChange = (event) => {
@@ -649,26 +634,40 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     commitSlider(event.target);
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (event) => {
+    if (!draggingSlider) return;
     const finishedSlider = draggingSlider;
+    updateSliderFromTimelineDrag(
+      finishedSlider,
+      draggingSliderStartX,
+      draggingSliderStartValue,
+      event.clientX,
+    );
     previewSlider(draggingSlider);
     commitSlider(draggingSlider);
     finishWeatherTimelineDrag(finishedSlider, Number(finishedSlider?.value));
+    finishedSlider.releasePointerCapture?.(event.pointerId);
     if (finishedSlider?.matches?.("[data-mobile-weather-chart-slider]")) mobileRadarDockSliding = false;
     draggingSlider = null;
     draggingSliderStartX = null;
     draggingSliderStartValue = null;
     previewedSliderValue = null;
+    event.preventDefault();
+    event.stopPropagation();
   };
 
-  const handlePointerCancel = () => {
+  const handlePointerCancel = (event) => {
+    if (!draggingSlider) return;
     const cancelledSlider = draggingSlider;
     finishWeatherTimelineDrag(cancelledSlider, Number(cancelledSlider?.value));
+    cancelledSlider.releasePointerCapture?.(event.pointerId);
     if (cancelledSlider?.matches?.("[data-mobile-weather-chart-slider]")) mobileRadarDockSliding = false;
     draggingSlider = null;
     draggingSliderStartX = null;
     draggingSliderStartValue = null;
     previewedSliderValue = null;
+    event.preventDefault();
+    event.stopPropagation();
   };
 
   sliderRoots.forEach((element) => {
@@ -805,12 +804,7 @@ export function setupEarthquakeSelector({
 
   const previewVolcanoAshForecast = (slider) => {
     const index = Number(slider.value);
-    let forecastTimes = [];
-    try {
-      forecastTimes = JSON.parse(slider.dataset.volcanoAshForecastTimes ?? "[]");
-    } catch {
-      forecastTimes = [];
-    }
+    const forecastTimes = parseJsonArray(slider.dataset.volcanoAshForecastTimes);
     const forecastTime = forecastTimes[index] ?? "";
     const label = slider.closest(".mobile-dock-volcano-forecast")?.querySelector("strong");
     if (label && forecastTime) label.textContent = forecastTime;
@@ -1226,13 +1220,18 @@ function renderRadarControls(tab, state) {
   const frames = state.data?.frames ?? [];
   const activeIndex = Number(state.data?.activeFrameIndex ?? 0);
   const activeFrame = frames[activeIndex] ?? null;
+  const currentIndex = findLatestRadarObservationIndex(frames);
+  const timelineFrames = frames.map((frame, frameIndex) => ({
+    ...frame,
+    isCurrent: frameIndex === currentIndex
+  }));
 
   slider.max = String(Math.max(0, frames.length - 1));
   slider.value = String(Math.min(activeIndex, Math.max(0, frames.length - 1)));
   slider.disabled = frames.length <= 1 || state.status === "loading" || state.status === "error";
   renderWeatherTimeTimeline(
     document.getElementById("radar-time-timeline"),
-    frames,
+    timelineFrames,
     activeIndex,
     (frame) => compactWeatherTimeLabel(frame?.label)
   );
@@ -1303,10 +1302,12 @@ function renderWeatherChartControls(tab, enabled = false, status = "idle", weath
 
   const timeText = activeFrame?.latestTime ? formatWarningTime(activeFrame.latestTime) : "--";
   const kindText = getWeatherChartFrameKindLabel(activeFrame);
-  const frameMeta = frames.map((frame) => ({
+  const currentIndex = findLatestWeatherChartAnalysisIndex(frames);
+  const frameMeta = frames.map((frame, frameIndex) => ({
     timeText: frame?.latestTime ? formatWarningTime(frame.latestTime) : "--",
     kindText: getWeatherChartFrameKindLabel(frame),
     isForecast: frame?.chartKind === "forecast",
+    isCurrent: frameIndex === currentIndex,
     timelineLabel: compactWeatherTimeLabel(frame?.latestTime ? formatWarningTime(frame.latestTime) : "--")
   }));
   const timelineMarkup = buildWeatherTimeTimelineMarkup(
@@ -1833,26 +1834,33 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
 
   const radarLength = frames.length;
   const radarFrame = frames[index] ?? null;
-  const radarFrameMeta = frames.map((item) => ({
+  const currentRadarIndex = findLatestRadarObservationIndex(frames);
+  const radarFrameMeta = frames.map((item, frameIndex) => ({
     title: item?.label ?? "--",
-    meta: item?.isForecast ? "予測" : "観測"
+    meta: item?.isForecast ? "予測" : "観測",
+    isCurrent: frameIndex === currentRadarIndex
   }));
 
-  const chartFrameMeta = chartFrames.map((item) => ({
+  const currentChartIndex = findLatestWeatherChartAnalysisIndex(chartFrames);
+  const chartFrameMeta = chartFrames.map((item, frameIndex) => ({
     title: item?.latestTime ? formatWarningTime(item.latestTime) : "--",
-    meta: getWeatherChartFrameKindLabel(item)
+    meta: getWeatherChartFrameKindLabel(item),
+    isCurrent: frameIndex === currentChartIndex
   }));
 
   const isChartMode = weatherChartEnabled;
   const length = isChartMode ? chartFrames.length : radarLength;
   const activeIndex = isChartMode ? chartIndex : index;
   const frameMeta = isChartMode ? chartFrameMeta : radarFrameMeta;
+  const frameDates = frameMeta.map((item) => compactWeatherDateLabel(item?.title));
+  const activeDate = frameDates[activeIndex] ?? "--";
+  const frameDatesAttribute = `data-mobile-weather-dates="${escapeHtml(JSON.stringify(frameDates))}"`;
   const range = length > 1
     ? buildWeatherTimeTimelineMarkup(
       frameMeta,
       activeIndex,
       (item) => compactWeatherTimeLabel(item?.title),
-      `<input type="range" class="weather-time-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : "data-mobile-radar-slider"} aria-label="${isChartMode ? "天気図" : "雨雲レーダー"}時刻">`,
+      `<input type="range" class="weather-time-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : "data-mobile-radar-slider"} ${frameDatesAttribute} aria-label="${isChartMode ? "天気図" : "雨雲レーダー"}時刻">`,
       { compact: true }
     )
     : buildWeatherTimeTimelineMarkup(
@@ -1869,7 +1877,10 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
         <button type="button" class="mobile-dock-action${weatherChartEnabled ? "" : " active"}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "false" : "true"}"${weatherChartEnabled ? "" : " disabled"}>雨雲レーダー</button>
         <button type="button" class="mobile-dock-action${weatherChartEnabled ? " active" : ""}${weatherChartLoading ? " loading" : ""}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "true" : "false"}"${weatherChartEnabled ? " disabled" : ""}>${escapeHtml(weatherChartLoading ? "取得中" : "天気図")}</button>
       </div>
-      ${range}
+      <div class="mobile-dock-weather-timeline">
+        <time class="mobile-dock-date" data-mobile-weather-date>${escapeHtml(activeDate)}</time>
+        ${range}
+      </div>
     </div>
   `;
 }
@@ -1882,6 +1893,14 @@ function updateMobileRadarSliderProgress(slider) {
 
 function updateMobileWeatherChartSliderPreview(slider) {
   updateMobileRadarSliderProgress(slider);
+  updateMobileWeatherDate(slider);
+}
+
+function updateMobileWeatherDate(slider, value = Number(slider?.value)) {
+  const date = slider?.closest("#mobile-context-dock")?.querySelector("[data-mobile-weather-date]");
+  if (!date) return;
+  const dates = parseJsonArray(slider.dataset.mobileWeatherDates);
+  date.textContent = dates[clampIndex(value, dates.length)] || "--";
 }
 function buildMobileContextMarkup(kicker, title, meta = "", progress = "") {
   return `
@@ -2012,6 +2031,10 @@ function updateWeatherChartSliderPreview(slider) {
 }
 
 function parseWeatherChartFrameMeta(value) {
+  return parseJsonArray(value);
+}
+
+function parseJsonArray(value) {
   if (!value) return [];
   try {
     const parsed = JSON.parse(value);
@@ -2025,11 +2048,22 @@ function buildWeatherTimeTimelineMarkup(frames, activeIndex, getLabel, inputMark
   const step = compact ? 30 : 40;
   const labelEvery = 2;
   const shift = -(Math.max(0, activeIndex) * step);
+  const currentIndex = frames.findIndex((frame) => frame?.isCurrent === true);
+  const labelIndexes = new Set(
+    frames.map((_, frameIndex) => frameIndex).filter((frameIndex) => frameIndex % labelEvery === 0)
+  );
+  if (currentIndex >= 0) {
+    labelIndexes.add(currentIndex);
+    if (currentIndex % labelEvery !== 0) {
+      labelIndexes.delete(currentIndex - 1);
+      labelIndexes.delete(currentIndex + 1);
+    }
+  }
   const labels = frames
     .map((frame, frameIndex) => ({ frame, frameIndex }))
-    .filter(({ frameIndex }) => frameIndex % labelEvery === 0)
+    .filter(({ frameIndex }) => labelIndexes.has(frameIndex))
     .map(({ frame, frameIndex }) => `
-      <span style="--weather-time-index:${frameIndex}">${escapeHtml(getLabel(frame) || "--")}</span>
+      <span class="${frame?.isCurrent ? "is-current" : ""}" style="--weather-time-index:${frameIndex}">${escapeHtml(getLabel(frame) || "--")}</span>
     `)
     .join("");
   const ticks = frames.map((_, frameIndex) => `
@@ -2118,6 +2152,12 @@ function compactWeatherTimeLabel(value) {
   if (dateTime) return `${dateTime[3].padStart(2, "0")}:${dateTime[4]}`;
   const time = text.match(/(\d{1,2}):(\d{2})/u);
   return time ? `${time[1].padStart(2, "0")}:${time[2]}` : text;
+}
+
+function compactWeatherDateLabel(value) {
+  const text = String(value ?? "").trim();
+  const date = text.match(/(?:\d{4}\/)?(\d{1,2})\/(\d{1,2})/u);
+  return date ? `${Number(date[1])}/${Number(date[2])}` : "--";
 }
 
 function syncWeatherTimelineActiveTick(timeline, activeIndex) {
