@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [styles, index, panel, app, weatherMap] = await Promise.all([
+const [styles, index, panel, app, weatherMap, panelToggle] = await Promise.all([
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8")
+  readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/ui/panelToggle.js", import.meta.url), "utf8")
 ]);
 
 assert.match(styles, /--sidebar-width:\s*clamp\(300px,\s*24vw,\s*380px\)/);
@@ -87,8 +88,17 @@ assert.match(
   /function buildEarthquakeDistributionMobileContextMarkup[\s\S]*?return buildMobileEarthquakeSummaryCarousel\(\{[\s\S]*?primaryAriaLabel: "震央分布要約"[\s\S]*?primaryDotLabel: "地震・震央分布"/
 );
 assert.match(panel, /export function setupMobileEarthquakeSummarySwipe\(\{ onChange \} = \{\}\)/);
-assert.match(panel, /if \(changed\) onChange\?\.\(page\)/);
-assert.match(panel, /const direction = deltaX < 0 \? 1 : -1/);
+assert.match(panel, /mobileEarthquakeSummaryCommitTimer = window\.setTimeout/);
+assert.match(panel, /if \(mobileEarthquakeSummaryPage === page\) onChange\?\.\(page\)/);
+assert.match(panel, /Math\.abs\(velocityX\) < 0\.35/);
+assert.match(panel, /const direction = directionSource < 0 \? 1 : -1/);
+assert.match(panelToggle, /function applyHorizontalDragSoon\(offset\)/);
+assert.match(panelToggle, /horizontalVelocityX = horizontalVelocityX \* 0\.65/);
+assert.match(panelToggle, /velocityX: event\.type === "pointercancel" \? 0 : horizontalVelocityX/);
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-summary-track\s*\{[\s\S]*?transition:\s*transform 360ms cubic-bezier\(0\.22, 1, 0\.36, 1\);/
+);
 assert.match(app, /tideStationsVisible:\s*earthquakeSummaryPage === "tide"/);
 assert.match(
   app,
@@ -283,6 +293,14 @@ assert.match(panel, /function applyMobileEarthquakeDetailPage\(page\)/);
 assert.match(
   panel,
   /data-mobile-earthquake-detail="earthquake"[\s\S]*?data-mobile-earthquake-detail="tsunami"/
+);
+assert.match(
+  panel,
+  /const renderDetailPages = \(earthquakeMarkup\) => render\([\s\S]*?data-mobile-earthquake-detail="earthquake"[\s\S]*?data-mobile-earthquake-detail="tsunami"[\s\S]*?data-mobile-earthquake-detail="tide"/
+);
+assert.match(
+  panel,
+  /if \(view === "distribution"\) \{\s*renderDetailPages\([\s\S]*?buildEarthquakeDistributionMarkup/
 );
 assert.match(panel, /function buildTsunamiDedicatedDetailMarkup\(earthquake, tsunami, status\)/);
 assert.doesNotMatch(panel, /class="tsunami-dedicated-header"/);

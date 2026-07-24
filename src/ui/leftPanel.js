@@ -56,6 +56,7 @@ let mobileVolcanoAshSliderDragging = false;
 let mobileEarthquakeSummaryPage = "earthquake";
 let lastMobileTideStationCode = "";
 let mobileEarthquakeSummarySwipeInitialized = false;
+let mobileEarthquakeSummaryCommitTimer = 0;
 let mobileTsunamiTickerGroupTimer = 0;
 let mobileTsunamiTickerTransitionTimer = 0;
 let warningDetailsRenderFrame = 0;
@@ -477,19 +478,26 @@ export function setupMobileEarthquakeSummarySwipe({ onChange } = {}) {
     const changed = mobileEarthquakeSummaryPage !== page;
     mobileEarthquakeSummaryPage = page;
     applyMobileEarthquakeSummaryPage(root);
-    if (changed) onChange?.(page);
+    if (!changed) return;
+    window.clearTimeout(mobileEarthquakeSummaryCommitTimer);
+    mobileEarthquakeSummaryCommitTimer = window.setTimeout(() => {
+      mobileEarthquakeSummaryCommitTimer = 0;
+      if (mobileEarthquakeSummaryPage === page) onChange?.(page);
+    }, 380);
   };
 
   root.addEventListener("mobile-dock-horizontal-swipe", (event) => {
     if (!(event instanceof CustomEvent) || root.dataset.tab !== "earthquake") return;
     if (!root.querySelector(".mobile-dock-earthquake-summary-track")) return;
     const deltaX = Number(event.detail?.deltaX) || 0;
-    if (Math.abs(deltaX) < 36) {
+    const velocityX = Number(event.detail?.velocityX) || 0;
+    if (Math.abs(deltaX) < 36 && Math.abs(velocityX) < 0.35) {
       applyMobileEarthquakeSummaryPage(root);
       return;
     }
     const currentIndex = Math.max(0, pages.indexOf(mobileEarthquakeSummaryPage));
-    const direction = deltaX < 0 ? 1 : -1;
+    const directionSource = Math.abs(velocityX) >= 0.35 ? velocityX : deltaX;
+    const direction = directionSource < 0 ? 1 : -1;
     selectPage(pages[Math.max(0, Math.min(pages.length - 1, currentIndex + direction))]);
   });
 
@@ -2547,7 +2555,7 @@ function applyMobileEarthquakeSummaryPage(root, { animate = true } = {}) {
   window.requestAnimationFrame(() => syncMobileTsunamiAreaTickers(root));
   applyMobileEarthquakeDetailPage(page);
   if (animate) {
-    window.setTimeout(() => root.classList.remove("is-summary-snapping"), 380);
+    window.setTimeout(() => root.classList.remove("is-summary-snapping"), 400);
   }
 }
 
@@ -4074,16 +4082,11 @@ function renderEarthquakeList(tab, state) {
   const view = state.data?.earthquakeView ?? "recent";
   const viewToggle = buildEarthquakeViewToggle(view);
   const mapLayerControls = buildEarthquakeMapLayerControls(state.data ?? {});
-  if (view === "distribution") {
-    render(`${viewToggle}${mapLayerControls}${buildEarthquakeDistributionMarkup(state.data ?? {})}`);
-    return;
-  }
-
   const earthquakes = state.data?.earthquakes ?? [];
   const selectedEarthquake = state.data?.selectedEarthquake ?? earthquakes[0] ?? null;
-  const renderRecent = (earthquakeMarkup) => render(`
+  const renderDetailPages = (earthquakeMarkup) => render(`
     <div class="earthquake-detail-mode" data-mobile-earthquake-detail="earthquake">
-      ${viewToggle}${mapLayerControls}${earthquakeMarkup}
+      ${earthquakeMarkup}
     </div>
     <div class="earthquake-detail-mode tsunami-dedicated-detail" data-mobile-earthquake-detail="tsunami">
       ${buildTsunamiDedicatedDetailMarkup(
@@ -4096,6 +4099,17 @@ function renderEarthquakeList(tab, state) {
       ${buildTideObservationDedicatedDetailMarkup(state.data?.tideObservation)}
     </div>
   `);
+
+  if (view === "distribution") {
+    renderDetailPages(
+      `${viewToggle}${mapLayerControls}${buildEarthquakeDistributionMarkup(state.data ?? {})}`
+    );
+    return;
+  }
+
+  const renderRecent = (earthquakeMarkup) => renderDetailPages(
+    `${viewToggle}${mapLayerControls}${earthquakeMarkup}`
+  );
 
   if (state.status === "loading") {
     renderRecent('<div class="earthquake-empty">気象庁防災情報XMLから地震情報を取得中です。</div>');

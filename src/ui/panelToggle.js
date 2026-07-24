@@ -35,6 +35,11 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   let layoutNotifyFrame = 0;
   let dragTransformFrame = 0;
   let pendingDragOffset = null;
+  let horizontalDragFrame = 0;
+  let pendingHorizontalDragX = null;
+  let lastHorizontalX = 0;
+  let lastHorizontalTime = 0;
+  let horizontalVelocityX = 0;
 
   function isDockControlEvent(event) {
     const path = typeof event.composedPath === "function" ? event.composedPath() : [event.target];
@@ -152,6 +157,25 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     dragTransformFrame = 0;
     pendingDragOffset = null;
   }
+
+  function applyHorizontalDragSoon(offset) {
+    pendingHorizontalDragX = offset;
+    if (horizontalDragFrame) return;
+    horizontalDragFrame = window.requestAnimationFrame(() => {
+      horizontalDragFrame = 0;
+      const nextOffset = pendingHorizontalDragX;
+      pendingHorizontalDragX = null;
+      if (!dragging || dragAxis !== "x" || nextOffset == null) return;
+      mobileContextDock?.style.setProperty("--mobile-summary-drag-x", `${nextOffset}px`);
+    });
+  }
+
+  function cancelPendingHorizontalDrag() {
+    if (horizontalDragFrame) window.cancelAnimationFrame(horizontalDragFrame);
+    horizontalDragFrame = 0;
+    pendingHorizontalDragX = null;
+  }
+
   function applyTransform(offset = null) {
     if (!isMobileSheet()) {
       sidebar.style.transform = "";
@@ -202,6 +226,9 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     startX = event.clientX;
     startY = event.clientY;
     currentX = startX;
+    lastHorizontalX = startX;
+    lastHorizontalTime = event.timeStamp || performance.now();
+    horizontalVelocityX = 0;
     startOffset = getCurrentOffset();
     currentOffset = startOffset;
     sidebar.style.transition = "none";
@@ -219,12 +246,18 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     }
     event.preventDefault();
     if (dragAxis === "x") {
+      const eventTime = event.timeStamp || performance.now();
+      const elapsed = Math.max(1, eventTime - lastHorizontalTime);
+      const instantaneousVelocity = (event.clientX - lastHorizontalX) / elapsed;
+      horizontalVelocityX = horizontalVelocityX * 0.65 + instantaneousVelocity * 0.35;
+      lastHorizontalX = event.clientX;
+      lastHorizontalTime = eventTime;
       const page = mobileContextDock?.dataset.mobileEarthquakeSummaryPage;
       const isBoundaryDrag = (page === "earthquake" && deltaX > 0)
         || (page === "tide" && deltaX < 0);
       const visualDelta = isBoundaryDrag ? deltaX * 0.24 : deltaX;
       mobileContextDock?.classList.add("is-horizontal-swiping");
-      mobileContextDock?.style.setProperty("--mobile-summary-drag-x", `${visualDelta}px`);
+      applyHorizontalDragSoon(visualDelta);
       return;
     }
     const maxOffset = getSnapOffsets().peek;
@@ -240,12 +273,20 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     const horizontalDistance = (event.clientX ?? currentX) - startX;
     if (dragAxis === "x") {
       const moved = Math.abs(horizontalDistance) > 6;
+      const page = mobileContextDock?.dataset.mobileEarthquakeSummaryPage;
+      const isBoundaryDrag = (page === "earthquake" && horizontalDistance > 0)
+        || (page === "tide" && horizontalDistance < 0);
+      const visualDistance = isBoundaryDrag ? horizontalDistance * 0.24 : horizontalDistance;
+      cancelPendingHorizontalDrag();
+      mobileContextDock?.style.setProperty("--mobile-summary-drag-x", `${visualDistance}px`);
+      if (mobileContextDock) void mobileContextDock.offsetWidth;
       dragging = false;
       suppressClickUntil = moved ? Date.now() + 250 : 0;
       mobileContextDock?.classList.remove("is-horizontal-swiping");
       mobileContextDock?.dispatchEvent(new CustomEvent("mobile-dock-horizontal-swipe", {
         detail: {
-          deltaX: event.type === "pointercancel" ? 0 : horizontalDistance
+          deltaX: event.type === "pointercancel" ? 0 : horizontalDistance,
+          velocityX: event.type === "pointercancel" ? 0 : horizontalVelocityX
         }
       }));
       mobileContextDock?.style.setProperty("--mobile-summary-drag-x", "0px");

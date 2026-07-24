@@ -7202,8 +7202,10 @@ html[data-theme="light"] .earthquake-long-press-hint button {
       0,
       0
     );
-    transition: transform 340ms cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+    backface-visibility: hidden;
     will-change: transform;
+    contain: layout paint style;
   }
 
   .mobile-context-dock.is-horizontal-swiping .mobile-dock-earthquake-summary-track {
