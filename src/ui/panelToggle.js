@@ -25,7 +25,10 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   let drawerOffset = null;
   let dragging = false;
   let dragTarget = null;
+  let dragAxis = "y";
+  let startX = 0;
   let startY = 0;
+  let currentX = 0;
   let startOffset = 0;
   let currentOffset = 0;
   let suppressClickUntil = 0;
@@ -190,12 +193,15 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     notifyLayoutChange();
   }
 
-  function beginDrag(event, target = handle) {
+  function beginDrag(event, target = handle, initialAxis = "y") {
     if (!isMobileSheet()) return;
-    event.preventDefault();
+    if (initialAxis === "y") event.preventDefault();
     dragging = true;
     dragTarget = target;
+    dragAxis = initialAxis;
+    startX = event.clientX;
     startY = event.clientY;
+    currentX = startX;
     startOffset = getCurrentOffset();
     currentOffset = startOffset;
     sidebar.style.transition = "none";
@@ -204,9 +210,25 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
 
   function moveDrag(event) {
     if (!dragging) return;
+    const deltaX = event.clientX - startX;
+    const deltaY = event.clientY - startY;
+    currentX = event.clientX;
+    if (dragAxis === null) {
+      if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) <= 6) return;
+      dragAxis = Math.abs(deltaX) > Math.abs(deltaY) * 1.12 ? "x" : "y";
+    }
     event.preventDefault();
+    if (dragAxis === "x") {
+      const page = mobileContextDock?.dataset.mobileEarthquakeSummaryPage;
+      const isBoundaryDrag = (page === "earthquake" && deltaX > 0)
+        || (page === "tide" && deltaX < 0);
+      const visualDelta = isBoundaryDrag ? deltaX * 0.24 : deltaX;
+      mobileContextDock?.classList.add("is-horizontal-swiping");
+      mobileContextDock?.style.setProperty("--mobile-summary-drag-x", `${visualDelta}px`);
+      return;
+    }
     const maxOffset = getSnapOffsets().peek;
-    currentOffset = Math.min(maxOffset, Math.max(0, startOffset + event.clientY - startY));
+    currentOffset = Math.min(maxOffset, Math.max(0, startOffset + deltaY));
     applyDragTransformSoon(currentOffset);
   }
 
@@ -215,12 +237,30 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
 
   function finishDrag(event) {
     if (!dragging) return;
+    const horizontalDistance = (event.clientX ?? currentX) - startX;
+    if (dragAxis === "x") {
+      const moved = Math.abs(horizontalDistance) > 6;
+      dragging = false;
+      suppressClickUntil = moved ? Date.now() + 250 : 0;
+      mobileContextDock?.classList.remove("is-horizontal-swiping");
+      mobileContextDock?.dispatchEvent(new CustomEvent("mobile-dock-horizontal-swipe", {
+        detail: {
+          deltaX: event.type === "pointercancel" ? 0 : horizontalDistance
+        }
+      }));
+      mobileContextDock?.style.setProperty("--mobile-summary-drag-x", "0px");
+      dragTarget?.releasePointerCapture?.(event.pointerId);
+      dragTarget = null;
+      dragAxis = "y";
+      return;
+    }
     const moved = Math.abs(currentOffset - startOffset) > 6 || Math.abs(event.clientY - startY) > 6;
     dragging = false;
     cancelPendingDragTransform();
     suppressClickUntil = moved ? Date.now() + 250 : 0;
     dragTarget?.releasePointerCapture?.(event.pointerId);
     dragTarget = null;
+    dragAxis = "y";
     setDrawerOffset(moved ? currentOffset : startOffset);
   }
 
@@ -249,7 +289,10 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
 
   mobileContextDock?.addEventListener("pointerdown", (event) => {
     if (isDockControlEvent(event)) return;
-    beginDrag(event, mobileContextDock);
+    const supportsHorizontalSwipe = Boolean(
+      mobileContextDock.querySelector(".mobile-dock-earthquake-summary-track")
+    );
+    beginDrag(event, mobileContextDock, supportsHorizontalSwipe ? null : "y");
   });
   mobileContextDock?.addEventListener("pointermove", moveDrag);
   mobileContextDock?.addEventListener("pointerup", finishDrag);

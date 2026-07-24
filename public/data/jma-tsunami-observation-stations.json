@@ -1,0 +1,4457 @@
+{
+  "source": "https://www.data.jma.go.jp/eqev/data/bulletin/data/tsunami/stat_j.txt",
+  "retrievedAt": "2026-07-24",
+  "sourceSha256": "91cf7225ffd391d097628a1da60fff5b05d8947060544e6add9a098d0f2cd36e",
+  "stations": [
+    {
+      "code": "10001",
+      "name": "釧路",
+      "coordinates": [
+        144.36667,
+        42.98333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10002",
+      "name": "根室市花咲",
+      "coordinates": [
+        145.56667,
+        43.28333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10020",
+      "name": "根室港",
+      "coordinates": [
+        145.58333,
+        43.35
+      ],
+      "agency": "釧路開発建設部",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10021",
+      "name": "浜中町霧多布港",
+      "coordinates": [
+        145.11667,
+        43.08333
+      ],
+      "agency": "釧路開発建設部",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10031",
+      "name": "羅臼漁港",
+      "coordinates": [
+        145.2,
+        44.01667
+      ],
+      "agency": "釧路開発建設部",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10034",
+      "name": "厚岸漁港",
+      "coordinates": [
+        144.85,
+        43.05
+      ],
+      "agency": "釧路開発建設部",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10050",
+      "name": "釧路沖１００ｋｍＡ",
+      "coordinates": [
+        144.63333,
+        42.08333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10060",
+      "name": "釧路沖８０ｋｍＡ",
+      "coordinates": [
+        144.85,
+        42.23333
+      ],
+      "agency": "海洋研究開発機構",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10061",
+      "name": "釧路沖８０ｋｍＢ",
+      "coordinates": [
+        145.2,
+        42.23333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10062",
+      "name": "根室南東沖８０ｋｍＡ",
+      "coordinates": [
+        146.08333,
+        42.58333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10070",
+      "name": "釧路沖６０ｋｍＡ",
+      "coordinates": [
+        145.15,
+        42.48333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10071",
+      "name": "根室南東沖５０ｋｍＡ",
+      "coordinates": [
+        145.71667,
+        42.76667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10072",
+      "name": "釧路沖５０ｋｍＡ",
+      "coordinates": [
+        145.4,
+        42.63333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10073",
+      "name": "根室南東沖６０ｋｍＡ",
+      "coordinates": [
+        146.01667,
+        42.8
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "100"
+    },
+    {
+      "code": "10100",
+      "name": "浦河",
+      "coordinates": [
+        142.76667,
+        42.16667
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10101",
+      "name": "浦河",
+      "coordinates": [
+        142.76667,
+        42.16667
+      ],
+      "agency": "室蘭開発建設部",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10102",
+      "name": "十勝港",
+      "coordinates": [
+        143.31667,
+        42.3
+      ],
+      "agency": "帯広開発建設部",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10103",
+      "name": "えりも町庶野",
+      "coordinates": [
+        143.3,
+        42.05
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10150",
+      "name": "十勝沖１００ｋｍＡ",
+      "coordinates": [
+        144.43333,
+        41.7
+      ],
+      "agency": "海洋研究開発機構",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10151",
+      "name": "浦河沖１００ｋｍＡ",
+      "coordinates": [
+        143.11667,
+        41.05
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10152",
+      "name": "浦河沖１００ｋｍＢ",
+      "coordinates": [
+        142.76667,
+        41.08333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10153",
+      "name": "十勝沖９０ｋｍＡ",
+      "coordinates": [
+        144.35,
+        41.98333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10160",
+      "name": "十勝沖８０ｋｍＡ",
+      "coordinates": [
+        144.18333,
+        41.75
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10161",
+      "name": "十勝沖８０ｋｍＢ",
+      "coordinates": [
+        144.08333,
+        41.5
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10162",
+      "name": "十勝沖８０ｋｍＣ",
+      "coordinates": [
+        143.8,
+        41.36667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10163",
+      "name": "浦河沖７０ｋｍＡ",
+      "coordinates": [
+        142.48333,
+        41.61667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10170",
+      "name": "十勝沖６０ｋｍＡ",
+      "coordinates": [
+        143.45,
+        41.36667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10171",
+      "name": "浦河沖６０ｋｍＡ",
+      "coordinates": [
+        143.13333,
+        41.43333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10172",
+      "name": "浦河沖５０ｋｍＡ",
+      "coordinates": [
+        142.81667,
+        41.56667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "101"
+    },
+    {
+      "code": "10201",
+      "name": "室蘭",
+      "coordinates": [
+        140.95,
+        42.35
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "102"
+    },
+    {
+      "code": "10202",
+      "name": "函館",
+      "coordinates": [
+        140.71667,
+        41.78333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "102"
+    },
+    {
+      "code": "10203",
+      "name": "苫小牧西港",
+      "coordinates": [
+        141.61667,
+        42.63333
+      ],
+      "agency": "室蘭開発建設部",
+      "forecastAreaCode": "102"
+    },
+    {
+      "code": "10204",
+      "name": "福島町吉岡",
+      "coordinates": [
+        140.23333,
+        41.45
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "102"
+    },
+    {
+      "code": "10221",
+      "name": "苫小牧東港",
+      "coordinates": [
+        141.81667,
+        42.6
+      ],
+      "agency": "室蘭開発建設部",
+      "forecastAreaCode": "102"
+    },
+    {
+      "code": "10222",
+      "name": "白老港",
+      "coordinates": [
+        141.31667,
+        42.51667
+      ],
+      "agency": "室蘭開発建設部",
+      "forecastAreaCode": "102"
+    },
+    {
+      "code": "10223",
+      "name": "渡島森港",
+      "coordinates": [
+        140.6,
+        42.11667
+      ],
+      "agency": "函館開発建設部",
+      "forecastAreaCode": "102"
+    },
+    {
+      "code": "10224",
+      "name": "室蘭港",
+      "coordinates": [
+        140.95,
+        42.35
+      ],
+      "agency": "北海道開発局",
+      "forecastAreaCode": "102"
+    },
+    {
+      "code": "10239",
+      "name": "山背泊漁港",
+      "coordinates": [
+        141.11667,
+        41.78333
+      ],
+      "agency": "函館開発建設部",
+      "forecastAreaCode": "102"
+    },
+    {
+      "code": "11001",
+      "name": "稚内",
+      "coordinates": [
+        141.68333,
+        45.4
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "110"
+    },
+    {
+      "code": "11002",
+      "name": "留萌",
+      "coordinates": [
+        141.63333,
+        43.95
+      ],
+      "agency": "留萌開発建設部",
+      "forecastAreaCode": "110"
+    },
+    {
+      "code": "11003",
+      "name": "小樽",
+      "coordinates": [
+        141,
+        43.2
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "110"
+    },
+    {
+      "code": "11022",
+      "name": "石狩湾新港",
+      "coordinates": [
+        141.3,
+        43.21667
+      ],
+      "agency": "小樽開発建設部",
+      "forecastAreaCode": "110"
+    },
+    {
+      "code": "11023",
+      "name": "利尻島沓形港",
+      "coordinates": [
+        141.13333,
+        45.18333
+      ],
+      "agency": "稚内開発建設部",
+      "forecastAreaCode": "110"
+    },
+    {
+      "code": "11024",
+      "name": "羽幌港",
+      "coordinates": [
+        141.7,
+        44.36667
+      ],
+      "agency": "留萌開発建設部",
+      "forecastAreaCode": "110"
+    },
+    {
+      "code": "11030",
+      "name": "小樽市忍路",
+      "coordinates": [
+        140.86667,
+        43.21667
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "110"
+    },
+    {
+      "code": "11102",
+      "name": "江差",
+      "coordinates": [
+        140.13333,
+        41.86667
+      ],
+      "agency": "函館開発建設部",
+      "forecastAreaCode": "111"
+    },
+    {
+      "code": "11121",
+      "name": "瀬棚港",
+      "coordinates": [
+        139.85,
+        42.45
+      ],
+      "agency": "函館開発建設部",
+      "forecastAreaCode": "111"
+    },
+    {
+      "code": "11122",
+      "name": "岩内港",
+      "coordinates": [
+        140.5,
+        42.98333
+      ],
+      "agency": "小樽開発建設部",
+      "forecastAreaCode": "111"
+    },
+    {
+      "code": "11123",
+      "name": "奥尻島奥尻港",
+      "coordinates": [
+        139.51667,
+        42.16667
+      ],
+      "agency": "小樽開発建設部",
+      "forecastAreaCode": "111"
+    },
+    {
+      "code": "11130",
+      "name": "奥尻島松江",
+      "coordinates": [
+        139.48333,
+        42.08333
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "111"
+    },
+    {
+      "code": "12001",
+      "name": "網走",
+      "coordinates": [
+        144.28333,
+        44.01667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "120"
+    },
+    {
+      "code": "12002",
+      "name": "紋別",
+      "coordinates": [
+        143.36667,
+        44.35
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "120"
+    },
+    {
+      "code": "12003",
+      "name": "枝幸港",
+      "coordinates": [
+        142.58333,
+        44.93333
+      ],
+      "agency": "稚内開発建設部",
+      "forecastAreaCode": "120"
+    },
+    {
+      "code": "12020",
+      "name": "紋別港",
+      "coordinates": [
+        143.36667,
+        44.35
+      ],
+      "agency": "網走開発建設部",
+      "forecastAreaCode": "120"
+    },
+    {
+      "code": "20001",
+      "name": "深浦",
+      "coordinates": [
+        139.93333,
+        40.65
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "200"
+    },
+    {
+      "code": "20002",
+      "name": "竜飛",
+      "coordinates": [
+        140.38333,
+        41.25
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "200"
+    },
+    {
+      "code": "20090",
+      "name": "青森深浦沖",
+      "coordinates": [
+        139.93333,
+        40.78333
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "200"
+    },
+    {
+      "code": "20101",
+      "name": "八戸",
+      "coordinates": [
+        141.53333,
+        40.53333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20102",
+      "name": "むつ市関根浜",
+      "coordinates": [
+        141.23333,
+        41.36667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20120",
+      "name": "むつ小川原港",
+      "coordinates": [
+        141.38333,
+        40.93333
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20121",
+      "name": "八戸港",
+      "coordinates": [
+        141.55,
+        40.53333
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20150",
+      "name": "青森東方沖１００ｋｍＡ",
+      "coordinates": [
+        142.96667,
+        40.51667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20151",
+      "name": "青森東方沖９０ｋｍＡ",
+      "coordinates": [
+        142.43333,
+        41.01667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20160",
+      "name": "青森東方沖８０ｋｍＡ",
+      "coordinates": [
+        142.63333,
+        40.6
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20170",
+      "name": "青森東方沖６０ｋｍＡ",
+      "coordinates": [
+        142.21667,
+        41.41667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20171",
+      "name": "青森東方沖６０ｋｍＢ",
+      "coordinates": [
+        142.1,
+        40.9
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20172",
+      "name": "青森東方沖５０ｋｍＡ",
+      "coordinates": [
+        142.03333,
+        41.2
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20173",
+      "name": "青森東方沖５０ｋｍＢ",
+      "coordinates": [
+        142.28333,
+        40.6
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20180",
+      "name": "青森東方沖４０ｋｍＡ",
+      "coordinates": [
+        141.88333,
+        40.95
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20181",
+      "name": "青森東方沖３０ｋｍＡ",
+      "coordinates": [
+        141.78333,
+        40.78333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20190",
+      "name": "青森八戸沖",
+      "coordinates": [
+        141.75,
+        40.63333
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "201"
+    },
+    {
+      "code": "20201",
+      "name": "青森",
+      "coordinates": [
+        140.76667,
+        40.83333
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "202"
+    },
+    {
+      "code": "20202",
+      "name": "むつ市大湊",
+      "coordinates": [
+        141.15,
+        41.25
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "202"
+    },
+    {
+      "code": "21001",
+      "name": "宮古",
+      "coordinates": [
+        141.98333,
+        39.65
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21002",
+      "name": "大船渡",
+      "coordinates": [
+        141.75,
+        39.01667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21003",
+      "name": "釜石",
+      "coordinates": [
+        141.88333,
+        39.26667
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21020",
+      "name": "久慈港",
+      "coordinates": [
+        141.8,
+        40.2
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21050",
+      "name": "岩手沖９０ｋｍＡ",
+      "coordinates": [
+        142.96667,
+        40.08333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21051",
+      "name": "岩手沖９０ｋｍＢ",
+      "coordinates": [
+        143.11667,
+        39.31667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21060",
+      "name": "岩手沖７０ｋｍＡ",
+      "coordinates": [
+        142.76667,
+        39.23333
+      ],
+      "agency": "東京大学地震研究所",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21061",
+      "name": "岩手沖８０ｋｍＡ",
+      "coordinates": [
+        143.03333,
+        39.71667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21070",
+      "name": "岩手沖６０ｋｍＡ",
+      "coordinates": [
+        142.61667,
+        40.11667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21071",
+      "name": "岩手沖６０ｋｍＢ",
+      "coordinates": [
+        142.68333,
+        39.75
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21072",
+      "name": "岩手沖６０ｋｍＣ",
+      "coordinates": [
+        142.8,
+        39.36667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21080",
+      "name": "岩手沖４０ｋｍＡ",
+      "coordinates": [
+        142.43333,
+        39.25
+      ],
+      "agency": "東京大学地震研究所",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21081",
+      "name": "岩手沖４０ｋｍＢ",
+      "coordinates": [
+        142.26667,
+        40.33333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21082",
+      "name": "岩手沖４０ｋｍＣ",
+      "coordinates": [
+        142.4,
+        40.11667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21083",
+      "name": "岩手沖３０ｋｍＡ",
+      "coordinates": [
+        142.33333,
+        39.73333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21084",
+      "name": "岩手沖３０ｋｍＢ",
+      "coordinates": [
+        142.45,
+        39.45
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21090",
+      "name": "岩手釜石沖",
+      "coordinates": [
+        142.1,
+        39.26667
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21091",
+      "name": "岩手宮古沖",
+      "coordinates": [
+        142.18333,
+        39.63333
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "21092",
+      "name": "岩手久慈沖",
+      "coordinates": [
+        142.06667,
+        40.11667
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "210"
+    },
+    {
+      "code": "22001",
+      "name": "牡鹿町鮎川",
+      "coordinates": [
+        141.5,
+        38.3
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22002",
+      "name": "石巻市鮎川",
+      "coordinates": [
+        141.5,
+        38.3
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22021",
+      "name": "仙台港",
+      "coordinates": [
+        141,
+        38.26667
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22022",
+      "name": "石巻港",
+      "coordinates": [
+        141.26667,
+        38.4
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22050",
+      "name": "宮城沖９０ｋｍＡ",
+      "coordinates": [
+        142.56667,
+        38.03333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22060",
+      "name": "宮城沖８０ｋｍＡ",
+      "coordinates": [
+        142.81667,
+        38.86667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22061",
+      "name": "宮城沖８０ｋｍＢ",
+      "coordinates": [
+        142.5,
+        38.5
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22070",
+      "name": "宮城沖６０ｋｍＡ",
+      "coordinates": [
+        142.23333,
+        38.05
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22071",
+      "name": "宮城沖５０ｋｍＡ",
+      "coordinates": [
+        142.48333,
+        38.93333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22072",
+      "name": "宮城沖５０ｋｍＢ",
+      "coordinates": [
+        142.18333,
+        38.58333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22080",
+      "name": "宮城沖４０ｋｍＡ",
+      "coordinates": [
+        142.18333,
+        38.83333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22081",
+      "name": "宮城沖３０ｋｍＡ",
+      "coordinates": [
+        141.9,
+        38.1
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22090",
+      "name": "宮城金華山沖",
+      "coordinates": [
+        141.68333,
+        38.23333
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22091",
+      "name": "気仙沼広田湾沖",
+      "coordinates": [
+        141.9,
+        38.85
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "22095",
+      "name": "宮城牡鹿沖",
+      "coordinates": [
+        141.55,
+        38.1
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "220"
+    },
+    {
+      "code": "23001",
+      "name": "秋田",
+      "coordinates": [
+        140.06667,
+        39.75
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "230"
+    },
+    {
+      "code": "23090",
+      "name": "秋田男鹿沖",
+      "coordinates": [
+        139.66667,
+        40.21667
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "230"
+    },
+    {
+      "code": "24001",
+      "name": "酒田",
+      "coordinates": [
+        139.81667,
+        38.91667
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "240"
+    },
+    {
+      "code": "24030",
+      "name": "飛島",
+      "coordinates": [
+        139.55,
+        39.18333
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "240"
+    },
+    {
+      "code": "24031",
+      "name": "鶴岡市鼠ケ関",
+      "coordinates": [
+        139.55,
+        38.56667
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "240"
+    },
+    {
+      "code": "24090",
+      "name": "山形酒田沖",
+      "coordinates": [
+        139.6,
+        38.96667
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "240"
+    },
+    {
+      "code": "25002",
+      "name": "いわき市小名浜",
+      "coordinates": [
+        140.9,
+        36.93333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "250"
+    },
+    {
+      "code": "25030",
+      "name": "相馬",
+      "coordinates": [
+        140.96667,
+        37.83333
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "250"
+    },
+    {
+      "code": "25050",
+      "name": "福島沖９０ｋｍＡ",
+      "coordinates": [
+        142.3,
+        37.66667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "250"
+    },
+    {
+      "code": "25060",
+      "name": "福島沖７０ｋｍＡ",
+      "coordinates": [
+        141.96667,
+        37.7
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "250"
+    },
+    {
+      "code": "25061",
+      "name": "福島沖７０ｋｍＢ",
+      "coordinates": [
+        141.88333,
+        37.28333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "250"
+    },
+    {
+      "code": "25070",
+      "name": "福島沖５０ｋｍＡ",
+      "coordinates": [
+        141.63333,
+        37.7
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "250"
+    },
+    {
+      "code": "25071",
+      "name": "福島沖５０ｋｍＢ",
+      "coordinates": [
+        141.56667,
+        37.3
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "250"
+    },
+    {
+      "code": "25080",
+      "name": "福島沖３０ｋｍＡ",
+      "coordinates": [
+        141.38333,
+        37.85
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "250"
+    },
+    {
+      "code": "25081",
+      "name": "福島沖３０ｋｍＢ",
+      "coordinates": [
+        141.36667,
+        37.1
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "250"
+    },
+    {
+      "code": "25090",
+      "name": "福島小名浜沖",
+      "coordinates": [
+        141.18333,
+        36.96667
+      ],
+      "agency": "東北地方整備局",
+      "forecastAreaCode": "250"
+    },
+    {
+      "code": "30001",
+      "name": "大洗",
+      "coordinates": [
+        140.56667,
+        36.3
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "300"
+    },
+    {
+      "code": "30020",
+      "name": "神栖市鹿島港",
+      "coordinates": [
+        140.7,
+        35.93333
+      ],
+      "agency": "関東地方整備局",
+      "forecastAreaCode": "300"
+    },
+    {
+      "code": "30050",
+      "name": "茨城沖９０ｋｍＡ",
+      "coordinates": [
+        141.83333,
+        36.63333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "300"
+    },
+    {
+      "code": "30051",
+      "name": "茨城沖９０ｋｍＢ",
+      "coordinates": [
+        141.8,
+        36
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "300"
+    },
+    {
+      "code": "30060",
+      "name": "茨城沖７０ｋｍＡ",
+      "coordinates": [
+        141.51667,
+        36.06667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "300"
+    },
+    {
+      "code": "30070",
+      "name": "茨城沖６０ｋｍＡ",
+      "coordinates": [
+        141.51667,
+        36.66667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "300"
+    },
+    {
+      "code": "30071",
+      "name": "茨城沖５０ｋｍＡ",
+      "coordinates": [
+        141.2,
+        36.15
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "300"
+    },
+    {
+      "code": "30072",
+      "name": "茨城沖５０ｋｍＢ",
+      "coordinates": [
+        141.38333,
+        35.85
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "300"
+    },
+    {
+      "code": "30080",
+      "name": "茨城沖４０ｋｍＡ",
+      "coordinates": [
+        141.33333,
+        36.83333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "300"
+    },
+    {
+      "code": "30095",
+      "name": "茨城神栖沖",
+      "coordinates": [
+        141.05,
+        35.9
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "300"
+    },
+    {
+      "code": "31001",
+      "name": "銚子",
+      "coordinates": [
+        140.86667,
+        35.75
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31002",
+      "name": "勝浦市興津",
+      "coordinates": [
+        140.25,
+        35.13333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31050",
+      "name": "千葉東方沖９０ｋｍＡ",
+      "coordinates": [
+        141.9,
+        35.6
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31051",
+      "name": "千葉南東沖９０ｋｍＡ",
+      "coordinates": [
+        141.08333,
+        34.63333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31060",
+      "name": "千葉東方沖８０ｋｍＡ",
+      "coordinates": [
+        141.58333,
+        35.28333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31061",
+      "name": "千葉南東沖８０ｋｍＡ",
+      "coordinates": [
+        140.41667,
+        34.26667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31062",
+      "name": "千葉東方沖７０ｋｍＡ",
+      "coordinates": [
+        141.65,
+        35.71667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31063",
+      "name": "千葉東方沖７０ｋｍＢ",
+      "coordinates": [
+        141.2,
+        35.1
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31064",
+      "name": "千葉南東沖８０ｋｍＢ",
+      "coordinates": [
+        139.98333,
+        34.18333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31070",
+      "name": "千葉南東沖６０ｋｍＡ",
+      "coordinates": [
+        140.75,
+        34.75
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31071",
+      "name": "千葉東方沖６０ｋｍＡ",
+      "coordinates": [
+        141.3,
+        35.23333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31072",
+      "name": "千葉東方沖６０ｋｍＢ",
+      "coordinates": [
+        140.96667,
+        34.88333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31073",
+      "name": "千葉南東沖６０ｋｍＢ",
+      "coordinates": [
+        140.2,
+        34.41667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31074",
+      "name": "千葉東方沖５０ｋｍＡ",
+      "coordinates": [
+        141.38333,
+        35.45
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31075",
+      "name": "千葉東方沖５０ｋｍＢ",
+      "coordinates": [
+        140.96667,
+        35.11667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31080",
+      "name": "千葉南東沖４０ｋｍＡ",
+      "coordinates": [
+        140.51667,
+        34.8
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31081",
+      "name": "千葉南東沖３０ｋｍＡ",
+      "coordinates": [
+        139.91667,
+        34.6
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31082",
+      "name": "千葉東方沖４０ｋｍＡ",
+      "coordinates": [
+        140.81667,
+        35.01667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31083",
+      "name": "千葉南東沖３０ｋｍＢ",
+      "coordinates": [
+        140.08333,
+        34.65
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31084",
+      "name": "千葉南東沖３０ｋｍＣ",
+      "coordinates": [
+        139.81667,
+        34.66667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "310"
+    },
+    {
+      "code": "31101",
+      "name": "館山市布良",
+      "coordinates": [
+        139.83333,
+        34.91667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "311"
+    },
+    {
+      "code": "31201",
+      "name": "千葉",
+      "coordinates": [
+        140.1,
+        35.6
+      ],
+      "agency": "千葉県",
+      "forecastAreaCode": "312"
+    },
+    {
+      "code": "31202",
+      "name": "東京晴海",
+      "coordinates": [
+        139.76667,
+        35.65
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "312"
+    },
+    {
+      "code": "31203",
+      "name": "横浜",
+      "coordinates": [
+        139.63333,
+        35.46667
+      ],
+      "agency": "関東地方整備局",
+      "forecastAreaCode": "312"
+    },
+    {
+      "code": "31204",
+      "name": "横須賀",
+      "coordinates": [
+        139.65,
+        35.28333
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "312"
+    },
+    {
+      "code": "31205",
+      "name": "千葉",
+      "coordinates": [
+        140.05,
+        35.56667
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "312"
+    },
+    {
+      "code": "31206",
+      "name": "横浜",
+      "coordinates": [
+        139.65,
+        35.45
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "312"
+    },
+    {
+      "code": "32001",
+      "name": "伊豆大島岡田",
+      "coordinates": [
+        139.38333,
+        34.78333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "320"
+    },
+    {
+      "code": "32002",
+      "name": "三宅島坪田",
+      "coordinates": [
+        139.55,
+        34.05
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "320"
+    },
+    {
+      "code": "32003",
+      "name": "八丈島八重根",
+      "coordinates": [
+        139.78333,
+        33.1
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "320"
+    },
+    {
+      "code": "32004",
+      "name": "神津島神津島港",
+      "coordinates": [
+        139.13333,
+        34.21667
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "320"
+    },
+    {
+      "code": "32005",
+      "name": "三宅島阿古",
+      "coordinates": [
+        139.48333,
+        34.06667
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "320"
+    },
+    {
+      "code": "32006",
+      "name": "八丈島神湊",
+      "coordinates": [
+        139.8,
+        33.13333
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "320"
+    },
+    {
+      "code": "32101",
+      "name": "父島二見",
+      "coordinates": [
+        142.2,
+        27.1
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "321"
+    },
+    {
+      "code": "32102",
+      "name": "南鳥島",
+      "coordinates": [
+        153.98333,
+        24.28333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "321"
+    },
+    {
+      "code": "33000",
+      "name": "小田原",
+      "coordinates": [
+        139.15,
+        35.23333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "330"
+    },
+    {
+      "code": "33001",
+      "name": "三浦市三崎漁港",
+      "coordinates": [
+        139.61667,
+        35.13333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "330"
+    },
+    {
+      "code": "33030",
+      "name": "三浦市油壺",
+      "coordinates": [
+        139.61667,
+        35.16667
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "330"
+    },
+    {
+      "code": "33080",
+      "name": "神奈川沖４０ｋｍ",
+      "coordinates": [
+        139.6,
+        34.8
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "330"
+    },
+    {
+      "code": "33095",
+      "name": "神奈川相模湾沖",
+      "coordinates": [
+        139.4,
+        35.06667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "330"
+    },
+    {
+      "code": "34001",
+      "name": "新潟",
+      "coordinates": [
+        139.06667,
+        37.93333
+      ],
+      "agency": "北陸地方整備局",
+      "forecastAreaCode": "340"
+    },
+    {
+      "code": "34003",
+      "name": "粟島",
+      "coordinates": [
+        139.25,
+        38.46667
+      ],
+      "agency": "海上保安庁",
+      "forecastAreaCode": "340"
+    },
+    {
+      "code": "34030",
+      "name": "柏崎市鯨波",
+      "coordinates": [
+        138.51667,
+        37.35
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "340"
+    },
+    {
+      "code": "34101",
+      "name": "両津市鷲崎",
+      "coordinates": [
+        138.51667,
+        38.31667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "341"
+    },
+    {
+      "code": "34102",
+      "name": "佐渡市鷲崎",
+      "coordinates": [
+        138.51667,
+        38.31667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "341"
+    },
+    {
+      "code": "34103",
+      "name": "佐渡市鷲崎",
+      "coordinates": [
+        138.51667,
+        38.31667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "341"
+    },
+    {
+      "code": "34139",
+      "name": "小木",
+      "coordinates": [
+        138.28333,
+        37.81667
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "341"
+    },
+    {
+      "code": "35001",
+      "name": "富山",
+      "coordinates": [
+        137.21667,
+        36.76667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "350"
+    },
+    {
+      "code": "35021",
+      "name": "伏木富山港新湊",
+      "coordinates": [
+        137.11667,
+        36.78333
+      ],
+      "agency": "北陸地方整備局",
+      "forecastAreaCode": "350"
+    },
+    {
+      "code": "36001",
+      "name": "珠洲市長橋",
+      "coordinates": [
+        137.15,
+        37.5
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "360"
+    },
+    {
+      "code": "36020",
+      "name": "輪島港",
+      "coordinates": [
+        136.9,
+        37.4
+      ],
+      "agency": "北陸地方整備局",
+      "forecastAreaCode": "360"
+    },
+    {
+      "code": "36021",
+      "name": "七尾港",
+      "coordinates": [
+        136.96667,
+        37.05
+      ],
+      "agency": "北陸地方整備局",
+      "forecastAreaCode": "360"
+    },
+    {
+      "code": "36101",
+      "name": "金沢",
+      "coordinates": [
+        136.6,
+        36.61667
+      ],
+      "agency": "北陸地方整備局",
+      "forecastAreaCode": "361"
+    },
+    {
+      "code": "37020",
+      "name": "敦賀港",
+      "coordinates": [
+        136.06667,
+        35.66667
+      ],
+      "agency": "北陸地方整備局",
+      "forecastAreaCode": "370"
+    },
+    {
+      "code": "38001",
+      "name": "沼津市内浦",
+      "coordinates": [
+        138.88333,
+        35.01667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "380"
+    },
+    {
+      "code": "38002",
+      "name": "清水",
+      "coordinates": [
+        138.51667,
+        35.01667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "380"
+    },
+    {
+      "code": "38004",
+      "name": "南伊豆町石廊崎",
+      "coordinates": [
+        138.85,
+        34.61667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "380"
+    },
+    {
+      "code": "38005",
+      "name": "御前崎",
+      "coordinates": [
+        138.21667,
+        34.61667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "380"
+    },
+    {
+      "code": "38006",
+      "name": "舞阪",
+      "coordinates": [
+        137.61667,
+        34.68333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "380"
+    },
+    {
+      "code": "38020",
+      "name": "下田港",
+      "coordinates": [
+        138.96667,
+        34.68333
+      ],
+      "agency": "中部地方整備局",
+      "forecastAreaCode": "380"
+    },
+    {
+      "code": "38030",
+      "name": "伊東",
+      "coordinates": [
+        139.13333,
+        34.9
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "380"
+    },
+    {
+      "code": "38031",
+      "name": "西伊豆町田子",
+      "coordinates": [
+        138.76667,
+        34.8
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "380"
+    },
+    {
+      "code": "38032",
+      "name": "焼津",
+      "coordinates": [
+        138.33333,
+        34.86667
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "380"
+    },
+    {
+      "code": "38034",
+      "name": "南伊豆",
+      "coordinates": [
+        138.88333,
+        34.61667
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "380"
+    },
+    {
+      "code": "38070",
+      "name": "静岡沖５０ｋｍ",
+      "coordinates": [
+        137.7,
+        34.21667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "380"
+    },
+    {
+      "code": "38090",
+      "name": "静岡御前崎沖",
+      "coordinates": [
+        138.28333,
+        34.4
+      ],
+      "agency": "中部地方整備局",
+      "forecastAreaCode": "380"
+    },
+    {
+      "code": "39001",
+      "name": "田原市赤羽根",
+      "coordinates": [
+        137.18333,
+        34.6
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "390"
+    },
+    {
+      "code": "39090",
+      "name": "伊勢湾口沖",
+      "coordinates": [
+        137.11667,
+        34.36667
+      ],
+      "agency": "中部地方整備局",
+      "forecastAreaCode": "390"
+    },
+    {
+      "code": "39101",
+      "name": "名古屋",
+      "coordinates": [
+        136.88333,
+        35.08333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "391"
+    },
+    {
+      "code": "39102",
+      "name": "半田市衣浦",
+      "coordinates": [
+        136.95,
+        34.88333
+      ],
+      "agency": "愛知県",
+      "forecastAreaCode": "391"
+    },
+    {
+      "code": "39103",
+      "name": "四日市",
+      "coordinates": [
+        136.63333,
+        34.96667
+      ],
+      "agency": "四日市港管理組合",
+      "forecastAreaCode": "391"
+    },
+    {
+      "code": "39120",
+      "name": "豊橋市三河港",
+      "coordinates": [
+        137.31667,
+        34.73333
+      ],
+      "agency": "中部地方整備局",
+      "forecastAreaCode": "391"
+    },
+    {
+      "code": "40001",
+      "name": "鳥羽",
+      "coordinates": [
+        136.81667,
+        34.48333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40002",
+      "name": "尾鷲",
+      "coordinates": [
+        136.2,
+        34.08333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40003",
+      "name": "熊野市遊木",
+      "coordinates": [
+        136.16667,
+        33.93333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40050",
+      "name": "三重南東沖９０ｋｍＡ",
+      "coordinates": [
+        136.91667,
+        33.36667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40060",
+      "name": "三重南東沖８０ｋｍＡ",
+      "coordinates": [
+        137.58333,
+        33.76667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40061",
+      "name": "三重南東沖８０ｋｍＢ",
+      "coordinates": [
+        136.93333,
+        33.48333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40062",
+      "name": "三重南東沖８０ｋｍＣ",
+      "coordinates": [
+        136.8,
+        33.36667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40063",
+      "name": "三重南東沖７０ｋｍＡ",
+      "coordinates": [
+        136.8,
+        33.46667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40070",
+      "name": "三重南東沖６０ｋｍＡ",
+      "coordinates": [
+        137.36667,
+        33.85
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40071",
+      "name": "三重南東沖６０ｋｍＢ",
+      "coordinates": [
+        136.83333,
+        33.65
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40072",
+      "name": "三重南東沖５０ｋｍＡ",
+      "coordinates": [
+        136.6,
+        33.65
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40080",
+      "name": "三重南東沖４０ｋｍＡ",
+      "coordinates": [
+        136.65,
+        33.75
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40081",
+      "name": "三重南東沖４０ｋｍＢ",
+      "coordinates": [
+        136.46667,
+        33.68333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40082",
+      "name": "三重南東沖３０ｋｍＡ",
+      "coordinates": [
+        136.55,
+        33.8
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "40090",
+      "name": "三重尾鷲沖",
+      "coordinates": [
+        136.26667,
+        33.9
+      ],
+      "agency": "中部地方整備局",
+      "forecastAreaCode": "400"
+    },
+    {
+      "code": "50001",
+      "name": "舞鶴",
+      "coordinates": [
+        135.38333,
+        35.48333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "500"
+    },
+    {
+      "code": "51001",
+      "name": "大阪天保山",
+      "coordinates": [
+        135.43333,
+        34.65
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "510"
+    },
+    {
+      "code": "51002",
+      "name": "岬町淡輪",
+      "coordinates": [
+        135.18333,
+        34.33333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "510"
+    },
+    {
+      "code": "52001",
+      "name": "豊岡市津居山",
+      "coordinates": [
+        134.83333,
+        35.65
+      ],
+      "agency": "兵庫県",
+      "forecastAreaCode": "520"
+    },
+    {
+      "code": "52101",
+      "name": "神戸",
+      "coordinates": [
+        135.18333,
+        34.68333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "521"
+    },
+    {
+      "code": "52102",
+      "name": "姫路",
+      "coordinates": [
+        134.66667,
+        34.78333
+      ],
+      "agency": "兵庫県",
+      "forecastAreaCode": "521"
+    },
+    {
+      "code": "52201",
+      "name": "洲本",
+      "coordinates": [
+        134.9,
+        34.33333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "522"
+    },
+    {
+      "code": "52202",
+      "name": "洲本",
+      "coordinates": [
+        134.9,
+        34.35
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "522"
+    },
+    {
+      "code": "53001",
+      "name": "那智勝浦町浦神",
+      "coordinates": [
+        135.9,
+        33.56667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53002",
+      "name": "串本町袋港",
+      "coordinates": [
+        135.76667,
+        33.48333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53003",
+      "name": "白浜町細野",
+      "coordinates": [
+        135.38333,
+        33.68333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53004",
+      "name": "和歌山",
+      "coordinates": [
+        135.15,
+        34.21667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53005",
+      "name": "御坊",
+      "coordinates": [
+        135.16667,
+        33.85
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53006",
+      "name": "御坊市祓井戸",
+      "coordinates": [
+        135.16667,
+        33.85
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53007",
+      "name": "白浜町堅田",
+      "coordinates": [
+        135.38333,
+        33.68333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53060",
+      "name": "和歌山沖８０ｋｍＡ",
+      "coordinates": [
+        136.68333,
+        33.21667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53061",
+      "name": "和歌山沖８０ｋｍＢ",
+      "coordinates": [
+        136.58333,
+        33.16667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53062",
+      "name": "和歌山沖７０ｋｍＡ",
+      "coordinates": [
+        136.6,
+        33.3
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53063",
+      "name": "和歌山沖７０ｋｍＢ",
+      "coordinates": [
+        136.56667,
+        33.23333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53064",
+      "name": "和歌山沖８０ｋｍＣ",
+      "coordinates": [
+        135.3,
+        32.88333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53065",
+      "name": "和歌山沖８０ｋｍＤ",
+      "coordinates": [
+        135.18333,
+        32.85
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53066",
+      "name": "和歌山沖８０ｋｍＥ",
+      "coordinates": [
+        135.15,
+        32.9
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53067",
+      "name": "和歌山沖７０ｋｍＣ",
+      "coordinates": [
+        135.76667,
+        32.8
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53068",
+      "name": "和歌山沖７０ｋｍＤ",
+      "coordinates": [
+        135.66667,
+        32.86667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53069",
+      "name": "和歌山沖７０ｋｍＥ",
+      "coordinates": [
+        135.23333,
+        32.98333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53070",
+      "name": "和歌山沖５０ｋｍＡ",
+      "coordinates": [
+        136.45,
+        33.48333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53071",
+      "name": "和歌山沖５０ｋｍＢ",
+      "coordinates": [
+        136.38333,
+        33.38333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53072",
+      "name": "和歌山沖６０ｋｍＡ",
+      "coordinates": [
+        135.83333,
+        32.9
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53073",
+      "name": "和歌山沖６０ｋｍＢ",
+      "coordinates": [
+        135.76667,
+        32.93333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53074",
+      "name": "和歌山沖６０ｋｍＣ",
+      "coordinates": [
+        135.1,
+        33.18333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53075",
+      "name": "和歌山沖５０ｋｍＣ",
+      "coordinates": [
+        135.83333,
+        33.03333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53076",
+      "name": "和歌山沖５０ｋｍＤ",
+      "coordinates": [
+        135.41667,
+        33.08333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53077",
+      "name": "和歌山沖５０ｋｍＥ",
+      "coordinates": [
+        135.16667,
+        33.23333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53078",
+      "name": "和歌山沖５０ｋｍＦ",
+      "coordinates": [
+        134.98333,
+        33.28333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53079",
+      "name": "和歌山沖４０ｋｍＡ",
+      "coordinates": [
+        136.26667,
+        33.33333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53080",
+      "name": "和歌山沖３０ｋｍＡ",
+      "coordinates": [
+        136.33333,
+        33.55
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53081",
+      "name": "和歌山沖３０ｋｍＢ",
+      "coordinates": [
+        136.25,
+        33.45
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53082",
+      "name": "和歌山沖４０ｋｍＢ",
+      "coordinates": [
+        135.96667,
+        33.15
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53083",
+      "name": "和歌山沖４０ｋｍＣ",
+      "coordinates": [
+        135.86667,
+        33.13333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53084",
+      "name": "和歌山沖４０ｋｍＤ",
+      "coordinates": [
+        135.71667,
+        33.08333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53085",
+      "name": "和歌山沖４０ｋｍＥ",
+      "coordinates": [
+        135.51667,
+        33.13333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53086",
+      "name": "和歌山沖４０ｋｍＦ",
+      "coordinates": [
+        135.33333,
+        33.18333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53087",
+      "name": "和歌山沖４０ｋｍＧ",
+      "coordinates": [
+        135.06667,
+        33.31667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53088",
+      "name": "和歌山沖３０ｋｍＣ",
+      "coordinates": [
+        135.75,
+        33.16667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53089",
+      "name": "和歌山沖３０ｋｍＤ",
+      "coordinates": [
+        135.46667,
+        33.23333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "53090",
+      "name": "和歌山白浜沖",
+      "coordinates": [
+        135.15,
+        33.65
+      ],
+      "agency": "近畿地方整備局",
+      "forecastAreaCode": "530"
+    },
+    {
+      "code": "54001",
+      "name": "境港市境",
+      "coordinates": [
+        133.25,
+        35.55
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "540"
+    },
+    {
+      "code": "54030",
+      "name": "岩美町田後",
+      "coordinates": [
+        134.31667,
+        35.6
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "540"
+    },
+    {
+      "code": "55001",
+      "name": "浜田",
+      "coordinates": [
+        132.06667,
+        34.9
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "550"
+    },
+    {
+      "code": "55101",
+      "name": "隠岐西郷",
+      "coordinates": [
+        133.33333,
+        36.2
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "551"
+    },
+    {
+      "code": "56001",
+      "name": "玉野市宇野",
+      "coordinates": [
+        133.95,
+        34.48333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "560"
+    },
+    {
+      "code": "57001",
+      "name": "広島",
+      "coordinates": [
+        132.46667,
+        34.35
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "570"
+    },
+    {
+      "code": "57002",
+      "name": "呉",
+      "coordinates": [
+        132.55,
+        34.23333
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "570"
+    },
+    {
+      "code": "58001",
+      "name": "小松島",
+      "coordinates": [
+        134.58333,
+        34.01667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "580"
+    },
+    {
+      "code": "58002",
+      "name": "徳島由岐",
+      "coordinates": [
+        134.6,
+        33.76667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "580"
+    },
+    {
+      "code": "58070",
+      "name": "徳島沖５０ｋｍＡ",
+      "coordinates": [
+        134.86667,
+        33.33333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "580"
+    },
+    {
+      "code": "58071",
+      "name": "徳島沖５０ｋｍＢ",
+      "coordinates": [
+        134.76667,
+        33.25
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "580"
+    },
+    {
+      "code": "58080",
+      "name": "徳島沖４０ｋｍＡ",
+      "coordinates": [
+        134.75,
+        33.41667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "580"
+    },
+    {
+      "code": "58081",
+      "name": "徳島沖４０ｋｍＢ",
+      "coordinates": [
+        134.66667,
+        33.31667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "580"
+    },
+    {
+      "code": "58090",
+      "name": "徳島海陽沖",
+      "coordinates": [
+        134.48333,
+        33.46667
+      ],
+      "agency": "四国地方整備局",
+      "forecastAreaCode": "580"
+    },
+    {
+      "code": "59001",
+      "name": "高松",
+      "coordinates": [
+        134.05,
+        34.35
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "590"
+    },
+    {
+      "code": "59020",
+      "name": "坂出市与島港",
+      "coordinates": [
+        133.81667,
+        34.38333
+      ],
+      "agency": "四国地方整備局",
+      "forecastAreaCode": "590"
+    },
+    {
+      "code": "59022",
+      "name": "多度津港",
+      "coordinates": [
+        133.75,
+        34.28333
+      ],
+      "agency": "四国地方整備局",
+      "forecastAreaCode": "590"
+    },
+    {
+      "code": "60001",
+      "name": "宇和島",
+      "coordinates": [
+        132.55,
+        33.23333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "600"
+    },
+    {
+      "code": "60101",
+      "name": "松山",
+      "coordinates": [
+        132.71667,
+        33.86667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "601"
+    },
+    {
+      "code": "60120",
+      "name": "今治市小島",
+      "coordinates": [
+        132.98333,
+        34.13333
+      ],
+      "agency": "四国地方整備局",
+      "forecastAreaCode": "601"
+    },
+    {
+      "code": "60121",
+      "name": "今治市馬島",
+      "coordinates": [
+        132.98333,
+        34.11667
+      ],
+      "agency": "四国地方整備局",
+      "forecastAreaCode": "601"
+    },
+    {
+      "code": "61001",
+      "name": "室戸市室戸岬",
+      "coordinates": [
+        134.16667,
+        33.26667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "610"
+    },
+    {
+      "code": "61002",
+      "name": "高知",
+      "coordinates": [
+        133.56667,
+        33.5
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "610"
+    },
+    {
+      "code": "61003",
+      "name": "土佐清水",
+      "coordinates": [
+        132.96667,
+        32.78333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "610"
+    },
+    {
+      "code": "61020",
+      "name": "須崎港",
+      "coordinates": [
+        133.3,
+        33.38333
+      ],
+      "agency": "四国地方整備局",
+      "forecastAreaCode": "610"
+    },
+    {
+      "code": "61030",
+      "name": "中土佐町久礼港",
+      "coordinates": [
+        133.25,
+        33.33333
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "610"
+    },
+    {
+      "code": "61050",
+      "name": "高知沖１００ｋｍＡ",
+      "coordinates": [
+        134.48333,
+        32.38333
+      ],
+      "agency": "海洋研究開発機構",
+      "forecastAreaCode": "610"
+    },
+    {
+      "code": "61060",
+      "name": "高知沖７０ｋｍＡ",
+      "coordinates": [
+        134.36667,
+        32.65
+      ],
+      "agency": "海洋研究開発機構",
+      "forecastAreaCode": "610"
+    },
+    {
+      "code": "61061",
+      "name": "高知沖８０ｋｍＡ",
+      "coordinates": [
+        134.51667,
+        32.63333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "610"
+    },
+    {
+      "code": "61062",
+      "name": "高知沖７０ｋｍＢ",
+      "coordinates": [
+        134.6,
+        32.71667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "610"
+    },
+    {
+      "code": "61063",
+      "name": "高知沖７０ｋｍＣ",
+      "coordinates": [
+        134.43333,
+        32.68333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "610"
+    },
+    {
+      "code": "61070",
+      "name": "高知沖６０ｋｍＡ",
+      "coordinates": [
+        134.51667,
+        32.76667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": "610"
+    },
+    {
+      "code": "61090",
+      "name": "高知足摺岬沖",
+      "coordinates": [
+        133.15,
+        32.63333
+      ],
+      "agency": "四国地方整備局",
+      "forecastAreaCode": "610"
+    },
+    {
+      "code": "61091",
+      "name": "高知室戸岬沖",
+      "coordinates": [
+        134.18333,
+        33.08333
+      ],
+      "agency": "四国地方整備局",
+      "forecastAreaCode": "610"
+    },
+    {
+      "code": "70021",
+      "name": "下関市南風泊港",
+      "coordinates": [
+        130.88333,
+        33.95
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "700"
+    },
+    {
+      "code": "70101",
+      "name": "下関市彦島弟子待",
+      "coordinates": [
+        130.93333,
+        33.93333
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "701"
+    },
+    {
+      "code": "70102",
+      "name": "徳山",
+      "coordinates": [
+        131.8,
+        34.03333
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "701"
+    },
+    {
+      "code": "70120",
+      "name": "宇部港",
+      "coordinates": [
+        131.25,
+        33.93333
+      ],
+      "agency": "中国地方整備局",
+      "forecastAreaCode": "701"
+    },
+    {
+      "code": "70121",
+      "name": "三田尻中関港",
+      "coordinates": [
+        131.58333,
+        34.03333
+      ],
+      "agency": "中国地方整備局",
+      "forecastAreaCode": "701"
+    },
+    {
+      "code": "70122",
+      "name": "下関港長府",
+      "coordinates": [
+        131,
+        34.01667
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "701"
+    },
+    {
+      "code": "71001",
+      "name": "北九州市門司",
+      "coordinates": [
+        130.96667,
+        33.95
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "710"
+    },
+    {
+      "code": "71002",
+      "name": "北九州市門司",
+      "coordinates": [
+        130.95,
+        33.95
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "710"
+    },
+    {
+      "code": "71021",
+      "name": "苅田港",
+      "coordinates": [
+        130.98333,
+        33.78333
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "710"
+    },
+    {
+      "code": "71022",
+      "name": "北九州港青浜",
+      "coordinates": [
+        131.01667,
+        33.95
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "710"
+    },
+    {
+      "code": "71101",
+      "name": "福岡市博多",
+      "coordinates": [
+        130.4,
+        33.61667
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "711"
+    },
+    {
+      "code": "71120",
+      "name": "北九州港日明",
+      "coordinates": [
+        130.88333,
+        33.91667
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "711"
+    },
+    {
+      "code": "71201",
+      "name": "大牟田市三池",
+      "coordinates": [
+        130.41667,
+        33.01667
+      ],
+      "agency": "日本コークス工業株式会社",
+      "forecastAreaCode": "712"
+    },
+    {
+      "code": "71202",
+      "name": "太良町大浦野崎",
+      "coordinates": [
+        130.21667,
+        32.98333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "712"
+    },
+    {
+      "code": "71203",
+      "name": "三角",
+      "coordinates": [
+        130.45,
+        32.61667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "712"
+    },
+    {
+      "code": "71220",
+      "name": "八代港",
+      "coordinates": [
+        130.56667,
+        32.51667
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "712"
+    },
+    {
+      "code": "71221",
+      "name": "天草市本渡港",
+      "coordinates": [
+        130.21667,
+        32.43333
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "712"
+    },
+    {
+      "code": "71222",
+      "name": "熊本港",
+      "coordinates": [
+        130.56667,
+        32.75
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "712"
+    },
+    {
+      "code": "72020",
+      "name": "唐津港",
+      "coordinates": [
+        129.96667,
+        33.46667
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "720"
+    },
+    {
+      "code": "72030",
+      "name": "玄海町仮屋",
+      "coordinates": [
+        129.85,
+        33.46667
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "720"
+    },
+    {
+      "code": "73001",
+      "name": "長崎",
+      "coordinates": [
+        129.86667,
+        32.73333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "730"
+    },
+    {
+      "code": "73002",
+      "name": "口之津",
+      "coordinates": [
+        130.2,
+        32.6
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "730"
+    },
+    {
+      "code": "73003",
+      "name": "福江島福江港",
+      "coordinates": [
+        128.85,
+        32.7
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "730"
+    },
+    {
+      "code": "73004",
+      "name": "佐世保",
+      "coordinates": [
+        129.71667,
+        33.15
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "730"
+    },
+    {
+      "code": "73020",
+      "name": "長崎港皇后",
+      "coordinates": [
+        129.83333,
+        32.71667
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "730"
+    },
+    {
+      "code": "73021",
+      "name": "平戸市田平港",
+      "coordinates": [
+        129.58333,
+        33.36667
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "730"
+    },
+    {
+      "code": "73101",
+      "name": "対馬美津島",
+      "coordinates": [
+        129.31667,
+        34.26667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "731"
+    },
+    {
+      "code": "73102",
+      "name": "対馬比田勝",
+      "coordinates": [
+        129.48333,
+        34.65
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "731"
+    },
+    {
+      "code": "73110",
+      "name": "対馬市厳原",
+      "coordinates": [
+        129.3,
+        34.2
+      ],
+      "agency": "海上保安庁",
+      "forecastAreaCode": "731"
+    },
+    {
+      "code": "73120",
+      "name": "壱岐島郷ノ浦港",
+      "coordinates": [
+        129.68333,
+        33.75
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "731"
+    },
+    {
+      "code": "74000",
+      "name": "苓北町都呂々",
+      "coordinates": [
+        130.03333,
+        32.46667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "740"
+    },
+    {
+      "code": "75001",
+      "name": "大分",
+      "coordinates": [
+        131.68333,
+        33.26667
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "750"
+    },
+    {
+      "code": "75020",
+      "name": "別府港",
+      "coordinates": [
+        131.5,
+        33.3
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "750"
+    },
+    {
+      "code": "75100",
+      "name": "佐伯市松浦",
+      "coordinates": [
+        131.96667,
+        32.95
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "751"
+    },
+    {
+      "code": "76001",
+      "name": "日向市細島",
+      "coordinates": [
+        131.66667,
+        32.45
+      ],
+      "agency": "宮崎県",
+      "forecastAreaCode": "760"
+    },
+    {
+      "code": "76002",
+      "name": "日南市油津",
+      "coordinates": [
+        131.41667,
+        31.58333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "760"
+    },
+    {
+      "code": "76020",
+      "name": "宮崎港",
+      "coordinates": [
+        131.45,
+        31.9
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "760"
+    },
+    {
+      "code": "76090",
+      "name": "宮崎日向沖",
+      "coordinates": [
+        131.91667,
+        32.38333
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "760"
+    },
+    {
+      "code": "77001",
+      "name": "佐多町大泊",
+      "coordinates": [
+        130.68333,
+        31.01667
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "770"
+    },
+    {
+      "code": "77002",
+      "name": "南大隅町大泊",
+      "coordinates": [
+        130.68333,
+        31.01667
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "770"
+    },
+    {
+      "code": "77020",
+      "name": "志布志港",
+      "coordinates": [
+        131.11667,
+        31.48333
+      ],
+      "agency": "九州地方整備局",
+      "forecastAreaCode": "770"
+    },
+    {
+      "code": "77101",
+      "name": "種子島田之脇",
+      "coordinates": [
+        131.06667,
+        30.7
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "771"
+    },
+    {
+      "code": "77102",
+      "name": "種子島西之表",
+      "coordinates": [
+        131,
+        30.73333
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "771"
+    },
+    {
+      "code": "77103",
+      "name": "種子島熊野",
+      "coordinates": [
+        130.96667,
+        30.46667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "771"
+    },
+    {
+      "code": "77201",
+      "name": "名瀬市小湊",
+      "coordinates": [
+        129.53333,
+        28.31667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "772"
+    },
+    {
+      "code": "77202",
+      "name": "名瀬市名瀬",
+      "coordinates": [
+        129.5,
+        28.38333
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "772"
+    },
+    {
+      "code": "77203",
+      "name": "中之島",
+      "coordinates": [
+        129.85,
+        29.85
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "772"
+    },
+    {
+      "code": "77204",
+      "name": "奄美市小湊",
+      "coordinates": [
+        129.53333,
+        28.31667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "772"
+    },
+    {
+      "code": "77205",
+      "name": "奄美市名瀬",
+      "coordinates": [
+        129.5,
+        28.4
+      ],
+      "agency": "海上保安庁海洋情報部",
+      "forecastAreaCode": "772"
+    },
+    {
+      "code": "77301",
+      "name": "鹿児島",
+      "coordinates": [
+        130.56667,
+        31.58333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "773"
+    },
+    {
+      "code": "77302",
+      "name": "枕崎",
+      "coordinates": [
+        130.3,
+        31.26667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "773"
+    },
+    {
+      "code": "77303",
+      "name": "鹿児島",
+      "coordinates": [
+        130.56667,
+        31.6
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "773"
+    },
+    {
+      "code": "77330",
+      "name": "阿久根",
+      "coordinates": [
+        130.18333,
+        32.01667
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "773"
+    },
+    {
+      "code": "80001",
+      "name": "那覇",
+      "coordinates": [
+        127.66667,
+        26.21667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "800"
+    },
+    {
+      "code": "80003",
+      "name": "沖縄市中城湾港",
+      "coordinates": [
+        127.83333,
+        26.33333
+      ],
+      "agency": "沖縄総合事務局",
+      "forecastAreaCode": "800"
+    },
+    {
+      "code": "80030",
+      "name": "南城市安座真",
+      "coordinates": [
+        127.81667,
+        26.18333
+      ],
+      "agency": "国土地理院",
+      "forecastAreaCode": "800"
+    },
+    {
+      "code": "80102",
+      "name": "南大東漁港",
+      "coordinates": [
+        131.23333,
+        25.86667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "801"
+    },
+    {
+      "code": "80201",
+      "name": "宮古島平良",
+      "coordinates": [
+        125.28333,
+        24.8
+      ],
+      "agency": "沖縄総合事務局",
+      "forecastAreaCode": "802"
+    },
+    {
+      "code": "80202",
+      "name": "石垣島石垣港",
+      "coordinates": [
+        124.15,
+        24.33333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "802"
+    },
+    {
+      "code": "80204",
+      "name": "与那国島久部良",
+      "coordinates": [
+        122.95,
+        24.45
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "802"
+    },
+    {
+      "code": "80205",
+      "name": "石垣島石垣港",
+      "coordinates": [
+        124.16667,
+        24.33333
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": "802"
+    },
+    {
+      "code": "80206",
+      "name": "宮古島平良",
+      "coordinates": [
+        125.28333,
+        24.81667
+      ],
+      "agency": "沖縄総合事務局",
+      "forecastAreaCode": "802"
+    },
+    {
+      "code": "91010",
+      "name": "釧路沖１１０ｋｍＡ",
+      "coordinates": [
+        145.43333,
+        42.06667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "91011",
+      "name": "十勝沖１１０ｋｍＡ",
+      "coordinates": [
+        144.7,
+        41.9
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "91012",
+      "name": "十勝沖１２０ｋｍＡ",
+      "coordinates": [
+        144.66667,
+        41.65
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "91020",
+      "name": "釧路沖１３０ｋｍＡ",
+      "coordinates": [
+        145.65,
+        41.88333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "91021",
+      "name": "釧路沖１３０ｋｍＢ",
+      "coordinates": [
+        146.23333,
+        42.1
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "91030",
+      "name": "釧路沖１５０ｋｍＡ",
+      "coordinates": [
+        145.53333,
+        41.66667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "91031",
+      "name": "十勝沖１５０ｋｍＡ",
+      "coordinates": [
+        144.9,
+        41.51667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "91032",
+      "name": "釧路沖１６０ｋｍＡ",
+      "coordinates": [
+        145.25,
+        41.53333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "91033",
+      "name": "釧路沖１７０ｋｍＡ",
+      "coordinates": [
+        146.16667,
+        41.66667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "91040",
+      "name": "釧路沖１８０ｋｍＡ",
+      "coordinates": [
+        145.6,
+        41.36667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92010",
+      "name": "青森東方沖１２０ｋｍＡ",
+      "coordinates": [
+        143.2,
+        40.45
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92030",
+      "name": "青森東方沖１６０ｋｍＡ",
+      "coordinates": [
+        143.45,
+        40.96667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92040",
+      "name": "青森東方沖１８０ｋｍＡ",
+      "coordinates": [
+        143.76667,
+        40.88333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92041",
+      "name": "青森東方沖２００ｋｍＡ",
+      "coordinates": [
+        144.08333,
+        40.78333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92042",
+      "name": "青森東方沖２００ｋｍＢ",
+      "coordinates": [
+        144.13333,
+        40.55
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92060",
+      "name": "青森東方沖２６０ｋｍＡ",
+      "coordinates": [
+        144.93333,
+        40.53333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92070",
+      "name": "青森東方沖３１０ｋｍＡ",
+      "coordinates": [
+        145.4,
+        40.9
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92110",
+      "name": "岩手沖１１０ｋｍＡ",
+      "coordinates": [
+        143.36667,
+        39.7
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92111",
+      "name": "岩手沖１２０ｋｍＡ",
+      "coordinates": [
+        143.31667,
+        40.06667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92112",
+      "name": "岩手沖１２０ｋｍＢ",
+      "coordinates": [
+        143.45,
+        39.3
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92120",
+      "name": "岩手沖１４０ｋｍＡ",
+      "coordinates": [
+        143.55,
+        40.43333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92121",
+      "name": "岩手沖１４０ｋｍＢ",
+      "coordinates": [
+        143.65,
+        40.08333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92122",
+      "name": "岩手沖１４０ｋｍＣ",
+      "coordinates": [
+        143.71667,
+        39.63333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92130",
+      "name": "岩手沖１５０ｋｍＡ",
+      "coordinates": [
+        143.75,
+        39.18333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92131",
+      "name": "岩手沖１６０ｋｍＡ",
+      "coordinates": [
+        143.93333,
+        39.76667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92132",
+      "name": "岩手沖１７０ｋｍＡ",
+      "coordinates": [
+        143.88333,
+        40.43333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92133",
+      "name": "岩手沖１７０ｋｍＢ",
+      "coordinates": [
+        143.95,
+        40.03333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92134",
+      "name": "岩手沖１７０ｋｍＣ",
+      "coordinates": [
+        143.93333,
+        39.05
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92150",
+      "name": "岩手沖２２０ｋｍＡ",
+      "coordinates": [
+        144.58333,
+        39
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92151",
+      "name": "岩手沖２３０ｋｍＡ",
+      "coordinates": [
+        144.71667,
+        39.51667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92152",
+      "name": "岩手沖２４０ｋｍＡ",
+      "coordinates": [
+        144.81667,
+        40.03333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92170",
+      "name": "岩手沖３８０ｋｍＡ",
+      "coordinates": [
+        146.2,
+        40.3
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92171",
+      "name": "岩手沖３２０ｋｍＡ",
+      "coordinates": [
+        145.8,
+        39.6
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92210",
+      "name": "宮城沖１１０ｋｍＡ",
+      "coordinates": [
+        143.15,
+        38.76667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92211",
+      "name": "宮城沖１１０ｋｍＢ",
+      "coordinates": [
+        142.83333,
+        38.45
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92212",
+      "name": "宮城沖１２０ｋｍＡ",
+      "coordinates": [
+        142.9,
+        37.98333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92220",
+      "name": "宮城沖１３０ｋｍＡ",
+      "coordinates": [
+        143.16667,
+        38.43333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92221",
+      "name": "宮城沖１４０ｋｍＡ",
+      "coordinates": [
+        143.48333,
+        38.78333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92230",
+      "name": "宮城沖１５０ｋｍＡ",
+      "coordinates": [
+        143.25,
+        37.96667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92231",
+      "name": "宮城沖１６０ｋｍＡ",
+      "coordinates": [
+        143.78333,
+        38.83333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92232",
+      "name": "宮城沖１６０ｋｍＢ",
+      "coordinates": [
+        143.51667,
+        38.4
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92240",
+      "name": "宮城沖１８０ｋｍＡ",
+      "coordinates": [
+        143.78333,
+        38.3
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92241",
+      "name": "宮城沖１８０ｋｍＢ",
+      "coordinates": [
+        143.56667,
+        37.93333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92242",
+      "name": "宮城沖１９０ｋｍＡ",
+      "coordinates": [
+        143.75,
+        38.06667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92250",
+      "name": "宮城沖２３０ｋｍＡ",
+      "coordinates": [
+        144.45,
+        38.5
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92251",
+      "name": "宮城沖２４０ｋｍＡ",
+      "coordinates": [
+        144.33333,
+        37.98333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92270",
+      "name": "宮城沖３５０ｋｍＡ",
+      "coordinates": [
+        145.6,
+        38.81667
+      ],
+      "agency": "気象庁",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92500",
+      "name": "福島沖１００ｋｍＡ",
+      "coordinates": [
+        142.2,
+        37.2
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92510",
+      "name": "福島沖１２０ｋｍＡ",
+      "coordinates": [
+        142.61667,
+        37.6
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92520",
+      "name": "福島沖１３０ｋｍＡ",
+      "coordinates": [
+        142.5,
+        37.1
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92521",
+      "name": "福島沖１４０ｋｍＡ",
+      "coordinates": [
+        142.93333,
+        37.53333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92530",
+      "name": "福島沖１６０ｋｍＡ",
+      "coordinates": [
+        142.81667,
+        37.06667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92531",
+      "name": "福島沖１７０ｋｍＡ",
+      "coordinates": [
+        143.23333,
+        37.43333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92540",
+      "name": "福島沖１８０ｋｍＡ",
+      "coordinates": [
+        143.06667,
+        37.21667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92550",
+      "name": "福島沖２４０ｋｍＡ",
+      "coordinates": [
+        144.18333,
+        37.48333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "92551",
+      "name": "福島沖２５０ｋｍＡ",
+      "coordinates": [
+        143.95,
+        37.01667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93010",
+      "name": "茨城沖１１０ｋｍＡ",
+      "coordinates": [
+        142.15,
+        36.68333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93011",
+      "name": "茨城沖１２０ｋｍＡ",
+      "coordinates": [
+        142.11667,
+        35.96667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93020",
+      "name": "茨城沖１４０ｋｍＡ",
+      "coordinates": [
+        142.43333,
+        36.6
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93021",
+      "name": "茨城沖１４０ｋｍＢ",
+      "coordinates": [
+        142.4,
+        35.95
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93030",
+      "name": "茨城沖１６０ｋｍＡ",
+      "coordinates": [
+        142.61667,
+        36.38333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93031",
+      "name": "茨城沖１６０ｋｍＢ",
+      "coordinates": [
+        142.55,
+        36.15
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93050",
+      "name": "茨城沖２２０ｋｍＡ",
+      "coordinates": [
+        143.28333,
+        36.13333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93051",
+      "name": "茨城沖２４０ｋｍＡ",
+      "coordinates": [
+        143.6,
+        36.56667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93100",
+      "name": "千葉東方沖１００ｋｍＡ",
+      "coordinates": [
+        141.86667,
+        35.23333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93110",
+      "name": "千葉東方沖１１０ｋｍＡ",
+      "coordinates": [
+        142.05,
+        35.4
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93111",
+      "name": "千葉南東沖１１０ｋｍＡ",
+      "coordinates": [
+        140.73333,
+        34.23333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93112",
+      "name": "千葉南東沖１２０ｋｍＡ",
+      "coordinates": [
+        141.35,
+        34.53333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93113",
+      "name": "千葉南東沖１２０ｋｍＢ",
+      "coordinates": [
+        141.03333,
+        34.26667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93114",
+      "name": "千葉南東沖１２０ｋｍＣ",
+      "coordinates": [
+        140.51667,
+        33.95
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93120",
+      "name": "千葉南東沖１４０ｋｍＡ",
+      "coordinates": [
+        141.53333,
+        34.36667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93121",
+      "name": "千葉南東沖１４０ｋｍＢ",
+      "coordinates": [
+        141.33333,
+        34.2
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93130",
+      "name": "千葉南東沖１６０ｋｍＡ",
+      "coordinates": [
+        141.13333,
+        33.86667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93131",
+      "name": "千葉東方沖１７０ｋｍＡ",
+      "coordinates": [
+        142.68333,
+        35.21667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93140",
+      "name": "千葉南東沖１８０ｋｍＡ",
+      "coordinates": [
+        141.73333,
+        33.96667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93141",
+      "name": "千葉東方沖１８０ｋｍＡ",
+      "coordinates": [
+        142.51667,
+        34.71667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93142",
+      "name": "千葉東方沖１９０ｋｍＡ",
+      "coordinates": [
+        142.96667,
+        35.66667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "93143",
+      "name": "千葉東方沖２００ｋｍＡ",
+      "coordinates": [
+        142.23333,
+        34.26667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "95300",
+      "name": "和歌山沖１００ｋｍＡ",
+      "coordinates": [
+        136.81667,
+        33.13333
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "95301",
+      "name": "和歌山沖１００ｋｍＢ",
+      "coordinates": [
+        136.83333,
+        33.06667
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "95302",
+      "name": "和歌山沖１００ｋｍＣ",
+      "coordinates": [
+        136.78333,
+        33
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "95303",
+      "name": "和歌山沖１００ｋｍＤ",
+      "coordinates": [
+        136.73333,
+        32.95
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    },
+    {
+      "code": "95310",
+      "name": "和歌山沖１１０ｋｍＡ",
+      "coordinates": [
+        136.93333,
+        33.05
+      ],
+      "agency": "防災科学技術研究所",
+      "forecastAreaCode": ""
+    }
+  ]
+}

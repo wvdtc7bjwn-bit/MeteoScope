@@ -38,8 +38,9 @@ const MODE_CLASS = {
 };
 
 const SAMPLE_SOURCE_ID = "weather-samples";
-const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
+const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
+const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-line"];
 const SAMPLE_CIRCLE_BASE_RADIUS = ["coalesce", ["get", "radius"], 8];
 const SAMPLE_CIRCLE_RADIUS_EXPRESSION = buildCircleZoomExpression({
   zoomStops: [
@@ -797,7 +798,8 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         ["==", ["geometry-type"], "Point"],
         ["!=", ["get", "markerType"], "wind"],
         ["!=", ["get", "markerType"], "cross"],
-        ["!=", ["get", "markerType"], "volcano"]
+        ["!=", ["get", "markerType"], "volcano"],
+        ["!=", ["get", "markerType"], "tsunami-offshore"]
       ],
       layout: {
         "circle-sort-key": ["coalesce", ["get", "sortKey"], 0]
@@ -806,7 +808,12 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "circle-color": ["get", "color"],
         "circle-opacity": ["coalesce", ["get", "opacity"], 0.92],
         "circle-radius": SAMPLE_CIRCLE_RADIUS_EXPRESSION,
-        "circle-stroke-color": "#f8fbff",
+        "circle-stroke-color": [
+          "case",
+          ["==", ["get", "markerType"], "tsunami-coastal"],
+          "#050505",
+          "#f8fbff"
+        ],
         "circle-stroke-width": SAMPLE_CIRCLE_STROKE_WIDTH_EXPRESSION
       }
     });
@@ -871,6 +878,39 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "text-halo-color": "rgba(5, 9, 20, 0.82)",
         "text-halo-width": 2.4,
         "text-halo-blur": 0.4
+      }
+    });
+
+    map.addLayer({
+      id: "sample-tsunami-offshore",
+      type: "symbol",
+      source: SAMPLE_SOURCE_ID,
+      filter: ["all",
+        ["==", ["geometry-type"], "Point"],
+        ["==", ["get", "markerType"], "tsunami-offshore"]
+      ],
+      layout: {
+        "text-field": "◆",
+        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          3,
+          10,
+          7,
+          14,
+          10,
+          17
+        ],
+        "text-allow-overlap": true,
+        "text-ignore-placement": true,
+        "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
+      },
+      paint: {
+        "text-color": ["coalesce", ["get", "color"], "#ff2b12"],
+        "text-halo-color": "#050505",
+        "text-halo-width": 2
       }
     });
 
@@ -1228,7 +1268,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
 
   function updateHypocenter3D(mode, data = {}) {
     const enabled = mode === "earthquake"
-      && data.earthquakeView === "distribution"
+      && getEarthquakeMapView(data) === "distribution"
       && data.distribution3DEnabled === true;
     hypocenter3D.setData(
       enabled ? data.distributionItems ?? [] : [],
@@ -1348,11 +1388,21 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   }
 
   function setupEarthquakeDistributionInfo() {
-    ["sample-circle", "sample-volcano", "sample-fill"].forEach((layerID) => {
+    EARTHQUAKE_INTERACTIVE_LAYERS.forEach((layerID) => {
       map.on("click", layerID, (event) => {
         if (activeMode !== "earthquake") return;
-        const feature = event.features?.[0];
+        const feature = layerID === "sample-circle"
+          ? (event.features?.find((item) => item?.properties?.tideStationCode) ?? event.features?.[0])
+          : event.features?.[0];
         if (layerID === "sample-fill" && feature?.properties?.markerType !== "ashfall") return;
+        const tideStationCode = String(feature?.properties?.tideStationCode ?? "").trim();
+        if (layerID === "sample-circle" && tideStationCode) {
+          window.dispatchEvent(new CustomEvent("tide-station-select", {
+            detail: { stationCode: tideStationCode }
+          }));
+          hideMapInfo("earthquake-distribution");
+          return;
+        }
         const volcanoCode = String(feature?.properties?.volcanoCode ?? "").trim();
         if (layerID === "sample-volcano" && volcanoCode) {
           window.dispatchEvent(new CustomEvent("volcano-select", {
@@ -1376,6 +1426,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       map.on("mouseenter", layerID, (event) => {
         if (activeMode === "earthquake" && (
           layerID === "sample-volcano"
+          || event.features?.some((feature) => feature?.properties?.tideStationCode)
           || event.features?.some((feature) =>
             feature?.properties?.popup && (layerID !== "sample-fill" || feature?.properties?.markerType === "ashfall")
           )
@@ -1401,7 +1452,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         }
         return;
       }
-      const features = map.queryRenderedFeatures(event.point, { layers: ["sample-circle", "sample-volcano", "sample-fill"] });
+      const features = map.queryRenderedFeatures(event.point, { layers: EARTHQUAKE_INTERACTIVE_LAYERS });
       if (!features.some((feature) => feature?.properties?.popup)) {
         hideMapInfo("earthquake-distribution");
       }
@@ -3110,9 +3161,9 @@ function createEarthquakeFeatures(data) {
     });
     return [...ashFeatures, ...volcanoFeatures];
   }
-  if (data?.earthquakeView === "distribution") {
+  if (getEarthquakeMapView(data) === "distribution") {
     const is3D = data?.distribution3DEnabled === true;
-    return (data?.distributionItems ?? []).flatMap((item) => {
+    const distributionFeatures = (data?.distributionItems ?? []).flatMap((item) => {
       const longitude = Number(item.longitude);
       const latitude = Number(item.latitude);
       if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return [];
@@ -3136,21 +3187,28 @@ function createEarthquakeFeatures(data) {
         }
       }];
     });
+    return [...createTideStationFeatures(data), ...distributionFeatures];
   }
-  const tsunamiFeatures = (data?.tsunami?.mapFeatures ?? []).map((feature) => ({
-    ...feature,
-    properties: {
-      ...(feature.properties ?? {}),
-      color: feature.properties?.color ?? "#168bd2",
-      lineWidth: feature.properties?.lineWidth ?? 3
-    }
-  }));
+  const tsunamiFeatures = (data?.tsunami?.mapFeatures ?? [])
+    .filter((feature) => (
+      data?.tideStationsVisible !== true
+      || !["tsunami-coastal", "tsunami-offshore"].includes(feature?.properties?.markerType)
+    ))
+    .map((feature) => ({
+      ...feature,
+      properties: {
+        ...(feature.properties ?? {}),
+        color: feature.properties?.color ?? "#168bd2",
+        lineWidth: feature.properties?.lineWidth ?? 3
+      }
+    }));
   const earthquakes = data?.earthquakes ?? [];
   const selectedId = String(data?.selectedEarthquakeId ?? "");
   const earthquake = data?.selectedEarthquake
     ?? earthquakes.find((item) => String(item.id) === selectedId)
     ?? earthquakes[0];
-  if (!earthquake) return tsunamiFeatures;
+  const tideStationFeatures = createTideStationFeatures(data);
+  if (!earthquake) return [...tideStationFeatures, ...tsunamiFeatures];
 
   const areaFeatures = (earthquake.intensityAreaFeatures ?? []).map((feature) => ({
     ...feature,
@@ -3193,7 +3251,41 @@ function createEarthquakeFeatures(data) {
     }]
     : [];
 
-  return [...tsunamiFeatures, ...areaFeatures, ...stationFeatures, ...epicenterFeature];
+  return [
+    ...tideStationFeatures,
+    ...tsunamiFeatures,
+    ...areaFeatures,
+    ...stationFeatures,
+    ...epicenterFeature
+  ];
+}
+
+function getEarthquakeMapView(data) {
+  return data?.earthquakeMapView ?? data?.earthquakeView ?? "recent";
+}
+
+function createTideStationFeatures(data) {
+  if (data?.tideStationsVisible !== true) return [];
+  const selectedCode = String(data?.selectedTideStationCode ?? "");
+  return (data?.tideStations ?? []).flatMap((station) => {
+    if (!Array.isArray(station?.coordinates) || station.coordinates.length !== 2) return [];
+    const selected = String(station.code) === selectedCode;
+    return [{
+      type: "Feature",
+      geometry: { type: "Point", coordinates: station.coordinates },
+      properties: {
+        color: selected ? "#38bdf8" : "#5e93ad",
+        opacity: selected ? 1 : 0.7,
+        markerType: "tide-station",
+        markerScaleMode: "fixed",
+        radius: selected ? 6.2 : 3.7,
+        strokeWidth: selected ? 2.4 : 1.2,
+        sortKey: selected ? 1900 : 120,
+        tideStationCode: String(station.code),
+        label: ""
+      }
+    }];
+  });
 }
 
 function ashfallColor(area) {

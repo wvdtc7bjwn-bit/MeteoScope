@@ -14,7 +14,8 @@ import {
 import {
   getTsunamiLevelColor,
   getTsunamiLevelLineWidth,
-  getTsunamiLevelRank
+  getTsunamiLevelRank,
+  getTsunamiObservationStyle
 } from "../tsunami.js";
 
 const EARTHQUAKE_XML_DETAIL_FETCH_LIMIT = 48;
@@ -26,6 +27,7 @@ const EARTHQUAKE_SERIES_WINDOW_MS = 5 * 60 * 1000;
 const EARTHQUAKE_SERIES_COORDINATE_DISTANCE_KM = 120;
 let earthquakeAreaLookupPromise = null;
 let tsunamiAreaLookupPromise = null;
+let tsunamiStationLookupPromise = null;
 let stationCoordinateLookupPromise = null;
 
 export async function fetchEarthquakeXmlList() {
@@ -52,9 +54,10 @@ export async function fetchEarthquakeXmlList() {
   }
   const baseEarthquakes = dedupeEarthquakes(fulfilledEarthquakeResults)
     .slice(0, EARTHQUAKE_HISTORY_DISPLAY_LIMIT);
-  const [areaLookup, tsunamiLookup, stationLookup] = await Promise.all([
+  const [areaLookup, tsunamiLookup, tsunamiStationLookup, stationLookup] = await Promise.all([
     loadEarthquakeAreaLookup().catch(() => new Map()),
     loadTsunamiAreaLookup().catch(() => new Map()),
+    loadTsunamiStationLookup().catch(() => buildEmptyTsunamiStationLookup()),
     loadStationCoordinateLookup().catch(() => buildEmptyStationLookup())
   ]);
   const earthquakes = baseEarthquakes.map((earthquake) => attachEarthquakeMapData(
@@ -67,7 +70,8 @@ export async function fetchEarthquakeXmlList() {
     .map((result) => result.value);
   const tsunami = attachTsunamiMapData(
     mergeTsunamiReports(tsunamiReports),
-    currentFeedAvailable ? tsunamiLookup : new Map()
+    currentFeedAvailable ? tsunamiLookup : new Map(),
+    currentFeedAvailable ? tsunamiStationLookup : buildEmptyTsunamiStationLookup()
   );
   const tsunamiStatus = !currentFeedAvailable || (tsunamiEntries.length > 0 && tsunamiReports.length === 0)
     ? "unavailable"
@@ -320,6 +324,7 @@ function parseTsunamiObservationItem(item, offshore) {
       stationCode,
       stationName: stationName || stationCode,
       offshore,
+      sensor: getText(getFirstChild(station, "Sensor")),
       arrivalTime: formatTsunamiTime(getText(getFirstChild(firstHeight, "ArrivalTime"))),
       arrivalCondition: getText(getFirstChild(firstHeight, "Condition")),
       maxHeightTime: formatTsunamiTime(getText(getFirstChild(maxHeight, "DateTime"))),
@@ -684,7 +689,42 @@ export async function loadTsunamiAreaLookup() {
   return tsunamiAreaLookupPromise;
 }
 
-function buildTsunamiAreaLookup(geoJson) {
+export async function loadTsunamiStationLookup() {
+  if (!tsunamiStationLookupPromise) {
+    tsunamiStationLookupPromise = fetchJson(JMA_ENDPOINTS.tsunamiObservationStations, {
+      ttlMs: STATIC_DATA_CACHE_TTL_MS,
+      cache: "force-cache"
+    }).then(buildTsunamiStationLookup);
+  }
+  return tsunamiStationLookupPromise;
+}
+
+export function buildTsunamiStationLookup(data) {
+  const byCode = new Map();
+  const stationsByName = new Map();
+  (data?.stations ?? []).forEach((station) => {
+    const code = String(station?.code ?? "").trim();
+    const nameKey = normalizeTsunamiStationName(station?.name);
+    const coordinates = Array.isArray(station?.coordinates)
+      ? station.coordinates.map(Number)
+      : [];
+    if (coordinates.length !== 2 || !coordinates.every(Number.isFinite)) return;
+    const normalized = { ...station, code, coordinates };
+    if (code && !byCode.has(code)) byCode.set(code, normalized);
+    if (nameKey) {
+      if (!stationsByName.has(nameKey)) stationsByName.set(nameKey, []);
+      stationsByName.get(nameKey).push(normalized);
+    }
+  });
+  const byName = new Map(
+    [...stationsByName.entries()]
+      .filter(([, stations]) => stations.length === 1)
+      .map(([name, stations]) => [name, stations[0]])
+  );
+  return { byCode, byName };
+}
+
+export function buildTsunamiAreaLookup(geoJson) {
   const lookup = new Map();
   (geoJson?.features ?? []).forEach((feature) => {
     const code = normalizeTsunamiAreaCode(feature?.properties?.code);
@@ -695,9 +735,13 @@ function buildTsunamiAreaLookup(geoJson) {
   return lookup;
 }
 
-export function attachTsunamiMapData(tsunami, lookup) {
+export function attachTsunamiMapData(
+  tsunami,
+  lookup,
+  stationLookup = buildEmptyTsunamiStationLookup()
+) {
   if (!tsunami) return null;
-  const mapFeatures = tsunami.areas.flatMap((area) => {
+  const areaFeatures = tsunami.areas.flatMap((area) => {
     if (area.level === "none") return [];
     return (lookup.get(normalizeTsunamiAreaCode(area.code)) ?? []).map((feature, index) => ({
       type: "Feature",
@@ -716,7 +760,20 @@ export function attachTsunamiMapData(tsunami, lookup) {
       }
     }));
   });
-  return { ...tsunami, mapFeatures };
+  const observations = (tsunami.observations ?? []).map((observation) => (
+    attachTsunamiObservationLocation(observation, stationLookup)
+  ));
+  const offshoreObservations = (tsunami.offshoreObservations ?? []).map((observation) => (
+    attachTsunamiObservationLocation(observation, stationLookup)
+  ));
+  const observationFeatures = [...observations, ...offshoreObservations]
+    .flatMap(buildTsunamiObservationMapFeature);
+  return {
+    ...tsunami,
+    observations,
+    offshoreObservations,
+    mapFeatures: [...areaFeatures, ...observationFeatures]
+  };
 }
 
 function buildTsunamiAreaPopup(area) {
@@ -728,6 +785,60 @@ function buildTsunamiAreaPopup(area) {
     <span>${escapeHtml(arrival)}</span><br>
     <span>${escapeHtml(height)}</span>
   `;
+}
+
+function attachTsunamiObservationLocation(observation, lookup) {
+  const station = lookup?.byCode?.get(String(observation?.stationCode ?? "").trim())
+    ?? lookup?.byName?.get(normalizeTsunamiStationName(observation?.stationName));
+  if (!station) return observation;
+  return {
+    ...observation,
+    coordinates: station.coordinates,
+    agency: station.agency ?? "",
+    forecastAreaCode: observation.areaCode || station.forecastAreaCode || ""
+  };
+}
+
+function buildTsunamiObservationMapFeature(observation) {
+  if (!Array.isArray(observation?.coordinates) || observation.coordinates.length !== 2) return [];
+  const style = getTsunamiObservationStyle(observation.offshore);
+  return [{
+    type: "Feature",
+    geometry: { type: "Point", coordinates: observation.coordinates },
+    properties: {
+      color: style.color,
+      markerType: style.markerType,
+      markerScaleMode: "fixed",
+      radius: observation.offshore ? 6 : 5.5,
+      strokeWidth: 2.2,
+      sortKey: observation.offshore ? 2100 : 2000,
+      label: observation.maxHeight || "",
+      popup: buildTsunamiObservationPopup(observation, style.label)
+    }
+  }];
+}
+
+function buildTsunamiObservationPopup(observation, typeLabel) {
+  const details = [
+    observation.agency,
+    observation.sensor,
+    observation.arrivalTime ? `第1波 ${observation.arrivalTime}` : observation.arrivalCondition,
+    observation.maxHeightTime ? `最大波 ${observation.maxHeightTime}` : ""
+  ].filter(Boolean);
+  const height = observation.maxHeightCondition || observation.maxHeight || "高さ未発表";
+  return `
+    <strong>${escapeHtml(observation.stationName ?? typeLabel)}</strong><br>
+    <span>${escapeHtml(typeLabel)}: ${escapeHtml(height)}</span>
+    ${details.length ? `<br><span>${escapeHtml(details.join(" / "))}</span>` : ""}
+  `;
+}
+
+function buildEmptyTsunamiStationLookup() {
+  return { byCode: new Map(), byName: new Map() };
+}
+
+function normalizeTsunamiStationName(value) {
+  return String(value ?? "").normalize("NFKC").replace(/\s+/gu, "").trim();
 }
 
 function buildEarthquakeAreaLookup(geoJson) {

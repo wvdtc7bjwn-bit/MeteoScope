@@ -9,7 +9,11 @@ import {
   KIKIKURU_LAYER_OPTIONS,
   KIKIKURU_LEVELS
 } from "../config.js";
-import { getTsunamiLevelColor, getTsunamiLevelLabel } from "../tsunami.js";
+import {
+  getTsunamiLevelColor,
+  getTsunamiLevelLabel,
+  getTsunamiObservationStyle
+} from "../tsunami.js";
 import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
 import { buildEarthquakeObservationRows } from "../earthquakeDetails.js";
 import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
@@ -49,6 +53,11 @@ let activeRiverFloodReportsById = new Map();
 let warningAreaSelectionOptions = {};
 let mobileRadarDockSliding = false;
 let mobileVolcanoAshSliderDragging = false;
+let mobileEarthquakeSummaryPage = "earthquake";
+let lastMobileTideStationCode = "";
+let mobileEarthquakeSummarySwipeInitialized = false;
+let mobileTsunamiTickerGroupTimer = 0;
+let mobileTsunamiTickerTransitionTimer = 0;
 let warningDetailsRenderFrame = 0;
 let warningDetailsRenderGeneration = 0;
 
@@ -56,6 +65,16 @@ const AMEDAS_RANKING_LIMIT = 20;
 const MOBILE_WEATHER_TIMELINE_TAP_DELAY_MS = 360;
 const MOBILE_WEATHER_TIMELINE_TAP_MAX_DURATION_MS = 500;
 const MOBILE_WEATHER_TIMELINE_TAP_MOVE_THRESHOLD_PX = 8;
+const TIDE_RANGE_OPTIONS = [
+  [1, "1時間"],
+  [6, "6時間"],
+  [12, "12時間"],
+  [24, "1日"]
+];
+const TIDE_WARNING_CRITERIA = [
+  { type: "level5", label: "レベル5特別警報基準", stationKey: "level5" },
+  { type: "level4", label: "レベル4危険警報基準", stationKey: "level4" }
+];
 
 const legendsByTab = {
   amedas: [["観測地点", "legend-amedas"]],
@@ -445,6 +464,85 @@ function setupSegmentedControls(root) {
 
 export function setupMobileDockSegmentedControls() {
   setupSegmentedControls(document.getElementById("mobile-context-dock"));
+}
+
+export function setupMobileEarthquakeSummarySwipe({ onChange } = {}) {
+  if (mobileEarthquakeSummarySwipeInitialized) return;
+  const root = document.getElementById("mobile-context-dock");
+  if (!root) return;
+  mobileEarthquakeSummarySwipeInitialized = true;
+  const pages = ["earthquake", "tsunami", "tide"];
+  const selectPage = (page) => {
+    if (!pages.includes(page)) return;
+    const changed = mobileEarthquakeSummaryPage !== page;
+    mobileEarthquakeSummaryPage = page;
+    applyMobileEarthquakeSummaryPage(root);
+    if (changed) onChange?.(page);
+  };
+
+  root.addEventListener("mobile-dock-horizontal-swipe", (event) => {
+    if (!(event instanceof CustomEvent) || root.dataset.tab !== "earthquake") return;
+    if (!root.querySelector(".mobile-dock-earthquake-summary-track")) return;
+    const deltaX = Number(event.detail?.deltaX) || 0;
+    if (Math.abs(deltaX) < 36) {
+      applyMobileEarthquakeSummaryPage(root);
+      return;
+    }
+    const currentIndex = Math.max(0, pages.indexOf(mobileEarthquakeSummaryPage));
+    const direction = deltaX < 0 ? 1 : -1;
+    selectPage(pages[Math.max(0, Math.min(pages.length - 1, currentIndex + direction))]);
+  });
+
+  root.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element) || root.dataset.tab !== "earthquake") return;
+    const pageButton = event.target.closest("[data-mobile-earthquake-summary-target]");
+    if (!pageButton) return;
+    const targetPage = pageButton.dataset.mobileEarthquakeSummaryTarget;
+    if (!pages.includes(targetPage)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    selectPage(targetPage);
+  });
+
+  root.addEventListener("keydown", (event) => {
+    if (root.dataset.tab !== "earthquake" || !root.querySelector(".mobile-dock-earthquake-summary-track")) return;
+    if (event.target instanceof Element && event.target.closest("[data-mobile-dock-control]")) return;
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    const currentIndex = Math.max(0, pages.indexOf(mobileEarthquakeSummaryPage));
+    const direction = event.key === "ArrowRight" ? 1 : -1;
+    selectPage(pages[Math.max(0, Math.min(pages.length - 1, currentIndex + direction))]);
+  });
+
+  window.addEventListener("tide-station-select", () => {
+    selectPage("tide");
+  });
+  window.addEventListener("resize", () => {
+    window.requestAnimationFrame(() => syncMobileTsunamiAreaTickers(root));
+  });
+}
+
+export function setupTideObservationControls({ onRangeChange, onClose } = {}) {
+  ["mobile-context-dock", "earthquake-list"].forEach((rootId) => {
+    const root = document.getElementById(rootId);
+    if (!root) return;
+    root.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+      const rangeButton = event.target.closest("[data-tide-range-hours]");
+      if (rangeButton) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        onRangeChange?.(Number(rangeButton.dataset.tideRangeHours));
+        return;
+      }
+      const closeButton = event.target.closest("[data-tide-observation-close]");
+      if (!closeButton) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      onClose?.();
+    });
+  });
 }
 
 export function setupKikikuruLayerToggles({ onChange }) {
@@ -1249,6 +1347,21 @@ if (tabId === "warnings" && warningView === "early") {
       "",
       getTsunamiLevelColor(level)
     ]);
+    const coastalObservationStyle = getTsunamiObservationStyle(false);
+    const offshoreObservationStyle = getTsunamiObservationStyle(true);
+    const tsunamiObservationLegend = data?.tideStationsVisible === true ? [] : [
+      ...(data?.tsunami?.observations ?? []).some((observation) => Array.isArray(observation?.coordinates))
+        ? [[coastalObservationStyle.label, "legend-tsunami-coastal", coastalObservationStyle.color]]
+        : [],
+      ...(data?.tsunami?.offshoreObservations ?? []).some((observation) => Array.isArray(observation?.coordinates))
+        ? [[offshoreObservationStyle.label, "legend-tsunami-offshore", offshoreObservationStyle.color]]
+        : []
+    ];
+    const tideStationLegend = data?.tideStationsVisible === true && (data?.tideStations ?? []).some((station) =>
+      Array.isArray(station?.coordinates)
+    )
+      ? [["潮位観測点", "legend-tide-station", "#5e93ad"]]
+      : [];
     const mapLayerLegend = [
       ...(data?.activeFaultVisible !== false ? [["主要活断層帯", "legend-active-fault"]] : []),
       ...(data?.plateBoundaryVisible !== false ? [
@@ -1280,6 +1393,8 @@ if (tabId === "warnings" && warningView === "early") {
     }
     return [
       ...tsunamiLegend,
+      ...tsunamiObservationLegend,
+      ...tideStationLegend,
       ...legendsByTab.earthquake,
       ...mapLayerLegend,
       ...EARTHQUAKE_INTENSITY_LEVELS.map((level) => [level.label, "", level.color])
@@ -1580,8 +1695,22 @@ function renderMobileContextDock(tab, state, context = {}) {
     && state.earthquakeContentMode === "volcano"
     && root.dataset.tab === "earthquake"
   ) return;
+  const tideStationCode = tab.id === "earthquake"
+    ? String(state.data?.tideObservation?.station?.code ?? "")
+    : "";
+  if (tideStationCode && tideStationCode !== lastMobileTideStationCode) {
+    mobileEarthquakeSummaryPage = "tide";
+  }
+  lastMobileTideStationCode = tideStationCode;
   root.dataset.tab = tab.id;
   root.innerHTML = buildMobileContextDockContent(tab, state, context);
+  if (root.querySelector(".mobile-dock-earthquake-summary-track")) {
+    applyMobileEarthquakeSummaryPage(root, { animate: false });
+    window.requestAnimationFrame(() => syncMobileTsunamiAreaTickers(root));
+  } else {
+    delete root.dataset.mobileEarthquakeSummaryPage;
+    root.style.removeProperty("--mobile-summary-drag-x");
+  }
   initializeMobileDockSegmentIndicators(root);
 }
 
@@ -1671,10 +1800,388 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
       plateBoundaryVisible,
       plateDepthContoursVisible,
       state.data?.tsunami,
-      state.data?.tsunamiStatus
+      state.data?.tsunamiStatus,
+      state.data?.tideObservation
     );
   }
   return buildMobileContextMarkup(tab.label ?? "情報", "詳細情報", "開く");
+}
+
+function buildTideObservationMobileContextMarkup(tideObservation = {}) {
+  const station = tideObservation.station;
+  if (!station) {
+    return `
+      <div class="mobile-tide-empty-heading">潮位観測</div>
+      <div class="mobile-tide-empty">
+        <strong>観測点を選択</strong>
+        <span>地図上の潮位観測点をタップしてください</span>
+      </div>
+    `;
+  }
+  const rangeHours = [1, 6, 12, 24].includes(Number(tideObservation.rangeHours))
+    ? Number(tideObservation.rangeHours)
+    : 24;
+  const rangeIndex = TIDE_RANGE_OPTIONS.findIndex(([hours]) => hours === rangeHours);
+  const [, rangeLabel] = TIDE_RANGE_OPTIONS[rangeIndex];
+  const [nextRangeHours, nextRangeLabel] = TIDE_RANGE_OPTIONS[(rangeIndex + 1) % TIDE_RANGE_OPTIONS.length];
+  const latest = tideObservation.latest;
+  const latestTime = formatTideObservationTime(latest?.time);
+  const observed = Number.isFinite(latest?.observed) ? `${formatTideValue(latest.observed)}cm` : "--";
+  const deviation = Number.isFinite(latest?.deviation)
+    ? `偏差 ${latest.deviation >= 0 ? "+" : ""}${formatTideValue(latest.deviation)}cm`
+    : "偏差 --";
+  const graph = tideObservation.status === "ok"
+    ? buildTideObservationGraph(tideObservation, rangeHours)
+    : `<div class="mobile-tide-graph-status">${escapeHtml(
+      tideObservation.status === "error" ? tideObservation.error : "潮位を取得中"
+    )}</div>`;
+
+  return `
+      <div class="mobile-tide-head">
+        <div class="mobile-tide-station">
+          <span>潮位観測</span>
+          <strong>${escapeHtml(station.name)}</strong>
+          <small>${escapeHtml([station.agency, latestTime].filter(Boolean).join(" / "))}</small>
+        </div>
+        <button
+          type="button"
+          class="mobile-tide-period"
+          data-mobile-dock-control
+          data-tide-range-hours="${nextRangeHours}"
+          aria-label="表示期間 ${escapeHtml(rangeLabel)}。タップで${escapeHtml(nextRangeLabel)}に変更"
+        >${escapeHtml(rangeLabel)}</button>
+        <div class="mobile-tide-latest">
+          <strong>${escapeHtml(observed)}</strong>
+          <span>${escapeHtml(deviation)}</span>
+        </div>
+        <button type="button" class="mobile-tide-close" data-mobile-dock-control data-tide-observation-close aria-label="潮位グラフを閉じる"></button>
+      </div>
+      <div class="mobile-tide-body">
+        ${graph}
+      </div>
+  `;
+}
+
+function buildTideObservationGraph(tideObservation, rangeHours) {
+  const graph = createTideGraphGeometry(tideObservation, rangeHours, {
+    width: 320,
+    height: 72,
+    includeReferencesInScale: false
+  });
+  if (!graph) {
+    return '<div class="mobile-tide-graph-status">表示できる観測値がありません</div>';
+  }
+
+  const referenceLines = graph.references.map((reference) => `
+    <line class="mobile-tide-reference ${reference.type}" x1="0" y1="${reference.y}" x2="${graph.width}" y2="${reference.y}"></line>
+  `).join("");
+  const includeDate = rangeHours >= 12;
+  const startLabel = formatTideAxisTime(graph.points[0].time, includeDate);
+  const endLabel = formatTideAxisTime(graph.points.at(-1).time, includeDate);
+
+  return `
+    <div class="mobile-tide-chart">
+      <svg viewBox="0 0 ${graph.width} ${graph.height}" preserveAspectRatio="none" role="img" aria-label="${escapeHtml(`${stationGraphLabel(tideObservation.station)}の潮位グラフ`)}">
+        ${[0.25, 0.5, 0.75].map((ratio) => `
+          <line class="mobile-tide-grid" x1="0" y1="${(graph.height * ratio).toFixed(1)}" x2="${graph.width}" y2="${(graph.height * ratio).toFixed(1)}"></line>
+        `).join("")}
+        ${referenceLines}
+        <polyline class="mobile-tide-astronomical" points="${graph.astronomicalPoints}"></polyline>
+        <polyline class="mobile-tide-observed" points="${graph.observedPoints}"></polyline>
+      </svg>
+      <span class="mobile-tide-axis-start">${escapeHtml(startLabel)}</span>
+      <span class="mobile-tide-axis-end">${escapeHtml(endLabel)}</span>
+      <div class="mobile-tide-legend" aria-hidden="true"><span class="observed">実測</span><span class="astronomical">天文</span></div>
+    </div>
+  `;
+}
+
+function createTideGraphGeometry(
+  tideObservation,
+  rangeHours,
+  { width, height, includeReferencesInScale }
+) {
+  const points = getTideObservationRangePoints(tideObservation, rangeHours);
+  if (points.length < 2) return null;
+
+  const allReferences = [
+    ...TIDE_WARNING_CRITERIA.map((criterion) => ({
+      type: criterion.type,
+      label: criterion.label,
+      value: tideObservation.station?.[criterion.stationKey]
+    })),
+    { type: "historical", label: "過去最高潮位", value: tideObservation.station?.historicalMaximum }
+  ].filter((reference) => Number.isFinite(reference.value));
+  const geometry = createTideSeriesGeometry(points, ["observed", "astronomical"], {
+    width,
+    height,
+    extraValues: includeReferencesInScale
+      ? allReferences.map((reference) => reference.value)
+      : [],
+    minimumPadding: 5
+  });
+  const references = allReferences
+    .filter((reference) =>
+      includeReferencesInScale
+      || (reference.value >= geometry.minValue && reference.value <= geometry.maxValue)
+    )
+    .map((reference) => ({
+      ...reference,
+      y: geometry.y(reference.value).toFixed(1)
+    }));
+
+  return {
+    ...geometry,
+    references,
+    observedPoints: geometry.polylines.observed,
+    astronomicalPoints: geometry.polylines.astronomical
+  };
+}
+
+function createTideDeviationGraphGeometry(tideObservation, rangeHours, { width, height }) {
+  const points = getTideObservationRangePoints(tideObservation, rangeHours)
+    .filter((point) => Number.isFinite(point.deviation));
+  if (points.length < 2) return null;
+  const geometry = createTideSeriesGeometry(points, ["deviation"], {
+    width,
+    height,
+    extraValues: [0],
+    minimumPadding: 2
+  });
+  return {
+    ...geometry,
+    deviationPoints: geometry.polylines.deviation,
+    zeroY: geometry.y(0).toFixed(1)
+  };
+}
+
+function getTideObservationRangePoints(tideObservation, rangeHours) {
+  const latestMs = Date.parse(tideObservation.latest?.time ?? "");
+  return (tideObservation.points ?? []).filter((point) => {
+    const timeMs = Date.parse(point.time);
+    return Number.isFinite(latestMs)
+      && Number.isFinite(timeMs)
+      && timeMs >= latestMs - rangeHours * 60 * 60 * 1000;
+  });
+}
+
+function createTideSeriesGeometry(
+  points,
+  keys,
+  { width, height, extraValues = [], minimumPadding = 1 }
+) {
+  const values = points.flatMap((point) => keys.map((key) => point[key]))
+    .filter(Number.isFinite)
+    .concat(extraValues.filter(Number.isFinite));
+  const rawMin = Math.min(...values);
+  const rawMax = Math.max(...values);
+  const padding = Math.max(minimumPadding, (rawMax - rawMin) * 0.12);
+  const minValue = rawMin - padding;
+  const maxValue = rawMax + padding;
+  const startMs = Date.parse(points[0].time);
+  const endMs = Date.parse(points.at(-1).time);
+  const x = (time) => ((Date.parse(time) - startMs) / Math.max(1, endMs - startMs)) * width;
+  const y = (value) => height - ((value - minValue) / Math.max(1, maxValue - minValue)) * height;
+  const polylines = Object.fromEntries(keys.map((key) => [
+    key,
+    points
+      .filter((point) => Number.isFinite(point[key]))
+      .map((point) => `${x(point.time).toFixed(1)},${y(point[key]).toFixed(1)}`)
+      .join(" ")
+  ]));
+  return { points, polylines, width, height, minValue, maxValue, x, y };
+}
+
+function buildTideObservationDedicatedDetailMarkup(tideObservation = {}) {
+  const station = tideObservation.station;
+  if (!station) {
+    return `
+      <section class="tide-dedicated-panel tide-dedicated-empty">
+        <span>潮位観測</span>
+        <h2>観測点を選択してください</h2>
+        <p>地図上の潮位観測点をタップすると、実測潮位と警報基準を表示します。</p>
+      </section>
+    `;
+  }
+
+  const rangeHours = [1, 6, 12, 24].includes(Number(tideObservation.rangeHours))
+    ? Number(tideObservation.rangeHours)
+    : 24;
+  const graph = tideObservation.status === "ok"
+    ? createTideGraphGeometry(tideObservation, rangeHours, {
+      width: 520,
+      height: 232,
+      includeReferencesInScale: true
+    })
+    : null;
+  const deviationGraph = tideObservation.status === "ok"
+    ? createTideDeviationGraphGeometry(tideObservation, rangeHours, {
+      width: 520,
+      height: 112
+    })
+    : null;
+  const latest = tideObservation.latest;
+  const latestValue = Number.isFinite(latest?.observed)
+    ? `${formatTideValue(latest.observed)}cm`
+    : "--";
+  const latestDeviation = Number.isFinite(latest?.deviation)
+    ? `${latest.deviation >= 0 ? "+" : ""}${formatTideValue(latest.deviation)}cm`
+    : "--";
+  const criteria = TIDE_WARNING_CRITERIA.map((criterion) => [
+    criterion.type,
+    criterion.label,
+    station[criterion.stationKey]
+  ]);
+  const graphMarkup = graph ? `
+    <div class="tide-dedicated-chart">
+      <svg viewBox="0 0 600 290" role="img" aria-label="${escapeHtml(`${station.name}の潮位と警報基準`)}">
+        <g transform="translate(62 18)">
+          ${[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+            const value = graph.maxValue - (graph.maxValue - graph.minValue) * ratio;
+            const y = graph.height * ratio;
+            return `
+              <line class="tide-detail-grid" x1="0" y1="${y.toFixed(1)}" x2="${graph.width}" y2="${y.toFixed(1)}"></line>
+              <text class="tide-detail-axis-label" x="-9" y="${(y + 4).toFixed(1)}" text-anchor="end">${escapeHtml(formatTideValue(value))}</text>
+            `;
+          }).join("")}
+          ${graph.references.map((reference) => {
+            const labelY = Number(reference.y) < 15
+              ? Number(reference.y) + 14
+              : Number(reference.y) - 5;
+            return `
+              <line class="tide-detail-reference ${reference.type}" x1="0" y1="${reference.y}" x2="${graph.width}" y2="${reference.y}"></line>
+              <text class="tide-detail-reference-label ${reference.type}" x="${graph.width - 5}" y="${labelY.toFixed(1)}" text-anchor="end">${escapeHtml(`${reference.label} ${formatTideValue(reference.value)}cm`)}</text>
+            `;
+          }).join("")}
+          <polyline class="tide-detail-astronomical" points="${graph.astronomicalPoints}"></polyline>
+          <polyline class="tide-detail-observed" points="${graph.observedPoints}"></polyline>
+          <text class="tide-detail-axis-time" x="0" y="${graph.height + 20}">${escapeHtml(formatTideAxisTime(graph.points[0].time, rangeHours >= 12))}</text>
+          <text class="tide-detail-axis-time" x="${graph.width}" y="${graph.height + 20}" text-anchor="end">${escapeHtml(formatTideAxisTime(graph.points.at(-1).time, rangeHours >= 12))}</text>
+          <text class="tide-detail-axis-unit" x="-9" y="-5" text-anchor="end">cm</text>
+        </g>
+      </svg>
+      <div class="tide-dedicated-legend" aria-hidden="true">
+        <span class="observed">実測潮位</span>
+        <span class="astronomical">天文潮位</span>
+        <span class="level4">レベル4基準</span>
+        <span class="level5">レベル5基準</span>
+      </div>
+    </div>
+  ` : `<div class="tide-dedicated-status">${escapeHtml(
+    tideObservation.status === "error"
+      ? tideObservation.error || "潮位観測値を取得できませんでした"
+      : "潮位観測値を取得中です"
+  )}</div>`;
+  const deviationGraphMarkup = deviationGraph ? `
+    <section class="tide-deviation-section">
+      <header>
+        <div>
+          <span>潮位偏差</span>
+          <strong>実測潮位 − 天文潮位</strong>
+        </div>
+        <em>${escapeHtml(latestDeviation)}</em>
+      </header>
+      <div class="tide-deviation-chart">
+        <svg viewBox="0 0 600 166" role="img" aria-label="${escapeHtml(`${station.name}の潮位偏差グラフ`)}">
+          <g transform="translate(62 16)">
+            ${[0, 0.5, 1].map((ratio) => {
+              const value = deviationGraph.maxValue
+                - (deviationGraph.maxValue - deviationGraph.minValue) * ratio;
+              const y = deviationGraph.height * ratio;
+              return `
+                <line class="tide-detail-grid" x1="0" y1="${y.toFixed(1)}" x2="${deviationGraph.width}" y2="${y.toFixed(1)}"></line>
+                <text class="tide-detail-axis-label" x="-9" y="${(y + 4).toFixed(1)}" text-anchor="end">${escapeHtml(formatSignedTideValue(value))}</text>
+              `;
+            }).join("")}
+            <line class="tide-deviation-zero" x1="0" y1="${deviationGraph.zeroY}" x2="${deviationGraph.width}" y2="${deviationGraph.zeroY}"></line>
+            <polyline class="tide-deviation-line" points="${deviationGraph.deviationPoints}"></polyline>
+            <text class="tide-detail-axis-time" x="0" y="${deviationGraph.height + 20}">${escapeHtml(formatTideAxisTime(deviationGraph.points[0].time, rangeHours >= 12))}</text>
+            <text class="tide-detail-axis-time" x="${deviationGraph.width}" y="${deviationGraph.height + 20}" text-anchor="end">${escapeHtml(formatTideAxisTime(deviationGraph.points.at(-1).time, rangeHours >= 12))}</text>
+            <text class="tide-detail-axis-unit" x="-9" y="-4" text-anchor="end">cm</text>
+          </g>
+        </svg>
+      </div>
+      <p>プラスは実測潮位が天文潮位より高く、マイナスは低いことを示します。</p>
+    </section>
+  ` : "";
+
+  return `
+    <section class="tide-dedicated-panel">
+      <header class="tide-dedicated-header">
+        <div>
+          <span>気象庁 潮位観測</span>
+          <h2>${escapeHtml(station.name)}</h2>
+          <small>${escapeHtml([station.agency, formatTideObservationTime(latest?.time)].filter(Boolean).join(" / "))}</small>
+        </div>
+        <div class="tide-dedicated-latest">
+          <strong>${escapeHtml(latestValue)}</strong>
+          <span>偏差 ${escapeHtml(latestDeviation)}</span>
+        </div>
+      </header>
+      <div class="tide-dedicated-range" role="group" aria-label="潮位グラフの表示期間">
+        ${TIDE_RANGE_OPTIONS.map(([hours, label]) => `
+          <button type="button" data-tide-range-hours="${hours}" class="${hours === rangeHours ? "active" : ""}" aria-pressed="${hours === rangeHours}">${label}</button>
+        `).join("")}
+      </div>
+      ${graphMarkup}
+      ${deviationGraphMarkup}
+      <div class="tide-dedicated-criteria">
+        ${criteria.map(([type, label, value]) => `
+          <article class="${type}">
+            <span>${label}</span>
+            <strong>${Number.isFinite(value) ? `${escapeHtml(formatTideValue(value))}cm` : "未公表"}</strong>
+          </article>
+        `).join("")}
+      </div>
+      <p class="tide-dedicated-note">観測値は速報値です。機器や通信の状態により異常値を含む場合があります。</p>
+      <a class="tide-dedicated-source" href="${escapeHtml(tideObservation.sourceUrl ?? "https://www.jma.go.jp/bosai/tidelevel/")}" target="_blank" rel="noreferrer">気象庁の潮位観測情報を開く</a>
+    </section>
+  `;
+}
+
+function stationGraphLabel(station) {
+  return String(station?.name ?? "選択地点");
+}
+
+function formatTideValue(value) {
+  return Number(value).toFixed(Math.abs(Number(value)) < 10 ? 1 : 0);
+}
+
+function formatSignedTideValue(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "--";
+  return `${number > 0 ? "+" : ""}${formatTideValue(number)}`;
+}
+
+function formatTideObservationTime(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).format(date);
+}
+
+function formatTideAxisTime(value, includeDate = false) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "--:--";
+  const time = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).format(date);
+  if (!includeDate) return time;
+  const day = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    month: "numeric",
+    day: "numeric"
+  }).format(date);
+  return `${day} ${time}`;
 }
 
 function buildTyphoonMobileContextMarkup(typhoons = [], selectedTyphoonId = "") {
@@ -1723,7 +2230,8 @@ function buildEarthquakeMobileContextMarkup(
   plateBoundaryVisible,
   plateDepthContoursVisible,
   tsunami,
-  tsunamiStatus
+  tsunamiStatus,
+  tideObservation
 ) {
   const intensityColor = getEarthquakeIntensityColor(earthquake?.maxIntensity);
   const intensityTextClass = getEarthquakeIntensityTextClass(earthquake?.maxIntensity);
@@ -1736,31 +2244,333 @@ function buildEarthquakeMobileContextMarkup(
   );
   const time = formatMobileEarthquakeTime(earthquake?.eventTime ?? earthquake?.reportTime);
   const tsunamiMarkup = buildMobileTsunamiStatusMarkup(earthquake, tsunami, tsunamiStatus);
-
-  return `
-    <div class="mobile-dock-content mobile-dock-earthquake" style="--mobile-earthquake-intensity-bg: ${escapeHtml(intensityColor)};">
-      ${buildEarthquakeMobileViewSwitch("recent")}
-      <div class="mobile-dock-earthquake-main">
-        <em class="mobile-dock-earthquake-intensity ${intensityTextClass}">
-          <small>最大震度</small>
-          <span>${escapeHtml(intensity)}</span>
-        </em>
-        <div class="mobile-dock-earthquake-text">
-          <span class="mobile-dock-earthquake-time">最新 ${escapeHtml(time)}</span>
-          <strong>${escapeHtml(earthquake?.hypocenterName ?? "直近の地震情報はありません")}</strong>
-          <div class="mobile-dock-earthquake-facts">
-            <span>${escapeHtml([magnitude, `深さ ${depth}`].filter((item) => item && item !== "--").join(" / ") || "詳細確認中")}</span>
-            ${tsunamiMarkup}
-          </div>
+  const primaryMarkup = `
+    ${buildEarthquakeMobileViewSwitch("recent")}
+    <div class="mobile-dock-earthquake-main">
+      <em class="mobile-dock-earthquake-intensity ${intensityTextClass}">
+        <small>最大震度</small>
+        <span>${escapeHtml(intensity)}</span>
+      </em>
+      <div class="mobile-dock-earthquake-text">
+        <span class="mobile-dock-earthquake-time">最新 ${escapeHtml(time)}</span>
+        <strong>${escapeHtml(earthquake?.hypocenterName ?? "直近の地震情報はありません")}</strong>
+        <div class="mobile-dock-earthquake-facts">
+          <span>${escapeHtml([magnitude, `深さ ${depth}`].filter((item) => item && item !== "--").join(" / ") || "詳細確認中")}</span>
+          ${tsunamiMarkup}
         </div>
-        <div class="mobile-dock-earthquake-layer-list" aria-label="地震地図の表示項目">
-          ${buildMobileEarthquakeLayerButton("activeFault", "活断層", activeFaultVisible)}
-          ${buildMobileEarthquakeLayerButton("plateBoundary", "境界", plateBoundaryVisible)}
-          ${buildMobileEarthquakeLayerButton("plateDepthContours", "等深線", plateDepthContoursVisible)}
+      </div>
+      <div class="mobile-dock-earthquake-layer-list" aria-label="地震地図の表示項目">
+        ${buildMobileEarthquakeLayerButton("activeFault", "活断層", activeFaultVisible)}
+        ${buildMobileEarthquakeLayerButton("plateBoundary", "境界", plateBoundaryVisible)}
+        ${buildMobileEarthquakeLayerButton("plateDepthContours", "等深線", plateDepthContoursVisible)}
+      </div>
+    </div>
+  `;
+  return buildMobileEarthquakeSummaryCarousel({
+    containerClass: "mobile-dock-content mobile-dock-earthquake mobile-dock-earthquake-carousel",
+    containerStyle: `--mobile-earthquake-intensity-bg: ${escapeHtml(intensityColor)};`,
+    primaryAriaLabel: "地震情報要約",
+    primaryDotLabel: "地震情報",
+    primaryMarkup,
+    earthquake,
+    tsunami,
+    tsunamiStatus,
+    tideObservation
+  });
+}
+
+function buildMobileEarthquakeSummaryCarousel({
+  containerClass,
+  containerStyle = "",
+  primaryAriaLabel,
+  primaryDotLabel,
+  primaryMarkup,
+  earthquake,
+  tsunami,
+  tsunamiStatus,
+  tideObservation
+}) {
+  const tsunamiSummaryMarkup = buildMobileTsunamiSummaryMarkup(earthquake, tsunami, tsunamiStatus);
+  const styleAttribute = containerStyle ? ` style="${containerStyle}"` : "";
+  return `
+    <div class="${containerClass}"${styleAttribute}>
+      <div class="mobile-dock-earthquake-summary-viewport" role="group" aria-label="地震・津波情報要約" aria-roledescription="カルーセル">
+        <div class="mobile-dock-earthquake-summary-track">
+          <section class="mobile-dock-earthquake-summary-page" data-mobile-earthquake-summary="earthquake" aria-label="${primaryAriaLabel}">
+            ${primaryMarkup}
+          </section>
+          <section class="mobile-dock-earthquake-summary-page" data-mobile-earthquake-summary="tsunami" aria-label="津波情報要約">
+            <div class="mobile-dock-tsunami-heading">津波情報</div>
+            ${tsunamiSummaryMarkup}
+          </section>
+          <section class="mobile-dock-earthquake-summary-page mobile-dock-tide" data-mobile-earthquake-summary="tide" aria-label="潮位観測要約">
+            ${buildTideObservationMobileContextMarkup(tideObservation)}
+          </section>
+        </div>
+        <div class="mobile-dock-earthquake-summary-dots" aria-label="要約表示の切り替え">
+          ${[
+            ["earthquake", primaryDotLabel],
+            ["tsunami", "津波情報"],
+            ["tide", "潮位観測"]
+          ].map(([page, label]) => `
+            <button
+              type="button"
+              data-mobile-dock-control
+              data-mobile-earthquake-summary-dot="${page}"
+              data-mobile-earthquake-summary-target="${page}"
+              aria-label="${label}へ切り替え"
+            ></button>
+          `).join("")}
         </div>
       </div>
     </div>
   `;
+}
+
+function buildMobileTsunamiSummaryMarkup(earthquake, tsunami, tsunamiStatus) {
+  const state = getCurrentTsunamiState(earthquake, tsunami, tsunamiStatus);
+  const report = state.tsunami;
+  const areas = (report?.areas ?? []).filter((area) => area.level !== "none");
+  const tickerAreas = [...areas].sort(
+    (left, right) => getMobileTsunamiLevelRank(right.level) - getMobileTsunamiLevelRank(left.level)
+  );
+  const observations = [...(report?.observations ?? []), ...(report?.offshoreObservations ?? [])];
+  const primaryArea = areas[0];
+  const latestObservation = observations[0];
+  const color = ["unknown", "unavailable"].includes(state.level)
+    ? "#8594a6"
+    : getTsunamiLevelColor(state.level);
+  const reportTime = formatMobileEarthquakeTime(report?.reportTime);
+  const hasCounts = areas.length > 0 || observations.length > 0;
+  const title = primaryArea?.name
+    || latestObservation?.stationName
+    || (state.level === "none" ? "警報・注意報なし" : state.label || "発表状況を確認中");
+  const areaTickerText = tickerAreas
+    .map((area) => area.name)
+    .filter(Boolean)
+    .join("　•　");
+  const tickerGroups = tickerAreas
+    .filter((area) => area.name)
+    .reduce((groups, area) => {
+      const current = groups.at(-1);
+      if (current?.level === area.level) {
+        current.areas.push(area);
+      } else {
+        groups.push({ level: area.level, areas: [area] });
+      }
+      return groups;
+    }, []);
+  const areaTickerGroupsMarkup = tickerGroups
+    .map((group, groupIndex) => {
+      const groupText = group.areas.map((area) => area.name).join("　•　");
+      const duration = Math.max(12, Math.min(28, Math.ceil(groupText.length * 0.55)));
+      const areasMarkup = group.areas
+        .map((area, index, entries) => `
+          <strong data-mobile-tsunami-area-level="${escapeHtml(area.level)}">${escapeHtml(area.name)}${index < entries.length - 1 ? "　•　" : ""}</strong>
+        `)
+        .join("");
+      return `
+        <span
+          class="mobile-dock-tsunami-area-ticker-sequence"
+          data-mobile-tsunami-ticker-level="${escapeHtml(group.level)}"
+          data-mobile-tsunami-ticker-duration="${duration}"
+          ${groupIndex === 0 ? "" : "hidden"}
+        >${areasMarkup}</span>
+      `;
+    })
+    .join("");
+  const detailCandidate = primaryArea
+    ? ""
+    : latestObservation
+      ? `${latestObservation.stationName} ${latestObservation.maxHeightCondition || latestObservation.maxHeight || "観測中"}`
+      : state.level === "none"
+        ? "現在発表中の情報はありません"
+        : state.label;
+  const detail = detailCandidate && detailCandidate !== title ? detailCandidate : "";
+
+  return `
+    <div class="mobile-dock-tsunami-main${hasCounts ? "" : " no-counts"}" style="--mobile-tsunami-color: ${escapeHtml(color)};">
+      ${report?.isTestScenario ? '<span class="tsunami-test-badge">LOCAL TEST</span>' : ""}
+      <em class="mobile-dock-tsunami-level" data-mobile-tsunami-level-badge>
+        <span>${escapeHtml(getMobileTsunamiLevelShortLabel(state.level))}</span>
+      </em>
+      <div class="mobile-dock-tsunami-text">
+        <span class="mobile-dock-earthquake-time">${reportTime !== "--" ? `発表 ${escapeHtml(reportTime)}` : "気象庁発表"}</span>
+        ${areaTickerText ? `
+          <div
+            class="mobile-dock-tsunami-area-ticker"
+            aria-label="発表区域 ${escapeHtml(areaTickerText)}"
+          >
+            <div class="mobile-dock-tsunami-area-ticker-track">
+              ${areaTickerGroupsMarkup}
+            </div>
+          </div>
+        ` : `<strong>${escapeHtml(title)}</strong>`}
+        ${detail ? `<span>${escapeHtml(detail)}</span>` : ""}
+      </div>
+      ${hasCounts ? `<div class="mobile-dock-tsunami-values" aria-label="津波情報の件数">
+        <span><em>区域</em>${areas.length || "-"}</span>
+        <span><em>観測</em>${observations.length || "-"}</span>
+      </div>` : ""}
+    </div>
+  `;
+}
+
+function getMobileTsunamiLevelShortLabel(level) {
+  if (level === "major-warning") return "大津波";
+  if (level === "warning") return "警報";
+  if (level === "advisory") return "注意報";
+  if (level === "forecast") return "予報";
+  if (level === "none") return "なし";
+  return "未確認";
+}
+
+function getMobileTsunamiLevelRank(level) {
+  return {
+    "major-warning": 4,
+    warning: 3,
+    advisory: 2,
+    forecast: 1,
+    none: 0
+  }[level] ?? -1;
+}
+
+function syncMobileTsunamiAreaTickers(root) {
+  clearMobileTsunamiTickerTimers();
+  root?.querySelectorAll(".mobile-dock-tsunami-area-ticker").forEach((ticker) => {
+    const track = ticker.querySelector(".mobile-dock-tsunami-area-ticker-track");
+    if (!track) return;
+    track.querySelectorAll("[data-mobile-tsunami-ticker-duplicate]")
+      .forEach((duplicate) => duplicate.remove());
+    ticker.classList.remove("is-animated");
+    ticker.classList.remove("is-group-changing");
+    ticker.dataset.mobileTsunamiTickerGroup = "0";
+    activateMobileTsunamiTickerGroup(ticker, 0);
+  });
+}
+
+function clearMobileTsunamiTickerTimers() {
+  if (mobileTsunamiTickerGroupTimer) {
+    window.clearTimeout(mobileTsunamiTickerGroupTimer);
+    mobileTsunamiTickerGroupTimer = 0;
+  }
+  if (mobileTsunamiTickerTransitionTimer) {
+    window.clearTimeout(mobileTsunamiTickerTransitionTimer);
+    mobileTsunamiTickerTransitionTimer = 0;
+  }
+}
+
+function activateMobileTsunamiTickerGroup(ticker, groupIndex) {
+  const track = ticker.querySelector(".mobile-dock-tsunami-area-ticker-track");
+  const main = ticker.closest(".mobile-dock-tsunami-main");
+  const badge = main?.querySelector("[data-mobile-tsunami-level-badge]");
+  const badgeText = badge?.querySelector("span");
+  if (!track || !main || !badge || !badgeText) return;
+
+  const groups = [...track.querySelectorAll(
+    ".mobile-dock-tsunami-area-ticker-sequence[data-mobile-tsunami-ticker-level]:not([data-mobile-tsunami-ticker-duplicate])"
+  )];
+  if (!groups.length) return;
+  const normalizedIndex = ((groupIndex % groups.length) + groups.length) % groups.length;
+  const sequence = groups[normalizedIndex];
+  const level = sequence.dataset.mobileTsunamiTickerLevel;
+  track.querySelectorAll("[data-mobile-tsunami-ticker-duplicate]")
+    .forEach((duplicate) => duplicate.remove());
+  groups.forEach((group, index) => {
+    group.hidden = index !== normalizedIndex;
+  });
+  ticker.classList.remove("is-animated");
+  ticker.dataset.mobileTsunamiTickerGroup = String(normalizedIndex);
+  badge.dataset.mobileTsunamiCurrentLevel = level;
+  badgeText.textContent = getMobileTsunamiLevelShortLabel(level);
+  main.style.setProperty("--mobile-tsunami-color", getTsunamiLevelColor(level));
+
+  const durationSeconds = Number(sequence.dataset.mobileTsunamiTickerDuration) || 18;
+  track.style.setProperty("--mobile-tsunami-ticker-duration", `${durationSeconds}s`);
+  void track.offsetWidth;
+  const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+  const overflows = sequence.scrollWidth > ticker.clientWidth;
+  if (overflows && !prefersReducedMotion) {
+    const duplicate = sequence.cloneNode(true);
+    duplicate.hidden = false;
+    duplicate.setAttribute("aria-hidden", "true");
+    duplicate.setAttribute("data-mobile-tsunami-ticker-duplicate", "");
+    track.append(duplicate);
+    ticker.classList.add("is-animated");
+  }
+
+  const summaryPage = ticker.closest('[data-mobile-earthquake-summary="tsunami"]');
+  const isVisible = summaryPage?.getAttribute("aria-hidden") !== "true";
+  if (groups.length > 1 && isVisible) {
+    const displayDuration = overflows && !prefersReducedMotion
+      ? durationSeconds * 1000
+      : 3500;
+    mobileTsunamiTickerGroupTimer = window.setTimeout(
+      () => switchMobileTsunamiTickerGroup(ticker),
+      displayDuration
+    );
+  }
+}
+
+function switchMobileTsunamiTickerGroup(ticker) {
+  if (!ticker.isConnected) return;
+  const summaryPage = ticker.closest('[data-mobile-earthquake-summary="tsunami"]');
+  if (summaryPage?.getAttribute("aria-hidden") === "true") return;
+  const currentIndex = Number(ticker.dataset.mobileTsunamiTickerGroup) || 0;
+  ticker.classList.add("is-group-changing");
+  mobileTsunamiTickerTransitionTimer = window.setTimeout(() => {
+    activateMobileTsunamiTickerGroup(ticker, currentIndex + 1);
+    window.requestAnimationFrame(() => ticker.classList.remove("is-group-changing"));
+  }, 160);
+}
+
+function applyMobileEarthquakeSummaryPage(root, { animate = true } = {}) {
+  const track = root?.querySelector(".mobile-dock-earthquake-summary-track");
+  if (!track) return;
+  const pages = ["earthquake", "tsunami", "tide"];
+  const page = pages.includes(mobileEarthquakeSummaryPage)
+    ? mobileEarthquakeSummaryPage
+    : "earthquake";
+  const pageIndex = pages.indexOf(page);
+  root.dataset.mobileEarthquakeSummaryPage = page;
+  root.classList.toggle("is-summary-snapping", animate);
+  root.style.setProperty("--mobile-earthquake-summary-position", `${pageIndex * (-100 / pages.length)}%`);
+  root.style.setProperty("--mobile-summary-drag-x", "0px");
+  root.querySelectorAll("[data-mobile-earthquake-summary]").forEach((item) => {
+    const hidden = item.dataset.mobileEarthquakeSummary !== page;
+    item.setAttribute("aria-hidden", String(hidden));
+    item.toggleAttribute("inert", hidden);
+  });
+  root.querySelectorAll("[data-mobile-earthquake-summary-dot]").forEach((dot) => {
+    dot.classList.toggle("active", dot.dataset.mobileEarthquakeSummaryDot === page);
+  });
+  window.requestAnimationFrame(() => syncMobileTsunamiAreaTickers(root));
+  applyMobileEarthquakeDetailPage(page);
+  if (animate) {
+    window.setTimeout(() => root.classList.remove("is-summary-snapping"), 380);
+  }
+}
+
+function applyMobileEarthquakeDetailPage(page) {
+  const detailRoot = document.getElementById("earthquake-list");
+  const detailPage = ["earthquake", "tsunami", "tide"].includes(page) ? page : "earthquake";
+  detailRoot?.querySelectorAll("[data-mobile-earthquake-detail]").forEach((item) => {
+    const hidden = item.dataset.mobileEarthquakeDetail !== detailPage;
+    item.hidden = hidden;
+    item.setAttribute("aria-hidden", String(hidden));
+    item.toggleAttribute("inert", hidden);
+  });
+  const dock = document.getElementById("mobile-context-dock");
+  const modeLabel = document.getElementById("mode-label");
+  if (
+    modeLabel
+    && dock?.dataset.tab === "earthquake"
+    && detailRoot?.querySelector("[data-mobile-earthquake-detail]")
+  ) {
+    modeLabel.textContent = page === "tide"
+      ? "潮位観測"
+      : page === "tsunami" ? "津波情報" : "地震情報";
+  }
 }
 
 function formatMobileEarthquakeTime(value) {
@@ -3246,6 +4056,7 @@ function renderEarthquakeList(tab, state) {
   const render = (markup) => {
     root.innerHTML = markup;
     initializeMobileDockSegmentIndicators(root);
+    applyMobileEarthquakeDetailPage(mobileEarthquakeSummaryPage);
   };
 
   const isEarthquake = tab.id === "earthquake";
@@ -3268,25 +4079,42 @@ function renderEarthquakeList(tab, state) {
     return;
   }
 
+  const earthquakes = state.data?.earthquakes ?? [];
+  const selectedEarthquake = state.data?.selectedEarthquake ?? earthquakes[0] ?? null;
+  const renderRecent = (earthquakeMarkup) => render(`
+    <div class="earthquake-detail-mode" data-mobile-earthquake-detail="earthquake">
+      ${viewToggle}${mapLayerControls}${earthquakeMarkup}
+    </div>
+    <div class="earthquake-detail-mode tsunami-dedicated-detail" data-mobile-earthquake-detail="tsunami">
+      ${buildTsunamiDedicatedDetailMarkup(
+        selectedEarthquake,
+        state.data?.tsunami,
+        state.data?.tsunamiStatus
+      )}
+    </div>
+    <div class="earthquake-detail-mode tide-dedicated-detail" data-mobile-earthquake-detail="tide">
+      ${buildTideObservationDedicatedDetailMarkup(state.data?.tideObservation)}
+    </div>
+  `);
+
   if (state.status === "loading") {
-    render(`${viewToggle}${mapLayerControls}<div class="earthquake-empty">気象庁防災情報XMLから地震情報を取得中です。</div>`);
+    renderRecent('<div class="earthquake-empty">気象庁防災情報XMLから地震情報を取得中です。</div>');
     return;
   }
 
   if (state.status === "error") {
-    render(`${viewToggle}${mapLayerControls}<div class="earthquake-empty">気象庁防災情報XMLから地震情報を取得できませんでした。</div>`);
+    renderRecent('<div class="earthquake-empty">気象庁防災情報XMLから地震情報を取得できませんでした。</div>');
     return;
   }
 
-  const earthquakes = state.data?.earthquakes ?? [];
   if (!earthquakes.length) {
-    render(`${viewToggle}${mapLayerControls}<div class="earthquake-empty">直近の地震情報はありません。</div>`);
+    renderRecent('<div class="earthquake-empty">直近の地震情報はありません。</div>');
     return;
   }
 
   const selectedId = String(state.data?.selectedEarthquakeId ?? earthquakes[0]?.id ?? "");
   const collapsedId = String(state.data?.collapsedEarthquakeId ?? "");
-  render(viewToggle + mapLayerControls + earthquakes.map((earthquake, index) => {
+  renderRecent(earthquakes.map((earthquake, index) => {
     const isActive = String(earthquake.id) === selectedId;
     const isExpanded = isActive && String(earthquake.id) !== collapsedId;
     const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
@@ -3903,19 +4731,29 @@ function buildEarthquakeDistributionMobileContextMarkup(data) {
   const selectedDate = availableDates[dayOffset] ?? snapshot?.selectedSourceDate ?? "";
   const count = snapshot?.items?.length ?? 0;
   const isPendingDate = snapshot && Number(snapshot.dayOffset) !== dayOffset;
-  return `
-    <div class="mobile-dock-content mobile-dock-earthquake-distribution">
-      ${buildEarthquakeMobileViewSwitch("distribution")}
-      <div class="mobile-dock-earthquake-distribution-summary">
-        <div class="mobile-dock-earthquake-distribution-head">
-          <span class="mobile-dock-kicker">震央分布・${escapeHtml(selectedDate ? formatDistributionDate(selectedDate) : "取得待ち")}・暫定値</span>
-          ${buildHypocenterPresentationToggle(data.distribution3DEnabled === true, true)}
-          <strong>${isPendingDate ? "取得中" : `${count.toLocaleString("ja-JP")}個`}</strong>
-        </div>
-        ${buildDistributionDateButton(selectedDate, true, maximumOffset === 0, dayOffset, maximumOffset)}
+  const earthquakes = data.earthquakes ?? [];
+  const earthquake = data.selectedEarthquake ?? earthquakes[0];
+  const primaryMarkup = `
+    ${buildEarthquakeMobileViewSwitch("distribution")}
+    <div class="mobile-dock-earthquake-distribution-summary">
+      <div class="mobile-dock-earthquake-distribution-head">
+        <span class="mobile-dock-kicker">震央分布・${escapeHtml(selectedDate ? formatDistributionDate(selectedDate) : "取得待ち")}・暫定値</span>
+        ${buildHypocenterPresentationToggle(data.distribution3DEnabled === true, true)}
+        <strong>${isPendingDate ? "取得中" : `${count.toLocaleString("ja-JP")}個`}</strong>
       </div>
+      ${buildDistributionDateButton(selectedDate, true, maximumOffset === 0, dayOffset, maximumOffset)}
     </div>
   `;
+  return buildMobileEarthquakeSummaryCarousel({
+    containerClass: "mobile-dock-content mobile-dock-earthquake-distribution mobile-dock-earthquake-carousel",
+    primaryAriaLabel: "震央分布要約",
+    primaryDotLabel: "地震・震央分布",
+    primaryMarkup,
+    earthquake,
+    tsunami: data.tsunami,
+    tsunamiStatus: data.tsunamiStatus,
+    tideObservation: data.tideObservation
+  });
 }
 
 function buildDistributionDateButton(selectedDate, compact = false, disabled = false, dayOffset = 0, maximumOffset = 0) {
@@ -4028,6 +4866,93 @@ function getEarthquakeTsunamiState(earthquake, tsunami, status) {
   return { level: "unknown", label: "津波情報未確認", tsunami: null };
 }
 
+function getCurrentTsunamiState(earthquake, tsunami, status) {
+  if (status === "available" && tsunami) {
+    return {
+      level: tsunami.highestLevel,
+      label: getTsunamiLevelLabel(tsunami.highestLevel),
+      tsunami
+    };
+  }
+  return getEarthquakeTsunamiState(earthquake, tsunami, status);
+}
+
+function buildTsunamiDedicatedDetailMarkup(earthquake, tsunami, status) {
+  const state = getCurrentTsunamiState(earthquake, tsunami, status);
+  const report = state.tsunami;
+  const areas = (report?.areas ?? []).filter((area) => area.level !== "none");
+  const coastalObservations = report?.observations ?? [];
+  const offshoreObservations = report?.offshoreObservations ?? [];
+  const headline = report?.headline || (
+    state.level === "none"
+      ? "現在発表中の津波警報・注意報はありません。"
+      : state.level === "unavailable"
+        ? "津波情報を取得できませんでした。"
+        : "気象庁の津波情報を確認しています。"
+  );
+
+  return `
+    <section class="tsunami-dedicated-panel level-${escapeHtml(state.level)}" aria-label="津波情報">
+      ${report?.isTestScenario ? `
+        <div class="tsunami-test-notice" role="status">
+          <strong>訓練・テスト表示</strong>
+          <span>実際の津波情報ではありません</span>
+        </div>
+      ` : ""}
+      <p class="tsunami-dedicated-headline">${escapeHtml(headline)}</p>
+      ${areas.length ? `
+        <section class="tsunami-dedicated-section" aria-labelledby="tsunami-area-heading">
+          <h3 id="tsunami-area-heading">警報・注意報の発表区域</h3>
+          <div class="tsunami-area-list">
+            ${areas.map((area) => `
+              <article class="tsunami-area-row level-${escapeHtml(area.level)}">
+                <span class="tsunami-level-badge">${escapeHtml(getTsunamiLevelLabel(area.level))}</span>
+                <div><strong>${escapeHtml(area.name)}</strong><span>${escapeHtml(buildTsunamiAreaDetail(area))}</span></div>
+              </article>
+            `).join("")}
+          </div>
+        </section>
+      ` : ""}
+      ${buildTsunamiDedicatedObservationSection(
+        "沿岸の津波観測",
+        coastalObservations,
+        "coastal"
+      )}
+      ${buildTsunamiDedicatedObservationSection(
+        "沖合の津波観測",
+        offshoreObservations,
+        "offshore"
+      )}
+      ${renderTsunamiOfficialLink()}
+    </section>
+  `;
+}
+
+function buildTsunamiDedicatedObservationSection(title, observations, type) {
+  if (!observations.length) return "";
+  return `
+    <section class="tsunami-dedicated-section" aria-labelledby="tsunami-observation-${escapeHtml(type)}">
+      <h3 id="tsunami-observation-${escapeHtml(type)}">${escapeHtml(title)}</h3>
+      <div class="tsunami-dedicated-observation-list">
+        ${observations.slice(0, 50).map((observation) => `
+          <article>
+            <span class="tsunami-observation-station">
+              <strong>${escapeHtml(observation.stationName)}</strong>
+              <small>${escapeHtml([observation.agency, observation.sensor].filter(Boolean).join(" / "))}</small>
+            </span>
+            <span>
+              <strong>${escapeHtml(
+                observation.maxHeightCondition || observation.maxHeight || "高さ未発表"
+              )}</strong>
+              ${observation.maxHeightTime ? `<small>${escapeHtml(observation.maxHeightTime)}</small>` : ""}
+            </span>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderEarthquakeTsunamiDetails(state) {
   const tsunami = state?.tsunami;
   if (!tsunami) return "";
@@ -4054,9 +4979,19 @@ function renderEarthquakeTsunamiDetails(state) {
         <details class="tsunami-observations">
           <summary>観測された津波 ${observations.length}地点</summary>
           <div>${observations.slice(0, 30).map((observation) => `
-            <p><strong>${escapeHtml(observation.stationName)}</strong><span>${escapeHtml(
-              observation.maxHeightCondition || observation.maxHeight || "高さ未発表"
-            )}${observation.maxHeightTime ? ` / ${escapeHtml(observation.maxHeightTime)}` : ""}</span></p>
+            <p>
+              <span class="tsunami-observation-station">
+                <strong>${escapeHtml(observation.stationName)}</strong>
+                <small>${escapeHtml([
+                  observation.offshore ? "沖合" : "沿岸",
+                  observation.agency,
+                  observation.sensor
+                ].filter(Boolean).join(" / "))}</small>
+              </span>
+              <span>${escapeHtml(
+                observation.maxHeightCondition || observation.maxHeight || "高さ未発表"
+              )}${observation.maxHeightTime ? ` / ${escapeHtml(observation.maxHeightTime)}` : ""}</span>
+            </p>
           `).join("")}</div>
         </details>
       ` : ""}

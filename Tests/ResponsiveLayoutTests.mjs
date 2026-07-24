@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [styles, index, panel, app] = await Promise.all([
+const [styles, index, panel, app, weatherMap] = await Promise.all([
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/app.js", import.meta.url), "utf8")
+  readFile(new URL("../src/app.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8")
 ]);
 
 assert.match(styles, /--sidebar-width:\s*clamp\(300px,\s*24vw,\s*380px\)/);
@@ -18,6 +19,10 @@ assert.match(styles, /#main-tabs\s*\{[\s\S]*?bottom:\s*max\(8px,\s*env\(safe-are
 assert.match(
   styles,
   /\.mobile-context-dock\s*\{[\s\S]*?height:\s*126px;[\s\S]*?min-height:\s*126px;[\s\S]*?max-height:\s*126px;/
+);
+assert.match(
+  styles,
+  /\.mobile-context-dock\[data-tab="earthquake"\]\s*\{[\s\S]*?bottom:\s*calc\(max\(0px,\s*env\(safe-area-inset-bottom\)\)\s*\+\s*78px\);[\s\S]*?padding-top:\s*10px;[\s\S]*?padding-bottom:\s*9px;/
 );
 assert.match(styles, /#map-attribution\s*\{[\s\S]*?max-height:\s*24px;[\s\S]*?white-space:\s*nowrap;/);
 assert.match(
@@ -44,6 +49,113 @@ assert.match(panel, /const step = compact \? 30 : 40/);
 assert.match(panel, /data-mobile-weather-chart-slider/);
 assert.match(panel, /data-mobile-radar-slider/);
 assert.match(panel, /data-mobile-weather-tap-controls/);
+assert.match(panel, /export function setupTideObservationControls/);
+assert.match(panel, /data-tide-range-hours="\$\{nextRangeHours\}"/);
+assert.match(panel, /class="mobile-dock-earthquake-summary-page mobile-dock-tide"/);
+assert.match(styles, /\.mobile-dock-earthquake-summary-track\s*\{[\s\S]*?width:\s*300%;/);
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-summary-viewport\s*\{[\s\S]*?width:\s*calc\(100% \+ 36px\);[\s\S]*?margin-inline:\s*-18px;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-summary-page\s*\{[\s\S]*?padding-inline:\s*24px;/
+);
+assert.doesNotMatch(
+  styles,
+  /\.mobile-dock-earthquake-distribution\s*\{[^}]*transform:\s*translateY/
+);
+const mobileEarthquakeIntensityStyle = styles.match(
+  /\.mobile-dock-earthquake-intensity\s*\{([^}]*)\}/
+)?.[1] ?? "";
+assert.match(mobileEarthquakeIntensityStyle, /box-shadow:\s*none/);
+assert.doesNotMatch(mobileEarthquakeIntensityStyle, /box-shadow:\s*inset/);
+const lightMobileEarthquakeIntensityStyle = styles.match(
+  /html\[data-theme="light"\] \.mobile-dock-earthquake-intensity\s*\{([^}]*)\}/
+)?.[1] ?? "";
+assert.match(lightMobileEarthquakeIntensityStyle, /box-shadow:\s*none/);
+assert.doesNotMatch(lightMobileEarthquakeIntensityStyle, /box-shadow:\s*inset/);
+assert.match(styles, /\.mobile-dock-tide\s*\{[\s\S]*?grid-template-rows:\s*26px 62px;/);
+assert.doesNotMatch(styles, /\.mobile-context-dock\.is-tide-observation/);
+assert.match(panel, /data-mobile-earthquake-summary="tide"/);
+assert.match(panel, /data-mobile-earthquake-summary-target="\$\{page\}"/);
+assert.match(panel, /const pages = \["earthquake", "tsunami", "tide"\]/);
+assert.match(panel, /function buildMobileEarthquakeSummaryCarousel\(\{/);
+assert.equal(panel.match(/class="mobile-dock-earthquake-summary-track"/g)?.length, 1);
+assert.match(
+  panel,
+  /function buildEarthquakeDistributionMobileContextMarkup[\s\S]*?return buildMobileEarthquakeSummaryCarousel\(\{[\s\S]*?primaryAriaLabel: "震央分布要約"[\s\S]*?primaryDotLabel: "地震・震央分布"/
+);
+assert.match(panel, /export function setupMobileEarthquakeSummarySwipe\(\{ onChange \} = \{\}\)/);
+assert.match(panel, /if \(changed\) onChange\?\.\(page\)/);
+assert.match(panel, /const direction = deltaX < 0 \? 1 : -1/);
+assert.match(app, /tideStationsVisible:\s*earthquakeSummaryPage === "tide"/);
+assert.match(
+  app,
+  /const earthquakeMapView = earthquakeSummaryPage === "earthquake"\s*\? earthquakeView\s*:\s*"recent"/
+);
+assert.match(app, /earthquakeView,\s*earthquakeMapView,/);
+assert.match(app, /setupMobileEarthquakeSummarySwipe\(\{[\s\S]*?onChange:\s*\(page\)/);
+assert.match(weatherMap, /function getEarthquakeMapView\(data\)/);
+assert.match(weatherMap, /getEarthquakeMapView\(data\) === "distribution"/);
+assert.equal(weatherMap.match(/getEarthquakeMapView\(data\) === "distribution"/g)?.length, 2);
+assert.match(weatherMap, /function createTideStationFeatures\(data\)\s*\{\s*if \(data\?\.tideStationsVisible !== true\) return \[\];/);
+assert.match(weatherMap, /!\["tsunami-coastal", "tsunami-offshore"\]\.includes\(feature\?\.properties\?\.markerType\)/);
+assert.match(panel, /const tideStationLegend = data\?\.tideStationsVisible === true/);
+assert.match(panel, /const tsunamiObservationLegend = data\?\.tideStationsVisible === true \? \[\] : \[/);
+assert.match(panel, /data-mobile-earthquake-detail="tide"/);
+assert.match(panel, /レベル4危険警報基準/);
+assert.match(panel, /レベル5特別警報基準/);
+assert.match(panel, /includeReferencesInScale:\s*true/);
+assert.match(panel, /function createTideDeviationGraphGeometry/);
+assert.match(panel, /実測潮位 − 天文潮位/);
+assert.match(panel, /class="tide-deviation-zero"/);
+assert.match(panel, /state\.level === "none" \? "警報・注意報なし"/);
+assert.match(panel, /mobile-dock-tsunami-main\$\{hasCounts \? "" : " no-counts"\}/);
+assert.match(panel, /class="mobile-dock-tsunami-area-ticker"/);
+assert.match(panel, /class="mobile-dock-tsunami-area-ticker-track"/);
+assert.match(panel, /class="mobile-dock-tsunami-area-ticker-sequence"/);
+assert.match(panel, /data-mobile-tsunami-area-level="\$\{escapeHtml\(area\.level\)\}"/);
+assert.match(panel, /data-mobile-tsunami-ticker-level="\$\{escapeHtml\(group\.level\)\}"/);
+assert.match(panel, /data-mobile-tsunami-ticker-duration="\$\{duration\}"/);
+assert.match(panel, /data-mobile-tsunami-level-badge/);
+assert.match(panel, /function syncMobileTsunamiAreaTickers\(root\)/);
+assert.match(panel, /function activateMobileTsunamiTickerGroup\(ticker, groupIndex\)/);
+assert.match(panel, /function switchMobileTsunamiTickerGroup\(ticker\)/);
+assert.match(panel, /const overflows = sequence\.scrollWidth > ticker\.clientWidth/);
+assert.match(panel, /duplicate\.setAttribute\("aria-hidden", "true"\)/);
+assert.match(panel, /duplicate\.setAttribute\("data-mobile-tsunami-ticker-duplicate", ""\)/);
+assert.match(panel, /const isVisible = summaryPage\?\.getAttribute\("aria-hidden"\) !== "true"/);
+assert.match(panel, /const tickerAreas = \[\.\.\.areas\]\.sort\(/);
+assert.match(panel, /const tickerGroups = tickerAreas/);
+assert.match(panel, /function getMobileTsunamiLevelRank\(level\)/);
+assert.match(panel, /badgeText\.textContent = getMobileTsunamiLevelShortLabel\(level\)/);
+assert.match(panel, /main\.style\.setProperty\("--mobile-tsunami-color", getTsunamiLevelColor\(level\)\)/);
+assert.match(panel, /groups\.length > 1 && isVisible/);
+assert.match(panel, /overflows && !prefersReducedMotion\s*\? durationSeconds \* 1000\s*:\s*3500/);
+assert.match(panel, /ticker\.classList\.add\("is-group-changing"\)/);
+assert.doesNotMatch(panel, /areas\.length > 1 \? " is-animated"/);
+assert.match(styles, /\.mobile-dock-tsunami-area-ticker\.is-animated \.mobile-dock-tsunami-area-ticker-track\s*\{[\s\S]*?animation:\s*remoteTickerLeft/);
+assert.match(styles, /\.mobile-dock-tsunami-area-ticker\.is-group-changing\s*\{[\s\S]*?opacity:\s*0/);
+assert.match(styles, /\.mobile-dock-tsunami-area-ticker-sequence\[hidden\]\s*\{[\s\S]*?display:\s*none/);
+assert.match(styles, /mask-image:\s*linear-gradient\(90deg,\s*#000 0,\s*#000 calc\(100% - 7px\),\s*transparent 100%\)/);
+assert.doesNotMatch(styles, /mask-image:\s*linear-gradient\(90deg,\s*transparent 0,\s*#000 7px/);
+assert.equal(styles.match(/@keyframes remoteTickerLeft/g)?.length, 1);
+const mobileTsunamiLevelStyle = styles.match(
+  /\.mobile-dock-tsunami-level\s*\{([^}]*)\}/
+)?.[1] ?? "";
+const lightMobileTsunamiLevelStyle = styles.match(
+  /html\[data-theme="light"\] \.mobile-dock-tsunami-level\s*\{([^}]*)\}/
+)?.[1] ?? "";
+assert.match(mobileTsunamiLevelStyle, /box-shadow:\s*none/);
+assert.match(lightMobileTsunamiLevelStyle, /box-shadow:\s*none/);
+const tsunamiMobileSummaryStart = panel.indexOf("function buildMobileTsunamiSummaryMarkup");
+const tsunamiMobileSummaryEnd = panel.indexOf("\nfunction ", tsunamiMobileSummaryStart + 1);
+const tsunamiMobileSummary = panel.slice(tsunamiMobileSummaryStart, tsunamiMobileSummaryEnd);
+assert.doesNotMatch(tsunamiMobileSummary, /<small>津波<\/small>/);
+assert.doesNotMatch(tsunamiMobileSummary, /primaryArea\.arrivalCondition|primaryArea\.arrivalTime/);
+assert.doesNotMatch(tsunamiMobileSummary, /primaryArea\.heightCondition|primaryArea\.height/);
+assert.match(tsunamiMobileSummary, /const areaTickerText = tickerAreas\s*\.map\(\(area\) => area\.name\)\s*\.filter\(Boolean\)\s*\.join\(/);
 const mobileTapControlsStart = panel.indexOf("export function setupMobileWeatherTimelineTapControls");
 const mobileTapControlsEnd = panel.indexOf("\nexport function ", mobileTapControlsStart + 1);
 const mobileTapControls = panel.slice(mobileTapControlsStart, mobileTapControlsEnd);
@@ -165,6 +277,31 @@ assert.match(
 assert.match(
   styles,
   /@media \(max-width: 800px\) and \(orientation: portrait\)\s*\{[\s\S]*?html\[data-theme="light"\] #sidebar\s*\{[\s\S]*?background:\s*rgba\(246, 250, 254, 0\.94\)/
+);
+assert.match(panel, /class="mobile-dock-tsunami-heading">津波情報<\/div>/);
+assert.match(panel, /function applyMobileEarthquakeDetailPage\(page\)/);
+assert.match(
+  panel,
+  /data-mobile-earthquake-detail="earthquake"[\s\S]*?data-mobile-earthquake-detail="tsunami"/
+);
+assert.match(panel, /function buildTsunamiDedicatedDetailMarkup\(earthquake, tsunami, status\)/);
+assert.doesNotMatch(panel, /class="tsunami-dedicated-header"/);
+assert.doesNotMatch(panel, /class="tsunami-dedicated-level"/);
+assert.doesNotMatch(styles, /\.tsunami-dedicated-header\s*\{/);
+assert.match(panel, /沿岸の津波観測/);
+assert.match(panel, /沖合の津波観測/);
+assert.equal(panel.match(/function getCurrentTsunamiState/g)?.length, 1);
+assert.match(styles, /\.earthquake-detail-mode\[hidden\]\s*\{\s*display:\s*none;/);
+assert.match(styles, /\.tsunami-dedicated-panel\s*\{[\s\S]*?gap:\s*0;[\s\S]*?padding:\s*2px 2px 0;/);
+assert.doesNotMatch(panel, /class="tsunami-dedicated-counts"/);
+assert.match(styles, /html\[data-theme="light"\] \.tsunami-dedicated-panel\s*\{/);
+assert.match(
+  styles,
+  /html\[data-theme="light"\] \.tsunami-observation-station\s*\{[\s\S]*?color:\s*#102a43 !important;/
+);
+assert.match(
+  styles,
+  /html\[data-theme="light"\] \.tsunami-observation-station small\s*\{[\s\S]*?color:\s*#526980;[\s\S]*?font-weight:\s*800;/
 );
 
 console.log("Responsive layouts: OK");

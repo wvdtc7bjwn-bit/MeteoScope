@@ -6,6 +6,11 @@ const TSUNAMI_LEVELS = {
   none: { label: "発表終了", color: "#8594a6", rank: 0, lineWidth: 2 }
 };
 
+const TSUNAMI_OBSERVATION_STYLES = {
+  coastal: { label: "沿岸津波観測", color: "#ff2b12", markerType: "tsunami-coastal" },
+  offshore: { label: "沖合津波観測", color: "#ff2b12", markerType: "tsunami-offshore" }
+};
+
 export function getTsunamiLevelLabel(level) {
   return TSUNAMI_LEVELS[level]?.label ?? "津波情報";
 }
@@ -20,4 +25,8 @@ export function getTsunamiLevelRank(level) {
 
 export function getTsunamiLevelLineWidth(level) {
   return TSUNAMI_LEVELS[level]?.lineWidth ?? TSUNAMI_LEVELS.none.lineWidth;
+}
+
+export function getTsunamiObservationStyle(offshore = false) {
+  return TSUNAMI_OBSERVATION_STYLES[offshore ? "offshore" : "coastal"];
 }

@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { DOMParser } from "@xmldom/xmldom";
 
 globalThis.DOMParser = DOMParser;
 
-const { mergeTsunamiReports, parseEarthquakeReport, parseTsunamiReport } = await import("../src/jma/earthquakeXml.js");
+const {
+  attachTsunamiMapData,
+  buildTsunamiStationLookup,
+  mergeTsunamiReports,
+  parseEarthquakeReport,
+  parseTsunamiReport
+} = await import("../src/jma/earthquakeXml.js");
 
 const earthquakeWithForecastComment = parseEarthquakeReport(`
   <Report>
@@ -70,7 +77,7 @@ const observation = report(`
     <Item>
       <Area><Name>北海道太平洋沿岸東部</Name><Code>100</Code></Area>
       <Station>
-        <Name>釧路</Name><Code>87110</Code>
+        <Name>釧路</Name><Code>10001</Code>
         <FirstHeight><ArrivalTime>2026-07-15T10:22:00+09:00</ArrivalTime></FirstHeight>
         <MaxHeight><DateTime>2026-07-15T10:37:00+09:00</DateTime><TsunamiHeight description="０．４ｍ">0.4</TsunamiHeight></MaxHeight>
       </Station>
@@ -86,7 +93,7 @@ const offshore = report(`
   <Observation>
     <Item>
       <Area><Name>釧路沖</Name><Code>901</Code></Area>
-      <Station><Name>釧路沖GPS波浪計</Name><Code>GPS01</Code><MaxHeight><Condition>観測中</Condition></MaxHeight></Station>
+      <Station><Name>釧路沖１００ｋｍＡ</Name><Code>10050</Code><Sensor>海底津波計</Sensor><MaxHeight><Condition>観測中</Condition></MaxHeight></Station>
     </Item>
   </Observation>
 `, { code: "VTSE52", id: "offshore", updated: "2026-07-15T10:50:00+09:00" });
@@ -97,6 +104,44 @@ assert.equal(merged.isActive, true);
 assert.equal(merged.observations.length, 1);
 assert.equal(merged.offshoreObservations.length, 1);
 assert.equal(merged.reportTimeRaw, "2026-07-15T10:50:00+09:00");
+
+const stationData = JSON.parse(await readFile(
+  new URL("../public/data/jma-tsunami-observation-stations.json", import.meta.url),
+  "utf8"
+));
+assert.ok(stationData.stations.length >= 400);
+const stationLookup = buildTsunamiStationLookup(stationData);
+const mapped = attachTsunamiMapData(merged, new Map(), stationLookup);
+assert.deepEqual(mapped.observations[0].coordinates, [144.36667, 42.98333]);
+assert.equal(mapped.observations[0].agency, "気象庁");
+assert.deepEqual(mapped.offshoreObservations[0].coordinates, [144.63333, 42.08333]);
+assert.equal(mapped.offshoreObservations[0].sensor, "海底津波計");
+assert.deepEqual(
+  mapped.mapFeatures.map((feature) => feature.properties.markerType).sort(),
+  ["tsunami-coastal", "tsunami-offshore"]
+);
+assert.deepEqual(
+  mapped.mapFeatures.map((feature) => feature.properties.color),
+  ["#ff2b12", "#ff2b12"]
+);
+assert.deepEqual(
+  mapped.mapFeatures.map((feature) => feature.properties.radius),
+  [5.5, 6]
+);
+const weatherMapSource = await readFile(
+  new URL("../src/map/weatherMap.js", import.meta.url),
+  "utf8"
+);
+assert.match(
+  weatherMapSource,
+  /"circle-stroke-color":\s*\[[\s\S]*?"tsunami-coastal"[\s\S]*?"#050505"/
+);
+assert.match(
+  weatherMapSource,
+  /id:\s*"sample-tsunami-offshore"[\s\S]*?"text-halo-color":\s*"#050505"/
+);
+assert.match(mapped.mapFeatures[0].properties.popup, /沿岸津波観測/u);
+assert.match(mapped.mapFeatures[1].properties.popup, /沖合津波観測/u);
 
 const cancelled = report(`
   <Forecast>

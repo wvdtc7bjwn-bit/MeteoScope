@@ -1,7 +1,7 @@
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
@@ -20,6 +20,7 @@ import { fetchAmedasDailySeries, fetchAmedasLatestTime } from "./jma/amedas.js";
 import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
 import { fetchEarthquakeXmlList } from "./jma/earthquakeXml.js";
+import { fetchTideObservationSeries, fetchTideStationCatalog } from "./jma/tideLevel.js";
 import { fetchVolcanoXmlList } from "./jma/volcanoXml.js";
 import { fetchKikikuruTiles } from "./jma/kikikuru.js";
 import { fetchRiverFloodForecasts } from "./jma/riverFlood.js";
@@ -47,8 +48,27 @@ const loaders = {
   amedas: fetchAmedasLatestTime,
   warnings: fetchWarningTabData,
   typhoon: fetchTyphoonList,
-  earthquake: fetchEarthquakeXmlList
+  earthquake: fetchEarthquakeTabData
 };
+
+async function fetchEarthquakeTabData() {
+  const [earthquakeData, tideResult] = await Promise.all([
+    fetchEarthquakeXmlList(),
+    fetchTideStationCatalog().catch((error) => {
+      console.warn("[MeteoScope] tide station catalog unavailable", error);
+      return { stations: [], unavailable: true };
+    })
+  ]);
+  const data = {
+    ...earthquakeData,
+    tideStations: tideResult.stations ?? [],
+    tideStationsUnavailable: tideResult.unavailable === true
+  };
+  if (!import.meta.env.DEV) return data;
+
+  const { applyLocalTsunamiTestScenario } = await import("./dev/tsunamiTestScenario.js");
+  return applyLocalTsunamiTestScenario(data);
+}
 
 const KIKIKURU_DATA_TTL_MS = 60 * 1000;
 const WARNING_DETAILS_TTL_MS = 60 * 1000;
@@ -124,9 +144,13 @@ export function createWeatherApp() {
   let earthquakeDistributionFilters = { dayOffset: 0, minMagnitude: "0", maxDepth: "all" };
   let earthquakeDistributionState = { status: "idle", data: null, error: "" };
   let earthquakeDistributionRequestId = 0;
+  let earthquakeSummaryPage = "earthquake";
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
   let earthquakePlateBoundaryVisible = loadEarthquakeLayerVisibility("plateBoundary");
   let earthquakePlateDepthContoursVisible = loadEarthquakeLayerVisibility("plateDepthContours");
+  let tideObservation = { status: "idle", station: null, points: [], rangeHours: 24 };
+  let tideObservationRequest = null;
+  let tideObservationRequestId = 0;
   let weatherMap = null;
   let latestDataByTab = {};
   let radarPlayTimer = null;
@@ -426,6 +450,71 @@ if (layerId === "river") {
     const tab = TABS.find((item) => item.id === "earthquake");
     updateCurrentView(tab, latestDataByTab.earthquake);
     if (!isSelected) focusSelectedEarthquake();
+  }
+
+  async function selectTideObservationStation(stationCode) {
+    const station = (latestDataByTab.earthquake?.tideStations ?? [])
+      .find((item) => String(item.code) === String(stationCode));
+    if (!station || earthquakeContentMode !== "earthquake") return;
+    const requestId = ++tideObservationRequestId;
+    tideObservation = {
+      status: "loading",
+      station,
+      points: [],
+      latest: null,
+      rangeHours: tideObservation.rangeHours || 24,
+      error: ""
+    };
+    if (activeTab === "earthquake") refreshActivePanel();
+
+    tideObservationRequest = fetchTideObservationSeries(station, { force: true })
+      .then((series) => {
+        if (requestId !== tideObservationRequestId) return tideObservation;
+        tideObservation = {
+          ...series,
+          status: "ok",
+          rangeHours: tideObservation.rangeHours || 24,
+          error: ""
+        };
+        return tideObservation;
+      })
+      .catch((error) => {
+        if (requestId !== tideObservationRequestId) return tideObservation;
+        console.warn("[MeteoScope] tide observation unavailable", error);
+        tideObservation = {
+          ...tideObservation,
+          status: "error",
+          error: "潮位観測値を取得できませんでした。"
+        };
+        return tideObservation;
+      })
+      .finally(() => {
+        if (requestId === tideObservationRequestId) tideObservationRequest = null;
+        if (requestId === tideObservationRequestId && activeTab === "earthquake") {
+          refreshActivePanel();
+        }
+      });
+    return tideObservationRequest;
+  }
+
+  function selectTideObservationRange(hours) {
+    const rangeHours = Number(hours);
+    if (![1, 6, 12, 24].includes(rangeHours) || !tideObservation.station) return;
+    tideObservation = { ...tideObservation, rangeHours };
+    if (activeTab === "earthquake") refreshActivePanel();
+  }
+
+  function closeTideObservation() {
+    tideObservationRequestId += 1;
+    tideObservationRequest = null;
+    tideObservation = {
+      status: "idle",
+      station: null,
+      points: [],
+      latest: null,
+      rangeHours: tideObservation.rangeHours || 24
+    };
+    if (activeTab === "earthquake") refreshActivePanel();
   }
 
   function refreshVolcanoView({ scrollToTop = false } = {}) {
@@ -766,8 +855,12 @@ if (layerId === "river") {
 
   function buildEarthquakeDisplayData(data = {}) {
     const distribution = earthquakeDistributionState.data;
+    const earthquakeMapView = earthquakeSummaryPage === "earthquake"
+      ? earthquakeView
+      : "recent";
     const distributionData = {
       earthquakeView,
+      earthquakeMapView,
       distribution3DEnabled: earthquakeDistribution3DEnabled,
       distributionFilters: earthquakeDistributionFilters,
       distributionStatus: earthquakeDistributionState.status,
@@ -775,12 +868,18 @@ if (layerId === "river") {
       distribution,
       distributionItems: distribution?.items ?? []
     };
+    const tideData = {
+      tideObservation,
+      selectedTideStationCode: tideObservation.station?.code ?? "",
+      tideStationsVisible: earthquakeSummaryPage === "tide"
+    };
     const earthquakes = data.earthquakes ?? [];
     if (!earthquakes.length) {
       activeEarthquakeId = "";
       return {
         ...data,
         ...distributionData,
+        ...tideData,
         activeFaultVisible: earthquakeActiveFaultVisible,
         plateBoundaryVisible: earthquakePlateBoundaryVisible,
         plateDepthContoursVisible: earthquakePlateDepthContoursVisible
@@ -794,6 +893,7 @@ if (layerId === "river") {
     return {
       ...data,
       ...distributionData,
+      ...tideData,
       activeFaultVisible: earthquakeActiveFaultVisible,
       plateBoundaryVisible: earthquakePlateBoundaryVisible,
       plateDepthContoursVisible: earthquakePlateDepthContoursVisible,
@@ -1739,6 +1839,17 @@ if (layerId === "river") {
     setupAmedasSubTabs({ onChange: selectAmedasMetric });
     setupAmedasDailyChartToggle({ onChange: selectAmedasDailyChartDay });
     setupMobileDockSegmentedControls();
+    setupMobileEarthquakeSummarySwipe({
+      onChange: (page) => {
+        if (!["earthquake", "tsunami", "tide"].includes(page) || earthquakeSummaryPage === page) return;
+        earthquakeSummaryPage = page;
+        if (activeTab === "earthquake" && earthquakeContentMode === "earthquake") refreshActivePanel();
+      }
+    });
+    setupTideObservationControls({
+      onRangeChange: selectTideObservationRange,
+      onClose: closeTideObservation
+    });
     setupAmedasRankingToggle({ onChange: refreshAmedasPanel, onSelectStation: focusAmedasStation });
     window.addEventListener("amedas-station-select", (event) => {
       const stationId = event.detail?.stationId;
@@ -1753,6 +1864,10 @@ if (layerId === "river") {
       selectedVolcanoBulletinId = "";
       selectedVolcanoAshForecastIndex = 0;
       refreshVolcanoView({ scrollToTop: true });
+    });
+    window.addEventListener("tide-station-select", (event) => {
+      const stationCode = String(event.detail?.stationCode ?? "").trim();
+      if (stationCode) void selectTideObservationStation(stationCode);
     });
     setupKikikuruLayerToggles({ onChange: selectKikikuruLayer });
     setupWarningAreaSelection({ onDetailRequest: () => refreshWarningDetails() });
