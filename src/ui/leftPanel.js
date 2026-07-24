@@ -61,6 +61,10 @@ let mobileTsunamiTickerGroupTimer = 0;
 let mobileTsunamiTickerTransitionTimer = 0;
 let warningDetailsRenderFrame = 0;
 let warningDetailsRenderGeneration = 0;
+let lastWarningDetailsData = null;
+let lastWarningDetailsView = "";
+let lastWarningDetailsStatus = "";
+let lastWarningDetailsAreaCode = "";
 
 const AMEDAS_RANKING_LIMIT = 20;
 const MOBILE_WEATHER_TIMELINE_TAP_DELAY_MS = 360;
@@ -3266,18 +3270,31 @@ function renderWarningGroupsProgressively(root, groups, renderGeneration, buildG
 function renderWarningDetails(tab, state, warningView = "status") {
   const root = document.getElementById("warning-detail-list");
   if (!root) return;
+  const wasRenderingProgressively = root.hasAttribute("aria-busy");
   const renderGeneration = beginWarningDetailsRender();
   root.removeAttribute("aria-busy");
 
   const isWarnings = tab.id === "warnings" && (warningView === "status" || warningView === "early" || warningView === "river");
   root.hidden = !isWarnings;
   if (!isWarnings) {
-    root.innerHTML = "";
-    activeWarningAreasByCode = new Map();
-    activeWarningDetailsLoaded = false;
     closeWarningModal();
     return;
   }
+
+  const canReuseRenderedDetails =
+    state.status === "ok"
+    && !wasRenderingProgressively
+    && root.childElementCount > 0
+    && lastWarningDetailsData === state.data
+    && lastWarningDetailsView === warningView
+    && lastWarningDetailsStatus === state.status
+    && lastWarningDetailsAreaCode === selectedWarningAreaCode;
+  if (canReuseRenderedDetails) return;
+
+  lastWarningDetailsData = state.data ?? null;
+  lastWarningDetailsView = warningView;
+  lastWarningDetailsStatus = state.status ?? "";
+  lastWarningDetailsAreaCode = selectedWarningAreaCode;
 
   if (state.status === "loading") {
     root.innerHTML = `<div class="warning-empty">取得中...</div>`;

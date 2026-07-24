@@ -351,6 +351,15 @@ export function createWeatherMap(elementId) {
     if (activeMode !== "earthquake") updateHypocenter3DPresentation(false);
   }
 
+  function prepareWarningData(data) {
+    if (!map?.getSource(MUNICIPALITY_SOURCE_ID) || !data) return;
+    const activeAreas = getActiveWarningOverlayAreas("warnings", {
+      ...data,
+      activeWarningView: "status"
+    });
+    void updateWarningFeatureStates(map, activeAreas);
+  }
+
   function setActiveFaultVisible(visible) {
     activeFaultVisible = Boolean(visible);
     if (!activeFaultVisible) hideMapInfo("active-fault");
@@ -1605,7 +1614,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates };
 }
 
 function createCommunityReportFeatureCollection(reports = []) {
@@ -2677,7 +2686,7 @@ async function updateWarningFeatureStates(map, activeAreas) {
 
   try {
     const { operations } = planWarningFeatureStateChanges(cache.levels, activeAreas);
-    const chunkSize = 72;
+    const chunkSize = 24;
     for (let offset = 0; offset < operations.length; offset += chunkSize) {
       await waitForMapUpdateTurn();
       if (cache.generation !== generation) return;

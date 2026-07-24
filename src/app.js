@@ -191,8 +191,6 @@ export function createWeatherApp() {
   let warningDetailsRequest = null;
   let warningKikikuruRequest = null;
   let riverFloodRequest = null;
-  let warningDetailsTimer = null;
-  let warningFullRefreshTimer = null;
   let warningDetailsLoadedAt = 0;
   let warningKikikuruLoadedAt = 0;
   let riverFloodLoadedAt = 0;
@@ -201,11 +199,15 @@ export function createWeatherApp() {
   let communityReportsRequest = null;
   let scheduledMapRenderFrame = 0;
   let mapRenderGeneration = 0;
+  let scheduledPanelRenderFrame = 0;
+  let scheduledPanelRenderNextFrame = 0;
+  let panelRenderGeneration = 0;
 
   async function selectTab(tabId) {
     const tab = TABS.find((item) => item.id === tabId) ?? TABS[0];
     activeTab = tab.id;
     invalidateScheduledMapRender();
+    invalidateScheduledPanelRender();
     syncActiveTabToUrl(tab.id);
     tabControls?.setActiveButton(tab.id);
     try {
@@ -226,7 +228,7 @@ export function createWeatherApp() {
     if (cachedData) {
       let cachedViewUpdated = false;
       try {
-        updateCurrentView(tab, cachedData);
+        updateCurrentView(tab, cachedData, { deferPanel: true });
         cachedViewUpdated = true;
       } catch (error) {
         console.warn("[MeteoScope] cached tab view update failed", error);
@@ -236,12 +238,12 @@ export function createWeatherApp() {
         else refreshEarthquakeData({ force: true });
       }
       if (tab.id === "warnings" && cachedViewUpdated) {
-        queueWarningFullRefresh({ delayMs: 700 });
         scheduleBackgroundPrefetch(tab.id);
         return;
       }
     } else {
-      updateLeftPanel(tab, {
+      scheduleMapRender(tab.id, buildDisplayData(tab, {}));
+      schedulePanelRender(tab, {
         status: "loading",
         amedasMetric: activeAmedasMetric,
         warningView: activeWarningView,
@@ -269,13 +271,12 @@ export function createWeatherApp() {
       if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
       if (tab.id === "earthquake" && earthquakeContentMode === "volcano") volcanoData = data;
       else latestDataByTab[tab.id] = data;
-      updateCurrentView(tab, data);
-      if (tab.id === "warnings") queueWarningFullRefresh({ delayMs: 350 });
+      updateCurrentView(tab, data, { deferPanel: true });
       scheduleBackgroundPrefetch(tab.id);
     } catch (error) {
       if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
       console.warn(`[MeteoScope] ${tab.id} load failed`, error);
-      updateLeftPanel(tab, {
+      schedulePanelRender(tab, {
         status: "error",
         error,
         amedasMetric: activeAmedasMetric,
@@ -389,7 +390,6 @@ export function createWeatherApp() {
       const tab = TABS.find((item) => item.id === "warnings");
       updateCurrentView(tab, latestDataByTab.warnings);
       if (activeWarningView === "early") refreshWarningDetails();
-      else scheduleWarningDetailsRefresh();
       return;
     }
 
@@ -413,7 +413,6 @@ if (layerId === "river") {
         };
       }
       updateCurrentView(tab, latestDataByTab.warnings);
-      cancelScheduledWarningDetailsRefresh();
       void refreshRiverFloodData();
       return;
     }
@@ -425,7 +424,6 @@ if (layerId === "river") {
     if (activeTab !== "warnings") return;
     const tab = TABS.find((item) => item.id === "warnings");
     updateCurrentView(tab, latestDataByTab.warnings);
-    cancelScheduledWarningDetailsRefresh();
     void refreshKikikuruData();
   }
 
@@ -748,7 +746,7 @@ if (layerId === "river") {
     refreshAmedasPanel();
   }
 
-  function updateCurrentView(tab, data) {
+  function updateCurrentView(tab, data, options = {}) {
     const displayData = buildDisplayData(tab, data);
     if (tab.id === "radar") {
       displayData.weatherChartEnabled = weatherChartEnabled;
@@ -756,7 +754,7 @@ if (layerId === "river") {
       displayData.weatherChart = weatherChartData;
     }
     if (tab.id === "radar") ensureLocationRadarTimeline(displayData);
-    updateLeftPanel(tab, {
+    const panelState = {
       status: "ok",
       data: displayData,
       amedasMetric: activeAmedasMetric,
@@ -780,8 +778,14 @@ if (layerId === "river") {
       weatherChartEnabled,
       weatherChartStatus,
       weatherChart: weatherChartData
-    });
+    };
     scheduleMapRender(tab.id, displayData);
+    if (options.deferPanel) {
+      schedulePanelRender(tab, panelState);
+    } else {
+      invalidateScheduledPanelRender();
+      updateLeftPanel(tab, panelState);
+    }
   }
 
   function invalidateScheduledMapRender() {
@@ -798,6 +802,32 @@ if (layerId === "river") {
       scheduledMapRenderFrame = 0;
       if (generation !== mapRenderGeneration || activeTab !== tabId) return;
       weatherMap?.renderData(tabId, displayData);
+    });
+  }
+
+  function invalidateScheduledPanelRender() {
+    panelRenderGeneration += 1;
+    if (scheduledPanelRenderFrame) {
+      window.cancelAnimationFrame(scheduledPanelRenderFrame);
+      scheduledPanelRenderFrame = 0;
+    }
+    if (scheduledPanelRenderNextFrame) {
+      window.cancelAnimationFrame(scheduledPanelRenderNextFrame);
+      scheduledPanelRenderNextFrame = 0;
+    }
+  }
+
+  function schedulePanelRender(tab, panelState) {
+    const generation = ++panelRenderGeneration;
+    if (scheduledPanelRenderFrame) window.cancelAnimationFrame(scheduledPanelRenderFrame);
+    if (scheduledPanelRenderNextFrame) window.cancelAnimationFrame(scheduledPanelRenderNextFrame);
+    scheduledPanelRenderFrame = window.requestAnimationFrame(() => {
+      scheduledPanelRenderFrame = 0;
+      scheduledPanelRenderNextFrame = window.requestAnimationFrame(() => {
+        scheduledPanelRenderNextFrame = 0;
+        if (generation !== panelRenderGeneration || activeTab !== tab.id) return;
+        updateLeftPanel(tab, panelState);
+      });
     });
   }
 
@@ -1267,7 +1297,6 @@ if (layerId === "river") {
       latestDataByTab[tab.id] = mergeRefreshedData(tab.id, latestDataByTab[tab.id], nextData);
       updateCurrentView(tab, latestDataByTab[tab.id]);
       if (tab.id === "radar") await refreshCommunityReports();
-      if (tab.id === "warnings") queueWarningFullRefresh({ force: true, delayMs: 0 });
     } catch (error) {
       console.warn(`[MeteoScope] ${tab.id} auto refresh failed`, error);
     } finally {
@@ -1566,6 +1595,7 @@ if (layerId === "river") {
     const run = () => {
       TABS
         .filter((tab) => tab.id !== excludeTabId && loaders[tab.id])
+        .sort((left, right) => Number(right.id === "warnings") - Number(left.id === "warnings"))
         .forEach((tab, index) => {
           window.setTimeout(() => {
             prefetchTabData(tab.id);
@@ -1584,36 +1614,10 @@ if (layerId === "river") {
     if (latestDataByTab[tabId] || document.hidden) return;
     try {
       latestDataByTab[tabId] = await loadTabData(tabId);
+      if (tabId === "warnings") weatherMap?.prepareWarningData(latestDataByTab[tabId]);
     } catch (error) {
       console.warn(`[MeteoScope] ${tabId} prefetch failed`, error);
     }
-  }
-
-  function scheduleWarningDetailsRefresh() {
-    if (latestDataByTab.warnings?.detailsLoaded || warningDetailsRequest || warningDetailsTimer) return;
-    warningDetailsTimer = window.setTimeout(() => {
-      warningDetailsTimer = null;
-      if (activeTab !== "warnings" || activeWarningView !== "status") return;
-      refreshWarningDetails();
-    }, 1800);
-  }
-
-  function cancelScheduledWarningDetailsRefresh() {
-    if (!warningDetailsTimer) return;
-    window.clearTimeout(warningDetailsTimer);
-    warningDetailsTimer = null;
-  }
-
-  function queueWarningFullRefresh({ force = false, delayMs = 0 } = {}) {
-    if (warningFullRefreshTimer) {
-      window.clearTimeout(warningFullRefreshTimer);
-      warningFullRefreshTimer = null;
-    }
-    warningFullRefreshTimer = window.setTimeout(() => {
-      warningFullRefreshTimer = null;
-      if (activeTab !== "warnings") return;
-      refreshAllWarningData({ force });
-    }, delayMs);
   }
 
   async function refreshWarningDetails() {
@@ -1632,7 +1636,6 @@ if (layerId === "river") {
   async function refreshWarningDetailsData({ force = false } = {}) {
     if (!force && hasFreshWarningDetails(latestDataByTab.warnings, warningDetailsLoadedAt)) return latestDataByTab.warnings;
     if (warningDetailsRequest) return warningDetailsRequest;
-    cancelScheduledWarningDetailsRefresh();
     warningDetailsRequest = fetchWarningTabData({ includeDetails: true })
       .then(async (detailsData) => {
         latestDataByTab.warnings = mergeWarningTabData(latestDataByTab.warnings, detailsData);
@@ -1649,21 +1652,6 @@ if (layerId === "river") {
         warningDetailsRequest = null;
       });
     return warningDetailsRequest;
-  }
-
-  async function refreshAllWarningData({ force = false } = {}) {
-    const tasks = [
-      refreshWarningDetailsData({ force }),
-      refreshKikikuruData({ force })
-    ];
-    if (activeWarningView === "river" || latestDataByTab.warnings?.riverFlood) {
-      tasks.push(refreshRiverFloodData({ force }));
-    }
-    const results = await Promise.allSettled(tasks);
-    results.filter((result) => result.status === "rejected").forEach((result) => {
-      console.warn("[MeteoScope] warning data refresh failed", result.reason);
-    });
-    return latestDataByTab.warnings;
   }
 
   async function refreshRiverFloodData({ force = false } = {}) {
@@ -1760,7 +1748,16 @@ if (layerId === "river") {
     if (activeTab !== "warnings") return;
     if (options.view && activeWarningView !== options.view) return;
     const tab = TABS.find((item) => item.id === "warnings");
-    updateCurrentView(tab, latestDataByTab.warnings);
+    updateCurrentView(tab, latestDataByTab.warnings, { deferPanel: true });
+  }
+
+  function scheduleCriticalWarningPrefetch() {
+    const run = () => void prefetchTabData("warnings");
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(run, { timeout: 700 });
+    } else {
+      window.setTimeout(run, 180);
+    }
   }
 
   function getSettingsState() {
@@ -1929,6 +1926,7 @@ if (layerId === "river") {
       if (userServicesStarted) return;
       userServicesStarted = true;
       startAutoRefresh();
+      scheduleCriticalWarningPrefetch();
       void adminNoticePush.initialize().then(() => refreshSettingsModalView());
       void startLocationWatchOnLaunch();
       void selectTab(activeTab);

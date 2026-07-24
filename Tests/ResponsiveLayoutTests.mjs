@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [styles, index, panel, app, weatherMap, panelToggle] = await Promise.all([
+const [styles, index, panel, app, weatherMap, panelToggle, tabs] = await Promise.all([
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/ui/panelToggle.js", import.meta.url), "utf8")
+  readFile(new URL("../src/ui/panelToggle.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/ui/tabs.js", import.meta.url), "utf8")
 ]);
 
 assert.match(styles, /--sidebar-width:\s*clamp\(300px,\s*24vw,\s*380px\)/);
@@ -95,6 +96,20 @@ assert.match(panel, /const direction = directionSource < 0 \? 1 : -1/);
 assert.match(panelToggle, /function applyHorizontalDragSoon\(offset\)/);
 assert.match(panelToggle, /horizontalVelocityX = horizontalVelocityX \* 0\.65/);
 assert.match(panelToggle, /velocityX: event\.type === "pointercancel" \? 0 : horizontalVelocityX/);
+assert.match(tabs, /let suppressNextClick = false;/);
+assert.match(
+  tabs,
+  /if \(suppressNextClick\) \{[\s\S]*?suppressNextClick = false;[\s\S]*?clearPointerPreview\(\);[\s\S]*?event\.preventDefault\(\);[\s\S]*?return;/
+);
+assert.match(
+  tabs,
+  /root\?\.addEventListener\("pointerdown", \(event\) => \{[\s\S]*?suppressNextClick = false;/
+);
+assert.match(
+  tabs,
+  /if \(dragMoved\) \{[\s\S]*?suppressNextClick = true;[\s\S]*?activateTab\(getTabFromPoint\(event, dragAxis\), \{ force: true \}\);/
+);
+assert.doesNotMatch(tabs, /suppressClickUntil/);
 assert.match(
   styles,
   /\.mobile-dock-earthquake-summary-track\s*\{[\s\S]*?transition:\s*transform 360ms cubic-bezier\(0\.22, 1, 0\.36, 1\);/
