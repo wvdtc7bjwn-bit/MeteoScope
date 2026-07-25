@@ -1,4 +1,4 @@
-import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
+import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, TABS, WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
 import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
@@ -161,12 +161,12 @@ export function createWeatherApp() {
     "gefs-mean": true
   };
   const worldTyphoonForecasts = {
-    ecmwf: { status: "idle", data: null, error: "" },
-    "ifs-hres": { status: "idle", data: null, error: "" },
-    "aifs-ens": { status: "idle", data: null, error: "" },
-    "aifs-single": { status: "idle", data: null, error: "" },
-    gefs: { status: "idle", data: null, error: "" },
-    "gefs-mean": { status: "idle", data: null, error: "" }
+    ecmwf: { status: "idle", data: null, error: "", loadedAt: 0 },
+    "ifs-hres": { status: "idle", data: null, error: "", loadedAt: 0 },
+    "aifs-ens": { status: "idle", data: null, error: "", loadedAt: 0 },
+    "aifs-single": { status: "idle", data: null, error: "", loadedAt: 0 },
+    gefs: { status: "idle", data: null, error: "", loadedAt: 0 },
+    "gefs-mean": { status: "idle", data: null, error: "", loadedAt: 0 }
   };
   const worldTyphoonForecastRequests = {
     ecmwf: null,
@@ -533,18 +533,22 @@ if (layerId === "river") {
 
   function ensureWorldTyphoonForecast({
     force = false,
-    model = "ecmwf"
+    model = "ecmwf",
+    refreshView = true
   } = {}) {
     const modelId = worldTyphoonModelIds.includes(model) ? model : "ecmwf";
     const forecastState = worldTyphoonForecasts[modelId];
-    if (!force && forecastState.status === "ok") {
+    const isFresh = forecastState.loadedAt > 0
+      && Date.now() - forecastState.loadedAt < WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS;
+    if (!force && forecastState.status === "ok" && isFresh) {
       focusSelectedTyphoon();
       return Promise.resolve(forecastState.data);
     }
     if (worldTyphoonForecastRequests[modelId]) return worldTyphoonForecastRequests[modelId];
     worldTyphoonForecasts[modelId] = { ...forecastState, status: "loading", error: "" };
     if (
-      activeTab === "typhoon"
+      refreshView
+      && activeTab === "typhoon"
       && activeTyphoonForecastMode === "world"
       && activeWorldTyphoonModels[modelId]
     ) {
@@ -552,9 +556,15 @@ if (layerId === "river") {
     }
     worldTyphoonForecastRequests[modelId] = fetchWorldTyphoonForecast(modelId)
       .then((data) => {
-        worldTyphoonForecasts[modelId] = { status: "ok", data, error: "" };
+        worldTyphoonForecasts[modelId] = {
+          status: "ok",
+          data,
+          error: "",
+          loadedAt: Date.now()
+        };
         if (
-          activeTab === "typhoon"
+          refreshView
+          && activeTab === "typhoon"
           && activeTyphoonForecastMode === "world"
           && activeWorldTyphoonModels[modelId]
         ) {
@@ -566,12 +576,14 @@ if (layerId === "river") {
       .catch((error) => {
         console.warn(`[MeteoScope] ${getWorldTyphoonModel(modelId).label} world typhoon forecast load failed`, error);
         worldTyphoonForecasts[modelId] = {
-          status: "error",
-          data: null,
-          error: error?.message ?? "各国予想を取得できませんでした"
+          status: forecastState.data ? "ok" : "error",
+          data: forecastState.data,
+          error: error?.message ?? "各国予想を取得できませんでした",
+          loadedAt: forecastState.loadedAt ?? 0
         };
         if (
-          activeTab === "typhoon"
+          refreshView
+          && activeTab === "typhoon"
           && activeTyphoonForecastMode === "world"
           && activeWorldTyphoonModels[modelId]
         ) {
@@ -583,6 +595,36 @@ if (layerId === "river") {
         worldTyphoonForecastRequests[modelId] = null;
       });
     return worldTyphoonForecastRequests[modelId];
+  }
+
+  function refreshActiveWorldTyphoonForecasts() {
+    if (activeTab !== "typhoon" || activeTyphoonForecastMode !== "world") {
+      return Promise.resolve([]);
+    }
+    const now = Date.now();
+    const staleModelIds = worldTyphoonModelIds.filter((modelId) => {
+      if (!activeWorldTyphoonModels[modelId]) return false;
+      const forecastState = worldTyphoonForecasts[modelId];
+      return forecastState.status !== "ok"
+        || forecastState.loadedAt <= 0
+        || now - forecastState.loadedAt >= WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS;
+    });
+    if (!staleModelIds.length) return Promise.resolve([]);
+
+    return Promise.all(
+      staleModelIds.map((modelId) => ensureWorldTyphoonForecast({
+        model: modelId,
+        refreshView: false
+      }))
+    ).then((results) => {
+      if (activeTab === "typhoon" && activeTyphoonForecastMode === "world") {
+        updateCurrentView(
+          TABS.find((item) => item.id === "typhoon"),
+          latestDataByTab.typhoon ?? {}
+        );
+      }
+      return results;
+    });
   }
 
   function selectEarthquake(earthquakeId) {
@@ -1526,6 +1568,7 @@ if (layerId === "river") {
       latestDataByTab[tab.id] = mergeRefreshedData(tab.id, latestDataByTab[tab.id], nextData);
       updateCurrentView(tab, latestDataByTab[tab.id]);
       if (tab.id === "radar") await refreshCommunityReports();
+      if (tab.id === "typhoon") await refreshActiveWorldTyphoonForecasts();
     } catch (error) {
       console.warn(`[MeteoScope] ${tab.id} auto refresh failed`, error);
     } finally {

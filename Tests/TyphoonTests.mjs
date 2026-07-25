@@ -194,11 +194,23 @@ assert.deepEqual(
   ]
 );
 
-const [appSource, panelSource, mapSource, styleSource, workflowSource, noaaScriptSource, ledgerSource] = await Promise.all([
+const [
+  appSource,
+  panelSource,
+  mapSource,
+  styleSource,
+  worldSource,
+  configSource,
+  workflowSource,
+  noaaScriptSource,
+  ledgerSource
+] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
+  readFile(new URL("../src/worldTyphoon.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/config.js", import.meta.url), "utf8"),
   readFile(new URL("../.github/workflows/world-typhoon-data.yml", import.meta.url), "utf8"),
   readFile(new URL("../scripts/update-noaa-gefs-tropical-cyclones.py", import.meta.url), "utf8"),
   readFile(new URL("../DATA_SOURCES.md", import.meta.url), "utf8")
@@ -218,6 +230,13 @@ assert.match(panelSource, /各予想メンバーの進路/);
 assert.match(panelSource, /線と点の色は各モデルボタンの色に対応します/);
 assert.match(styleSource, /grid-template-columns:\s*repeat\(6/);
 assert.match(appSource, /activeWorldTyphoonModels/);
+assert.match(configSource, /WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS\s*=\s*15\s*\*\s*60\s*\*\s*1000/);
+assert.match(appSource, /WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS/);
+assert.match(appSource, /function refreshActiveWorldTyphoonForecasts\(\)/);
+assert.match(appSource, /if \(tab\.id === "typhoon"\) await refreshActiveWorldTyphoonForecasts\(\);/);
+assert.match(appSource, /loadedAt:\s*Date\.now\(\)/);
+assert.match(worldSource, /cache:\s*"no-store"/);
+assert.doesNotMatch(worldSource, /import\.meta\.env\?\.DEV\s*\?\s*"\/data\/world-typhoon-forecast/);
 assert.match(
   appSource,
   /function focusSelectedTyphoon\(\)\s*\{\s*if \(activeTyphoonForecastMode === "world"\) return;/

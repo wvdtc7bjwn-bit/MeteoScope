@@ -53,30 +53,18 @@ export const WORLD_TYPHOON_MODELS = {
 };
 
 const WORLD_TYPHOON_URLS = {
-  ecmwf: import.meta.env?.DEV
-    ? "/data/world-typhoon-forecast.json"
-    : (import.meta.env?.VITE_WORLD_TYPHOON_DATA_URL
-      || `${PRODUCTION_WORLD_TYPHOON_ROOT}/world-typhoon-forecast.json`),
-  "ifs-hres": import.meta.env?.DEV
-    ? "/data/world-typhoon-forecast-ifs-hres.json"
-    : (import.meta.env?.VITE_WORLD_TYPHOON_IFS_HRES_DATA_URL
-      || `${PRODUCTION_WORLD_TYPHOON_ROOT}/world-typhoon-forecast-ifs-hres.json`),
-  "aifs-ens": import.meta.env?.DEV
-    ? "/data/world-typhoon-forecast-aifs-ens.json"
-    : (import.meta.env?.VITE_WORLD_TYPHOON_AIFS_ENS_DATA_URL
-      || `${PRODUCTION_WORLD_TYPHOON_ROOT}/world-typhoon-forecast-aifs-ens.json`),
-  "aifs-single": import.meta.env?.DEV
-    ? "/data/world-typhoon-forecast-aifs-single.json"
-    : (import.meta.env?.VITE_WORLD_TYPHOON_AIFS_SINGLE_DATA_URL
-      || `${PRODUCTION_WORLD_TYPHOON_ROOT}/world-typhoon-forecast-aifs-single.json`),
-  gefs: import.meta.env?.DEV
-    ? "/data/world-typhoon-forecast-gefs.json"
-    : (import.meta.env?.VITE_WORLD_TYPHOON_GEFS_DATA_URL
-      || `${PRODUCTION_WORLD_TYPHOON_ROOT}/world-typhoon-forecast-gefs.json`),
-  "gefs-mean": import.meta.env?.DEV
-    ? "/data/world-typhoon-forecast-gefs.json"
-    : (import.meta.env?.VITE_WORLD_TYPHOON_GEFS_DATA_URL
-      || `${PRODUCTION_WORLD_TYPHOON_ROOT}/world-typhoon-forecast-gefs.json`)
+  ecmwf: import.meta.env?.VITE_WORLD_TYPHOON_DATA_URL
+    || `${PRODUCTION_WORLD_TYPHOON_ROOT}/world-typhoon-forecast.json`,
+  "ifs-hres": import.meta.env?.VITE_WORLD_TYPHOON_IFS_HRES_DATA_URL
+    || `${PRODUCTION_WORLD_TYPHOON_ROOT}/world-typhoon-forecast-ifs-hres.json`,
+  "aifs-ens": import.meta.env?.VITE_WORLD_TYPHOON_AIFS_ENS_DATA_URL
+    || `${PRODUCTION_WORLD_TYPHOON_ROOT}/world-typhoon-forecast-aifs-ens.json`,
+  "aifs-single": import.meta.env?.VITE_WORLD_TYPHOON_AIFS_SINGLE_DATA_URL
+    || `${PRODUCTION_WORLD_TYPHOON_ROOT}/world-typhoon-forecast-aifs-single.json`,
+  gefs: import.meta.env?.VITE_WORLD_TYPHOON_GEFS_DATA_URL
+    || `${PRODUCTION_WORLD_TYPHOON_ROOT}/world-typhoon-forecast-gefs.json`,
+  "gefs-mean": import.meta.env?.VITE_WORLD_TYPHOON_GEFS_DATA_URL
+    || `${PRODUCTION_WORLD_TYPHOON_ROOT}/world-typhoon-forecast-gefs.json`
 };
 
 const MAX_NEAREST_SYSTEM_DISTANCE_KM = 1800;
@@ -89,7 +77,7 @@ async function fetchWorldTyphoonPayload(url) {
   if (pendingRequest) return pendingRequest;
 
   const request = fetch(url, {
-    cache: "no-cache",
+    cache: "no-store",
     headers: { Accept: "application/json" }
   })
     .then((response) => {
