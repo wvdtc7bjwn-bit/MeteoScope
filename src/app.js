@@ -1,7 +1,7 @@
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, TABS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
@@ -19,6 +19,15 @@ import { fetchRadarTimes, findLatestRadarObservationIndex } from "./jma/radar.js
 import { fetchAmedasDailySeries, fetchAmedasLatestTime } from "./jma/amedas.js";
 import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
+import {
+  buildWorldTyphoonTimeline,
+  fetchWorldTyphoonForecast,
+  getWorldTyphoonModel,
+  getWorldTyphoonFocusCoordinates,
+  selectWorldTyphoonForecastPositions,
+  selectWorldTyphoonGenesisSystems,
+  selectWorldTyphoonSystem
+} from "./worldTyphoon.js";
 import { fetchEarthquakeXmlList } from "./jma/earthquakeXml.js";
 import { fetchTideObservationSeries, fetchTideStationCatalog } from "./jma/tideLevel.js";
 import { fetchVolcanoXmlList } from "./jma/volcanoXml.js";
@@ -131,6 +140,43 @@ export function createWeatherApp() {
   let activeWarningView = "status";
   let activeKikikuruLayer = KIKIKURU_LAYER_OPTIONS[0]?.id ?? "land";
   let activeTyphoonId = "";
+  let activeTyphoonForecastMode = "jma";
+  let activeWorldTyphoonForecastTime = "";
+  let worldTyphoonPositionFrame = 0;
+  let worldTyphoonPositionTimer = 0;
+  let worldTyphoonPositionLastUpdate = 0;
+  const worldTyphoonModelIds = [
+    "ecmwf",
+    "ifs-hres",
+    "aifs-ens",
+    "aifs-single",
+    "gefs",
+    "gefs-mean"
+  ];
+  const activeWorldTyphoonModels = {
+    ecmwf: true,
+    "ifs-hres": true,
+    "aifs-ens": true,
+    "aifs-single": true,
+    gefs: true,
+    "gefs-mean": true
+  };
+  const worldTyphoonForecasts = {
+    ecmwf: { status: "idle", data: null, error: "" },
+    "ifs-hres": { status: "idle", data: null, error: "" },
+    "aifs-ens": { status: "idle", data: null, error: "" },
+    "aifs-single": { status: "idle", data: null, error: "" },
+    gefs: { status: "idle", data: null, error: "" },
+    "gefs-mean": { status: "idle", data: null, error: "" }
+  };
+  const worldTyphoonForecastRequests = {
+    ecmwf: null,
+    "ifs-hres": null,
+    "aifs-ens": null,
+    "aifs-single": null,
+    gefs: null,
+    "gefs-mean": null
+  };
   let activeEarthquakeId = "";
   let collapsedEarthquakeId = "";
   let earthquakeContentMode = "earthquake";
@@ -435,6 +481,111 @@ if (layerId === "river") {
     focusSelectedTyphoon();
   }
 
+  function selectTyphoonForecastMode(mode) {
+    const nextMode = mode === "world" ? "world" : "jma";
+    if (nextMode === activeTyphoonForecastMode) return;
+    activeTyphoonForecastMode = nextMode;
+    if (activeTab !== "typhoon") return;
+    const tab = TABS.find((item) => item.id === "typhoon");
+    updateCurrentView(tab, latestDataByTab.typhoon ?? {});
+    if (nextMode === "world") {
+      worldTyphoonModelIds
+        .filter((modelId) => activeWorldTyphoonModels[modelId])
+        .forEach((modelId) => void ensureWorldTyphoonForecast({ model: modelId }));
+      return;
+    }
+    focusSelectedTyphoon();
+  }
+
+  function toggleWorldTyphoonModel(model) {
+    const modelId = worldTyphoonModelIds.includes(model) ? model : "ecmwf";
+    activeWorldTyphoonModels[modelId] = !activeWorldTyphoonModels[modelId];
+    if (activeTab !== "typhoon" || activeTyphoonForecastMode !== "world") return;
+    const tab = TABS.find((item) => item.id === "typhoon");
+    updateCurrentView(tab, latestDataByTab.typhoon ?? {});
+    if (activeWorldTyphoonModels[modelId]) {
+      void ensureWorldTyphoonForecast({ model: modelId });
+      return;
+    }
+    focusSelectedTyphoon();
+  }
+
+  function selectWorldTyphoonForecastTime(validTime) {
+    if (!Number.isFinite(Date.parse(validTime ?? ""))) return;
+    activeWorldTyphoonForecastTime = validTime;
+    if (activeTab !== "typhoon" || activeTyphoonForecastMode !== "world") return;
+    if (worldTyphoonPositionFrame || worldTyphoonPositionTimer) return;
+    worldTyphoonPositionFrame = requestAnimationFrame(() => {
+      worldTyphoonPositionFrame = 0;
+      const elapsed = performance.now() - worldTyphoonPositionLastUpdate;
+      const delay = Math.max(0, 40 - elapsed);
+      worldTyphoonPositionTimer = window.setTimeout(() => {
+        worldTyphoonPositionTimer = 0;
+        if (activeTab !== "typhoon" || activeTyphoonForecastMode !== "world") return;
+        worldTyphoonPositionLastUpdate = performance.now();
+        const displayData = buildTyphoonDisplayData(
+          latestDataByTab.typhoon ?? {},
+          { interpolateWorldTime: true }
+        );
+        weatherMap?.updateWorldTyphoonForecastPositions(displayData);
+      }, delay);
+    });
+  }
+
+  function ensureWorldTyphoonForecast({
+    force = false,
+    model = "ecmwf"
+  } = {}) {
+    const modelId = worldTyphoonModelIds.includes(model) ? model : "ecmwf";
+    const forecastState = worldTyphoonForecasts[modelId];
+    if (!force && forecastState.status === "ok") {
+      focusSelectedTyphoon();
+      return Promise.resolve(forecastState.data);
+    }
+    if (worldTyphoonForecastRequests[modelId]) return worldTyphoonForecastRequests[modelId];
+    worldTyphoonForecasts[modelId] = { ...forecastState, status: "loading", error: "" };
+    if (
+      activeTab === "typhoon"
+      && activeTyphoonForecastMode === "world"
+      && activeWorldTyphoonModels[modelId]
+    ) {
+      updateCurrentView(TABS.find((item) => item.id === "typhoon"), latestDataByTab.typhoon ?? {});
+    }
+    worldTyphoonForecastRequests[modelId] = fetchWorldTyphoonForecast(modelId)
+      .then((data) => {
+        worldTyphoonForecasts[modelId] = { status: "ok", data, error: "" };
+        if (
+          activeTab === "typhoon"
+          && activeTyphoonForecastMode === "world"
+          && activeWorldTyphoonModels[modelId]
+        ) {
+          updateCurrentView(TABS.find((item) => item.id === "typhoon"), latestDataByTab.typhoon ?? {});
+          focusSelectedTyphoon();
+        }
+        return data;
+      })
+      .catch((error) => {
+        console.warn(`[MeteoScope] ${getWorldTyphoonModel(modelId).label} world typhoon forecast load failed`, error);
+        worldTyphoonForecasts[modelId] = {
+          status: "error",
+          data: null,
+          error: error?.message ?? "世界予想を取得できませんでした"
+        };
+        if (
+          activeTab === "typhoon"
+          && activeTyphoonForecastMode === "world"
+          && activeWorldTyphoonModels[modelId]
+        ) {
+          updateCurrentView(TABS.find((item) => item.id === "typhoon"), latestDataByTab.typhoon ?? {});
+        }
+        return null;
+      })
+      .finally(() => {
+        worldTyphoonForecastRequests[modelId] = null;
+      });
+    return worldTyphoonForecastRequests[modelId];
+  }
+
   function selectEarthquake(earthquakeId) {
     const nextEarthquakeId = String(earthquakeId ?? "");
     const isSelected = nextEarthquakeId === activeEarthquakeId;
@@ -659,6 +810,17 @@ if (layerId === "river") {
   }
 
   function focusSelectedTyphoon() {
+    if (activeTyphoonForecastMode === "world") {
+      const displayData = buildTyphoonDisplayData(latestDataByTab.typhoon ?? {});
+      const coordinates = (displayData.worldForecastLayers ?? [])
+        .flatMap((layer) => getWorldTyphoonFocusCoordinates(layer.system));
+      if (!coordinates.length) return;
+      weatherMap?.fitToCoordinates(coordinates, {
+        maxZoom: 5.8,
+        duration: 900
+      });
+      return;
+    }
     const typhoons = latestDataByTab.typhoon?.typhoons ?? [];
     const selected = typhoons.find((typhoon) => String(typhoon.id) === String(activeTyphoonId)) ?? typhoons[0];
     const coordinates = buildTyphoonFocusCoordinates(selected);
@@ -862,24 +1024,102 @@ if (layerId === "river") {
     };
   }
 
-  function buildTyphoonDisplayData(data = {}) {
+  function buildTyphoonDisplayData(data = {}, { interpolateWorldTime = false } = {}) {
     const typhoons = data.typhoons ?? [];
+    let selected = null;
     if (!typhoons.length) {
       activeTyphoonId = "";
-      return data;
+    } else {
+      selected = typhoons.find((typhoon) => String(typhoon.id) === String(activeTyphoonId))
+        ?? typhoons[0];
+      activeTyphoonId = String(selected.id ?? "");
     }
 
-    const selected = typhoons.find((typhoon) => String(typhoon.id) === String(activeTyphoonId))
-      ?? typhoons[0];
-    activeTyphoonId = String(selected.id ?? "");
-
-    return {
+    const base = {
       ...data,
+      forecastMode: activeTyphoonForecastMode,
       selectedTyphoonId: activeTyphoonId,
       selectedTyphoon: selected,
-      details: selected.details ?? data.details,
-      latestTime: selected.updatedAt ?? data.latestTime,
-      updatedAt: selected.updatedAt ?? data.updatedAt
+      details: selected?.details ?? data.details,
+      latestTime: selected?.updatedAt ?? data.latestTime,
+      updatedAt: selected?.updatedAt ?? data.updatedAt
+    };
+    if (activeTyphoonForecastMode !== "world") return base;
+    const worldForecastModelStates = worldTyphoonModelIds.map((modelId) => {
+      const forecastState = worldTyphoonForecasts[modelId];
+      return {
+        id: modelId,
+        enabled: Boolean(activeWorldTyphoonModels[modelId]),
+        modelInfo: getWorldTyphoonModel(modelId),
+        status: forecastState.status,
+        error: forecastState.error,
+        source: forecastState.data?.source ?? null,
+        baseTime: forecastState.data?.forecastBaseTime ?? "",
+        systems: forecastState.data?.systems ?? [],
+        candidates: selectWorldTyphoonGenesisSystems(forecastState.data),
+        system: selectWorldTyphoonSystem(forecastState.data, selected)
+      };
+    });
+    const enabledWorldForecastLayers = worldForecastModelStates
+      .filter((layer) => layer.enabled)
+      .map((layer) => ({
+        ...layer,
+        timelineSystems: layer.systems
+      }));
+    const worldForecastTimes = buildWorldTyphoonTimeline(enabledWorldForecastLayers);
+    const requestedForecastTime = Date.parse(activeWorldTyphoonForecastTime || "") || Date.now();
+    const nearestWorldForecastTime = worldForecastTimes.reduce((nearest, time) => (
+      Math.abs(Date.parse(time) - requestedForecastTime)
+        < Math.abs(Date.parse(nearest) - requestedForecastTime)
+        ? time
+        : nearest
+    ), worldForecastTimes[0] ?? "");
+    const earliestWorldForecastTime = Date.parse(worldForecastTimes[0] ?? "");
+    const latestWorldForecastTime = Date.parse(worldForecastTimes.at(-1) ?? "");
+    const canInterpolateWorldTime = interpolateWorldTime
+      && Number.isFinite(requestedForecastTime)
+      && requestedForecastTime >= earliestWorldForecastTime
+      && requestedForecastTime <= latestWorldForecastTime;
+    const worldForecastTime = canInterpolateWorldTime
+      ? new Date(requestedForecastTime).toISOString()
+      : nearestWorldForecastTime;
+    if (!interpolateWorldTime && worldForecastTime) {
+      activeWorldTyphoonForecastTime = worldForecastTime;
+    }
+    const worldForecastLayers = enabledWorldForecastLayers.map((layer) => ({
+      ...layer,
+      forecastPositions: (layer.timelineSystems ?? []).flatMap((system) => {
+        return selectWorldTyphoonForecastPositions(system, worldForecastTime)
+          .map((forecastPosition) => ({ system, ...forecastPosition }));
+      })
+    }));
+    const readyLayers = worldForecastLayers.filter((layer) => layer.status === "ok");
+    const firstLayer = worldForecastLayers[0] ?? null;
+    const worldForecastStatus = worldForecastLayers.length === 0
+      ? "idle"
+      : (worldForecastLayers.some((layer) => ["idle", "loading"].includes(layer.status))
+        ? "loading"
+        : (readyLayers.length > 0 ? "ok" : "error"));
+
+    return {
+      ...base,
+      hasTyphoon: readyLayers.some((layer) => Boolean(layer.system)),
+      worldForecastMode: true,
+      worldForecastModelStates,
+      worldForecastLayers,
+      worldForecastTimes,
+      worldForecastTime,
+      worldForecastStatus,
+      worldForecastError: worldForecastLayers
+        .filter((layer) => layer.status === "error" && layer.error)
+        .map((layer) => layer.error)
+        .join(" / "),
+      worldForecastModel: firstLayer?.id ?? "",
+      worldForecastModelInfo: firstLayer?.modelInfo ?? null,
+      worldForecastSource: firstLayer?.source ?? null,
+      worldForecastBaseTime: firstLayer?.baseTime ?? "",
+      worldForecastCandidates: firstLayer?.candidates ?? [],
+      worldForecastSystem: firstLayer?.system ?? null
     };
   }
 
@@ -1869,6 +2109,11 @@ if (layerId === "river") {
     setupKikikuruLayerToggles({ onChange: selectKikikuruLayer });
     setupWarningAreaSelection({ onDetailRequest: () => refreshWarningDetails() });
     setupTyphoonSelector({ onChange: selectTyphoon });
+    setupTyphoonForecastModeControls({
+      onChange: selectTyphoonForecastMode,
+      onModelToggle: toggleWorldTyphoonModel,
+      onTimeChange: selectWorldTyphoonForecastTime
+    });
     setupEarthquakeSelector({
       onChange: selectEarthquake,
       onVolcanoClear: () => {

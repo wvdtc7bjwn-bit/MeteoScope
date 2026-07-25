@@ -2625,6 +2625,191 @@ h2 {
   display: none;
 }
 
+.typhoon-world-model-detail {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0;
+  min-width: 0;
+  padding: 18px 0 4px;
+  border-top: 1px solid var(--line);
+}
+
+.typhoon-world-model-detail:first-child {
+  padding-top: 2px;
+  border-top: 0;
+}
+
+.typhoon-world-model-header {
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  padding-bottom: 10px;
+}
+
+.typhoon-world-model-header > i {
+  align-self: stretch;
+  min-height: 22px;
+  border-radius: 2px;
+  background: var(--world-model-color, #38bdf8);
+}
+
+.typhoon-world-model-header > h3 {
+  margin: 0;
+  color: var(--type-emphasis-title-color);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.typhoon-world-model-header > span {
+  color: var(--type-date-color);
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.typhoon-world-model-detail > .typhoon-empty {
+  margin-bottom: 12px;
+}
+
+.typhoon-world-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+  border-block: 1px solid var(--line);
+}
+
+.typhoon-world-summary > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 55px;
+  padding: 8px 10px;
+  border-inline-end: 1px solid var(--line);
+}
+
+.typhoon-world-summary > div:last-child {
+  border-inline-end: 0;
+}
+
+.typhoon-world-summary dt,
+.typhoon-world-attribution p {
+  color: var(--type-date-color);
+  font-size: 11px;
+}
+
+.typhoon-world-summary dt,
+.typhoon-world-summary dd {
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.typhoon-world-summary dd {
+  color: var(--type-emphasis-title-color);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.typhoon-world-candidates {
+  padding: 13px 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.typhoon-world-candidates-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.typhoon-world-candidates-head h4 {
+  margin: 0;
+  color: var(--type-emphasis-title-color);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.typhoon-world-candidates-head span {
+  color: var(--type-date-color);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.typhoon-world-candidates > p {
+  margin: 5px 0 9px;
+  color: var(--type-date-color);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.typhoon-world-candidate-list {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 11px;
+}
+
+.typhoon-world-candidate-list th,
+.typhoon-world-candidate-list td {
+  padding: 6px 8px;
+  border-top: 1px solid var(--line);
+  text-align: start;
+}
+
+.typhoon-world-candidate-list thead th {
+  color: var(--type-date-color);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.typhoon-world-candidate-list tbody th {
+  color: var(--type-emphasis-title-color);
+  font-weight: 800;
+}
+
+.typhoon-world-candidate-list td {
+  color: var(--type-date-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.typhoon-world-attribution {
+  display: grid;
+  gap: 5px;
+  padding: 11px 0 12px;
+}
+
+.typhoon-world-attribution p strong {
+  display: inline-block;
+  min-width: 4.5em;
+  margin-inline-end: 7px;
+  color: var(--type-emphasis-title-color);
+  font-size: 10px;
+}
+
+.typhoon-world-attribution p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.typhoon-world-attribution div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-inline-start: calc(4.5em + 7px);
+}
+
+.typhoon-world-attribution a {
+  color: #68cef8;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .typhoon-transition-status {
   grid-column: 1 / -1;
   display: grid;
@@ -5299,6 +5484,26 @@ h2 {
   border-color: #ffeb1a;
 }
 
+.legend-world-typhoon-control {
+  background: #008c54;
+  border-color: #0fd28a;
+}
+
+.legend-world-typhoon-member {
+  background: linear-gradient(135deg, #22b892 0 48%, #ec5ca8 52% 100%);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.legend-world-typhoon-genesis {
+  background: #ffad45;
+  border: 2px dashed #8e4b00;
+}
+
+.legend-world-typhoon-center {
+  background: #ffffff;
+  border: 3px solid #008c54;
+}
+
 .legend-typhoon-warning-area,
 .legend-typhoon-forecast-circle,
 .legend-typhoon-forecast-route,
@@ -6539,6 +6744,23 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     grid-template-columns: 1fr;
   }
 
+  .typhoon-world-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .typhoon-world-summary > div {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .typhoon-world-summary > div:nth-child(2n) {
+    border-inline-end: 0;
+  }
+
+  .typhoon-world-summary > div:last-child {
+    grid-column: 1 / -1;
+    border-bottom: 0;
+  }
+
   .tab-button {
     width: 50px;
     height: 50px;
@@ -6769,9 +6991,14 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   }
 
   .mobile-context-dock[data-tab="earthquake"] {
-    bottom: calc(max(0px, env(safe-area-inset-bottom)) + 78px);
+    bottom: calc(max(0px, env(safe-area-inset-bottom)) + 76px);
     padding-top: 10px;
     padding-bottom: 9px;
+  }
+
+  .mobile-context-dock .mobile-dock-content:has(.mobile-dock-mode-switch) {
+    position: relative;
+    top: -4px;
   }
 
   .mobile-context-dock::before {
@@ -7067,10 +7294,12 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     background: rgba(255, 255, 255, 0.055);
   }
   .mobile-dock-typhoon {
-    gap: 8px;
+    display: grid;
+    grid-template-rows: 34px minmax(0, 1fr);
+    align-content: center;
+    gap: 5px;
   }
 
-  .mobile-dock-typhoon-head,
   .mobile-dock-typhoon-main {
     display: flex;
     align-items: center;
@@ -7140,6 +7369,15 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     gap: 7px;
   }
 
+  .mobile-dock-typhoon-values .mobile-dock-typhoon-switch {
+    min-width: 0;
+    padding-inline: 8px;
+  }
+
+  .mobile-dock-typhoon-values.has-switch {
+    grid-template-columns: repeat(3, minmax(44px, auto));
+  }
+
   .mobile-dock-typhoon-values span {
     display: grid;
     gap: 2px;
@@ -7186,6 +7424,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-earthquake-summary-viewport {
     position: relative;
+    top: 3.1667px;
     width: calc(100% + 36px);
     min-width: 0;
     height: 99px;
@@ -7443,6 +7682,172 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     display: grid;
     gap: 2px;
     min-width: 0;
+  }
+
+  .mobile-dock-typhoon-mode {
+    width: 100%;
+  }
+
+  .mobile-dock-typhoon-world {
+    grid-template-rows: 34px 18px 36px;
+    gap: 2px;
+    padding-top: 5px;
+    box-sizing: border-box;
+  }
+
+  .mobile-dock-typhoon-world .mobile-dock-mode-switch {
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .mobile-dock-typhoon-world .mobile-dock-mode-switch .mobile-dock-action {
+    height: 26px;
+    min-height: 26px;
+  }
+
+  .mobile-dock-world-model-toggles {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 3px;
+    min-width: 0;
+    height: 18px;
+  }
+
+  .mobile-dock-world-model-toggle {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 21px;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) 15px;
+    min-height: 18px;
+    padding: 1px 2px 1px 4px;
+    border: 1px solid rgba(199, 224, 248, 0.2);
+    border-radius: 999px;
+    color: rgba(211, 228, 244, 0.68);
+    font: inherit;
+    background: rgba(255, 255, 255, 0.035);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .mobile-dock-world-model-toggle > span {
+    overflow: hidden;
+    font-size: 6.5px;
+    font-weight: 900;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-dock-world-model-toggle > i {
+    position: relative;
+    display: block;
+    width: 15px;
+    height: 9px;
+    border-radius: 999px;
+    background: rgba(159, 179, 200, 0.3);
+    transition: background-color 180ms ease;
+  }
+
+  .mobile-dock-world-model-toggle > i::after {
+    content: "";
+    position: absolute;
+    top: 1.5px;
+    left: 1.5px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #d7e3ed;
+    transform: translateX(0);
+    transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background-color 180ms ease;
+  }
+
+  .mobile-dock-world-model-toggle[aria-pressed="true"] {
+    border-color: var(--world-model-color, #38bdf8);
+    color: var(--world-model-color, #38bdf8);
+    background: rgba(39, 154, 219, 0.14);
+    box-shadow: inset 0 -1px 0 var(--world-model-color, #38bdf8);
+  }
+
+  .mobile-dock-world-model-toggle[aria-pressed="true"] > i {
+    background: var(--world-model-color, #38bdf8);
+  }
+
+  .mobile-dock-world-model-toggle[aria-pressed="true"] > i::after {
+    background: #ffffff;
+    transform: translateX(6px);
+  }
+
+  .mobile-dock-world-time-control {
+    position: relative;
+    min-width: 0;
+    height: 36px;
+    color: rgba(218, 233, 247, 0.78);
+    font-size: 8.5px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  .mobile-dock-world-time-control.is-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-dock-world-time-control .weather-time-timeline {
+    width: calc(100% - 68px);
+    height: 36px;
+    margin: 0 34px;
+  }
+
+  .mobile-dock-world-time-control .mobile-dock-date {
+    left: 0;
+    width: 30px;
+  }
+
+  .mobile-dock-world-time-control .weather-time-labels {
+    height: 17px;
+  }
+
+  .mobile-dock-world-time-control .weather-time-labels span {
+    max-width: 48px;
+    font-size: 9px;
+  }
+
+  .mobile-dock-world-time-control .weather-time-labels span.is-current {
+    padding: 2px 4px;
+  }
+
+  .mobile-dock-world-time-control .weather-time-ticks {
+    top: 20px;
+    bottom: 1px;
+  }
+
+  .mobile-dock-world-time-control .weather-time-ticks span {
+    width: 2px;
+    height: 11px;
+  }
+
+  .mobile-dock-world-time-control .weather-time-ticks span.major {
+    height: 20px;
+  }
+
+  .mobile-dock-world-time-control .weather-time-active-marker {
+    top: 15px;
+    bottom: 1px;
+    width: 6px;
+  }
+
+  .mobile-dock-typhoon-empty {
+    align-self: center;
+    overflow: hidden;
+    color: rgba(224, 236, 249, 0.84);
+    font-size: 13px;
+    font-weight: 900;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .mobile-dock-tsunami-text strong,
@@ -10037,6 +10442,23 @@ html[data-theme="light"] :is(.mobile-dock-typhoon-switch, .mobile-dock-typhoon-v
   -webkit-backdrop-filter: blur(18px) saturate(1.45);
 }
 
+html[data-theme="light"] .mobile-dock-world-model-toggle {
+  border-color: rgba(48, 91, 128, 0.22);
+  color: #536b83;
+  background: rgba(219, 232, 243, 0.56);
+}
+
+html[data-theme="light"] .mobile-dock-world-model-toggle[aria-pressed="true"] {
+  border-color: var(--world-model-color, #1781bd);
+  color: #123c59;
+  background: rgba(103, 200, 242, 0.28);
+  box-shadow: inset 0 -2px 0 var(--world-model-color, #1781bd);
+}
+
+html[data-theme="light"] .mobile-dock-world-time-control {
+  color: #536b83;
+}
+
 html[data-theme="light"] :is(.mobile-dock-typhoon-switch.is-static, .mobile-dock-typhoon-values em, .mobile-dock-earthquake-time, .mobile-dock-earthquake-text span) {
   color: #536b83;
 }
@@ -10601,6 +11023,18 @@ html[data-theme="light"] :is(.earthquake-card-info > strong, .earthquake-card-fa
   font-size: 0.92rem;
   line-height: 1.75;
   white-space: pre-line;
+}
+
+html[data-theme="light"] .typhoon-world-attribution {
+  color: #38516b;
+}
+
+html[data-theme="light"] .typhoon-world-candidates {
+  border-bottom-color: rgba(48, 108, 151, 0.2);
+}
+
+html[data-theme="light"] .typhoon-world-attribution a {
+  color: #006b9e;
 }
 
 .volcano-seismic-table-wrap {

@@ -107,7 +107,9 @@ export function updateLeftPanel(tab, state = {}) {
   const activeKikikuruLayer = state.activeKikikuruLayer ?? state.data?.activeKikikuruLayer ?? KIKIKURU_LAYER_OPTIONS[0]?.id;
   const modeLabel = tab.id === "earthquake" && state.earthquakeContentMode === "volcano"
     ? "火山情報"
-    : (tab.id === "radar" && state.weatherChartEnabled ? "天気図" : tab.label);
+    : (tab.id === "radar" && state.weatherChartEnabled
+      ? "天気図"
+      : (tab.id === "typhoon" && state.data?.worldForecastMode ? "世界予想" : tab.label));
   setText("mode-label", modeLabel);
   setText("panel-title", buildPanelTitle(tab, state));
   setPanelTitleVisible(false);
@@ -922,6 +924,151 @@ export function setupTyphoonSelector({ onChange }) {
   document.getElementById("mobile-context-dock")?.addEventListener("click", handleClick);
 }
 
+export function setupTyphoonForecastModeControls({ onChange, onModelToggle, onTimeChange }) {
+  const root = document.getElementById("mobile-context-dock");
+  if (!root) return;
+  const selectMode = (mode) => {
+    if (!["jma", "world"].includes(mode)) return;
+    onChange?.(mode);
+  };
+  root.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const modelToggle = event.target.closest("[data-world-typhoon-model-toggle]");
+    if (modelToggle) {
+      event.stopPropagation();
+      onModelToggle?.(modelToggle.dataset.worldTyphoonModelToggle);
+      return;
+    }
+    const button = event.target.closest("[data-typhoon-forecast-mode]");
+    if (!button) return;
+    event.stopPropagation();
+    selectMode(button.dataset.typhoonForecastMode);
+  });
+  root.addEventListener("mobile-dock-horizontal-swipe", (event) => {
+    if (root.dataset.tab !== "typhoon") return;
+    const deltaX = Number(event.detail?.deltaX) || 0;
+    const velocityX = Number(event.detail?.velocityX) || 0;
+    if (Math.abs(deltaX) < 36 && Math.abs(velocityX) < 0.35) return;
+    const direction = Math.abs(velocityX) >= 0.35 ? velocityX : deltaX;
+    const buttons = [...root.querySelectorAll("[data-typhoon-forecast-mode]")];
+    const activeIndex = Math.max(0, buttons.findIndex((button) => button.getAttribute("aria-pressed") === "true"));
+    const nextIndex = direction < 0
+      ? Math.min(buttons.length - 1, activeIndex + 1)
+      : Math.max(0, activeIndex - 1);
+    const nextButton = buttons[nextIndex];
+    if (!nextButton || nextIndex === activeIndex) return;
+    selectMode(nextButton.dataset.typhoonForecastMode);
+  });
+  let activeTimeSlider = null;
+  let activeTimeValue = null;
+  let activeTimeStartX = null;
+  let activeTimeStartValue = null;
+  let activeTimePointerX = null;
+  let activeTimePreviewFrame = 0;
+  const isWorldTimeSlider = (target) => (
+    target instanceof HTMLInputElement
+    && target.matches("[data-world-typhoon-time-slider]")
+  );
+  const updateTimePresentation = (slider, value, { updateTimeline = true } = {}) => {
+    const times = parseJsonArray(slider.dataset.worldTyphoonTimes);
+    const index = clampIndex(value, times.length);
+    const validTime = times[index];
+    if (!validTime) return "";
+    const timeline = slider.closest(".weather-time-timeline");
+    if (updateTimeline) updateWeatherTimelinePosition(timeline, index);
+    syncWeatherTimelineActiveTick(timeline, index);
+    const dateElement = slider.closest(".mobile-dock-world-time-control")
+      ?.querySelector("[data-world-typhoon-time-date]");
+    if (dateElement) {
+      dateElement.dateTime = validTime;
+      dateElement.textContent = compactWeatherDateLabel(formatWorldForecastTime(validTime));
+    }
+    slider.setAttribute("aria-valuetext", formatWorldForecastTime(validTime));
+    return validTime;
+  };
+  const previewTimeSlider = (slider, clientX) => {
+    const fractionalIndex = getWeatherTimelineDragIndex(
+      slider,
+      activeTimeStartX,
+      activeTimeStartValue,
+      clientX
+    );
+    if (!Number.isFinite(fractionalIndex)) return;
+    const value = Math.round(fractionalIndex);
+    slider.value = String(value);
+    if (value !== activeTimeValue) {
+      updateTimePresentation(slider, value, { updateTimeline: false });
+    }
+    activeTimeValue = value;
+    updateWeatherTimelineFractionalPosition(slider, fractionalIndex);
+    const previewTime = interpolateWeatherTimelineTime(
+      parseJsonArray(slider.dataset.worldTyphoonTimes),
+      fractionalIndex
+    );
+    if (previewTime) onTimeChange?.(previewTime);
+  };
+  const scheduleTimeSliderPreview = (slider, clientX) => {
+    activeTimePointerX = clientX;
+    if (activeTimePreviewFrame) return;
+    activeTimePreviewFrame = requestAnimationFrame(() => {
+      activeTimePreviewFrame = 0;
+      if (!activeTimeSlider || activeTimeSlider !== slider) return;
+      previewTimeSlider(slider, activeTimePointerX);
+    });
+  };
+  root.addEventListener("selectstart", (event) => {
+    if (event.target instanceof Element && event.target.closest(".mobile-dock-world-time-control")) {
+      event.preventDefault();
+    }
+  });
+  root.addEventListener("pointerdown", (event) => {
+    if (!isWorldTimeSlider(event.target)) return;
+    activeTimeSlider = event.target;
+    activeTimeValue = Number(activeTimeSlider.value) || 0;
+    activeTimeStartX = event.clientX;
+    activeTimeStartValue = activeTimeValue;
+    activeTimePointerX = event.clientX;
+    event.preventDefault();
+    event.stopPropagation();
+    activeTimeSlider.setPointerCapture?.(event.pointerId);
+    beginWeatherTimelineDrag(activeTimeSlider);
+  });
+  root.addEventListener("pointermove", (event) => {
+    if (!activeTimeSlider) return;
+    event.preventDefault();
+    event.stopPropagation();
+    scheduleTimeSliderPreview(activeTimeSlider, event.clientX);
+  });
+  const finishTimeSlider = (event, updateFromPointer = true) => {
+    if (!activeTimeSlider) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (activeTimePreviewFrame) {
+      cancelAnimationFrame(activeTimePreviewFrame);
+      activeTimePreviewFrame = 0;
+    }
+    if (updateFromPointer) previewTimeSlider(activeTimeSlider, event.clientX);
+    const slider = activeTimeSlider;
+    const value = activeTimeValue;
+    const validTime = updateTimePresentation(slider, value);
+    finishWeatherTimelineDrag(slider, value);
+    slider.releasePointerCapture?.(event.pointerId);
+    activeTimeSlider = null;
+    activeTimeValue = null;
+    activeTimeStartX = null;
+    activeTimeStartValue = null;
+    activeTimePointerX = null;
+    if (validTime) onTimeChange?.(validTime);
+  };
+  root.addEventListener("pointerup", (event) => finishTimeSlider(event));
+  root.addEventListener("pointercancel", (event) => finishTimeSlider(event, false));
+  root.addEventListener("input", (event) => {
+    if (!isWorldTimeSlider(event.target) || event.target === activeTimeSlider) return;
+    const validTime = updateTimePresentation(event.target, Number(event.target.value));
+    if (validTime) onTimeChange?.(validTime);
+  });
+}
+
 export function setupEarthquakeSelector({
   onChange,
   onVolcanoClear,
@@ -1128,6 +1275,15 @@ if (state.data?.activeWarningView === "early") {
     return "都道府県ごとに、市区町村の注意報・警報・危険警報・特別警報を表示しています。";
   }
   if (tab.id === "typhoon") {
+    if (state.data?.worldForecastMode) {
+      const enabledLabels = (state.data?.worldForecastLayers ?? [])
+        .map((layer) => layer.modelInfo?.shortLabel)
+        .filter(Boolean);
+      const modelLabel = enabledLabels.join("・") || "世界予想";
+      if (["idle", "loading"].includes(state.data?.worldForecastStatus)) return `${modelLabel}の世界予想を取得中です。`;
+      if (state.data?.worldForecastStatus === "error") return `${modelLabel}の世界予想を取得できませんでした。`;
+      return `${modelLabel}の進路分布と、台風に発達する可能性がある熱帯擾乱候補です。気象庁の公式な台風進路予報ではありません。`;
+    }
     if (state.status === "loading") return "台風データを取得中です。";
     if (state.status === "error") return "台風データを取得できませんでした。";
     if (state.data?.isPastTelegram) return "提供された過去実電文の台風解析・予報情報を表示しています。";
@@ -1158,6 +1314,7 @@ if (state.data?.activeWarningView === "early") {
 
 function buildPanelTitle(tab, state) {
   if (tab.id !== "typhoon") return tab.title;
+  if (state.data?.worldForecastMode) return "世界予想";
   if (state.status === "loading") return "台風データ取得中";
   const name = state.data?.details?.name;
   return name && name !== "未取得" ? name : "台風名 未取得";
@@ -1324,6 +1481,15 @@ if (tabId === "warnings" && warningView === "early") {
       ["レベル4 氾濫危険警報", "", "#a900d6"],
       ["レベル3 氾濫警報", "", "#ef3340"],
       ["レベル2 氾濫注意報", "", "#f4d000"]
+    ];
+  }
+  if (tabId === "typhoon" && data?.worldForecastMode) {
+    return [
+      ["予報時刻の位置", "", "#68d5ff"],
+      ["ENSコントロール", "legend-world-typhoon-control"],
+      ["アンサンブルメンバー", "legend-world-typhoon-member"],
+      ["熱帯擾乱の発達候補", "legend-world-typhoon-genesis"],
+      ["解析位置", "legend-world-typhoon-center"]
     ];
   }
   if (tabId === "earthquake") {
@@ -1586,7 +1752,10 @@ function renderTyphoonSelector(tab, state) {
   if (!root) return;
 
   const typhoons = state.data?.typhoons ?? [];
-  const shouldShow = tab.id === "typhoon" && state.status === "ok" && typhoons.length > 0;
+  const shouldShow = tab.id === "typhoon"
+    && state.status === "ok"
+    && state.data?.forecastMode !== "world"
+    && typhoons.length > 0;
   root.hidden = !shouldShow;
   if (!shouldShow) {
     root.innerHTML = "";
@@ -1790,9 +1959,7 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     });
   }
   if (tab.id === "typhoon") {
-    const typhoons = state.data?.typhoons ?? [];
-    if (!typhoons.length || state.data?.hasTyphoon === false) return buildMobileContextMarkup("台風", NO_TYPHOON_MESSAGE, "発表なし");
-    return buildTyphoonMobileContextMarkup(typhoons, state.data?.selectedTyphoonId);
+    return buildTyphoonMobileContextMarkup(state.data ?? {}, state.status);
   }
   if (tab.id === "earthquake") {
     if (state.earthquakeContentMode === "volcano" || state.data?.earthquakeContentMode === "volcano") {
@@ -2196,7 +2363,106 @@ function formatTideAxisTime(value, includeDate = false) {
   return `${day} ${time}`;
 }
 
-function buildTyphoonMobileContextMarkup(typhoons = [], selectedTyphoonId = "") {
+function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
+  const forecastMode = data.forecastMode === "world" ? "world" : "jma";
+  const modeSwitch = `
+    <div class="mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented mobile-dock-typhoon-mode" role="group" aria-label="台風進路の表示">
+      <button type="button" class="mobile-dock-action${forecastMode === "jma" ? " active" : ""}" data-mobile-dock-control data-typhoon-forecast-mode="jma" aria-pressed="${forecastMode === "jma"}">気象庁</button>
+      <button type="button" class="mobile-dock-action${forecastMode === "world" ? " active" : ""}" data-mobile-dock-control data-typhoon-forecast-mode="world" aria-pressed="${forecastMode === "world"}">世界予想</button>
+    </div>
+  `;
+  if (forecastMode === "world") {
+    const worldStatus = data.worldForecastStatus ?? "idle";
+    const modelStates = data.worldForecastModelStates ?? [];
+    const enabledModels = modelStates.filter((model) => model.enabled);
+    const candidateCount = enabledModels.reduce((total, model) => total + (model.candidates?.length ?? 0), 0);
+    const title = enabledModels.length === 0
+      ? "表示モデルを選択"
+      : (["idle", "loading"].includes(worldStatus)
+      ? "世界予想を取得中"
+      : (worldStatus === "error" ? "世界予想を取得できません" : "世界予想"));
+    const modelToggles = modelStates.map((model) => {
+      const modelLabel = model.modelInfo?.shortLabel ?? model.id;
+      return `
+        <button
+          type="button"
+          class="mobile-dock-world-model-toggle"
+          data-mobile-dock-control
+          data-world-typhoon-model-toggle="${escapeHtml(model.id)}"
+          style="--world-model-color: ${escapeHtml(model.modelInfo?.color ?? "#38bdf8")}"
+          aria-pressed="${model.enabled}"
+          aria-label="${escapeHtml(`${model.modelInfo?.label ?? modelLabel}を${model.enabled ? "オフ" : "オン"}にする`)}"
+        >
+          <span>${escapeHtml(modelLabel)}</span>
+          <i aria-hidden="true"></i>
+        </button>
+      `;
+    }).join("");
+    const forecastTimes = data.worldForecastTimes ?? [];
+    const selectedForecastTime = data.worldForecastTime ?? forecastTimes[0] ?? "";
+    const selectedForecastIndex = Math.max(0, forecastTimes.indexOf(selectedForecastTime));
+    const timelineFrames = forecastTimes.map((time) => ({
+      title: formatWorldForecastTime(time),
+      isCurrent: time === forecastTimes.reduce((nearest, candidate) => (
+        Math.abs(Date.parse(candidate) - Date.now()) < Math.abs(Date.parse(nearest) - Date.now())
+          ? candidate
+          : nearest
+      ), forecastTimes[0] ?? "")
+    }));
+    const timelineMarkup = forecastTimes.length > 0
+      ? buildWeatherTimeTimelineMarkup(
+        timelineFrames,
+        selectedForecastIndex,
+        (item) => compactWeatherTimeLabel(item.title),
+        `<input
+          type="range"
+          class="weather-time-range mobile-dock-range-input"
+          min="0"
+          max="${Math.max(0, forecastTimes.length - 1)}"
+          step="1"
+          value="${selectedForecastIndex}"
+          data-mobile-dock-control
+          data-world-typhoon-time-slider
+          data-world-typhoon-times="${escapeHtml(JSON.stringify(forecastTimes))}"
+          aria-label="世界予想の予報時刻"
+          aria-valuetext="${escapeHtml(formatWorldForecastTime(selectedForecastTime))}"
+        >`,
+        { compact: true }
+      )
+      : "";
+    const timeControl = forecastTimes.length > 0 ? `
+      <div class="mobile-dock-world-time-control">
+        <time
+          class="mobile-dock-date"
+          datetime="${escapeHtml(selectedForecastTime)}"
+          data-world-typhoon-time-date
+        >${escapeHtml(compactWeatherDateLabel(formatWorldForecastTime(selectedForecastTime)))}</time>
+        ${timelineMarkup}
+      </div>
+    ` : `
+      <div class="mobile-dock-world-time-control is-empty" aria-live="polite">
+        <span>予報時刻を取得中</span>
+      </div>
+    `;
+    return `
+      <div class="mobile-dock-content mobile-dock-typhoon mobile-dock-typhoon-world">
+        ${modeSwitch}
+        <div class="mobile-dock-world-model-toggles" role="group" aria-label="${escapeHtml(`${title}・${enabledModels.length}モデル・発達候補${candidateCount}件`)}">
+          ${modelToggles}
+        </div>
+        ${timeControl}
+      </div>
+    `;
+  }
+
+  const typhoons = data.typhoons ?? [];
+  if (status === "loading") {
+    return `<div class="mobile-dock-content mobile-dock-typhoon">${modeSwitch}<div class="mobile-dock-typhoon-empty">台風情報を取得中</div></div>`;
+  }
+  if (!typhoons.length || data.hasTyphoon === false) {
+    return `<div class="mobile-dock-content mobile-dock-typhoon">${modeSwitch}<div class="mobile-dock-typhoon-empty">${escapeHtml(NO_TYPHOON_MESSAGE)}</div></div>`;
+  }
+  const selectedTyphoonId = data.selectedTyphoonId ?? "";
   const { activeIndex, activeTyphoon } = getActiveTyphoonSelection(typhoons, selectedTyphoonId);
   const nextIndex = typhoons.length > 1 ? (activeIndex + 1) % typhoons.length : activeIndex;
   const nextTyphoon = typhoons[nextIndex] ?? activeTyphoon;
@@ -2213,22 +2479,49 @@ function buildTyphoonMobileContextMarkup(typhoons = [], selectedTyphoonId = "") 
 
   return `
     <div class="mobile-dock-content mobile-dock-typhoon">
-      <div class="mobile-dock-typhoon-head">
-        <span class="mobile-dock-kicker">台風情報</span>
-        ${switchButton}
-      </div>
+      ${modeSwitch}
       <div class="mobile-dock-typhoon-main">
         <div class="mobile-dock-typhoon-text">
           <strong>${escapeHtml(name)}</strong>
           ${transitionStatus ? `<span class="mobile-dock-typhoon-status">${escapeHtml(transitionStatus)}</span>` : ""}
         </div>
-        <div class="mobile-dock-typhoon-values" aria-label="台風の解析値">
+        <div class="mobile-dock-typhoon-values${typhoons.length > 1 ? " has-switch" : ""}" aria-label="台風の解析値">
           <span><em>気圧</em>${escapeHtml(pressure)}</span>
           <span><em>最大瞬間</em>${escapeHtml(maxGust)}</span>
+          ${typhoons.length > 1 ? switchButton : ""}
         </div>
       </div>
     </div>
   `;
+}
+
+function formatWorldForecastTime(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).format(date);
+}
+
+function getWorldForecastMaxStep(system) {
+  return Math.max(
+    0,
+    ...(system?.controlPoints ?? []).map((point) => Number(point.stepHours) || 0),
+    ...(system?.members ?? []).flatMap((member) =>
+      (member.points ?? []).map((point) => Number(point.stepHours) || 0)
+    )
+  );
+}
+
+function formatWorldCandidateSupport(candidate) {
+  const probability = Number(candidate?.genesisProbability);
+  if (Number.isFinite(probability)) return `発生確率 ${Math.round(probability)}%`;
+  return `${candidate?.memberCount ?? 0}本支持`;
 }
 
 function normalizeSummaryValue(value) {
@@ -3041,14 +3334,19 @@ function updateWeatherTimelinePosition(timeline, activeIndex) {
 }
 
 function updateSliderFromTimelineDrag(slider, startX, startValue, clientX) {
+  const fractionalIndex = getWeatherTimelineDragIndex(slider, startX, startValue, clientX);
+  if (!Number.isFinite(fractionalIndex)) return null;
+  const value = Math.round(fractionalIndex);
+  slider.value = String(value);
+  return value;
+}
+
+function getWeatherTimelineDragIndex(slider, startX, startValue, clientX) {
   if (!slider || !Number.isFinite(startX) || !Number.isFinite(startValue) || !Number.isFinite(clientX)) return null;
   const min = Number(slider.min) || 0;
   const max = Number(slider.max) || 0;
   const frameWidth = getWeatherTimelineStep(slider.closest(".weather-time-timeline"));
-  const frameDelta = Math.round((startX - clientX) / frameWidth);
-  const value = Math.max(min, Math.min(max, startValue + frameDelta));
-  slider.value = String(value);
-  return value;
+  return Math.max(min, Math.min(max, startValue + ((startX - clientX) / frameWidth)));
 }
 
 function getWeatherTimelineStep(timeline) {
@@ -3060,14 +3358,27 @@ function beginWeatherTimelineDrag(slider) {
 }
 
 function updateWeatherTimelineDragPosition(slider, startX, startValue, clientX) {
-  if (!slider || !Number.isFinite(startX) || !Number.isFinite(startValue) || !Number.isFinite(clientX)) return;
-  const timeline = slider.closest(".weather-time-timeline");
-  if (!timeline) return;
-  const min = Number(slider.min) || 0;
-  const max = Number(slider.max) || 0;
+  const fractionalIndex = getWeatherTimelineDragIndex(slider, startX, startValue, clientX);
+  if (!Number.isFinite(fractionalIndex)) return;
+  updateWeatherTimelineFractionalPosition(slider, fractionalIndex);
+}
+
+function updateWeatherTimelineFractionalPosition(slider, fractionalIndex) {
+  const timeline = slider?.closest(".weather-time-timeline");
+  if (!timeline || !Number.isFinite(fractionalIndex)) return;
   const frameWidth = getWeatherTimelineStep(timeline);
-  const fractionalIndex = Math.max(min, Math.min(max, startValue + ((startX - clientX) / frameWidth)));
   timeline.style.setProperty("--weather-time-shift", `${-(fractionalIndex * frameWidth)}px`);
+}
+
+function interpolateWeatherTimelineTime(times, fractionalIndex) {
+  if (!Array.isArray(times) || !times.length || !Number.isFinite(fractionalIndex)) return "";
+  const lowerIndex = Math.max(0, Math.min(times.length - 1, Math.floor(fractionalIndex)));
+  const upperIndex = Math.max(0, Math.min(times.length - 1, Math.ceil(fractionalIndex)));
+  const lowerTime = Date.parse(times[lowerIndex] ?? "");
+  const upperTime = Date.parse(times[upperIndex] ?? "");
+  if (!Number.isFinite(lowerTime) || !Number.isFinite(upperTime)) return "";
+  const ratio = fractionalIndex - lowerIndex;
+  return new Date(lowerTime + (upperTime - lowerTime) * ratio).toISOString();
 }
 
 function finishWeatherTimelineDrag(slider, value) {
@@ -4029,6 +4340,132 @@ function getAmedasLevels(metricId) {
   return AMEDAS_LEVELS_BY_METRIC[metricId] ?? [];
 }
 
+function buildWorldTyphoonModelDetails(layer) {
+  const worldModel = layer.id;
+  const isNoaaModel = worldModel === "gefs" || worldModel === "gefs-mean";
+  const isDeterministicModel = worldModel === "ifs-hres" || worldModel === "aifs-single";
+  const modelLabel = layer.modelInfo?.label
+    ?? (isNoaaModel ? "NOAA/NCEP GEFS" : "ECMWF");
+  const modelColor = layer.modelInfo?.color ?? "#38bdf8";
+  if (["idle", "loading"].includes(layer.status)) {
+    return `
+      <section class="typhoon-world-model-detail" style="--world-model-color: ${escapeHtml(modelColor)}">
+        <header class="typhoon-world-model-header">
+          <i aria-hidden="true"></i>
+          <h3>${escapeHtml(modelLabel)}</h3>
+        </header>
+        <div class="typhoon-empty"><strong>世界予想を取得中です。</strong></div>
+      </section>
+    `;
+  }
+  if (layer.status === "error") {
+    return `
+      <section class="typhoon-world-model-detail" style="--world-model-color: ${escapeHtml(modelColor)}">
+        <header class="typhoon-world-model-header">
+          <i aria-hidden="true"></i>
+          <h3>${escapeHtml(modelLabel)}</h3>
+        </header>
+        <div class="typhoon-empty">
+          <strong>世界予想を取得できませんでした。</strong>
+          <span>${escapeHtml(layer.error ?? "")}</span>
+        </div>
+      </section>
+    `;
+  }
+
+  const system = layer.system;
+  const candidates = layer.candidates ?? [];
+  if (!system) {
+    return `
+      <section class="typhoon-world-model-detail" style="--world-model-color: ${escapeHtml(modelColor)}">
+        <header class="typhoon-world-model-header">
+          <i aria-hidden="true"></i>
+          <h3>${escapeHtml(modelLabel)}</h3>
+        </header>
+        <div class="typhoon-empty"><strong>対象となる世界予想進路はありません。</strong></div>
+      </section>
+    `;
+  }
+
+  const source = layer.source ?? {};
+  const maxStep = getWorldForecastMaxStep(system);
+  const sourceUrl = source.url ?? (isNoaaModel
+    ? "https://www.emc.ncep.noaa.gov/emc/pages/numerical_forecast_systems/gefs.php"
+    : "https://www.ecmwf.int/en/forecasts/datasets/open-data");
+  const licenseUrl = source.licenseUrl ?? (isNoaaModel
+    ? "https://registry.opendata.aws/noaa-gefs/"
+    : "https://creativecommons.org/licenses/by/4.0/");
+  const termsUrl = source.termsUrl ?? (isNoaaModel
+    ? "https://www.weather.gov/disclaimer"
+    : "https://apps.ecmwf.int/datasets/licences/general/");
+  const candidateExplanation = isDeterministicModel
+    ? "単一の決定論予報です。アンサンブルに基づく発生確率はありません。"
+    : isNoaaModel
+    ? "NCEPのensemble trackerが示す発生確率20%以上の候補です。台風発生の確定情報ではありません。"
+    : "20本以上のアンサンブルメンバーが支持する上位候補です。発生確率や台風発生の確定情報ではありません。";
+  const forecastExplanation = isDeterministicModel
+    ? "単一の数値予報による参考進路です。気象庁の公式な台風進路予報ではありません。"
+    : "数値予報のばらつきを示す参考情報です。気象庁の公式な台風進路予報ではありません。";
+  const mapSystems = layer.systems ?? [];
+  const mapSystemCount = mapSystems.filter((mapSystem) =>
+    (mapSystem.members ?? []).some((member) => member.coordinates?.length >= 2)
+    || mapSystem.controlCoordinates?.length >= 2
+  ).length;
+  const mapTrackCount = mapSystems.reduce((total, mapSystem) => {
+    const hasControlTrack = mapSystem.controlCoordinates?.length >= 2;
+    const memberTracks = (mapSystem.members ?? []).filter((member) =>
+      member.coordinates?.length >= 2
+      && !(Number(member.id) === 0 && hasControlTrack)
+    ).length;
+    return total + memberTracks + (hasControlTrack ? 1 : 0);
+  }, 0);
+
+  return `
+    <section class="typhoon-world-model-detail" style="--world-model-color: ${escapeHtml(modelColor)}">
+      <header class="typhoon-world-model-header">
+        <i aria-hidden="true"></i>
+        <h3>${escapeHtml(modelLabel)}</h3>
+        <span>${isDeterministicModel ? "単一予報" : "アンサンブル"}</span>
+      </header>
+      <dl class="typhoon-world-summary">
+        <div><dt>対象</dt><dd>${escapeHtml(system.name)}</dd></div>
+        <div><dt>基準時刻</dt><dd>${escapeHtml(formatWorldForecastTime(system.forecastBaseTime))}</dd></div>
+        <div><dt>予報期間</dt><dd>${escapeHtml(`${Math.ceil(maxStep / 24)}日`)}</dd></div>
+        <div><dt>メンバー</dt><dd>${escapeHtml(`${system.memberCount}本`)}</dd></div>
+        <div><dt>地図に表示</dt><dd>${escapeHtml(`${mapSystemCount}系統 / ${mapTrackCount}本`)}</dd></div>
+      </dl>
+      <section class="typhoon-world-candidates">
+        <div class="typhoon-world-candidates-head">
+          <h4>発達候補</h4>
+          <span>${escapeHtml(`${candidates.length}件`)}</span>
+        </div>
+        <p>${escapeHtml(candidateExplanation)}</p>
+        ${candidates.length ? `
+          <table class="typhoon-world-candidate-list">
+            <thead>
+              <tr><th scope="col">候補名</th><th scope="col">支持状況</th></tr>
+            </thead>
+            <tbody>
+              ${candidates.slice(0, 6).map((candidate) => `
+                <tr><th scope="row">${escapeHtml(candidate.name)}</th><td>${escapeHtml(formatWorldCandidateSupport(candidate))}</td></tr>
+              `).join("")}
+            </tbody>
+          </table>
+        ` : ""}
+      </section>
+      <footer class="typhoon-world-attribution">
+        <p><strong>参考情報</strong>${escapeHtml(forecastExplanation)}</p>
+        <p><strong>出典</strong>${escapeHtml(source.attribution ?? modelLabel)}（加工済み）</p>
+        <div>
+          <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">データ</a>
+          <a href="${escapeHtml(licenseUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.license ?? "利用条件")}</a>
+          <a href="${escapeHtml(termsUrl)}" target="_blank" rel="noopener noreferrer">利用条件</a>
+        </div>
+      </footer>
+    </section>
+  `;
+}
+
 function renderTyphoonDetails(tab, state) {
   const root = document.getElementById("typhoon-detail-grid");
   if (!root) return;
@@ -4037,6 +4474,14 @@ function renderTyphoonDetails(tab, state) {
   root.hidden = !isTyphoon;
   if (!isTyphoon) {
     root.innerHTML = "";
+    return;
+  }
+
+  if (state.data?.worldForecastMode) {
+    const layers = state.data?.worldForecastLayers ?? [];
+    root.innerHTML = layers.length
+      ? layers.map(buildWorldTyphoonModelDetails).join("")
+      : `<div class="typhoon-empty"><strong>表示する世界予想モデルを選択してください。</strong></div>`;
     return;
   }
 

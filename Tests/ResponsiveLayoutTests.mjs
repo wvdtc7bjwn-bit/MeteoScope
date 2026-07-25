@@ -20,12 +20,17 @@ assert.match(
 assert.match(styles, /#main-tabs\s*\{[\s\S]*?bottom:\s*max\(8px,\s*env\(safe-area-inset-bottom\)\)/);
 assert.match(
   styles,
-  /\.mobile-context-dock\s*\{[\s\S]*?height:\s*126px;[\s\S]*?min-height:\s*126px;[\s\S]*?max-height:\s*126px;/
+  /\.mobile-context-dock\s*\{[\s\S]*?bottom:\s*calc\(max\(0px,\s*env\(safe-area-inset-bottom\)\)\s*\+\s*76px\);[\s\S]*?width:\s*min\(390px,\s*calc\(100vw\s*-\s*22px\)\);[\s\S]*?height:\s*126px;[\s\S]*?min-height:\s*126px;[\s\S]*?max-height:\s*126px;/
 );
 assert.match(
   styles,
-  /\.mobile-context-dock\[data-tab="earthquake"\]\s*\{[\s\S]*?bottom:\s*calc\(max\(0px,\s*env\(safe-area-inset-bottom\)\)\s*\+\s*78px\);[\s\S]*?padding-top:\s*10px;[\s\S]*?padding-bottom:\s*9px;/
+  /\.mobile-context-dock\[data-tab="earthquake"\]\s*\{[\s\S]*?bottom:\s*calc\(max\(0px,\s*env\(safe-area-inset-bottom\)\)\s*\+\s*76px\);[\s\S]*?padding-top:\s*10px;[\s\S]*?padding-bottom:\s*9px;/
 );
+assert.match(
+  styles,
+  /\.mobile-context-dock\s+\.mobile-dock-content:has\(\.mobile-dock-mode-switch\)\s*\{[\s\S]*?top:\s*-4px;/
+);
+assert.doesNotMatch(styles, /\.mobile-context-dock\[data-tab="typhoon"\]\s*\{/);
 assert.match(styles, /#map-attribution\s*\{[\s\S]*?max-height:\s*24px;[\s\S]*?white-space:\s*nowrap;/);
 assert.match(
   styles,
@@ -57,7 +62,7 @@ assert.match(panel, /class="mobile-dock-earthquake-summary-page mobile-dock-tide
 assert.match(styles, /\.mobile-dock-earthquake-summary-track\s*\{[\s\S]*?width:\s*300%;/);
 assert.match(
   styles,
-  /\.mobile-dock-earthquake-summary-viewport\s*\{[\s\S]*?width:\s*calc\(100% \+ 36px\);[\s\S]*?margin-inline:\s*-18px;/
+  /\.mobile-dock-earthquake-summary-viewport\s*\{[\s\S]*?top:\s*3\.1667px;[\s\S]*?width:\s*calc\(100% \+ 36px\);[\s\S]*?margin-inline:\s*-18px;/
 );
 assert.match(
   styles,
@@ -197,7 +202,10 @@ assert.match(
   /setupMobileWeatherTimelineTapControls\(\{[\s\S]*?onRadarPlay: startRadarPlayback,[\s\S]*?onRadarStop: stopRadarPlaybackAndRefresh,[\s\S]*?onRadarGoLatest: goLatestRadarObservation,[\s\S]*?onWeatherChartPlay: startWeatherChartPlayback,[\s\S]*?onWeatherChartStop: stopWeatherChartPlayback,[\s\S]*?onWeatherChartGoLatest: goLatestWeatherChartFrame/
 );
 assert.match(panel, /function updateSliderFromTimelineDrag/);
-assert.match(panel, /Math\.round\(\(startX - clientX\) \/ frameWidth\)/);
+assert.match(panel, /function getWeatherTimelineDragIndex/);
+assert.match(panel, /\(startX - clientX\) \/ frameWidth/);
+assert.match(panel, /function updateWeatherTimelineFractionalPosition/);
+assert.match(panel, /function interpolateWeatherTimelineTime/);
 assert.equal(panel.match(/function updateSliderFromTimelineDrag/g)?.length, 1);
 assert.match(
   panel,
@@ -246,6 +254,14 @@ assert.match(panel, /updateMobileWeatherDate\(slider/);
 assert.match(
   styles,
   /\.mobile-dock-date\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?top:\s*0;[\s\S]*?left:\s*2px;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-world-time-control \.weather-time-timeline\s*\{[\s\S]*?width:\s*calc\(100% - 68px\);[\s\S]*?margin:\s*0 34px;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-world-time-control \.mobile-dock-date\s*\{[\s\S]*?left:\s*0;[\s\S]*?width:\s*30px;/
 );
 assert.match(styles, /\.mobile-dock-weather-timeline\s*\{[\s\S]*?height:\s*52px;/);
 assert.match(styles, /\.mobile-dock-radar \.weather-time-timeline\s*\{[\s\S]*?height:\s*42px;[\s\S]*?margin:\s*10px 0 0;/);

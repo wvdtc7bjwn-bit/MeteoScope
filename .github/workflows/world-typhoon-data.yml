@@ -1,0 +1,92 @@
+name: Update world typhoon forecast data
+
+on:
+  schedule:
+    - cron: "25 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: world-typhoon-data
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install ECMWF clients
+        run: pip install "eccodes==2.47.0" "ecmwf-opendata==0.3.31"
+
+      - name: Build ECMWF tropical-cyclone JSON
+        run: >-
+          python scripts/update-ecmwf-tropical-cyclones.py
+          --output "${RUNNER_TEMP}/world-typhoon-forecast.json"
+          --model ifs-ens
+          --source aws
+
+      - name: Build ECMWF IFS HRES tropical-cyclone JSON
+        run: >-
+          python scripts/update-ecmwf-tropical-cyclones.py
+          --output "${RUNNER_TEMP}/world-typhoon-forecast-ifs-hres.json"
+          --model ifs-hres
+          --source aws
+
+      - name: Build ECMWF AIFS ENS tropical-cyclone JSON
+        run: >-
+          python scripts/update-ecmwf-tropical-cyclones.py
+          --output "${RUNNER_TEMP}/world-typhoon-forecast-aifs-ens.json"
+          --model aifs-ens
+          --source aws
+
+      - name: Build ECMWF AIFS Single tropical-cyclone JSON
+        run: >-
+          python scripts/update-ecmwf-tropical-cyclones.py
+          --output "${RUNNER_TEMP}/world-typhoon-forecast-aifs-single.json"
+          --model aifs-single
+          --source aws
+
+      - name: Build NOAA GEFS tropical-cyclone JSON
+        run: >-
+          python scripts/update-noaa-gefs-tropical-cyclones.py
+          --output "${RUNNER_TEMP}/world-typhoon-forecast-gefs.json"
+
+      - name: Publish data-only branch
+        env:
+          ECMWF_DATA_FILE: ${{ runner.temp }}/world-typhoon-forecast.json
+          IFS_HRES_DATA_FILE: ${{ runner.temp }}/world-typhoon-forecast-ifs-hres.json
+          AIFS_ENS_DATA_FILE: ${{ runner.temp }}/world-typhoon-forecast-aifs-ens.json
+          AIFS_SINGLE_DATA_FILE: ${{ runner.temp }}/world-typhoon-forecast-aifs-single.json
+          GEFS_DATA_FILE: ${{ runner.temp }}/world-typhoon-forecast-gefs.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan world-forecast-data
+          git rm -rf .
+          cp "${ECMWF_DATA_FILE}" world-typhoon-forecast.json
+          cp "${IFS_HRES_DATA_FILE}" world-typhoon-forecast-ifs-hres.json
+          cp "${AIFS_ENS_DATA_FILE}" world-typhoon-forecast-aifs-ens.json
+          cp "${AIFS_SINGLE_DATA_FILE}" world-typhoon-forecast-aifs-single.json
+          cp "${GEFS_DATA_FILE}" world-typhoon-forecast-gefs.json
+          cat > README.md <<'EOF'
+          # MeteoScope world typhoon forecast data
+
+          Generated from ECMWF Open Data (IFS ENS, IFS HRES, AIFS ENS and
+          AIFS Single) and NOAA/NCEP GEFS tracker products. Each JSON file
+          contains its source, licence or open-data terms, modification notice
+          and disclaimer metadata for display by MeteoScope.
+          EOF
+          git add README.md world-typhoon-forecast*.json
+          git commit -m "Update world typhoon forecast data"
+          git push --force origin HEAD:world-forecast-data

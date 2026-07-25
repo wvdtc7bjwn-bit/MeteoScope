@@ -5,3 +5,8 @@ dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+public/data/world-typhoon-forecast.json
+public/data/world-typhoon-forecast-gefs.json
+public/data/world-typhoon-forecast-ifs-hres.json
+public/data/world-typhoon-forecast-aifs-ens.json
+public/data/world-typhoon-forecast-aifs-single.json

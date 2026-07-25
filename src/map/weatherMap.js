@@ -19,6 +19,7 @@ import { createHypocenter3DLayer } from "./hypocenter3DLayer.js";
 import { createPlateDepth3DLayer } from "./plateDepth3DLayer.js";
 import { createPlateDepthSurface3DLayer } from "./plateDepthSurface3DLayer.js";
 import { getHypocenterDepthColor } from "./hypocenterDepthStyle.js";
+import { splitLineAtAntimeridian } from "./geoLine.js";
 import { getVolcanoLevelColor, VOLCANO_UNKNOWN_LEVEL_COLOR } from "../volcanoLevels.js";
 import {
   getAvailableVolcanoAshForecasts,
@@ -28,6 +29,7 @@ import {
   getVolcanoAshfallLevel,
   VOLCANO_SMALL_CINDERS_STYLE
 } from "../volcanoAshfall.js";
+import { WORLD_TYPHOON_MODELS } from "../worldTyphoon.js";
 
 const MODE_CLASS = {
   radar: "mode-radar",
@@ -66,6 +68,58 @@ const SAMPLE_CIRCLE_STROKE_WIDTH_EXPRESSION = buildCircleZoomExpression({
   overrideProperty: "strokeWidth"
 });
 const TYPHOON_SOURCE_ID = "jma-typhoon";
+const WORLD_TYPHOON_POSITION_SOURCE_ID = "world-typhoon-position";
+const WORLD_TYPHOON_POSITION_LAYERS = [
+  "typhoon-world-forecast-member-position",
+  "typhoon-world-forecast-position-halo",
+  "typhoon-world-forecast-position",
+  "typhoon-world-forecast-position-anchor",
+  "typhoon-world-forecast-time-label"
+];
+const WORLD_TYPHOON_MODEL_STYLES = {
+  ecmwf: {
+    palette: [WORLD_TYPHOON_MODELS.ecmwf.color],
+    control: WORLD_TYPHOON_MODELS.ecmwf.color,
+    positionRadius: 4,
+    genesisEnsemble: WORLD_TYPHOON_MODELS.ecmwf.color,
+    genesisControl: WORLD_TYPHOON_MODELS.ecmwf.color
+  },
+  "ifs-hres": {
+    palette: [WORLD_TYPHOON_MODELS["ifs-hres"].color],
+    control: WORLD_TYPHOON_MODELS["ifs-hres"].color,
+    positionRadius: 5.4,
+    genesisEnsemble: WORLD_TYPHOON_MODELS["ifs-hres"].color,
+    genesisControl: WORLD_TYPHOON_MODELS["ifs-hres"].color
+  },
+  "aifs-ens": {
+    palette: [WORLD_TYPHOON_MODELS["aifs-ens"].color],
+    control: WORLD_TYPHOON_MODELS["aifs-ens"].color,
+    positionRadius: 6.8,
+    genesisEnsemble: WORLD_TYPHOON_MODELS["aifs-ens"].color,
+    genesisControl: WORLD_TYPHOON_MODELS["aifs-ens"].color
+  },
+  "aifs-single": {
+    palette: [WORLD_TYPHOON_MODELS["aifs-single"].color],
+    control: WORLD_TYPHOON_MODELS["aifs-single"].color,
+    positionRadius: 8.2,
+    genesisEnsemble: WORLD_TYPHOON_MODELS["aifs-single"].color,
+    genesisControl: WORLD_TYPHOON_MODELS["aifs-single"].color
+  },
+  gefs: {
+    palette: [WORLD_TYPHOON_MODELS.gefs.color],
+    control: WORLD_TYPHOON_MODELS.gefs.color,
+    positionRadius: 9.6,
+    genesisEnsemble: WORLD_TYPHOON_MODELS.gefs.color,
+    genesisControl: WORLD_TYPHOON_MODELS.gefs.color
+  },
+  "gefs-mean": {
+    palette: [WORLD_TYPHOON_MODELS["gefs-mean"].color],
+    control: WORLD_TYPHOON_MODELS["gefs-mean"].color,
+    positionRadius: 11,
+    genesisEnsemble: WORLD_TYPHOON_MODELS["gefs-mean"].color,
+    genesisControl: WORLD_TYPHOON_MODELS["gefs-mean"].color
+  }
+};
 const TYPHOON_LAYERS = [
   "typhoon-wind-area-fill",
   "typhoon-wind-area-line",
@@ -77,6 +131,11 @@ const TYPHOON_LAYERS = [
   "typhoon-forecast-circle",
   "layer-typhoon-past-track",
   "typhoon-forecast-route",
+  "typhoon-world-ensemble",
+  "typhoon-world-control",
+  "typhoon-world-genesis-ensemble",
+  "typhoon-world-genesis-control",
+  ...WORLD_TYPHOON_POSITION_LAYERS,
   "typhoon-center-x",
   "typhoon-forecast-label",
   "typhoon-label"
@@ -84,7 +143,8 @@ const TYPHOON_LAYERS = [
 const TYPHOON_FORECAST_INFO_LAYERS = [
   "typhoon-forecast-circle-fill",
   "typhoon-forecast-circle",
-  "typhoon-forecast-label"
+  "typhoon-forecast-label",
+  ...WORLD_TYPHOON_POSITION_LAYERS
 ];
 const WIND_ARROW_IMAGE_ID = "amedas-wind-arrow";
 const VOLCANO_MARKER_IMAGE_ID = "volcano-filled-triangle";
@@ -311,7 +371,7 @@ export function createWeatherMap(elementId) {
       zoom: DEFAULT_VIEW.zoom,
       minZoom: DEFAULT_VIEW.minZoom,
       maxZoom: DEFAULT_VIEW.maxZoom,
-      renderWorldCopies: false,
+      renderWorldCopies: true,
       dragRotate: true,
       pitchWithRotate: false,
       attributionControl: false,
@@ -668,6 +728,10 @@ export function createWeatherMap(elementId) {
       data: createSampleFeatureCollection(activeMode)
     });
     map.addSource(TYPHOON_SOURCE_ID, {
+      type: "geojson",
+      data: createEmptyFeatureCollection()
+    });
+    map.addSource(WORLD_TYPHOON_POSITION_SOURCE_ID, {
       type: "geojson",
       data: createEmptyFeatureCollection()
     });
@@ -1164,6 +1228,190 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     });
 
     map.addLayer({
+      id: "typhoon-world-ensemble",
+      type: "line",
+      source: TYPHOON_SOURCE_ID,
+      filter: ["==", ["get", "typhoonShape"], "worldEnsemble"],
+      layout: {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      paint: {
+        "line-color": ["get", "color"],
+        "line-opacity": 0.34,
+        "line-width": 1
+      }
+    });
+
+    map.addLayer({
+      id: "typhoon-world-control",
+      type: "line",
+      source: TYPHOON_SOURCE_ID,
+      filter: ["==", ["get", "typhoonShape"], "worldControl"],
+      layout: {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      paint: {
+        "line-color": ["coalesce", ["get", "color"], "#008c54"],
+        "line-opacity": 0.98,
+        "line-width": 3.4
+      }
+    });
+
+    map.addLayer({
+      id: "typhoon-world-genesis-ensemble",
+      type: "line",
+      source: TYPHOON_SOURCE_ID,
+      filter: ["==", ["get", "typhoonShape"], "worldGenesisEnsemble"],
+      layout: {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      paint: {
+        "line-color": ["coalesce", ["get", "color"], "#f3a33c"],
+        "line-opacity": 0.22,
+        "line-width": 0.9
+      }
+    });
+
+    map.addLayer({
+      id: "typhoon-world-genesis-control",
+      type: "line",
+      source: TYPHOON_SOURCE_ID,
+      filter: ["==", ["get", "typhoonShape"], "worldGenesisControl"],
+      layout: {
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      paint: {
+        "line-color": ["coalesce", ["get", "color"], "#ff8c18"],
+        "line-opacity": 0.88,
+        "line-width": 2,
+        "line-dasharray": [1.5, 1.25]
+      }
+    });
+
+    const worldForecastMarkerRadius = ["coalesce", ["get", "markerRadius"], 6];
+    const worldForecastPositionRadius = [
+      "interpolate",
+      ["linear"],
+      ["zoom"],
+      2,
+      ["*", worldForecastMarkerRadius, 0.78],
+      6,
+      worldForecastMarkerRadius,
+      9,
+      ["*", worldForecastMarkerRadius, 1.16]
+    ];
+
+    map.addLayer({
+      id: "typhoon-world-forecast-member-position",
+      type: "circle",
+      source: WORLD_TYPHOON_POSITION_SOURCE_ID,
+      filter: [
+        "all",
+        ["==", ["get", "typhoonShape"], "worldForecastPosition"],
+        ["==", ["get", "positionRole"], "member"]
+      ],
+      paint: {
+        "circle-radius": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          2,
+          2.4,
+          6,
+          3.4,
+          9,
+          4.2
+        ],
+        "circle-color": ["get", "color"],
+        "circle-opacity": 0.96,
+        "circle-stroke-color": "rgba(255, 255, 255, 0.96)",
+        "circle-stroke-width": 1.4
+      }
+    });
+
+    map.addLayer({
+      id: "typhoon-world-forecast-position-halo",
+      type: "circle",
+      source: WORLD_TYPHOON_POSITION_SOURCE_ID,
+      filter: [
+        "all",
+        ["==", ["get", "typhoonShape"], "worldForecastPosition"],
+        ["!=", ["get", "positionRole"], "member"]
+      ],
+      paint: {
+        "circle-radius": worldForecastPositionRadius,
+        "circle-color": "rgba(255, 255, 255, 0.04)",
+        "circle-stroke-color": "rgba(2, 5, 12, 0.96)",
+        "circle-stroke-width": 3.8
+      }
+    });
+
+    map.addLayer({
+      id: "typhoon-world-forecast-position",
+      type: "circle",
+      source: WORLD_TYPHOON_POSITION_SOURCE_ID,
+      filter: [
+        "all",
+        ["==", ["get", "typhoonShape"], "worldForecastPosition"],
+        ["!=", ["get", "positionRole"], "member"]
+      ],
+      paint: {
+        "circle-radius": worldForecastPositionRadius,
+        "circle-color": ["get", "color"],
+        "circle-opacity": 0.12,
+        "circle-stroke-color": ["get", "color"],
+        "circle-stroke-width": 2.4
+      }
+    });
+
+    map.addLayer({
+      id: "typhoon-world-forecast-position-anchor",
+      type: "circle",
+      source: WORLD_TYPHOON_POSITION_SOURCE_ID,
+      filter: [
+        "all",
+        ["==", ["get", "typhoonShape"], "worldForecastPosition"],
+        ["!=", ["get", "positionRole"], "member"]
+      ],
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 1.8, 7, 2.8],
+        "circle-color": "#f8fbff",
+        "circle-stroke-color": "#050505",
+        "circle-stroke-width": 1.5
+      }
+    });
+
+    map.addLayer({
+      id: "typhoon-world-forecast-time-label",
+      type: "symbol",
+      source: WORLD_TYPHOON_POSITION_SOURCE_ID,
+      minzoom: 3,
+      filter: [
+        "all",
+        ["==", ["get", "typhoonShape"], "worldForecastPosition"],
+        ["!=", ["get", "positionRole"], "member"]
+      ],
+      layout: {
+        "text-field": ["get", "timeLabel"],
+        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 3, 9, 7, 12],
+        "text-offset": [0, -2],
+        "text-anchor": "bottom",
+        "text-allow-overlap": false,
+        "text-padding": 4
+      },
+      paint: {
+        "text-color": "#f8fbff",
+        "text-halo-color": "rgba(5, 9, 20, 0.94)",
+        "text-halo-width": 1.8
+      }
+    });
+
+    map.addLayer({
       id: "typhoon-forecast-label",
       type: "symbol",
       source: TYPHOON_SOURCE_ID,
@@ -1591,6 +1839,26 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     TYPHOON_LAYERS.forEach((layerId) => {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", mode === "typhoon" ? "visible" : "none");
     });
+    updateWorldTyphoonForecastPositions(mode === "typhoon" ? data : {});
+    return collection;
+  }
+
+  function updateWorldTyphoonForecastPositions(data = {}) {
+    const source = map?.getSource(WORLD_TYPHOON_POSITION_SOURCE_ID);
+    if (!source?.setData) return null;
+    const visible = activeMode === "typhoon" && data?.worldForecastMode === true;
+    const collection = visible
+      ? {
+        type: "FeatureCollection",
+        features: createWorldTyphoonPositionFeatures(data)
+      }
+      : createEmptyFeatureCollection();
+    source.setData(collection);
+    WORLD_TYPHOON_POSITION_LAYERS.forEach((layerId) => {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+      }
+    });
     return collection;
   }
 
@@ -1614,7 +1882,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates };
 }
 
 function createCommunityReportFeatureCollection(reports = []) {
@@ -3360,6 +3628,18 @@ function buildEarthquakeStationPopup(station, earthquake) {
 }
 
 function createTyphoonFeatures(data) {
+  if (data?.worldForecastMode) {
+    return (data.worldForecastLayers ?? []).flatMap((layer) => {
+      const systems = layer.systems?.length
+        ? layer.systems
+        : [layer.system, ...(layer.candidates ?? [])].filter(Boolean);
+      return systems.flatMap((system) => createWorldTyphoonFeatures(
+        system,
+        layer.modelInfo,
+        layer.source
+      ));
+    });
+  }
   if (!data?.hasTyphoon) return [];
 
   return (data.typhoons ?? []).flatMap((typhoon) => {
@@ -3442,6 +3722,191 @@ function createTyphoonFeatures(data) {
 
     return features;
   });
+}
+
+function createWorldTyphoonFeatures(
+  system,
+  modelInfo = {},
+  source = {}
+) {
+  const features = [];
+  const style = WORLD_TYPHOON_MODEL_STYLES[modelInfo.id] ?? WORLD_TYPHOON_MODEL_STYLES.ecmwf;
+  const palette = style.palette;
+  const controlColor = style.control;
+  const genesisEnsembleColor = style.genesisEnsemble;
+  const genesisControlColor = style.genesisControl;
+  const isGenesis = system?.kind === "genesis";
+  const memberShape = isGenesis ? "worldGenesisEnsemble" : "worldEnsemble";
+  const memberPopup = isGenesis
+    ? buildWorldGenesisPopup(system, modelInfo, source)
+    : null;
+  const memberLineGroups = new Map();
+  (system?.members ?? []).forEach((member, index) => {
+    const duplicatesControl = Number(member.id) === 0
+      && system.controlCoordinates?.length >= 2;
+    if (duplicatesControl || member.coordinates?.length < 2) return;
+    const color = isGenesis ? genesisEnsembleColor : palette[index % palette.length];
+    const lineGroup = memberLineGroups.get(color) ?? [];
+    lineGroup.push(...splitLineAtAntimeridian(member.coordinates));
+    memberLineGroups.set(color, lineGroup);
+  });
+  memberLineGroups.forEach((lineCoordinates, color) => {
+    if (!lineCoordinates.length) return;
+    features.push({
+      type: "Feature",
+      geometry: {
+        type: "MultiLineString",
+        coordinates: lineCoordinates
+      },
+      properties: {
+        color,
+        typhoonShape: memberShape,
+        popup: memberPopup
+          ?? buildWorldTyphoonPopup(system, "アンサンブル進路分布", modelInfo, source)
+      }
+    });
+  });
+  if (system?.controlCoordinates?.length >= 2) {
+    features.push(...createWorldLineFeatures(system.controlCoordinates, {
+      properties: {
+        color: isGenesis ? genesisControlColor : controlColor,
+        typhoonShape: isGenesis ? "worldGenesisControl" : "worldControl",
+        popup: isGenesis
+          ? buildWorldGenesisPopup(system, modelInfo, source)
+          : buildWorldTyphoonPopup(system, "コントロールメンバー", modelInfo, source)
+      }
+    }));
+  }
+  return features;
+}
+
+function createWorldTyphoonPositionFeatures(data = {}) {
+  return (data.worldForecastLayers ?? []).flatMap((layer) => {
+    const style = WORLD_TYPHOON_MODEL_STYLES[layer.modelInfo?.id]
+      ?? WORLD_TYPHOON_MODEL_STYLES.ecmwf;
+    return (layer.forecastPositions ?? []).flatMap(({
+      system,
+      position,
+      trackType = "representative",
+      memberId = null,
+      memberIndex = null
+    }) => {
+      if (!Array.isArray(position?.coordinates) || position.coordinates.length !== 2) return [];
+      const isMember = trackType === "member";
+      const paletteIndex = Number.isFinite(Number(memberIndex))
+        ? Math.abs(Number(memberIndex)) % style.palette.length
+        : 0;
+      const trackLabel = isMember ? `Member ${memberId}` : trackType;
+      const color = isMember
+        ? (system?.kind === "genesis" ? style.genesisEnsemble : style.palette[paletteIndex])
+        : (system?.kind === "genesis" ? style.genesisControl : style.control);
+      return [{
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: position.coordinates
+        },
+        properties: {
+          color,
+          positionRole: trackType,
+          memberId: Number.isFinite(Number(memberId)) ? Number(memberId) : "",
+          modelId: layer.modelInfo?.id ?? "",
+          modelLabel: layer.modelInfo?.shortLabel ?? layer.modelInfo?.label ?? "",
+          markerRadius: style.positionRadius,
+          typhoonShape: "worldForecastPosition",
+          timeLabel: formatWorldForecastMapTime(position.validTime),
+          forecastPopup: buildWorldTyphoonPositionPopup(
+            system,
+            position,
+            layer.modelInfo,
+            layer.source,
+            trackLabel
+          )
+        }
+      }];
+    });
+  });
+}
+
+function createWorldLineFeatures(coordinates, { properties }) {
+  return splitLineAtAntimeridian(coordinates).map((segment) => ({
+    type: "Feature",
+    geometry: {
+      type: "LineString",
+      coordinates: segment
+    },
+    properties
+  }));
+}
+
+function buildWorldTyphoonPopup(system, label, modelInfo = {}, source = {}) {
+  const modelLabel = modelInfo.label ?? source.model ?? "世界予想";
+  const licenceLabel = source.license ? ` / ${source.license}` : "";
+  return `
+    <strong>${escapePopup(system.name ?? `${modelLabel} 世界予想`)}</strong><br>
+    <span>${escapePopup(label)}</span><br>
+    <small>${escapePopup(`${modelLabel}${licenceLabel}`)}（加工済み）</small>
+  `;
+}
+
+function buildWorldTyphoonPositionPopup(
+  system,
+  position,
+  modelInfo = {},
+  source = {},
+  trackLabel = ""
+) {
+  const [longitude, latitude] = position.coordinates ?? [];
+  const pressure = Number(position.pressureHpa);
+  const wind = Number(position.windMs);
+  const details = [
+    Number.isFinite(pressure) ? `中心気圧 ${Math.round(pressure)}hPa` : "",
+    Number.isFinite(wind) ? `最大風速 ${wind.toFixed(1)}m/s` : ""
+  ].filter(Boolean).join(" / ");
+  const modelLabel = modelInfo.label ?? source.model ?? "世界予想";
+  const licenceLabel = source.license ? ` / ${source.license}` : "";
+  return `
+    <strong>${escapePopup(system?.name ?? modelLabel)}</strong><br>
+    ${trackLabel ? `<span>${escapePopup(trackLabel)}</span><br>` : ""}
+    <span>${escapePopup(formatWorldForecastMapTime(position.validTime, true))}</span><br>
+    <span>${escapePopup(formatWorldForecastCoordinates(latitude, longitude))}</span>
+    ${details ? `<br><span>${escapePopup(details)}</span>` : ""}
+    <br><small>${escapePopup(`${modelLabel}${licenceLabel}`)}（代表進路・加工済み）</small>
+  `;
+}
+
+function formatWorldForecastMapTime(value, includeYear = false) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "時刻未取得";
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    ...(includeYear ? { year: "numeric" } : {}),
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).format(date);
+}
+
+function formatWorldForecastCoordinates(latitude, longitude) {
+  if (!Number.isFinite(Number(latitude)) || !Number.isFinite(Number(longitude))) return "位置未取得";
+  const latitudeLabel = `${Math.abs(Number(latitude)).toFixed(1)}°${Number(latitude) >= 0 ? "N" : "S"}`;
+  const longitudeLabel = `${Math.abs(Number(longitude)).toFixed(1)}°${Number(longitude) >= 0 ? "E" : "W"}`;
+  return `${latitudeLabel} / ${longitudeLabel}`;
+}
+
+function buildWorldGenesisPopup(system, modelInfo = {}, source = {}) {
+  const modelLabel = modelInfo.label ?? source.model ?? "世界予想";
+  const licenceLabel = source.license ? ` / ${source.license}` : "";
+  const support = Number.isFinite(Number(system.genesisProbability))
+    ? `発生確率 ${Math.round(Number(system.genesisProbability))}%`
+    : `アンサンブル支持 ${system.memberCount ?? 0}本`;
+  return `
+    <strong>熱帯擾乱の発達候補 ${escapePopup(system.name ?? "")}</strong><br>
+    <span>${escapePopup(support)}</span><br>
+    <small>台風の発生を確定する情報ではありません。${escapePopup(`${modelLabel}${licenceLabel}`)}（加工済み）</small>
+  `;
 }
 
 function buildTyphoonPopup(typhoon, label) {
