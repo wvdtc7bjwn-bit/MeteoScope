@@ -433,7 +433,7 @@ export function createWeatherApp() {
       activeWarningView = activeWarningView === "status" ? "early" : "status";
       if (activeTab !== "warnings") return;
       const tab = TABS.find((item) => item.id === "warnings");
-      updateCurrentView(tab, latestDataByTab.warnings);
+      updateCurrentView(tab, latestDataByTab.warnings, { immediateMap: true });
       if (activeWarningView === "early") refreshWarningDetails();
       return;
     }
@@ -442,7 +442,7 @@ export function createWeatherApp() {
       activeWarningView = "early";
       if (activeTab !== "warnings") return;
       const tab = TABS.find((item) => item.id === "warnings");
-      updateCurrentView(tab, latestDataByTab.warnings);
+      updateCurrentView(tab, latestDataByTab.warnings, { immediateMap: true });
       refreshWarningDetails();
       return;
     }
@@ -972,7 +972,12 @@ if (layerId === "river") {
       weatherChartStatus,
       weatherChart: weatherChartData
     };
-    scheduleMapRender(tab.id, displayData);
+    if (options.immediateMap) {
+      invalidateScheduledMapRender();
+      weatherMap?.renderData(tab.id, displayData);
+    } else {
+      scheduleMapRender(tab.id, displayData);
+    }
     if (options.deferPanel) {
       schedulePanelRender(tab, panelState);
     } else {
@@ -1912,6 +1917,7 @@ if (layerId === "river") {
       .then(async (detailsData) => {
         latestDataByTab.warnings = mergeWarningTabData(latestDataByTab.warnings, detailsData);
         warningDetailsLoadedAt = Date.now();
+        weatherMap?.prepareWarningData(latestDataByTab.warnings);
         await refreshCurrentLocationWarningInfo(latestDataByTab.warnings);
         refreshWarningsView();
         return latestDataByTab.warnings;
@@ -2024,11 +2030,16 @@ if (layerId === "river") {
   }
 
   function scheduleCriticalWarningPrefetch() {
-    const run = () => void prefetchTabData("warnings");
+    const run = async () => {
+      await prefetchTabData("warnings");
+      if (!document.hidden && latestDataByTab.warnings) {
+        await refreshWarningDetailsData();
+      }
+    };
     if ("requestIdleCallback" in window) {
-      window.requestIdleCallback(run, { timeout: 700 });
+      window.requestIdleCallback(() => void run(), { timeout: 700 });
     } else {
-      window.setTimeout(run, 180);
+      window.setTimeout(() => void run(), 180);
     }
   }
 

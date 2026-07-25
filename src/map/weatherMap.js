@@ -233,16 +233,24 @@ const MUNICIPALITY_FILL_LAYER_ID = "jma-municipality-fill";
 const MUNICIPALITY_FIX_FILL_LAYER_ID = "jma-municipality-fix-fill";
 const WARNING_OVERLAY_LAYER_ID = "jma-warning-overlay";
 const WARNING_FIX_OVERLAY_LAYER_ID = "jma-warning-fix-overlay";
+const WARNING_EARLY_OVERLAY_LAYER_ID = "jma-warning-early-overlay";
+const WARNING_EARLY_FIX_OVERLAY_LAYER_ID = "jma-warning-early-fix-overlay";
 const WARNING_CLICK_LAYER_ID = "jma-warning-click-target";
 const WARNING_FIX_CLICK_LAYER_ID = "jma-warning-fix-click-target";
 const WARNING_HATCH_LAYER_ID = "jma-warning-emergency-hatch";
 const WARNING_FIX_HATCH_LAYER_ID = "jma-warning-fix-emergency-hatch";
 const MUNICIPALITY_LINE_LAYER_ID = "jma-municipality-line";
 const MUNICIPALITY_FIX_LINE_LAYER_ID = "jma-municipality-fix-line";
-const WARNING_OVERLAY_LAYER_IDS = [WARNING_OVERLAY_LAYER_ID, WARNING_FIX_OVERLAY_LAYER_ID];
+const WARNING_STATUS_OVERLAY_LAYER_IDS = [WARNING_OVERLAY_LAYER_ID, WARNING_FIX_OVERLAY_LAYER_ID];
+const WARNING_EARLY_OVERLAY_LAYER_IDS = [WARNING_EARLY_OVERLAY_LAYER_ID, WARNING_EARLY_FIX_OVERLAY_LAYER_ID];
+const WARNING_OVERLAY_LAYER_IDS = [...WARNING_STATUS_OVERLAY_LAYER_IDS, ...WARNING_EARLY_OVERLAY_LAYER_IDS];
 const WARNING_CLICK_LAYER_IDS = [WARNING_CLICK_LAYER_ID, WARNING_FIX_CLICK_LAYER_ID];
 const WARNING_HATCH_LAYER_IDS = [WARNING_HATCH_LAYER_ID, WARNING_FIX_HATCH_LAYER_ID];
 const WARNING_HATCH_IMAGE_ID = "jma-warning-emergency-hatch-pattern";
+const WARNING_FEATURE_STATE_KEYS = {
+  status: "warningStatusLevel",
+  early: "warningEarlyLevel"
+};
 const STORM_WARNING_ENDPOINT_SNAP_PX = 48;
 const STORM_WARNING_DUPLICATE_SEGMENT_PX = 18;
 const warningGeometryFixCodeSet = new Set(WARNING_GEOMETRY_FIX_CODES);
@@ -413,11 +421,16 @@ export function createWeatherMap(elementId) {
 
   function prepareWarningData(data) {
     if (!map?.getSource(MUNICIPALITY_SOURCE_ID) || !data) return;
-    const activeAreas = getActiveWarningOverlayAreas("warnings", {
+    const statusAreas = getActiveWarningOverlayAreas("warnings", {
       ...data,
       activeWarningView: "status"
     });
-    void updateWarningFeatureStates(map, activeAreas);
+    const earlyAreas = getActiveWarningOverlayAreas("warnings", {
+      ...data,
+      activeWarningView: "early"
+    });
+    void updateWarningFeatureStates(map, statusAreas, "status");
+    void updateWarningFeatureStates(map, earlyAreas, "early");
   }
 
   function setActiveFaultVisible(visible) {
@@ -808,9 +821,10 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       type: "fill",
       source: MUNICIPALITY_SOURCE_ID,
       filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+      layout: { visibility: "none" },
       paint: {
         "fill-pattern": WARNING_HATCH_IMAGE_ID,
-        "fill-opacity": 0
+        "fill-opacity": getWarningEmergencyHatchOpacityExpression()
       }
     }, MUNICIPALITY_LINE_LAYER_ID);
 
@@ -818,9 +832,10 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       id: WARNING_FIX_HATCH_LAYER_ID,
       type: "fill",
       source: MUNICIPALITY_FIX_SOURCE_ID,
+      layout: { visibility: "none" },
       paint: {
         "fill-pattern": WARNING_HATCH_IMAGE_ID,
-        "fill-opacity": 0
+        "fill-opacity": getWarningEmergencyHatchOpacityExpression()
       }
     }, MUNICIPALITY_LINE_LAYER_ID);
 
@@ -2147,20 +2162,45 @@ function createBaseStyle(theme = "dark") {
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
         filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+        layout: { visibility: "none" },
         paint: {
-          "fill-color": "rgba(0, 0, 0, 0)",
+          "fill-color": getWarningOverlayColorExpression(WARNING_FEATURE_STATE_KEYS.status),
           "fill-antialias": true,
-          "fill-opacity": 0
+          "fill-opacity": getWarningOverlayOpacityExpression("status")
         }
       },
       {
         id: WARNING_FIX_OVERLAY_LAYER_ID,
         type: "fill",
         source: MUNICIPALITY_FIX_SOURCE_ID,
+        layout: { visibility: "none" },
         paint: {
-          "fill-color": "rgba(0, 0, 0, 0)",
+          "fill-color": getWarningOverlayColorExpression(WARNING_FEATURE_STATE_KEYS.status),
           "fill-antialias": true,
-          "fill-opacity": 0
+          "fill-opacity": getWarningOverlayOpacityExpression("status")
+        }
+      },
+      {
+        id: WARNING_EARLY_OVERLAY_LAYER_ID,
+        type: "fill",
+        source: MUNICIPALITY_SOURCE_ID,
+        filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+        layout: { visibility: "none" },
+        paint: {
+          "fill-color": getWarningOverlayColorExpression(WARNING_FEATURE_STATE_KEYS.early),
+          "fill-antialias": true,
+          "fill-opacity": getWarningOverlayOpacityExpression("early")
+        }
+      },
+      {
+        id: WARNING_EARLY_FIX_OVERLAY_LAYER_ID,
+        type: "fill",
+        source: MUNICIPALITY_FIX_SOURCE_ID,
+        layout: { visibility: "none" },
+        paint: {
+          "fill-color": getWarningOverlayColorExpression(WARNING_FEATURE_STATE_KEYS.early),
+          "fill-antialias": true,
+          "fill-opacity": getWarningOverlayOpacityExpression("early")
         }
       },
       {
@@ -2862,25 +2902,41 @@ function updateWarningMunicipalityPaint(map, mode, data = {}) {
 
   if (mode !== "warnings" || ["kikikuru", "river"].includes(data?.activeWarningView)) {
     invalidateWarningFeatureStateUpdate(map);
-    setWarningOverlayPaint(map, "fill-opacity", 0);
-    updateWarningHatchPaint(map, []);
+    setWarningOverlayVisibility(map, null);
+    setWarningHatchVisibility(map, false);
     return;
   }
 
   const activeAreas = getActiveWarningOverlayAreas(mode, data);
-  void updateWarningFeatureStates(map, activeAreas);
+  const warningView = data?.activeWarningView === "early" ? "early" : "status";
+  const cache = getWarningFeatureStateCache(map);
+  const displayGeneration = ++cache.displayGeneration;
 
   if (activeAreas.length === 0) {
-    setWarningOverlayPaint(map, "fill-color", "rgba(0, 0, 0, 0)");
-    setWarningOverlayPaint(map, "fill-opacity", 0);
-    updateWarningHatchPaint(map, []);
+    void updateWarningFeatureStates(map, activeAreas, warningView);
+    setWarningOverlayVisibility(map, null);
+    setWarningHatchVisibility(map, false);
     return;
   }
 
-  const isEarlyWarningView = mode === "warnings" && data?.activeWarningView === "early";
-  setWarningOverlayPaint(map, "fill-color", [
+  setWarningOverlayVisibility(map, null);
+  setWarningHatchVisibility(map, false);
+
+  void updateWarningFeatureStates(map, activeAreas, warningView).then((applied) => {
+    if (!applied || getWarningFeatureStateCache(map).displayGeneration !== displayGeneration) return;
+    setWarningOverlayVisibility(map, warningView);
+    setWarningHatchVisibility(
+      map,
+      warningView === "status" && activeAreas.some((area) => area.level === "emergency")
+    );
+    map.triggerRepaint();
+  });
+}
+
+function getWarningOverlayColorExpression(stateKey) {
+  return [
     "match",
-    ["feature-state", "warningLevel"],
+    ["feature-state", stateKey],
     "high",
     getEarlyWarningColor("high"),
     "middle",
@@ -2894,22 +2950,41 @@ function updateWarningMunicipalityPaint(map, mode, data = {}) {
     "advisory",
     getWarningColor("advisory"),
     "rgba(0, 0, 0, 0)"
-  ]);
-  setWarningOverlayPaint(map, "fill-opacity", [
+  ];
+}
+
+function getWarningOverlayOpacityExpression(warningView = "status") {
+  const isEarly = warningView === "early";
+  return [
     "interpolate",
     ["linear"],
     ["zoom"],
     4,
-    isEarlyWarningView ? 0.82 : 0.92,
+    isEarly ? 0.82 : 0.92,
     8,
-    isEarlyWarningView ? 0.88 : 0.96
-  ]);
-  updateWarningHatchPaint(map, isEarlyWarningView ? [] : activeAreas);
+    isEarly ? 0.88 : 0.96
+  ];
 }
 
-function setWarningOverlayPaint(map, property, value) {
+function getWarningEmergencyHatchOpacityExpression() {
+  return [
+    "case",
+    ["==", ["feature-state", WARNING_FEATURE_STATE_KEYS.status], "emergency"],
+    0.7,
+    0
+  ];
+}
+
+function setWarningOverlayVisibility(map, warningView = null) {
+  const visibleLayerIds = warningView === "early"
+    ? WARNING_EARLY_OVERLAY_LAYER_IDS
+    : warningView === "status"
+      ? WARNING_STATUS_OVERLAY_LAYER_IDS
+      : [];
   WARNING_OVERLAY_LAYER_IDS.forEach((layerId) => {
-    if (map.getLayer(layerId)) map.setPaintProperty(layerId, property, value);
+    if (map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, "visibility", visibleLayerIds.includes(layerId) ? "visible" : "none");
+    }
   });
 }
 
@@ -2937,27 +3012,37 @@ function getSelectableWarningAreas(mode, data = {}) {
 function getWarningFeatureStateCache(map) {
   const cached = warningFeatureStateCache.get(map);
   if (cached) return cached;
-  const next = { generation: 0, levels: new Map() };
+  const next = {
+    displayGeneration: 0,
+    generations: { status: 0, early: 0 },
+    levels: { status: new Map(), early: new Map() }
+  };
   warningFeatureStateCache.set(map, next);
   return next;
 }
 
 function invalidateWarningFeatureStateUpdate(map) {
   if (!map) return;
-  getWarningFeatureStateCache(map).generation += 1;
+  const cache = getWarningFeatureStateCache(map);
+  cache.displayGeneration += 1;
+  cache.generations.status += 1;
+  cache.generations.early += 1;
 }
 
-async function updateWarningFeatureStates(map, activeAreas) {
-  if (!map?.getSource(MUNICIPALITY_SOURCE_ID)) return;
+async function updateWarningFeatureStates(map, activeAreas, warningView = "status") {
+  if (!map?.getSource(MUNICIPALITY_SOURCE_ID)) return false;
   const cache = getWarningFeatureStateCache(map);
-  const generation = ++cache.generation;
+  const channel = warningView === "early" ? "early" : "status";
+  const stateKey = getWarningFeatureStateKey(channel);
+  const generation = ++cache.generations[channel];
+  const currentLevels = cache.levels[channel];
 
   try {
-    const { operations } = planWarningFeatureStateChanges(cache.levels, activeAreas);
+    const { operations } = planWarningFeatureStateChanges(currentLevels, activeAreas);
     const chunkSize = 24;
     for (let offset = 0; offset < operations.length; offset += chunkSize) {
       await waitForMapUpdateTurn();
-      if (cache.generation !== generation) return;
+      if (cache.generations[channel] !== generation) return false;
 
       operations.slice(offset, offset + chunkSize).forEach((operation) => {
         const feature = {
@@ -2965,18 +3050,25 @@ async function updateWarningFeatureStates(map, activeAreas) {
           id: operation.areaCode
         };
         if (operation.type === "remove") {
-          map.removeFeatureState(feature, "warningLevel");
-          cache.levels.delete(operation.areaCode);
+          map.removeFeatureState(feature, stateKey);
+          currentLevels.delete(operation.areaCode);
           return;
         }
-        map.setFeatureState(feature, { warningLevel: operation.level });
-        cache.levels.set(operation.areaCode, operation.level);
+        map.setFeatureState(feature, { [stateKey]: operation.level });
+        currentLevels.set(operation.areaCode, operation.level);
       });
     }
-    if (cache.generation === generation) map.triggerRepaint();
+    if (cache.generations[channel] !== generation) return false;
+    map.triggerRepaint();
+    return true;
   } catch (error) {
     console.warn("[MeteoScope] warning municipality state update failed", error);
+    return false;
   }
+}
+
+function getWarningFeatureStateKey(warningView = "status") {
+  return WARNING_FEATURE_STATE_KEYS[warningView === "early" ? "early" : "status"];
 }
 
 function waitForMapUpdateTurn() {
@@ -3022,22 +3114,12 @@ function isNorthernTerritoryCountryPart(polygon) {
   );
 }
 
-function updateWarningHatchPaint(map, activeAreas) {
+function setWarningHatchVisibility(map, visible) {
   if (!map) return;
-
-  const emergencyOpacity = activeAreas.some((area) => area.level === "emergency") ? 0.7 : 0;
   WARNING_HATCH_LAYER_IDS.forEach((layerId) => {
-    if (!map.getLayer(layerId)) return;
-    map.setPaintProperty(
-      layerId,
-      "fill-opacity",
-      [
-        "case",
-        ["==", ["feature-state", "warningLevel"], "emergency"],
-        emergencyOpacity,
-        0
-      ]
-    );
+    if (map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+    }
   });
 }
 

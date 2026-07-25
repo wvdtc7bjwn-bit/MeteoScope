@@ -69,7 +69,7 @@ assert.deepEqual(unchanged.operations, []);
 
 assert.match(
   appSource,
-  /function scheduleCriticalWarningPrefetch\(\)[\s\S]*?requestIdleCallback\(run,\s*\{\s*timeout:\s*700\s*\}\)/
+  /function scheduleCriticalWarningPrefetch\(\)[\s\S]*?await prefetchTabData\("warnings"\);[\s\S]*?await refreshWarningDetailsData\(\);[\s\S]*?requestIdleCallback\(\(\) => void run\(\),\s*\{\s*timeout:\s*700\s*\}\)/
 );
 assert.match(
   appSource,
@@ -90,6 +90,18 @@ assert.match(
 );
 assert.match(
   appSource,
+  /activeWarningView = "early";[\s\S]*?updateCurrentView\(tab, latestDataByTab\.warnings, \{ immediateMap: true \}\)/
+);
+assert.match(
+  appSource,
+  /warningDetailsLoadedAt = Date\.now\(\);[\s\S]*?weatherMap\?\.prepareWarningData\(latestDataByTab\.warnings\)/
+);
+assert.match(
+  appSource,
+  /if \(options\.immediateMap\) \{[\s\S]*?invalidateScheduledMapRender\(\);[\s\S]*?weatherMap\?\.renderData\(tab\.id, displayData\)/
+);
+assert.match(
+  appSource,
   /function schedulePanelRender\(tab, panelState\)[\s\S]*?requestAnimationFrame\(\(\) => \{[\s\S]*?requestAnimationFrame\(\(\) => \{[\s\S]*?updateLeftPanel\(tab, panelState\)/
 );
 assert.match(
@@ -102,8 +114,21 @@ const nonWarningBranch = leftPanelSource.match(
 assert.doesNotMatch(nonWarningBranch, /root\.innerHTML\s*=/);
 assert.match(
   weatherMapSource,
-  /function prepareWarningData\(data\)[\s\S]*?updateWarningFeatureStates\(map, activeAreas\)/
+  /function prepareWarningData\(data\)[\s\S]*?updateWarningFeatureStates\(map, statusAreas, "status"\)[\s\S]*?updateWarningFeatureStates\(map, earlyAreas, "early"\)/
 );
 assert.match(weatherMapSource, /const chunkSize = 24;/);
+assert.match(
+  weatherMapSource,
+  /const WARNING_FEATURE_STATE_KEYS = \{[\s\S]*?status: "warningStatusLevel"[\s\S]*?early: "warningEarlyLevel"/
+);
+assert.match(
+  weatherMapSource,
+  /setWarningOverlayVisibility\(map, null\);[\s\S]*?updateWarningFeatureStates\(map, activeAreas, warningView\)\.then\(\(applied\) => \{[\s\S]*?displayGeneration !== displayGeneration[\s\S]*?setWarningOverlayVisibility\(map, warningView\)/
+);
+assert.match(
+  weatherMapSource,
+  /const WARNING_EARLY_OVERLAY_LAYER_IDS = \[[\s\S]*?function setWarningOverlayVisibility\(map, warningView = null\)/
+);
+assert.doesNotMatch(weatherMapSource, /setWarningOverlayPaint|updateWarningHatchPaint/);
 
 console.log("Warning responsiveness tests passed");
