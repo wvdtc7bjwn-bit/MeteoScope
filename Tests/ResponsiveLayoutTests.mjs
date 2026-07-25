@@ -40,9 +40,43 @@ assert.match(
   styles,
   /input,\s*textarea,\s*select,\s*option,\s*\[contenteditable="true"\],\s*\[data-user-select="text"\]\s*\{[\s\S]*?-webkit-user-select:\s*text;[\s\S]*?user-select:\s*text;/
 );
+assert.match(
+  styles,
+  /html\[data-theme="light"\] \.settings-modal-header\s*\{[\s\S]*?background:\s*transparent;/
+);
+assert.match(styles, /\.warning-modal-head\s*\{[\s\S]*?border-bottom:\s*1px solid/);
+assert.match(styles, /--modal-shell-radius:\s*22px/);
+assert.match(styles, /--modal-header-height:\s*62px/);
+assert.match(
+  styles,
+  /\.warning-modal-panel\s*\{[\s\S]*?border:\s*1px solid var\(--modal-shell-border\);[\s\S]*?border-radius:\s*var\(--modal-shell-radius\);[\s\S]*?background:\s*var\(--modal-shell-bg\);/
+);
+assert.match(
+  styles,
+  /\.settings-modal-header\s*\{[\s\S]*?min-height:\s*var\(--modal-header-height\);[\s\S]*?padding:\s*var\(--modal-header-padding\);[\s\S]*?border-bottom:\s*1px solid var\(--modal-shell-divider\);/
+);
+assert.match(
+  styles,
+  /\.hypocenter-date-wheel-sheet\s*\{[\s\S]*?border:\s*1px solid var\(--modal-shell-border\);[\s\S]*?background:\s*var\(--modal-shell-bg\);/
+);
+assert.match(
+  styles,
+  /@media \(max-width: 600px\)\s*\{[\s\S]*?\.social-share-panel\s*\{[\s\S]*?border-radius:\s*var\(--modal-shell-radius\);/
+);
 
 assert.match(index, /width=device-width/);
 assert.match(index, /viewport-fit=cover/);
+for (const removedModalSubtitle of ["MeteoScope", "MeteoScope Guide", "自治体公開資料", "防災学習", "雨雲レーダー"]) {
+  assert.doesNotMatch(index, new RegExp(`<span>${removedModalSubtitle}<\\/span>`, "u"));
+}
+for (const modalId of ["settings", "feedback", "disaster-map", "disaster-quiz", "community-report", "social-share"]) {
+  assert.match(
+    index,
+    new RegExp(`id="${modalId}-modal"[\\s\\S]*?<header class="settings-modal-header(?: [^"]+)?">[\\s\\S]*?<h2 id="${modalId}-(?:modal-)?title"`, "u")
+  );
+}
+assert.match(index, /<header class="settings-modal-header legal-consent-header">\s*<h2 id="legal-consent-title">/u);
+assert.match(index, /<header class="settings-modal-header onboarding-header">\s*<h2 id="onboarding-title">/u);
 assert.match(index, /id="radar-time-timeline"\s+class="weather-time-timeline"/);
 assert.match(index, /id="community-report-map-open"\s+class="map-community-report-button"/);
 assert.match(index, /id="community-report-open"[^>]*aria-label="投稿"[^>]*><\/button>/);
@@ -351,6 +385,22 @@ assert.match(
 assert.match(
   styles,
   /html\[data-theme="light"\] \.tsunami-observation-station small\s*\{[\s\S]*?color:\s*#526980;[\s\S]*?font-weight:\s*800;/
+);
+assert.match(
+  styles,
+  /\.social-share-segmented\s*\{[\s\S]*?backdrop-filter:\s*blur\(16px\) saturate\(1\.2\);/
+);
+assert.match(
+  styles,
+  /\.social-share-segmented button\.active\s*\{[\s\S]*?background:\s*rgba\(37, 135, 190, 0\.42\);[\s\S]*?box-shadow:\s*none;/
+);
+assert.match(
+  styles,
+  /html\[data-theme="light"\] \.social-share-segmented\s*\{[\s\S]*?background:\s*rgba\(232, 243, 251, 0\.56\);/
+);
+assert.match(
+  styles,
+  /html\[data-theme="light"\] \.social-share-segmented button\.active\s*\{[\s\S]*?background:\s*rgba\(116, 198, 236, 0\.42\);[\s\S]*?box-shadow:\s*none;/
 );
 
 console.log("Responsive layouts: OK");

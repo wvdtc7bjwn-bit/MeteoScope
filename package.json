@@ -24,6 +24,7 @@
     "test:typhoon": "node Tests/TyphoonTests.mjs",
     "test:warnings": "node Tests/WarningResponsivenessTests.mjs",
     "test:amedas": "node Tests/AmedasRankingTests.mjs",
+    "test:social-share": "node Tests/SocialShareTests.mjs",
     "test:location": "node Tests/CurrentLocationMarkerTests.mjs",
     "test:responsive": "node Tests/ResponsiveLayoutTests.mjs",
     "test:startup": "node Tests/InitialMapLoadingTests.mjs",

@@ -180,10 +180,7 @@
       <div class="warning-modal-backdrop settings-modal-overlay" data-settings-modal-close></div>
       <section class="warning-modal-panel settings-modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
         <header class="settings-modal-header">
-          <div>
-            <span>MeteoScope</span>
-            <h2 id="settings-modal-title">設定</h2>
-          </div>
+          <h2 id="settings-modal-title">設定</h2>
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-settings-modal-close>×</button>
         </header>
         <div class="settings-modal-body">
@@ -352,38 +349,39 @@
     <div id="legal-consent-modal" class="warning-modal legal-consent-modal" hidden>
       <div class="warning-modal-backdrop legal-consent-backdrop" aria-hidden="true"></div>
       <section class="warning-modal-panel legal-consent-panel" role="dialog" aria-modal="true" aria-labelledby="legal-consent-title" aria-describedby="legal-consent-description">
-        <header class="legal-consent-header">
-          <span class="legal-consent-product">MeteoScope</span>
-          <h2 id="legal-consent-title">はじめに</h2>
+        <header class="settings-modal-header legal-consent-header">
+          <h2 id="legal-consent-title">利用規約とプライバシー</h2>
         </header>
-        <p id="legal-consent-description" class="legal-consent-description">
-          ご利用前に、利用規約とプライバシーポリシーをご確認ください。本アプリは気象庁などの行政機関が提供する公式アプリではありません。
-        </p>
-        <div class="legal-consent-links">
-          <a href="%BASE_URL%terms.html" target="_blank" rel="noopener noreferrer"><span>利用規約</span><span aria-hidden="true">›</span></a>
-          <a href="%BASE_URL%privacy.html" target="_blank" rel="noopener noreferrer"><span>プライバシーポリシー</span><span aria-hidden="true">›</span></a>
+        <div class="legal-consent-body">
+          <p id="legal-consent-description" class="legal-consent-description">
+            ご利用前に、利用規約とプライバシーポリシーをご確認ください。本アプリは気象庁などの行政機関が提供する公式アプリではありません。
+          </p>
+          <div class="legal-consent-links">
+            <a href="%BASE_URL%terms.html" target="_blank" rel="noopener noreferrer"><span>利用規約</span><span aria-hidden="true">›</span></a>
+            <a href="%BASE_URL%privacy.html" target="_blank" rel="noopener noreferrer"><span>プライバシーポリシー</span><span aria-hidden="true">›</span></a>
+          </div>
+          <div class="legal-consent-checks">
+            <label>
+              <input id="legal-consent-terms" type="checkbox">
+              <span>利用規約を確認し、同意します</span>
+            </label>
+            <label>
+              <input id="legal-consent-privacy" type="checkbox">
+              <span>プライバシーポリシーを確認し、同意します</span>
+            </label>
+          </div>
+          <p class="legal-consent-note">同意しない場合はMeteoScopeを利用できません。同意状態はこの端末に保存されます。</p>
+          <button class="legal-consent-accept" type="button" data-legal-consent-accept disabled>同意して利用を開始</button>
         </div>
-        <div class="legal-consent-checks">
-          <label>
-            <input id="legal-consent-terms" type="checkbox">
-            <span>利用規約を確認し、同意します</span>
-          </label>
-          <label>
-            <input id="legal-consent-privacy" type="checkbox">
-            <span>プライバシーポリシーを確認し、同意します</span>
-          </label>
-        </div>
-        <p class="legal-consent-note">同意しない場合はMeteoScopeを利用できません。同意状態はこの端末に保存されます。</p>
-        <button class="legal-consent-accept" type="button" data-legal-consent-accept disabled>同意して利用を開始</button>
       </section>
     </div>
 
     <div id="onboarding-modal" class="warning-modal onboarding-modal" hidden>
       <div class="warning-modal-backdrop onboarding-modal-backdrop" data-onboarding-close></div>
       <section class="warning-modal-panel onboarding-panel" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
-        <header class="onboarding-header">
-          <div><span>MeteoScope Guide</span><h2 id="onboarding-title">はじめに</h2></div>
-          <button class="warning-modal-close" type="button" aria-label="閉じる" data-onboarding-close>×</button>
+        <header class="settings-modal-header onboarding-header">
+          <h2 id="onboarding-title">使い方ガイド</h2>
+          <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-onboarding-close>×</button>
         </header>
         <div class="onboarding-viewport" id="onboarding-viewport" tabindex="0">
           <div class="onboarding-track" id="onboarding-track"></div>
@@ -403,10 +401,7 @@
       <div class="warning-modal-backdrop feedback-modal-overlay" data-feedback-modal-close></div>
       <section class="warning-modal-panel feedback-modal-panel" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
         <header class="settings-modal-header feedback-modal-header">
-          <div>
-            <span>MeteoScope</span>
-            <h2 id="feedback-modal-title">利用者意見</h2>
-          </div>
+          <h2 id="feedback-modal-title">利用者意見</h2>
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-feedback-modal-close>×</button>
         </header>
         <form id="feedback-form" class="feedback-form">
@@ -437,10 +432,7 @@
       <div class="warning-modal-backdrop disaster-map-modal-overlay" data-disaster-map-close></div>
       <section class="warning-modal-panel disaster-map-panel" role="dialog" aria-modal="true" aria-labelledby="disaster-map-title">
         <header class="settings-modal-header disaster-map-header">
-          <div>
-            <span>自治体公開資料</span>
-            <h2 id="disaster-map-title">防災マップ</h2>
-          </div>
+          <h2 id="disaster-map-title">防災マップ</h2>
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-disaster-map-close>×</button>
         </header>
         <div class="disaster-map-body">
@@ -509,10 +501,7 @@
       <div class="warning-modal-backdrop disaster-quiz-overlay" data-disaster-quiz-close></div>
       <section class="warning-modal-panel disaster-quiz-panel" role="dialog" aria-modal="true" aria-labelledby="disaster-quiz-title">
         <header class="settings-modal-header disaster-quiz-header">
-          <div>
-            <span>防災学習</span>
-            <h2 id="disaster-quiz-title">防災クイズ</h2>
-          </div>
+          <h2 id="disaster-quiz-title">防災クイズ</h2>
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-disaster-quiz-close>×</button>
         </header>
         <div class="disaster-quiz-body">
@@ -600,7 +589,7 @@
       <div class="warning-modal-backdrop" data-community-report-close></div>
       <section class="warning-modal-panel community-report-panel" role="dialog" aria-modal="true" aria-labelledby="community-report-title">
         <header class="settings-modal-header">
-          <div><span>雨雲レーダー</span><h2 id="community-report-title">現在地の様子を投稿</h2></div>
+          <h2 id="community-report-title">現在地の様子を投稿</h2>
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-community-report-close>×</button>
         </header>
         <div class="community-report-body">
@@ -646,6 +635,44 @@
             <button class="community-report-submit" type="submit">現在地の様子を投稿</button>
           </form>
           <p id="community-report-status" class="community-report-status" role="status"></p>
+        </div>
+      </section>
+    </div>
+
+    <div id="social-share-modal" class="warning-modal social-share-modal" hidden>
+      <div class="warning-modal-backdrop" data-social-share-close></div>
+      <section class="warning-modal-panel social-share-panel" role="dialog" aria-modal="true" aria-labelledby="social-share-title">
+        <header class="settings-modal-header">
+          <h2 id="social-share-title">画像を作成</h2>
+          <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-social-share-close>×</button>
+        </header>
+        <div class="social-share-body">
+          <p id="social-share-description" class="social-share-description"></p>
+          <div class="social-share-options">
+            <div class="social-share-option">
+              <span>画像サイズ</span>
+              <div class="social-share-segmented" role="group" aria-label="画像サイズ">
+                <button type="button" data-social-share-format="portrait" aria-pressed="true">縦長</button>
+                <button type="button" data-social-share-format="square" aria-pressed="false">正方形</button>
+                <button type="button" data-social-share-format="landscape" aria-pressed="false">横長</button>
+              </div>
+            </div>
+            <div class="social-share-option">
+              <span>配色</span>
+              <div class="social-share-segmented" role="group" aria-label="配色">
+                <button type="button" data-social-share-theme="dark" aria-pressed="true">ダーク</button>
+                <button type="button" data-social-share-theme="light" aria-pressed="false">ライト</button>
+              </div>
+            </div>
+          </div>
+          <div class="social-share-preview-shell">
+            <canvas id="social-share-preview" aria-label="投稿画像のプレビュー"></canvas>
+          </div>
+          <p id="social-share-status" class="social-share-status" role="status"></p>
+          <div class="social-share-actions">
+            <button id="social-share-download" class="social-share-download" type="button">PNGを保存</button>
+            <button id="social-share-native" class="social-share-native" type="button">共有する</button>
+          </div>
         </div>
       </section>
     </div>

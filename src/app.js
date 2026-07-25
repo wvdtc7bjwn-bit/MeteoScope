@@ -50,6 +50,7 @@ import { openCommunityReportModal, setupCommunityReportModal } from "./ui/commun
 import { yieldToMainThread } from "./scheduling.js";
 import { setupLongPressButton } from "./ui/longPressButton.js";
 import { setupEarthquakeLongPressHint } from "./ui/earthquakeLongPressHint.js";
+import { getSocialSharePayload } from "./socialShareState.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -2256,6 +2257,18 @@ if (layerId === "river") {
       event.preventDefault();
       event.stopPropagation();
       void openCommunityReportModal();
+    });
+    document.addEventListener("click", (event) => {
+      if (!(event.target instanceof Element)) return;
+      const button = event.target.closest("[data-social-share]");
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const payload = getSocialSharePayload(button.dataset.socialShare);
+      if (!payload) return;
+      void import("./ui/socialShareModal.js").then(({ openSocialShareModal }) => {
+        openSocialShareModal(payload);
+      });
     });
     setupLongPressButton(document.getElementById("locate-button"), {
       onPress: locateCurrentPosition,

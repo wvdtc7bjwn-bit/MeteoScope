@@ -37,6 +37,7 @@ import {
 } from "../volcanoAshfall.js";
 import { findLatestRadarObservationIndex } from "../jma/radar.js";
 import { assignAmedasCompetitionRanks } from "../amedasRanking.js";
+import { setSocialSharePayload } from "../socialShareState.js";
 
 let selectedWarningAreaCode = "";
 const amedasRankingOrderByMetric = {
@@ -3962,6 +3963,7 @@ function renderAmedasRanking(tab, state, metric) {
   const isAmedas = tab.id === "amedas";
   root.hidden = !isAmedas;
   if (!isAmedas) {
+    setSocialSharePayload("amedas", null);
     root.innerHTML = "";
     return;
   }
@@ -3984,6 +3986,20 @@ function renderAmedasRanking(tab, state, metric) {
   ).slice(0, AMEDAS_RANKING_LIMIT);
   const orderLabel = getAmedasRankingLabel(metric.id, rankingView, windKind, order);
   const rankingUpdatedAt = getAmedasRankingUpdatedAt(state.data, metric.id, rankingView, windKind);
+  setSocialSharePayload("amedas", {
+    type: "amedas",
+    metricLabel: metric.label,
+    orderLabel,
+    totalLocations: items.length,
+    updatedAt: rankingUpdatedAt ? formatAmedasRankingClock(rankingUpdatedAt) : "--:--",
+    items: items.map((item) => ({
+      rank: item.rank,
+      name: item.name,
+      value: formatAmedasRankingValue(item.value, metric),
+      color: item.color,
+      observationTime: item.observationTime ? formatAmedasRankingClock(item.observationTime) : ""
+    }))
+  });
   const temperatureControls = metric.id === "temperature" ? `
     <div class="amedas-ranking-toggle amedas-ranking-slider" aria-label="気温ランキング集計期間" style="${getAmedasRankingSliderStyle(rankingView === "current" ? 0 : 1, 2)}">
       <button type="button" data-amedas-temperature-ranking-period="current" class="${rankingView === "current" ? "active" : ""}">実況</button>
@@ -4023,6 +4039,9 @@ function renderAmedasRanking(tab, state, metric) {
   root.innerHTML = `
     <div class="amedas-ranking-head">
       <span>${escapeHtml(metric.label)}ランキング</span>
+      <button type="button" class="social-share-trigger amedas-ranking-share" data-social-share="amedas" aria-label="ランキングを画像で共有" title="ランキングを画像で共有">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0-11 4 4m-4-4L8 7M5 12v7h14v-7"/></svg>
+      </button>
       <div class="amedas-ranking-meta">
         <small>${orderLabel} ${items.length}地点</small>
         ${rankingUpdatedAt ? `<time>更新 ${escapeHtml(formatAmedasRankingClock(rankingUpdatedAt))}</time>` : ""}
@@ -4540,11 +4559,13 @@ function renderEarthquakeList(tab, state) {
   const isEarthquake = tab.id === "earthquake";
   root.hidden = !isEarthquake;
   if (!isEarthquake) {
+    setSocialSharePayload("earthquake", null);
     root.innerHTML = "";
     return;
   }
 
   if (state.earthquakeContentMode === "volcano" || state.data?.earthquakeContentMode === "volcano") {
+    setSocialSharePayload("earthquake", null);
     renderVolcanoList(state, render);
     return;
   }
@@ -4554,6 +4575,46 @@ function renderEarthquakeList(tab, state) {
   const mapLayerControls = buildEarthquakeMapLayerControls(state.data ?? {});
   const earthquakes = state.data?.earthquakes ?? [];
   const selectedEarthquake = state.data?.selectedEarthquake ?? earthquakes[0] ?? null;
+  if (selectedEarthquake) {
+    const selectedObservationSource = selectedEarthquake.intensityStations?.length
+      ? selectedEarthquake.intensityStations
+      : (selectedEarthquake.intensityCities ?? []);
+    const selectedTsunamiState = getEarthquakeTsunamiState(
+      selectedEarthquake,
+      state.data?.tsunami,
+      state.data?.tsunamiStatus
+    );
+    setSocialSharePayload("earthquake", {
+      type: "earthquake",
+      intensity: selectedEarthquake.maxIntensityShort
+        ?? selectedEarthquake.maxIntensityLabel
+        ?? "--",
+      intensityColor: getEarthquakeIntensityColor(selectedEarthquake.maxIntensity),
+      eventTime: formatEarthquakeEventTime(
+        selectedEarthquake.eventTime ?? selectedEarthquake.reportTime
+      ),
+      coordinates: selectedEarthquake.coordinates,
+      hypocenter: selectedEarthquake.hypocenterName ?? "震央調査中",
+      magnitude: formatEarthquakeMagnitude(selectedEarthquake.magnitude, { prefix: true }),
+      depth: formatEarthquakeDepthText(selectedEarthquake.depth, { compact: true }),
+      tsunami: getEarthquakeTsunamiMetricText(selectedTsunamiState),
+      observations: selectedObservationSource.map((observation) => ({
+        name: observation.stationName
+          ?? observation.cityName
+          ?? observation.areaName
+          ?? "観測地点",
+        prefecture: observation.prefecture ?? "",
+        intensity: observation.intensityShort
+          ?? observation.intensityLabel
+          ?? observation.intensity
+          ?? "--",
+        intensityColor: getEarthquakeIntensityColor(observation.intensity),
+        coordinates: observation.coordinates
+      }))
+    });
+  } else {
+    setSocialSharePayload("earthquake", null);
+  }
   const renderDetailPages = (earthquakeMarkup) => render(`
     <div class="earthquake-detail-mode" data-mobile-earthquake-detail="earthquake">
       ${earthquakeMarkup}
@@ -4635,6 +4696,13 @@ function renderEarthquakeList(tab, state) {
         </button>
         ${isExpanded ? renderEarthquakeObservations(observations, observationsId) : ""}
         ${isExpanded ? renderEarthquakeTsunamiDetails(tsunamiState) : ""}
+        ${isExpanded ? `
+          <div class="earthquake-share-row">
+            <button type="button" class="social-share-trigger earthquake-share-button" data-social-share="earthquake" aria-label="地震情報を画像で共有" title="地震情報を画像で共有">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0-11 4 4m-4-4L8 7M5 12v7h14v-7"/></svg>
+            </button>
+          </div>
+        ` : ""}
       </article>
     `;
   }).join(""));
