@@ -78,11 +78,20 @@ function buildRiverFloodWarning(report = {}) {
     id: `river-flood:${String(report.id ?? report.forecastAreaCode ?? riverName)}`,
     label: [riverName, levelLabel].filter(Boolean).join("・"),
     level: warningLevel,
-    status: "発表",
+    status: getRiverFloodWarningStatus(report),
     updatedAt: report.updatedAt,
     source: "river-flood",
     riverFloodReportId: String(report.id ?? "")
   };
+}
+
+export function getRiverFloodWarningStatus(report = {}) {
+  const headline = String(report.headline ?? "");
+  const marker = headline.match(/〔([^〕]+)〕/u)?.[1] ?? "";
+  if (/継続/u.test(marker)) return "継続";
+  if (/切替|引上げ|引下げ/u.test(marker)) return "切替";
+  if (/新規/u.test(marker)) return "発表";
+  return "発表";
 }
 
 function uniqueAffectedAreas(areas = []) {

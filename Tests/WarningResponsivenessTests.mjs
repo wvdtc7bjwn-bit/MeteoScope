@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { getRiverFloodLevelLabel, isRiverFloodReportActive, normalizeRiverWarningText, resolveRiverFloodLevel } from "../src/jma/riverFlood.js";
 import { buildWarningLevelMap, planWarningFeatureStateChanges } from "../src/map/warningFeatureState.js";
 import { chunkItems } from "../src/scheduling.js";
-import { mergeRiverFloodWarningsIntoGroups } from "../src/warningRiverMerge.js";
+import { getRiverFloodWarningStatus, mergeRiverFloodWarningsIntoGroups } from "../src/warningRiverMerge.js";
 
 const [appSource, leftPanelSource, weatherMapSource] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
@@ -68,6 +68,7 @@ const mergedRiverWarningGroups = mergeRiverFloodWarningsIntoGroups([
   forecastAreaName: "太平川",
   level: 3,
   levelLabel: "レベル3 氾濫警報",
+  headline: "【警戒レベル3相当情報［洪水］】〔継続〕太平川では、避難判断水位を上回る水位が続く見込み",
   updatedAt: "2026/07/26 00:10",
   affectedAreas: [
     { prefecture: "秋田県", city: "秋田市", cityCode: "0520100" },
@@ -81,6 +82,13 @@ assert.deepEqual(
     ["大雨注意報", "advisory"]
   ]
 );
+assert.equal(mergedRiverWarningGroups[0].areas[0].warnings[0].status, "継続");
+assert.equal(getRiverFloodWarningStatus({
+  headline: "【警戒レベル2情報［洪水］】〔新規〕吉田川では、氾濫注意水位に到達"
+}), "発表");
+assert.equal(getRiverFloodWarningStatus({
+  headline: "【警戒レベル2情報［洪水］】〔警戒レベル3相当から2に切替〕太平川では、水位が低下"
+}), "切替");
 
 const syntheticRiverWarningGroups = mergeRiverFloodWarningsIntoGroups([], [{
   id: "river-level-4",
