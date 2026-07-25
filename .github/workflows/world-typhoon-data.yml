@@ -24,7 +24,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: pip
 
       - name: Install ECMWF clients
         run: pip install "eccodes==2.47.0" "ecmwf-opendata==0.3.31"
