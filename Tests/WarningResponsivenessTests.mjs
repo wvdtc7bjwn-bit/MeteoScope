@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { normalizeRiverWarningText, resolveRiverFloodLevel } from "../src/jma/riverFlood.js";
+import { getRiverFloodLevelLabel, isRiverFloodReportActive, normalizeRiverWarningText, resolveRiverFloodLevel } from "../src/jma/riverFlood.js";
 import { buildWarningLevelMap, planWarningFeatureStateChanges } from "../src/map/warningFeatureState.js";
 import { chunkItems } from "../src/scheduling.js";
+import { mergeRiverFloodWarningsIntoGroups } from "../src/warningRiverMerge.js";
 
 const [appSource, leftPanelSource, weatherMapSource] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
@@ -27,6 +28,69 @@ assert.equal(resolveRiverFloodLevel({
   kindNames: ["氾濫危険情報"],
   title: "指定河川洪水予報"
 }), 4);
+assert.deepEqual(
+  [2, 3, 4, 5].map(getRiverFloodLevelLabel),
+  [
+    "レベル2 氾濫注意報",
+    "レベル3 氾濫警報",
+    "レベル4 氾濫危険警報",
+    "レベル5 氾濫特別警報・発生情報"
+  ]
+);
+assert.equal(isRiverFloodReportActive({
+  level: 2,
+  title: "太平川レベル2氾濫注意報（警報解除）",
+  condition: "レベル2氾濫注意報（警報解除）"
+}), true);
+assert.equal(isRiverFloodReportActive({
+  level: 2,
+  title: "太平川レベル2氾濫注意報解除",
+  condition: "解除"
+}), false);
+assert.equal(isRiverFloodReportActive({
+  level: 3,
+  title: "太平川レベル3氾濫警報",
+  condition: "発表"
+}), true);
+
+const mergedRiverWarningGroups = mergeRiverFloodWarningsIntoGroups([
+  {
+    prefecture: "秋田県",
+    count: 1,
+    areas: [{
+      areaCode: "0520100",
+      areaName: "秋田市",
+      warnings: [{ label: "大雨注意報", level: "advisory" }]
+    }]
+  }
+], [{
+  id: "820209000400",
+  forecastAreaName: "太平川",
+  level: 3,
+  levelLabel: "レベル3 氾濫警報",
+  updatedAt: "2026/07/26 00:10",
+  affectedAreas: [
+    { prefecture: "秋田県", city: "秋田市", cityCode: "0520100" },
+    { prefecture: "秋田県", city: "秋田市", cityCode: "0520100" }
+  ]
+}]);
+assert.deepEqual(
+  mergedRiverWarningGroups[0].areas[0].warnings.map((warning) => [warning.label, warning.level]),
+  [
+    ["太平川・レベル3 氾濫警報", "warning"],
+    ["大雨注意報", "advisory"]
+  ]
+);
+
+const syntheticRiverWarningGroups = mergeRiverFloodWarningsIntoGroups([], [{
+  id: "river-level-4",
+  forecastAreaName: "見本川",
+  level: 4,
+  levelLabel: "レベル4 氾濫危険警報",
+  affectedAreas: [{ prefecture: "見本県", city: "見本市", cityCode: "0000001" }]
+}]);
+assert.equal(syntheticRiverWarningGroups[0].areas[0].areaName, "見本市");
+assert.equal(syntheticRiverWarningGroups[0].areas[0].warnings[0].level, "danger");
 
 const officeCodes = Array.from({ length: 58 }, (_, index) => String(index + 1));
 const officeCodeBatches = chunkItems(officeCodes, 8);
@@ -69,7 +133,7 @@ assert.deepEqual(unchanged.operations, []);
 
 assert.match(
   appSource,
-  /function scheduleCriticalWarningPrefetch\(\)[\s\S]*?await prefetchTabData\("warnings"\);[\s\S]*?await refreshWarningDetailsData\(\);[\s\S]*?requestIdleCallback\(\(\) => void run\(\),\s*\{\s*timeout:\s*700\s*\}\)/
+  /function scheduleCriticalWarningPrefetch\(\)[\s\S]*?await prefetchTabData\("warnings"\);[\s\S]*?Promise\.all\(\[[\s\S]*?refreshWarningDetailsData\(\),[\s\S]*?refreshRiverFloodData\(\)[\s\S]*?\]\);[\s\S]*?requestIdleCallback\(\(\) => void run\(\),\s*\{\s*timeout:\s*700\s*\}\)/
 );
 assert.match(
   appSource,
@@ -98,6 +162,14 @@ assert.match(
 );
 assert.match(
   appSource,
+  /if \(tab\.id === "warnings" && cachedViewUpdated\) \{[\s\S]*?refreshRiverFloodData\(\);[\s\S]*?scheduleBackgroundPrefetch\(tab\.id\)/
+);
+assert.match(
+  appSource,
+  /riverFloodLoadedAt = Date\.now\(\);[\s\S]*?refreshWarningsView\(\);/
+);
+assert.match(
+  appSource,
   /if \(options\.immediateMap\) \{[\s\S]*?invalidateScheduledMapRender\(\);[\s\S]*?weatherMap\?\.renderData\(tab\.id, displayData\)/
 );
 assert.match(
@@ -107,6 +179,18 @@ assert.match(
 assert.match(
   leftPanelSource,
   /const canReuseRenderedDetails =[\s\S]*?lastWarningDetailsData === state\.data[\s\S]*?lastWarningDetailsAreaCode === selectedWarningAreaCode/
+);
+assert.match(
+  leftPanelSource,
+  /const groups = mergeRiverFloodWarningsIntoGroups\([\s\S]*?state\.data\?\.groups \?\? \[\],[\s\S]*?getRiverFloodReports\(state\.data\?\.riverFlood\)[\s\S]*?\);/
+);
+assert.match(
+  leftPanelSource,
+  /if \(groups\.length === 0\) \{[\s\S]*?発表中の警報・注意報はありません[\s\S]*?renderWarningGroupsProgressively\(root, groups/
+);
+assert.doesNotMatch(
+  leftPanelSource,
+  /河川の警報・注意報/
 );
 const nonWarningBranch = leftPanelSource.match(
   /if \(!isWarnings\) \{([\s\S]*?)\n  \}/
@@ -124,6 +208,10 @@ assert.match(
 assert.match(
   weatherMapSource,
   /setWarningOverlayVisibility\(map, null\);[\s\S]*?updateWarningFeatureStates\(map, activeAreas, warningView\)\.then\(\(applied\) => \{[\s\S]*?displayGeneration !== displayGeneration[\s\S]*?setWarningOverlayVisibility\(map, warningView\)/
+);
+assert.match(
+  weatherMapSource,
+  /const visible = mode === "warnings" && data\?\.activeWarningView === "river";/
 );
 assert.match(
   weatherMapSource,

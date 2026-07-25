@@ -60,7 +60,7 @@ export function parseRiverFloodReport(text, entry = {}) {
     kindNames: information.map((item) => item.kindName),
     title
   });
-  const active = !/解除/u.test(`${title} ${headline} ${condition}`);
+  const active = isRiverFloodReportActive({ level, title, headline, condition });
   return {
     id: String(eventId || forecastArea?.code || entry.url),
     eventId: String(eventId || ""),
@@ -278,6 +278,15 @@ export function resolveRiverFloodLevel({ condition = "", kindNames = [], title =
   return [condition, kindNames.join(" "), title]
     .map((value) => riverLevel(value))
     .find((level) => level > 0) ?? 0;
+}
+
+export function isRiverFloodReportActive({ level = 0, title = "", headline = "", condition = "" } = {}) {
+  if (Number(level) <= 0) return false;
+  const conditionText = String(condition).trim();
+  if (/解除/u.test(conditionText)) {
+    return Number(level) === 2 && /氾濫注意報.*警報解除/u.test(conditionText);
+  }
+  return !/解除/u.test(`${title} ${headline}`);
 }
 
 export function getRiverFloodLevelLabel(level) {

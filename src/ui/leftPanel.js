@@ -38,6 +38,7 @@ import {
 import { findLatestRadarObservationIndex } from "../jma/radar.js";
 import { assignAmedasCompetitionRanks } from "../amedasRanking.js";
 import { setSocialSharePayload } from "../socialShareState.js";
+import { mergeRiverFloodWarningsIntoGroups } from "../warningRiverMerge.js";
 
 let selectedWarningAreaCode = "";
 const amedasRankingOrderByMetric = {
@@ -3640,7 +3641,10 @@ if (warningView === "river") {
   }
 
   activeWarningDetailsLoaded = Boolean(state.data?.detailsLoaded);
-  const groups = state.data?.groups ?? [];
+  const groups = mergeRiverFloodWarningsIntoGroups(
+    state.data?.groups ?? [],
+    getRiverFloodReports(state.data?.riverFlood)
+  );
   const outlookAreas = state.data?.outlookAreas ?? [];
   const activeAreaEntries = groups.flatMap((group) => group.areas.map((area) => [String(area.areaCode), area]));
   activeWarningAreasByCode = new Map([
@@ -3668,7 +3672,7 @@ if (warningView === "river") {
 }
 
 function renderRiverFloodDetails(root, riverFlood = {}) {
-  const reports = Array.isArray(riverFlood?.reports) ? riverFlood.reports : [];
+  const reports = getRiverFloodReports(riverFlood);
   activeRiverFloodReportsById = new Map(reports.map((report) => [String(report.id), report]));
   activeWarningAreasByCode = new Map();
   if (!riverFlood?.status || riverFlood.status === "loading") {
@@ -3683,7 +3687,19 @@ function renderRiverFloodDetails(root, riverFlood = {}) {
     root.innerHTML = `<div class="warning-empty">現在、指定河川洪水予報は発表されていません</div>`;
     return;
   }
-  root.innerHTML = `<div class="river-flood-list">${reports.map((report) => `
+  root.innerHTML = buildRiverFloodListMarkup(reports);
+}
+
+function getRiverFloodReports(riverFlood = {}) {
+  if (riverFlood?.status !== "ok" || !Array.isArray(riverFlood.reports)) return [];
+  return [...riverFlood.reports].sort((left, right) =>
+    Number(right.level ?? 0) - Number(left.level ?? 0)
+  );
+}
+
+function buildRiverFloodListMarkup(reports = []) {
+  if (!reports.length) return "";
+  return `<div class="river-flood-list">${reports.map((report) => `
     <button type="button" class="river-flood-row" data-river-flood-id="${escapeHtml(report.id)}">
       <span class="river-flood-row-main">
         <strong>${escapeHtml(report.forecastAreaName)}</strong>

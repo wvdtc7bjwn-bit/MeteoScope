@@ -284,6 +284,7 @@ export function createWeatherApp() {
         else refreshEarthquakeData({ force: true });
       }
       if (tab.id === "warnings" && cachedViewUpdated) {
+        void refreshRiverFloodData();
         scheduleBackgroundPrefetch(tab.id);
         return;
       }
@@ -318,6 +319,7 @@ export function createWeatherApp() {
       if (tab.id === "earthquake" && earthquakeContentMode === "volcano") volcanoData = data;
       else latestDataByTab[tab.id] = data;
       updateCurrentView(tab, data, { deferPanel: true });
+      if (tab.id === "warnings") void refreshRiverFloodData();
       scheduleBackgroundPrefetch(tab.id);
     } catch (error) {
       if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
@@ -1575,6 +1577,7 @@ if (layerId === "river") {
       updateCurrentView(tab, latestDataByTab[tab.id]);
       if (tab.id === "radar") await refreshCommunityReports();
       if (tab.id === "typhoon") await refreshActiveWorldTyphoonForecasts();
+      if (tab.id === "warnings") await refreshRiverFloodData({ force });
     } catch (error) {
       console.warn(`[MeteoScope] ${tab.id} auto refresh failed`, error);
     } finally {
@@ -1947,7 +1950,7 @@ if (layerId === "river") {
           riverFlood: { ...riverFlood, status: "ok" }
         };
         riverFloodLoadedAt = Date.now();
-        refreshWarningsView({ view: "river" });
+        refreshWarningsView();
         return latestDataByTab.warnings;
       })
       .catch((error) => {
@@ -1956,7 +1959,7 @@ if (layerId === "river") {
           ...(latestDataByTab.warnings ?? {}),
           riverFlood: { status: "error", error, reports: [], riverFeatures: { type: "FeatureCollection", features: [] } }
         };
-        refreshWarningsView({ view: "river" });
+        refreshWarningsView();
         return latestDataByTab.warnings;
       })
       .finally(() => {
@@ -2034,7 +2037,10 @@ if (layerId === "river") {
     const run = async () => {
       await prefetchTabData("warnings");
       if (!document.hidden && latestDataByTab.warnings) {
-        await refreshWarningDetailsData();
+        await Promise.all([
+          refreshWarningDetailsData(),
+          refreshRiverFloodData()
+        ]);
       }
     };
     if ("requestIdleCallback" in window) {

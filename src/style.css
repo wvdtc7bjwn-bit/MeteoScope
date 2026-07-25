@@ -952,27 +952,31 @@ h2 {
 }
 
 .warning-badge-advisory,
-.mobile-dock-warning-badge-advisory {
+.mobile-dock-warning-badge-advisory,
+.river-flood-level-2 {
   background: #fff000;
   color: #000;
 }
 
 .warning-badge-warning,
-.mobile-dock-warning-badge-warning {
+.mobile-dock-warning-badge-warning,
+.river-flood-level-3 {
   background: #ff2b12;
   color: #fff;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
 }
 
 .warning-badge-danger,
-.mobile-dock-warning-badge-danger {
+.mobile-dock-warning-badge-danger,
+.river-flood-level-4 {
   background: #b400ff;
   color: #fff;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
 }
 
 .warning-badge-emergency,
-.mobile-dock-warning-badge-emergency {
+.mobile-dock-warning-badge-emergency,
+.river-flood-level-5 {
   background:
     repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.92) 0 5px, transparent 5px 10px),
     #b400ff;
@@ -12242,28 +12246,24 @@ html[data-theme="light"] .current-location-place-row small {
   line-height: 1.2;
 }
 
-.river-flood-level-5 {
-  background: #111;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
-}
-
-.river-flood-level-4 {
-  background: #a900d6;
-}
-
-.river-flood-level-3 {
-  background: #ef3340;
-}
-
-.river-flood-level-2 {
-  background: #f4d000;
-  color: #111;
-}
-
 .river-flood-level-0 {
   border: 1px solid rgba(158, 183, 214, 0.42);
   background: #405874;
   color: #f5f9ff;
+}
+
+.river-flood-level-2,
+html[data-theme="light"] .river-flood-level-2 {
+  color: #151b23;
+}
+
+.river-flood-level-3,
+.river-flood-level-4,
+.river-flood-level-5,
+html[data-theme="light"] .river-flood-level-3,
+html[data-theme="light"] .river-flood-level-4,
+html[data-theme="light"] .river-flood-level-5 {
+  color: #fff;
 }
 
 .current-location-card .river-flood-level-0 {
