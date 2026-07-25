@@ -206,14 +206,23 @@ const [appSource, panelSource, mapSource, styleSource, workflowSource, noaaScrip
 assert.match(appSource, /setupTyphoonForecastModeControls/);
 assert.match(panelSource, /data-typhoon-forecast-mode="jma"/);
 assert.match(panelSource, /data-typhoon-forecast-mode="world"/);
-assert.match(panelSource, />世界予想<\/button>/);
+assert.match(panelSource, />各国予想<\/button>/);
 assert.match(panelSource, /data-world-typhoon-model-toggle=/);
 assert.match(panelSource, /--world-model-color:/);
 assert.match(panelSource, /data-world-typhoon-time-slider/);
-assert.match(panelSource, /世界予想の予報時刻/);
+assert.match(panelSource, /各国予想の予報時刻/);
 assert.match(panelSource, /interpolateWeatherTimelineTime/);
+assert.match(panelSource, /選択時刻の予想位置/);
+assert.match(panelSource, /基準メンバーの進路/);
+assert.match(panelSource, /各予想メンバーの進路/);
+assert.match(panelSource, /線と点の色は各モデルボタンの色に対応します/);
 assert.match(styleSource, /grid-template-columns:\s*repeat\(6/);
 assert.match(appSource, /activeWorldTyphoonModels/);
+assert.match(
+  appSource,
+  /function focusSelectedTyphoon\(\)\s*\{\s*if \(activeTyphoonForecastMode === "world"\) return;/
+);
+assert.doesNotMatch(appSource, /getWorldTyphoonFocusCoordinates/);
 assert.match(appSource, /updateWorldTyphoonForecastPositions/);
 assert.match(appSource, /interpolateWorldTime:\s*true/);
 assert.match(appSource, /forecastPositions:/);

@@ -3840,10 +3840,10 @@ function createWorldLineFeatures(coordinates, { properties }) {
 }
 
 function buildWorldTyphoonPopup(system, label, modelInfo = {}, source = {}) {
-  const modelLabel = modelInfo.label ?? source.model ?? "世界予想";
+  const modelLabel = modelInfo.label ?? source.model ?? "各国予想";
   const licenceLabel = source.license ? ` / ${source.license}` : "";
   return `
-    <strong>${escapePopup(system.name ?? `${modelLabel} 世界予想`)}</strong><br>
+    <strong>${escapePopup(system.name ?? `${modelLabel} 各国予想`)}</strong><br>
     <span>${escapePopup(label)}</span><br>
     <small>${escapePopup(`${modelLabel}${licenceLabel}`)}（加工済み）</small>
   `;
@@ -3863,7 +3863,7 @@ function buildWorldTyphoonPositionPopup(
     Number.isFinite(pressure) ? `中心気圧 ${Math.round(pressure)}hPa` : "",
     Number.isFinite(wind) ? `最大風速 ${wind.toFixed(1)}m/s` : ""
   ].filter(Boolean).join(" / ");
-  const modelLabel = modelInfo.label ?? source.model ?? "世界予想";
+  const modelLabel = modelInfo.label ?? source.model ?? "各国予想";
   const licenceLabel = source.license ? ` / ${source.license}` : "";
   return `
     <strong>${escapePopup(system?.name ?? modelLabel)}</strong><br>
@@ -3897,7 +3897,7 @@ function formatWorldForecastCoordinates(latitude, longitude) {
 }
 
 function buildWorldGenesisPopup(system, modelInfo = {}, source = {}) {
-  const modelLabel = modelInfo.label ?? source.model ?? "世界予想";
+  const modelLabel = modelInfo.label ?? source.model ?? "各国予想";
   const licenceLabel = source.license ? ` / ${source.license}` : "";
   const support = Number.isFinite(Number(system.genesisProbability))
     ? `発生確率 ${Math.round(Number(system.genesisProbability))}%`

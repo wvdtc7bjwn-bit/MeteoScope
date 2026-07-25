@@ -5419,6 +5419,14 @@ h2 {
   white-space: nowrap;
 }
 
+.legend-world-typhoon-note {
+  margin: 0 2px 2px;
+  color: #a9bed8;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .legend-swatch {
   flex: none;
   width: 14px;
@@ -5485,23 +5493,37 @@ h2 {
 }
 
 .legend-world-typhoon-control {
+  width: 24px;
+  height: 4px;
   background: #008c54;
-  border-color: #0fd28a;
+  border: 0;
+  border-radius: 999px;
 }
 
 .legend-world-typhoon-member {
+  width: 24px;
+  height: 4px;
   background: linear-gradient(135deg, #22b892 0 48%, #ec5ca8 52% 100%);
-  border-color: rgba(255, 255, 255, 0.45);
+  border: 0;
+  border-radius: 999px;
 }
 
 .legend-world-typhoon-genesis {
   background: #ffad45;
-  border: 2px dashed #8e4b00;
+  border: 2px solid #fff;
+  border-radius: 50%;
 }
 
 .legend-world-typhoon-center {
   background: #ffffff;
   border: 3px solid #008c54;
+  border-radius: 50%;
+}
+
+.legend-world-typhoon-time {
+  background: #68d5ff;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
 }
 
 .legend-typhoon-warning-area,
@@ -9450,6 +9472,10 @@ html[data-theme="light"] .legend-item {
   border-color: rgba(65, 89, 116, 0.12);
   color: #2c4056;
   background: rgba(226, 235, 244, 0.74);
+}
+
+html[data-theme="light"] .legend-world-typhoon-note {
+  color: #536b84;
 }
 
 html[data-theme="light"] #main-tabs {

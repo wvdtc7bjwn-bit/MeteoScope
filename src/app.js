@@ -23,7 +23,6 @@ import {
   buildWorldTyphoonTimeline,
   fetchWorldTyphoonForecast,
   getWorldTyphoonModel,
-  getWorldTyphoonFocusCoordinates,
   selectWorldTyphoonForecastPositions,
   selectWorldTyphoonGenesisSystems,
   selectWorldTyphoonSystem
@@ -569,7 +568,7 @@ if (layerId === "river") {
         worldTyphoonForecasts[modelId] = {
           status: "error",
           data: null,
-          error: error?.message ?? "世界予想を取得できませんでした"
+          error: error?.message ?? "各国予想を取得できませんでした"
         };
         if (
           activeTab === "typhoon"
@@ -810,17 +809,7 @@ if (layerId === "river") {
   }
 
   function focusSelectedTyphoon() {
-    if (activeTyphoonForecastMode === "world") {
-      const displayData = buildTyphoonDisplayData(latestDataByTab.typhoon ?? {});
-      const coordinates = (displayData.worldForecastLayers ?? [])
-        .flatMap((layer) => getWorldTyphoonFocusCoordinates(layer.system));
-      if (!coordinates.length) return;
-      weatherMap?.fitToCoordinates(coordinates, {
-        maxZoom: 5.8,
-        duration: 900
-      });
-      return;
-    }
+    if (activeTyphoonForecastMode === "world") return;
     const typhoons = latestDataByTab.typhoon?.typhoons ?? [];
     const selected = typhoons.find((typhoon) => String(typhoon.id) === String(activeTyphoonId)) ?? typhoons[0];
     const coordinates = buildTyphoonFocusCoordinates(selected);

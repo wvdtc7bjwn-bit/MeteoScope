@@ -109,7 +109,7 @@ export function updateLeftPanel(tab, state = {}) {
     ? "火山情報"
     : (tab.id === "radar" && state.weatherChartEnabled
       ? "天気図"
-      : (tab.id === "typhoon" && state.data?.worldForecastMode ? "世界予想" : tab.label));
+      : (tab.id === "typhoon" && state.data?.worldForecastMode ? "各国予想" : tab.label));
   setText("mode-label", modeLabel);
   setText("panel-title", buildPanelTitle(tab, state));
   setPanelTitleVisible(false);
@@ -1279,9 +1279,9 @@ if (state.data?.activeWarningView === "early") {
       const enabledLabels = (state.data?.worldForecastLayers ?? [])
         .map((layer) => layer.modelInfo?.shortLabel)
         .filter(Boolean);
-      const modelLabel = enabledLabels.join("・") || "世界予想";
-      if (["idle", "loading"].includes(state.data?.worldForecastStatus)) return `${modelLabel}の世界予想を取得中です。`;
-      if (state.data?.worldForecastStatus === "error") return `${modelLabel}の世界予想を取得できませんでした。`;
+      const modelLabel = enabledLabels.join("・") || "各国予想";
+      if (["idle", "loading"].includes(state.data?.worldForecastStatus)) return `${modelLabel}の予想を取得中です。`;
+      if (state.data?.worldForecastStatus === "error") return `${modelLabel}の予想を取得できませんでした。`;
       return `${modelLabel}の進路分布と、台風に発達する可能性がある熱帯擾乱候補です。気象庁の公式な台風進路予報ではありません。`;
     }
     if (state.status === "loading") return "台風データを取得中です。";
@@ -1314,7 +1314,7 @@ if (state.data?.activeWarningView === "early") {
 
 function buildPanelTitle(tab, state) {
   if (tab.id !== "typhoon") return tab.title;
-  if (state.data?.worldForecastMode) return "世界予想";
+  if (state.data?.worldForecastMode) return "各国予想";
   if (state.status === "loading") return "台風データ取得中";
   const name = state.data?.details?.name;
   return name && name !== "未取得" ? name : "台風名 未取得";
@@ -1449,13 +1449,18 @@ function renderLegend(tabId, amedasMetricId, warningView = "status", data = null
   const root = document.getElementById("legend-list");
   if (!root) return;
   const items = buildLegendItems(tabId, amedasMetricId, warningView, data);
+  const isCountryForecast = tabId === "typhoon" && data?.worldForecastMode;
+  const title = document.querySelector("#legend-toggle span");
+  if (title) title.textContent = isCountryForecast ? "各国予想の凡例" : "凡例";
 
-  root.innerHTML = items
+  root.innerHTML = `${isCountryForecast
+    ? '<p class="legend-world-typhoon-note">線と点の色は各モデルボタンの色に対応します</p>'
+    : ""}${items
     .map(([label, className, color]) => {
       const swatchStyle = color ? ` style="background:${escapeHtml(color)}"` : "";
       return `<div class="legend-item"><span class="legend-swatch ${className}"${swatchStyle}></span>${escapeHtml(label)}</div>`;
     })
-    .join("");
+    .join("")}`;
 
 }
 
@@ -1485,11 +1490,11 @@ if (tabId === "warnings" && warningView === "early") {
   }
   if (tabId === "typhoon" && data?.worldForecastMode) {
     return [
-      ["予報時刻の位置", "", "#68d5ff"],
-      ["ENSコントロール", "legend-world-typhoon-control"],
-      ["アンサンブルメンバー", "legend-world-typhoon-member"],
-      ["熱帯擾乱の発達候補", "legend-world-typhoon-genesis"],
-      ["解析位置", "legend-world-typhoon-center"]
+      ["選択時刻の予想位置", "legend-world-typhoon-time"],
+      ["基準メンバーの進路", "legend-world-typhoon-control"],
+      ["各予想メンバーの進路", "legend-world-typhoon-member"],
+      ["台風に発達する可能性のある候補", "legend-world-typhoon-genesis"],
+      ["予報開始時の解析位置", "legend-world-typhoon-center"]
     ];
   }
   if (tabId === "earthquake") {
@@ -2368,7 +2373,7 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
   const modeSwitch = `
     <div class="mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented mobile-dock-typhoon-mode" role="group" aria-label="台風進路の表示">
       <button type="button" class="mobile-dock-action${forecastMode === "jma" ? " active" : ""}" data-mobile-dock-control data-typhoon-forecast-mode="jma" aria-pressed="${forecastMode === "jma"}">気象庁</button>
-      <button type="button" class="mobile-dock-action${forecastMode === "world" ? " active" : ""}" data-mobile-dock-control data-typhoon-forecast-mode="world" aria-pressed="${forecastMode === "world"}">世界予想</button>
+      <button type="button" class="mobile-dock-action${forecastMode === "world" ? " active" : ""}" data-mobile-dock-control data-typhoon-forecast-mode="world" aria-pressed="${forecastMode === "world"}">各国予想</button>
     </div>
   `;
   if (forecastMode === "world") {
@@ -2379,8 +2384,8 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
     const title = enabledModels.length === 0
       ? "表示モデルを選択"
       : (["idle", "loading"].includes(worldStatus)
-      ? "世界予想を取得中"
-      : (worldStatus === "error" ? "世界予想を取得できません" : "世界予想"));
+      ? "各国予想を取得中"
+      : (worldStatus === "error" ? "各国予想を取得できません" : "各国予想"));
     const modelToggles = modelStates.map((model) => {
       const modelLabel = model.modelInfo?.shortLabel ?? model.id;
       return `
@@ -2424,7 +2429,7 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
           data-mobile-dock-control
           data-world-typhoon-time-slider
           data-world-typhoon-times="${escapeHtml(JSON.stringify(forecastTimes))}"
-          aria-label="世界予想の予報時刻"
+          aria-label="各国予想の予報時刻"
           aria-valuetext="${escapeHtml(formatWorldForecastTime(selectedForecastTime))}"
         >`,
         { compact: true }
@@ -4354,7 +4359,7 @@ function buildWorldTyphoonModelDetails(layer) {
           <i aria-hidden="true"></i>
           <h3>${escapeHtml(modelLabel)}</h3>
         </header>
-        <div class="typhoon-empty"><strong>世界予想を取得中です。</strong></div>
+        <div class="typhoon-empty"><strong>各国予想を取得中です。</strong></div>
       </section>
     `;
   }
@@ -4366,7 +4371,7 @@ function buildWorldTyphoonModelDetails(layer) {
           <h3>${escapeHtml(modelLabel)}</h3>
         </header>
         <div class="typhoon-empty">
-          <strong>世界予想を取得できませんでした。</strong>
+          <strong>各国予想を取得できませんでした。</strong>
           <span>${escapeHtml(layer.error ?? "")}</span>
         </div>
       </section>
@@ -4382,7 +4387,7 @@ function buildWorldTyphoonModelDetails(layer) {
           <i aria-hidden="true"></i>
           <h3>${escapeHtml(modelLabel)}</h3>
         </header>
-        <div class="typhoon-empty"><strong>対象となる世界予想進路はありません。</strong></div>
+        <div class="typhoon-empty"><strong>対象となる各国予想進路はありません。</strong></div>
       </section>
     `;
   }
@@ -4481,7 +4486,7 @@ function renderTyphoonDetails(tab, state) {
     const layers = state.data?.worldForecastLayers ?? [];
     root.innerHTML = layers.length
       ? layers.map(buildWorldTyphoonModelDetails).join("")
-      : `<div class="typhoon-empty"><strong>表示する世界予想モデルを選択してください。</strong></div>`;
+      : `<div class="typhoon-empty"><strong>表示する各国予想モデルを選択してください。</strong></div>`;
     return;
   }
 
