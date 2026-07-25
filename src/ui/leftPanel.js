@@ -36,6 +36,7 @@ import {
   VOLCANO_SMALL_CINDERS_STYLE
 } from "../volcanoAshfall.js";
 import { findLatestRadarObservationIndex } from "../jma/radar.js";
+import { assignAmedasCompetitionRanks } from "../amedasRanking.js";
 
 let selectedWarningAreaCode = "";
 const amedasRankingOrderByMetric = {
@@ -66,7 +67,7 @@ let lastWarningDetailsView = "";
 let lastWarningDetailsStatus = "";
 let lastWarningDetailsAreaCode = "";
 
-const AMEDAS_RANKING_LIMIT = 20;
+const AMEDAS_RANKING_LIMIT = 100;
 const MOBILE_WEATHER_TIMELINE_TAP_DELAY_MS = 360;
 const MOBILE_WEATHER_TIMELINE_TAP_MAX_DURATION_MS = 500;
 const MOBILE_WEATHER_TIMELINE_TAP_MOVE_THRESHOLD_PX = 8;
@@ -3978,7 +3979,9 @@ function renderAmedasRanking(tab, state, metric) {
   const rankingView = getAmedasRankingView(metric.id);
   const windKind = metric.id === "wind" ? amedasWindRankingKind : "average";
   const order = getAmedasRankingOrder(metric.id, rankingView);
-  const items = buildAmedasRankingItems(state.data, metric, order, rankingView, windKind).slice(0, AMEDAS_RANKING_LIMIT);
+  const items = assignAmedasCompetitionRanks(
+    buildAmedasRankingItems(state.data, metric, order, rankingView, windKind)
+  ).slice(0, AMEDAS_RANKING_LIMIT);
   const orderLabel = getAmedasRankingLabel(metric.id, rankingView, windKind, order);
   const rankingUpdatedAt = getAmedasRankingUpdatedAt(state.data, metric.id, rankingView, windKind);
   const temperatureControls = metric.id === "temperature" ? `
@@ -4030,9 +4033,9 @@ function renderAmedasRanking(tab, state, metric) {
     ${pressureControls}
     ${orderControls}
     ${items.length ? `<div class="amedas-ranking-list">
-      ${items.map((item, index) => `
+      ${items.map((item) => `
         <button type="button" class="amedas-ranking-row" data-amedas-station-id="${escapeHtml(item.id)}">
-          <span class="amedas-ranking-rank">${index + 1}</span>
+          <span class="amedas-ranking-rank">${item.rank}</span>
           <span class="amedas-ranking-name">${escapeHtml(item.name)}</span>
           <span class="amedas-ranking-reading" style="--rank-color:${escapeHtml(item.color)}">
             <strong class="amedas-ranking-value">${escapeHtml(formatAmedasRankingValue(item.value, metric))}</strong>
