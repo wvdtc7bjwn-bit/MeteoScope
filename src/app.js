@@ -84,7 +84,8 @@ const KIKIKURU_DATA_TTL_MS = 60 * 1000;
 const WARNING_DETAILS_TTL_MS = 60 * 1000;
 const RIVER_FLOOD_DATA_TTL_MS = 60 * 1000;
 const WEATHER_CHART_DATA_TTL_MS = 10 * 60 * 1000;
-const LIGHTNING_DATA_TTL_MS = 5 * 60 * 1000;
+const LIGHTNING_REFRESH_INTERVAL_MS = 60 * 1000;
+const LIGHTNING_DATA_TTL_MS = LIGHTNING_REFRESH_INTERVAL_MS - 1000;
 const LOCATION_WATCH_OPTIONS = {
   enableHighAccuracy: false,
   timeout: 20000,
@@ -205,6 +206,7 @@ export function createWeatherApp() {
   let lightningPlayTimer = null;
   let weatherChartPlayTimer = null;
   let autoRefreshTimer = null;
+  let lightningRefreshTimer = null;
   let earthquakeRefreshTimer = null;
   let activeLoadRequestId = 0;
   let autoRefreshInFlight = false;
@@ -1652,6 +1654,23 @@ if (layerId === "river") {
     return request;
   }
 
+  async function refreshActiveLightning({ force = false } = {}) {
+    if (document.hidden || activeTab !== "radar" || !lightningEnabled) return;
+    if (force) lightningLoadedAt = 0;
+
+    try {
+      await refreshLightningData();
+      if (activeTab !== "radar" || !lightningEnabled) return;
+      lightningStatus = "ok";
+      refreshRadarPanel();
+    } catch (error) {
+      console.warn("[MeteoScope] lightning one-minute refresh failed", error);
+      if (activeTab !== "radar" || !lightningEnabled) return;
+      lightningStatus = "error";
+      refreshRadarPanel();
+    }
+  }
+
   function hasFreshLightningData() {
     return Boolean(
       lightningData?.frames?.length &&
@@ -2045,6 +2064,11 @@ if (layerId === "river") {
     autoRefreshTimer = window.setInterval(() => {
       refreshActiveTab({ force: true });
     }, AUTO_REFRESH_INTERVAL_MS);
+
+    if (lightningRefreshTimer) window.clearInterval(lightningRefreshTimer);
+    lightningRefreshTimer = window.setInterval(() => {
+      refreshActiveLightning({ force: true });
+    }, LIGHTNING_REFRESH_INTERVAL_MS);
 
     scheduleEarthquakeRefresh();
 

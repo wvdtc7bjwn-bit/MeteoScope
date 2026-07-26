@@ -74,13 +74,19 @@ const staleObservationFrames = buildLightningFrames([
 ]);
 assert.equal(staleObservationFrames[0].lightningObservationUrl, null);
 
-const [appSource, panelSource, mapSource] = await Promise.all([
+const [appSource, lightningSource, panelSource, mapSource] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/jma/lightning.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8")
 ]);
 
 assert.match(appSource, /fetchLightningTimes/);
+assert.match(appSource, /const LIGHTNING_REFRESH_INTERVAL_MS = 60 \* 1000/);
+assert.match(appSource, /refreshActiveLightning\(\{ force: true \}\)/);
+assert.match(appSource, /lightningRefreshTimer = window\.setInterval/);
+assert.match(lightningSource, /ttlMs: 0/);
+assert.match(lightningSource, /cache: "no-store"/);
 assert.match(panelSource, /data-radar-overlay="lightning"/);
 assert.match(panelSource, /data-mobile-lightning-slider/);
 assert.match(panelSource, /isLightning && frame\?\.isCurrent[\s\S]*\? "現在"/);

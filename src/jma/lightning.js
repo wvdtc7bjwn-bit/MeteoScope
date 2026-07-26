@@ -6,7 +6,10 @@ const OBSERVATION_FRAME_COUNT = 19;
 const MAX_LIDEN_TIME_DIFFERENCE_MS = 5 * 60 * 1000;
 
 export async function fetchLightningTimes() {
-  const times = await fetchJson(JMA_ENDPOINTS.lightningTimeList);
+  const times = await fetchJson(JMA_ENDPOINTS.lightningTimeList, {
+    ttlMs: 0,
+    cache: "no-store"
+  });
   const frames = Array.isArray(times) ? buildLightningFrames(times) : [];
   const latestObservationIndex = findLatestLightningObservationIndex(frames);
   const activeFrameIndex = latestObservationIndex >= 0
