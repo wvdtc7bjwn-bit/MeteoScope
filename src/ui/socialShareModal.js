@@ -10,8 +10,29 @@ let activeFormat = "portrait";
 let activeTheme = "dark";
 let japanMapPromise = null;
 let japanMapGeoJson = null;
+let worldMapPromise = null;
+let worldLandGeoJson = null;
+let worldCountriesGeoJson = null;
 let appIconPromise = null;
 let appIconImage = null;
+
+const SHARE_COPY = Object.freeze({
+  amedas: Object.freeze({
+    title: "アメダスランキングを画像にする",
+    description: "現在のランキング上位を、見やすいSNS投稿用PNGにまとめます。",
+    shareTitle: "MeteoScope アメダスランキング"
+  }),
+  earthquake: Object.freeze({
+    title: "地震情報を画像にする",
+    description: "現在表示している地震情報からSNS投稿用PNGを作成します。",
+    shareTitle: "MeteoScope 地震情報"
+  }),
+  typhoon: Object.freeze({
+    title: "台風情報を画像にする",
+    description: "現在表示している気象庁の台風情報からSNS投稿用PNGを作成します。",
+    shareTitle: "MeteoScope 台風情報"
+  })
+});
 
 export function setupSocialShareModal() {
   if (initialized) return;
@@ -51,16 +72,14 @@ export async function openSocialShareModal(payload) {
   document.body.classList.add("modal-open");
   const title = document.getElementById("social-share-title");
   const description = document.getElementById("social-share-description");
-  if (title) title.textContent = payload.type === "earthquake" ? "地震情報を画像にする" : "アメダスランキングを画像にする";
-  if (description) {
-    description.textContent = payload.type === "earthquake"
-      ? "現在表示している地震情報からSNS投稿用PNGを作成します。"
-      : "現在のランキング上位を、見やすいSNS投稿用PNGにまとめます。";
-  }
+  const copy = getShareCopy(payload);
+  if (title) title.textContent = copy.title;
+  if (description) description.textContent = copy.description;
   refreshControls();
   setStatus("画像を作成しています…");
   const loadingTasks = [document.fonts?.ready, loadAppIcon()];
-  if (payload.type === "earthquake") loadingTasks.push(loadJapanMap());
+  if (payload.type === "earthquake" || payload.type === "typhoon") loadingTasks.push(loadJapanMap());
+  if (payload.type === "typhoon") loadingTasks.push(loadWorldMap());
   await Promise.all(loadingTasks);
   await renderPreview();
 }
@@ -92,13 +111,18 @@ async function renderPreview() {
   const canvas = document.getElementById("social-share-preview");
   if (!activePayload || !(canvas instanceof HTMLCanvasElement)) return;
   try {
-    if (activePayload.type === "earthquake" && !japanMapGeoJson) {
+    if (["earthquake", "typhoon"].includes(activePayload.type) && !japanMapGeoJson) {
       await loadJapanMap();
+    }
+    if (activePayload.type === "typhoon" && !worldLandGeoJson) {
+      await loadWorldMap();
     }
     renderSocialShareCard(canvas, activePayload, {
       format: activeFormat,
       theme: activeTheme,
       japanGeoJson: japanMapGeoJson,
+      worldLandGeoJson,
+      worldCountriesGeoJson,
       appIcon: appIconImage
     });
     const format = SOCIAL_SHARE_FORMATS[activeFormat];
@@ -150,6 +174,25 @@ function loadJapanMap() {
   return japanMapPromise;
 }
 
+function loadWorldMap() {
+  if (!worldMapPromise) {
+    worldMapPromise = Promise.all([
+      import("../map/data/worldLandGeoJson.js"),
+      import("../map/data/worldCountriesGeoJson.js")
+    ])
+      .then(([landModule, countriesModule]) => {
+        worldLandGeoJson = landModule.worldLandGeoJson;
+        worldCountriesGeoJson = countriesModule.worldCountriesGeoJson;
+        return { worldLandGeoJson, worldCountriesGeoJson };
+      })
+      .catch((error) => {
+        console.warn("[MeteoScope] social share world map unavailable", error);
+        return null;
+      });
+  }
+  return worldMapPromise;
+}
+
 async function downloadPng() {
   const blob = await getPngBlob();
   if (!blob || !activePayload) return;
@@ -175,7 +218,7 @@ async function sharePng() {
   }
   try {
     await navigator.share({
-      title: activePayload.type === "earthquake" ? "MeteoScope 地震情報" : "MeteoScope アメダスランキング",
+      title: getShareCopy(activePayload).shareTitle,
       text: "MeteoScopeの気象・防災情報",
       files: [file]
     });
@@ -199,4 +242,8 @@ function setStatus(message, tone = "") {
   if (!status) return;
   status.textContent = message;
   status.dataset.tone = tone;
+}
+
+function getShareCopy(payload) {
+  return SHARE_COPY[payload?.type] ?? SHARE_COPY.amedas;
 }

@@ -14,7 +14,8 @@ const THEMES = {
     text: "#f4f8ff",
     muted: "#9eb4cf",
     border: "#31547d",
-    accent: "#42c8ff"
+    accent: "#42c8ff",
+    typhoonCenter: "#ffffff"
   },
   light: {
     background: ["#eaf4fc", "#d8eaf8"],
@@ -23,14 +24,15 @@ const THEMES = {
     text: "#142b44",
     muted: "#56718b",
     border: "#bfd4e6",
-    accent: "#087fc1"
+    accent: "#087fc1",
+    typhoonCenter: "#000000"
   }
 };
 
 const FONT_FAMILY = '"Noto Sans JP", "Hiragino Sans", "Yu Gothic UI", sans-serif';
 
 export function buildSocialShareFilename(payload, format = "portrait") {
-  const type = payload?.type === "earthquake" ? "earthquake" : "amedas";
+  const type = getSocialShareType(payload);
   const safeFormat = Object.hasOwn(SOCIAL_SHARE_FORMATS, format) ? format : "portrait";
   const timestamp = new Date().toISOString().replace(/\.\d{3}Z$/, "Z").replace(/[:]/g, "-");
   return `meteoscope-${type}-${safeFormat}-${timestamp}.png`;
@@ -49,16 +51,29 @@ export function renderSocialShareCard(canvas, payload, options = {}) {
   canvas.width = format.width;
   canvas.height = format.height;
   context.clearRect(0, 0, format.width, format.height);
-  if (payload?.type === "earthquake") drawEarthquakeBackground(context, format, theme);
+  const type = getSocialShareType(payload);
+  if (type === "earthquake" || type === "typhoon") drawEarthquakeBackground(context, format, theme);
   else drawBackground(context, format, theme);
   drawBrand(context, format, theme, options.appIcon);
 
-  if (payload?.type === "earthquake") {
+  if (type === "earthquake") {
     drawEarthquakeCard(context, format, theme, payload, options.japanGeoJson);
+  } else if (type === "typhoon") {
+    drawTyphoonCard(context, format, theme, payload, {
+      japanGeoJson: options.japanGeoJson,
+      worldLandGeoJson: options.worldLandGeoJson,
+      worldCountriesGeoJson: options.worldCountriesGeoJson
+    });
   } else {
     drawAmedasCard(context, format, theme, payload ?? {});
   }
   drawFooter(context, format, theme);
+}
+
+function getSocialShareType(payload) {
+  if (payload?.type === "earthquake") return "earthquake";
+  if (payload?.type === "typhoon") return "typhoon";
+  return "amedas";
 }
 
 function drawBackground(context, format, theme) {
@@ -495,6 +510,570 @@ function drawEarthquakeObservationSummary(context, x, y, width, height, theme, o
     context.font = `600 ${Math.max(13, rowHeight * 0.57)}px ${FONT_FAMILY}`;
     drawFittedText(context, label, x, rowY, width);
   });
+}
+
+function drawTyphoonCard(context, format, theme, payload, mapData) {
+  const landscape = format.height < 800;
+  const padding = Math.round(format.width * 0.065);
+  const top = landscape ? 130 : 150;
+  const panelHeight = format.height - top - (landscape ? 92 : 145);
+  const panelX = padding;
+  const panelWidth = format.width - padding * 2;
+  const inset = landscape ? 30 : 38;
+  drawEarthquakeBulletinPanel(context, panelX, top, panelWidth, panelHeight, theme);
+
+  context.fillStyle = theme.accent;
+  context.fillRect(panelX + inset, top + 30, 5, landscape ? 27 : 32);
+  context.fillStyle = theme.text;
+  context.font = `800 ${landscape ? 21 : 27}px ${FONT_FAMILY}`;
+  context.fillText("台風情報", panelX + inset + 18, top + (landscape ? 52 : 57));
+  context.textAlign = "right";
+  context.fillStyle = theme.muted;
+  context.font = `600 ${landscape ? 16 : 20}px ${FONT_FAMILY}`;
+  drawFittedText(
+    context,
+    payload.updatedAt ?? "--",
+    panelX + panelWidth - inset,
+    top + (landscape ? 52 : 56),
+    landscape ? 360 : 430
+  );
+  context.textAlign = "left";
+
+  const headerBottom = top + (landscape ? 72 : 82);
+  context.strokeStyle = theme.border;
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(panelX + inset, headerBottom);
+  context.lineTo(panelX + panelWidth - inset, headerBottom);
+  context.stroke();
+
+  const mapX = panelX + inset;
+  const mapY = headerBottom + (landscape ? 18 : 22);
+  const mapWidth = landscape
+    ? Math.round((panelWidth - inset * 2 - 30) * 0.6)
+    : panelWidth - inset * 2;
+  const mapHeight = landscape
+    ? panelHeight - (mapY - top) - 24
+    : (format.height > 1200 ? 650 : 410);
+  drawTyphoonMap(context, {
+    x: mapX,
+    y: mapY,
+    width: mapWidth,
+    height: mapHeight
+  }, theme, mapData, payload);
+
+  const contentX = landscape ? mapX + mapWidth + 30 : mapX;
+  const contentY = landscape ? mapY : mapY + mapHeight + 26;
+  const contentWidth = landscape
+    ? panelX + panelWidth - inset - contentX
+    : mapWidth;
+  const status = String(payload.transitionStatus ?? "").trim();
+  const classifications = [payload.size, payload.strength]
+    .map((value) => String(value ?? "").trim())
+    .filter((value) => value && value !== "-");
+  const subline = status || classifications.join("・") || "解析情報";
+  drawTyphoonHeadline(
+    context,
+    contentX,
+    contentY,
+    contentWidth,
+    payload.name ?? "台風",
+    subline,
+    theme,
+    landscape
+  );
+
+  const metricTop = contentY + (landscape ? 104 : 112);
+  const metrics = [
+    ["中心気圧", payload.pressure ?? "-"],
+    ["最大風速", payload.maxWind ?? "-"],
+    ["最大瞬間風速", payload.maxGust ?? "-"],
+    ["移動", payload.movement ?? "-"]
+  ];
+  drawTyphoonMetricGrid(context, contentX, metricTop, contentWidth, metrics, theme, landscape);
+}
+
+function drawTyphoonHeadline(context, x, y, width, name, status, theme, landscape) {
+  context.fillStyle = theme.accent;
+  context.font = `800 ${landscape ? 13 : 16}px ${FONT_FAMILY}`;
+  context.fillText("気象庁発表", x, y + (landscape ? 16 : 18));
+
+  context.fillStyle = theme.text;
+  context.font = `800 ${landscape ? 30 : 39}px ${FONT_FAMILY}`;
+  drawFittedText(context, name, x, y + (landscape ? 54 : 61), width);
+
+  context.fillStyle = theme.muted;
+  context.font = `600 ${landscape ? 15 : 19}px ${FONT_FAMILY}`;
+  drawFittedText(context, status, x, y + (landscape ? 82 : 92), width);
+}
+
+function drawTyphoonMetricGrid(context, x, y, width, metrics, theme, landscape) {
+  const columnCount = landscape ? 2 : 4;
+  const rowCount = landscape ? 2 : 1;
+  const height = landscape ? 134 : 104;
+  const columnWidth = width / columnCount;
+  const rowHeight = height / rowCount;
+
+  roundedRect(context, x, y, width, height, 14);
+  context.fillStyle = theme.panelSoft;
+  context.fill();
+  context.strokeStyle = theme.border;
+  context.lineWidth = 1;
+  context.stroke();
+
+  context.beginPath();
+  for (let column = 1; column < columnCount; column += 1) {
+    const lineX = x + columnWidth * column;
+    context.moveTo(lineX, y + 14);
+    context.lineTo(lineX, y + height - 14);
+  }
+  if (landscape) {
+    context.moveTo(x + 14, y + rowHeight);
+    context.lineTo(x + width - 14, y + rowHeight);
+  }
+  context.stroke();
+
+  metrics.forEach(([label, value], index) => {
+    const column = index % columnCount;
+    const row = Math.floor(index / columnCount);
+    const boxX = x + column * columnWidth;
+    const boxY = y + row * rowHeight;
+    context.fillStyle = theme.muted;
+    context.font = `700 ${landscape ? 12 : 15}px ${FONT_FAMILY}`;
+    context.fillText(label, boxX + 15, boxY + (landscape ? 22 : 30));
+    context.fillStyle = theme.text;
+    context.font = `800 ${landscape ? 18 : 23}px ${FONT_FAMILY}`;
+    drawFittedText(
+      context,
+      value,
+      boxX + 15,
+      boxY + (landscape ? 50 : 69),
+      columnWidth - 30
+    );
+  });
+}
+
+function drawTyphoonMap(context, box, theme, mapData, payload) {
+  context.save();
+  roundedRect(context, box.x, box.y, box.width, box.height, 12);
+  context.clip();
+  context.fillStyle = theme.background[0];
+  context.fillRect(box.x, box.y, box.width, box.height);
+
+  const track = Array.isArray(payload.track) ? payload.track.filter(isCoordinate) : [];
+  const forecastTrack = Array.isArray(payload.forecastTrack)
+    ? payload.forecastTrack.filter(isCoordinate)
+    : [];
+  const forecastCenters = Array.isArray(payload.forecastCircles)
+    ? payload.forecastCircles.map((item) => item?.center).filter(isCoordinate)
+    : [];
+  const center = isCoordinate(payload.center) ? payload.center : null;
+  const forecastLine = buildTyphoonForecastLine(center, forecastTrack, forecastCenters);
+  const strongWindCenter = isCoordinate(payload.strongWindCenter)
+    ? payload.strongWindCenter
+    : center;
+  const stormCenter = isCoordinate(payload.stormCenter)
+    ? payload.stormCenter
+    : center;
+  const extentPoints = [
+    ...track,
+    ...forecastLine,
+    ...forecastCenters,
+    ...(center ? [center] : [])
+  ];
+  appendTyphoonRadiusExtentPoints(extentPoints, strongWindCenter, payload.strongWindRadius);
+  appendTyphoonRadiusExtentPoints(extentPoints, stormCenter, payload.stormRadius);
+  (payload.forecastCircles ?? []).forEach((forecast) => {
+    appendTyphoonRadiusExtentPoints(extentPoints, forecast?.center, forecast?.radius);
+  });
+  const bounds = calculateTyphoonMapBounds(extentPoints, box);
+  const project = ([longitude, latitude]) => [
+    box.x + ((Number(longitude) - bounds.minLon) / (bounds.maxLon - bounds.minLon)) * box.width,
+    box.y + ((bounds.maxLat - Number(latitude)) / (bounds.maxLat - bounds.minLat)) * box.height
+  ];
+
+  drawTyphoonGeoJson(context, mapData?.worldLandGeoJson, project, bounds, {
+    fillStyle: theme.panelSoft,
+    strokeStyle: theme.border,
+    lineWidth: Math.max(0.8, box.width / 620),
+    fill: true
+  });
+  drawTyphoonGeoJson(context, mapData?.worldCountriesGeoJson, project, bounds, {
+    strokeStyle: theme.muted,
+    lineWidth: Math.max(0.8, box.width / 700)
+  });
+  drawTyphoonGeoJson(context, mapData?.japanGeoJson, project, bounds, {
+    strokeStyle: theme.text,
+    lineWidth: Math.max(1, box.width / 520)
+  });
+
+  drawTyphoonRadiusArea(context, strongWindCenter, payload.strongWindRadius, project, {
+    fillStyle: "rgba(250, 204, 21, 0.18)",
+    strokeStyle: "#facc15",
+    lineWidth: Math.max(2, box.width / 280)
+  });
+  drawTyphoonRadiusArea(context, stormCenter, payload.stormRadius, project, {
+    fillStyle: "rgba(239, 68, 68, 0.22)",
+    strokeStyle: "#ef4444",
+    lineWidth: Math.max(2, box.width / 260)
+  });
+  (payload.forecastCircles ?? []).forEach((forecast) => {
+    drawTyphoonRadiusArea(context, forecast?.center, forecast?.radius, project, {
+      fillStyle: "rgba(0, 0, 0, 0)",
+      strokeStyle: theme.text,
+      lineWidth: Math.max(1.5, box.width / 350),
+      dash: [Math.max(5, box.width / 90), Math.max(4, box.width / 115)]
+    });
+  });
+  drawTyphoonForecastEnvelope(
+    context,
+    center,
+    payload.forecastCircles,
+    project,
+    box,
+    theme.text
+  );
+
+  drawTyphoonTrack(context, track, project, theme.muted, [], Math.max(2, box.width / 250));
+  drawTyphoonTrack(
+    context,
+    forecastLine,
+    project,
+    theme.text,
+    [Math.max(6, box.width / 65), Math.max(5, box.width / 85)],
+    Math.max(2, box.width / 220)
+  );
+
+  (payload.forecastCircles ?? []).forEach((forecast, index) => {
+    if (!isCoordinate(forecast?.center)) return;
+    const [pointX, pointY] = project(forecast.center);
+    const radius = Math.max(2.5, Math.min(4.5, Math.min(box.width, box.height) * 0.009));
+    context.fillStyle = theme.text;
+    context.beginPath();
+    context.arc(pointX, pointY, radius, 0, Math.PI * 2);
+    context.fill();
+    if (!forecast.label || (index > 0 && index < payload.forecastCircles.length - 1)) return;
+    context.fillStyle = theme.text;
+    context.font = `700 ${Math.max(12, box.width * 0.022)}px ${FONT_FAMILY}`;
+    context.textAlign = "center";
+    context.textBaseline = "bottom";
+    context.fillText(String(forecast.label), pointX, pointY - radius - 5);
+  });
+
+  if (center) {
+    const [pointX, pointY] = project(center);
+    const markerSize = Math.max(6, Math.min(10, Math.min(box.width, box.height) * 0.024));
+    context.lineCap = "round";
+    context.beginPath();
+    context.moveTo(pointX - markerSize, pointY - markerSize);
+    context.lineTo(pointX + markerSize, pointY + markerSize);
+    context.moveTo(pointX + markerSize, pointY - markerSize);
+    context.lineTo(pointX - markerSize, pointY + markerSize);
+    context.strokeStyle = "rgba(8, 24, 43, 0.82)";
+    context.lineWidth = Math.max(4, markerSize * 0.56);
+    context.stroke();
+    context.strokeStyle = theme.typhoonCenter;
+    context.lineWidth = Math.max(2, markerSize * 0.28);
+    context.stroke();
+  }
+
+  context.fillStyle = theme.text;
+  context.font = `700 ${Math.max(13, box.width * 0.024)}px ${FONT_FAMILY}`;
+  context.textAlign = "left";
+  context.textBaseline = "top";
+  context.fillText("進路・風域", box.x + 14, box.y + 12);
+  drawTyphoonMapLegend(context, box, theme, {
+    hasStrongWindArea: Number(payload.strongWindRadius) > 0,
+    hasStormArea: Number(payload.stormRadius) > 0,
+    hasForecastCircles: (payload.forecastCircles ?? []).some((forecast) => Number(forecast?.radius) > 0)
+  });
+  context.restore();
+  context.textAlign = "left";
+  context.textBaseline = "alphabetic";
+}
+
+function buildTyphoonForecastLine(center, forecastTrack, forecastCenters) {
+  const points = (forecastTrack.length >= 2 ? forecastTrack : forecastCenters)
+    .filter(isCoordinate)
+    .map((point) => [Number(point[0]), Number(point[1])]);
+  if (center && !sameTyphoonCoordinate(center, points[0])) {
+    points.unshift([Number(center[0]), Number(center[1])]);
+  }
+  return points.filter((point, index) => (
+    index === 0 || !sameTyphoonCoordinate(point, points[index - 1])
+  ));
+}
+
+function sameTyphoonCoordinate(first, second) {
+  if (!isCoordinate(first) || !isCoordinate(second)) return false;
+  return Math.abs(Number(first[0]) - Number(second[0])) < 0.0001
+    && Math.abs(Number(first[1]) - Number(second[1])) < 0.0001;
+}
+
+function drawTyphoonForecastEnvelope(
+  context,
+  center,
+  forecastCircles,
+  project,
+  box,
+  color
+) {
+  const circles = (forecastCircles ?? [])
+    .filter((forecast) => isCoordinate(forecast?.center) && Number(forecast?.radius) > 0)
+    .map((forecast) => ({
+      center: forecast.center,
+      radius: Number(forecast.radius)
+    }));
+  if (!circles.length) return;
+  const nodes = center && !sameTyphoonCoordinate(center, circles[0]?.center)
+    ? [{ center, radius: 0 }, ...circles]
+    : circles;
+  if (nodes.length < 2) return;
+
+  context.save();
+  context.strokeStyle = color;
+  context.lineWidth = Math.max(1.5, box.width / 330);
+  context.lineJoin = "round";
+  context.lineCap = "round";
+  context.setLineDash([]);
+  for (let index = 1; index < nodes.length; index += 1) {
+    const previous = nodes[index - 1];
+    const current = nodes[index];
+    const previousCircle = getTyphoonProjectedCircle(previous.center, previous.radius, project);
+    const currentCircle = getTyphoonProjectedCircle(current.center, current.radius, project);
+    const tangents = calculateTyphoonCircleTangents(previousCircle, currentCircle);
+    if (!tangents.length) continue;
+    context.beginPath();
+    tangents.forEach(([start, end]) => {
+      context.moveTo(start.x, start.y);
+      context.lineTo(end.x, end.y);
+    });
+    context.stroke();
+  }
+  context.restore();
+}
+
+export function calculateTyphoonCircleTangents(circleA, circleB) {
+  const deltaX = circleB.x - circleA.x;
+  const deltaY = circleB.y - circleA.y;
+  const distanceSquared = deltaX * deltaX + deltaY * deltaY;
+  const radiusDifference = circleA.radius - circleB.radius;
+  const tangentSquared = distanceSquared - radiusDifference * radiusDifference;
+  if (distanceSquared <= 0 || tangentSquared <= 0) return [];
+
+  const tangentLength = Math.sqrt(tangentSquared);
+  return [-1, 1].map((side) => {
+    const normalX = (
+      deltaX * radiusDifference - side * deltaY * tangentLength
+    ) / distanceSquared;
+    const normalY = (
+      deltaY * radiusDifference + side * deltaX * tangentLength
+    ) / distanceSquared;
+    return [
+      {
+        x: circleA.x + normalX * circleA.radius,
+        y: circleA.y + normalY * circleA.radius
+      },
+      {
+        x: circleB.x + normalX * circleB.radius,
+        y: circleB.y + normalY * circleB.radius
+      }
+    ];
+  });
+}
+
+function drawTyphoonGeoJson(context, geoJson, project, bounds, options = {}) {
+  if (!geoJson?.features?.length) return;
+  context.save();
+  context.fillStyle = options.fillStyle ?? "transparent";
+  context.strokeStyle = options.strokeStyle ?? "transparent";
+  context.lineWidth = options.lineWidth ?? 1;
+  context.lineJoin = "round";
+  context.lineCap = "round";
+  (geoJson.features ?? []).forEach((feature) => {
+    const geometry = feature?.geometry;
+    const polygons = geometry?.type === "Polygon"
+      ? [geometry.coordinates]
+      : (geometry?.type === "MultiPolygon" ? geometry.coordinates : []);
+    polygons.forEach((polygon) => {
+      if (!typhoonPolygonIntersectsBounds(polygon, bounds)) return;
+      context.beginPath();
+      polygon.forEach((ring) => {
+        ring.forEach((point, index) => {
+          if (!isCoordinate(point)) return;
+          const [pointX, pointY] = project(point);
+          if (index === 0) context.moveTo(pointX, pointY);
+          else context.lineTo(pointX, pointY);
+        });
+        context.closePath();
+      });
+      if (options.fill) context.fill("evenodd");
+      context.stroke();
+    });
+  });
+  context.restore();
+}
+
+function typhoonPolygonIntersectsBounds(polygon, bounds) {
+  let minLon = Number.POSITIVE_INFINITY;
+  let maxLon = Number.NEGATIVE_INFINITY;
+  let minLat = Number.POSITIVE_INFINITY;
+  let maxLat = Number.NEGATIVE_INFINITY;
+  (polygon ?? []).forEach((ring) => {
+    (ring ?? []).forEach((point) => {
+      if (!isCoordinate(point)) return;
+      minLon = Math.min(minLon, Number(point[0]));
+      maxLon = Math.max(maxLon, Number(point[0]));
+      minLat = Math.min(minLat, Number(point[1]));
+      maxLat = Math.max(maxLat, Number(point[1]));
+    });
+  });
+  if (!Number.isFinite(minLon)) return false;
+  return maxLon >= bounds.minLon
+    && minLon <= bounds.maxLon
+    && maxLat >= bounds.minLat
+    && minLat <= bounds.maxLat;
+}
+
+function drawTyphoonMapLegend(context, box, theme, visibility) {
+  const items = [
+    visibility.hasStrongWindArea ? { label: "強風域", color: "#facc15", dash: [] } : null,
+    visibility.hasStormArea ? { label: "暴風域", color: "#ef4444", dash: [] } : null,
+    visibility.hasForecastCircles ? { label: "予報円", color: theme.text, dash: [5, 4] } : null
+  ].filter(Boolean);
+  if (!items.length) return;
+  const fontSize = Math.max(11, Math.min(16, box.width * 0.02));
+  const itemWidth = Math.max(68, box.width * 0.13);
+  const width = itemWidth * items.length + 20;
+  const height = fontSize + 22;
+  const x = box.x + box.width - width - 12;
+  const y = box.y + box.height - height - 10;
+  roundedRect(context, x, y, width, height, 8);
+  context.fillStyle = theme.panel;
+  context.globalAlpha = 0.88;
+  context.fill();
+  context.globalAlpha = 1;
+  context.font = `700 ${fontSize}px ${FONT_FAMILY}`;
+  context.textAlign = "left";
+  context.textBaseline = "middle";
+  items.forEach((item, index) => {
+    const itemX = x + 10 + index * itemWidth;
+    const centerY = y + height / 2;
+    context.save();
+    context.strokeStyle = item.color;
+    context.lineWidth = 3;
+    context.setLineDash(item.dash);
+    context.beginPath();
+    context.moveTo(itemX, centerY);
+    context.lineTo(itemX + 20, centerY);
+    context.stroke();
+    context.restore();
+    context.fillStyle = theme.text;
+    context.fillText(item.label, itemX + 27, centerY);
+  });
+}
+
+function drawTyphoonRadiusArea(context, center, radiusKm, project, options = {}) {
+  const radius = Number(radiusKm);
+  if (!isCoordinate(center) || !Number.isFinite(radius) || radius <= 0) return;
+  const projectedCircle = getTyphoonProjectedCircle(center, radius, project);
+  if (!(projectedCircle.radius > 0)) return;
+  context.save();
+  context.fillStyle = options.fillStyle ?? "transparent";
+  context.strokeStyle = options.strokeStyle ?? "#ffffff";
+  context.lineWidth = options.lineWidth ?? 2;
+  context.setLineDash(options.dash ?? []);
+  context.beginPath();
+  context.arc(
+    projectedCircle.x,
+    projectedCircle.y,
+    projectedCircle.radius,
+    0,
+    Math.PI * 2
+  );
+  context.fill();
+  context.stroke();
+  context.restore();
+}
+
+function getTyphoonProjectedCircle(center, radiusKm, project) {
+  const [centerX, centerY] = project(center);
+  if (!(Number(radiusKm) > 0)) return { x: centerX, y: centerY, radius: 0 };
+  const eastEdge = project(destinationPointForTyphoonCard(center, Number(radiusKm), 90));
+  return {
+    x: centerX,
+    y: centerY,
+    radius: Math.hypot(eastEdge[0] - centerX, eastEdge[1] - centerY)
+  };
+}
+
+function appendTyphoonRadiusExtentPoints(points, center, radiusKm) {
+  const radius = Number(radiusKm);
+  if (!isCoordinate(center) || !Number.isFinite(radius) || radius <= 0) return;
+  [0, 90, 180, 270].forEach((bearing) => {
+    points.push(destinationPointForTyphoonCard(center, radius, bearing));
+  });
+}
+
+function destinationPointForTyphoonCard([longitude, latitude], distanceKm, bearingDegrees) {
+  const earthRadiusKm = 6371.0088;
+  const angularDistance = distanceKm / earthRadiusKm;
+  const bearing = bearingDegrees * Math.PI / 180;
+  const latitudeRadians = latitude * Math.PI / 180;
+  const longitudeRadians = longitude * Math.PI / 180;
+  const destinationLatitude = Math.asin(
+    Math.sin(latitudeRadians) * Math.cos(angularDistance)
+    + Math.cos(latitudeRadians) * Math.sin(angularDistance) * Math.cos(bearing)
+  );
+  const destinationLongitude = longitudeRadians + Math.atan2(
+    Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(latitudeRadians),
+    Math.cos(angularDistance) - Math.sin(latitudeRadians) * Math.sin(destinationLatitude)
+  );
+  return [
+    ((destinationLongitude * 180 / Math.PI + 540) % 360) - 180,
+    destinationLatitude * 180 / Math.PI
+  ];
+}
+
+function drawTyphoonTrack(context, points, project, color, dash, width) {
+  if (points.length < 2) return;
+  context.save();
+  context.strokeStyle = color;
+  context.lineWidth = width;
+  context.lineJoin = "round";
+  context.lineCap = "round";
+  context.setLineDash(dash);
+  context.beginPath();
+  points.forEach((point, index) => {
+    const [pointX, pointY] = project(point);
+    if (index === 0) context.moveTo(pointX, pointY);
+    else context.lineTo(pointX, pointY);
+  });
+  context.stroke();
+  context.restore();
+}
+
+function calculateTyphoonMapBounds(points, box) {
+  const validPoints = points.filter(isCoordinate);
+  if (!validPoints.length) {
+    return { minLon: 118, maxLon: 152, minLat: 18, maxLat: 48 };
+  }
+  let minLon = Math.min(...validPoints.map((point) => Number(point[0])));
+  let maxLon = Math.max(...validPoints.map((point) => Number(point[0])));
+  let minLat = Math.min(...validPoints.map((point) => Number(point[1])));
+  let maxLat = Math.max(...validPoints.map((point) => Number(point[1])));
+  const centerLon = (minLon + maxLon) / 2;
+  const centerLat = (minLat + maxLat) / 2;
+  let lonSpan = Math.max(8, maxLon - minLon) * 1.34;
+  let latSpan = Math.max(7, maxLat - minLat) * 1.34;
+  const targetAspect = box.width / box.height;
+  if (lonSpan / latSpan < targetAspect) lonSpan = latSpan * targetAspect;
+  else latSpan = lonSpan / targetAspect;
+  minLon = centerLon - lonSpan / 2;
+  maxLon = centerLon + lonSpan / 2;
+  minLat = centerLat - latSpan / 2;
+  maxLat = centerLat + latSpan / 2;
+  return { minLon, maxLon, minLat, maxLat };
 }
 
 export function sortEarthquakeObservationsForMap(observations = []) {

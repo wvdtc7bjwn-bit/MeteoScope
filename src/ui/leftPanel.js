@@ -4516,11 +4516,13 @@ function renderTyphoonDetails(tab, state) {
   const isTyphoon = tab.id === "typhoon";
   root.hidden = !isTyphoon;
   if (!isTyphoon) {
+    setSocialSharePayload("typhoon", null);
     root.innerHTML = "";
     return;
   }
 
   if (state.data?.worldForecastMode) {
+    setSocialSharePayload("typhoon", null);
     const layers = state.data?.worldForecastLayers ?? [];
     root.innerHTML = layers.length
       ? layers.map(buildWorldTyphoonModelDetails).join("")
@@ -4529,6 +4531,7 @@ function renderTyphoonDetails(tab, state) {
   }
 
   if (state.data?.hasTyphoon === false) {
+    setSocialSharePayload("typhoon", null);
     root.innerHTML = `
       <div class="typhoon-empty">
         <strong>${escapeHtml(NO_TYPHOON_MESSAGE)}</strong>
@@ -4538,10 +4541,38 @@ function renderTyphoonDetails(tab, state) {
   }
 
   const details = getTyphoonDetails(state);
-  const transitionStatus = state.data?.selectedTyphoon?.transitionStatus
-    ?? state.data?.selectedTyphoon?.details?.transitionStatus
+  const selectedTyphoon = state.data?.selectedTyphoon
+    ?? state.data?.typhoons?.[0]
+    ?? null;
+  const transitionStatus = selectedTyphoon?.transitionStatus
+    ?? selectedTyphoon?.details?.transitionStatus
     ?? details.transitionStatus
     ?? "";
+  if (selectedTyphoon) {
+    setSocialSharePayload("typhoon", {
+      type: "typhoon",
+      name: selectedTyphoon.name ?? details.name ?? "台風",
+      updatedAt: selectedTyphoon.updatedAt ?? state.data?.updatedAt ?? state.data?.latestTime ?? "-",
+      center: selectedTyphoon.center,
+      track: selectedTyphoon.track ?? selectedTyphoon.pastTrack ?? [],
+      forecastTrack: selectedTyphoon.forecastTrack ?? [],
+      forecastCircles: selectedTyphoon.forecastCircles ?? [],
+      strongWindRadius: selectedTyphoon.strongWindRadius,
+      strongWindCenter: selectedTyphoon.strongWindCenter ?? selectedTyphoon.center,
+      stormRadius: selectedTyphoon.stormRadius,
+      stormCenter: selectedTyphoon.stormCenter ?? selectedTyphoon.center,
+      transitionStatus,
+      size: details.size,
+      strength: details.strength,
+      pressure: details.pressure,
+      maxWind: details.maxWind,
+      maxGust: details.maxGust,
+      movement: formatTyphoonMovement(details.direction, details.speed),
+      position: details.position
+    });
+  } else {
+    setSocialSharePayload("typhoon", null);
+  }
   const statusMarkup = transitionStatus ? `
     <div class="typhoon-transition-status" role="status">
       <span>現在の状態</span>
@@ -4560,7 +4591,13 @@ function renderTyphoonDetails(tab, state) {
       <span>${escapeHtml(label)}</span>
       <strong>${escapeHtml(value)}</strong>
     </div>
-  `).join("");
+  `).join("") + (selectedTyphoon ? `
+    <div class="typhoon-share-row">
+      <button type="button" class="social-share-trigger typhoon-share-button" data-social-share="typhoon" aria-label="台風情報を画像で共有" title="台風情報を画像で共有">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0-11 4 4m-4-4L8 7M5 12v7h14v-7"/></svg>
+      </button>
+    </div>
+  ` : "");
 }
 
 function renderEarthquakeList(tab, state) {
