@@ -112,7 +112,9 @@ export function updateLeftPanel(tab, state = {}) {
     ? "火山情報"
     : (tab.id === "radar" && state.weatherChartEnabled
       ? "天気図"
-      : (tab.id === "typhoon" && state.data?.worldForecastMode ? "各国予想" : tab.label));
+      : (tab.id === "radar" && state.lightningEnabled
+        ? "雷"
+        : (tab.id === "typhoon" && state.data?.worldForecastMode ? "各国予想" : tab.label)));
   setText("mode-label", modeLabel);
   setText("panel-title", buildPanelTitle(tab, state));
   setPanelTitleVisible(false);
@@ -588,6 +590,7 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
   const isRadarSlider = (slider) => (
     slider?.id === "radar-time-slider"
     || slider?.matches?.("[data-mobile-radar-slider]")
+    || slider?.matches?.("[data-mobile-lightning-slider]")
   );
   const preventTimelineSelection = (event) => {
     if (!(event.target instanceof Element)) return;
@@ -597,7 +600,9 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
   let activeSliderValue = null;
   let activeSliderStartX = null;
   let activeSliderStartValue = null;
-  const isMobileRadarSlider = (slider) => slider?.matches?.("[data-mobile-radar-slider]");
+  const isMobileRadarSlider = (slider) => slider?.matches?.(
+    "[data-mobile-radar-slider], [data-mobile-lightning-slider]"
+  );
   const updateRadarSliderPresentation = (slider, value) => {
     if (!isMobileRadarSlider(slider)) return;
     updateMobileRadarSliderProgress(slider);
@@ -685,6 +690,9 @@ export function setupMobileWeatherTimelineTapControls({
   onRadarPlay,
   onRadarStop,
   onRadarGoLatest,
+  onLightningPlay,
+  onLightningStop,
+  onLightningGoLatest,
   onWeatherChartPlay,
   onWeatherChartStop,
   onWeatherChartGoLatest
@@ -700,6 +708,7 @@ export function setupMobileWeatherTimelineTapControls({
   const getTapMode = (target) => {
     if (!(target instanceof HTMLInputElement)) return "";
     if (target.matches("[data-mobile-radar-slider]")) return "radar";
+    if (target.matches("[data-mobile-lightning-slider]")) return "lightning";
     if (target.matches("[data-mobile-weather-chart-slider]")) return "weather-chart";
     return "";
   };
@@ -716,7 +725,9 @@ export function setupMobileWeatherTimelineTapControls({
   const runTapAction = (mode, count) => {
     const actions = mode === "weather-chart"
       ? [onWeatherChartPlay, onWeatherChartStop, onWeatherChartGoLatest]
-      : [onRadarPlay, onRadarStop, onRadarGoLatest];
+      : (mode === "lightning"
+        ? [onLightningPlay, onLightningStop, onLightningGoLatest]
+        : [onRadarPlay, onRadarStop, onRadarGoLatest]);
     actions[count - 1]?.();
   };
   const commitTapSequence = () => {
@@ -1311,6 +1322,11 @@ if (state.data?.activeWarningView === "early") {
     if (state.weatherChartStatus === "error") return "天気図データを取得できませんでした。";
     return "気象庁の天気図を地図上に重ねています。";
   }
+  if (tab.id === "radar" && state.lightningEnabled) {
+    if (state.lightningStatus === "loading") return "雷活動度と雷放電の観測データを取得中です。";
+    if (state.lightningStatus === "error") return "雷活動度と雷放電の観測データを取得できませんでした。";
+    return "気象庁の雷活動度と、直前5分間の落雷・雲放電を地図上に重ねています。観測位置には誤差や未検知が生じる場合があります。";
+  }
   if (state.status === "loading") return `${tab.description}\nデータを取得中です。`;
   if (state.status === "error") return `${tab.description}\n取得に失敗しました。CORSまたはURL変更の可能性があります。`;
   return tab.description;
@@ -1470,6 +1486,16 @@ function renderLegend(tabId, amedasMetricId, warningView = "status", data = null
 
 function buildLegendItems(tabId, amedasMetricId, warningView = "status", data = null) {
   if (tabId === "radar") {
+    if (data?.lightningEnabled) {
+      return [
+        ["× 対地放電（落雷）", "", "#faf500"],
+        ["○ 雲放電", "", "#faf500"],
+        ["活動度1", "", "#fff100"],
+        ["活動度2", "", "#ff9d00"],
+        ["活動度3", "", "#f04444"],
+        ["活動度4", "", "#b530d5"]
+      ];
+    }
     return AMEDAS_PRECIPITATION_LEVELS.map((level) => [level.label, "", level.color]);
   }
   if (tabId === "amedas") {
@@ -1626,11 +1652,14 @@ function renderRadarControls(tab, state) {
   const isRadar = tab.id === "radar";
   root.hidden = !isRadar;
   root.classList.toggle("weather-chart-active", isRadar && Boolean(state.weatherChartEnabled));
+  root.classList.toggle("lightning-active", isRadar && Boolean(state.lightningEnabled));
   if (!isRadar) return;
   if (state.weatherChartEnabled) return;
 
-  const frames = state.data?.frames ?? [];
-  const activeIndex = Number(state.data?.activeFrameIndex ?? 0);
+  const isLightning = Boolean(state.lightningEnabled);
+  const timelineData = isLightning ? (state.lightning ?? state.data?.lightning) : state.data;
+  const frames = timelineData?.frames ?? [];
+  const activeIndex = Number(timelineData?.activeFrameIndex ?? 0);
   const activeFrame = frames[activeIndex] ?? null;
   const currentIndex = findLatestRadarObservationIndex(frames);
   const timelineFrames = frames.map((frame, frameIndex) => ({
@@ -1640,21 +1669,25 @@ function renderRadarControls(tab, state) {
 
   slider.max = String(Math.max(0, frames.length - 1));
   slider.value = String(Math.min(activeIndex, Math.max(0, frames.length - 1)));
-  slider.disabled = frames.length <= 1 || state.status === "loading" || state.status === "error";
+  slider.setAttribute("aria-label", isLightning ? "雷の時刻を選択" : "雨雲レーダーの時刻を選択");
+  const timelineStatus = isLightning ? state.lightningStatus : state.status;
+  slider.disabled = frames.length <= 1 || timelineStatus === "loading" || timelineStatus === "error";
   renderWeatherTimeTimeline(
     document.getElementById("radar-time-timeline"),
     timelineFrames,
     activeIndex,
-    (frame) => compactWeatherTimeLabel(frame?.label)
+    (frame) => isLightning && frame?.isCurrent
+      ? "現在"
+      : compactWeatherTimeLabel(frame?.label)
   );
 
   label.textContent = activeFrame?.label
     ? `更新時刻: ${activeFrame.label}`
-    : (state.status === "loading" ? "更新時刻: 取得中" : "更新時刻: --");
+    : (timelineStatus === "loading" ? "更新時刻: 取得中" : "更新時刻: --");
   kind.textContent = activeFrame?.isForecast ? "予測" : "観測";
   kind.classList.toggle("forecast", Boolean(activeFrame?.isForecast));
 
-  const radarPlaying = Boolean(state.radarPlaying);
+  const radarPlaying = isLightning ? Boolean(state.lightningPlaying) : Boolean(state.radarPlaying);
   document.getElementById("radar-play")?.classList.toggle("playing", radarPlaying);
   const playButton = document.getElementById("radar-play");
   if (playButton) {
@@ -3058,7 +3091,9 @@ function buildKikikuruMobileLayerRow(activeKikikuruLayer) {
 }
 function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   const weatherChartEnabled = Boolean(state.weatherChartEnabled);
+  const lightningEnabled = Boolean(state.lightningEnabled);
   const weatherChartLoading = weatherChartEnabled && state.weatherChartStatus === "loading";
+  const lightningLoading = lightningEnabled && state.lightningStatus === "loading";
   const weatherChart = state.weatherChart ?? state.data?.weatherChart;
   const chartFrames = Array.isArray(weatherChart?.frames)
     ? weatherChart.frames
@@ -3074,6 +3109,18 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
     meta: item?.isForecast ? "予測" : "観測",
     isCurrent: frameIndex === currentRadarIndex
   }));
+  const lightning = state.lightning ?? state.data?.lightning;
+  const lightningFrames = lightning?.frames ?? [];
+  const lightningIndex = clampIndex(lightning?.activeFrameIndex ?? 0, lightningFrames.length);
+  const currentLightningIndex = findLatestRadarObservationIndex(lightningFrames);
+  const lightningFrameMeta = lightningFrames.map((item, frameIndex) => ({
+    title: item?.label ?? "--",
+    meta: item?.isForecast ? "予測" : "解析",
+    isCurrent: frameIndex === currentLightningIndex,
+    timeLabel: frameIndex === currentLightningIndex
+      ? "現在"
+      : compactWeatherTimeLabel(item?.label)
+  }));
 
   const currentChartIndex = findLatestWeatherChartAnalysisIndex(chartFrames);
   const chartFrameMeta = chartFrames.map((item, frameIndex) => ({
@@ -3083,9 +3130,16 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   }));
 
   const isChartMode = weatherChartEnabled;
-  const length = isChartMode ? chartFrames.length : radarLength;
-  const activeIndex = isChartMode ? chartIndex : index;
-  const frameMeta = isChartMode ? chartFrameMeta : radarFrameMeta;
+  const isLightningMode = lightningEnabled;
+  const length = isChartMode
+    ? chartFrames.length
+    : (isLightningMode ? lightningFrames.length : radarLength);
+  const activeIndex = isChartMode
+    ? chartIndex
+    : (isLightningMode ? lightningIndex : index);
+  const frameMeta = isChartMode
+    ? chartFrameMeta
+    : (isLightningMode ? lightningFrameMeta : radarFrameMeta);
   const frameDates = frameMeta.map((item) => compactWeatherDateLabel(item?.title));
   const activeDate = frameDates[activeIndex] ?? "--";
   const frameDatesAttribute = `data-mobile-weather-dates="${escapeHtml(JSON.stringify(frameDates))}"`;
@@ -3093,8 +3147,10 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
     ? buildWeatherTimeTimelineMarkup(
       frameMeta,
       activeIndex,
-      (item) => compactWeatherTimeLabel(item?.title),
-      `<input type="range" class="weather-time-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : "data-mobile-radar-slider"} ${frameDatesAttribute} aria-label="${isChartMode ? "天気図" : "雨雲レーダー"}時刻">`,
+      (item) => isLightningMode
+        ? item?.timeLabel
+        : compactWeatherTimeLabel(item?.title),
+      `<input type="range" class="weather-time-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : (isLightningMode ? "data-mobile-lightning-slider" : "data-mobile-radar-slider")} ${frameDatesAttribute} aria-label="${isChartMode ? "天気図" : (isLightningMode ? "雷" : "雨雲レーダー")}時刻">`,
       { compact: true }
     )
     : buildWeatherTimeTimelineMarkup(
@@ -3108,8 +3164,9 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   return `
     <div class="mobile-dock-content mobile-dock-radar">
       <div class="mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented">
-        <button type="button" class="mobile-dock-action${weatherChartEnabled ? "" : " active"}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "false" : "true"}"${weatherChartEnabled ? "" : " disabled"}>雨雲レーダー</button>
+        <button type="button" class="mobile-dock-action${!weatherChartEnabled && !lightningEnabled ? " active" : ""}" data-mobile-dock-control data-radar-overlay="radar" aria-pressed="${!weatherChartEnabled && !lightningEnabled ? "true" : "false"}"${!weatherChartEnabled && !lightningEnabled ? " disabled" : ""}>雨雲レーダー</button>
         <button type="button" class="mobile-dock-action${weatherChartEnabled ? " active" : ""}${weatherChartLoading ? " loading" : ""}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "true" : "false"}"${weatherChartEnabled ? " disabled" : ""}>${escapeHtml(weatherChartLoading ? "取得中" : "天気図")}</button>
+        <button type="button" class="mobile-dock-action${lightningEnabled ? " active" : ""}${lightningLoading ? " loading" : ""}" data-mobile-dock-control data-radar-overlay="lightning" aria-pressed="${lightningEnabled ? "true" : "false"}"${lightningEnabled ? " disabled" : ""}>${escapeHtml(lightningLoading ? "取得中" : "雷")}</button>
       </div>
       <div class="mobile-dock-weather-timeline" data-mobile-weather-tap-controls>
         <time class="mobile-dock-date" data-mobile-weather-date>${escapeHtml(activeDate)}</time>

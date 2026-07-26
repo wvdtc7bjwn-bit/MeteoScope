@@ -16,6 +16,7 @@ import {
 } from "./ui/disasterMapModal.js";
 import { startClock } from "./ui/time.js";
 import { fetchRadarTimes, findLatestRadarObservationIndex } from "./jma/radar.js";
+import { fetchLightningTimes, findLatestLightningObservationIndex } from "./jma/lightning.js";
 import { fetchAmedasDailySeries, fetchAmedasLatestTime } from "./jma/amedas.js";
 import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
@@ -83,6 +84,7 @@ const KIKIKURU_DATA_TTL_MS = 60 * 1000;
 const WARNING_DETAILS_TTL_MS = 60 * 1000;
 const RIVER_FLOOD_DATA_TTL_MS = 60 * 1000;
 const WEATHER_CHART_DATA_TTL_MS = 10 * 60 * 1000;
+const LIGHTNING_DATA_TTL_MS = 5 * 60 * 1000;
 const LOCATION_WATCH_OPTIONS = {
   enableHighAccuracy: false,
   timeout: 20000,
@@ -200,6 +202,7 @@ export function createWeatherApp() {
   let weatherMap = null;
   let latestDataByTab = {};
   let radarPlayTimer = null;
+  let lightningPlayTimer = null;
   let weatherChartPlayTimer = null;
   let autoRefreshTimer = null;
   let earthquakeRefreshTimer = null;
@@ -230,6 +233,12 @@ export function createWeatherApp() {
   let weatherChartRequestExtendedHistory = null;
   let weatherChartExtendedHistory = false;
   let activeWeatherChartFrameIndex = 0;
+  let lightningEnabled = false;
+  let lightningStatus = "idle";
+  let lightningData = null;
+  let lightningLoadedAt = 0;
+  let lightningRequest = null;
+  let lightningRequestId = 0;
   const adminNoticePush = createAdminNoticePush({
     onChange: () => refreshSettingsModalView()
   });
@@ -288,6 +297,7 @@ export function createWeatherApp() {
     try {
       if (tab.id !== "radar") {
         stopRadarPlayback();
+        stopLightningPlayback();
         stopWeatherChartPlayback();
       }
       weatherMap?.setMode(tab.id);
@@ -334,7 +344,11 @@ export function createWeatherApp() {
         earthquakePlateDepthContoursVisible,
         weatherChartEnabled,
         weatherChartStatus,
-        weatherChart: weatherChartData
+        weatherChart: weatherChartData,
+        lightningEnabled,
+        lightningStatus,
+        lightning: lightningData,
+        lightningPlaying: Boolean(lightningPlayTimer)
       });
     }
 
@@ -977,6 +991,9 @@ if (layerId === "river") {
       displayData.weatherChartEnabled = weatherChartEnabled;
       displayData.weatherChartStatus = weatherChartStatus;
       displayData.weatherChart = weatherChartData;
+      displayData.lightningEnabled = lightningEnabled;
+      displayData.lightningStatus = lightningStatus;
+      displayData.lightning = lightningData;
     }
     if (tab.id === "radar") ensureLocationRadarTimeline(displayData);
     const panelState = {
@@ -1002,7 +1019,11 @@ if (layerId === "river") {
       earthquakePlateDepthContoursVisible,
       weatherChartEnabled,
       weatherChartStatus,
-      weatherChart: weatherChartData
+      weatherChart: weatherChartData,
+      lightningEnabled,
+      lightningStatus,
+      lightning: lightningData,
+      lightningPlaying: Boolean(lightningPlayTimer)
     };
     if (options.immediateMap) {
       invalidateScheduledMapRender();
@@ -1082,13 +1103,27 @@ if (layerId === "river") {
     const frames = data.frames ?? [];
     const activeFrameIndex = clampRadarIndex(data.activeFrameIndex ?? 0, frames);
     const activeFrame = frames[activeFrameIndex] ?? null;
+    const lightningFrames = lightningData?.frames ?? [];
+    const lightningFrameIndex = clampRadarIndex(lightningData?.activeFrameIndex ?? 0, lightningFrames);
+    const lightningFrame = lightningFrames[lightningFrameIndex] ?? null;
     return {
       ...data,
       activeFrameIndex,
       activeFrame,
-      latestTime: activeFrame?.label ?? data.latestTime,
-      latestRawTime: activeFrame?.validtime ?? data.latestRawTime,
-      radarTileUrl: weatherChartEnabled ? null : (activeFrame?.radarTileUrl ?? data.radarTileUrl)
+      latestTime: lightningEnabled
+        ? (lightningFrame?.label ?? data.latestTime)
+        : (activeFrame?.label ?? data.latestTime),
+      latestRawTime: lightningEnabled
+        ? (lightningFrame?.validtime ?? data.latestRawTime)
+        : (activeFrame?.validtime ?? data.latestRawTime),
+      radarTileUrl: weatherChartEnabled || lightningEnabled
+        ? null
+        : (activeFrame?.radarTileUrl ?? data.radarTileUrl),
+      lightningEnabled,
+      lightningStatus,
+      lightning: lightningData,
+      lightningTileUrl: lightningEnabled ? lightningFrame?.lightningTileUrl ?? null : null,
+      lightningObservationUrl: lightningEnabled ? lightningFrame?.lightningObservationUrl ?? null : null
     };
   }
 
@@ -1368,6 +1403,44 @@ if (layerId === "river") {
     selectRadarFrame(latestObservationIndex >= 0 ? latestObservationIndex : radarData.frames.length - 1);
   }
 
+  function selectLightningFrame(index) {
+    if (activeTab !== "radar" || !lightningData?.frames?.length) return;
+    lightningData.activeFrameIndex = clampRadarIndex(index, lightningData.frames);
+    lightningData.activeFrame = lightningData.frames[lightningData.activeFrameIndex] ?? null;
+    lightningData.lightningTileUrl = lightningData.activeFrame?.lightningTileUrl ?? null;
+    lightningData.lightningObservationUrl = lightningData.activeFrame?.lightningObservationUrl ?? null;
+    lightningData.latestTime = lightningData.activeFrame?.label ?? lightningData.latestTime;
+    lightningData.latestRawTime = lightningData.activeFrame?.validtime ?? lightningData.latestRawTime;
+    refreshRadarPanel();
+  }
+
+  function stepLightningFrame(delta) {
+    if (!lightningData?.frames?.length) return;
+    selectLightningFrame((lightningData.activeFrameIndex ?? 0) + delta);
+  }
+
+  function goLatestLightningObservation() {
+    if (!lightningData?.frames?.length) return;
+    stopLightningPlayback();
+    const latestIndex = findLatestLightningObservationIndex(lightningData.frames);
+    selectLightningFrame(latestIndex >= 0 ? latestIndex : lightningData.frames.length - 1);
+  }
+
+  function selectActiveRadarTimelineFrame(index) {
+    if (lightningEnabled) selectLightningFrame(index);
+    else selectRadarFrame(index);
+  }
+
+  function stepActiveRadarTimeline(delta) {
+    if (lightningEnabled) stepLightningFrame(delta);
+    else stepRadarFrame(delta);
+  }
+
+  function goLatestActiveRadarTimeline() {
+    if (lightningEnabled) goLatestLightningObservation();
+    else goLatestRadarObservation();
+  }
+
   function refreshWeatherChartMapLayer() {
     if (activeTab !== "radar" || !latestDataByTab.radar) return;
     const tab = TABS.find((item) => item.id === "radar");
@@ -1411,10 +1484,10 @@ if (layerId === "river") {
   }
 
   function startRadarPlayback() {
-    if (radarPlayTimer || weatherChartEnabled || !latestDataByTab.radar?.frames?.length) return;
+    if (radarPlayTimer || weatherChartEnabled || lightningEnabled || !latestDataByTab.radar?.frames?.length) return;
     radarPlayTimer = window.setInterval(() => {
       const radarData = latestDataByTab.radar;
-      if (!radarData?.frames?.length || activeTab !== "radar" || weatherChartEnabled) {
+      if (!radarData?.frames?.length || activeTab !== "radar" || weatherChartEnabled || lightningEnabled) {
         stopRadarPlayback();
         return;
       }
@@ -1437,6 +1510,42 @@ if (layerId === "river") {
     if (!radarPlayTimer) return;
     window.clearInterval(radarPlayTimer);
     radarPlayTimer = null;
+  }
+
+  function startLightningPlayback() {
+    if (lightningPlayTimer || !lightningEnabled || !lightningData?.frames?.length) return;
+    lightningPlayTimer = window.setInterval(() => {
+      if (!lightningEnabled || !lightningData?.frames?.length || activeTab !== "radar") {
+        stopLightningPlayback();
+        return;
+      }
+      selectLightningFrame(((lightningData.activeFrameIndex ?? 0) + 1) % lightningData.frames.length);
+    }, 850);
+    refreshRadarPanel();
+  }
+
+  function toggleActiveRadarPlayback() {
+    if (lightningEnabled) {
+      if (lightningPlayTimer) {
+        stopLightningPlayback();
+        refreshRadarPanel();
+      } else {
+        startLightningPlayback();
+      }
+      return;
+    }
+    toggleRadarPlayback();
+  }
+
+  function stopLightningPlayback() {
+    if (!lightningPlayTimer) return;
+    window.clearInterval(lightningPlayTimer);
+    lightningPlayTimer = null;
+  }
+
+  function stopLightningPlaybackAndRefresh() {
+    stopLightningPlayback();
+    refreshRadarPanel();
   }
 
   function startWeatherChartPlayback() {
@@ -1468,14 +1577,41 @@ if (layerId === "river") {
     updateCurrentView(tab, latestDataByTab.radar);
   }
 
-  async function toggleWeatherChartOverlay(overlayId) {
-    if (overlayId !== "weather-chart") return;
-    weatherChartEnabled = !weatherChartEnabled;
-    if (weatherChartEnabled) stopRadarPlayback();
-    else stopWeatherChartPlayback();
+  async function selectRadarOverlay(overlayId) {
+    if (!["radar", "weather-chart", "lightning"].includes(overlayId)) return;
+    weatherChartEnabled = overlayId === "weather-chart";
+    lightningEnabled = overlayId === "lightning";
+    if (weatherChartEnabled) {
+      stopRadarPlayback();
+      stopLightningPlayback();
+    } else if (lightningEnabled) {
+      stopRadarPlayback();
+      stopWeatherChartPlayback();
+    } else {
+      stopWeatherChartPlayback();
+      stopLightningPlayback();
+    }
 
-    if (!weatherChartEnabled) {
-      weatherChartStatus = weatherChartData ? "ok" : "idle";
+    if (overlayId === "radar") {
+      refreshRadarPanel();
+      return;
+    }
+
+    if (overlayId === "lightning") {
+      if (hasFreshLightningData()) {
+        lightningStatus = "ok";
+        refreshRadarPanel();
+        return;
+      }
+      lightningStatus = "loading";
+      refreshRadarPanel();
+      try {
+        await refreshLightningData();
+        lightningStatus = "ok";
+      } catch (error) {
+        console.warn("[MeteoScope] lightning nowcast load failed", error);
+        lightningStatus = "error";
+      }
       refreshRadarPanel();
       return;
     }
@@ -1485,7 +1621,6 @@ if (layerId === "river") {
       refreshRadarPanel();
       return;
     }
-
     weatherChartStatus = "loading";
     refreshRadarPanel();
     try {
@@ -1496,6 +1631,33 @@ if (layerId === "river") {
       weatherChartStatus = "error";
     }
     refreshRadarPanel();
+  }
+
+  async function refreshLightningData() {
+    if (hasFreshLightningData()) return lightningData;
+    if (lightningRequest) return lightningRequest;
+
+    const requestId = ++lightningRequestId;
+    const request = fetchLightningTimes()
+      .then((data) => {
+        if (requestId !== lightningRequestId) return lightningData;
+        lightningData = data;
+        lightningLoadedAt = Date.now();
+        return lightningData;
+      })
+      .finally(() => {
+        if (requestId === lightningRequestId) lightningRequest = null;
+      });
+    lightningRequest = request;
+    return request;
+  }
+
+  function hasFreshLightningData() {
+    return Boolean(
+      lightningData?.frames?.length &&
+      lightningLoadedAt > 0 &&
+      Date.now() - lightningLoadedAt < LIGHTNING_DATA_TTL_MS
+    );
   }
 
   async function refreshWeatherChartData() {
@@ -1603,6 +1765,16 @@ if (layerId === "river") {
       const nextData = await loadTabData(tab.id);
       if (activeTab !== tab.id) return;
       latestDataByTab[tab.id] = mergeRefreshedData(tab.id, latestDataByTab[tab.id], nextData);
+      if (tab.id === "radar" && lightningEnabled) {
+        try {
+          if (force) lightningLoadedAt = 0;
+          await refreshLightningData();
+          lightningStatus = "ok";
+        } catch (error) {
+          console.warn("[MeteoScope] lightning nowcast auto refresh failed", error);
+          lightningStatus = "error";
+        }
+      }
       updateCurrentView(tab, latestDataByTab[tab.id]);
       if (tab.id === "radar") await refreshCommunityReports();
       if (tab.id === "typhoon") await refreshActiveWorldTyphoonForecasts();
@@ -1835,7 +2007,11 @@ if (layerId === "river") {
       earthquakePlateDepthContoursVisible,
       weatherChartEnabled,
       weatherChartStatus,
-      weatherChart: weatherChartData
+      weatherChart: weatherChartData,
+      lightningEnabled,
+      lightningStatus,
+      lightning: lightningData,
+      lightningPlaying: Boolean(lightningPlayTimer)
     });
   }
 
@@ -2222,12 +2398,12 @@ if (layerId === "river") {
     });
     setupEarthquakeMapLayerToggles({ onChange: setEarthquakeMapLayerVisible });
     setupRadarControls({
-      onSeek: selectRadarFrame,
-      onStep: stepRadarFrame,
-      onTogglePlay: toggleRadarPlayback,
-      onGoLatest: goLatestRadarObservation
+      onSeek: selectActiveRadarTimelineFrame,
+      onStep: stepActiveRadarTimeline,
+      onTogglePlay: toggleActiveRadarPlayback,
+      onGoLatest: goLatestActiveRadarTimeline
     });
-    setupRadarOverlayToggle({ onChange: toggleWeatherChartOverlay });
+    setupRadarOverlayToggle({ onChange: selectRadarOverlay });
     setupWeatherChartControls({
       onSeek: selectWeatherChartFrame,
       onPreview: previewWeatherChartFrame,
@@ -2238,6 +2414,9 @@ if (layerId === "river") {
       onRadarPlay: startRadarPlayback,
       onRadarStop: stopRadarPlaybackAndRefresh,
       onRadarGoLatest: goLatestRadarObservation,
+      onLightningPlay: startLightningPlayback,
+      onLightningStop: stopLightningPlaybackAndRefresh,
+      onLightningGoLatest: goLatestLightningObservation,
       onWeatherChartPlay: startWeatherChartPlayback,
       onWeatherChartStop: stopWeatherChartPlayback,
       onWeatherChartGoLatest: goLatestWeatherChartFrame

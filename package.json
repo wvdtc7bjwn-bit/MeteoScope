@@ -26,6 +26,7 @@
     "test:amedas": "node Tests/AmedasRankingTests.mjs",
     "test:social-share": "node Tests/SocialShareTests.mjs",
     "test:location": "node Tests/CurrentLocationMarkerTests.mjs",
+    "test:lightning": "node Tests/LightningTests.mjs",
     "test:responsive": "node Tests/ResponsiveLayoutTests.mjs",
     "test:startup": "node Tests/InitialMapLoadingTests.mjs",
     "test:consent": "node Tests/LegalConsentTests.mjs",

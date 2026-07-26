@@ -150,6 +150,14 @@ const WIND_ARROW_IMAGE_ID = "amedas-wind-arrow";
 const VOLCANO_MARKER_IMAGE_ID = "volcano-filled-triangle";
 const RADAR_SOURCE_PREFIX = "jma-nowcast-radar-z";
 const RADAR_LAYER_PREFIX = "jma-nowcast-radar-z";
+const LIGHTNING_SOURCE_PREFIX = "jma-nowcast-lightning-z";
+const LIGHTNING_LAYER_PREFIX = "jma-nowcast-lightning-z";
+const LIGHTNING_OBSERVATION_SOURCE_ID = "jma-lightning-observations";
+const LIGHTNING_OBSERVATION_LAYER_IDS = [
+  "lightning-observation-ground",
+  "lightning-observation-cloud"
+];
+const lightningObservationUrlByMap = new WeakMap();
 const WEATHER_CHART_LINE_SOURCE_ID = "jma-weather-chart-lines";
 const WEATHER_CHART_POINT_SOURCE_ID = "jma-weather-chart-points";
 const WEATHER_CHART_LAYERS = [
@@ -664,6 +672,8 @@ export function createWeatherMap(elementId) {
     const typhoonCollection = updateTyphoonLayers(mode, data);
     updateWarningAreaLookup(mode, data);
     updateRadarLayer(map, mode, data);
+    updateLightningLayer(map, mode, data);
+    updateLightningObservationLayer(map, mode, data);
     updateWeatherChartLayer(map, mode, data);
     updateKikikuruLayer(map, mode, data);
     updateRiverFloodLayer(map, mode, data);
@@ -3124,25 +3134,141 @@ function setWarningHatchVisibility(map, visible) {
 }
 
 function updateRadarLayer(map, mode, data = {}) {
-  if (mode !== "radar" || data?.weatherChartEnabled || !data?.radarTileUrl) {
-    setRadarVisible(map, false);
+  const shouldShow = mode === "radar"
+    && !data?.weatherChartEnabled
+    && !data?.lightningEnabled
+    && Boolean(data?.radarTileUrl);
+  updateNowcastRasterLayer(map, {
+    shouldShow,
+    tileUrl: data?.radarTileUrl,
+    sourcePrefix: RADAR_SOURCE_PREFIX,
+    layerPrefix: RADAR_LAYER_PREFIX,
+    opacity: 0.9
+  });
+}
+
+function setRadarVisible(map, isVisible) {
+  setNowcastRasterVisible(map, RADAR_LAYER_PREFIX, isVisible);
+}
+
+function updateLightningLayer(map, mode, data = {}) {
+  const shouldShow = mode === "radar"
+    && data?.lightningEnabled
+    && Boolean(data?.lightningTileUrl);
+  updateNowcastRasterLayer(map, {
+    shouldShow,
+    tileUrl: data?.lightningTileUrl,
+    sourcePrefix: LIGHTNING_SOURCE_PREFIX,
+    layerPrefix: LIGHTNING_LAYER_PREFIX,
+    opacity: 0.92
+  });
+}
+
+function updateLightningObservationLayer(map, mode, data = {}) {
+  const shouldShow = mode === "radar"
+    && data?.lightningEnabled
+    && Boolean(data?.lightningObservationUrl);
+  const source = map.getSource(LIGHTNING_OBSERVATION_SOURCE_ID);
+
+  if (!shouldShow) {
+    setLightningObservationVisible(map, false);
     return;
   }
 
-  const currentSource = map.getSource(getRadarSourceId(RADAR_ZOOM_LEVELS[0].id));
-  if (currentSource && currentSource.tiles?.[0] === getRadarTileUrl(data.radarTileUrl, RADAR_ZOOM_LEVELS[0])) {
-    setRadarVisible(map, true);
+  if (source?.setData) {
+    if (lightningObservationUrlByMap.get(map) !== data.lightningObservationUrl) {
+      source.setData(data.lightningObservationUrl);
+      lightningObservationUrlByMap.set(map, data.lightningObservationUrl);
+    }
+    setLightningObservationVisible(map, true);
+    moveLightningObservationLayersToFront(map);
     return;
   }
 
-  removeRadarLayer(map);
+  map.addSource(LIGHTNING_OBSERVATION_SOURCE_ID, {
+    type: "geojson",
+    data: data.lightningObservationUrl,
+    attribution: "気象庁"
+  });
+  lightningObservationUrlByMap.set(map, data.lightningObservationUrl);
+  map.addLayer({
+    id: LIGHTNING_OBSERVATION_LAYER_IDS[0],
+    type: "symbol",
+    source: LIGHTNING_OBSERVATION_SOURCE_ID,
+    minzoom: 4,
+    layout: {
+      "text-field": "×",
+      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 4, 12, 10, 22],
+      "text-allow-overlap": true,
+      "text-ignore-placement": true
+    },
+    paint: {
+      "text-color": "#faf500",
+      "text-halo-color": "#303030",
+      "text-halo-width": 1.5
+    },
+    filter: ["==", ["get", "type"], 4]
+  });
+  map.addLayer({
+    id: LIGHTNING_OBSERVATION_LAYER_IDS[1],
+    type: "circle",
+    source: LIGHTNING_OBSERVATION_SOURCE_ID,
+    minzoom: 4,
+    paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 2.2, 10, 3.8],
+      "circle-color": "#faf500",
+      "circle-stroke-color": "#303030",
+      "circle-stroke-width": 1.1
+    },
+    filter: ["!=", ["get", "type"], 4]
+  });
+  moveLightningObservationLayersToFront(map);
+}
+
+function setLightningObservationVisible(map, isVisible) {
+  LIGHTNING_OBSERVATION_LAYER_IDS.forEach((layerId) => {
+    if (map?.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, "visibility", isVisible ? "visible" : "none");
+    }
+  });
+}
+
+function moveLightningObservationLayersToFront(map) {
+  LIGHTNING_OBSERVATION_LAYER_IDS.forEach((layerId) => {
+    if (map?.getLayer(layerId)) map.moveLayer(layerId);
+  });
+}
+
+function updateNowcastRasterLayer(map, {
+  shouldShow,
+  tileUrl,
+  sourcePrefix,
+  layerPrefix,
+  opacity
+}) {
+  if (!shouldShow || !tileUrl) {
+    setNowcastRasterVisible(map, layerPrefix, false);
+    return;
+  }
+
+  const firstLevel = RADAR_ZOOM_LEVELS[0];
+  const sourceId = getNowcastSourceId(sourcePrefix, firstLevel.id);
+  const expectedTileUrl = getRadarTileUrl(tileUrl, firstLevel);
+  const currentSource = map.getSource(sourceId);
+  if (currentSource && currentSource.tiles?.[0] === expectedTileUrl) {
+    setNowcastRasterVisible(map, layerPrefix, true);
+    return;
+  }
+
+  removeNowcastRasterLayer(map, sourcePrefix, layerPrefix);
   RADAR_ZOOM_LEVELS.forEach((level) => {
     const { z, minzoom, maxzoom } = level;
-    const sourceId = getRadarSourceId(level.id);
-    const layerId = getRadarLayerId(level.id);
-    map.addSource(sourceId, {
+    const levelSourceId = getNowcastSourceId(sourcePrefix, level.id);
+    const layerId = getNowcastLayerId(layerPrefix, level.id);
+    map.addSource(levelSourceId, {
       type: "raster",
-      tiles: [getRadarTileUrl(data.radarTileUrl, level)],
+      tiles: [getRadarTileUrl(tileUrl, level)],
       tileSize: 256,
       minzoom: 0,
       maxzoom: z,
@@ -3152,11 +3278,11 @@ function updateRadarLayer(map, mode, data = {}) {
     map.addLayer({
       id: layerId,
       type: "raster",
-      source: sourceId,
+      source: levelSourceId,
       minzoom,
       maxzoom,
       paint: {
-        "raster-opacity": 0.9,
+        "raster-opacity": opacity,
         "raster-fade-duration": 0,
         "raster-resampling": "nearest"
       }
@@ -3164,32 +3290,32 @@ function updateRadarLayer(map, mode, data = {}) {
   });
 }
 
-function setRadarVisible(map, isVisible) {
+function setNowcastRasterVisible(map, layerPrefix, isVisible) {
   RADAR_ZOOM_LEVELS.forEach(({ id }) => {
-    const layerId = getRadarLayerId(id);
+    const layerId = getNowcastLayerId(layerPrefix, id);
     if (map?.getLayer(layerId)) {
       map.setLayoutProperty(layerId, "visibility", isVisible ? "visible" : "none");
     }
   });
 }
 
-function removeRadarLayer(map) {
+function removeNowcastRasterLayer(map, sourcePrefix, layerPrefix) {
   [...RADAR_ZOOM_LEVELS].reverse().forEach(({ id }) => {
-    const layerId = getRadarLayerId(id);
+    const layerId = getNowcastLayerId(layerPrefix, id);
     if (map.getLayer(layerId)) map.removeLayer(layerId);
   });
   [...RADAR_ZOOM_LEVELS].reverse().forEach(({ id }) => {
-    const sourceId = getRadarSourceId(id);
+    const sourceId = getNowcastSourceId(sourcePrefix, id);
     if (map.getSource(sourceId)) map.removeSource(sourceId);
   });
 }
 
-function getRadarSourceId(id) {
-  return `${RADAR_SOURCE_PREFIX}${id}`;
+function getNowcastSourceId(prefix, id) {
+  return `${prefix}${id}`;
 }
 
-function getRadarLayerId(id) {
-  return `${RADAR_LAYER_PREFIX}${id}`;
+function getNowcastLayerId(prefix, id) {
+  return `${prefix}${id}`;
 }
 
 function getRadarTileUrl(tileUrl, level) {

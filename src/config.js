@@ -38,6 +38,7 @@ export const JMA_ENDPOINTS = {
   // NOTE: These are intentionally centralized so Codex can replace or extend them
   // after confirming current JMA data URLs and CORS behavior.
   radarTimeList: "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json",
+  lightningTimeList: "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N3.json",
   radarTileBase: "https://www.jma.go.jp/bosai/jmatile/data/nowc",
   amedasTimeList: "https://www.jma.go.jp/bosai/amedas/data/latest_time.txt",
   warningsBase: "https://www.jma.go.jp/bosai/warning/data/r8",
