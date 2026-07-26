@@ -182,7 +182,7 @@ assert.match(
 );
 assert.match(
   appSource,
-  /function schedulePanelRender\(tab, panelState\)[\s\S]*?requestAnimationFrame\(\(\) => \{[\s\S]*?requestAnimationFrame\(\(\) => \{[\s\S]*?updateLeftPanel\(tab, panelState\)/
+  /function schedulePanelRender\(tab, panelState\)[\s\S]*?requestAnimationFrame\(\(\) => \{[\s\S]*?requestAnimationFrame\(\(\) => \{[\s\S]*?renderLeftPanelState\(tab, panelState\)/
 );
 assert.match(
   leftPanelSource,

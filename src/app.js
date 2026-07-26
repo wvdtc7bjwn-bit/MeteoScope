@@ -249,9 +249,38 @@ export function createWeatherApp() {
   let scheduledPanelRenderNextFrame = 0;
   let panelRenderGeneration = 0;
 
+  function syncSocialShareMapButton(tabId = activeTab) {
+    const button = document.getElementById("social-share-map-button");
+    if (!button) return;
+  const labels = {
+    amedas: "アメダスランキング",
+    typhoon: "台風情報",
+    earthquake: "地震情報",
+    warnings: "現在地付近の発表状況"
+  };
+  const payloadType = tabId === "warnings" ? "warning" : tabId;
+  const label = labels[tabId] ?? "";
+  const payload = label ? getSocialSharePayload(payloadType) : null;
+  button.dataset.socialShare = label ? payloadType : "";
+    button.disabled = !payload;
+    button.setAttribute(
+      "aria-label",
+      payload ? `${label}を画像で共有` : (label ? `${label}を読み込み中` : "このタブでは画像共有を利用できません")
+    );
+    button.title = payload
+      ? `${label}を画像で共有`
+      : (label ? `${label}を読み込み中` : "このタブでは画像共有を利用できません");
+  }
+
+  function renderLeftPanelState(tab, panelState) {
+    updateLeftPanel(tab, panelState);
+    syncSocialShareMapButton(tab?.id);
+  }
+
   async function selectTab(tabId) {
     const tab = TABS.find((item) => item.id === tabId) ?? TABS[0];
     activeTab = tab.id;
+    syncSocialShareMapButton(tab.id);
     invalidateScheduledMapRender();
     invalidateScheduledPanelRender();
     syncActiveTabToUrl(tab.id);
@@ -756,7 +785,7 @@ if (layerId === "river") {
       .catch((error) => {
         console.warn("[MeteoScope] volcano XML refresh failed", error);
         if (!volcanoData && activeTab === "earthquake" && earthquakeContentMode === "volcano") {
-          updateLeftPanel(TABS.find((item) => item.id === "earthquake"), {
+          renderLeftPanelState(TABS.find((item) => item.id === "earthquake"), {
             status: "error",
             error,
             earthquakeContentMode
@@ -985,7 +1014,7 @@ if (layerId === "river") {
       schedulePanelRender(tab, panelState);
     } else {
       invalidateScheduledPanelRender();
-      updateLeftPanel(tab, panelState);
+      renderLeftPanelState(tab, panelState);
     }
   }
 
@@ -1027,7 +1056,7 @@ if (layerId === "river") {
       scheduledPanelRenderNextFrame = window.requestAnimationFrame(() => {
         scheduledPanelRenderNextFrame = 0;
         if (generation !== panelRenderGeneration || activeTab !== tab.id) return;
-        updateLeftPanel(tab, panelState);
+        renderLeftPanelState(tab, panelState);
       });
     });
   }
@@ -1792,7 +1821,7 @@ if (layerId === "river") {
       return;
     }
 
-    updateLeftPanel(tab, {
+    renderLeftPanelState(tab, {
       status: "loading",
       amedasMetric: activeAmedasMetric,
       warningView: activeWarningView,

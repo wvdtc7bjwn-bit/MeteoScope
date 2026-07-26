@@ -3,6 +3,7 @@ import {
   buildSocialShareFilename,
   renderSocialShareCard
 } from "../socialShareCard.js";
+import { loadMunicipalityLookup } from "../location/currentLocation.js";
 
 let initialized = false;
 let activePayload = null;
@@ -15,6 +16,8 @@ let worldLandGeoJson = null;
 let worldCountriesGeoJson = null;
 let appIconPromise = null;
 let appIconImage = null;
+let warningMunicipalitiesPromise = null;
+let warningMunicipalities = null;
 
 const SHARE_COPY = Object.freeze({
   amedas: Object.freeze({
@@ -31,6 +34,11 @@ const SHARE_COPY = Object.freeze({
     title: "台風情報を画像にする",
     description: "現在表示している気象庁の台風情報からSNS投稿用PNGを作成します。",
     shareTitle: "MeteoScope 台風情報"
+  }),
+  warning: Object.freeze({
+    title: "現在地付近の発表状況を画像にする",
+    description: "現在地の市区町村に発表中の警報・注意報をSNS投稿用PNGにまとめます。",
+    shareTitle: "MeteoScope 警報・注意報"
   })
 });
 
@@ -80,6 +88,7 @@ export async function openSocialShareModal(payload) {
   const loadingTasks = [document.fonts?.ready, loadAppIcon()];
   if (payload.type === "earthquake" || payload.type === "typhoon") loadingTasks.push(loadJapanMap());
   if (payload.type === "typhoon") loadingTasks.push(loadWorldMap());
+  if (payload.type === "warning") loadingTasks.push(loadWarningMunicipalities());
   await Promise.all(loadingTasks);
   await renderPreview();
 }
@@ -123,6 +132,7 @@ async function renderPreview() {
       japanGeoJson: japanMapGeoJson,
       worldLandGeoJson,
       worldCountriesGeoJson,
+      warningMunicipalities,
       appIcon: appIconImage
     });
     const format = SOCIAL_SHARE_FORMATS[activeFormat];
@@ -191,6 +201,21 @@ function loadWorldMap() {
       });
   }
   return worldMapPromise;
+}
+
+function loadWarningMunicipalities() {
+  if (!warningMunicipalitiesPromise) {
+    warningMunicipalitiesPromise = loadMunicipalityLookup()
+      .then((municipalities) => {
+        warningMunicipalities = municipalities;
+        return municipalities;
+      })
+      .catch((error) => {
+        console.warn("[MeteoScope] social share municipality map unavailable", error);
+        return null;
+      });
+  }
+  return warningMunicipalitiesPromise;
 }
 
 async function downloadPng() {

@@ -120,6 +120,7 @@ export function updateLeftPanel(tab, state = {}) {
   setText("panel-time", buildTimeText(state));
   setPanelTimeVisible(tab.id !== "radar" && tab.id !== "typhoon" && tab.id !== "earthquake");
   renderCurrentLocationCard(tab, state.currentLocation, { warningView, activeKikikuruLayer, data: state.data });
+  setWarningSocialSharePayload(tab, state, warningView);
   renderRadarOverlayTabs(tab, state.weatherChartEnabled, state.weatherChartStatus, state.weatherChart ?? state.data?.weatherChart);
   renderKikikuruLayerTabs(tab, warningView, activeKikikuruLayer);
   renderAmedasSubTabs(tab, amedasMetric.id);
@@ -3468,6 +3469,42 @@ function renderCurrentLocationCard(tab, info, context = {}) {
     <p>${escapeHtml(card.message)}</p>
     ${card.badgesFirst ? "" : badgesMarkup}
   `;
+}
+
+function setWarningSocialSharePayload(tab, state, warningView = "status") {
+  const info = state.currentLocation;
+  if (
+    tab.id !== "warnings"
+    || warningView !== "status"
+    || info?.status !== "found"
+    || !info.areaName
+  ) {
+    setSocialSharePayload("warning", null);
+    return;
+  }
+
+  setSocialSharePayload("warning", {
+    type: "warning",
+    areaCode: info.areaCode ?? "",
+    areaName: info.areaName,
+    prefecture: info.prefecture ?? "",
+    coordinates: info.coordinates ?? info.center ?? null,
+    updatedAt: info.updatedAt ?? state.data?.updatedAt ?? state.data?.latestTime ?? "",
+    message: info.message ?? "",
+    areaWarnings: (state.data?.activeAreas ?? []).map((area) => ({
+      areaCode: area.areaCode ?? "",
+      warnings: (area.warnings ?? []).map((warning) => ({
+        label: warning.label ?? warning.name ?? "警報・注意報",
+        level: warning.level ?? "none"
+      }))
+    })),
+    warnings: (info.warnings ?? []).map((warning) => ({
+      label: warning.label ?? warning.name ?? "警報・注意報",
+      level: warning.level ?? "none",
+      status: warning.status ?? "",
+      updatedAt: warning.updatedAt ?? ""
+    }))
+  });
 }
 
 function getCurrentLocationCardLabel(warningView = "status", activeKikikuruLayer = "land") {

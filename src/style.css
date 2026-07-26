@@ -8521,6 +8521,28 @@ html[data-theme="light"] h2 {
   left: calc(var(--sidebar-width) + 72px);
 }
 
+.social-share-map-button {
+  left: calc(var(--sidebar-width) + 128px);
+}
+
+.social-share-map-button::before {
+  width: 24px;
+  height: 24px;
+  background: #f4f9ff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v11'/%3E%3Cpath d='m8 7 4-4 4 4'/%3E%3Cpath d='M5 12v7h14v-7'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v11'/%3E%3Cpath d='m8 7 4-4 4 4'/%3E%3Cpath d='M5 12v7h14v-7'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.social-share-map-button:disabled {
+  opacity: 0.46;
+  cursor: default;
+}
+
+.social-share-map-button:disabled:is(:hover, :focus-visible) {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(7, 14, 27, 0.78);
+}
+
 .disaster-quiz-open-button {
   top: 20px;
   left: calc(var(--sidebar-width) + 16px);
@@ -9040,6 +9062,10 @@ html[data-theme="light"] .quiz-leaderboard-list li time { color: #60758a; }
 @media (max-width: 800px) {
   #disaster-map-button {
     left: 64px;
+  }
+
+  .social-share-map-button {
+    left: 116px;
   }
 
   .disaster-quiz-open-button {

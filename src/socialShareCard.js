@@ -52,7 +52,7 @@ export function renderSocialShareCard(canvas, payload, options = {}) {
   canvas.height = format.height;
   context.clearRect(0, 0, format.width, format.height);
   const type = getSocialShareType(payload);
-  if (type === "earthquake" || type === "typhoon") drawEarthquakeBackground(context, format, theme);
+  if (type === "earthquake" || type === "typhoon" || type === "warning") drawEarthquakeBackground(context, format, theme);
   else drawBackground(context, format, theme);
   drawBrand(context, format, theme, options.appIcon);
 
@@ -64,6 +64,8 @@ export function renderSocialShareCard(canvas, payload, options = {}) {
       worldLandGeoJson: options.worldLandGeoJson,
       worldCountriesGeoJson: options.worldCountriesGeoJson
     });
+  } else if (type === "warning") {
+    drawWarningCard(context, format, theme, payload ?? {}, options.warningMunicipalities);
   } else {
     drawAmedasCard(context, format, theme, payload ?? {});
   }
@@ -73,6 +75,7 @@ export function renderSocialShareCard(canvas, payload, options = {}) {
 function getSocialShareType(payload) {
   if (payload?.type === "earthquake") return "earthquake";
   if (payload?.type === "typhoon") return "typhoon";
+  if (payload?.type === "warning") return "warning";
   return "amedas";
 }
 
@@ -217,6 +220,316 @@ function drawAmedasCard(context, format, theme, payload) {
   });
   context.textAlign = "left";
   context.textBaseline = "alphabetic";
+}
+
+const WARNING_SHARE_LEVELS = Object.freeze({
+  emergency: Object.freeze({ label: "特別警報", color: "#171717", text: "#ffffff", rank: 4 }),
+  danger: Object.freeze({ label: "危険警報", color: "#a600a6", text: "#ffffff", rank: 3 }),
+  high: Object.freeze({ label: "危険警報", color: "#a600a6", text: "#ffffff", rank: 3 }),
+  warning: Object.freeze({ label: "警報", color: "#e8342f", text: "#ffffff", rank: 2 }),
+  middle: Object.freeze({ label: "警報", color: "#e8342f", text: "#ffffff", rank: 2 }),
+  advisory: Object.freeze({ label: "注意報", color: "#ffd400", text: "#172a3e", rank: 1 }),
+  none: Object.freeze({ label: "発表なし", color: "#75889d", text: "#ffffff", rank: 0 })
+});
+
+function drawWarningCard(context, format, theme, payload, municipalities = []) {
+  const landscape = format.height < 800;
+  const padding = Math.round(format.width * 0.065);
+  const top = landscape ? 130 : 150;
+  const panelHeight = format.height - top - (landscape ? 92 : 145);
+  const panelX = padding;
+  const panelWidth = format.width - padding * 2;
+  const inset = landscape ? 30 : 38;
+  const warnings = [...(payload.warnings ?? [])].sort(
+    (left, right) => getWarningShareLevel(right.level).rank - getWarningShareLevel(left.level).rank
+  );
+  const primary = getWarningShareLevel(warnings[0]?.level);
+
+  drawEarthquakeBulletinPanel(context, panelX, top, panelWidth, panelHeight, theme);
+  context.fillStyle = theme.accent;
+  context.fillRect(panelX + inset, top + 32, 5, landscape ? 26 : 32);
+  context.fillStyle = theme.text;
+  context.font = `800 ${landscape ? 22 : 28}px ${FONT_FAMILY}`;
+  context.fillText("現在地付近の警報・注意報", panelX + inset + 18, top + (landscape ? 55 : 59));
+  context.textAlign = "right";
+  context.fillStyle = theme.muted;
+  context.font = `600 ${landscape ? 16 : 19}px ${FONT_FAMILY}`;
+  context.fillText(formatWarningShareTime(payload.updatedAt), panelX + panelWidth - inset, top + 56);
+  context.textAlign = "left";
+
+  const headerBottom = top + (landscape ? 76 : 84);
+  context.strokeStyle = theme.border;
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(panelX + inset, headerBottom);
+  context.lineTo(panelX + panelWidth - inset, headerBottom);
+  context.stroke();
+
+  const mapX = panelX + inset;
+  const mapY = headerBottom + (landscape ? 14 : 18);
+  const mapWidth = landscape
+    ? Math.round((panelWidth - inset * 2) * 0.5)
+    : panelWidth - inset * 2;
+  const mapHeight = landscape
+    ? panelHeight - (mapY - top) - 22
+    : Math.min(420, Math.round(panelHeight * 0.43));
+  drawWarningLocalMap(context, {
+    x: mapX,
+    y: mapY,
+    width: mapWidth,
+    height: mapHeight
+  }, theme, payload, municipalities);
+
+  const contentX = landscape ? mapX + mapWidth + 28 : mapX;
+  const contentTop = landscape ? mapY : mapY + mapHeight + 24;
+  const contentWidth = landscape
+    ? panelX + panelWidth - inset - contentX
+    : mapWidth;
+
+  context.fillStyle = theme.text;
+  context.font = `800 ${landscape ? 31 : 40}px ${FONT_FAMILY}`;
+  drawFittedText(
+    context,
+    [payload.prefecture, payload.areaName].filter(Boolean).join(" ") || "地域を確認できません",
+    contentX,
+    contentTop + (landscape ? 35 : 44),
+    contentWidth
+  );
+
+  const titleRuleY = contentTop + (landscape ? 48 : 60);
+  context.strokeStyle = warnings.length ? primary.color : theme.border;
+  context.lineWidth = landscape ? 3 : 4;
+  context.beginPath();
+  context.moveTo(contentX, titleRuleY);
+  context.lineTo(contentX + contentWidth, titleRuleY);
+  context.stroke();
+
+  if (!warnings.length) {
+    context.fillStyle = theme.text;
+    context.font = `700 ${landscape ? 19 : 24}px ${FONT_FAMILY}`;
+    context.fillText(
+      "発表中の警報・注意報はありません",
+      contentX,
+      titleRuleY + (landscape ? 40 : 52)
+    );
+    return;
+  }
+
+  context.fillStyle = theme.muted;
+  context.font = `700 ${landscape ? 15 : 18}px ${FONT_FAMILY}`;
+  context.fillText(`${warnings.length}件発表中`, contentX, titleRuleY + (landscape ? 27 : 34));
+
+  const listTop = titleRuleY + (landscape ? 42 : 52);
+  const listBottom = top + panelHeight - (landscape ? 24 : 34);
+  const availableHeight = Math.max(0, listBottom - listTop);
+  const maxRows = landscape ? 5 : (format.height > 1200 ? 7 : 5);
+  const visibleWarnings = warnings.slice(0, maxRows);
+  const rowGap = 0;
+  const rowHeight = Math.min(
+    landscape ? 54 : 70,
+    (availableHeight - rowGap * Math.max(0, visibleWarnings.length - 1)) / visibleWarnings.length
+  );
+
+  visibleWarnings.forEach((warning, index) => {
+    const level = getWarningShareLevel(warning.level);
+    const rowY = listTop + index * (rowHeight + rowGap);
+    if (index > 0) {
+      context.strokeStyle = theme.border;
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(contentX, rowY);
+      context.lineTo(contentX + contentWidth, rowY);
+      context.stroke();
+    }
+    context.fillStyle = level.color;
+    context.fillRect(contentX, rowY + rowHeight * 0.22, landscape ? 6 : 8, rowHeight * 0.56);
+
+    context.fillStyle = theme.text;
+    context.font = `800 ${landscape ? 19 : 24}px ${FONT_FAMILY}`;
+    context.textBaseline = "middle";
+    drawFittedText(
+      context,
+      warning.label ?? "警報・注意報",
+      contentX + (landscape ? 20 : 26),
+      rowY + rowHeight / 2,
+      contentWidth - (landscape ? 120 : 150)
+    );
+
+    context.fillStyle = level.color;
+    context.font = `800 ${landscape ? 15 : 18}px ${FONT_FAMILY}`;
+    context.textAlign = "right";
+    context.fillText(level.label, contentX + contentWidth, rowY + rowHeight / 2);
+    context.textAlign = "left";
+    context.textBaseline = "alphabetic";
+  });
+
+  if (warnings.length > visibleWarnings.length) {
+    context.fillStyle = theme.muted;
+    context.font = `700 ${landscape ? 14 : 18}px ${FONT_FAMILY}`;
+    context.textAlign = "right";
+    context.fillText(
+      `ほか ${warnings.length - visibleWarnings.length}件`,
+      contentX + contentWidth,
+      listBottom
+    );
+    context.textAlign = "left";
+  }
+}
+
+function drawWarningLocalMap(context, box, theme, payload, municipalities) {
+  context.save();
+  roundedRect(context, box.x, box.y, box.width, box.height, 10);
+  context.clip();
+  context.fillStyle = theme.background[0];
+  context.fillRect(box.x, box.y, box.width, box.height);
+
+  const coordinates = isCoordinate(payload.coordinates)
+    ? payload.coordinates.map(Number)
+    : null;
+  const currentArea = (municipalities ?? []).find(
+    (municipality) => String(municipality.code) === String(payload.areaCode)
+  );
+  const center = coordinates
+    ?? (isCoordinate(currentArea?.center) ? currentArea.center.map(Number) : [139.7, 35.7]);
+  const bounds = calculateWarningMapBounds(center, box);
+  const project = ([longitude, latitude]) => [
+    box.x + ((Number(longitude) - bounds.minLon) / (bounds.maxLon - bounds.minLon)) * box.width,
+    box.y + ((bounds.maxLat - Number(latitude)) / (bounds.maxLat - bounds.minLat)) * box.height
+  ];
+  const visibleMunicipalities = (municipalities ?? []).filter(
+    (municipality) => warningMunicipalityIntersectsBounds(municipality.bounds, bounds)
+  );
+  const warningsByAreaCode = new Map(
+    (payload.areaWarnings ?? []).map((area) => [String(area.areaCode), area.warnings ?? []])
+  );
+
+  visibleMunicipalities.forEach((municipality) => {
+    const areaWarnings = warningsByAreaCode.get(String(municipality.code)) ?? [];
+    const areaLevel = getHighestWarningShareLevel(areaWarnings);
+    const hasWarning = areaLevel.rank > 0;
+    drawWarningMunicipalityGeometry(context, municipality.geometry, project, {
+      fillStyle: hasWarning ? areaLevel.color : theme.panelSoft,
+      fillAlpha: hasWarning ? 0.72 : 0.96,
+      strokeStyle: hasWarning ? areaLevel.color : theme.border,
+      lineWidth: hasWarning ? 1.8 : 1
+    });
+  });
+
+  context.strokeStyle = theme.border;
+  context.lineWidth = 1;
+  roundedRect(context, box.x + 0.5, box.y + 0.5, box.width - 1, box.height - 1, 10);
+  context.stroke();
+
+  if (coordinates) {
+    const [x, y] = project(coordinates);
+    context.fillStyle = theme.text;
+    context.beginPath();
+    context.arc(x, y, 7, 0, Math.PI * 2);
+    context.fill();
+    context.strokeStyle = theme.background[0];
+    context.lineWidth = 2.5;
+    context.stroke();
+  }
+
+  drawWarningMapLegend(context, box, theme);
+  context.restore();
+  context.textBaseline = "alphabetic";
+}
+
+function getHighestWarningShareLevel(warnings = []) {
+  return warnings.reduce((highest, warning) => {
+    const level = getWarningShareLevel(warning?.level);
+    return level.rank > highest.rank ? level : highest;
+  }, WARNING_SHARE_LEVELS.none);
+}
+
+function drawWarningMapLegend(context, box, theme) {
+  const items = [
+    WARNING_SHARE_LEVELS.danger,
+    WARNING_SHARE_LEVELS.warning,
+    WARNING_SHARE_LEVELS.advisory
+  ];
+  const fontSize = Math.max(11, Math.min(15, box.width * 0.018));
+  const itemWidth = Math.max(80, box.width * 0.16);
+  const width = itemWidth * items.length + 20;
+  const height = fontSize + 20;
+  const x = box.x + box.width - width - 10;
+  const y = box.y + box.height - height - 10;
+  roundedRect(context, x, y, width, height, 6);
+  context.save();
+  context.globalAlpha = 0.9;
+  context.fillStyle = theme.panel;
+  context.fill();
+  context.restore();
+  context.font = `700 ${fontSize}px ${FONT_FAMILY}`;
+  context.textBaseline = "middle";
+  items.forEach((item, index) => {
+    const itemX = x + 10 + index * itemWidth;
+    context.fillStyle = item.color;
+    context.fillRect(itemX, y + 9, 18, height - 18);
+    context.fillStyle = theme.text;
+    context.fillText(item.label, itemX + 25, y + height / 2);
+  });
+}
+
+function calculateWarningMapBounds([longitude, latitude], box) {
+  const latSpan = box.height < 300 ? 0.38 : 0.42;
+  const latitudeScale = Math.max(0.45, Math.cos(Number(latitude) * Math.PI / 180));
+  const lonSpan = (latSpan * (box.width / box.height)) / latitudeScale;
+  return {
+    minLon: Number(longitude) - lonSpan / 2,
+    maxLon: Number(longitude) + lonSpan / 2,
+    minLat: Number(latitude) - latSpan / 2,
+    maxLat: Number(latitude) + latSpan / 2
+  };
+}
+
+function warningMunicipalityIntersectsBounds(candidate, bounds) {
+  return candidate
+    && candidate.maxLng >= bounds.minLon
+    && candidate.minLng <= bounds.maxLon
+    && candidate.maxLat >= bounds.minLat
+    && candidate.minLat <= bounds.maxLat;
+}
+
+function drawWarningMunicipalityGeometry(context, geometry, project, options) {
+  const polygons = geometry?.type === "Polygon"
+    ? [geometry.coordinates]
+    : (geometry?.type === "MultiPolygon" ? geometry.coordinates : []);
+  polygons.forEach((polygon) => {
+    context.beginPath();
+    polygon.forEach((ring) => {
+      ring.forEach((point, index) => {
+        const [x, y] = project(point);
+        if (index === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      });
+      context.closePath();
+    });
+    context.save();
+    context.globalAlpha = options.fillAlpha;
+    context.fillStyle = options.fillStyle;
+    context.fill("evenodd");
+    context.restore();
+    context.strokeStyle = options.strokeStyle;
+    context.lineWidth = options.lineWidth;
+    context.stroke();
+  });
+}
+
+function getWarningShareLevel(level) {
+  return WARNING_SHARE_LEVELS[level] ?? WARNING_SHARE_LEVELS.none;
+}
+
+function formatWarningShareTime(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return "更新時刻 未取得";
+  const isoMatch = text.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})[T ](\d{1,2}):(\d{2})/u);
+  if (isoMatch) {
+    return `更新 ${isoMatch[2].padStart(2, "0")}/${isoMatch[3].padStart(2, "0")} ${isoMatch[4].padStart(2, "0")}:${isoMatch[5]}`;
+  }
+  const match = text.match(/(?:\d{4}\/)?(\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})/u);
+  return match ? `更新 ${match[1]} ${match[2]}` : `更新 ${text}`;
 }
 
 function drawEarthquakeCard(context, format, theme, payload, japanGeoJson) {
