@@ -5141,7 +5141,7 @@ function buildSelectedVolcanoDetail(report, selectedBulletinId = "") {
   const level = Math.max(0, Math.min(5, Number(report.level) || 0));
   const priority = Math.max(0, Math.min(5, Number(report.alertPriority ?? level) || 0));
   const statusText = report.currentStatus ?? report.kindName ?? detailReport.kindName ?? "警戒状況未確認";
-  const alertName = report.kindName ?? detailReport.kindName ?? statusText;
+  const alertName = report.currentStatus ?? report.kindName ?? detailReport.kindName ?? statusText;
   const restriction = extractVolcanoRestriction(alertName, alertName);
   const warningText = warningDetailReport
     ? warningDetailReport.prevention || warningDetailReport.volcanoHeadline || warningDetailReport.headline
@@ -5210,11 +5210,11 @@ function buildVolcanoBulletinDetail(volcano, bulletin) {
     bulletin.volcanoHeadline || bulletin.headline
       ? `<section class="volcano-detail-section"><h3>発表内容</h3>${formatVolcanoParagraphs(bulletin.volcanoHeadline || bulletin.headline)}</section>`
       : "",
-    bulletin.prevention
-      ? `<section class="volcano-detail-section"><h3>警戒事項等</h3>${formatVolcanoParagraphs(bulletin.prevention)}</section>`
-      : "",
     bulletin.activity
       ? `<section class="volcano-detail-section"><h3>火山活動の状況</h3>${formatVolcanoParagraphs(bulletin.activity)}</section>`
+      : "",
+    bulletin.prevention
+      ? `<section class="volcano-detail-section"><h3>警戒事項等</h3>${formatVolcanoParagraphs(bulletin.prevention)}</section>`
       : "",
     groups.length
       ? `<section class="volcano-detail-section"><h3>対象地域</h3><div class="volcano-target-groups">${groups.map(buildVolcanoTargetAreaGroup).join("")}</div></section>`
@@ -5235,12 +5235,14 @@ function buildVolcanoBulletinDetail(volcano, bulletin) {
         <time>${escapeHtml(bulletin.reportTime ?? "発表時刻不明")}</time>
       </header>
       ${sections || '<section class="volcano-detail-section"><p>この発表の本文は取得できませんでした。気象庁XML原文を確認してください。</p></section>'}
-      ${bulletin.sourceUrl ? `<a class="volcano-xml-source-link" href="${escapeHtml(bulletin.sourceUrl)}" target="_blank" rel="noopener noreferrer">気象庁XML原文を確認</a>` : ""}
+      ${bulletin.sourceUrl ? `<a class="volcano-xml-source-link" href="${escapeHtml(bulletin.sourceUrl)}" target="_blank" rel="noopener noreferrer">気象庁発表原文を確認</a>` : ""}
     </article>`;
 }
 
 function extractVolcanoRestriction(statusText, fallback) {
-  const match = String(statusText ?? "").match(/[（(]([^）)]+)[）)]/u);
+  const match = String(statusText ?? "").match(
+    /^(?:噴火警戒)?レベル\s*[1-5]\s*[（(]([^）)]+)[）)]/u
+  );
   return match?.[1] ?? fallback ?? statusText ?? "警戒状況未確認";
 }
 
@@ -5305,7 +5307,13 @@ function buildVolcanoHistoryItem(report, selectedBulletinId = "") {
 }
 
 function formatVolcanoBulletinTitle(value) {
-  return String(value ?? "火山情報").replace(/^火山名[\s\u3000]*/u, "").trim() || "火山情報";
+  const compact = String(value ?? "火山情報")
+    .replace(/^火山名[\s\u3000]*/u, "")
+    .replace(/(?:令和|平成|昭和)[０-９\d]+年[０-９\d]+月[０-９\d]+日[０-９\d]+時[０-９\d]+分\s*$/u, "")
+    .trim();
+  const numbered = compact.match(/^(?<kind>.+?)[（(][^()（）]*?第(?<number>[０-９\d]+)号[）)]$/u);
+  if (numbered?.groups) return `${numbered.groups.kind}（第${numbered.groups.number}号）`;
+  return compact || "火山情報";
 }
 
 function buildEarthquakeMapLayerControls(data) {

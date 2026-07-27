@@ -10914,6 +10914,13 @@ html[data-theme="light"] :is(.earthquake-card-info > strong, .earthquake-card-fa
   line-height: 1.2;
 }
 
+.volcano-bulletin-detail .volcano-selected-header h2 {
+  font-size: clamp(1.15rem, 3.4vw, 1.5rem);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
 .volcano-selected-header time {
   display: block;
   margin-top: 6px;
@@ -11387,6 +11394,8 @@ html[data-theme="light"] .typhoon-world-attribution a {
 }
 
 .volcano-ash-timeline {
+  --volcano-ash-thumb-border: rgba(202, 243, 250, 0.72);
+  --volcano-ash-thumb-background: #66cedf;
   position: relative;
   height: 28px;
   margin-top: -1px;
@@ -11447,13 +11456,11 @@ html[data-theme="light"] .typhoon-world-attribution a {
   width: 44px;
   height: 26px;
   margin-top: -12px;
-  border: 1px solid rgba(234, 253, 255, 0.72);
+  border: 1px solid var(--volcano-ash-thumb-border);
   border-radius: 999px;
   appearance: none;
-  background: linear-gradient(135deg, #bceff5 0%, #91dce8 100%);
-  box-shadow:
-    0 3px 12px rgba(42, 197, 224, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  background: var(--volcano-ash-thumb-background);
+  box-shadow: none;
 }
 
 .volcano-ash-slider::-moz-range-track {
@@ -11464,12 +11471,10 @@ html[data-theme="light"] .typhoon-world-attribution a {
 .volcano-ash-slider::-moz-range-thumb {
   width: 44px;
   height: 26px;
-  border: 1px solid rgba(234, 253, 255, 0.72);
+  border: 1px solid var(--volcano-ash-thumb-border);
   border-radius: 999px;
-  background: linear-gradient(135deg, #bceff5 0%, #91dce8 100%);
-  box-shadow:
-    0 3px 12px rgba(42, 197, 224, 0.34),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  background: var(--volcano-ash-thumb-background);
+  box-shadow: none;
 }
 
 .volcano-ash-slider:focus-visible {
@@ -11479,6 +11484,11 @@ html[data-theme="light"] .typhoon-world-attribution a {
 
 html[data-theme="light"] .volcano-ash-timeline-rail {
   background: rgba(58, 79, 101, 0.62);
+}
+
+html[data-theme="light"] .volcano-ash-timeline {
+  --volcano-ash-thumb-border: #167997;
+  --volcano-ash-thumb-background: #55c7db;
 }
 
 html[data-theme="light"] .volcano-selected-header h2 {
@@ -11491,22 +11501,6 @@ html[data-theme="light"] .volcano-selected-header h2 {
 html[data-theme="light"] .volcano-ash-timeline-rail i {
   background: #637487;
   box-shadow: 0 0 0 2px rgba(248, 252, 255, 0.9);
-}
-
-html[data-theme="light"] .volcano-ash-slider::-webkit-slider-thumb {
-  border-color: #147b9f;
-  background: linear-gradient(135deg, #8fe3ef 0%, #48c8df 100%);
-  box-shadow:
-    0 4px 12px rgba(12, 105, 145, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.86);
-}
-
-html[data-theme="light"] .volcano-ash-slider::-moz-range-thumb {
-  border-color: #147b9f;
-  background: linear-gradient(135deg, #8fe3ef 0%, #48c8df 100%);
-  box-shadow:
-    0 4px 12px rgba(12, 105, 145, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.86);
 }
 
 html[data-theme="light"] .earthquake-detail-metrics { border-top-color: rgba(72, 100, 132, 0.14); }

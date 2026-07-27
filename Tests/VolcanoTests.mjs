@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
   buildVolcanoBaselineReports,
+  buildVolcanoLatestActivityReports,
   consolidateVolcanoReports,
+  fetchVolcanoLatestActivityReports,
   getAvailableVolcanoAshForecasts,
   getHighestPriorityVolcanoReport,
   getLatestVolcanoReportsByType,
@@ -15,6 +17,12 @@ import {
   selectVolcanoFeedEntries,
   volcanoAlertLevel
 } from "../src/jma/volcanoXml.js";
+import {
+  fetchLatestVolcanoActivities,
+  normalizeVolcanoCodes,
+  parseLatestVolcanoActivityHtml,
+  parseVolcanoBulletinHtml
+} from "../functions/_shared/volcanoLatest.js";
 import { getVolcanoLevelColor, getVolcanoLevelTextColor } from "../src/volcanoLevels.js";
 import {
   getVolcanoAshfallLegendItems,
@@ -241,15 +249,163 @@ assert.deepEqual(
 );
 
 const reports = consolidateVolcanoReports([
-  { id: "a-new", volcanoCode: "506", volcanoName: "桜島", reportTimeRaw: "2026-07-23T10:00:00+09:00", level: 0, bulletinCode: "VFVO51" },
-  { id: "a-status", volcanoCode: "506", volcanoName: "桜島", reportTimeRaw: "2026-07-08T16:00:00+09:00", kindName: "噴火警戒レベル3", level: 3, alertPriority: 3, bulletinCode: "CURRENT" },
+  { id: "a-new", volcanoCode: "506", volcanoName: "桜島", reportTimeRaw: "2026-07-23T10:00:00+09:00", kindName: "定時", level: 0, bulletinCode: "VFVO51" },
+  { id: "a-status", volcanoCode: "506", volcanoName: "桜島", reportTimeRaw: "2026-07-08T16:00:00+09:00", kindName: "レベル3（入山規制）", kindCode: "13", level: 3, alertPriority: 3, bulletinCode: "CURRENT" },
   { id: "b-status", volcanoCode: "105", volcanoName: "雌阿寒岳", reportTimeRaw: "2026-07-08T16:00:00+09:00", level: 2, alertPriority: 2, bulletinCode: "CURRENT" }
 ]);
 assert.equal(reports.length, 2, "同じ火山は1件へ統合する");
 assert.equal(reports[0].volcanoName, "桜島", "警戒度の高い火山を先頭にする");
 assert.equal(reports[0].level, 3, "最新の解説情報で現在の警戒レベルを失わない");
-assert.equal(reports[0].currentStatus, "噴火警戒レベル3");
+assert.equal(reports[0].kindName, "レベル3（入山規制）", "最新の解説情報の「定時」で現在の警報名を上書きしない");
+assert.equal(reports[0].kindCode, "13");
+assert.equal(reports[0].currentStatus, "レベル3（入山規制）");
 assert.equal(reports[0].relatedReports.length, 2);
+
+const latestActivityReports = buildVolcanoLatestActivityReports(
+  [
+    {
+      reports: [
+        {
+          volcanoCode: "329",
+          volcanoName: "硫黄島",
+          reportTimeRaw: "2025-09-02T11:00:00+09:00",
+          title: "火山の状況に関する解説情報(硫黄島第1号)",
+          sourceUrl: "https://www.data.jma.go.jp/vois/data/report/volinfo/VK20250902110000_329.html"
+        }
+      ]
+    },
+    {
+      reports: [
+      {
+        volcanoCode: "329",
+        volcanoName: "硫黄島",
+        reportTimeRaw: "2025-09-02T11:00:00+09:00",
+        title: "火山の状況に関する解説情報(硫黄島第1号)",
+        volcanoHeadline: "火口周辺警報（火口周辺危険）が継続",
+        activity: "噴火が発生し、現在も継続しています。",
+        prevention: "沿岸での小規模な海底噴火にも注意が必要です。",
+        nextAdvisory: "変化があった場合には随時お知らせします。",
+        sourceUrl: "https://www.data.jma.go.jp/vois/data/report/volinfo/VK20250902110000_329.html"
+      },
+      {
+        volcanoCode: "108",
+        volcanoName: "十勝岳",
+        reportTimeRaw: "2024-01-01T00:00:00+09:00",
+        title: "古い解説情報"
+      },
+      {
+        volcanoCode: "999",
+        volcanoName: "警報対象外",
+        reportTimeRaw: "2026-07-27T16:00:00+09:00",
+        title: "対象外"
+      }
+      ]
+    }
+  ],
+  [
+    {
+      bulletinCode: "CURRENT",
+      volcanoCode: "329",
+      volcanoName: "硫黄島",
+      reportTimeRaw: "2007-12-01T10:01:00+09:00",
+      kindName: "火口周辺危険",
+      alertPriority: 2,
+      isWarningSnapshot: true,
+      coordinates: [141.289, 24.751]
+    },
+    {
+      bulletinCode: "CURRENT",
+      volcanoCode: "108",
+      volcanoName: "十勝岳",
+      reportTimeRaw: "2026-06-18T11:00:00+09:00",
+      kindName: "レベル2（火口周辺規制）",
+      alertPriority: 2,
+      isWarningSnapshot: true
+    },
+    {
+      bulletinCode: "CURRENT",
+      volcanoCode: "999",
+      volcanoName: "警報対象外",
+      reportTimeRaw: "2026-07-08T16:00:00+09:00",
+      kindName: "レベル1",
+      alertPriority: 1
+    }
+  ]
+);
+assert.equal(latestActivityReports.length, 1, "現在警報中かつ警報日時以降の最新解説情報だけを採用する");
+assert.equal(latestActivityReports[0].volcanoCode, "329");
+assert.deepEqual(latestActivityReports[0].coordinates, [141.289, 24.751]);
+assert.equal(latestActivityReports[0].volcanoHeadline, "火口周辺警報（火口周辺危険）が継続");
+assert.equal(latestActivityReports[0].activity, "噴火が発生し、現在も継続しています。");
+assert.equal(latestActivityReports[0].prevention, "沿岸での小規模な海底噴火にも注意が必要です。");
+assert.equal(latestActivityReports[0].nextAdvisory, "変化があった場合には随時お知らせします。");
+const iotoConsolidated = consolidateVolcanoReports([
+  latestActivityReports[0],
+  {
+    bulletinCode: "CURRENT",
+    volcanoCode: "329",
+    volcanoName: "硫黄島",
+    reportTimeRaw: "2007-12-01T10:01:00+09:00",
+    reportTime: "2007/12/01 10:01",
+    kindName: "火口周辺危険",
+    kindCode: "22",
+    alertPriority: 2
+  }
+])[0];
+assert.equal(iotoConsolidated.reportTime, "2025/09/02 11:00");
+assert.equal(iotoConsolidated.currentStatus, "火口周辺危険", "最新解説日時を使っても現在の警報名を維持する");
+assert.equal(iotoConsolidated.relatedReports.length, 2);
+
+assert.deepEqual(normalizeVolcanoCodes(["329", "329", " 108 ", "bad", "1234"]), ["329", "108"]);
+const parsedLatestActivity = parseLatestVolcanoActivityHtml(`
+  <h2>最新の火山情報</h2>
+  <ul>
+    <li><a href="/vois/data/report/volinfo/VK20240203120000_329.html">古い情報</a></li>
+    <li><a href="/vois/data/report/volinfo/VK20250902110000_329.html">火山の状況に関する解説情報(硫黄島第１号)&amp;確認</a></li>
+  </ul>
+`, "329");
+assert.equal(parsedLatestActivity?.reportTimeRaw, "2025-09-02T11:00:00+09:00");
+assert.equal(parsedLatestActivity?.title, "火山の状況に関する解説情報(硫黄島第１号)&確認");
+assert.equal(
+  parsedLatestActivity?.sourceUrl,
+  "https://www.data.jma.go.jp/vois/data/report/volinfo/VK20250902110000_329.html"
+);
+const parsedBulletin = parseVolcanoBulletinHtml(`
+  <html><body><pre>
+火山名　硫黄島　火山の状況に関する解説情報　第１号
+
+＊＊（見出し）＊＊
+＜火口周辺警報（火口周辺危険）が継続＞
+　硫黄島で噴火が発生し、現在も
+継続しています。
+
+＊＊（本　文）＊＊
+１．火山活動の状況
+　噴煙は高さ１０００ｍ以上まで
+上がりました。
+
+２．防災上の警戒事項等
+　沿岸での小規模な海底噴火にも
+注意が必要です。
+
+　火山活動の状況に変化があった場合には、
+随時お知らせします。
+  </pre></body></html>
+`);
+assert.equal(
+  parsedBulletin.volcanoHeadline,
+  "＜火口周辺警報（火口周辺危険）が継続＞硫黄島で噴火が発生し、現在も継続しています。"
+);
+assert.equal(parsedBulletin.activity, "噴煙は高さ１０００ｍ以上まで上がりました。");
+assert.equal(parsedBulletin.prevention, "沿岸での小規模な海底噴火にも注意が必要です。");
+assert.equal(parsedBulletin.nextAdvisory, "火山活動の状況に変化があった場合には、随時お知らせします。");
+const fetchedLatestActivities = await fetchLatestVolcanoActivities(["329", "108"], async (url) => ({
+  ok: url.endsWith("/329.html"),
+  status: url.endsWith("/329.html") ? 200 : 503,
+  text: async () => '<a href="/vois/data/report/volinfo/VK20250902110000_329.html">硫黄島最新</a>'
+}));
+assert.deepEqual(fetchedLatestActivities.map((item) => item.volcanoCode), ["329"]);
+assert.equal(typeof fetchVolcanoLatestActivityReports, "function", "選択した火山の最新解説を個別更新できる");
 assert.equal(
   getHighestPriorityVolcanoReport([
     { volcanoCode: "low", alertPriority: 1, reportTimeRaw: "2026-07-23T12:00:00+09:00" },
@@ -273,6 +429,13 @@ const [config, map, app, panel, style, volcanoParser, longPressHint, viteConfig]
 assert.match(config, /volcano\/data\/info\/900\.json/);
 assert.match(config, /volcano\/data\/warning\.json/);
 assert.match(config, /volcano\/const\/volcano_list\.json/);
+assert.equal((config.match(/volcanoLatestActivity:/gu) ?? []).length, 1, "最新火山解説APIの設定を重複させない");
+assert.match(panel, /numbered\.groups\.kind[\s\S]*numbered\.groups\.number/);
+assert.match(panel, /気象庁発表原文を確認/);
+assert.match(style, /\.volcano-bulletin-detail \.volcano-selected-header h2/);
+assert.match(app, /refreshSelectedVolcanoLatestActivity\(volcanoCode\)/);
+assert.match(app, /activeOnly:\s*false/);
+assert.match(app, /selectedBulletin\?\.bulletinCode === "ACTIVITY_LATEST"/);
 assert.match(map, /VOLCANO_MARKER_IMAGE_ID = "volcano-filled-triangle"/);
 assert.match(map, /"icon-image": VOLCANO_MARKER_IMAGE_ID/);
 assert.match(map, /function buildVolcanoIconColorExpression\(theme\)/);
@@ -327,8 +490,13 @@ assert.match(panel, /data-volcano-bulletin-id/);
 assert.match(panel, /data-volcano-bulletin-back/);
 assert.match(
   panel,
-  /const alertName = report\.kindName \?\? detailReport\.kindName \?\? statusText;[\s\S]*?extractVolcanoRestriction\(alertName, alertName\)/,
-  "現在の噴火警報・予報では更新条件の「継続」ではなく全火山で警報名を表示する"
+  /const alertName = report\.currentStatus \?\? report\.kindName \?\? detailReport\.kindName \?\? statusText;[\s\S]*?extractVolcanoRestriction\(alertName, alertName\)/,
+  "現在の噴火警報・予報では発表種別の「定時」ではなく全火山で現在の警報名を表示する"
+);
+assert.match(
+  panel,
+  /\^\(\?:噴火警戒\)\?レベル\\s\*\[1-5\][\s\S]*?return match\?\.\[1\] \?\? fallback/,
+  "括弧内だけを表示する処理は噴火警戒レベル表記に限定し、非運用火山の正式名称を維持する"
 );
 assert.doesNotMatch(panel, /<a class="volcano-history-item"/);
 assert.match(panel, /function buildVolcanoBulletinDetail/);
@@ -355,6 +523,8 @@ assert.match(app, /function updateCurrentView[\s\S]*?scheduleMapRender\(tab\.id,
 assert.match(style, /\.volcano-ash-timeline\s*\{[\s\S]*?height:\s*28px;/);
 assert.match(style, /\.volcano-ash-timeline-rail\s*\{[\s\S]*?justify-content:\s*space-between;/);
 assert.match(style, /\.volcano-ash-slider::\-webkit-slider-thumb[\s\S]*?width:\s*44px;[\s\S]*?border-radius:\s*999px;/);
+assert.match(style, /\.volcano-ash-slider::\-webkit-slider-thumb[\s\S]*?background:\s*var\(--volcano-ash-thumb-background\);[\s\S]*?box-shadow:\s*none;/);
+assert.match(style, /\.volcano-ash-slider::\-moz-range-thumb[\s\S]*?background:\s*var\(--volcano-ash-thumb-background\);[\s\S]*?box-shadow:\s*none;/);
 assert.doesNotMatch(style, /\.volcano-ash-timeline-rail i\.active/);
 assert.match(panel, /function formatVolcanoBulletinTitle/);
 assert.match(panel, /replace\(\/\^火山名\[\\s\\u3000\]\*\/u/);

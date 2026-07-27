@@ -18,7 +18,10 @@ export async function fetchVolcanoXmlList() {
     .map(parseFeedEntry)
     .filter((entry) => VOLCANO_XML_CODES.has(entry.code))));
   const entries = selectVolcanoFeedEntries(allEntries, VOLCANO_DETAIL_FETCH_LIMIT);
-  const results = await Promise.allSettled(entries.map(fetchVolcanoDetail));
+  const [results, latestActivityReports] = await Promise.all([
+    Promise.allSettled(entries.map(fetchVolcanoDetail)),
+    fetchVolcanoLatestActivityReports(baselineReports).catch(() => [])
+  ]);
   const reports = results
     .filter((result) => result.status === "fulfilled" && result.value)
     .map((result) => result.value)
@@ -28,8 +31,13 @@ export async function fetchVolcanoXmlList() {
     throw new Error("Volcano XML detail unavailable");
   }
 
-  const consolidatedReports = consolidateVolcanoReports([...reports, ...baselineReports]).slice(0, VOLCANO_DISPLAY_LIMIT);
-  const updatedAt = reports[0]?.reportTime
+  const consolidatedReports = consolidateVolcanoReports([
+    ...reports,
+    ...latestActivityReports,
+    ...baselineReports
+  ]).slice(0, VOLCANO_DISPLAY_LIMIT);
+  const updatedAt = [...reports, ...latestActivityReports]
+    .sort((left, right) => dateMs(right.reportTimeRaw || right.reportTime) - dateMs(left.reportTimeRaw || left.reportTime))[0]?.reportTime
     ?? baselineReports[0]?.reportTime
     ?? feeds.map(({ feed }) => getText(getFirst(feed, "updated"))).sort((a, b) => dateMs(b) - dateMs(a))[0]
     ?? null;
@@ -94,17 +102,26 @@ export function consolidateVolcanoReports(reports) {
     });
 
   return [...groups.values()].map((relatedReports) => {
-    const latest = relatedReports[0];
-    const alertReport = relatedReports.find((report) => report.bulletinCode === "CURRENT")
+    const currentReport = relatedReports.find((report) => report.bulletinCode === "CURRENT");
+    const latest = relatedReports.find((report) =>
+      report.bulletinCode !== "CURRENT" || report.isWarningSnapshot
+    ) ?? currentReport ?? relatedReports[0];
+    const alertReport = currentReport
       ?? relatedReports.find((report) => report.bulletinCode === "VFVO50" && Number(report.alertPriority || report.level) > 0)
       ?? relatedReports.find((report) => Number(report.alertPriority || report.level) > 0);
+    const alertKindName = alertReport?.kindName
+      || latest.kindName
+      || latest.infoKind
+      || "警戒状況未確認";
     const coordinateReport = relatedReports.find((report) => Array.isArray(report.coordinates));
     return {
       ...latest,
       level: Number(alertReport?.level) || Number(latest.level) || 0,
       alertPriority: Number(alertReport?.alertPriority) || Number(alertReport?.level) || Number(latest.alertPriority) || 0,
+      kindName: alertKindName,
+      kindCode: alertReport?.kindCode || latest.kindCode || "",
       condition: alertReport?.condition || latest.condition,
-      currentStatus: alertReport?.kindName || latest.kindName || latest.infoKind || "警戒状況未確認",
+      currentStatus: alertKindName,
       coordinates: coordinateReport?.coordinates ?? latest.coordinates ?? null,
       relatedReports
     };
@@ -167,10 +184,110 @@ export function buildVolcanoBaselineReports(status, catalog, warnings) {
       level,
       alertPriority: volcanoAlertPriority(level, kindCode),
       condition: normalizeVolcanoAscii(item?.condition),
+      isWarningSnapshot: Boolean(warning),
       headline: normalizeVolcanoAscii(item?.name) || "現在の警戒状況を確認できません",
       sourceUrl: "https://www.jma.go.jp/bosai/volcano/"
     };
   });
+}
+
+export function buildVolcanoLatestActivityReports(payloads, baselineReports, { activeOnly = true } = {}) {
+  const baselineByCode = new Map((baselineReports ?? []).map((report) => [
+    String(report?.volcanoCode ?? ""),
+    report
+  ]));
+  const eligibleCodes = new Set((baselineReports ?? [])
+    .filter((report) => !activeOnly || Number(report?.alertPriority ?? report?.level) >= 2)
+    .map((report) => String(report?.volcanoCode ?? "")));
+  const latestByCode = new Map();
+
+  (payloads ?? []).flatMap((payload) => payload?.reports ?? []).forEach((item) => {
+    const volcanoCode = String(item?.volcanoCode ?? "").trim();
+    if (!eligibleCodes.has(volcanoCode) || !item?.reportTimeRaw) return;
+    const previous = latestByCode.get(volcanoCode);
+    const itemTime = dateMs(item.reportTimeRaw);
+    const previousTime = dateMs(previous?.reportTimeRaw);
+    if (!previous || itemTime > previousTime) {
+      latestByCode.set(volcanoCode, item);
+      return;
+    }
+    if (itemTime === previousTime) {
+      latestByCode.set(volcanoCode, mergeVolcanoActivityReport(previous, item));
+    }
+  });
+
+  return [...latestByCode.values()].flatMap((item) => {
+    const baseline = baselineByCode.get(String(item.volcanoCode));
+    if (
+      !baseline
+      || (
+        activeOnly
+        && baseline.isWarningSnapshot
+        && dateMs(item.reportTimeRaw) < dateMs(baseline.reportTimeRaw || baseline.reportTime)
+      )
+    ) return [];
+    return [{
+      id: `latest-activity-${item.volcanoCode}-${String(item.reportTimeRaw).replace(/\D/gu, "")}`,
+      bulletinCode: "ACTIVITY_LATEST",
+      volcanoCode: String(item.volcanoCode),
+      volcanoName: normalizeVolcanoAscii(item.volcanoName) || baseline.volcanoName,
+      coordinates: baseline.coordinates ?? null,
+      reportTime: parseJmaTime(item.reportTimeRaw) ?? item.reportTimeRaw,
+      reportTimeRaw: item.reportTimeRaw,
+      infoKind: "火山の状況に関する解説情報",
+      title: normalizeVolcanoAscii(item.title) || "火山の状況に関する解説情報",
+      volcanoHeadline: normalizeVolcanoAscii(item.volcanoHeadline),
+      headline: normalizeVolcanoAscii(item.volcanoHeadline)
+        || normalizeVolcanoAscii(item.headline)
+        || "最新の火山の状況に関する解説情報",
+      activity: normalizeVolcanoAscii(item.activity),
+      prevention: normalizeVolcanoAscii(item.prevention),
+      nextAdvisory: normalizeVolcanoAscii(item.nextAdvisory),
+      sourceUrl: item.sourceUrl || baseline.sourceUrl
+    }];
+  });
+}
+
+function mergeVolcanoActivityReport(previous, next) {
+  const merged = { ...previous };
+  Object.entries(next ?? {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") merged[key] = value;
+  });
+  return merged;
+}
+
+export async function fetchVolcanoLatestActivityReports(
+  baselineReports,
+  { codes: requestedCodes = null, activeOnly = true } = {}
+) {
+  const eligibleReports = (baselineReports ?? [])
+    .filter((report) => !activeOnly || Number(report?.alertPriority ?? report?.level) >= 2);
+  const eligibleCodes = new Set(eligibleReports
+    .map((report) => String(report?.volcanoCode ?? "").trim())
+    .filter(Boolean));
+  const codes = [...new Set((requestedCodes ?? [...eligibleCodes])
+    .map((value) => String(value ?? "").trim())
+    .filter((code) => eligibleCodes.has(code)))];
+  if (!codes.length) return [];
+
+  const apiUrl = `${JMA_ENDPOINTS.volcanoLatestActivity}?codes=${encodeURIComponent(codes.join(","))}`;
+  const results = await Promise.allSettled([
+    fetchText(apiUrl, {
+      ttlMs: 10 * 60 * 1000,
+      timeoutMs: 15 * 1000,
+      cache: "no-store",
+      retryCount: 0
+    }).then(JSON.parse),
+    fetchText(JMA_ENDPOINTS.volcanoLatestActivityFallback, {
+      ttlMs: 60 * 60 * 1000,
+      cache: "force-cache",
+      retryCount: 0
+    }).then(JSON.parse)
+  ]);
+  const payloads = results
+    .filter((result) => result.status === "fulfilled" && Array.isArray(result.value?.reports))
+    .map((result) => result.value);
+  return buildVolcanoLatestActivityReports(payloads, eligibleReports, { activeOnly });
 }
 
 function buildCurrentVolcanoWarningMap(warnings) {

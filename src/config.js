@@ -56,6 +56,8 @@ export const JMA_ENDPOINTS = {
   volcanoStatus: "https://www.jma.go.jp/bosai/volcano/data/info/900.json",
   volcanoWarningStatus: "https://www.jma.go.jp/bosai/volcano/data/warning.json",
   volcanoCatalog: "https://www.jma.go.jp/bosai/volcano/const/volcano_list.json",
+  volcanoLatestActivity: "/api/volcano/latest",
+  volcanoLatestActivityFallback: publicAsset("data/jma-volcano-latest-info.json"),
   riverFloodGeometry: "https://services.arcgis.com/wlVTGRSYTzAbjjiC/ArcGIS/rest/services/flood_risk_all/FeatureServer/0/query",
   areaConst: "https://www.jma.go.jp/bosai/common/const/area.json",
   warningMunicipalities: publicAsset("data/jma-weather-warning-municipalities.geojson"),

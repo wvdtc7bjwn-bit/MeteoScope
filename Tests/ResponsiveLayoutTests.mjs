@@ -343,7 +343,7 @@ assert.match(
 );
 assert.match(
   styles,
-  /html\[data-theme="light"\] \.volcano-ash-slider::\-webkit-slider-thumb\s*\{[\s\S]*?border-color:\s*#147b9f;/
+  /html\[data-theme="light"\] \.volcano-ash-timeline\s*\{[\s\S]*?--volcano-ash-thumb-border:\s*#167997;[\s\S]*?--volcano-ash-thumb-background:\s*#55c7db;/
 );
 assert.match(
   styles,

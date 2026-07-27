@@ -25,7 +25,11 @@ import {
 } from "./worldTyphoon.js";
 import { fetchEarthquakeXmlList } from "./jma/earthquakeXml.js";
 import { fetchTideObservationSeries, fetchTideStationCatalog } from "./jma/tideLevel.js";
-import { fetchVolcanoXmlList } from "./jma/volcanoXml.js";
+import {
+  consolidateVolcanoReports,
+  fetchVolcanoLatestActivityReports,
+  fetchVolcanoXmlList
+} from "./jma/volcanoXml.js";
 import { fetchKikikuruTiles } from "./jma/kikikuru.js";
 import { fetchRiverFloodForecasts } from "./jma/riverFlood.js";
 import {
@@ -237,6 +241,7 @@ export function createWeatherApp() {
   let selectedVolcanoBulletinId = "";
   let selectedVolcanoAshForecastIndex = 0;
   let volcanoRefreshRequest = null;
+  const volcanoLatestActivityRequests = new Map();
   let earthquakeView = "recent";
   let earthquakeDistribution3DEnabled = false;
   let earthquakeDistributionFilters = { dayOffset: 0, minMagnitude: "0", maxDepth: "all" };
@@ -904,6 +909,46 @@ if (layerId === "river") {
       })
       .finally(() => { volcanoRefreshRequest = null; });
     return volcanoRefreshRequest;
+  }
+
+  async function refreshSelectedVolcanoLatestActivity(volcanoCode) {
+    const code = String(volcanoCode ?? "").trim();
+    if (!code || !volcanoData?.reports?.length) return;
+    if (volcanoLatestActivityRequests.has(code)) return volcanoLatestActivityRequests.get(code);
+
+    const selectedReport = volcanoData.reports.find((report) =>
+      String(report?.volcanoCode ?? report?.code ?? "") === code
+    );
+    const baselineReport = selectedReport?.relatedReports?.find((report) => report.bulletinCode === "CURRENT")
+      ?? selectedReport;
+    if (!baselineReport) return;
+
+    const request = fetchVolcanoLatestActivityReports(
+      [baselineReport],
+      { codes: [code], activeOnly: false }
+    ).then((latestReports) => {
+      if (!latestReports.length || !volcanoData?.reports?.length) return;
+      const rawReports = volcanoData.reports.flatMap((report) =>
+        report.relatedReports?.length ? report.relatedReports : [report]
+      ).filter((report) =>
+        !(report.bulletinCode === "ACTIVITY_LATEST" && String(report.volcanoCode ?? "") === code)
+      );
+      const reports = consolidateVolcanoReports([...latestReports, ...rawReports]);
+      volcanoData = {
+        ...volcanoData,
+        reports,
+        mapVolcanoes: reports.filter((report) => Array.isArray(report.coordinates))
+      };
+      if (activeTab === "earthquake" && earthquakeContentMode === "volcano" && selectedVolcanoCode === code) {
+        refreshVolcanoView();
+      }
+    }).catch((error) => {
+      console.warn(`[MeteoScope] latest volcano activity unavailable for ${code}`, error);
+    }).finally(() => {
+      volcanoLatestActivityRequests.delete(code);
+    });
+    volcanoLatestActivityRequests.set(code, request);
+    return request;
   }
 
   function selectEarthquakeView(view) {
@@ -2488,6 +2533,7 @@ if (layerId === "river") {
       selectedVolcanoBulletinId = "";
       selectedVolcanoAshForecastIndex = 0;
       refreshVolcanoView({ scrollToTop: true });
+      void refreshSelectedVolcanoLatestActivity(volcanoCode);
     });
     window.addEventListener("tide-station-select", (event) => {
       const stationCode = String(event.detail?.stationCode ?? "").trim();
@@ -2512,9 +2558,22 @@ if (layerId === "river") {
         selectedVolcanoAshForecastIndex = 0;
         refreshVolcanoView({ scrollToTop: true });
       },
-      onVolcanoBulletinSelect: (bulletinId) => {
+      onVolcanoBulletinSelect: async (bulletinId) => {
         selectedVolcanoBulletinId = String(bulletinId ?? "").trim();
         refreshVolcanoView({ scrollToTop: true });
+        const selectedReport = volcanoData?.reports?.find((report) =>
+          String(report?.volcanoCode ?? report?.code ?? "") === selectedVolcanoCode
+        );
+        const selectedBulletin = selectedReport?.relatedReports?.find((report) =>
+          String(report?.id ?? "") === selectedVolcanoBulletinId
+        );
+        if (
+          selectedBulletin?.bulletinCode === "ACTIVITY_LATEST"
+          && !selectedBulletin.activity
+          && !selectedBulletin.prevention
+        ) {
+          await refreshSelectedVolcanoLatestActivity(selectedVolcanoCode);
+        }
       },
       onVolcanoBulletinBack: () => {
         selectedVolcanoBulletinId = "";
