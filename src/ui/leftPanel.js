@@ -68,8 +68,11 @@ let lastWarningDetailsData = null;
 let lastWarningDetailsView = "";
 let lastWarningDetailsStatus = "";
 let lastWarningDetailsAreaCode = "";
+let warningVisibleAreaCount = 80;
+let warningListExpansionRequested = false;
 
 const AMEDAS_RANKING_LIMIT = 100;
+const WARNING_AREA_PAGE_SIZE = 80;
 const MOBILE_WEATHER_TIMELINE_TAP_DELAY_MS = 360;
 const MOBILE_WEATHER_TIMELINE_TAP_MAX_DURATION_MS = 500;
 const MOBILE_WEATHER_TIMELINE_TAP_MOVE_THRESHOLD_PX = 8;
@@ -1842,7 +1845,14 @@ export function setupWarningAreaSelection(options = {}) {
 
   root.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
-const riverRow = event.target.closest("[data-river-flood-id]");
+    const loadMoreButton = event.target.closest("[data-warning-load-more]");
+    if (loadMoreButton) {
+      warningVisibleAreaCount += WARNING_AREA_PAGE_SIZE;
+      warningListExpansionRequested = true;
+      warningAreaSelectionOptions.onListExpansion?.();
+      return;
+    }
+    const riverRow = event.target.closest("[data-river-flood-id]");
     if (riverRow?.dataset.riverFloodId) {
       openRiverFloodModal(riverRow.dataset.riverFloodId);
       return;
@@ -3656,28 +3666,76 @@ function getMobileWarningBadgeColorClass(warningView, level) {
 }
 
 function renderWarningGroupsProgressively(root, groups, renderGeneration, buildGroupMarkup) {
-  let groupIndex = 0;
+  const visibleGroups = takeWarningAreas(groups, warningVisibleAreaCount);
+  const renderChunks = buildWarningRenderChunks(visibleGroups);
+  let chunkIndex = 0;
   root.setAttribute("aria-busy", "true");
   root.innerHTML = `<div class="warning-empty">一覧を表示中...</div>`;
 
-  const renderNextGroup = () => {
+  const renderNextChunk = () => {
     warningDetailsRenderFrame = 0;
     if (warningDetailsRenderGeneration !== renderGeneration || root.hidden) return;
 
-    if (groupIndex === 0) root.innerHTML = "";
-    root.insertAdjacentHTML("beforeend", buildGroupMarkup(groups[groupIndex]));
-    groupIndex += 1;
+    if (chunkIndex === 0) root.innerHTML = "";
+    const chunk = renderChunks[chunkIndex];
+    root.insertAdjacentHTML("beforeend", buildGroupMarkup(chunk.group, {
+      includeHeader: chunk.includeHeader
+    }));
+    chunkIndex += 1;
 
-    if (groupIndex < groups.length) {
-      warningDetailsRenderFrame = window.requestAnimationFrame(renderNextGroup);
+    if (chunkIndex < renderChunks.length) {
+      warningDetailsRenderFrame = window.requestAnimationFrame(renderNextChunk);
       return;
     }
 
+    const renderedCount = visibleGroups.reduce((count, group) => count + Number(group?.areas?.length ?? 0), 0);
+    const totalCount = groups.reduce((count, group) => count + Number(group?.areas?.length ?? 0), 0);
+    if (renderedCount < totalCount) {
+      root.insertAdjacentHTML("beforeend", `
+        <button type="button" class="warning-load-more" data-warning-load-more>
+          続きを表示
+          <span>${renderedCount}/${totalCount}件</span>
+        </button>
+      `);
+    }
     root.removeAttribute("aria-busy");
     refreshOpenWarningModal();
   };
 
-  warningDetailsRenderFrame = window.requestAnimationFrame(renderNextGroup);
+  if (renderChunks.length === 0) {
+    root.innerHTML = "";
+    root.removeAttribute("aria-busy");
+    return;
+  }
+  renderNextChunk();
+}
+
+function takeWarningAreas(groups, limit) {
+  const visible = [];
+  let remaining = Math.max(0, Number(limit) || 0);
+  for (const group of groups) {
+    if (remaining <= 0) break;
+    const areas = Array.isArray(group?.areas) ? group.areas : [];
+    const selectedAreas = areas.slice(0, remaining);
+    if (selectedAreas.length > 0) visible.push({ ...group, areas: selectedAreas });
+    remaining -= selectedAreas.length;
+  }
+  return visible;
+}
+
+function buildWarningRenderChunks(groups, chunkSize = 12) {
+  const chunks = [];
+  const safeChunkSize = Math.max(1, Number(chunkSize) || 1);
+  groups.forEach((group) => {
+    const areas = Array.isArray(group?.areas) ? group.areas : [];
+    for (let offset = 0; offset < areas.length; offset += safeChunkSize) {
+      chunks.push({
+        group: { ...group, areas: areas.slice(offset, offset + safeChunkSize) },
+        includeHeader: offset === 0
+      });
+    }
+  });
+  return chunks;
 }
 
 function renderWarningDetails(tab, state, warningView = "status") {
@@ -3694,8 +3752,16 @@ function renderWarningDetails(tab, state, warningView = "status") {
     return;
   }
 
+  const renderContextChanged =
+    lastWarningDetailsData !== state.data
+    || lastWarningDetailsView !== warningView
+    || lastWarningDetailsStatus !== state.status;
+  if (renderContextChanged && !warningListExpansionRequested) {
+    warningVisibleAreaCount = WARNING_AREA_PAGE_SIZE;
+  }
   const canReuseRenderedDetails =
     state.status === "ok"
+    && !warningListExpansionRequested
     && !wasRenderingProgressively
     && root.childElementCount > 0
     && lastWarningDetailsData === state.data
@@ -3703,6 +3769,7 @@ function renderWarningDetails(tab, state, warningView = "status") {
     && lastWarningDetailsStatus === state.status
     && lastWarningDetailsAreaCode === selectedWarningAreaCode;
   if (canReuseRenderedDetails) return;
+  warningListExpansionRequested = false;
 
   lastWarningDetailsData = state.data ?? null;
   lastWarningDetailsView = warningView;
@@ -3752,8 +3819,8 @@ if (warningView === "river") {
     return;
   }
 
-  renderWarningGroupsProgressively(root, groups, renderGeneration, (group) => `
-      <div class="warning-prefecture-label">${escapeHtml(group.prefecture)}<span>${escapeHtml(group.count ?? group.areas.length)}件</span></div>
+  renderWarningGroupsProgressively(root, groups, renderGeneration, (group, { includeHeader } = {}) => `
+      ${includeHeader ? `<div class="warning-prefecture-label">${escapeHtml(group.prefecture)}<span>${escapeHtml(group.count ?? group.areas.length)}件</span></div>` : ""}
       ${group.areas.map((area) => `
         <article class="warning-area-row${String(area.areaCode) === selectedWarningAreaCode ? " selected" : ""}" data-warning-area-code="${escapeHtml(area.areaCode)}">
           <strong>${escapeHtml(area.areaName)}</strong>
@@ -3828,8 +3895,8 @@ function renderEarlyWarningDetails(root, state, renderGeneration) {
     ...municipalityAreas.map((area) => [String(area.areaCode), area])
   ]);
 
-  renderWarningGroupsProgressively(root, groups, renderGeneration, (group) => `
-      <div class="warning-prefecture-label">${escapeHtml(group.prefecture)}<span>${escapeHtml(group.count ?? group.areas.length)}件</span></div>
+  renderWarningGroupsProgressively(root, groups, renderGeneration, (group, { includeHeader } = {}) => `
+      ${includeHeader ? `<div class="warning-prefecture-label">${escapeHtml(group.prefecture)}<span>${escapeHtml(group.count ?? group.areas.length)}件</span></div>` : ""}
       ${group.areas.map((area) => `
         <article class="warning-area-row early-warning-row${String(area.areaCode) === selectedWarningAreaCode ? " selected" : ""}" data-warning-area-code="${escapeHtml(area.areaCode)}">
           <strong>${escapeHtml(area.areaName)}</strong>
@@ -5074,7 +5141,8 @@ function buildSelectedVolcanoDetail(report, selectedBulletinId = "") {
   const level = Math.max(0, Math.min(5, Number(report.level) || 0));
   const priority = Math.max(0, Math.min(5, Number(report.alertPriority ?? level) || 0));
   const statusText = report.currentStatus ?? report.kindName ?? detailReport.kindName ?? "警戒状況未確認";
-  const restriction = extractVolcanoRestriction(statusText, detailReport.condition);
+  const alertName = report.kindName ?? detailReport.kindName ?? statusText;
+  const restriction = extractVolcanoRestriction(alertName, alertName);
   const warningText = warningDetailReport
     ? warningDetailReport.prevention || warningDetailReport.volcanoHeadline || warningDetailReport.headline
     : "";

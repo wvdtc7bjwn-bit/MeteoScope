@@ -11,8 +11,6 @@ import {
   MAP_DATA_ENDPOINTS
 } from "../config.js";
 import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
-import { worldLandGeoJson } from "./data/worldLandGeoJson.js";
-import { worldCountriesGeoJson } from "./data/worldCountriesGeoJson.js";
 import { planWarningFeatureStateChanges } from "./warningFeatureState.js";
 import { WARNING_GEOMETRY_FIX_CODES } from "./warningGeometryFixCodes.js";
 import { createHypocenter3DLayer } from "./hypocenter3DLayer.js";
@@ -249,6 +247,15 @@ const WARNING_HATCH_LAYER_ID = "jma-warning-emergency-hatch";
 const WARNING_FIX_HATCH_LAYER_ID = "jma-warning-fix-emergency-hatch";
 const MUNICIPALITY_LINE_LAYER_ID = "jma-municipality-line";
 const MUNICIPALITY_FIX_LINE_LAYER_ID = "jma-municipality-fix-line";
+const INITIAL_GEOMETRY_LAYER_IDS = [
+  MUNICIPALITY_FILL_LAYER_ID,
+  MUNICIPALITY_FIX_FILL_LAYER_ID,
+  WARNING_CLICK_LAYER_ID,
+  WARNING_FIX_CLICK_LAYER_ID,
+  MUNICIPALITY_LINE_LAYER_ID,
+  MUNICIPALITY_FIX_LINE_LAYER_ID,
+  "japan-prefecture-line"
+];
 const WARNING_STATUS_OVERLAY_LAYER_IDS = [WARNING_OVERLAY_LAYER_ID, WARNING_FIX_OVERLAY_LAYER_ID];
 const WARNING_EARLY_OVERLAY_LAYER_IDS = [WARNING_EARLY_OVERLAY_LAYER_ID, WARNING_EARLY_FIX_OVERLAY_LAYER_ID];
 const WARNING_OVERLAY_LAYER_IDS = [...WARNING_STATUS_OVERLAY_LAYER_IDS, ...WARNING_EARLY_OVERLAY_LAYER_IDS];
@@ -329,10 +336,8 @@ const KOREAN_ISLANDS_NATURAL_EARTH_BOUNDS = {
   maxLat: 38.3
 };
 
-const baseMapData = {
-  worldLand: buildWorldLandWithoutJapanData(),
-  worldCountries: buildWorldCountriesWithoutJapanData()
-};
+const EMPTY_GEOJSON = { type: "FeatureCollection", features: [] };
+let worldGeometryPromise = null;
 const warningFeatureStateCache = new WeakMap();
 const kikikuruTileUrlCache = new Map();
 const weatherChartZoomLimitCache = new WeakMap();
@@ -340,6 +345,7 @@ const weatherChartZoomLimitCache = new WeakMap();
 export function createWeatherMap(elementId) {
   let map = null;
   let pendingRender = null;
+  let modeApplyPending = false;
   let activeMode = "radar";
   let activeTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
   let activeFaultVisible = true;
@@ -366,17 +372,32 @@ export function createWeatherMap(elementId) {
     if (!map) return Promise.resolve();
 
     return new Promise((resolve) => {
-      const finishAfterPaint = () => {
-        requestAnimationFrame(() => requestAnimationFrame(resolve));
+      let settled = false;
+      let fallbackTimer = 0;
+      const finishAfterPaint = (ready) => {
+        if (settled) return;
+        settled = true;
+        if (fallbackTimer) window.clearTimeout(fallbackTimer);
+        map.off("load", finishReady);
+        map.off("idle", finishReady);
+        if (!ready) {
+          resolve(false);
+          return;
+        }
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)));
       };
+      const finishReady = () => finishAfterPaint(true);
 
-      if (map.loaded() && !map.isMoving()) {
-        finishAfterPaint();
+      if (map.loaded()) {
+        finishReady();
         return;
       }
 
-      map.once("idle", finishAfterPaint);
-      map.triggerRepaint();
+      map.once("load", finishReady);
+      map.once("idle", finishReady);
+      fallbackTimer = window.setTimeout(() => {
+        finishAfterPaint(Boolean(map.loaded() || map.isStyleLoaded?.()));
+      }, 8000);
     });
   }
 
@@ -390,6 +411,7 @@ export function createWeatherMap(elementId) {
       renderWorldCopies: true,
       dragRotate: true,
       pitchWithRotate: false,
+      localIdeographFontFamily: '"Noto Sans JP", sans-serif',
       attributionControl: false,
       style: createBaseStyle(activeTheme)
     });
@@ -397,9 +419,11 @@ export function createWeatherMap(elementId) {
     map.touchZoomRotate.enableRotation();
 
     map.on("load", () => {
+      revealInitialGeometryLayers(map);
       setupSampleLayers();
       applyMapTheme(map, activeTheme);
       setMode(activeMode);
+      scheduleWorldGeometryLoad();
       if (pendingRender) {
         renderData(pendingRender.mode, pendingRender.data);
         pendingRender = null;
@@ -414,6 +438,16 @@ export function createWeatherMap(elementId) {
     hideMapInfo();
     Object.values(MODE_CLASS).forEach((className) => container.classList.remove(className));
     container.classList.add(MODE_CLASS[mode] ?? MODE_CLASS.radar);
+    if (!map.isStyleLoaded?.()) {
+      if (!modeApplyPending) {
+        modeApplyPending = true;
+        map.once("idle", () => {
+          modeApplyPending = false;
+          setMode(activeMode);
+        });
+      }
+      return;
+    }
     setRadarVisible(map, mode === "radar");
     if (mode !== "radar") setWeatherChartVisible(map, false);
     if (mode !== "warnings") {
@@ -425,6 +459,37 @@ export function createWeatherMap(elementId) {
     syncActiveFaultVisibility();
     syncCommunityReportVisibility();
     if (activeMode !== "earthquake") updateHypocenter3DPresentation(false);
+    if (mode === "typhoon") void ensureWorldGeometryLoaded();
+  }
+
+  function scheduleWorldGeometryLoad() {
+    const run = () => void ensureWorldGeometryLoaded();
+    if ("requestIdleCallback" in window) {
+      window.requestIdleCallback(run, { timeout: 4500 });
+    } else {
+      window.setTimeout(run, 1800);
+    }
+  }
+
+  async function ensureWorldGeometryLoaded() {
+    const landSource = map?.getSource("world-land");
+    const countriesSource = map?.getSource("world-countries");
+    if (!landSource?.setData || !countriesSource?.setData) return;
+    worldGeometryPromise ??= Promise.all([
+      import("./data/worldLandGeoJson.js"),
+      import("./data/worldCountriesGeoJson.js")
+    ]).then(([landModule, countryModule]) => ({
+      worldLand: buildWorldLandWithoutJapanData(landModule.worldLandGeoJson),
+      worldCountries: buildWorldCountriesWithoutJapanData(countryModule.worldCountriesGeoJson)
+    }));
+    try {
+      const geometry = await worldGeometryPromise;
+      map?.getSource("world-land")?.setData(geometry.worldLand);
+      map?.getSource("world-countries")?.setData(geometry.worldCountries);
+    } catch (error) {
+      worldGeometryPromise = null;
+      console.warn("[MeteoScope] world geometry load failed", error);
+    }
   }
 
   function prepareWarningData(data) {
@@ -644,7 +709,7 @@ export function createWeatherMap(elementId) {
         "symbol-placement": "line",
         "symbol-spacing": 260,
         "text-field": ["get", "label"],
-        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+      "text-font": ["Noto Sans JP"],
         "text-size": ["interpolate", ["linear"], ["zoom"], 5, 9, 9, 11],
         "text-offset": [0, -0.72],
         "text-keep-upright": true,
@@ -811,7 +876,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       layout: {
         "symbol-placement": "line",
         "text-field": ["coalesce", ["get", "forecastAreaName"], ["get", "RIVERNAME"]],
-        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+      "text-font": ["Noto Sans JP"],
         "text-size": ["interpolate", ["linear"], ["zoom"], 5, 11, 9, 14],
         "text-allow-overlap": false,
         "text-padding": 8
@@ -955,7 +1020,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       filter: ["all", ["==", ["geometry-type"], "Point"], ["==", ["get", "markerType"], "cross"]],
       layout: {
         "text-field": "×",
-        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+      "text-font": ["Noto Sans JP"],
         "text-size": [
           "interpolate",
           ["linear"],
@@ -989,7 +1054,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       ],
       layout: {
         "text-field": "◆",
-        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-font": ["Noto Sans JP"],
         "text-size": [
           "interpolate",
           ["linear"],
@@ -1041,7 +1106,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       filter: ["all", ["==", ["geometry-type"], "Point"], ["has", "label"]],
       layout: {
         "text-field": ["get", "label"],
-        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+      "text-font": ["Noto Sans JP"],
         "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0],
         "text-size": [
           "interpolate",
@@ -1422,7 +1487,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       ],
       layout: {
         "text-field": ["get", "timeLabel"],
-        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-font": ["Noto Sans JP"],
         "text-size": ["interpolate", ["linear"], ["zoom"], 3, 9, 7, 12],
         "text-offset": [0, -2],
         "text-anchor": "bottom",
@@ -1444,7 +1509,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       filter: ["all", ["has", "label"], ["==", ["get", "typhoonShape"], "forecastLabel"]],
       layout: {
         "text-field": ["get", "label"],
-        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-font": ["Noto Sans JP"],
         "text-size": [
           "interpolate",
           ["linear"],
@@ -1486,7 +1551,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       filter: ["all", ["has", "label"], ["==", ["get", "typhoonShape"], "centerX"]],
       layout: {
         "text-field": ["get", "label"],
-        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-font": ["Noto Sans JP"],
         "text-size": 13,
         "text-offset": [0, 1.35],
         "text-anchor": "top",
@@ -1616,7 +1681,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       layout: {
         visibility,
         "text-field": ["get", "point_count_abbreviated"],
-        "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-font": ["Noto Sans JP"],
         "text-size": 12
       },
       paint: { "text-color": "#ffffff" }
@@ -2085,19 +2150,18 @@ function createBaseStyle(theme = "dark") {
   const colors = MAP_THEME_COLORS[theme] ?? MAP_THEME_COLORS.dark;
   return {
     version: 8,
-    glyphs: "https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf",
     sources: {
       "world-land": {
         type: "geojson",
-        data: baseMapData.worldLand
+        data: EMPTY_GEOJSON
       },
       "world-countries": {
         type: "geojson",
-        data: baseMapData.worldCountries
+        data: EMPTY_GEOJSON
       },
       [MUNICIPALITY_SOURCE_ID]: {
         type: "geojson",
-        data: JMA_ENDPOINTS.warningMunicipalities,
+        data: JMA_ENDPOINTS.warningMunicipalitiesMap,
         promoteId: "code"
       },
       [MUNICIPALITY_FIX_SOURCE_ID]: {
@@ -2107,7 +2171,7 @@ function createBaseStyle(theme = "dark") {
       },
       [PREFECTURE_SOURCE_ID]: {
         type: "geojson",
-        data: JMA_ENDPOINTS.prefectures
+        data: JMA_ENDPOINTS.prefecturesMap
       },
     },
     layers: [
@@ -2151,6 +2215,7 @@ function createBaseStyle(theme = "dark") {
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
         filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+        layout: { visibility: "none" },
         paint: {
           "fill-color": colors.municipalityFill,
           "fill-antialias": false,
@@ -2161,6 +2226,7 @@ function createBaseStyle(theme = "dark") {
         id: MUNICIPALITY_FIX_FILL_LAYER_ID,
         type: "fill",
         source: MUNICIPALITY_FIX_SOURCE_ID,
+        layout: { visibility: "none" },
         paint: {
           "fill-color": colors.municipalityFill,
           "fill-antialias": false,
@@ -2218,6 +2284,7 @@ function createBaseStyle(theme = "dark") {
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
         filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+        layout: { visibility: "none" },
         paint: {
           "fill-color": "rgba(0, 0, 0, 0)",
           "fill-opacity": 0.001
@@ -2227,6 +2294,7 @@ function createBaseStyle(theme = "dark") {
         id: WARNING_FIX_CLICK_LAYER_ID,
         type: "fill",
         source: MUNICIPALITY_FIX_SOURCE_ID,
+        layout: { visibility: "none" },
         paint: {
           "fill-color": "rgba(0, 0, 0, 0)",
           "fill-opacity": 0.001
@@ -2237,6 +2305,7 @@ function createBaseStyle(theme = "dark") {
         type: "line",
         source: MUNICIPALITY_SOURCE_ID,
         filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+        layout: { visibility: "none" },
         paint: {
           "line-color": colors.municipalityLine,
           "line-width": [
@@ -2267,6 +2336,7 @@ function createBaseStyle(theme = "dark") {
         id: MUNICIPALITY_FIX_LINE_LAYER_ID,
         type: "line",
         source: MUNICIPALITY_FIX_SOURCE_ID,
+        layout: { visibility: "none" },
         paint: {
           "line-color": colors.municipalityLine,
           "line-width": [
@@ -2298,6 +2368,7 @@ function createBaseStyle(theme = "dark") {
         type: "line",
         source: PREFECTURE_SOURCE_ID,
         layout: {
+          visibility: "none",
           "line-cap": "round",
           "line-join": "round"
         },
@@ -2329,6 +2400,14 @@ function createBaseStyle(theme = "dark") {
       }
     ]
   };
+}
+
+function revealInitialGeometryLayers(map) {
+  INITIAL_GEOMETRY_LAYER_IDS.forEach((layerId) => {
+    if (map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, "visibility", "visible");
+    }
+  });
 }
 
 function applyMapTheme(map, theme) {
@@ -2404,13 +2483,13 @@ function buildVolcanoLevelOneCondition() {
   return ["==", ["to-number", ["get", "level"], 0], 1];
 }
 
-function buildWorldLandWithoutJapanData() {
+function buildWorldLandWithoutJapanData(worldLandGeoJson) {
   const data = cloneGeoJson(worldLandGeoJson);
   data.features = data.features.filter((feature) => !isSmallNaturalEarthJapanFeature(feature));
   return data;
 }
 
-function buildWorldCountriesWithoutJapanData() {
+function buildWorldCountriesWithoutJapanData(worldCountriesGeoJson) {
   const data = cloneGeoJson(worldCountriesGeoJson);
   data.features = data.features
     .filter((feature) => String(feature?.properties?.ISO_A3 ?? "").toUpperCase() !== "JPN")
@@ -2718,7 +2797,7 @@ function addWeatherChartLayers(map) {
       visibility: "none",
       "symbol-placement": "line",
       "text-field": ["get", "label"],
-      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-font": ["Noto Sans JP"],
       "text-size": ["interpolate", ["linear"], ["zoom"], 4.5, 9, 8, 11],
       "text-allow-overlap": false,
       "text-ignore-placement": false,
@@ -2739,7 +2818,7 @@ function addWeatherChartLayers(map) {
     layout: {
       visibility: "none",
       "text-field": ["get", "label"],
-      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-font": ["Noto Sans JP"],
       "text-size": ["interpolate", ["linear"], ["zoom"], 3, 14, 7, 18, 10, 24],
       "text-allow-overlap": true,
       "text-ignore-placement": true,
@@ -2763,7 +2842,7 @@ function addWeatherChartLayers(map) {
     layout: {
       visibility: "none",
       "text-field": ["get", "pressureLabel"],
-      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-font": ["Noto Sans JP"],
       "text-size": ["interpolate", ["linear"], ["zoom"], 3, 8, 7, 10, 10, 13],
       "text-allow-overlap": true,
       "text-ignore-placement": true,
@@ -3049,7 +3128,7 @@ async function updateWarningFeatureStates(map, activeAreas, warningView = "statu
 
   try {
     const { operations } = planWarningFeatureStateChanges(currentLevels, activeAreas);
-    const chunkSize = 24;
+    const chunkSize = 8;
     for (let offset = 0; offset < operations.length; offset += chunkSize) {
       await waitForMapUpdateTurn();
       if (cache.generations[channel] !== generation) return false;
@@ -3198,7 +3277,7 @@ function updateLightningObservationLayer(map, mode, data = {}) {
     minzoom: 4,
     layout: {
       "text-field": "×",
-      "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        "text-font": ["Noto Sans JP"],
       "text-size": ["interpolate", ["linear"], ["zoom"], 4, 12, 10, 22],
       "text-allow-overlap": true,
       "text-ignore-placement": true

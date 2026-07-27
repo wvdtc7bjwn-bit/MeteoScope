@@ -1,11 +1,57 @@
 self.__meteoscopePendingNotificationTask = null;
+const APP_SHELL_CACHE = "meteoscope-shell-v2";
+const APP_SHELL_URLS = [
+  "/",
+  "/index.html",
+  "/site.webmanifest",
+  "/icons/icon-192.png"
+];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil(
+    caches.open(APP_SHELL_CACHE)
+      .then((cache) => Promise.all(APP_SHELL_URLS.map(async (url) => {
+        try {
+          const response = await fetch(url, { cache: "reload" });
+          if (response.ok) await cache.put(url, response);
+        } catch {
+          // A partial shell is still useful; failed entries are retried on the next visit.
+        }
+      })))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys
+        .filter((key) => key.startsWith("meteoscope-shell-") && key !== APP_SHELL_CACHE)
+        .map((key) => caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  const request = event.request;
+  if (request.method !== "GET") return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  if (request.mode === "navigate") {
+    if (url.pathname === "/" || url.pathname === "/index.html") {
+      event.respondWith(networkFirstNavigation(request));
+    }
+    return;
+  }
+
+  if (
+    url.pathname.startsWith("/assets/")
+    || url.pathname.startsWith("/icons/")
+    || url.pathname === "/site.webmanifest"
+  ) {
+    event.respondWith(cacheFirstStatic(request));
+  }
 });
 
 self.addEventListener("push", (event) => {
@@ -79,4 +125,29 @@ async function openOrFocusClient(targetUrl) {
     }
   }
   return clients.openWindow(targetUrl);
+}
+
+async function networkFirstNavigation(request) {
+  const cache = await caches.open(APP_SHELL_CACHE);
+  try {
+    const response = await fetch(request);
+    if (response.ok) await cache.put("/index.html", response.clone());
+    return response;
+  } catch {
+    return await cache.match("/index.html")
+      || await cache.match("/")
+      || new Response("MeteoScope is offline.", {
+        status: 503,
+        headers: { "Content-Type": "text/plain; charset=utf-8" }
+      });
+  }
+}
+
+async function cacheFirstStatic(request) {
+  const cache = await caches.open(APP_SHELL_CACHE);
+  const cached = await cache.match(request);
+  if (cached) return cached;
+  const response = await fetch(request);
+  if (response.ok) await cache.put(request, response.clone());
+  return response;
 }

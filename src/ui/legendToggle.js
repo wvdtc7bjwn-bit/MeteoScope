@@ -12,6 +12,8 @@ export function setupLegendToggle() {
   function setCollapsed(isCollapsed) {
     legend.classList.toggle("collapsed", isCollapsed);
     toggle.setAttribute("aria-expanded", String(!isCollapsed));
+    toggle.setAttribute("aria-label", isCollapsed ? "凡例を開く" : "凡例を閉じる");
+    toggle.title = isCollapsed ? "凡例を開く" : "凡例を閉じる";
     list.hidden = isCollapsed;
   }
 

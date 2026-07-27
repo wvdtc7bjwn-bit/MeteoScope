@@ -9,11 +9,6 @@ import { openDisasterQuizModal, setupDisasterQuizModal } from "./ui/disasterQuiz
 import { setupOnboardingModal } from "./ui/onboardingModal.js";
 import { setupLegalConsentModal } from "./ui/legalConsentModal.js";
 import { openSettingsModal, refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
-import {
-  clearStoredDisasterMapPdf,
-  getStoredDisasterMapPdfInfo,
-  setupDisasterMapModal
-} from "./ui/disasterMapModal.js";
 import { startClock } from "./ui/time.js";
 import { fetchRadarTimes, findLatestRadarObservationIndex } from "./jma/radar.js";
 import { fetchLightningTimes, findLatestLightningObservationIndex } from "./jma/lightning.js";
@@ -52,6 +47,7 @@ import { yieldToMainThread } from "./scheduling.js";
 import { setupLongPressButton } from "./ui/longPressButton.js";
 import { setupEarthquakeLongPressHint } from "./ui/earthquakeLongPressHint.js";
 import { getSocialSharePayload } from "./socialShareState.js";
+import { recordDiagnostic } from "./runtimeDiagnostics.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -60,6 +56,58 @@ const loaders = {
   typhoon: fetchTyphoonList,
   earthquake: fetchEarthquakeTabData
 };
+
+const TAB_DATA_TTL_MS = {
+  radar: 60 * 1000,
+  amedas: 5 * 60 * 1000,
+  warnings: 60 * 1000,
+  typhoon: 10 * 60 * 1000,
+  earthquake: 5 * 60 * 1000
+};
+
+let disasterMapModulePromise = null;
+
+function loadDisasterMapModule() {
+  disasterMapModulePromise ??= import("./ui/disasterMapModal.js");
+  return disasterMapModulePromise;
+}
+
+function getStoredDisasterMapPdfInfo(...args) {
+  return loadDisasterMapModule().then((module) => module.getStoredDisasterMapPdfInfo(...args));
+}
+
+function clearStoredDisasterMapPdf(...args) {
+  return loadDisasterMapModule().then((module) => module.clearStoredDisasterMapPdf(...args));
+}
+
+function setupLazyDisasterMapModal() {
+  const button = document.getElementById("disaster-map-button");
+  if (!button || button.dataset.lazyDisasterMapReady === "true") return;
+  button.dataset.lazyDisasterMapReady = "true";
+  let initialized = false;
+  let initializationPromise = null;
+  const initialize = () => {
+    initializationPromise ??= loadDisasterMapModule().then((module) => {
+      module.setupDisasterMapModal();
+      initialized = true;
+    });
+    return initializationPromise;
+  };
+  button.addEventListener("pointerenter", () => void initialize(), { once: true });
+  button.addEventListener("focus", () => void initialize(), { once: true });
+  button.addEventListener("click", async (event) => {
+    if (initialized) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    button.setAttribute("aria-busy", "true");
+    try {
+      await initialize();
+      button.click();
+    } finally {
+      button.removeAttribute("aria-busy");
+    }
+  }, { capture: true });
+}
 
 async function fetchEarthquakeTabData() {
   const [earthquakeData, tideResult] = await Promise.all([
@@ -184,6 +232,7 @@ export function createWeatherApp() {
   let collapsedEarthquakeId = "";
   let earthquakeContentMode = "earthquake";
   let volcanoData = null;
+  let volcanoLoadedAt = 0;
   let selectedVolcanoCode = "";
   let selectedVolcanoBulletinId = "";
   let selectedVolcanoAshForecastIndex = 0;
@@ -202,6 +251,7 @@ export function createWeatherApp() {
   let tideObservationRequestId = 0;
   let weatherMap = null;
   let latestDataByTab = {};
+  const tabDataLoadedAt = {};
   let radarPlayTimer = null;
   let lightningPlayTimer = null;
   let weatherChartPlayTimer = null;
@@ -289,6 +339,7 @@ export function createWeatherApp() {
   }
 
   async function selectTab(tabId) {
+    const switchStartedAt = performance.now();
     const tab = TABS.find((item) => item.id === tabId) ?? TABS[0];
     activeTab = tab.id;
     syncSocialShareMapButton(tab.id);
@@ -320,13 +371,23 @@ export function createWeatherApp() {
       } catch (error) {
         console.warn("[MeteoScope] cached tab view update failed", error);
       }
-      if (tab.id === "earthquake") {
-        if (earthquakeContentMode === "volcano") refreshVolcanoData({ force: true });
-        else refreshEarthquakeData({ force: true });
-      }
-      if (tab.id === "warnings" && cachedViewUpdated) {
-        void refreshRiverFloodData();
+      if (cachedViewUpdated) {
+        if (tab.id === "earthquake") {
+          if (earthquakeContentMode === "volcano") void refreshVolcanoData();
+          else void refreshEarthquakeData();
+        }
+        if (tab.id === "warnings" && activeWarningView === "river") {
+          void refreshRiverFloodData();
+        } else if (tab.id === "warnings") {
+          scheduleWarningDetailRefresh();
+        }
+        if (!isTabDataFresh(tab.id)) void refreshCachedTab(tab);
         scheduleBackgroundPrefetch(tab.id);
+        recordDiagnostic("tab-switch", {
+          tab: tab.id,
+          cached: true,
+          durationMs: Math.round(performance.now() - switchStartedAt)
+        });
         return;
       }
     } else {
@@ -355,17 +416,29 @@ export function createWeatherApp() {
     }
 
     try {
-      await yieldToMainThread(tab.id === "warnings" ? 160 : 0);
+      await yieldToMainThread();
       if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
       const data = tab.id === "earthquake" && earthquakeContentMode === "volcano"
         ? await fetchVolcanoXmlList()
         : await loadTabData(tab.id);
       if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
-      if (tab.id === "earthquake" && earthquakeContentMode === "volcano") volcanoData = data;
-      else latestDataByTab[tab.id] = data;
+      if (tab.id === "earthquake" && earthquakeContentMode === "volcano") {
+        volcanoData = data;
+        volcanoLoadedAt = Date.now();
+      }
+      else {
+        latestDataByTab[tab.id] = data;
+        tabDataLoadedAt[tab.id] = Date.now();
+      }
       updateCurrentView(tab, data, { deferPanel: true });
-      if (tab.id === "warnings") void refreshRiverFloodData();
+      if (tab.id === "warnings" && activeWarningView === "river") void refreshRiverFloodData();
+      else if (tab.id === "warnings") scheduleWarningDetailRefresh();
       scheduleBackgroundPrefetch(tab.id);
+      recordDiagnostic("tab-switch", {
+        tab: tab.id,
+        cached: false,
+        durationMs: Math.round(performance.now() - switchStartedAt)
+      });
     } catch (error) {
       if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
       console.warn(`[MeteoScope] ${tab.id} load failed`, error);
@@ -526,6 +599,24 @@ if (layerId === "river") {
     const tab = TABS.find((item) => item.id === "typhoon");
     updateCurrentView(tab, latestDataByTab.typhoon);
     focusSelectedTyphoon();
+  }
+
+  function isTabDataFresh(tabId) {
+    const loadedAt = Number(tabDataLoadedAt[tabId]) || 0;
+    const ttlMs = TAB_DATA_TTL_MS[tabId] ?? 60 * 1000;
+    return loadedAt > 0 && Date.now() - loadedAt < ttlMs;
+  }
+
+  async function refreshCachedTab(tab) {
+    if (!tab || tab.id === "earthquake") return;
+    try {
+      const nextData = await loadTabData(tab.id);
+      latestDataByTab[tab.id] = mergeRefreshedData(tab.id, latestDataByTab[tab.id], nextData);
+      tabDataLoadedAt[tab.id] = Date.now();
+      if (activeTab === tab.id) updateCurrentView(tab, latestDataByTab[tab.id], { deferPanel: true });
+    } catch (error) {
+      console.warn(`[MeteoScope] ${tab.id} background refresh failed`, error);
+    }
   }
 
   function selectTyphoonForecastMode(mode) {
@@ -789,10 +880,12 @@ if (layerId === "river") {
   async function refreshVolcanoData({ force = false } = {}) {
     if (activeTab !== "earthquake" || earthquakeContentMode !== "volcano") return volcanoData;
     if (document.hidden && !force) return volcanoData;
+    if (!force && volcanoData && Date.now() - volcanoLoadedAt < TAB_DATA_TTL_MS.earthquake) return volcanoData;
     if (volcanoRefreshRequest) return volcanoRefreshRequest;
     volcanoRefreshRequest = fetchVolcanoXmlList()
       .then((nextData) => {
         volcanoData = nextData;
+        volcanoLoadedAt = Date.now();
         if (activeTab === "earthquake" && earthquakeContentMode === "volcano") {
           updateCurrentView(TABS.find((item) => item.id === "earthquake"), nextData);
         }
@@ -1027,11 +1120,13 @@ if (layerId === "river") {
       lightning: lightningData,
       lightningPlaying: Boolean(lightningPlayTimer)
     };
-    if (options.immediateMap) {
-      invalidateScheduledMapRender();
-      weatherMap?.renderData(tab.id, displayData);
-    } else {
-      scheduleMapRender(tab.id, displayData);
+    if (!options.skipMap) {
+      if (options.immediateMap) {
+        invalidateScheduledMapRender();
+        weatherMap?.renderData(tab.id, displayData);
+      } else {
+        scheduleMapRender(tab.id, displayData);
+      }
     }
     if (options.deferPanel) {
       schedulePanelRender(tab, panelState);
@@ -1784,6 +1879,7 @@ if (layerId === "river") {
       const nextData = await loadTabData(tab.id);
       if (activeTab !== tab.id) return;
       latestDataByTab[tab.id] = mergeRefreshedData(tab.id, latestDataByTab[tab.id], nextData);
+      tabDataLoadedAt[tab.id] = Date.now();
       if (tab.id === "radar" && lightningEnabled) {
         try {
           if (force) lightningLoadedAt = 0;
@@ -2104,19 +2200,18 @@ if (layerId === "river") {
 
     const run = () => {
       TABS
-        .filter((tab) => tab.id !== excludeTabId && loaders[tab.id])
-        .sort((left, right) => Number(right.id === "warnings") - Number(left.id === "warnings"))
+        .filter((tab) => tab.id !== excludeTabId && tab.id !== "warnings" && loaders[tab.id])
         .forEach((tab, index) => {
           window.setTimeout(() => {
             prefetchTabData(tab.id);
-          }, index * 600);
+          }, 2500 + index * 1600);
         });
     };
 
     if ("requestIdleCallback" in window) {
-      window.requestIdleCallback(run, { timeout: 2500 });
+      window.requestIdleCallback(run, { timeout: 7000 });
     } else {
-      window.setTimeout(run, 1200);
+      window.setTimeout(run, 5000);
     }
   }
 
@@ -2124,6 +2219,7 @@ if (layerId === "river") {
     if (latestDataByTab[tabId] || document.hidden) return;
     try {
       latestDataByTab[tabId] = await loadTabData(tabId);
+      tabDataLoadedAt[tabId] = Date.now();
       if (tabId === "warnings") weatherMap?.prepareWarningData(latestDataByTab[tabId]);
     } catch (error) {
       console.warn(`[MeteoScope] ${tabId} prefetch failed`, error);
@@ -2132,6 +2228,16 @@ if (layerId === "river") {
 
   async function refreshWarningDetails() {
     return refreshWarningDetailsData();
+  }
+
+  function scheduleWarningDetailRefresh() {
+    window.requestAnimationFrame(() => {
+      window.setTimeout(() => {
+        if (activeTab === "warnings" && (activeWarningView === "status" || activeWarningView === "early")) {
+          void refreshWarningDetailsData();
+        }
+      }, 80);
+    });
   }
 
   async function refreshCurrentLocationWarningInfo(warningData) {
@@ -2152,7 +2258,7 @@ if (layerId === "river") {
         warningDetailsLoadedAt = Date.now();
         weatherMap?.prepareWarningData(latestDataByTab.warnings);
         await refreshCurrentLocationWarningInfo(latestDataByTab.warnings);
-        refreshWarningsView();
+        refreshWarningsView({ updateMap: true });
         return latestDataByTab.warnings;
       })
       .catch((error) => {
@@ -2179,7 +2285,7 @@ if (layerId === "river") {
           riverFlood: { ...riverFlood, status: "ok" }
         };
         riverFloodLoadedAt = Date.now();
-        refreshWarningsView();
+        refreshWarningsView({ view: "river", updateMap: true });
         return latestDataByTab.warnings;
       })
       .catch((error) => {
@@ -2188,7 +2294,7 @@ if (layerId === "river") {
           ...(latestDataByTab.warnings ?? {}),
           riverFlood: { status: "error", error, reports: [], riverFeatures: { type: "FeatureCollection", features: [] } }
         };
-        refreshWarningsView();
+        refreshWarningsView({ view: "river", updateMap: true });
         return latestDataByTab.warnings;
       })
       .finally(() => {
@@ -2212,7 +2318,7 @@ if (layerId === "river") {
           kikikuru: kikikuruData
         };
         warningKikikuruLoadedAt = Date.now();
-        refreshWarningsView({ view: "kikikuru" });
+        refreshWarningsView({ view: "kikikuru", updateMap: true });
         void refreshCurrentKikikuruStatus(kikikuruData);
         return latestDataByTab.warnings;
       })
@@ -2259,24 +2365,17 @@ if (layerId === "river") {
     if (activeTab !== "warnings") return;
     if (options.view && activeWarningView !== options.view) return;
     const tab = TABS.find((item) => item.id === "warnings");
-    updateCurrentView(tab, latestDataByTab.warnings, { deferPanel: true });
+    updateCurrentView(tab, latestDataByTab.warnings, {
+      deferPanel: true,
+      skipMap: options.updateMap !== true
+    });
   }
 
   function scheduleCriticalWarningPrefetch() {
     const run = async () => {
       await prefetchTabData("warnings");
-      if (!document.hidden && latestDataByTab.warnings) {
-        await Promise.all([
-          refreshWarningDetailsData(),
-          refreshRiverFloodData()
-        ]);
-      }
     };
-    if ("requestIdleCallback" in window) {
-      window.requestIdleCallback(() => void run(), { timeout: 700 });
-    } else {
-      window.setTimeout(() => void run(), 180);
-    }
+    window.setTimeout(() => void run(), 250);
   }
 
   function getSettingsState() {
@@ -2334,6 +2433,15 @@ if (layerId === "river") {
     requestAnimationFrame(() => weatherMap?.resize());
   }
 
+  function showInitialMapLoadingError() {
+    const loader = document.getElementById("app-startup-loader");
+    if (!loader) return;
+    loader.setAttribute("aria-label", "地図の読み込みに失敗しました");
+    loader.querySelector(".app-startup-spinner")?.setAttribute("hidden", "");
+    const message = loader.querySelector("span:last-child");
+    if (message) message.textContent = "地図を読み込めませんでした。再読み込みしてください。";
+  }
+
   function start() {
     weatherMap = createWeatherMap("map");
     weatherMap.setActiveFaultVisible(earthquakeActiveFaultVisible);
@@ -2386,7 +2494,10 @@ if (layerId === "river") {
       if (stationCode) void selectTideObservationStation(stationCode);
     });
     setupKikikuruLayerToggles({ onChange: selectKikikuruLayer });
-    setupWarningAreaSelection({ onDetailRequest: () => refreshWarningDetails() });
+    setupWarningAreaSelection({
+      onDetailRequest: () => refreshWarningDetails(),
+      onListExpansion: () => refreshWarningsView()
+    });
     setupTyphoonSelector({ onChange: selectTyphoon });
     setupTyphoonForecastModeControls({
       onChange: selectTyphoonForecastMode,
@@ -2480,7 +2591,7 @@ if (layerId === "river") {
       getTabOrder: () => tabControls?.getOrder?.() ?? TABS.map((tab) => tab.id),
       onTabOrderChange: (order) => tabControls?.setOrder?.(order) ?? order
     });
-    setupDisasterMapModal();
+    setupLazyDisasterMapModal();
     setupDisasterQuizModal();
     setupCommunityReportModal({
       getContext: () => ({ currentLocation: currentLocationInfo }),
@@ -2515,7 +2626,11 @@ if (layerId === "river") {
     setCurrentLocationMarkerVisible(currentLocationMarkerVisible);
     startClock("clock");
     const initialMapReady = weatherMap.whenReady();
-    void initialMapReady.then(() => {
+    void initialMapReady.then((ready) => {
+      if (!ready) {
+        showInitialMapLoadingError();
+        return;
+      }
       finishInitialMapLoading();
       if (!legalConsent.showIfRequired()) startUserServices();
     });

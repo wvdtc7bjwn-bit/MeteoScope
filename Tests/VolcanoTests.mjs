@@ -153,6 +153,25 @@ assert.equal(
   1,
   "warning.json にない過去の高レベルは通常状態へ戻す"
 );
+const marineWarningReport = buildVolcanoBaselineReports(
+  { reportDatetime: "2026-07-27T20:00:00+09:00", volcanoInfos: [] },
+  [{ code: "501", name_jp: "Marine volcano", latlon: ["24.3", "141.5"] }],
+  [{
+    reportDatetime: "2026-07-27T20:00:00+09:00",
+    eventId: "501",
+    volcanoInfos: [{
+      type: "対象火山",
+      items: [{
+        name: "周辺海域警戒",
+        code: "36",
+        condition: "継続",
+        areas: [{ name: "Marine volcano", code: "501" }]
+      }]
+    }]
+  }]
+)[0];
+assert.equal(marineWarningReport?.level, 0);
+assert.equal(marineWarningReport?.alertPriority, 3, "周辺海域警戒は入山危険と同じ橙色区分にする");
 const ioto = currentVolcanoReports.find((report) => report.volcanoCode === "329");
 assert.equal(ioto?.level, 0, "レベルを運用しない火山は警戒レベルを表示しない");
 assert.equal(ioto?.alertPriority, 2, "レベルを運用しない火山も火口周辺危険の表示優先度を保つ");
@@ -306,6 +325,11 @@ assert.match(panel, /data-volcano-clear-selection/);
 assert.match(panel, /getHighestPriorityVolcanoReport\(reports\)/);
 assert.match(panel, /data-volcano-bulletin-id/);
 assert.match(panel, /data-volcano-bulletin-back/);
+assert.match(
+  panel,
+  /const alertName = report\.kindName \?\? detailReport\.kindName \?\? statusText;[\s\S]*?extractVolcanoRestriction\(alertName, alertName\)/,
+  "現在の噴火警報・予報では更新条件の「継続」ではなく全火山で警報名を表示する"
+);
 assert.doesNotMatch(panel, /<a class="volcano-history-item"/);
 assert.match(panel, /function buildVolcanoBulletinDetail/);
 assert.match(panel, /data-volcano-ash-forecast-index/);

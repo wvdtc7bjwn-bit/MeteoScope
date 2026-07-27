@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "data:update:jma": "node scripts/update-jma-static-data.mjs",
+    "data:build:map-geometry": "node scripts/build-map-display-geometry.mjs",
     "data:update:tsunami-stations": "node scripts/update-jma-tsunami-observation-stations.mjs",
     "data:update:usgs-slab2": "node scripts/build-usgs-slab2-contours.mjs",
     "data:build:usgs-surface": "node scripts/build-usgs-slab2-surface.mjs",
@@ -30,16 +31,20 @@
     "test:responsive": "node Tests/ResponsiveLayoutTests.mjs",
     "test:startup": "node Tests/InitialMapLoadingTests.mjs",
     "test:consent": "node Tests/LegalConsentTests.mjs",
+    "test:resilience": "node Tests/RuntimeResilienceTests.mjs",
     "data:build:warning-map": "node scripts/build-warning-geometry-fixes.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy dist --project-name meteoscope"
   },
   "dependencies": {
     "maplibre-gl": "^5.24.0",
-    "pdfjs-dist": "^6.1.200",
-    "vite": "^6.0.0"
+    "pdfjs-dist": "^6.1.200"
   },
   "devDependencies": {
+    "@turf/simplify": "^7.2.0",
+    "@xmldom/xmldom": "^0.8.11",
     "adm-zip": "^0.6.0",
-    "mapshaper": "^0.7.45"
+    "postcss": "^8.5.18",
+    "shapefile": "^0.6.6",
+    "vite": "^6.4.3"
   }
 }

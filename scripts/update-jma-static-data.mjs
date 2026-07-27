@@ -3,8 +3,9 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import https from "node:https";
 import os from "node:os";
 import path from "node:path";
+import simplify from "@turf/simplify";
 import AdmZip from "adm-zip";
-import mapshaper from "mapshaper";
+import { read as readShapefile } from "shapefile";
 
 const STATION_URL = "https://www.data.jma.go.jp/eqev/data/intens-st/stations.json";
 const PREFECTURE_URL = "https://www.data.jma.go.jp/developer/gis/20190125_AreaInformationPrefectureEarthquake_GIS.zip";
@@ -111,16 +112,14 @@ async function updatePrefectures(workDir) {
   }
 
   const sourcePath = path.join(workDir, "prefectures.shp");
-  const convertedPath = path.join(workDir, "prefectures.geojson");
-  await runMapshaper([
-    sourcePath,
-    "encoding=utf8",
-    "-clean",
-    "-simplify", "weighted", "2%", "keep-shapes",
-    "-o", "format=geojson", "precision=0.00001", convertedPath
-  ]);
-
-  const collection = JSON.parse(await readFile(convertedPath, "utf8"));
+  const dbfPath = path.join(workDir, "prefectures.dbf");
+  const rawCollection = await readShapefile(sourcePath, dbfPath, { encoding: "utf-8" });
+  const collection = simplify(rawCollection, {
+    tolerance: 0.0002,
+    highQuality: true,
+    mutate: false
+  });
+  roundGeoJsonCoordinates(collection, 5);
   if (!Array.isArray(collection?.features) || collection.features.length !== 47) {
     throw new Error(`Unexpected JMA prefecture count: ${collection?.features?.length ?? "missing"}`);
   }
@@ -167,12 +166,23 @@ function download(url, redirectCount = 0) {
   });
 }
 
-function runMapshaper(args) {
-  return mapshaper.runCommands(args);
-}
-
 async function writeJson(filePath, value) {
   await writeFile(filePath, `${JSON.stringify(value)}\n`, "utf8");
+}
+
+function roundGeoJsonCoordinates(value, precision) {
+  const scale = 10 ** precision;
+  const visit = (candidate) => {
+    if (!Array.isArray(candidate)) return;
+    if (candidate.length >= 2 && candidate.every((item) => typeof item === "number")) {
+      for (let index = 0; index < candidate.length; index += 1) {
+        candidate[index] = Math.round(candidate[index] * scale) / scale;
+      }
+      return;
+    }
+    candidate.forEach(visit);
+  };
+  for (const feature of value?.features ?? []) visit(feature?.geometry?.coordinates);
 }
 
 function sha256(value) {

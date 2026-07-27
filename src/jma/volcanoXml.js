@@ -215,7 +215,7 @@ function getNormalVolcanoStatus(volcano, monthlyItem) {
 
 function volcanoAlertPriority(level, code) {
   if (Number(level) > 0) return Number(level);
-  return ({ 25: 5, 24: 4, 23: 3, 22: 2, 36: 2, 21: 1, 35: 1 })[Number(code)] ?? 0;
+  return ({ 25: 5, 24: 4, 23: 3, 36: 3, 22: 2, 21: 1, 35: 1 })[Number(code)] ?? 0;
 }
 
 export function parseVolcanoReport(text, entry = {}) {

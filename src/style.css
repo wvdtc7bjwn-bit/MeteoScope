@@ -11553,6 +11553,72 @@ html[data-theme="light"] .amedas-temperature-chart-grid line {
     -webkit-backdrop-filter: blur(24px) saturate(1.28) contrast(1.06);
   }
 }
+
+/* Large nationwide lists are revealed in small batches to keep tab changes responsive. */
+.warning-load-more {
+  width: calc(100% - 18px);
+  min-height: 46px;
+  margin: 12px 9px 18px;
+  border: 1px solid rgba(121, 173, 223, 0.32);
+  border-radius: 14px;
+  background: rgba(26, 54, 89, 0.68);
+  color: #eef7ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.warning-load-more span {
+  color: #9fb5cc;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.warning-load-more:hover {
+  background: rgba(38, 75, 116, 0.82);
+}
+
+html[data-theme="light"] .warning-load-more {
+  border-color: rgba(74, 119, 162, 0.28);
+  background: rgba(230, 240, 249, 0.9);
+  color: #17324e;
+}
+
+html[data-theme="light"] .warning-load-more span {
+  color: #5d7893;
+}
+
+.connection-status {
+  position: fixed;
+  z-index: 21000;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  width: min(560px, calc(100vw - 28px));
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 197, 72, 0.62);
+  border-radius: 12px;
+  background: rgba(29, 24, 12, 0.94);
+  color: #fff2c7;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.connection-status[hidden] {
+  display: none;
+}
+
+html[data-theme="light"] .connection-status {
+  border-color: rgba(159, 104, 0, 0.38);
+  background: rgba(255, 249, 228, 0.97);
+  color: #664500;
+}
 .onboarding-modal {
   z-index: 1300;
 }

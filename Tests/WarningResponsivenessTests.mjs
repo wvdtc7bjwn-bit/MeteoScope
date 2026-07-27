@@ -141,13 +141,17 @@ assert.deepEqual(unchanged.operations, []);
 
 assert.match(
   appSource,
-  /function scheduleCriticalWarningPrefetch\(\)[\s\S]*?await prefetchTabData\("warnings"\);[\s\S]*?Promise\.all\(\[[\s\S]*?refreshWarningDetailsData\(\),[\s\S]*?refreshRiverFloodData\(\)[\s\S]*?\]\);[\s\S]*?requestIdleCallback\(\(\) => void run\(\),\s*\{\s*timeout:\s*700\s*\}\)/
+  /function scheduleCriticalWarningPrefetch\(\)[\s\S]*?await prefetchTabData\("warnings"\);[\s\S]*?setTimeout\(\(\) => void run\(\), 250\)/
+);
+assert.doesNotMatch(
+  appSource.match(/function scheduleCriticalWarningPrefetch\(\)[\s\S]*?\n  \}/)?.[0] ?? "",
+  /refreshWarningDetailsData|refreshRiverFloodData/
 );
 assert.match(
   appSource,
   /const startUserServices = \(\) => \{[\s\S]*?scheduleCriticalWarningPrefetch\(\);[\s\S]*?selectTab\(activeTab\)/
 );
-assert.match(
+assert.doesNotMatch(
   appSource,
   /\.sort\(\(left, right\) => Number\(right\.id === "warnings"\) - Number\(left\.id === "warnings"\)\)/
 );
@@ -160,6 +164,7 @@ assert.match(
   appSource,
   /function updateCurrentView\(tab, data, options = \{\}\)[\s\S]*?scheduleMapRender\(tab\.id, displayData\);[\s\S]*?if \(options\.deferPanel\)/
 );
+assert.doesNotMatch(appSource, /yieldToMainThread\(tab\.id === "warnings" \? 160 : 0\)/);
 assert.match(
   appSource,
   /activeWarningView = "early";[\s\S]*?updateCurrentView\(tab, latestDataByTab\.warnings, \{ immediateMap: true \}\)/
@@ -170,15 +175,31 @@ assert.match(
 );
 assert.match(
   appSource,
-  /if \(tab\.id === "warnings" && cachedViewUpdated\) \{[\s\S]*?refreshRiverFloodData\(\);[\s\S]*?scheduleBackgroundPrefetch\(tab\.id\)/
+  /if \(tab\.id === "warnings" && activeWarningView === "river"\) \{[\s\S]*?refreshRiverFloodData\(\);[\s\S]*?else if \(tab\.id === "warnings"\) \{[\s\S]*?scheduleWarningDetailRefresh\(\)/
 );
 assert.match(
   appSource,
-  /riverFloodLoadedAt = Date\.now\(\);[\s\S]*?refreshWarningsView\(\);/
+  /riverFloodLoadedAt = Date\.now\(\);[\s\S]*?refreshWarningsView\(\{ view: "river", updateMap: true \}\);/
 );
 assert.match(
   appSource,
-  /if \(options\.immediateMap\) \{[\s\S]*?invalidateScheduledMapRender\(\);[\s\S]*?weatherMap\?\.renderData\(tab\.id, displayData\)/
+  /warningKikikuruLoadedAt = Date\.now\(\);[\s\S]*?refreshWarningsView\(\{ view: "kikikuru", updateMap: true \}\);/
+);
+assert.match(
+  appSource,
+  /function refreshWarningsView\(options = \{\}\)[\s\S]*?skipMap: options\.updateMap !== true/
+);
+assert.match(
+  appSource,
+  /weatherMap\?\.prepareWarningData\(latestDataByTab\.warnings\);[\s\S]*?refreshWarningsView\(\{ updateMap: true \}\);/
+);
+assert.match(
+  appSource,
+  /if \(!options\.skipMap\) \{[\s\S]*?if \(options\.immediateMap\) \{[\s\S]*?invalidateScheduledMapRender\(\);[\s\S]*?weatherMap\?\.renderData\(tab\.id, displayData\)/
+);
+assert.match(
+  leftPanelSource,
+  /const WARNING_AREA_PAGE_SIZE = 80;[\s\S]*?data-warning-load-more[\s\S]*?warningVisibleAreaCount \+= WARNING_AREA_PAGE_SIZE/
 );
 assert.match(
   appSource,
@@ -203,12 +224,21 @@ assert.doesNotMatch(
 const nonWarningBranch = leftPanelSource.match(
   /if \(!isWarnings\) \{([\s\S]*?)\n  \}/
 )?.[1] ?? "";
-assert.doesNotMatch(nonWarningBranch, /root\.innerHTML\s*=/);
+assert.doesNotMatch(nonWarningBranch, /root\.innerHTML\s*=\s*""/);
+assert.doesNotMatch(nonWarningBranch, /activeWarningAreasByCode = new Map\(\)/);
+assert.match(
+  leftPanelSource,
+  /function buildWarningRenderChunks\(groups, chunkSize = 12\)[\s\S]*?areas\.slice\(offset, offset \+ safeChunkSize\)/
+);
+assert.match(
+  leftPanelSource,
+  /if \(renderChunks\.length === 0\)[\s\S]*?renderNextChunk\(\);\s*\n\}/
+);
 assert.match(
   weatherMapSource,
   /function prepareWarningData\(data\)[\s\S]*?updateWarningFeatureStates\(map, statusAreas, "status"\)[\s\S]*?updateWarningFeatureStates\(map, earlyAreas, "early"\)/
 );
-assert.match(weatherMapSource, /const chunkSize = 24;/);
+assert.match(weatherMapSource, /const chunkSize = 8;/);
 assert.match(
   weatherMapSource,
   /const WARNING_FEATURE_STATE_KEYS = \{[\s\S]*?status: "warningStatusLevel"[\s\S]*?early: "warningEarlyLevel"/
