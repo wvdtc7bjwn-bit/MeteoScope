@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
+  buildVolcanoBaselineReports,
   consolidateVolcanoReports,
   getAvailableVolcanoAshForecasts,
   getHighestPriorityVolcanoReport,
@@ -83,6 +84,96 @@ assert.ok(Math.abs(coordinate[0] - 130.2171667) < 0.0001);
 assert.ok(Math.abs(coordinate[1] - 30.4433333) < 0.0001);
 assert.equal(volcanoAlertLevel("レベル３（入山規制）", "13"), 3);
 assert.equal(volcanoAlertLevel("噴火警戒レベル４（避難準備）", ""), 4);
+
+const currentVolcanoReports = buildVolcanoBaselineReports(
+  {
+    reportDatetime: "2026-07-08T16:00:00+09:00",
+    volcanoInfos: [{
+      items: [
+        {
+          name: "レベル１（活火山であることに留意）",
+          code: "11",
+          areas: [{ name: "口永良部島", code: "509" }]
+        },
+        {
+          name: "レベル２（火口周辺規制）",
+          code: "12",
+          areas: [{ name: "十勝岳", code: "108" }]
+        },
+        {
+          name: "活火山であることに留意",
+          code: "21",
+          areas: [{ name: "硫黄島", code: "329" }]
+        }
+      ]
+    }]
+  },
+  [
+    { code: "509", name_jp: "口永良部島", latlon: ["30.443", "130.217"], levelOperation: true },
+    { code: "108", name_jp: "十勝岳", latlon: ["43.418", "142.686"], levelOperation: true },
+    { code: "329", name_jp: "硫黄島", latlon: ["24.751", "141.289"] }
+  ],
+  [
+    {
+      reportDatetime: "2026-07-27T19:00:00+09:00",
+      eventId: "509",
+      volcanoInfos: [{
+        type: "噴火警報・予報（対象火山）",
+        items: [{
+          name: "レベル２（火口周辺規制）",
+          code: "12",
+          lastCode: "11",
+          condition: "引上げ",
+          areas: [{ name: "口永良部島", code: "509" }]
+        }]
+      }]
+    },
+    {
+      reportDatetime: "2007-12-01T10:01:00+09:00",
+      eventId: "329",
+      volcanoInfos: [{
+        type: "噴火警報・予報（対象火山）",
+        items: [{
+          name: "火口周辺危険",
+          code: "22",
+          condition: "継続",
+          areas: [{ name: "硫黄島", code: "329" }]
+        }]
+      }]
+    }
+  ]
+);
+const kuchinoerabujima = currentVolcanoReports.find((report) => report.volcanoCode === "509");
+assert.equal(kuchinoerabujima?.level, 2, "warning.json の最新発表で月間概況の古いレベルを上書きする");
+assert.equal(kuchinoerabujima?.kindName, "レベル2（火口周辺規制）");
+assert.equal(kuchinoerabujima?.reportTimeRaw, "2026-07-27T19:00:00+09:00");
+assert.equal(kuchinoerabujima?.condition, "引上げ");
+assert.equal(
+  currentVolcanoReports.find((report) => report.volcanoCode === "108")?.level,
+  1,
+  "warning.json にない過去の高レベルは通常状態へ戻す"
+);
+const ioto = currentVolcanoReports.find((report) => report.volcanoCode === "329");
+assert.equal(ioto?.level, 0, "レベルを運用しない火山は警戒レベルを表示しない");
+assert.equal(ioto?.alertPriority, 2, "レベルを運用しない火山も火口周辺危険の表示優先度を保つ");
+assert.equal(
+  buildVolcanoBaselineReports(
+    {
+      reportDatetime: "2026-07-08T16:00:00+09:00",
+      volcanoInfos: [{
+        items: [{
+          name: "レベル２（火口周辺規制）",
+          code: "12",
+          areas: [{ name: "十勝岳", code: "108" }]
+        }]
+      }]
+    },
+    [{ code: "108", name_jp: "十勝岳", latlon: ["43.418", "142.686"], levelOperation: true }],
+    null
+  )[0]?.level,
+  2,
+  "warning.json の取得失敗時は月間概況をフォールバックとして保持する"
+);
 assert.equal(normalizeVolcanoAscii("２０２６年７月・概ね２ｋｍ"), "2026年7月・概ね2km");
 assert.equal(normalizeVolcanoAscii("半径２ＫＭ・噴石"), "半径2KM・噴石");
 assert.deepEqual(
@@ -161,6 +252,7 @@ const [config, map, app, panel, style, volcanoParser, longPressHint, viteConfig]
   readFile(new URL("../vite.config.js", import.meta.url), "utf8")
 ]);
 assert.match(config, /volcano\/data\/info\/900\.json/);
+assert.match(config, /volcano\/data\/warning\.json/);
 assert.match(config, /volcano\/const\/volcano_list\.json/);
 assert.match(map, /VOLCANO_MARKER_IMAGE_ID = "volcano-filled-triangle"/);
 assert.match(map, /"icon-image": VOLCANO_MARKER_IMAGE_ID/);

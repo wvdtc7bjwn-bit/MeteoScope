@@ -119,20 +119,32 @@ function compareVolcanoReportsByPriority(left, right) {
 }
 
 async function fetchVolcanoBaseline() {
-  const [statusText, catalogText] = await Promise.all([
+  const [statusText, catalogText, warningText] = await Promise.all([
     fetchText(JMA_ENDPOINTS.volcanoStatus, { ttlMs: 5 * 60 * 1000, cache: "no-store" }),
-    fetchText(JMA_ENDPOINTS.volcanoCatalog, { ttlMs: 24 * 60 * 60 * 1000, cache: "force-cache" })
+    fetchText(JMA_ENDPOINTS.volcanoCatalog, { ttlMs: 24 * 60 * 60 * 1000, cache: "force-cache" }),
+    fetchText(JMA_ENDPOINTS.volcanoWarningStatus, { ttlMs: 60 * 1000, cache: "no-store" }).catch(() => null)
   ]);
   const status = JSON.parse(statusText);
   const catalog = JSON.parse(catalogText);
+  const warnings = warningText ? JSON.parse(warningText) : null;
+  return buildVolcanoBaselineReports(status, catalog, warnings);
+}
+
+export function buildVolcanoBaselineReports(status, catalog, warnings) {
   const statusByCode = new Map();
   (status?.volcanoInfos ?? []).forEach((info) => {
     (info?.items ?? []).forEach((item) => {
       (item?.areas ?? []).forEach((area) => statusByCode.set(String(area.code), item));
     });
   });
+  const hasCurrentWarningSnapshot = Array.isArray(warnings);
+  const warningByCode = buildCurrentVolcanoWarningMap(warnings);
   return (Array.isArray(catalog) ? catalog : []).map((volcano) => {
-    const item = statusByCode.get(String(volcano.code));
+    const volcanoCode = String(volcano.code);
+    const warning = warningByCode.get(volcanoCode);
+    const monthlyItem = statusByCode.get(volcanoCode);
+    const item = warning?.item
+      ?? (hasCurrentWarningSnapshot ? getNormalVolcanoStatus(volcano, monthlyItem) : monthlyItem);
     const kindCode = String(item?.code ?? "");
     const level = volcanoAlertLevel(item?.name, kindCode);
     const coordinates = Array.isArray(volcano.latlon)
@@ -141,20 +153,64 @@ async function fetchVolcanoBaseline() {
     return {
       id: `current-${volcano.code}`,
       bulletinCode: "CURRENT",
-      volcanoCode: String(volcano.code),
+      volcanoCode,
       volcanoName: normalizeVolcanoAscii(volcano.name_jp) || "火山名不明",
       coordinates: coordinates?.every(Number.isFinite) ? coordinates : null,
-      reportTime: parseJmaTime(status.reportDatetime) ?? status.reportDatetime ?? "未取得",
-      reportTimeRaw: status.reportDatetime ?? "",
+      reportTime: parseJmaTime(warning?.reportDatetime ?? status?.reportDatetime)
+        ?? warning?.reportDatetime
+        ?? status?.reportDatetime
+        ?? "未取得",
+      reportTimeRaw: warning?.reportDatetime ?? status?.reportDatetime ?? "",
       infoKind: "現在の噴火警報・予報",
       kindName: normalizeVolcanoAscii(item?.name) || "警戒状況未確認",
       kindCode,
       level,
       alertPriority: volcanoAlertPriority(level, kindCode),
+      condition: normalizeVolcanoAscii(item?.condition),
       headline: normalizeVolcanoAscii(item?.name) || "現在の警戒状況を確認できません",
       sourceUrl: "https://www.jma.go.jp/bosai/volcano/"
     };
   });
+}
+
+function buildCurrentVolcanoWarningMap(warnings) {
+  const warningByCode = new Map();
+  (Array.isArray(warnings) ? warnings : []).forEach((warning) => {
+    (warning?.volcanoInfos ?? [])
+      .filter((info) => String(info?.type ?? "").includes("対象火山"))
+      .forEach((info) => {
+        (info?.items ?? []).forEach((item) => {
+          (item?.areas ?? []).forEach((area) => {
+            const volcanoCode = String(area?.code ?? warning?.eventId ?? "").trim();
+            if (!volcanoCode) return;
+            const previous = warningByCode.get(volcanoCode);
+            if (!previous || dateMs(warning?.reportDatetime) >= dateMs(previous?.reportDatetime)) {
+              warningByCode.set(volcanoCode, {
+                item,
+                reportDatetime: warning?.reportDatetime ?? ""
+              });
+            }
+          });
+        });
+      });
+  });
+  return warningByCode;
+}
+
+function getNormalVolcanoStatus(volcano, monthlyItem) {
+  if (volcanoAlertLevel(monthlyItem?.name, monthlyItem?.code) <= 1) return monthlyItem;
+  if (volcano?.levelOperation) {
+    return {
+      name: "レベル１（活火山であることに留意）",
+      code: "11",
+      condition: "継続"
+    };
+  }
+  return {
+    name: "活火山であることに留意",
+    code: "21",
+    condition: "継続"
+  };
 }
 
 function volcanoAlertPriority(level, code) {
