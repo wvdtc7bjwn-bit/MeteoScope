@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ja" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weekly weather glyph preview</title>
+  <script type="module">
+    import "../../src/style.css";
+    import { renderWeeklyWeatherGlyph } from "../../src/ui/weeklyWeatherGlyph.js";
+
+    document.documentElement.dataset.theme = new URLSearchParams(location.search).get("theme") === "light"
+      ? "light"
+      : "dark";
+    const samples = [
+      ["100", "晴れ"],
+      ["101", "晴れ時々くもり"],
+      ["200", "くもり"],
+      ["201", "くもり時々晴れ"],
+      ["214", "くもり後雨"],
+      ["300", "雨"],
+      ["400", "雪"],
+      ["304", "雨か雪"],
+      ["340", "雪か雨"],
+      ["329", "雨一時みぞれ"],
+      ["209", "霧"],
+      ["350", "雨で雷を伴う"],
+      ["450", "雪で雷を伴う"],
+      ["308", "暴風雨"],
+      ["407", "暴風雪"],
+      ["340", "雪か雨で暴風を伴う"]
+    ];
+    document.querySelector("main").innerHTML = samples.map(([code, weather]) => `
+      <article class="weekly-weather-day">
+        <time>${code}</time>
+        <div class="weekly-weather-icon">${renderWeeklyWeatherGlyph(code, weather)}</div>
+        <strong>${weather}</strong>
+      </article>
+    `).join("");
+  </script>
+  <style>
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 28px;
+      background: #15191e;
+    }
+    html[data-theme="light"] body {
+      background: #e8f0f7;
+    }
+    main {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(112px, 1fr));
+      gap: 10px;
+      max-width: 640px;
+      margin: auto;
+    }
+    .weekly-weather-day {
+      min-height: 126px;
+    }
+    @media (max-width: 560px) {
+      main {
+        grid-template-columns: repeat(2, minmax(112px, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <main aria-label="週間天気独自描画プレビュー"></main>
+</body>
+</html>
