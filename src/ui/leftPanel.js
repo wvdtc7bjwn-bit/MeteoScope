@@ -1587,6 +1587,9 @@ if (tabId === "warnings" && warningView === "early") {
       ? [["潮位観測点", "legend-tide-station", "#5e93ad"]]
       : [];
     const mapLayerLegend = [
+      ...(data?.selectedEarthquake?.estimatedIntensity && data?.estimatedIntensityVisible !== false
+        ? [["推計震度分布（250mメッシュ）", "legend-estimated-intensity"]]
+        : []),
       ...(data?.activeFaultVisible !== false ? [["主要活断層帯", "legend-active-fault"]] : []),
       ...(data?.plateBoundaryVisible !== false ? [
         ["収束境界", "legend-plate-convergent"],
@@ -2033,11 +2036,15 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     const activeFaultVisible = state.earthquakeActiveFaultVisible ?? state.data?.activeFaultVisible ?? true;
     const plateBoundaryVisible = state.earthquakePlateBoundaryVisible ?? state.data?.plateBoundaryVisible ?? true;
     const plateDepthContoursVisible = state.earthquakePlateDepthContoursVisible ?? state.data?.plateDepthContoursVisible ?? true;
+    const estimatedIntensityVisible = state.earthquakeEstimatedIntensityVisible
+      ?? state.data?.estimatedIntensityVisible
+      ?? true;
     return buildEarthquakeMobileContextMarkup(
       earthquake,
       activeFaultVisible,
       plateBoundaryVisible,
       plateDepthContoursVisible,
+      estimatedIntensityVisible,
       state.data?.tsunami,
       state.data?.tsunamiStatus,
       state.data?.tideObservation
@@ -2594,6 +2601,7 @@ function buildEarthquakeMobileContextMarkup(
   activeFaultVisible,
   plateBoundaryVisible,
   plateDepthContoursVisible,
+  estimatedIntensityVisible,
   tsunami,
   tsunamiStatus,
   tideObservation
@@ -2624,7 +2632,10 @@ function buildEarthquakeMobileContextMarkup(
           ${tsunamiMarkup}
         </div>
       </div>
-      <div class="mobile-dock-earthquake-layer-list" aria-label="地震地図の表示項目">
+      <div class="mobile-dock-earthquake-layer-list${earthquake?.estimatedIntensity ? " has-estimated-intensity" : ""}" aria-label="地震地図の表示項目">
+        ${earthquake?.estimatedIntensity
+          ? buildMobileEarthquakeLayerButton("estimatedIntensity", "推計震度", estimatedIntensityVisible)
+          : ""}
         ${buildMobileEarthquakeLayerButton("activeFault", "活断層", activeFaultVisible)}
         ${buildMobileEarthquakeLayerButton("plateBoundary", "境界", plateBoundaryVisible)}
         ${buildMobileEarthquakeLayerButton("plateDepthContours", "等深線", plateDepthContoursVisible)}
@@ -5350,12 +5361,15 @@ function formatVolcanoBulletinTitle(value) {
 
 function buildEarthquakeMapLayerControls(data) {
   const layers = [
+    ...(data.selectedEarthquake?.estimatedIntensity
+      ? [["estimatedIntensity", "推計震度", data.estimatedIntensityVisible !== false]]
+      : []),
     ["activeFault", "主要活断層", data.activeFaultVisible !== false],
     ["plateBoundary", "プレート境界", data.plateBoundaryVisible !== false],
     ["plateDepthContours", "プレート等深線", data.plateDepthContoursVisible !== false]
   ];
   return `
-    <section class="earthquake-map-layer-controls" aria-label="地震地図の表示項目">
+    <section class="earthquake-map-layer-controls${layers.length > 3 ? " has-estimated-intensity" : ""}" aria-label="地震地図の表示項目">
       ${layers.map(([id, label, visible]) => `
         <button
           type="button"

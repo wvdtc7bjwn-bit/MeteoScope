@@ -17,6 +17,10 @@ import {
   getTsunamiLevelRank,
   getTsunamiObservationStyle
 } from "../tsunami.js";
+import {
+  attachEstimatedIntensityData,
+  fetchEstimatedIntensityCatalog
+} from "./estimatedIntensity.js";
 
 export const EARTHQUAKE_XML_INITIAL_DETAIL_FETCH_LIMIT = 48;
 export const EARTHQUAKE_XML_DETAIL_FETCH_INCREMENT = 48;
@@ -68,22 +72,32 @@ export async function fetchEarthquakeXmlList({
   }
   const baseEarthquakes = dedupeEarthquakes(fulfilledEarthquakeResults)
     .slice(0, EARTHQUAKE_HISTORY_DISPLAY_LIMIT);
-  const [areaLookup, tsunamiLookup, tsunamiStationLookup, stationLookup] = await Promise.all([
+  let estimatedIntensityCatalogAvailable = true;
+  const [areaLookup, tsunamiLookup, tsunamiStationLookup, stationLookup, estimatedIntensityCatalog] = await Promise.all([
     loadEarthquakeAreaLookup().catch(() => new Map()),
     loadTsunamiAreaLookup().catch(() => new Map()),
     loadTsunamiStationLookup().catch(() => buildEmptyTsunamiStationLookup()),
-    loadStationCoordinateLookup().catch(() => buildEmptyStationLookup())
+    loadStationCoordinateLookup().catch(() => buildEmptyStationLookup()),
+    fetchEstimatedIntensityCatalog().catch((error) => {
+      estimatedIntensityCatalogAvailable = false;
+      console.warn("[Earthquake XML] estimated intensity catalog unavailable", error);
+      return [];
+    })
   ]);
   const tsunamiReports = tsunamiResults
     .filter((result) => result.status === "fulfilled" && result.value)
     .map((result) => result.value);
   const tsunamiReportsByEventId = mergeTsunamiReportsByEventId(tsunamiReports);
-  const earthquakes = baseEarthquakes.map((earthquake) => ({
+  const earthquakesWithMapData = baseEarthquakes.map((earthquake) => ({
     ...attachEarthquakeMapData(earthquake, areaLookup, stationLookup),
     tsunamiReport: tsunamiReportsByEventId.get(
       normalizeEarthquakeEventId(earthquake.eventId)
     ) ?? null
   }));
+  const earthquakes = attachEstimatedIntensityData(
+    earthquakesWithMapData,
+    estimatedIntensityCatalog
+  );
   const tsunami = attachTsunamiMapData(
     mergeTsunamiReports(tsunamiReports),
     currentFeedAvailable ? tsunamiLookup : new Map(),
@@ -100,6 +114,9 @@ export async function fetchEarthquakeXmlList({
     earthquakes,
     tsunami,
     tsunamiStatus,
+    estimatedIntensityStatus: !estimatedIntensityCatalogAvailable
+      ? "unavailable"
+      : earthquakes.some((earthquake) => earthquake.estimatedIntensity) ? "available" : "none",
     hasEarthquakes: earthquakes.length > 0,
     earthquakeHistoryFetchedEntryCount: earthquakeEntries.length,
     earthquakeHistorySourceEntryCount: allEarthquakeEntries.length,

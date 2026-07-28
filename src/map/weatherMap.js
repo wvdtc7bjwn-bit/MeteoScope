@@ -23,6 +23,7 @@ import {
   getAvailableVolcanoAshForecasts,
   getHighestPriorityVolcanoReport
 } from "../jma/volcanoXml.js";
+import { getRecoloredEstimatedIntensityImageUrl } from "../jma/estimatedIntensity.js";
 import {
   getVolcanoAshfallLevel,
   VOLCANO_SMALL_CINDERS_STYLE
@@ -38,9 +39,11 @@ const MODE_CLASS = {
 };
 
 const SAMPLE_SOURCE_ID = "weather-samples";
-const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
+const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "earthquake-area-intensity-marker", "earthquake-station-intensity-circle", "earthquake-station-intensity-label", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
-const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-line"];
+const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "earthquake-station-intensity-circle", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-line"];
+const EARTHQUAKE_STATION_RADIUS = 7.5;
+const EARTHQUAKE_STATION_STROKE_WIDTH = 1;
 const SAMPLE_CIRCLE_BASE_RADIUS = ["coalesce", ["get", "radius"], 8];
 const SAMPLE_CIRCLE_RADIUS_EXPRESSION = buildCircleZoomExpression({
   zoomStops: [
@@ -146,6 +149,7 @@ const TYPHOON_FORECAST_INFO_LAYERS = [
 ];
 const WIND_ARROW_IMAGE_ID = "amedas-wind-arrow";
 const VOLCANO_MARKER_IMAGE_ID = "volcano-filled-triangle";
+const EARTHQUAKE_AREA_INTENSITY_MARKER_IMAGE_ID = "earthquake-area-intensity-square";
 const RADAR_SOURCE_PREFIX = "jma-nowcast-radar-z";
 const RADAR_LAYER_PREFIX = "jma-nowcast-radar-z";
 const LIGHTNING_SOURCE_PREFIX = "jma-nowcast-lightning-z";
@@ -155,6 +159,9 @@ const LIGHTNING_OBSERVATION_LAYER_IDS = [
   "lightning-observation-ground",
   "lightning-observation-cloud"
 ];
+const ESTIMATED_INTENSITY_SOURCE_PREFIX = "jma-estimated-intensity-source";
+const ESTIMATED_INTENSITY_LAYER_PREFIX = "jma-estimated-intensity-layer";
+const estimatedIntensityLayerStateByMap = new WeakMap();
 const lightningObservationUrlByMap = new WeakMap();
 const WEATHER_CHART_LINE_SOURCE_ID = "jma-weather-chart-lines";
 const WEATHER_CHART_POINT_SOURCE_ID = "jma-weather-chart-points";
@@ -741,6 +748,7 @@ export function createWeatherMap(elementId) {
     updateLightningObservationLayer(map, mode, data);
     updateWeatherChartLayer(map, mode, data);
     updateKikikuruLayer(map, mode, data);
+    updateEstimatedIntensityLayer(map, mode, data);
     updateRiverFloodLayer(map, mode, data);
     updateWarningMunicipalityPaint(map, mode, data);
   }
@@ -886,8 +894,10 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "text-halo-color": "rgba(5, 9, 20, 0.92)",
         "text-halo-width": 2
       }
-    });    setupWindArrowImage(map);
+    });
+    setupWindArrowImage(map);
     setupVolcanoMarkerImage(map);
+    setupEarthquakeAreaIntensityMarkerImage(map);
     setupWarningHatchImage(map);
     setupWeatherFrontImages(map);
 
@@ -962,7 +972,9 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         ["!=", ["get", "markerType"], "wind"],
         ["!=", ["get", "markerType"], "cross"],
         ["!=", ["get", "markerType"], "volcano"],
-        ["!=", ["get", "markerType"], "tsunami-offshore"]
+        ["!=", ["get", "markerType"], "tsunami-offshore"],
+        ["!=", ["get", "markerType"], "earthquake-area-intensity"],
+        ["!=", ["get", "markerType"], "earthquake-station"]
       ],
       layout: {
         "circle-sort-key": ["coalesce", ["get", "sortKey"], 0]
@@ -978,6 +990,106 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           "#f8fbff"
         ],
         "circle-stroke-width": SAMPLE_CIRCLE_STROKE_WIDTH_EXPRESSION
+      }
+    });
+
+    map.addLayer({
+      id: "earthquake-area-intensity-marker",
+      type: "symbol",
+      source: SAMPLE_SOURCE_ID,
+      maxzoom: 7.5,
+      filter: ["all",
+        ["==", ["geometry-type"], "Point"],
+        ["==", ["get", "markerType"], "earthquake-area-intensity"]
+      ],
+      layout: {
+        "icon-image": EARTHQUAKE_AREA_INTENSITY_MARKER_IMAGE_ID,
+        "icon-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          3,
+          0.62,
+          7,
+          0.82
+        ],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "text-field": ["get", "intensityText"],
+        "text-font": ["Noto Sans JP"],
+        "text-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          3,
+          9,
+          7,
+          12
+        ],
+        "text-anchor": "center",
+        "text-allow-overlap": true,
+        "text-ignore-placement": true,
+        "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
+      },
+      paint: {
+        "icon-color": ["get", "color"],
+        "icon-halo-color": "rgba(248, 251, 255, 0.92)",
+        "icon-halo-width": 1,
+        "text-color": ["get", "textColor"],
+        "text-halo-width": 0
+      }
+    });
+
+    map.addLayer({
+      id: "earthquake-station-intensity-circle",
+      type: "circle",
+      source: SAMPLE_SOURCE_ID,
+      minzoom: 7.5,
+      filter: ["all",
+        ["==", ["geometry-type"], "Point"],
+        ["==", ["get", "markerType"], "earthquake-station"]
+      ],
+      layout: {
+        "circle-sort-key": ["coalesce", ["get", "sortKey"], 0]
+      },
+      paint: {
+        "circle-color": ["get", "color"],
+        "circle-opacity": ["coalesce", ["get", "opacity"], 0.92],
+        "circle-radius": SAMPLE_CIRCLE_RADIUS_EXPRESSION,
+        "circle-stroke-color": "#f8fbff",
+        "circle-stroke-width": SAMPLE_CIRCLE_STROKE_WIDTH_EXPRESSION
+      }
+    });
+
+    map.addLayer({
+      id: "earthquake-station-intensity-label",
+      type: "symbol",
+      source: SAMPLE_SOURCE_ID,
+      minzoom: 7.5,
+      filter: ["all",
+        ["==", ["geometry-type"], "Point"],
+        ["==", ["get", "markerType"], "earthquake-station"]
+      ],
+      layout: {
+        "text-field": ["get", "intensityText"],
+        "text-font": ["Noto Sans JP"],
+        "text-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          7.5,
+          8,
+          10,
+          10
+        ],
+        "text-anchor": "center",
+        "text-allow-overlap": true,
+        "text-ignore-placement": true,
+        "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
+      },
+      paint: {
+        "text-color": ["get", "textColor"],
+        "text-halo-width": 0
       }
     });
 
@@ -2550,6 +2662,25 @@ function setupVolcanoMarkerImage(map) {
   map.addImage(VOLCANO_MARKER_IMAGE_ID, context.getImageData(0, 0, size, size), { sdf: true });
 }
 
+function setupEarthquakeAreaIntensityMarkerImage(map) {
+  if (map.hasImage(EARTHQUAKE_AREA_INTENSITY_MARKER_IMAGE_ID)) return;
+
+  const size = 32;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+
+  context.fillStyle = "#ffffff";
+  context.fillRect(3, 3, size - 6, size - 6);
+  map.addImage(
+    EARTHQUAKE_AREA_INTENSITY_MARKER_IMAGE_ID,
+    context.getImageData(0, 0, size, size),
+    { sdf: true }
+  );
+}
+
 function setupWarningHatchImage(map) {
   if (map.hasImage(WARNING_HATCH_IMAGE_ID)) return;
 
@@ -3230,6 +3361,84 @@ function setRadarVisible(map, isVisible) {
   setNowcastRasterVisible(map, RADAR_LAYER_PREFIX, isVisible);
 }
 
+function updateEstimatedIntensityLayer(map, mode, data = {}) {
+  const earthquakes = data?.earthquakes ?? [];
+  const selectedId = String(data?.selectedEarthquakeId ?? "");
+  const earthquake = data?.selectedEarthquake
+    ?? earthquakes.find((item) => String(item.id) === selectedId)
+    ?? earthquakes[0];
+  const images = earthquake?.estimatedIntensity?.images ?? [];
+  const shouldShow = mode === "earthquake"
+    && data?.earthquakeContentMode !== "volcano"
+    && getEarthquakeMapView(data) !== "distribution"
+    && data?.estimatedIntensityVisible !== false
+    && images.length > 0;
+  const key = images.length > 0
+    ? `${earthquake.estimatedIntensity.id}:${images.map((image) => image.meshCode).join(",")}:palette-v1`
+    : "";
+  const current = estimatedIntensityLayerStateByMap.get(map);
+
+  if (current?.key === key && current.entries.every(({ layerId }) => map.getLayer(layerId))) {
+    current.visible = shouldShow;
+    current.entries.forEach(({ layerId }) => {
+      map.setLayoutProperty(layerId, "visibility", shouldShow ? "visible" : "none");
+    });
+    return;
+  }
+
+  removeEstimatedIntensityLayers(map, current?.entries ?? []);
+  estimatedIntensityLayerStateByMap.delete(map);
+  if (!key || images.length === 0) return;
+
+  const state = { key, entries: [], visible: shouldShow };
+  estimatedIntensityLayerStateByMap.set(map, state);
+  void Promise.all(images.map((image) => getRecoloredEstimatedIntensityImageUrl(image.url)))
+    .then((recoloredUrls) => {
+      if (estimatedIntensityLayerStateByMap.get(map) !== state) return;
+      recoloredUrls.forEach((url, index) => {
+        const image = images[index];
+        const sourceId = `${ESTIMATED_INTENSITY_SOURCE_PREFIX}-${index}`;
+        const layerId = `${ESTIMATED_INTENSITY_LAYER_PREFIX}-${index}`;
+        removeMapLayerAndSource(map, layerId, sourceId);
+        map.addSource(sourceId, {
+          type: "image",
+          url,
+          coordinates: image.coordinates
+        });
+        map.addLayer({
+          id: layerId,
+          type: "raster",
+          source: sourceId,
+          layout: {
+            visibility: state.visible ? "visible" : "none"
+          },
+          paint: {
+            "raster-opacity": 0.88,
+            "raster-fade-duration": 0,
+            "raster-resampling": "nearest"
+          }
+        }, map.getLayer("sample-fill") ? "sample-fill" : undefined);
+        state.entries.push({ sourceId, layerId });
+      });
+    })
+    .catch(() => {
+      if (estimatedIntensityLayerStateByMap.get(map) === state) {
+        estimatedIntensityLayerStateByMap.delete(map);
+      }
+    });
+}
+
+function removeEstimatedIntensityLayers(map, entries) {
+  [...entries].reverse().forEach(({ layerId, sourceId }) => {
+    removeMapLayerAndSource(map, layerId, sourceId);
+  });
+}
+
+function removeMapLayerAndSource(map, layerId, sourceId) {
+  if (map.getLayer(layerId)) map.removeLayer(layerId);
+  if (map.getSource(sourceId)) map.removeSource(sourceId);
+}
+
 function updateLightningLayer(map, mode, data = {}) {
   const shouldShow = mode === "radar"
     && data?.lightningEnabled
@@ -3774,7 +3983,8 @@ function createEarthquakeFeatures(data) {
   const tideStationFeatures = createTideStationFeatures(data);
   if (!earthquake) return [...tideStationFeatures, ...tsunamiFeatures];
 
-  const areaFeatures = (earthquake.intensityAreaFeatures ?? []).map((feature) => ({
+  const hasEstimatedIntensity = (earthquake.estimatedIntensity?.images ?? []).length > 0;
+  const areaFeatures = (hasEstimatedIntensity ? [] : (earthquake.intensityAreaFeatures ?? [])).map((feature) => ({
     ...feature,
     properties: {
       ...(feature.properties ?? {}),
@@ -3783,6 +3993,9 @@ function createEarthquakeFeatures(data) {
       lineWidth: feature.properties?.lineWidth ?? 1.3
     }
   }));
+  const areaIntensityMarkers = createEarthquakeAreaIntensityMarkers(
+    earthquake.intensityAreaFeatures ?? []
+  );
 
   const stationFeatures = (earthquake.intensityStations ?? []).flatMap((station) => {
     if (!Array.isArray(station.coordinates) || !station.intensity) return [];
@@ -3791,11 +4004,13 @@ function createEarthquakeFeatures(data) {
       geometry: { type: "Point", coordinates: station.coordinates },
       properties: {
         color: getEarthquakeIntensityColor(station.intensity),
-        markerType: "circle",
+        markerType: "earthquake-station",
         markerScaleMode: "earthquake-zoom",
-        radius: getEarthquakeIntensityRadius(station.intensity),
+        radius: EARTHQUAKE_STATION_RADIUS,
+        strokeWidth: EARTHQUAKE_STATION_STROKE_WIDTH,
         sortKey: getEarthquakeIntensityRank(station.intensity),
-        label: getEarthquakeStationLabel(station),
+        intensityText: formatMapIntensityText(station.intensity),
+        textColor: getMapIntensityTextColor(station.intensity),
         popup: buildEarthquakeStationPopup(station, earthquake)
       }
     }];
@@ -3819,9 +4034,107 @@ function createEarthquakeFeatures(data) {
     ...tideStationFeatures,
     ...tsunamiFeatures,
     ...areaFeatures,
+    ...areaIntensityMarkers,
     ...stationFeatures,
     ...epicenterFeature
   ];
+}
+
+function createEarthquakeAreaIntensityMarkers(features) {
+  const markersByArea = new Map();
+  for (const feature of features ?? []) {
+    const intensity = feature?.properties?.intensity;
+    const anchor = getEarthquakeAreaIntensityAnchor(feature?.geometry);
+    if (!intensity || !anchor) continue;
+    const areaKey = String(
+      feature.properties?.areaCode
+      ?? feature.properties?.areaName
+      ?? feature.properties?.featureIndex
+      ?? markersByArea.size
+    );
+    const current = markersByArea.get(areaKey);
+    if (current && current.anchorArea >= anchor.area) continue;
+    markersByArea.set(areaKey, {
+      feature: {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: anchor.coordinates },
+        properties: {
+          color: getEarthquakeIntensityColor(intensity),
+          markerType: "earthquake-area-intensity",
+          intensityText: formatMapIntensityText(intensity),
+          textColor: getMapIntensityTextColor(intensity),
+          sortKey: getEarthquakeIntensityRank(intensity),
+          popup: feature.properties?.popup ?? ""
+        }
+      },
+      anchorArea: anchor.area
+    });
+  }
+  return [...markersByArea.values()].map((entry) => entry.feature);
+}
+
+function getEarthquakeAreaIntensityAnchor(geometry) {
+  const rings = geometry?.type === "Polygon"
+    ? [geometry.coordinates?.[0]]
+    : geometry?.type === "MultiPolygon"
+      ? geometry.coordinates?.map((polygon) => polygon?.[0])
+      : [];
+  let largest = null;
+  for (const ring of rings ?? []) {
+    const candidate = getPolygonRingCentroid(ring);
+    if (candidate && (!largest || candidate.area > largest.area)) largest = candidate;
+  }
+  return largest;
+}
+
+function getPolygonRingCentroid(ring) {
+  if (!Array.isArray(ring) || ring.length < 3) return null;
+  let crossSum = 0;
+  let longitudeSum = 0;
+  let latitudeSum = 0;
+  for (let index = 0; index < ring.length; index += 1) {
+    const current = ring[index];
+    const next = ring[(index + 1) % ring.length];
+    const x1 = Number(current?.[0]);
+    const y1 = Number(current?.[1]);
+    const x2 = Number(next?.[0]);
+    const y2 = Number(next?.[1]);
+    if (![x1, y1, x2, y2].every(Number.isFinite)) continue;
+    const cross = (x1 * y2) - (x2 * y1);
+    crossSum += cross;
+    longitudeSum += (x1 + x2) * cross;
+    latitudeSum += (y1 + y2) * cross;
+  }
+  if (Math.abs(crossSum) < Number.EPSILON) {
+    const coordinates = ring
+      .map((point) => [Number(point?.[0]), Number(point?.[1])])
+      .filter((point) => point.every(Number.isFinite));
+    if (coordinates.length === 0) return null;
+    return {
+      coordinates: [
+        coordinates.reduce((sum, point) => sum + point[0], 0) / coordinates.length,
+        coordinates.reduce((sum, point) => sum + point[1], 0) / coordinates.length
+      ],
+      area: 0
+    };
+  }
+  return {
+    coordinates: [
+      longitudeSum / (3 * crossSum),
+      latitudeSum / (3 * crossSum)
+    ],
+    area: Math.abs(crossSum / 2)
+  };
+}
+
+function formatMapIntensityText(value) {
+  const text = String(value ?? "").trim();
+  if (!text || text.includes("未入電") || text.includes("不明")) return "";
+  return text.replace("-", "⁻").replace("+", "⁺");
+}
+
+function getMapIntensityTextColor(value) {
+  return getEarthquakeIntensityRank(value) >= 5 ? "#f8fbff" : "#07162b";
 }
 
 function getEarthquakeMapView(data) {
@@ -3883,16 +4196,6 @@ function formatDistributionOriginTime(value) {
     minute: "2-digit",
     second: "2-digit"
   }).format(date);
-}
-
-function getEarthquakeIntensityRadius(value) {
-  const rank = getEarthquakeIntensityRank(value);
-  return Math.max(6, Math.min(15, 5 + rank));
-}
-
-function getEarthquakeStationLabel(station) {
-  if (getEarthquakeIntensityRank(station.intensity) < 4) return "";
-  return `${station.stationName ?? "観測点"} ${station.intensityShort ?? ""}`;
 }
 
 function buildEarthquakePopup(earthquake) {

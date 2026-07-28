@@ -4768,6 +4768,10 @@ html[data-theme="light"] .weekly-weather-reliability {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
 }
 
+.earthquake-map-layer-controls.has-estimated-intensity {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .earthquake-history-load-more {
   appearance: none;
   -webkit-appearance: none;
@@ -5923,6 +5927,12 @@ html[data-theme="light"] .weekly-weather-reliability {
 .legend-tsunami-offshore {
   border-radius: 2px;
   transform: rotate(45deg) scale(0.78);
+}
+
+.legend-estimated-intensity {
+  border-color: rgba(255, 255, 255, 0.72);
+  background:
+    linear-gradient(90deg, #fff500 0 20%, #ffb300 20% 40%, #ff5a1f 40% 60%, #b400ff 60% 80%, #6a00a8 80%);
 }
 
 .legend-swatch:is(
@@ -8175,6 +8185,16 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-earthquake-intensity.is-bright-text {
     color: #fff;
+  }
+
+  .mobile-dock-earthquake-layer-list.has-estimated-intensity {
+    gap: 1px;
+  }
+
+  .mobile-dock-earthquake-layer-list.has-estimated-intensity .mobile-dock-earthquake-layer {
+    min-height: 11px;
+    padding-block: 0;
+    font-size: 7.8px;
   }
 
   .mobile-dock-tsunami-main {

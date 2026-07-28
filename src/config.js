@@ -54,6 +54,8 @@ export const JMA_ENDPOINTS = {
   riverFloodXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/extra_l.xml",
   earthquakeXmlFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml",
   earthquakeXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml",
+  estimatedIntensityList: "https://www.jma.go.jp/bosai/estimated_intensity_map/data/list.json",
+  estimatedIntensityDataBase: "https://www.jma.go.jp/bosai/estimated_intensity_map/data",
   volcanoStatus: "https://www.jma.go.jp/bosai/volcano/data/info/900.json",
   volcanoWarningStatus: "https://www.jma.go.jp/bosai/volcano/data/warning.json",
   volcanoCatalog: "https://www.jma.go.jp/bosai/volcano/const/volcano_list.json",
@@ -126,7 +128,7 @@ export const TABS = [
     title: "",
     cardLabel: "震源",
     primary: "Quake",
-    description: "気象庁防災情報XMLから取得した地震・津波情報を表示します。"
+    description: "気象庁防災情報XMLの地震・津波情報と、気象庁の推計震度分布を表示します。"
   }
 ];
 

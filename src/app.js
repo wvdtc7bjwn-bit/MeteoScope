@@ -161,7 +161,8 @@ const LOCATION_RESOLVE_MIN_INTERVAL_MS = 60 * 1000;
 const EARTHQUAKE_LAYER_VISIBILITY_STORAGE_KEYS = {
   activeFault: "meteoscope-earthquake-active-fault-visible-v1",
   plateBoundary: "meteoscope-earthquake-plate-boundary-visible-v1",
-  plateDepthContours: "meteoscope-earthquake-plate-depth-contours-visible-v1"
+  plateDepthContours: "meteoscope-earthquake-plate-depth-contours-visible-v1",
+  estimatedIntensity: "meteoscope-earthquake-estimated-intensity-visible-v1"
 };
 
 function loadEarthquakeLayerVisibility(layerId) {
@@ -268,6 +269,7 @@ export function createWeatherApp() {
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
   let earthquakePlateBoundaryVisible = loadEarthquakeLayerVisibility("plateBoundary");
   let earthquakePlateDepthContoursVisible = loadEarthquakeLayerVisibility("plateDepthContours");
+  let earthquakeEstimatedIntensityVisible = loadEarthquakeLayerVisibility("estimatedIntensity");
   let tideObservation = { status: "idle", station: null, points: [], rangeHours: 24 };
   let tideObservationRequest = null;
   let tideObservationRequestId = 0;
@@ -1113,6 +1115,8 @@ if (layerId === "river") {
     } else if (layerId === "plateDepthContours") {
       earthquakePlateDepthContoursVisible = isVisible;
       weatherMap?.setPlateDepthContoursVisible(isVisible);
+    } else if (layerId === "estimatedIntensity") {
+      earthquakeEstimatedIntensityVisible = isVisible;
     } else {
       return;
     }
@@ -1486,7 +1490,8 @@ if (layerId === "river") {
         earthquakeHistoryLoadMoreError,
         activeFaultVisible: earthquakeActiveFaultVisible,
         plateBoundaryVisible: earthquakePlateBoundaryVisible,
-        plateDepthContoursVisible: earthquakePlateDepthContoursVisible
+        plateDepthContoursVisible: earthquakePlateDepthContoursVisible,
+        estimatedIntensityVisible: earthquakeEstimatedIntensityVisible
       };
     }
 
@@ -1501,6 +1506,7 @@ if (layerId === "river") {
       activeFaultVisible: earthquakeActiveFaultVisible,
       plateBoundaryVisible: earthquakePlateBoundaryVisible,
       plateDepthContoursVisible: earthquakePlateDepthContoursVisible,
+      estimatedIntensityVisible: earthquakeEstimatedIntensityVisible,
       selectedEarthquakeId: activeEarthquakeId,
       collapsedEarthquakeId,
       earthquakeHistoryVisibleCount,
@@ -2257,6 +2263,7 @@ if (layerId === "river") {
       earthquakeActiveFaultVisible,
       earthquakePlateBoundaryVisible,
       earthquakePlateDepthContoursVisible,
+      earthquakeEstimatedIntensityVisible,
       weatherChartEnabled,
       weatherChartStatus,
       weatherChart: weatherChartData,
@@ -2816,10 +2823,14 @@ function buildTyphoonFocusCoordinates(typhoon) {
 
 function buildEarthquakeFocusCoordinates(earthquake) {
   if (!earthquake) return [];
+  const estimatedIntensityBounds = earthquake.estimatedIntensity?.bounds;
   const coordinates = [
     earthquake.coordinates,
     ...(earthquake.intensityStations ?? []).map((station) => station.coordinates),
-    ...(earthquake.intensityAreaFeatures ?? []).flatMap(getFeatureBoundsCoordinates)
+    ...(earthquake.estimatedIntensity
+      ? []
+      : (earthquake.intensityAreaFeatures ?? []).flatMap(getFeatureBoundsCoordinates)),
+    ...(Array.isArray(estimatedIntensityBounds) ? estimatedIntensityBounds : [])
   ];
 
   return coordinates.filter((point) =>
