@@ -1331,7 +1331,7 @@ h2 {
   height: 58px;
   max-width: 100%;
   overflow: visible;
-  color: #eef5ff;
+  color: #fff;
 }
 
 .weekly-weather-glyph-main,
@@ -1347,33 +1347,49 @@ h2 {
   fill: var(--weekly-weather-glyph-surface);
 }
 
+.weekly-weather-glyph-solid {
+  fill: currentColor;
+  stroke: none;
+}
+
+.weekly-weather-glyph-cutout {
+  fill: var(--weekly-weather-glyph-surface);
+  stroke: none;
+}
+
+.weekly-weather-glyph-relationship path,
+.weekly-weather-glyph-relationship circle {
+  vector-effect: non-scaling-stroke;
+}
+
+.weekly-weather-glyph-relationship .weekly-weather-glyph-main {
+  stroke-width: 2.7;
+}
+
+.weekly-weather-glyph-transition-arrow {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0.7;
+}
+
 .weekly-weather-glyph-accent {
-  color: #78d0ff;
+  color: inherit;
   stroke-width: 2.8;
 }
 
 .weekly-weather-glyph-alert {
-  fill: #ffd45c;
-  stroke: #ffd45c;
+  fill: currentColor;
+  stroke: currentColor;
   stroke-width: 1.4;
   stroke-linejoin: round;
 }
 
-.weekly-weather-glyph-wind {
+.weekly-weather-glyph-precipitation-lines {
   stroke-width: 2.8;
 }
 
 .weekly-weather-glyph-storm-cloud {
   fill: rgba(238, 245, 255, 0.05);
-}
-
-.weekly-weather-glyph[data-weather-kind="storm-snow"] .weekly-weather-glyph-accent {
-  color: #c8e8ff;
-}
-
-.weekly-weather-glyph[data-weather-kind="sleet"] .weekly-weather-glyph-accent,
-.weekly-weather-glyph[data-weather-kind="storm-sleet"] .weekly-weather-glyph-accent {
-  color: #9bdcff;
 }
 
 .weekly-weather-day > strong {
@@ -1539,16 +1555,7 @@ html[data-theme="light"] .weekly-weather-day time {
 }
 
 html[data-theme="light"] .weekly-weather-glyph {
-  color: #2f475f;
-}
-
-html[data-theme="light"] .weekly-weather-glyph-accent {
-  color: #1689c4;
-}
-
-html[data-theme="light"] .weekly-weather-glyph-alert {
-  fill: #c27b00;
-  stroke: #c27b00;
+  color: #000;
 }
 
 html[data-theme="light"] .weekly-weather-glyph-storm-cloud {

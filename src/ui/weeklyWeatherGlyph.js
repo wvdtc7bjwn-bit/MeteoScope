@@ -186,10 +186,39 @@ export function renderWeeklyWeatherGlyph(weatherCode, weatherText = "") {
   const glyph = classifyWeeklyWeatherGlyph(weatherCode, weatherText);
   const features = new Set(glyph.features);
   const code = /^\d{3}$/u.test(String(weatherCode ?? "")) ? String(weatherCode) : "";
+  const hasHeavyRain = code === "306" || code === "328";
+  const hasHeavySnow = code === "405" || code === "425";
+  const relationshipText = String(weatherText || glyph.officialLabel || "").replace(/\s+/gu, "");
+  const relationshipMode = /(?:のち|後)/u.test(relationshipText)
+    ? "then"
+    : /(?:時々|一時)/u.test(relationshipText)
+      ? "intermittent"
+      : "";
+  const relationshipFeatures = ["sun", "cloud", "rain", "snow"]
+    .filter((feature) => features.has(feature));
+  const relationshipPrimary = relationshipFeatures.includes(glyph.primaryFeature)
+    ? glyph.primaryFeature
+    : relationshipFeatures[0];
+  const relationshipSecondary = relationshipFeatures
+    .find((feature) => feature !== relationshipPrimary);
   const layers = [];
 
   if (glyph.stormType) {
     layers.push(renderStorm(glyph.stormType, features.has("thunder")));
+  } else if (
+    relationshipMode
+    && relationshipFeatures.length === 2
+    && relationshipPrimary
+    && relationshipSecondary
+    && !features.has("fog")
+    && !features.has("sleet")
+  ) {
+    layers.push(renderWeatherRelationship(
+      relationshipPrimary,
+      relationshipSecondary,
+      relationshipMode
+    ));
+    if (features.has("thunder")) layers.push(renderThunder());
   } else if (features.has("fog") && !features.has("rain") && !features.has("snow")) {
     if (features.has("sun")) layers.push(renderSun(32, 22, 9));
     layers.push(renderFog());
@@ -197,9 +226,7 @@ export function renderWeeklyWeatherGlyph(weatherCode, weatherText = "") {
     const hasPrecipitation = features.has("rain")
       || features.has("snow")
       || features.has("sleet");
-    const hasCloudBase = features.has("cloud")
-      || hasPrecipitation
-      || features.has("thunder");
+    const hasCloudBase = features.has("cloud") || features.has("thunder");
     const sunIsPrimary = glyph.primaryFeature === "sun";
     const sunLayer = features.has("sun")
       ? renderSun(
@@ -212,7 +239,8 @@ export function renderWeeklyWeatherGlyph(weatherCode, weatherText = "") {
     const cloudLayer = hasCloudBase
       ? renderCloud(
         sunIsPrimary ? "secondary" : "primary",
-        features.has("sun") && !sunIsPrimary
+        features.has("sun") && !sunIsPrimary,
+        hasPrecipitation
       )
       : "";
 
@@ -226,12 +254,20 @@ export function renderWeeklyWeatherGlyph(weatherCode, weatherText = "") {
       if (cloudLayer) layers.push(cloudLayer);
     }
     if (features.has("sleet")) {
+      if (hasHeavyRain || hasHeavySnow) layers.push(renderPrecipitationLines());
       layers.push(renderSleet());
     } else if (features.has("rain") && features.has("snow")) {
+      if (hasHeavyRain || hasHeavySnow) layers.push(renderPrecipitationLines());
       layers.push(renderMixedRainAndSnow(glyph.primaryFeature));
     } else {
-      if (features.has("rain")) layers.push(renderRain());
-      if (features.has("snow")) layers.push(renderSnow());
+      if (features.has("rain")) {
+        if (hasHeavyRain) layers.push(renderPrecipitationLines());
+        layers.push(renderUmbrella(features.size > 1));
+      }
+      if (features.has("snow")) {
+        if (hasHeavySnow) layers.push(renderPrecipitationLines());
+        layers.push(renderSnow(features.size > 1));
+      }
     }
     if (features.has("thunder")) layers.push(renderThunder());
     if (features.has("fog")) layers.push(renderFog(51));
@@ -240,7 +276,7 @@ export function renderWeeklyWeatherGlyph(weatherCode, weatherText = "") {
   return `
     <svg class="weekly-weather-glyph" viewBox="0 0 96 68" aria-hidden="true" focusable="false"
       data-weather-code="${code}" data-weather-kind="${glyph.kind}"
-      data-weather-primary="${glyph.primaryFeature}">
+      data-weather-primary="${glyph.primaryFeature}" data-weather-relation="${relationshipMode}">
       ${layers.join("")}
     </svg>
   `;
@@ -267,26 +303,19 @@ function findPrimaryWeatherFeature(text, features) {
 }
 
 function renderSun(cx, cy, radius, foreground = false) {
-  const rays = [
-    [cx, cy - radius - 5, cx, cy - radius - 11],
-    [cx, cy + radius + 5, cx, cy + radius + 11],
-    [cx - radius - 5, cy, cx - radius - 11, cy],
-    [cx + radius + 5, cy, cx + radius + 11, cy],
-    [cx - radius - 3, cy - radius - 3, cx - radius - 8, cy - radius - 8],
-    [cx + radius + 3, cy - radius - 3, cx + radius + 8, cy - radius - 8],
-    [cx - radius - 3, cy + radius + 3, cx - radius - 8, cy + radius + 8],
-    [cx + radius + 3, cy + radius + 3, cx + radius + 8, cy + radius + 8]
-  ];
+  const scale = radius / 13;
   return `
-    <g class="weekly-weather-glyph-main">
-      <circle class="weekly-weather-glyph-sun-disc${foreground ? " weekly-weather-glyph-foreground" : ""}"
-        cx="${cx}" cy="${cy}" r="${radius}"></circle>
-      ${rays.map(([x1, y1, x2, y2]) => `<path d="M${x1} ${y1}L${x2} ${y2}"></path>`).join("")}
+    <g class="weekly-weather-glyph-main weekly-weather-glyph-sun"
+      transform="translate(${cx} ${cy}) scale(${scale})">
+      <path class="weekly-weather-glyph-solid"
+        d="M0-22l7 7h10v10l7 7-7 7v10H7l-7 7-7-7h-10V9l-7-7 7-7v-10h10Z"></path>
+      <circle class="weekly-weather-glyph-sun-disc${foreground ? " weekly-weather-glyph-foreground" : ""} weekly-weather-glyph-cutout"
+        cx="0" cy="2" r="10"></circle>
     </g>
   `;
 }
 
-function renderCloud(variant = "primary", foreground = false) {
+function renderCloud(variant = "primary", foreground = false, compact = false) {
   if (variant === "secondary") {
     return `
       <path class="weekly-weather-glyph-main weekly-weather-glyph-cloud weekly-weather-glyph-cloud-secondary"
@@ -296,52 +325,108 @@ function renderCloud(variant = "primary", foreground = false) {
   }
   return `
     <path class="weekly-weather-glyph-main weekly-weather-glyph-cloud${foreground ? " weekly-weather-glyph-foreground" : ""}"
+      ${compact ? 'transform="translate(0 1) scale(.82)"' : ""}
       d="M27 49h39.5c7.5 0 13.5-5.5 13.5-12.4 0-6.7-5.6-12-12.7-12.4C64.8 17.8 58.7 14 51.8 14c-8.9 0-16.2 6.2-17.2 14.2-6.8.4-12.1 5-12.1 10.7C22.5 44.6 27 49 27 49Z">
     </path>
   `;
 }
 
-function renderMixedRainAndSnow(primaryFeature) {
-  if (primaryFeature === "snow") {
+function renderWeatherRelationship(primaryFeature, secondaryFeature, mode) {
+  const primary = renderStandaloneFeature(primaryFeature);
+  const secondary = renderStandaloneFeature(secondaryFeature);
+
+  if (mode === "then") {
+    const primaryX = getWeatherRelationshipOffset(primaryFeature, "primary");
+    const secondaryX = getWeatherRelationshipOffset(secondaryFeature, "secondary");
     return `
-      <g class="weekly-weather-glyph-accent weekly-weather-glyph-rain">
-        <path d="M34 54L30 62"></path>
-      </g>
-      <g class="weekly-weather-glyph-accent weekly-weather-glyph-snow">
-        ${renderSnowflake(52, 58)}
-        ${renderSnowflake(68, 58)}
+      <g class="weekly-weather-glyph-relationship is-then">
+        <g class="weekly-weather-glyph-relationship-primary"
+          transform="translate(${primaryX} 15) scale(.58)">${primary}</g>
+        <path class="weekly-weather-glyph-transition-arrow"
+          d="M40 32.2h10.2v-4.4L58 34l-7.8 5.8v-4.2H40Z"></path>
+        <g class="weekly-weather-glyph-relationship-secondary"
+          transform="translate(${secondaryX} 15) scale(.58)">${secondary}</g>
       </g>
     `;
   }
-  return `${renderRain(true)}${renderSnow(true)}`;
-}
 
-function renderRain(sharedWithSnow = false) {
-  const lines = sharedWithSnow
-    ? [[35, 54, 31, 62], [51, 54, 47, 62]]
-    : [[32, 54, 28, 63], [47, 54, 43, 63], [62, 54, 58, 63]];
   return `
-    <g class="weekly-weather-glyph-accent weekly-weather-glyph-rain">
-      ${lines.map(([x1, y1, x2, y2]) => `<path d="M${x1} ${y1}L${x2} ${y2}"></path>`).join("")}
+    <g class="weekly-weather-glyph-relationship is-intermittent">
+      <g class="weekly-weather-glyph-relationship-primary"
+        transform="translate(-4 4) scale(.78)">${primary}</g>
+      <g class="weekly-weather-glyph-relationship-secondary"
+        transform="translate(49 26) scale(.48)">${secondary}</g>
     </g>
   `;
 }
 
-function renderSnow(sharedWithRain = false) {
-  const centers = sharedWithRain ? [[64, 58]] : [[34, 58], [51, 58], [68, 58]];
+function getWeatherRelationshipOffset(feature, side) {
+  const offsets = side === "primary"
+    ? { sun: -6, cloud: -10.5, rain: -9.2, snow: -1.7 }
+    : { sun: 48.1, cloud: 49, rain: 50.6, snow: 44 };
+  return offsets[feature] ?? (side === "primary" ? -8 : 50);
+}
+
+function renderStandaloneFeature(feature) {
+  if (feature === "sun") return renderSun(48, 31, 13);
+  if (feature === "cloud") return renderCloud();
+  if (feature === "rain") return renderUmbrella();
+  if (feature === "snow") return renderSnow();
+  return "";
+}
+
+function renderMixedRainAndSnow(primaryFeature) {
+  if (primaryFeature === "snow") {
+    return `${renderUmbrella(true, false, "left")}${renderSnow(true, "right")}`;
+  }
+  return `${renderSnow(true, "right")}${renderUmbrella(true, false, "left")}`;
+}
+
+function renderUmbrella(compact = false, tilted = false, placement = "right") {
+  const scaleTransform = compact
+    ? `${placement === "left" ? "translate(5 28)" : "translate(35 28)"} scale(.55)`
+    : "translate(9 4) scale(.82)";
   return `
-    <g class="weekly-weather-glyph-accent weekly-weather-glyph-snow">
-      ${centers.map(([x, y]) => renderSnowflake(x, y)).join("")}
+    <g class="weekly-weather-glyph-main weekly-weather-glyph-umbrella${compact ? " is-compact" : ""}"
+      ${tilted ? 'transform="rotate(18 48 38)"' : ""}>
+      <g transform="${scaleTransform}">
+        <path class="weekly-weather-glyph-solid"
+          d="M13 40C16 23 29 13 45 11V8a3 3 0 0 1 6 0v3c17 1 30 12 33 29H51v16c0 8-5 13-12 13-8 0-13-5-13-12v-4h7v4c0 4 2 6 6 6 3 0 5-2 5-7V40Z"></path>
+      </g>
     </g>
   `;
 }
 
-function renderSnowflake(x, y) {
-  return `<path d="M${x - 4} ${y}h8M${x} ${y - 4}v8M${x - 3} ${y - 3}l6 6M${x + 3} ${y - 3}l-6 6"></path>`;
+function renderSnow(compact = false, placement = "right") {
+  const compactTransform = placement === "center"
+    ? "translate(16 18) scale(.67)"
+    : placement === "left"
+      ? "translate(4 27) scale(.55)"
+      : "translate(34 27) scale(.55)";
+  return `
+    <g class="weekly-weather-glyph-main weekly-weather-glyph-snowman"
+      ${compact ? `transform="${compactTransform}"` : ""}>
+      <circle cx="48" cy="21" r="10"></circle>
+      <circle cx="48" cy="48" r="17"></circle>
+      <circle class="weekly-weather-glyph-solid" cx="45" cy="19" r="1.5"></circle>
+      <circle class="weekly-weather-glyph-solid" cx="52" cy="19" r="1.5"></circle>
+    </g>
+  `;
 }
 
 function renderSleet() {
-  return `${renderRain(true)}${renderSnow(true)}`;
+  return `${renderUmbrella(true, false, "left")}${renderSnow(true, "right")}`;
+}
+
+function renderPrecipitationLines(diagonal = false) {
+  const paths = diagonal
+    ? ["M25 5L13 34", "M40 5L28 34", "M55 5L43 34", "M70 5L58 34", "M85 5L73 34"]
+    : ["M20 7V32", "M34 7V27", "M48 7V32", "M62 7V27", "M76 7V32"];
+  return `
+    <g class="weekly-weather-glyph-main weekly-weather-glyph-precipitation-lines">
+      ${paths.map((path) => `<path d="${path}"></path>`).join("")}
+    </g>
+  `;
 }
 
 function renderThunder() {
@@ -362,19 +447,12 @@ function renderFog(y = 36) {
 
 function renderStorm(type, thunder) {
   const precipitation = type === "snow"
-    ? renderSnow()
+    ? renderSnow(true, "center")
     : type === "sleet"
       ? renderSleet()
-      : renderRain();
+      : renderUmbrella(false, true);
   return `
-    <g class="weekly-weather-glyph-main weekly-weather-glyph-wind">
-      <path d="M11 20h43c8 0 8-10 1-10-4 0-6 2-7 5"></path>
-      <path d="M7 29h63c9 0 10-11 2-13-5-1-8 2-9 5"></path>
-      <path d="M13 38h48"></path>
-    </g>
-    <path class="weekly-weather-glyph-main weekly-weather-glyph-storm-cloud"
-      d="M36 51h37c7 0 12-5 12-11 0-6-5-10-11-11-2-6-8-10-15-10-8 0-14 5-15 12-7 0-12 4-12 10 0 5 4 9 4 10Z">
-    </path>
+    ${renderPrecipitationLines(true)}
     ${precipitation}
     ${thunder ? renderThunder() : ""}
   `;

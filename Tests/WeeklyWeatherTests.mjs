@@ -268,29 +268,28 @@ assert.equal(classifyWeeklyWeatherGlyph("209").kind, "fog");
 assert.equal(classifyWeeklyWeatherGlyph("231").kind, "cloud-fog-rain");
 assert.match(renderWeeklyWeatherGlyph("101", "晴れ時々くもり"), /weekly-weather-glyph-cloud/u);
 assert.match(renderWeeklyWeatherGlyph("101"), /data-weather-primary="sun"/u);
-assert.match(renderWeeklyWeatherGlyph("101"), /weekly-weather-glyph-cloud-secondary/u);
-assert.match(renderWeeklyWeatherGlyph("101"), /weekly-weather-glyph-sun-disc weekly-weather-glyph-foreground/u);
+assert.match(renderWeeklyWeatherGlyph("101"), /weekly-weather-glyph-relationship is-intermittent/u);
+assert.match(renderWeeklyWeatherGlyph("101"), /data-weather-relation="intermittent"/u);
+assert.doesNotMatch(renderWeeklyWeatherGlyph("101"), /weekly-weather-glyph-transition-arrow/u);
 assert.match(renderWeeklyWeatherGlyph("201"), /data-weather-primary="cloud"/u);
-assert.doesNotMatch(renderWeeklyWeatherGlyph("201"), /weekly-weather-glyph-cloud-secondary/u);
-assert.match(renderWeeklyWeatherGlyph("201"), /weekly-weather-glyph-cloud weekly-weather-glyph-foreground/u);
-const sunnyThenCloudyGlyph = renderWeeklyWeatherGlyph("101");
-const cloudyThenSunnyGlyph = renderWeeklyWeatherGlyph("201");
-assert.ok(
-  sunnyThenCloudyGlyph.indexOf("weekly-weather-glyph-cloud-secondary")
-    < sunnyThenCloudyGlyph.indexOf("<g class=\"weekly-weather-glyph-main\">"),
-  "sun should be drawn in front when sunny is primary"
-);
-assert.ok(
-  cloudyThenSunnyGlyph.indexOf("<g class=\"weekly-weather-glyph-main\">")
-    < cloudyThenSunnyGlyph.indexOf("weekly-weather-glyph-cloud"),
-  "cloud should be drawn in front when cloudy is primary"
-);
+assert.match(renderWeeklyWeatherGlyph("201"), /weekly-weather-glyph-relationship is-intermittent/u);
+assert.match(renderWeeklyWeatherGlyph("110"), /weekly-weather-glyph-relationship is-then/u);
+assert.match(renderWeeklyWeatherGlyph("110"), /weekly-weather-glyph-transition-arrow/u);
+assert.match(renderWeeklyWeatherGlyph("110"), /data-weather-relation="then"/u);
+assert.match(renderWeeklyWeatherGlyph("117"), /weekly-weather-glyph-relationship-secondary/u);
+assert.match(renderWeeklyWeatherGlyph("117"), /weekly-weather-glyph-snowman/u);
 assert.match(renderWeeklyWeatherGlyph("304"), /data-weather-primary="rain"/u);
 assert.match(renderWeeklyWeatherGlyph("340"), /data-weather-primary="snow"/u);
-assert.match(renderWeeklyWeatherGlyph("308", "暴風雨"), /weekly-weather-glyph-wind/u);
-assert.match(renderWeeklyWeatherGlyph("407", "暴風雪"), /weekly-weather-glyph-snow/u);
-assert.match(renderWeeklyWeatherGlyph("340", "みぞれ"), /weekly-weather-glyph-rain/u);
-assert.match(renderWeeklyWeatherGlyph("340", "みぞれ"), /weekly-weather-glyph-snow/u);
+assert.match(renderWeeklyWeatherGlyph("306"), /weekly-weather-glyph-umbrella/u);
+assert.doesNotMatch(renderWeeklyWeatherGlyph("306"), /weekly-weather-glyph-rain/u);
+assert.match(renderWeeklyWeatherGlyph("308", "暴風雨"), /weekly-weather-glyph-precipitation-lines/u);
+assert.match(renderWeeklyWeatherGlyph("308", "暴風雨"), /weekly-weather-glyph-umbrella/u);
+assert.match(renderWeeklyWeatherGlyph("407", "暴風雪"), /weekly-weather-glyph-snowman/u);
+assert.match(renderWeeklyWeatherGlyph("340", "みぞれ"), /weekly-weather-glyph-umbrella/u);
+assert.match(renderWeeklyWeatherGlyph("340", "みぞれ"), /weekly-weather-glyph-snowman/u);
+assert.match(renderWeeklyWeatherGlyph("306"), /weekly-weather-glyph-precipitation-lines/u);
+assert.match(renderWeeklyWeatherGlyph("405"), /weekly-weather-glyph-precipitation-lines/u);
+assert.match(renderWeeklyWeatherGlyph("405"), /weekly-weather-glyph-snowman/u);
 assert.doesNotMatch(renderWeeklyWeatherGlyph("101", "晴れ時々くもり"), /https?:\/\//u);
 
 const officialWeatherCodes = [
@@ -333,6 +332,14 @@ assert.match(styles, /\.weekly-weather-open-button::before/u);
 assert.match(styles, /\.weekly-weather-region-control select/u);
 assert.match(styles, /\.weekly-weather-days\s*\{[\s\S]*?grid-template-columns:\s*repeat\(7,/u);
 assert.match(styles, /\.weekly-weather-glyph-main/u);
+assert.match(styles, /\.weekly-weather-glyph\s*\{[\s\S]*?color:\s*#fff;/u);
+assert.match(styles, /html\[data-theme="light"\]\s+\.weekly-weather-glyph\s*\{[\s\S]*?color:\s*#000;/u);
+assert.match(styles, /\.weekly-weather-glyph-accent\s*\{[\s\S]*?color:\s*inherit;/u);
+assert.match(styles, /\.weekly-weather-glyph-alert\s*\{[\s\S]*?fill:\s*currentColor;[\s\S]*?stroke:\s*currentColor;/u);
+assert.match(styles, /\.weekly-weather-glyph-solid\s*\{[\s\S]*?fill:\s*currentColor;[\s\S]*?stroke:\s*none;/u);
+assert.match(styles, /\.weekly-weather-glyph-cutout\s*\{[\s\S]*?fill:\s*var\(--weekly-weather-glyph-surface\);/u);
+assert.match(styles, /\.weekly-weather-glyph-relationship path/u);
+assert.match(styles, /\.weekly-weather-glyph-transition-arrow/u);
 assert.match(modal, /気象庁の最新VPFW50/u);
 assert.match(modal, /fetchWeeklyForecastRegionCatalog/u);
 assert.match(modal, /fetchWeeklyForecastForRegion/u);
