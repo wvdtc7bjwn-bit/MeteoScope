@@ -23,7 +23,7 @@ import {
   getAvailableVolcanoAshForecasts,
   getHighestPriorityVolcanoReport
 } from "../jma/volcanoXml.js";
-import { getRecoloredEstimatedIntensityImageUrl } from "../jma/estimatedIntensity.js";
+import { getRecoloredEstimatedIntensityCanvas } from "../jma/estimatedIntensity.js";
 import {
   getVolcanoAshfallLevel,
   VOLCANO_SMALL_CINDERS_STYLE
@@ -3378,7 +3378,11 @@ function updateEstimatedIntensityLayer(map, mode, data = {}) {
     : "";
   const current = estimatedIntensityLayerStateByMap.get(map);
 
-  if (current?.key === key && current.entries.every(({ layerId }) => map.getLayer(layerId))) {
+  if (
+    current?.key === key
+    && current.entries.length === images.length
+    && current.entries.every(({ layerId }) => map.getLayer(layerId))
+  ) {
     current.visible = shouldShow;
     current.entries.forEach(({ layerId }) => {
       map.setLayoutProperty(layerId, "visibility", shouldShow ? "visible" : "none");
@@ -3392,17 +3396,19 @@ function updateEstimatedIntensityLayer(map, mode, data = {}) {
 
   const state = { key, entries: [], visible: shouldShow };
   estimatedIntensityLayerStateByMap.set(map, state);
-  void Promise.all(images.map((image) => getRecoloredEstimatedIntensityImageUrl(image.url)))
-    .then((recoloredUrls) => {
+  void Promise.all(images.map((image) => getRecoloredEstimatedIntensityCanvas(image.url)))
+    .then((recoloredCanvases) => {
       if (estimatedIntensityLayerStateByMap.get(map) !== state) return;
-      recoloredUrls.forEach((url, index) => {
+      recoloredCanvases.forEach((canvas, index) => {
+        if (!canvas) return;
         const image = images[index];
         const sourceId = `${ESTIMATED_INTENSITY_SOURCE_PREFIX}-${index}`;
         const layerId = `${ESTIMATED_INTENSITY_LAYER_PREFIX}-${index}`;
         removeMapLayerAndSource(map, layerId, sourceId);
         map.addSource(sourceId, {
-          type: "image",
-          url,
+          type: "canvas",
+          canvas,
+          animate: false,
           coordinates: image.coordinates
         });
         map.addLayer({
@@ -3420,6 +3426,9 @@ function updateEstimatedIntensityLayer(map, mode, data = {}) {
         }, map.getLayer("sample-fill") ? "sample-fill" : undefined);
         state.entries.push({ sourceId, layerId });
       });
+      if (state.entries.length === 0 && estimatedIntensityLayerStateByMap.get(map) === state) {
+        estimatedIntensityLayerStateByMap.delete(map);
+      }
     })
     .catch(() => {
       if (estimatedIntensityLayerStateByMap.get(map) === state) {

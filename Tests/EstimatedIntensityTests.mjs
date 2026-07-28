@@ -82,10 +82,12 @@ assert.deepEqual([...recolored.slice(24, 28)], [250, 231, 151, 0]);
 
 const mapSource = read("src", "map", "weatherMap.js");
 const estimatedIntensitySource = read("src", "jma", "estimatedIntensity.js");
-assert.match(estimatedIntensitySource, /canvas\.toDataURL\("image\/png"\)/u);
+assert.match(estimatedIntensitySource, /return canvas;/u);
+assert.doesNotMatch(estimatedIntensitySource, /canvas\.toDataURL/u);
 assert.doesNotMatch(estimatedIntensitySource, /URL\.createObjectURL/u);
 assert.match(mapSource, /hasEstimatedIntensity\s*\?\s*\[\]\s*:\s*\(earthquake\.intensityAreaFeatures/u);
-assert.match(mapSource, /type:\s*"image"/u);
+assert.match(mapSource, /type:\s*"canvas"/u);
+assert.match(mapSource, /canvas,\s*animate:\s*false/u);
 assert.match(mapSource, /"raster-resampling":\s*"nearest"/u);
 assert.match(mapSource, /const EARTHQUAKE_STATION_RADIUS = 7\.5;/u);
 assert.match(mapSource, /const EARTHQUAKE_STATION_STROKE_WIDTH = 1;/u);

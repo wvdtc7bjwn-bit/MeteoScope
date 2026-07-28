@@ -3,7 +3,7 @@ import { fetchJson } from "./jmaClient.js";
 
 const MATCH_TIME_TOLERANCE_MS = 2 * 60 * 1000;
 const MATCH_COORDINATE_TOLERANCE_DEGREES = 0.35;
-const RECOLORED_IMAGE_URL_CACHE = new Map();
+const RECOLORED_IMAGE_CANVAS_CACHE = new Map();
 const JMA_ESTIMATED_INTENSITY_PALETTE = [
   { source: [250, 231, 151], target: getEarthquakeIntensityColor("4") },
   { source: [255, 231, 0], target: getEarthquakeIntensityColor("5-") },
@@ -140,14 +140,14 @@ export function buildEstimatedIntensityImage(meshCode, eventDirectory, datum = 2
   };
 }
 
-export function getRecoloredEstimatedIntensityImageUrl(sourceUrl) {
+export function getRecoloredEstimatedIntensityCanvas(sourceUrl) {
   const url = String(sourceUrl ?? "").trim();
-  if (!url) return Promise.resolve("");
-  if (!RECOLORED_IMAGE_URL_CACHE.has(url)) {
-    RECOLORED_IMAGE_URL_CACHE.set(url, recolorEstimatedIntensityImage(url)
-      .catch(() => url));
+  if (!url) return Promise.resolve(null);
+  if (!RECOLORED_IMAGE_CANVAS_CACHE.has(url)) {
+    RECOLORED_IMAGE_CANVAS_CACHE.set(url, recolorEstimatedIntensityImage(url)
+      .catch(() => null));
   }
-  return RECOLORED_IMAGE_URL_CACHE.get(url);
+  return RECOLORED_IMAGE_CANVAS_CACHE.get(url);
 }
 
 export function recolorEstimatedIntensityPixels(pixelData) {
@@ -169,7 +169,7 @@ export function recolorEstimatedIntensityPixels(pixelData) {
 
 async function recolorEstimatedIntensityImage(sourceUrl) {
   if (typeof document === "undefined" || typeof createImageBitmap !== "function") {
-    return sourceUrl;
+    return null;
   }
   const response = await fetch(sourceUrl, { cache: "force-cache" });
   if (!response.ok) throw new Error(`Estimated intensity image request failed: ${response.status}`);
@@ -185,10 +185,7 @@ async function recolorEstimatedIntensityImage(sourceUrl) {
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
   recolorEstimatedIntensityPixels(imageData.data);
   context.putImageData(imageData, 0, 0);
-  // MapLibre loads image sources from its worker. A document-scoped blob URL
-  // cannot be fetched reliably from that worker on the deployed site, while a
-  // data URL is self-contained and works in both the main thread and worker.
-  return canvas.toDataURL("image/png");
+  return canvas;
 }
 
 function findNearestPaletteEntry(red, green, blue) {
