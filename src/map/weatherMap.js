@@ -3423,7 +3423,7 @@ function updateEstimatedIntensityLayer(map, mode, data = {}) {
             "raster-fade-duration": 0,
             "raster-resampling": "nearest"
           }
-        }, map.getLayer("sample-fill") ? "sample-fill" : undefined);
+        }, map.getLayer("sample-line") ? "sample-line" : undefined);
         state.entries.push({ sourceId, layerId });
       });
       if (state.entries.length === 0 && estimatedIntensityLayerStateByMap.get(map) === state) {

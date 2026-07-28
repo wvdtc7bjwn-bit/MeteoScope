@@ -88,6 +88,7 @@ assert.doesNotMatch(estimatedIntensitySource, /URL\.createObjectURL/u);
 assert.match(mapSource, /hasEstimatedIntensity\s*\?\s*\[\]\s*:\s*\(earthquake\.intensityAreaFeatures/u);
 assert.match(mapSource, /type:\s*"canvas"/u);
 assert.match(mapSource, /canvas,\s*animate:\s*false/u);
+assert.match(mapSource, /map\.getLayer\("sample-line"\)\s*\?\s*"sample-line"/u);
 assert.match(mapSource, /"raster-resampling":\s*"nearest"/u);
 assert.match(mapSource, /const EARTHQUAKE_STATION_RADIUS = 7\.5;/u);
 assert.match(mapSource, /const EARTHQUAKE_STATION_STROKE_WIDTH = 1;/u);
