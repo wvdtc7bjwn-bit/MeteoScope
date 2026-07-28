@@ -23,7 +23,7 @@ import {
   getAvailableVolcanoAshForecasts,
   getHighestPriorityVolcanoReport
 } from "../jma/volcanoXml.js";
-import { getRecoloredEstimatedIntensityCanvas } from "../jma/estimatedIntensity.js";
+import { getRecoloredEstimatedIntensityImageData } from "../jma/estimatedIntensity.js";
 import {
   getVolcanoAshfallLevel,
   VOLCANO_SMALL_CINDERS_STYLE
@@ -161,6 +161,9 @@ const LIGHTNING_OBSERVATION_LAYER_IDS = [
 ];
 const ESTIMATED_INTENSITY_SOURCE_PREFIX = "jma-estimated-intensity-source";
 const ESTIMATED_INTENSITY_LAYER_PREFIX = "jma-estimated-intensity-layer";
+const ESTIMATED_INTENSITY_PROTOCOL = "meteoscope-estimated-intensity";
+const estimatedIntensityImageDataByKey = new Map();
+let estimatedIntensityProtocolRegistered = false;
 const estimatedIntensityLayerStateByMap = new WeakMap();
 const lightningObservationUrlByMap = new WeakMap();
 const WEATHER_CHART_LINE_SOURCE_ID = "jma-weather-chart-lines";
@@ -3396,19 +3399,22 @@ function updateEstimatedIntensityLayer(map, mode, data = {}) {
 
   const state = { key, entries: [], visible: shouldShow };
   estimatedIntensityLayerStateByMap.set(map, state);
-  void Promise.all(images.map((image) => getRecoloredEstimatedIntensityCanvas(image.url)))
-    .then((recoloredCanvases) => {
+  ensureEstimatedIntensityProtocol();
+  void Promise.all(images.map((image) => getRecoloredEstimatedIntensityImageData(image.url)))
+    .then((recoloredImages) => {
       if (estimatedIntensityLayerStateByMap.get(map) !== state) return;
-      recoloredCanvases.forEach((canvas, index) => {
-        if (!canvas) return;
+      recoloredImages.forEach((imageData, index) => {
+        if (!imageData) return;
         const image = images[index];
         const sourceId = `${ESTIMATED_INTENSITY_SOURCE_PREFIX}-${index}`;
         const layerId = `${ESTIMATED_INTENSITY_LAYER_PREFIX}-${index}`;
+        const protocolKey = encodeURIComponent(image.url);
+        const protocolUrl = `${ESTIMATED_INTENSITY_PROTOCOL}://${protocolKey}`;
+        estimatedIntensityImageDataByKey.set(protocolKey, imageData);
         removeMapLayerAndSource(map, layerId, sourceId);
         map.addSource(sourceId, {
-          type: "canvas",
-          canvas,
-          animate: false,
+          type: "image",
+          url: protocolUrl,
           coordinates: image.coordinates
         });
         map.addLayer({
@@ -3435,6 +3441,22 @@ function updateEstimatedIntensityLayer(map, mode, data = {}) {
         estimatedIntensityLayerStateByMap.delete(map);
       }
     });
+}
+
+function ensureEstimatedIntensityProtocol() {
+  if (estimatedIntensityProtocolRegistered) return;
+  maplibregl.addProtocol(ESTIMATED_INTENSITY_PROTOCOL, async ({ url }) => {
+    const prefix = `${ESTIMATED_INTENSITY_PROTOCOL}://`;
+    const protocolKey = String(url ?? "").startsWith(prefix)
+      ? String(url).slice(prefix.length)
+      : "";
+    const imageData = estimatedIntensityImageDataByKey.get(protocolKey);
+    if (!imageData) {
+      throw new Error("Estimated intensity image data is unavailable.");
+    }
+    return { data: imageData.slice(0) };
+  });
+  estimatedIntensityProtocolRegistered = true;
 }
 
 function removeEstimatedIntensityLayers(map, entries) {

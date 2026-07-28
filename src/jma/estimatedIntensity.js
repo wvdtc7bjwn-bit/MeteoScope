@@ -3,7 +3,7 @@ import { fetchJson } from "./jmaClient.js";
 
 const MATCH_TIME_TOLERANCE_MS = 2 * 60 * 1000;
 const MATCH_COORDINATE_TOLERANCE_DEGREES = 0.35;
-const RECOLORED_IMAGE_CANVAS_CACHE = new Map();
+const RECOLORED_IMAGE_DATA_CACHE = new Map();
 const JMA_ESTIMATED_INTENSITY_PALETTE = [
   { source: [250, 231, 151], target: getEarthquakeIntensityColor("4") },
   { source: [255, 231, 0], target: getEarthquakeIntensityColor("5-") },
@@ -140,14 +140,14 @@ export function buildEstimatedIntensityImage(meshCode, eventDirectory, datum = 2
   };
 }
 
-export function getRecoloredEstimatedIntensityCanvas(sourceUrl) {
+export function getRecoloredEstimatedIntensityImageData(sourceUrl) {
   const url = String(sourceUrl ?? "").trim();
   if (!url) return Promise.resolve(null);
-  if (!RECOLORED_IMAGE_CANVAS_CACHE.has(url)) {
-    RECOLORED_IMAGE_CANVAS_CACHE.set(url, recolorEstimatedIntensityImage(url)
+  if (!RECOLORED_IMAGE_DATA_CACHE.has(url)) {
+    RECOLORED_IMAGE_DATA_CACHE.set(url, recolorEstimatedIntensityImage(url)
       .catch(() => null));
   }
-  return RECOLORED_IMAGE_CANVAS_CACHE.get(url);
+  return RECOLORED_IMAGE_DATA_CACHE.get(url);
 }
 
 export function recolorEstimatedIntensityPixels(pixelData) {
@@ -185,7 +185,14 @@ async function recolorEstimatedIntensityImage(sourceUrl) {
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
   recolorEstimatedIntensityPixels(imageData.data);
   context.putImageData(imageData, 0, 0);
-  return canvas;
+  const pngBlob = await canvasToBlob(canvas);
+  return pngBlob ? pngBlob.arrayBuffer() : null;
+}
+
+function canvasToBlob(canvas) {
+  return new Promise((resolve) => {
+    canvas.toBlob(resolve, "image/png");
+  });
 }
 
 function findNearestPaletteEntry(red, green, blue) {

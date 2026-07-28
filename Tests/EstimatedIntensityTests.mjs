@@ -82,12 +82,14 @@ assert.deepEqual([...recolored.slice(24, 28)], [250, 231, 151, 0]);
 
 const mapSource = read("src", "map", "weatherMap.js");
 const estimatedIntensitySource = read("src", "jma", "estimatedIntensity.js");
-assert.match(estimatedIntensitySource, /return canvas;/u);
+assert.match(estimatedIntensitySource, /pngBlob\.arrayBuffer\(\)/u);
 assert.doesNotMatch(estimatedIntensitySource, /canvas\.toDataURL/u);
 assert.doesNotMatch(estimatedIntensitySource, /URL\.createObjectURL/u);
 assert.match(mapSource, /hasEstimatedIntensity\s*\?\s*\[\]\s*:\s*\(earthquake\.intensityAreaFeatures/u);
-assert.match(mapSource, /type:\s*"canvas"/u);
-assert.match(mapSource, /canvas,\s*animate:\s*false/u);
+assert.match(mapSource, /maplibregl\.addProtocol\(ESTIMATED_INTENSITY_PROTOCOL/u);
+assert.match(mapSource, /type:\s*"image"/u);
+assert.match(mapSource, /url:\s*protocolUrl/u);
+assert.match(mapSource, /imageData\.slice\(0\)/u);
 assert.match(mapSource, /map\.getLayer\("sample-line"\)\s*\?\s*"sample-line"/u);
 assert.match(mapSource, /"raster-resampling":\s*"nearest"/u);
 assert.match(mapSource, /const EARTHQUAKE_STATION_RADIUS = 7\.5;/u);
