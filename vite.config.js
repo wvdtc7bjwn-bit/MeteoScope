@@ -1,9 +1,10 @@
 import { defineConfig } from "vite";
+import { onRequest as handleWeeklyWeatherRequest } from "./functions/api/weekly-weather.js";
 
 const cloudflareApiTarget = process.env.METEOSCOPE_API_TARGET || "https://meteoscope.pages.dev";
 
 export default defineConfig({
-  plugins: [],
+  plugins: [localWeeklyWeatherApi()],
   base: process.env.GITHUB_PAGES === "true" ? "/MeteoScope/" : "/",
   server: {
     proxy: {
@@ -40,3 +41,35 @@ export default defineConfig({
     }
   }
 });
+
+function localWeeklyWeatherApi() {
+  return {
+    name: "meteoscope-local-weekly-weather-api",
+    configureServer(server) {
+      server.middlewares.use(async (request, response, next) => {
+        const requestUrl = new URL(request.url ?? "/", "http://localhost");
+        if (requestUrl.pathname !== "/api/weekly-weather") {
+          next();
+          return;
+        }
+
+        try {
+          const result = await handleWeeklyWeatherRequest({
+            request: new Request(requestUrl, {
+              method: request.method,
+              headers: request.headers
+            })
+          });
+          response.statusCode = result.status;
+          result.headers.forEach((value, name) => response.setHeader(name, value));
+          response.end(request.method === "HEAD" ? undefined : Buffer.from(await result.arrayBuffer()));
+        } catch (error) {
+          server.config.logger.error(`[weekly-weather] local API failed: ${error?.message ?? error}`);
+          response.statusCode = 502;
+          response.setHeader("Content-Type", "application/xml; charset=utf-8");
+          response.end('<?xml version="1.0" encoding="UTF-8"?><error>weekly_forecast_unavailable</error>');
+        }
+      });
+    }
+  };
+}

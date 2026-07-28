@@ -57,13 +57,14 @@ const [html, appSource, styleSource] = await Promise.all([
   fs.readFile(path.join(root, "src", "app.js"), "utf8"),
   fs.readFile(path.join(root, "src", "style.css"), "utf8")
 ]);
-assert.match(html, /id="disaster-quiz-button"[\s\S]*id="disaster-map-button"/u);
+assert.match(html, /id="disaster-quiz-button"[\s\S]*id="weekly-weather-button"[\s\S]*id="disaster-map-button"/u);
 assert.match(html, /id="disaster-quiz-modal"/u);
 assert.match(html, /id="quiz-register-form"/u);
 assert.match(html, /id="quiz-leaderboard-list"/u);
 assert.match(html, /気象予報士試験の過去問題・解答例は転載していません/u);
 assert.match(appSource, /setupDisasterQuizModal\(\)/u);
-assert.match(styleSource, /#disaster-map-button\s*\{\s*left:\s*calc\(var\(--sidebar-width\) \+ 72px\)/u);
+assert.match(styleSource, /#weekly-weather-button\s*\{\s*left:\s*calc\(var\(--sidebar-width\) \+ 72px\)/u);
+assert.match(styleSource, /#disaster-map-button\s*\{\s*left:\s*calc\(var\(--sidebar-width\) \+ 128px\)/u);
 assert.match(styleSource, /\.disaster-quiz-open-button\s*\{\s*top:\s*20px;\s*left:\s*calc\(var\(--sidebar-width\) \+ 16px\)/u);
 assert.match(styleSource, /html\[data-theme="light"\] \.disaster-quiz-feedback\[data-result="correct"\]/u);
 assert.match(styleSource, /html\[data-theme="light"\] \.disaster-quiz-feedback\[data-result="incorrect"\]/u);

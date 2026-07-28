@@ -1185,6 +1185,329 @@ h2 {
   display: none;
 }
 
+.weekly-weather-panel {
+  width: min(920px, calc(100vw - 28px));
+  max-height: min(84vh, 720px);
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.weekly-weather-panel .settings-modal-header {
+  flex: 0 0 auto;
+  padding-right: 14px;
+}
+
+.weekly-weather-panel .settings-modal-header > div {
+  min-width: 0;
+}
+
+.weekly-weather-panel .settings-modal-kicker {
+  display: block;
+  margin-bottom: 2px;
+  color: #81cfff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.weekly-weather-body {
+  min-height: 258px;
+  padding: 18px;
+  overflow: auto;
+  scrollbar-width: none;
+}
+
+.weekly-weather-body::-webkit-scrollbar {
+  display: none;
+}
+
+.weekly-weather-summary {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.weekly-weather-summary span {
+  display: block;
+  margin-bottom: 3px;
+  color: #8fa6c5;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.weekly-weather-summary h3 {
+  margin: 0;
+  color: #f5f9ff;
+  font-size: clamp(19px, 3vw, 27px);
+  line-height: 1.2;
+}
+
+.weekly-weather-summary p {
+  margin: 0;
+  color: #91a5bf;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.55;
+  text-align: right;
+}
+
+.weekly-weather-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(98px, 1fr));
+  gap: 7px;
+}
+
+.weekly-weather-day {
+  min-width: 0;
+  padding: 11px 8px 9px;
+  border: 1px solid rgba(126, 154, 190, 0.2);
+  border-radius: 13px;
+  background: rgba(8, 22, 43, 0.48);
+  text-align: center;
+}
+
+.weekly-weather-day.is-first {
+  border-color: rgba(72, 187, 255, 0.48);
+  background: rgba(29, 88, 133, 0.32);
+}
+
+.weekly-weather-day time {
+  display: block;
+  color: #c9d8eb;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.weekly-weather-icon {
+  display: grid;
+  place-items: center;
+  height: 52px;
+  margin: 3px 0 1px;
+}
+
+.weekly-weather-icon img {
+  display: block;
+  width: 64px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.weekly-weather-day > strong {
+  display: -webkit-box;
+  min-height: 37px;
+  overflow: hidden;
+  color: #f3f8ff;
+  font-size: 12px;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.weekly-weather-temperature {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+  min-height: 27px;
+  margin-top: 5px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.weekly-weather-temperature i {
+  color: #7187a3;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.weekly-weather-high {
+  color: #ff8d7e;
+}
+
+.weekly-weather-low {
+  color: #70c9ff;
+}
+
+.weekly-weather-temperature-empty {
+  color: #8296ae;
+}
+
+.weekly-weather-day > p {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 3px 0 0;
+  color: #8fa3bd;
+  font-size: 10px;
+}
+
+.weekly-weather-day > p b {
+  color: #dcecff;
+  font-size: 11px;
+}
+
+.weekly-weather-reliability {
+  display: inline-block;
+  margin-top: 4px;
+  color: #a9b9cc;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.weekly-weather-source {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 13px;
+  color: #7890ae;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.weekly-weather-state {
+  min-height: 222px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 7px;
+  text-align: center;
+}
+
+.weekly-weather-state-icon {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 5px;
+  border: 2px solid rgba(116, 145, 179, 0.42);
+  border-radius: 50%;
+}
+
+.weekly-weather-state.is-loading .weekly-weather-state-icon {
+  border-color: rgba(116, 145, 179, 0.32);
+  border-top-color: #55c5ff;
+  animation: location-spin 0.8s linear infinite;
+}
+
+.weekly-weather-state strong {
+  color: #f2f7ff;
+  font-size: 16px;
+}
+
+.weekly-weather-state p {
+  margin: 0;
+  color: #92a6bf;
+  font-size: 12px;
+}
+
+.weekly-weather-state button {
+  margin-top: 9px;
+  padding: 9px 15px;
+  border: 1px solid rgba(94, 184, 238, 0.38);
+  border-radius: 10px;
+  background: rgba(30, 84, 125, 0.5);
+  color: #eaf7ff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+html[data-theme="light"] .weekly-weather-panel .settings-modal-kicker {
+  color: #1675aa;
+}
+
+html[data-theme="light"] .weekly-weather-summary span,
+html[data-theme="light"] .weekly-weather-summary p,
+html[data-theme="light"] .weekly-weather-source,
+html[data-theme="light"] .weekly-weather-state p {
+  color: #60758e;
+}
+
+html[data-theme="light"] .weekly-weather-summary h3,
+html[data-theme="light"] .weekly-weather-day > strong,
+html[data-theme="light"] .weekly-weather-state strong {
+  color: #152a41;
+}
+
+html[data-theme="light"] .weekly-weather-day {
+  border-color: rgba(63, 92, 123, 0.18);
+  background: rgba(255, 255, 255, 0.64);
+}
+
+html[data-theme="light"] .weekly-weather-day.is-first {
+  border-color: rgba(23, 142, 204, 0.42);
+  background: rgba(173, 223, 249, 0.28);
+}
+
+html[data-theme="light"] .weekly-weather-day time {
+  color: #304c68;
+}
+
+html[data-theme="light"] .weekly-weather-day > p {
+  color: #647c94;
+}
+
+html[data-theme="light"] .weekly-weather-day > p b {
+  color: #203d59;
+}
+
+html[data-theme="light"] .weekly-weather-reliability {
+  color: #60758d;
+}
+
+@media (max-width: 800px) {
+  .weekly-weather-modal {
+    align-items: end;
+    padding: 8px;
+  }
+
+  .weekly-weather-panel {
+    width: 100%;
+    max-height: min(82dvh, 700px);
+    border-radius: 24px;
+  }
+
+  .weekly-weather-body {
+    min-height: 300px;
+    padding: 14px 12px max(18px, env(safe-area-inset-bottom));
+  }
+
+  .weekly-weather-summary {
+    align-items: start;
+    margin-bottom: 11px;
+  }
+
+  .weekly-weather-summary p {
+    font-size: 9px;
+  }
+
+  .weekly-weather-days {
+    display: flex;
+    gap: 8px;
+    margin-inline: -12px;
+    padding-inline: 12px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .weekly-weather-days::-webkit-scrollbar {
+    display: none;
+  }
+
+  .weekly-weather-day {
+    flex: 0 0 116px;
+    scroll-snap-align: start;
+  }
+
+  .weekly-weather-source {
+    display: grid;
+    gap: 2px;
+  }
+}
+
 .settings-group {
   display: grid;
   gap: 10px;
@@ -6291,6 +6614,14 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   background: rgba(20, 40, 66, 0.88);
 }
 
+.weekly-weather-open-button::before {
+  width: 25px;
+  height: 25px;
+  background: #f4f9ff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 3v3M18 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z'/%3E%3Cpath d='M8 13a3 3 0 0 1 5.6-1.5A2.5 2.5 0 1 1 15 16H9.5A2.5 2.5 0 0 1 8 13Z'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 3v3M18 3v3M4 8h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z'/%3E%3Cpath d='M8 13a3 3 0 0 1 5.6-1.5A2.5 2.5 0 1 1 15 16H9.5A2.5 2.5 0 0 1 8 13Z'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+}
+
 .disaster-map-open-button:focus-visible {
   outline: 2px solid #56b7f2;
   outline-offset: 3px;
@@ -8517,12 +8848,16 @@ html[data-theme="light"] h2 {
 }
 
 /* Disaster quiz */
-#disaster-map-button {
+#weekly-weather-button {
   left: calc(var(--sidebar-width) + 72px);
 }
 
-.social-share-map-button {
+#disaster-map-button {
   left: calc(var(--sidebar-width) + 128px);
+}
+
+.social-share-map-button {
+  left: calc(var(--sidebar-width) + 184px);
 }
 
 .social-share-map-button::before {
@@ -9060,12 +9395,16 @@ html[data-theme="light"] .quiz-leaderboard-list li.is-current-user {
 html[data-theme="light"] .quiz-leaderboard-list li time { color: #60758a; }
 
 @media (max-width: 800px) {
-  #disaster-map-button {
+  #weekly-weather-button {
     left: 64px;
   }
 
-  .social-share-map-button {
+  #disaster-map-button {
     left: 116px;
+  }
+
+  .social-share-map-button {
+    left: 168px;
   }
 
   .disaster-quiz-open-button {
@@ -12637,7 +12976,15 @@ html[data-theme="light"] .river-affected-cities span {
   }
 
   #disaster-map-button {
+    left: calc(var(--sidebar-width) + 106px);
+  }
+
+  #weekly-weather-button {
     left: calc(var(--sidebar-width) + 58px);
+  }
+
+  .social-share-map-button {
+    left: calc(var(--sidebar-width) + 154px);
   }
 
   #clock {

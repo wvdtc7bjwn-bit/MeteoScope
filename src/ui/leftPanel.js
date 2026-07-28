@@ -10,6 +10,7 @@ import {
   KIKIKURU_LEVELS
 } from "../config.js";
 import {
+  classifyEarthquakeTsunamiComment,
   getTsunamiLevelColor,
   getTsunamiLevelLabel,
   getTsunamiObservationStyle
@@ -5632,11 +5633,9 @@ function getEarthquakeTsunamiState(earthquake, tsunami, status) {
     };
   }
   const tsunamiComment = String(earthquake?.tsunamiComment ?? earthquake?.headline ?? "");
-  if (/津波の心配はありません/u.test(tsunamiComment)) {
-    return { level: "none", label: "津波の心配なし", tsunami: null };
-  }
-  if (/若干の海面変動/u.test(tsunamiComment)) {
-    return { level: "forecast", label: "若干の海面変動", tsunami: null };
+  const commentState = classifyEarthquakeTsunamiComment(tsunamiComment, tsunami?.highestLevel);
+  if (commentState) {
+    return { ...commentState, tsunami: null };
   }
   return { level: "unknown", label: "津波情報未確認", tsunami: null };
 }

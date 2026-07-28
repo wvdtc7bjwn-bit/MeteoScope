@@ -69,7 +69,7 @@ assert.match(index, /viewport-fit=cover/);
 for (const removedModalSubtitle of ["MeteoScope", "MeteoScope Guide", "自治体公開資料", "防災学習", "雨雲レーダー"]) {
   assert.doesNotMatch(index, new RegExp(`<span>${removedModalSubtitle}<\\/span>`, "u"));
 }
-for (const modalId of ["settings", "feedback", "disaster-map", "disaster-quiz", "community-report", "social-share"]) {
+for (const modalId of ["settings", "feedback", "weekly-weather", "disaster-map", "disaster-quiz", "community-report", "social-share"]) {
   assert.match(
     index,
     new RegExp(`id="${modalId}-modal"[\\s\\S]*?<header class="settings-modal-header(?: [^"]+)?">[\\s\\S]*?<h2 id="${modalId}-(?:modal-)?title"`, "u")

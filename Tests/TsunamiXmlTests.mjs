@@ -1,8 +1,21 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { DOMParser } from "@xmldom/xmldom";
+import { classifyEarthquakeTsunamiComment } from "../src/tsunami.js";
 
 globalThis.DOMParser = DOMParser;
+
+assert.deepEqual(
+  classifyEarthquakeTsunamiComment(
+    "津波警報等（大津波警報・津波警報あるいは津波注意報）を発表中です。",
+    "advisory"
+  ),
+  { level: "advisory", label: "津波警報等発表中" }
+);
+assert.deepEqual(
+  classifyEarthquakeTsunamiComment("この地震による津波の心配はありません。"),
+  { level: "none", label: "津波の心配なし" }
+);
 
 const {
   attachTsunamiMapData,

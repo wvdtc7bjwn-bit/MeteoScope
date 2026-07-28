@@ -91,8 +91,8 @@ assert.match(leftPanelSource, /areaWarnings:\s*\(state\.data\?\.activeAreas \?\?
 assert.match(leftPanelSource, /data-social-share="amedas"/);
 assert.match(leftPanelSource, /data-social-share="earthquake"/);
 assert.match(leftPanelSource, /data-social-share="typhoon"/);
-assert.match(styleSource, /\.social-share-map-button\s*\{[\s\S]*?left:\s*calc\(var\(--sidebar-width\) \+ 128px\)/);
-assert.match(styleSource, /@media \(max-width: 800px\)[\s\S]*?\.social-share-map-button\s*\{[\s\S]*?left:\s*116px/);
+assert.match(styleSource, /\.social-share-map-button\s*\{[\s\S]*?left:\s*calc\(var\(--sidebar-width\) \+ 184px\)/);
+assert.match(styleSource, /@media \(max-width: 800px\)[\s\S]*?\.social-share-map-button\s*\{[\s\S]*?left:\s*168px/);
 assert.match(leftPanelSource, /items:\s*items\.map/);
 assert.match(leftPanelSource, /coordinates:\s*selectedEarthquake\.coordinates/);
 assert.match(leftPanelSource, /forecastTrack:\s*selectedTyphoon\.forecastTrack/);

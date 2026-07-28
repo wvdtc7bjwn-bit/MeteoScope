@@ -49,6 +49,7 @@ export const JMA_ENDPOINTS = {
   kikikuruTileBase: "https://www.jma.go.jp/bosai/jmatile/data/risk",
   weatherXmlFeed: "https://www.data.jma.go.jp/developer/xml/feed/regular.xml",
   weatherXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/regular_l.xml",
+  weeklyForecastXml: "/api/weekly-weather",
   riverFloodXmlFeed: "https://www.data.jma.go.jp/developer/xml/feed/extra.xml",
   riverFloodXmlLongFeed: "https://www.data.jma.go.jp/developer/xml/feed/extra_l.xml",
   earthquakeXmlFeed: "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml",

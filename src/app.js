@@ -5,6 +5,7 @@ import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTa
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
+import { setupWeeklyWeatherModal } from "./ui/weeklyWeatherModal.js";
 import { openDisasterQuizModal, setupDisasterQuizModal } from "./ui/disasterQuizModal.js";
 import { setupOnboardingModal } from "./ui/onboardingModal.js";
 import { setupLegalConsentModal } from "./ui/legalConsentModal.js";
@@ -2651,6 +2652,10 @@ if (layerId === "river") {
       onTabOrderChange: (order) => tabControls?.setOrder?.(order) ?? order
     });
     setupLazyDisasterMapModal();
+    setupWeeklyWeatherModal({
+      getCurrentLocation: () => currentLocationInfo,
+      requestCurrentLocation: () => requestAndFocusCurrentPosition({ announceLoading: true, setBusy: true })
+    });
     setupDisasterQuizModal();
     setupCommunityReportModal({
       getContext: () => ({ currentLocation: currentLocationInfo }),
