@@ -1090,6 +1090,7 @@ export function setupTyphoonForecastModeControls({ onChange, onModelToggle, onTi
 
 export function setupEarthquakeSelector({
   onChange,
+  onHistoryLoadMore,
   onVolcanoClear,
   onVolcanoBulletinSelect,
   onVolcanoBulletinBack,
@@ -1166,6 +1167,12 @@ export function setupEarthquakeSelector({
     const retryButton = event.target.closest("[data-earthquake-distribution-retry]");
     if (retryButton) {
       onDistributionRetry?.();
+      return;
+    }
+    const historyLoadMoreButton = event.target.closest("[data-earthquake-history-load-more]");
+    if (historyLoadMoreButton) {
+      event.preventDefault();
+      onHistoryLoadMore?.();
       return;
     }
     const button = event.target.closest("[data-earthquake-id]");
@@ -4874,7 +4881,15 @@ function renderEarthquakeList(tab, state) {
 
   const selectedId = String(state.data?.selectedEarthquakeId ?? earthquakes[0]?.id ?? "");
   const collapsedId = String(state.data?.collapsedEarthquakeId ?? "");
-  renderRecent(earthquakes.map((earthquake, index) => {
+  const requestedVisibleCount = Number(state.data?.earthquakeHistoryVisibleCount);
+  const visibleCount = Number.isFinite(requestedVisibleCount)
+    ? Math.max(1, Math.min(earthquakes.length, Math.floor(requestedVisibleCount)))
+    : earthquakes.length;
+  const visibleEarthquakes = earthquakes.slice(0, visibleCount);
+  const remainingCount = Math.max(0, earthquakes.length - visibleEarthquakes.length);
+  const canFetchOlderHistory = state.data?.earthquakeHistoryHasMoreSourceEntries === true;
+  const isLoadingMore = state.data?.earthquakeHistoryLoadingMore === true;
+  const historyMarkup = visibleEarthquakes.map((earthquake, index) => {
     const isActive = String(earthquake.id) === selectedId;
     const isExpanded = isActive && String(earthquake.id) !== collapsedId;
     const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
@@ -4920,7 +4935,23 @@ function renderEarthquakeList(tab, state) {
         ` : ""}
       </article>
     `;
-  }).join(""));
+  }).join("");
+  const loadMoreError = String(state.data?.earthquakeHistoryLoadMoreError ?? "").trim();
+  const loadMoreMarkup = remainingCount > 0 || canFetchOlderHistory || isLoadingMore ? `
+    ${loadMoreError ? `<p class="earthquake-history-load-more-error">${escapeHtml(loadMoreError)}</p>` : ""}
+    <button
+      type="button"
+      class="earthquake-history-load-more"
+      data-earthquake-history-load-more
+      ${isLoadingMore ? 'disabled aria-busy="true"' : ""}
+      aria-label="${isLoadingMore
+        ? "過去の地震履歴を読み込み中"
+        : "地震履歴をさらに読み込む"}"
+    >
+      <span>${isLoadingMore ? "読み込み中…" : "さらに読み込む"}</span>
+    </button>
+  ` : "";
+  renderRecent(historyMarkup + loadMoreMarkup);
 }
 
 function buildVolcanoMobileContextMarkup(state) {
@@ -5606,7 +5637,9 @@ function renderExpandedEarthquakeSummary({
 }
 
 function getEarthquakeTsunamiMetricText(state) {
-  if (state?.level === "none") return "津波の心配なし";
+  if (state?.level === "none") {
+    return state?.label === "解除" ? "解除" : "津波の心配なし";
+  }
   if (state?.level === "unknown" || state?.level === "unavailable") {
     return "不明";
   }
@@ -5623,17 +5656,27 @@ function getEarthquakeTsunamiState(earthquake, tsunami, status) {
   if (status === "unavailable") {
     return { level: "unavailable", label: "津波情報を確認できません", tsunami: null };
   }
+  const matchingTsunami = earthquake?.tsunamiReport ?? tsunami;
   const eventId = String(earthquake?.eventId ?? "").trim();
-  const tsunamiEventId = String(tsunami?.eventId ?? "").trim();
-  if (tsunami && eventId && tsunamiEventId && eventId === tsunamiEventId) {
+  const tsunamiEventId = String(matchingTsunami?.eventId ?? "").trim();
+  if (matchingTsunami && eventId && tsunamiEventId && eventId === tsunamiEventId) {
+    const isCancellation = matchingTsunami.highestLevel === "none"
+      && matchingTsunami.isCancellation === true;
     return {
-      level: tsunami.highestLevel,
-      label: getTsunamiLevelLabel(tsunami.highestLevel),
-      tsunami
+      level: matchingTsunami.highestLevel,
+      label: isCancellation ? "解除" : getTsunamiLevelLabel(matchingTsunami.highestLevel),
+      tsunami: matchingTsunami
     };
   }
   const tsunamiComment = String(earthquake?.tsunamiComment ?? earthquake?.headline ?? "");
-  const commentState = classifyEarthquakeTsunamiComment(tsunamiComment, tsunami?.highestLevel);
+  const activeLevel = eventId && tsunamiEventId && eventId === tsunamiEventId
+    ? matchingTsunami?.highestLevel
+    : "";
+  const commentState = classifyEarthquakeTsunamiComment(
+    tsunamiComment,
+    activeLevel,
+    tsunami?.highestLevel === "none" && tsunami?.isCancellation === true
+  );
   if (commentState) {
     return { ...commentState, tsunami: null };
   }

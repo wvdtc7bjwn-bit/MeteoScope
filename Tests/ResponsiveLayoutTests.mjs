@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [styles, index, panel, app, weatherMap, panelToggle, tabs] = await Promise.all([
+const [styles, index, panel, app, weatherMap, panelToggle, tabs, time, mapUtilityMenu] = await Promise.all([
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/panelToggle.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/ui/tabs.js", import.meta.url), "utf8")
+  readFile(new URL("../src/ui/tabs.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/ui/time.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/ui/mapUtilityMenu.js", import.meta.url), "utf8")
 ]);
 
 assert.match(styles, /--sidebar-width:\s*clamp\(300px,\s*24vw,\s*380px\)/);
@@ -66,6 +68,15 @@ assert.match(
 
 assert.match(index, /width=device-width/);
 assert.match(index, /viewport-fit=cover/);
+assert.match(index, /id="map-utility-menu-toggle"[\s\S]*?aria-controls="map-utility-actions"/u);
+assert.match(index, /id="map-utility-actions"[\s\S]*?id="disaster-quiz-button"[\s\S]*?id="weekly-weather-button"[\s\S]*?id="disaster-map-button"[\s\S]*?id="social-share-map-button"/u);
+assert.match(styles, /\.map-utility-actions\s*\{[\s\S]*?display:\s*flex;[\s\S]*?gap:\s*8px;/u);
+assert.match(styles, /\.map-utility-actions\[hidden\]\s*\{[\s\S]*?display:\s*none;/u);
+assert.match(mapUtilityMenu, /toggle\.addEventListener\("click"/u);
+assert.match(mapUtilityMenu, /event\.key !== "Escape"/u);
+assert.match(app, /setupMapUtilityMenu\(\)/u);
+assert.match(time, /hour:\s*"2-digit"[\s\S]*?minute:\s*"2-digit"[\s\S]*?second:\s*"2-digit"/u);
+assert.doesNotMatch(time, /month:\s*"2-digit"|day:\s*"2-digit"/u);
 for (const removedModalSubtitle of ["MeteoScope", "MeteoScope Guide", "自治体公開資料", "防災学習", "雨雲レーダー"]) {
   assert.doesNotMatch(index, new RegExp(`<span>${removedModalSubtitle}<\\/span>`, "u"));
 }

@@ -16,11 +16,20 @@ assert.deepEqual(
   classifyEarthquakeTsunamiComment("この地震による津波の心配はありません。"),
   { level: "none", label: "津波の心配なし" }
 );
+assert.deepEqual(
+  classifyEarthquakeTsunamiComment(
+    "津波警報等（大津波警報・津波警報あるいは津波注意報）を発表中です。",
+    "none",
+    true
+  ),
+  { level: "none", label: "解除" }
+);
 
 const {
   attachTsunamiMapData,
   buildTsunamiStationLookup,
   mergeTsunamiReports,
+  mergeTsunamiReportsByEventId,
   parseEarthquakeReport,
   parseTsunamiReport
 } = await import("../src/jma/earthquakeXml.js");
@@ -168,6 +177,12 @@ const cancelled = report(`
 const ended = mergeTsunamiReports([warning, cancelled]);
 assert.equal(ended.highestLevel, "none");
 assert.equal(ended.isActive, false);
+assert.equal(ended.isCancellation, true);
+
+const reportsByEventId = mergeTsunamiReportsByEventId([warning, observation, cancelled]);
+assert.equal(reportsByEventId.size, 1);
+assert.equal(reportsByEventId.get("20260715100000").highestLevel, "none");
+assert.equal(reportsByEventId.get("20260715100000").isCancellation, true);
 
 assert.throws(() => parseTsunamiReport("<Report><Body /></Report>", {
   code: "VTSE41",

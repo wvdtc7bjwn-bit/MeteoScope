@@ -31,7 +31,11 @@ export function getTsunamiObservationStyle(offshore = false) {
   return TSUNAMI_OBSERVATION_STYLES[offshore ? "offshore" : "coastal"];
 }
 
-export function classifyEarthquakeTsunamiComment(comment, activeLevel = "") {
+export function classifyEarthquakeTsunamiComment(
+  comment,
+  activeLevel = "",
+  isCancellation = false
+) {
   const text = String(comment ?? "").trim();
   if (/津波の心配はありません/u.test(text)) {
     return { level: "none", label: "津波の心配なし" };
@@ -40,6 +44,9 @@ export function classifyEarthquakeTsunamiComment(comment, activeLevel = "") {
     return { level: "forecast", label: "若干の海面変動" };
   }
   if (/津波(?:警報等|警報・注意報)[\s\S]*発表中/u.test(text)) {
+    if (isCancellation) {
+      return { level: "none", label: "解除" };
+    }
     const level = ["major-warning", "warning", "advisory"].includes(activeLevel)
       ? activeLevel
       : "warning";

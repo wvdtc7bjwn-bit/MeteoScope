@@ -18,8 +18,12 @@ import {
   getTsunamiObservationStyle
 } from "../tsunami.js";
 
-const EARTHQUAKE_XML_DETAIL_FETCH_LIMIT = 48;
-const EARTHQUAKE_HISTORY_DISPLAY_LIMIT = 11;
+export const EARTHQUAKE_XML_INITIAL_DETAIL_FETCH_LIMIT = 48;
+export const EARTHQUAKE_XML_DETAIL_FETCH_INCREMENT = 48;
+export const EARTHQUAKE_XML_MAX_DETAIL_FETCH_LIMIT = 144;
+const EARTHQUAKE_HISTORY_DISPLAY_LIMIT = EARTHQUAKE_XML_MAX_DETAIL_FETCH_LIMIT;
+export const EARTHQUAKE_HISTORY_INITIAL_VISIBLE_COUNT = 11;
+export const EARTHQUAKE_HISTORY_LOAD_MORE_COUNT = 15;
 const EARTHQUAKE_XML_CODES = /VXSE5[1-3]/;
 const TSUNAMI_XML_DETAIL_FETCH_LIMIT = 18;
 const TSUNAMI_XML_CODES = /VTSE(?:41|51|52)/;
@@ -30,15 +34,25 @@ let tsunamiAreaLookupPromise = null;
 let tsunamiStationLookupPromise = null;
 let stationCoordinateLookupPromise = null;
 
-export async function fetchEarthquakeXmlList() {
+export async function fetchEarthquakeXmlList({
+  earthquakeDetailFetchLimit = EARTHQUAKE_XML_INITIAL_DETAIL_FETCH_LIMIT
+} = {}) {
   const feeds = await fetchEarthquakeFeeds();
   const currentFeedAvailable = feeds.some(({ url }) => url === JMA_ENDPOINTS.earthquakeXmlFeed);
   const allEntries = getUniqueEarthquakeEntries(feeds.flatMap(({ feed }) => getElements(feed, "entry")
     .map(parseFeedEntry)
     .filter((entry) => entry.url)));
-  const earthquakeEntries = allEntries
-    .filter((entry) => EARTHQUAKE_XML_CODES.test(entry.code))
-    .slice(0, EARTHQUAKE_XML_DETAIL_FETCH_LIMIT);
+  const allEarthquakeEntries = allEntries
+    .filter((entry) => EARTHQUAKE_XML_CODES.test(entry.code));
+  const normalizedEarthquakeDetailFetchLimit = Math.max(
+    EARTHQUAKE_XML_INITIAL_DETAIL_FETCH_LIMIT,
+    Math.min(
+      EARTHQUAKE_XML_MAX_DETAIL_FETCH_LIMIT,
+      Number(earthquakeDetailFetchLimit) || EARTHQUAKE_XML_INITIAL_DETAIL_FETCH_LIMIT
+    )
+  );
+  const earthquakeEntries = allEarthquakeEntries
+    .slice(0, normalizedEarthquakeDetailFetchLimit);
   const tsunamiEntries = allEntries
     .filter((entry) => TSUNAMI_XML_CODES.test(entry.code))
     .slice(0, TSUNAMI_XML_DETAIL_FETCH_LIMIT);
@@ -60,14 +74,16 @@ export async function fetchEarthquakeXmlList() {
     loadTsunamiStationLookup().catch(() => buildEmptyTsunamiStationLookup()),
     loadStationCoordinateLookup().catch(() => buildEmptyStationLookup())
   ]);
-  const earthquakes = baseEarthquakes.map((earthquake) => attachEarthquakeMapData(
-    earthquake,
-    areaLookup,
-    stationLookup
-  ));
   const tsunamiReports = tsunamiResults
     .filter((result) => result.status === "fulfilled" && result.value)
     .map((result) => result.value);
+  const tsunamiReportsByEventId = mergeTsunamiReportsByEventId(tsunamiReports);
+  const earthquakes = baseEarthquakes.map((earthquake) => ({
+    ...attachEarthquakeMapData(earthquake, areaLookup, stationLookup),
+    tsunamiReport: tsunamiReportsByEventId.get(
+      normalizeEarthquakeEventId(earthquake.eventId)
+    ) ?? null
+  }));
   const tsunami = attachTsunamiMapData(
     mergeTsunamiReports(tsunamiReports),
     currentFeedAvailable ? tsunamiLookup : new Map(),
@@ -85,6 +101,10 @@ export async function fetchEarthquakeXmlList() {
     tsunami,
     tsunamiStatus,
     hasEarthquakes: earthquakes.length > 0,
+    earthquakeHistoryFetchedEntryCount: earthquakeEntries.length,
+    earthquakeHistorySourceEntryCount: allEarthquakeEntries.length,
+    earthquakeHistoryHasMoreSourceEntries: earthquakeEntries.length < allEarthquakeEntries.length
+      && earthquakeEntries.length < EARTHQUAKE_XML_MAX_DETAIL_FETCH_LIMIT,
     latestTime: updatedAt,
     updatedAt,
     summary: earthquakes.length > 0 ? `地震情報 ${earthquakes.length} 件` : "地震情報はありません"
@@ -359,6 +379,9 @@ export function mergeTsunamiReports(reports) {
   const highestLevel = areas
     .map((area) => area.level)
     .sort((a, b) => getTsunamiLevelRank(b) - getTsunamiLevelRank(a))[0] ?? "none";
+  const isCancellation = highestLevel === "none" && areas.some((area) => (
+    /解除/u.test(area.grade) || Boolean(area.lastGrade)
+  ));
 
   return {
     id: latest.eventId || latest.id,
@@ -374,9 +397,26 @@ export function mergeTsunamiReports(reports) {
     offshoreObservations,
     highestLevel,
     isActive: ["major-warning", "warning", "advisory"].includes(highestLevel),
+    isCancellation,
     sourceUrls: [...new Set(ordered.map((report) => report.url).filter(Boolean))],
     mapFeatures: []
   };
+}
+
+export function mergeTsunamiReportsByEventId(reports) {
+  const grouped = new Map();
+  (reports ?? []).filter(Boolean).forEach((report) => {
+    const eventId = normalizeEarthquakeEventId(report.eventId);
+    if (!eventId) return;
+    if (!grouped.has(eventId)) grouped.set(eventId, []);
+    grouped.get(eventId).push(report);
+  });
+  return new Map(
+    [...grouped.entries()].map(([eventId, eventReports]) => [
+      eventId,
+      mergeTsunamiReports(eventReports)
+    ])
+  );
 }
 
 function getLatestTsunamiReport(reports) {

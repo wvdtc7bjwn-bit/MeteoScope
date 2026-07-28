@@ -4768,6 +4768,48 @@ html[data-theme="light"] .weekly-weather-reliability {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055);
 }
 
+.earthquake-history-load-more {
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 10px;
+  border: 1px solid rgba(116, 198, 236, 0.32);
+  border-radius: 14px;
+  background: rgba(30, 66, 105, 0.54);
+  color: #dbe8fb;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.earthquake-history-load-more:is(:hover, :active) {
+  background: rgba(40, 84, 130, 0.68);
+}
+
+.earthquake-history-load-more:focus-visible {
+  outline: 2px solid rgba(104, 205, 255, 0.95);
+  outline-offset: 2px;
+}
+
+.earthquake-history-load-more:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.earthquake-history-load-more-error {
+  margin: 10px 4px 0;
+  color: #ffadad;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
 .earthquake-select-button {
   appearance: none;
   -webkit-appearance: none;
@@ -6751,6 +6793,37 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 .disaster-map-open-button:focus-visible {
   outline: 2px solid #56b7f2;
   outline-offset: 3px;
+}
+
+.map-utility-menu-toggle {
+  left: calc(var(--sidebar-width) + 16px);
+}
+
+.map-utility-menu-toggle::before {
+  width: 23px;
+  height: 23px;
+  background: #f4f9ff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 6.5h16M4 12h16M4 17.5h16'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 6.5h16M4 12h16M4 17.5h16'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.map-utility-actions {
+  position: fixed;
+  top: 20px;
+  left: calc(var(--sidebar-width) + 72px);
+  z-index: 452;
+  display: flex;
+  gap: 8px;
+}
+
+.map-utility-actions[hidden] {
+  display: none;
+}
+
+.map-utility-actions .disaster-map-open-button {
+  position: relative;
+  top: auto;
+  left: auto;
 }
 
 #clock {
@@ -8974,18 +9047,6 @@ html[data-theme="light"] h2 {
 }
 
 /* Disaster quiz */
-#weekly-weather-button {
-  left: calc(var(--sidebar-width) + 72px);
-}
-
-#disaster-map-button {
-  left: calc(var(--sidebar-width) + 128px);
-}
-
-.social-share-map-button {
-  left: calc(var(--sidebar-width) + 184px);
-}
-
 .social-share-map-button::before {
   width: 24px;
   height: 24px;
@@ -9005,8 +9066,8 @@ html[data-theme="light"] h2 {
 }
 
 .disaster-quiz-open-button {
-  top: 20px;
-  left: calc(var(--sidebar-width) + 16px);
+  top: auto;
+  left: auto;
 }
 
 .disaster-quiz-open-button::before {
@@ -9521,20 +9582,12 @@ html[data-theme="light"] .quiz-leaderboard-list li.is-current-user {
 html[data-theme="light"] .quiz-leaderboard-list li time { color: #60758a; }
 
 @media (max-width: 800px) {
-  #weekly-weather-button {
-    left: 64px;
+  .map-utility-menu-toggle {
+    left: 12px;
   }
 
-  #disaster-map-button {
-    left: 116px;
-  }
-
-  .social-share-map-button {
-    left: 168px;
-  }
-
-  .disaster-quiz-open-button {
-    top: max(18px, env(safe-area-inset-top));
+  .map-utility-actions {
+    top: calc(max(18px, env(safe-area-inset-top)) + 50px);
     left: 12px;
   }
 
@@ -10240,6 +10293,20 @@ html[data-theme="light"] .earthquake-distribution-note a { color: #087cb8; }
 html[data-theme="light"] .earthquake-tsunami-details {
   border-color: rgba(72, 100, 132, 0.22);
   background: rgba(225, 235, 245, 0.32);
+}
+
+html[data-theme="light"] .earthquake-history-load-more {
+  border-color: rgba(63, 125, 172, 0.3);
+  background: rgba(226, 239, 250, 0.92);
+  color: #173653;
+}
+
+html[data-theme="light"] .earthquake-history-load-more:is(:hover, :active) {
+  background: rgba(210, 231, 247, 0.98);
+}
+
+html[data-theme="light"] .earthquake-history-load-more-error {
+  color: #a43131;
 }
 
 html[data-theme="light"] .tsunami-dedicated-panel {
@@ -13099,18 +13166,6 @@ html[data-theme="light"] .river-affected-cities span {
     height: 40px;
     min-width: 40px;
     border-radius: 12px;
-  }
-
-  #disaster-map-button {
-    left: calc(var(--sidebar-width) + 106px);
-  }
-
-  #weekly-weather-button {
-    left: calc(var(--sidebar-width) + 58px);
-  }
-
-  .social-share-map-button {
-    left: calc(var(--sidebar-width) + 154px);
   }
 
   #clock {

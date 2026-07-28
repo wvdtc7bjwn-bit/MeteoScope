@@ -24,7 +24,14 @@ import {
   selectWorldTyphoonGenesisSystems,
   selectWorldTyphoonSystem
 } from "./worldTyphoon.js";
-import { fetchEarthquakeXmlList } from "./jma/earthquakeXml.js";
+import {
+  EARTHQUAKE_HISTORY_INITIAL_VISIBLE_COUNT,
+  EARTHQUAKE_HISTORY_LOAD_MORE_COUNT,
+  EARTHQUAKE_XML_DETAIL_FETCH_INCREMENT,
+  EARTHQUAKE_XML_INITIAL_DETAIL_FETCH_LIMIT,
+  EARTHQUAKE_XML_MAX_DETAIL_FETCH_LIMIT,
+  fetchEarthquakeXmlList
+} from "./jma/earthquakeXml.js";
 import { fetchTideObservationSeries, fetchTideStationCatalog } from "./jma/tideLevel.js";
 import {
   consolidateVolcanoReports,
@@ -51,6 +58,7 @@ import { openCommunityReportModal, setupCommunityReportModal } from "./ui/commun
 import { yieldToMainThread } from "./scheduling.js";
 import { setupLongPressButton } from "./ui/longPressButton.js";
 import { setupEarthquakeLongPressHint } from "./ui/earthquakeLongPressHint.js";
+import { setupMapUtilityMenu } from "./ui/mapUtilityMenu.js";
 import { getSocialSharePayload } from "./socialShareState.js";
 import { recordDiagnostic } from "./runtimeDiagnostics.js";
 
@@ -114,9 +122,13 @@ function setupLazyDisasterMapModal() {
   }, { capture: true });
 }
 
-async function fetchEarthquakeTabData() {
+let earthquakeHistoryDetailFetchLimit = EARTHQUAKE_XML_INITIAL_DETAIL_FETCH_LIMIT;
+
+async function fetchEarthquakeTabData({
+  earthquakeDetailFetchLimit = earthquakeHistoryDetailFetchLimit
+} = {}) {
   const [earthquakeData, tideResult] = await Promise.all([
-    fetchEarthquakeXmlList(),
+    fetchEarthquakeXmlList({ earthquakeDetailFetchLimit }),
     fetchTideStationCatalog().catch((error) => {
       console.warn("[MeteoScope] tide station catalog unavailable", error);
       return { stations: [], unavailable: true };
@@ -235,6 +247,10 @@ export function createWeatherApp() {
   };
   let activeEarthquakeId = "";
   let collapsedEarthquakeId = "";
+  let earthquakeHistoryVisibleCount = EARTHQUAKE_HISTORY_INITIAL_VISIBLE_COUNT;
+  let earthquakeHistoryLoadingMore = false;
+  let earthquakeHistoryLoadMoreError = "";
+  let earthquakeHistoryLoadMoreRequest = null;
   let earthquakeContentMode = "earthquake";
   let volcanoData = null;
   let volcanoLoadedAt = 0;
@@ -785,6 +801,75 @@ if (layerId === "river") {
     const tab = TABS.find((item) => item.id === "earthquake");
     updateCurrentView(tab, latestDataByTab.earthquake);
     if (!isSelected) focusSelectedEarthquake();
+  }
+
+  async function loadMoreEarthquakeHistory() {
+    if (earthquakeHistoryLoadMoreRequest) return;
+    const currentData = latestDataByTab.earthquake;
+    const earthquakeCount = currentData?.earthquakes?.length ?? 0;
+    const previousVisibleCount = earthquakeHistoryVisibleCount;
+    const targetVisibleCount = previousVisibleCount + EARTHQUAKE_HISTORY_LOAD_MORE_COUNT;
+    if (earthquakeCount >= targetVisibleCount) {
+      earthquakeHistoryVisibleCount = targetVisibleCount;
+      earthquakeHistoryLoadMoreError = "";
+      if (activeTab === "earthquake" && earthquakeContentMode === "earthquake") {
+        refreshActivePanel();
+      }
+      return;
+    }
+    if (!currentData?.earthquakeHistoryHasMoreSourceEntries) {
+      earthquakeHistoryVisibleCount = Math.min(earthquakeCount, targetVisibleCount);
+      earthquakeHistoryLoadMoreError = "";
+      if (activeTab === "earthquake" && earthquakeContentMode === "earthquake") {
+        refreshActivePanel();
+      }
+      return;
+    }
+
+    earthquakeHistoryLoadingMore = true;
+    earthquakeHistoryLoadMoreError = "";
+    refreshActivePanel();
+    const previousDetailFetchLimit = earthquakeHistoryDetailFetchLimit;
+    earthquakeHistoryLoadMoreRequest = (async () => {
+      let nextData = currentData;
+      while (
+        (nextData?.earthquakes?.length ?? 0) < targetVisibleCount
+        && nextData?.earthquakeHistoryHasMoreSourceEntries
+        && earthquakeHistoryDetailFetchLimit < EARTHQUAKE_XML_MAX_DETAIL_FETCH_LIMIT
+      ) {
+        earthquakeHistoryDetailFetchLimit = Math.min(
+          EARTHQUAKE_XML_MAX_DETAIL_FETCH_LIMIT,
+          earthquakeHistoryDetailFetchLimit + EARTHQUAKE_XML_DETAIL_FETCH_INCREMENT
+        );
+        nextData = await fetchEarthquakeTabData({
+          earthquakeDetailFetchLimit: earthquakeHistoryDetailFetchLimit
+        });
+      }
+      return nextData;
+    })()
+      .then((nextData) => {
+        latestDataByTab.earthquake = nextData;
+        earthquakeHistoryVisibleCount = Math.min(
+          nextData?.earthquakes?.length ?? 0,
+          targetVisibleCount
+        );
+        tabDataLoadedAt.earthquake = Date.now();
+        return nextData;
+      })
+      .catch((error) => {
+        earthquakeHistoryDetailFetchLimit = previousDetailFetchLimit;
+        earthquakeHistoryLoadMoreError = "過去の地震履歴を取得できませんでした。";
+        console.warn("[MeteoScope] older earthquake history load failed", error);
+        return currentData;
+      })
+      .finally(() => {
+        earthquakeHistoryLoadingMore = false;
+        earthquakeHistoryLoadMoreRequest = null;
+        if (activeTab === "earthquake" && earthquakeContentMode === "earthquake") {
+          refreshActivePanel();
+        }
+      });
+    await earthquakeHistoryLoadMoreRequest;
   }
 
   async function selectTideObservationStation(stationCode) {
@@ -1396,6 +1481,9 @@ if (layerId === "river") {
         ...data,
         ...distributionData,
         ...tideData,
+        earthquakeHistoryVisibleCount,
+        earthquakeHistoryLoadingMore,
+        earthquakeHistoryLoadMoreError,
         activeFaultVisible: earthquakeActiveFaultVisible,
         plateBoundaryVisible: earthquakePlateBoundaryVisible,
         plateDepthContoursVisible: earthquakePlateDepthContoursVisible
@@ -1415,6 +1503,9 @@ if (layerId === "river") {
       plateDepthContoursVisible: earthquakePlateDepthContoursVisible,
       selectedEarthquakeId: activeEarthquakeId,
       collapsedEarthquakeId,
+      earthquakeHistoryVisibleCount,
+      earthquakeHistoryLoadingMore,
+      earthquakeHistoryLoadMoreError,
       selectedEarthquake: selected,
       latestTime: selected.reportTime ?? data.latestTime,
       updatedAt: selected.reportTime ?? data.updatedAt
@@ -2553,6 +2644,7 @@ if (layerId === "river") {
     });
     setupEarthquakeSelector({
       onChange: selectEarthquake,
+      onHistoryLoadMore: loadMoreEarthquakeHistory,
       onVolcanoClear: () => {
         selectedVolcanoCode = "";
         selectedVolcanoBulletinId = "";
@@ -2657,6 +2749,7 @@ if (layerId === "river") {
       requestCurrentLocation: () => requestAndFocusCurrentPosition({ announceLoading: true, setBusy: true })
     });
     setupDisasterQuizModal();
+    setupMapUtilityMenu();
     setupCommunityReportModal({
       getContext: () => ({ currentLocation: currentLocationInfo }),
       onSubmitted: () => refreshCommunityReports({ force: true }),
