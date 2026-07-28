@@ -81,6 +81,9 @@ expectedColors.forEach((color, index) => {
 assert.deepEqual([...recolored.slice(24, 28)], [250, 231, 151, 0]);
 
 const mapSource = read("src", "map", "weatherMap.js");
+const estimatedIntensitySource = read("src", "jma", "estimatedIntensity.js");
+assert.match(estimatedIntensitySource, /canvas\.toDataURL\("image\/png"\)/u);
+assert.doesNotMatch(estimatedIntensitySource, /URL\.createObjectURL/u);
 assert.match(mapSource, /hasEstimatedIntensity\s*\?\s*\[\]\s*:\s*\(earthquake\.intensityAreaFeatures/u);
 assert.match(mapSource, /type:\s*"image"/u);
 assert.match(mapSource, /"raster-resampling":\s*"nearest"/u);

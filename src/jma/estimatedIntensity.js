@@ -185,13 +185,10 @@ async function recolorEstimatedIntensityImage(sourceUrl) {
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
   recolorEstimatedIntensityPixels(imageData.data);
   context.putImageData(imageData, 0, 0);
-  const blob = await new Promise((resolve, reject) => {
-    canvas.toBlob((result) => {
-      if (result) resolve(result);
-      else reject(new Error("Estimated intensity image conversion failed"));
-    }, "image/png");
-  });
-  return URL.createObjectURL(blob);
+  // MapLibre loads image sources from its worker. A document-scoped blob URL
+  // cannot be fetched reliably from that worker on the deployed site, while a
+  // data URL is self-contained and works in both the main thread and worker.
+  return canvas.toDataURL("image/png");
 }
 
 function findNearestPaletteEntry(red, green, blue) {
