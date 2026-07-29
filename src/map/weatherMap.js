@@ -40,6 +40,9 @@ const MODE_CLASS = {
 };
 
 const SAMPLE_SOURCE_ID = "weather-samples";
+const HYPOCENTER_AREA_SOURCE_ID = "hypocenter-area-selection";
+const HYPOCENTER_AREA_FILL_LAYER_ID = "hypocenter-area-selection-fill";
+const HYPOCENTER_AREA_LINE_LAYER_ID = "hypocenter-area-selection-line";
 const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-circle", "earthquake-station-intensity-label", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
 const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "earthquake-station-intensity-circle", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-line"];
@@ -368,6 +371,8 @@ export function createWeatherMap(elementId) {
   let mapInfoOwner = null;
   let communityReports = [];
   let currentLocationVisible = true;
+  let hypocenterAreaPolygon = [];
+  let hypocenterAreaOverlay = null;
   let hypocenter3DEnabled = false;
   let previousHypocenterCamera = null;
   let plateDepth3DLayerAvailable = false;
@@ -742,6 +747,12 @@ export function createWeatherMap(elementId) {
     }
 
     const source = map.getSource(SAMPLE_SOURCE_ID);
+    const areaVisible = mode === "earthquake" && data?.earthquakeMapView === "distribution";
+    for (const layerId of [HYPOCENTER_AREA_FILL_LAYER_ID, HYPOCENTER_AREA_LINE_LAYER_ID]) {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, "visibility", areaVisible ? "visible" : "none");
+      }
+    }
     const collection = createSampleFeatureCollection(mode, data);
     source.setData(collection);
     updateHypocenter3D(mode, data);
@@ -827,6 +838,10 @@ export function createWeatherMap(elementId) {
       type: "geojson",
       data: createSampleFeatureCollection(activeMode)
     });
+    map.addSource(HYPOCENTER_AREA_SOURCE_ID, {
+      type: "geojson",
+      data: createEmptyFeatureCollection()
+    });
     map.addSource(TYPHOON_SOURCE_ID, {
       type: "geojson",
       data: createEmptyFeatureCollection()
@@ -857,6 +872,25 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     map.addSource(RIVER_FLOOD_SOURCE_ID, {
       type: "geojson",
       data: createEmptyFeatureCollection()
+    });
+    map.addLayer({
+      id: HYPOCENTER_AREA_FILL_LAYER_ID,
+      type: "fill",
+      source: HYPOCENTER_AREA_SOURCE_ID,
+      paint: {
+        "fill-color": "#24b7f2",
+        "fill-opacity": 0.13
+      }
+    });
+    map.addLayer({
+      id: HYPOCENTER_AREA_LINE_LAYER_ID,
+      type: "line",
+      source: HYPOCENTER_AREA_SOURCE_ID,
+      paint: {
+        "line-color": "#43c8ff",
+        "line-width": 2.5,
+        "line-dasharray": [1.5, 1]
+      }
     });
     map.addLayer({
       id: "jma-river-flood-casing",
@@ -1004,6 +1038,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       filter: ["all",
         ["==", ["geometry-type"], "Point"],
         ["==", ["get", "markerType"], "hypocenter-distribution"],
+        ["==", ["get", "showCoordinateEventCount"], true],
         [">", ["get", "coordinateEventCount"], 1]
       ],
       layout: {
@@ -1899,7 +1934,16 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           hideMapInfo("earthquake-distribution");
           return;
         }
-        const popup = feature?.properties?.popup;
+        const popup = feature?.properties?.popup
+          ?? (feature?.properties?.markerType === "hypocenter-distribution"
+            ? buildHypocenterDistributionPopup({
+                place: feature.properties.distributionPlace,
+                originTime: feature.properties.distributionOriginTime,
+                magnitude: feature.properties.distributionMagnitude,
+                depthKm: feature.properties.distributionDepthKm,
+                coordinateEventCount: feature.properties.coordinateEventCount
+              })
+            : "");
         if (!popup) {
           hideMapInfo("earthquake-distribution");
           return;
@@ -2108,12 +2152,115 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     return [west, south, east, north].map((value) => Number(value.toFixed(4)));
   }
 
+  function setHypocenterAreaSelection(polygon = []) {
+    hypocenterAreaPolygon = normalizeAreaPolygon(polygon);
+    const source = map?.getSource(HYPOCENTER_AREA_SOURCE_ID);
+    if (!source?.setData) return;
+    source.setData(hypocenterAreaPolygon.length >= 3
+      ? {
+        type: "FeatureCollection",
+        features: [{
+          type: "Feature",
+          properties: {},
+          geometry: {
+            type: "Polygon",
+            coordinates: [[...hypocenterAreaPolygon, hypocenterAreaPolygon[0]]]
+          }
+        }]
+      }
+      : createEmptyFeatureCollection());
+  }
+
+  function clearHypocenterAreaSelection() {
+    setHypocenterAreaSelection([]);
+  }
+
+  function startHypocenterAreaSelection(onComplete) {
+    if (!map) return false;
+    cancelHypocenterAreaDrawing();
+    const container = map.getContainer();
+    const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    overlay.classList.add("hypocenter-area-draw-overlay");
+    overlay.setAttribute("aria-label", "震央分布の検索範囲を囲む");
+    const shape = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    overlay.append(shape);
+    container.append(overlay);
+    hypocenterAreaOverlay = overlay;
+    const points = [];
+    let drawing = false;
+
+    const updateShape = () => {
+      shape.setAttribute("points", points.map((point) => `${point.x},${point.y}`).join(" "));
+    };
+    const finish = (event) => {
+      if (!drawing) return;
+      drawing = false;
+      overlay.releasePointerCapture?.(event.pointerId);
+      map.dragPan.enable();
+      const polygon = simplifyScreenPolygon(points)
+        .map((point) => map.unproject([point.x, point.y]))
+        .map((coordinate) => [
+          Number(coordinate.lng.toFixed(5)),
+          Number(coordinate.lat.toFixed(5))
+        ]);
+      overlay.remove();
+      hypocenterAreaOverlay = null;
+      if (polygon.length < 3) return;
+      setHypocenterAreaSelection(polygon);
+      onComplete?.(polygon);
+    };
+    overlay.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      drawing = true;
+      points.length = 0;
+      points.push({ x: event.offsetX, y: event.offsetY });
+      overlay.setPointerCapture?.(event.pointerId);
+      map.dragPan.disable();
+      updateShape();
+    });
+    overlay.addEventListener("pointermove", (event) => {
+      if (!drawing) return;
+      const next = { x: event.offsetX, y: event.offsetY };
+      const previous = points.at(-1);
+      if (previous && Math.hypot(next.x - previous.x, next.y - previous.y) < 5) return;
+      points.push(next);
+      updateShape();
+    });
+    overlay.addEventListener("pointerup", finish);
+    overlay.addEventListener("pointercancel", finish);
+    return true;
+  }
+
+  function cancelHypocenterAreaDrawing() {
+    if (!hypocenterAreaOverlay) return;
+    hypocenterAreaOverlay.remove();
+    hypocenterAreaOverlay = null;
+    map?.dragPan.enable();
+  }
+
   function setTheme(theme) {
     activeTheme = theme === "light" ? "light" : "dark";
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+}
+
+function normalizeAreaPolygon(polygon) {
+  if (!Array.isArray(polygon)) return [];
+  return polygon
+    .filter((coordinate) => Array.isArray(coordinate) && coordinate.length >= 2)
+    .map((coordinate) => [Number(coordinate[0]), Number(coordinate[1])])
+    .filter((coordinate) => coordinate.every(Number.isFinite));
+}
+
+function simplifyScreenPolygon(points) {
+  if (!Array.isArray(points) || points.length < 3) return [];
+  const step = Math.max(1, Math.floor(points.length / 80));
+  const simplified = points.filter((point, index) => (
+    index === 0 || index === points.length - 1 || index % step === 0
+  ));
+  return simplified.length >= 3 ? simplified : points;
 }
 
 function createCommunityReportFeatureCollection(reports = []) {
@@ -3993,6 +4140,9 @@ function createEarthquakeFeatures(data) {
   }
   if (getEarthquakeMapView(data) === "distribution") {
     const is3D = data?.distribution3DEnabled === true;
+    const showCoordinateEventCount = !is3D
+      && data?.distribution?.selectedSource === "jma-xml"
+      && data?.distribution?.rangeMode !== true;
     const distributionItems = is3D
       ? (data?.distributionItems ?? [])
       : groupHypocenterItemsByCoordinate(data?.distributionItems ?? []);
@@ -4026,7 +4176,13 @@ function createEarthquakeFeatures(data) {
           sortKey: Number.isFinite(magnitude) ? magnitude : -10,
           label: "",
           coordinateEventCount,
-          popup: buildHypocenterDistributionPopup(item)
+          showCoordinateEventCount,
+          distributionPlace: String(item.place ?? ""),
+          distributionOriginTime: String(item.originTime ?? ""),
+          distributionMagnitude: Number.isFinite(Number(item.magnitude))
+            ? Number(item.magnitude)
+            : null,
+          distributionDepthKm: Number.isFinite(depth) ? depth : null
         }
       }];
     });
@@ -4245,8 +4401,20 @@ function getVolcanoMarkerColor(level) {
 }
 
 function buildHypocenterDistributionPopup(item) {
-  const magnitude = Number.isFinite(Number(item.magnitude)) ? `M${Number(item.magnitude).toFixed(1)}` : "M不明";
-  const depth = Number.isFinite(Number(item.depthKm)) ? `${Number(item.depthKm)}km` : "不明";
+  const magnitudeValue = item?.magnitude;
+  const magnitudeNumber = magnitudeValue !== null
+    && magnitudeValue !== undefined
+    && String(magnitudeValue).trim() !== ""
+    ? Number(magnitudeValue)
+    : Number.NaN;
+  const depthValue = item?.depthKm;
+  const depthNumber = depthValue !== null
+    && depthValue !== undefined
+    && String(depthValue).trim() !== ""
+    ? Number(depthValue)
+    : Number.NaN;
+  const magnitude = Number.isFinite(magnitudeNumber) ? `M${magnitudeNumber.toFixed(1)}` : "M不明";
+  const depth = Number.isFinite(depthNumber) ? `${depthNumber}km` : "不明";
   const coordinateEventCount = Math.max(1, Number(item.coordinateEventCount) || 1);
   const overlap = coordinateEventCount > 1
     ? `<br><strong>同一発表座標に ${coordinateEventCount}件</strong>`

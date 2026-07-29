@@ -22,7 +22,7 @@ function jsonResponse(payload, status = 200, extraHeaders = {}) {
 async function fetchDistribution(request, env, ctx) {
   const cache = caches.default;
   const cacheUrl = new URL(request.url);
-  cacheUrl.searchParams.set("_meteoscopeCache", "jma-distribution-v7");
+  cacheUrl.searchParams.set("_meteoscopeCache", "jma-distribution-v8");
   const cacheKey = new Request(cacheUrl, { method: "GET" });
   const cached = await cache.match(cacheKey);
   if (cached) return cached;

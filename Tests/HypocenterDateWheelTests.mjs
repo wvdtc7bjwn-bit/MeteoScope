@@ -54,4 +54,11 @@ assert.match(
 assert.match(distributionClientSource, /ttlMs: options\.force \? 0/u);
 assert.match(distributionClientSource, /cache: options\.force \? "no-store"/u);
 assert.match(distributionClientSource, /includeRecentXml: filters\.includeRecentXml === false \? "0" : "1"/u);
+const weatherMapSource = await fs.readFile(path.join(root, "src", "map", "weatherMap.js"), "utf8");
+assert.match(
+  weatherMapSource,
+  /showCoordinateEventCount = !is3D[\s\S]*selectedSource === "jma-xml"[\s\S]*rangeMode !== true/u,
+  "重複震央の件数は本日・前日の気象庁XML表示だけに限定する"
+);
+assert.match(weatherMapSource, /\["==", \["get", "showCoordinateEventCount"\], true\]/u);
 console.log("Hypocenter date wheel tests passed.");

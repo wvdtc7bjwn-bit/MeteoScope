@@ -328,13 +328,19 @@ export async function readJmaDailyHypocenterDistribution(request, env, ctx) {
     ? null
     : parseChoice(maxDepthText, [30, 100, 300, 700], 700);
   const includeRecentXml = url.searchParams.get("includeRecentXml") !== "0";
+  const requestedStartDate = parseSourceDate(url.searchParams.get("startDate"));
+  const requestedEndDate = parseSourceDate(url.searchParams.get("endDate"));
+  const requestedBounds = parseBounds(url.searchParams.get("bounds"));
   const summary = await readDistributionSummary(db, request, ctx);
   const snapshot = await queryDistribution(db, {
     summary,
     requestedDayOffset,
     minMagnitude,
     maxDepth,
-    includeRecentXml
+    includeRecentXml,
+    requestedStartDate,
+    requestedEndDate,
+    requestedBounds
   });
 
   return jsonResponse({
@@ -348,6 +354,9 @@ export async function readJmaDailyHypocenterDistribution(request, env, ctx) {
     minMagnitude: minMagnitudeText,
     maxDepth: maxDepthText,
     includeRecentXml,
+    requestedStartDate,
+    requestedEndDate,
+    requestedBounds,
     ...snapshot
   }, 200, { "cache-control": "public, max-age=60, s-maxage=60" });
 }
@@ -418,33 +427,67 @@ export function filterDistributionDates(availableDates, includeRecentXml, timest
 
 async function queryDistribution(
   db,
-  { summary, requestedDayOffset, minMagnitude, maxDepth, includeRecentXml }
+  {
+    summary,
+    requestedDayOffset,
+    minMagnitude,
+    maxDepth,
+    includeRecentXml,
+    requestedStartDate,
+    requestedEndDate,
+    requestedBounds
+  }
 ) {
   const availableDates = filterDistributionDates(
     summary.availableDates,
     includeRecentXml
   );
+  const rangeDates = getRequestedRangeDates(
+    availableDates,
+    requestedStartDate,
+    requestedEndDate
+  );
+  if (rangeDates.length) {
+    const storedItems = await readDistributionRange(db, rangeDates);
+    const items = filterDistributionItems(
+      storedItems,
+      minMagnitude,
+      maxDepth,
+      requestedBounds
+    );
+    const visibleItems = items.slice(0, 75000);
+    return {
+      ...summary,
+      availableDates,
+      availableDayCount: availableDates.length,
+      selectedSourceDate: null,
+      selectedSource: "jma-combined",
+      selectedSourceLabel: "気象庁 防災情報XML（有感地震）／日々の震源リスト",
+      selectedSourceUrl: JMA_XML_SOURCE_URL,
+      selectedProvisional: true,
+      dayOffset: 0,
+      rangeMode: true,
+      rangeStartDate: rangeDates.at(-1) ?? null,
+      rangeEndDate: rangeDates[0] ?? null,
+      rangeDayCount: rangeDates.length,
+      truncated: items.length > visibleItems.length,
+      items: visibleItems
+    };
+  }
   const dayOffset = availableDates.length
     ? Math.min(requestedDayOffset, availableDates.length - 1)
     : 0;
   const selectedSourceDate = availableDates[dayOffset] ?? null;
   const usesXml = Boolean(selectedSourceDate && isJmaXmlRetentionDate(selectedSourceDate));
-  const storedItems = usesXml
-    ? await readJmaXmlDay(db, selectedSourceDate)
-    : parseStoredPayload(selectedSourceDate
-      ? (await db.prepare(`
-          SELECT payload_json FROM jma_daily_hypocenter_days
-          WHERE source_date = ? LIMIT 1
-        `).bind(selectedSourceDate).first())?.payload_json
-      : null);
-  const items = storedItems
-    .filter((item) => minMagnitude === null || (
-      Number.isFinite(item.magnitude) && item.magnitude >= minMagnitude
-    ))
-    .filter((item) => maxDepth === null || (
-      Number.isFinite(item.depthKm) && item.depthKm <= maxDepth
-    ))
-    .sort((left, right) => right.originTime.localeCompare(left.originTime));
+  const storedItems = selectedSourceDate
+    ? await readDistributionDay(db, selectedSourceDate)
+    : [];
+  const items = filterDistributionItems(
+    storedItems,
+    minMagnitude,
+    maxDepth,
+    requestedBounds
+  );
   const visibleItems = items.slice(0, 5000);
   return {
     ...summary,
@@ -463,6 +506,91 @@ async function queryDistribution(
     truncated: items.length > visibleItems.length,
     items: visibleItems
   };
+}
+
+async function readDistributionDay(db, sourceDate) {
+  if (isJmaXmlRetentionDate(sourceDate)) {
+    return await readJmaXmlDay(db, sourceDate);
+  }
+  const row = await db.prepare(`
+    SELECT payload_json FROM jma_daily_hypocenter_days
+    WHERE source_date = ? LIMIT 1
+  `).bind(sourceDate).first();
+  return parseStoredPayload(row?.payload_json);
+}
+
+async function readDistributionRange(db, rangeDates) {
+  const xmlDates = rangeDates.filter(isJmaXmlRetentionDate);
+  const dailyDates = rangeDates.filter((date) => !isJmaXmlRetentionDate(date));
+  const [xmlItems, dailyRows] = await Promise.all([
+    Promise.all(xmlDates.map((date) => readJmaXmlDay(db, date))),
+    dailyDates.length
+      ? db.prepare(`
+          SELECT source_date, payload_json
+          FROM jma_daily_hypocenter_days
+          WHERE source_date BETWEEN ? AND ?
+          ORDER BY source_date DESC
+        `).bind(dailyDates.at(-1), dailyDates[0]).all()
+      : Promise.resolve({ results: [] })
+  ]);
+  return [
+    ...xmlItems.flat(),
+    ...(dailyRows?.results ?? []).flatMap((row) => parseStoredPayload(row.payload_json))
+  ];
+}
+
+function filterDistributionItems(items, minMagnitude, maxDepth, bounds) {
+  return items
+    .filter((item) => minMagnitude === null || (
+      Number.isFinite(item.magnitude) && item.magnitude >= minMagnitude
+    ))
+    .filter((item) => maxDepth === null || (
+      Number.isFinite(item.depthKm) && item.depthKm <= maxDepth
+    ))
+    .filter((item) => {
+      if (!bounds) return true;
+      const longitude = Number(item.longitude);
+      const latitude = Number(item.latitude);
+      return Number.isFinite(longitude)
+        && Number.isFinite(latitude)
+        && longitude >= bounds[0]
+        && latitude >= bounds[1]
+        && longitude <= bounds[2]
+        && latitude <= bounds[3];
+    })
+    .sort((left, right) => right.originTime.localeCompare(left.originTime));
+}
+
+function getRequestedRangeDates(availableDates, startDate, endDate) {
+  if (!startDate || !endDate) return [];
+  const oldest = startDate <= endDate ? startDate : endDate;
+  const newest = startDate <= endDate ? endDate : startDate;
+  return availableDates
+    .filter((date) => date >= oldest && date <= newest)
+    .slice(0, 30);
+}
+
+function parseSourceDate(value) {
+  const text = String(value ?? "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/u.test(text) ? text : null;
+}
+
+function parseBounds(value) {
+  const bounds = String(value ?? "").split(",").map(Number);
+  if (
+    bounds.length !== 4
+    || !bounds.every(Number.isFinite)
+    || bounds[0] >= bounds[2]
+    || bounds[1] >= bounds[3]
+  ) {
+    return null;
+  }
+  return [
+    Math.max(-180, bounds[0]),
+    Math.max(-90, bounds[1]),
+    Math.min(180, bounds[2]),
+    Math.min(90, bounds[3])
+  ];
 }
 
 async function readDistributionSummary(db, request, ctx) {

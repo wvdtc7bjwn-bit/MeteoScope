@@ -42,6 +42,7 @@ import { fetchKikikuruTiles } from "./jma/kikikuru.js";
 import { fetchRiverFloodForecasts } from "./jma/riverFlood.js";
 import {
   HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET,
+  normalizeHypocenterDistributionRange,
   fetchHypocenterDistribution
 } from "./jma/hypocenterDistribution.js";
 import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFrameIndex } from "./jma/weatherChart.js";
@@ -285,7 +286,11 @@ export function createWeatherApp() {
     dayOffset: 0,
     minMagnitude: "0",
     maxDepth: "all",
-    includeRecentXml: earthquakeDistributionRecentXmlVisible
+    includeRecentXml: earthquakeDistributionRecentXmlVisible,
+    rangeEnabled: false,
+    startDate: "",
+    endDate: "",
+    areaPolygon: []
   };
   let earthquakeDistributionState = { status: "idle", data: null, error: "" };
   let earthquakeDistributionRequestId = 0;
@@ -1075,12 +1080,23 @@ if (layerId === "river") {
   }
 
   function updateEarthquakeDistributionFilters(filters = {}) {
+    const requestedStartDate = filters.startDate ?? earthquakeDistributionFilters.startDate;
+    const requestedEndDate = filters.endDate ?? earthquakeDistributionFilters.endDate;
+    const normalizedRange = normalizeHypocenterDistributionRange(
+      requestedStartDate,
+      requestedEndDate
+    );
     earthquakeDistributionFilters = {
+      ...earthquakeDistributionFilters,
       dayOffset: Number.isInteger(Number(filters.dayOffset))
         ? Math.min(HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET, Math.max(0, Number(filters.dayOffset)))
         : earthquakeDistributionFilters.dayOffset,
       minMagnitude: filters.minMagnitude ?? earthquakeDistributionFilters.minMagnitude,
       maxDepth: filters.maxDepth ?? earthquakeDistributionFilters.maxDepth,
+      rangeEnabled: filters.rangeEnabled ?? earthquakeDistributionFilters.rangeEnabled,
+      startDate: normalizedRange?.startDate ?? requestedStartDate,
+      endDate: normalizedRange?.endDate ?? requestedEndDate,
+      areaPolygon: filters.areaPolygon ?? earthquakeDistributionFilters.areaPolygon,
       includeRecentXml: earthquakeDistributionRecentXmlVisible
     };
     if (activeTab === "earthquake") {
@@ -1088,6 +1104,48 @@ if (layerId === "river") {
       updateCurrentView(tab, latestDataByTab.earthquake ?? {});
     }
     void refreshEarthquakeDistribution();
+  }
+
+  function selectEarthquakeDistributionRangeMode(enabled) {
+    if (!enabled) {
+      weatherMap?.clearHypocenterAreaSelection();
+      updateEarthquakeDistributionFilters({
+        rangeEnabled: false,
+        areaPolygon: []
+      });
+      return;
+    }
+    const availableDates = earthquakeDistributionState.data?.availableDates ?? [];
+    const endDate = earthquakeDistributionFilters.endDate || availableDates[0] || "";
+    const startDate = earthquakeDistributionFilters.startDate || availableDates[Math.min(6, availableDates.length - 1)] || endDate;
+    updateEarthquakeDistributionFilters({
+      rangeEnabled: true,
+      startDate,
+      endDate
+    });
+  }
+
+  function startEarthquakeDistributionAreaSearch() {
+    if (activeTab !== "earthquake" || earthquakeView !== "distribution") return;
+    earthquakeDistribution3DEnabled = false;
+    const availableDates = earthquakeDistributionState.data?.availableDates ?? [];
+    const endDate = earthquakeDistributionFilters.endDate || availableDates[0] || "";
+    const startDate = earthquakeDistributionFilters.startDate || availableDates[Math.min(6, availableDates.length - 1)] || endDate;
+    earthquakeDistributionFilters = {
+      ...earthquakeDistributionFilters,
+      rangeEnabled: true,
+      startDate,
+      endDate
+    };
+    updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+    weatherMap?.startHypocenterAreaSelection((areaPolygon) => {
+      updateEarthquakeDistributionFilters({ areaPolygon, rangeEnabled: true });
+    });
+  }
+
+  function clearEarthquakeDistributionAreaSearch() {
+    weatherMap?.clearHypocenterAreaSelection();
+    updateEarthquakeDistributionFilters({ areaPolygon: [] });
   }
 
   function setEarthquakeDistributionRecentXmlVisible(visible) {
@@ -2732,6 +2790,9 @@ if (layerId === "river") {
       onViewChange: selectEarthquakeView,
       onDistributionPresentationChange: selectEarthquakeDistributionPresentation,
       onDistributionFilterChange: updateEarthquakeDistributionFilters,
+      onDistributionRangeModeChange: selectEarthquakeDistributionRangeMode,
+      onDistributionAreaSearch: startEarthquakeDistributionAreaSearch,
+      onDistributionAreaClear: clearEarthquakeDistributionAreaSearch,
       onDistributionRetry: refreshEarthquakeDistribution,
       getDistributionDates: () => earthquakeDistributionState.data?.availableDates ?? []
     });
