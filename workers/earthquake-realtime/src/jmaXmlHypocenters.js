@@ -8,7 +8,9 @@ const JMA_XML_SOURCE_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.
 const JMA_XML_CODES = new Set(["VXSE51", "VXSE52", "VXSE53"]);
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
-const MAX_REPORTS_PER_SYNC = 24;
+const MAX_REPORTS_PER_SYNC = 48;
+const MAX_REPORTS_PER_SOURCE_DATE = 24;
+const MAX_CONCURRENT_REPORTS = 8;
 const ERROR_RETRY_MS = 10 * 60 * 1000;
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -162,15 +164,14 @@ export async function runJmaXmlHypocenterSync(env, options = {}) {
   }
 
   const processed = await readProcessedEntries(db, retainedDates);
-  const candidates = entries
-    .filter((entry) => shouldProcessEntry(entry, processed.get(entry.url), now))
-    .sort((left, right) => String(right.updated).localeCompare(String(left.updated)))
-    .slice(0, MAX_REPORTS_PER_SYNC)
-    .sort((left, right) => String(left.updated).localeCompare(String(right.updated)));
+  const candidates = selectJmaXmlCandidates(entries, processed, now, retainedDates);
 
   const results = [];
-  for (const entry of candidates) {
-    results.push(await syncOneEntry(db, entry, fetchImpl, now));
+  for (let index = 0; index < candidates.length; index += MAX_CONCURRENT_REPORTS) {
+    results.push(...await Promise.all(
+      candidates.slice(index, index + MAX_CONCURRENT_REPORTS)
+        .map((entry) => syncOneEntry(db, entry, fetchImpl, now))
+    ));
   }
   const cleanupAfterSync = await trimJmaXmlHypocenters(db, retainedDates);
 
@@ -186,6 +187,38 @@ export async function runJmaXmlHypocenterSync(env, options = {}) {
     },
     retainedDates
   };
+}
+
+export function selectJmaXmlCandidates(entries, processed, now, retainedDates) {
+  const pending = (Array.isArray(entries) ? entries : [])
+    .filter((entry) => retainedDates.includes(entry.sourceDate))
+    .filter((entry) => shouldProcessEntry(entry, processed.get(entry.url), now))
+    .sort((left, right) => String(right.updated).localeCompare(String(left.updated)));
+  const selectedUrls = new Set();
+  const selectedPerDate = new Map();
+  const selected = [];
+
+  for (const sourceDate of retainedDates) {
+    for (const entry of pending) {
+      if (entry.sourceDate !== sourceDate || selectedUrls.has(entry.url)) continue;
+      selected.push(entry);
+      selectedUrls.add(entry.url);
+      const sourceDateCount = (selectedPerDate.get(sourceDate) ?? 0) + 1;
+      selectedPerDate.set(sourceDate, sourceDateCount);
+      if (sourceDateCount >= MAX_REPORTS_PER_SOURCE_DATE) {
+        break;
+      }
+    }
+  }
+  for (const entry of pending) {
+    if (selected.length >= MAX_REPORTS_PER_SYNC) break;
+    if (selectedUrls.has(entry.url)) continue;
+    selected.push(entry);
+    selectedUrls.add(entry.url);
+  }
+  return selected
+    .slice(0, MAX_REPORTS_PER_SYNC)
+    .sort((left, right) => String(left.updated).localeCompare(String(right.updated)));
 }
 
 export async function readJmaXmlDay(db, sourceDate) {

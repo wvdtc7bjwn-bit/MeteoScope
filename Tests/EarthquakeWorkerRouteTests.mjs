@@ -10,7 +10,8 @@ import {
 import {
   getJmaXmlRetentionDates,
   parseJmaXmlFeed,
-  parseJmaXmlHypocenterReport
+  parseJmaXmlHypocenterReport,
+  selectJmaXmlCandidates
 } from "../workers/earthquake-realtime/src/jmaXmlHypocenters.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -114,6 +115,32 @@ assert.deepEqual(
   getJmaXmlRetentionDates(boundaryNow),
   ["2026-07-30", "2026-07-29"],
   "保存期間はJSTの当日と前日"
+);
+const retentionDates = getJmaXmlRetentionDates(boundaryNow);
+const pendingEntries = retentionDates.flatMap((sourceDate, dateIndex) => (
+  Array.from({ length: 40 }, (_, index) => ({
+    url: `https://example.test/${dateIndex}-${index}_VXSE53_.xml`,
+    updated: `${sourceDate}T${String(index % 24).padStart(2, "0")}:00:00+09:00`,
+    sourceDate,
+    xmlCode: "VXSE53"
+  }))
+));
+const selectedEntries = selectJmaXmlCandidates(
+  pendingEntries,
+  new Map(),
+  boundaryNow,
+  retentionDates
+);
+assert.equal(selectedEntries.length, 48, "1回のcronで許容上限までXMLを処理する");
+assert.equal(
+  selectedEntries.filter((entry) => entry.sourceDate === retentionDates[0]).length,
+  24,
+  "当日分だけで上限を消費しない"
+);
+assert.equal(
+  selectedEntries.filter((entry) => entry.sourceDate === retentionDates[1]).length,
+  24,
+  "前日分も同じcronで処理する"
 );
 const combined = buildDistributionSummary([
   { source_date: "2026-07-30", record_count: 2, status: "ok", source_type: "jma-xml" },
