@@ -1186,8 +1186,13 @@ h2 {
 }
 
 .weekly-weather-panel {
-  width: min(920px, calc(100vw - 28px));
-  max-height: min(84vh, 720px);
+  --weekly-panel-text: #f5f9ff;
+  --weekly-panel-muted: #91a7c1;
+  --weekly-panel-line: rgba(132, 163, 199, 0.17);
+  --weekly-panel-card: rgba(8, 22, 43, 0.46);
+  --weekly-panel-card-strong: rgba(18, 58, 88, 0.44);
+  width: min(980px, calc(100vw - 28px));
+  max-height: min(90dvh, 780px);
   padding: 0;
   overflow: hidden;
   display: flex;
@@ -1196,59 +1201,80 @@ h2 {
 
 .weekly-weather-panel .settings-modal-header {
   flex: 0 0 auto;
-  padding-right: 14px;
+  min-height: 72px;
+  padding: 14px 16px 13px 22px;
 }
 
 .weekly-weather-panel .settings-modal-header > div {
   min-width: 0;
 }
 
+.weekly-weather-panel .settings-modal-header h2 {
+  font-size: 21px;
+  letter-spacing: 0;
+}
+
 .weekly-weather-panel .settings-modal-kicker {
   display: block;
-  margin-bottom: 2px;
-  color: #81cfff;
+  margin-bottom: 4px;
+  color: #82bfe4;
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .weekly-weather-region-control {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: 90px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  margin: 12px 18px 0;
+  gap: 14px;
+  margin: 0;
+  padding: 12px 22px 14px;
+  border-block: 1px solid var(--weekly-panel-line);
+  background: rgba(8, 22, 43, 0.22);
 }
 
 .weekly-weather-region-control label {
-  color: #91a5bf;
+  display: grid;
+  gap: 2px;
+  color: #9bb0ca;
   font-size: 12px;
   font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.weekly-weather-region-control label small {
+  color: #7288a3;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .weekly-weather-region-control select {
   width: 100%;
-  min-height: 42px;
-  padding: 0 38px 0 14px;
-  border: 1px solid rgba(126, 154, 190, 0.28);
+  min-height: 44px;
+  padding: 0 42px 0 15px;
+  border: 1px solid rgba(126, 154, 190, 0.3);
   border-radius: 12px;
-  color: #f5f9ff;
-  background-color: rgba(8, 22, 43, 0.72);
+  color: var(--weekly-panel-text);
+  background-color: rgba(8, 23, 43, 0.72);
   font: inherit;
   font-size: 14px;
   font-weight: 800;
   color-scheme: dark;
+  cursor: pointer;
 }
 
 .weekly-weather-region-control select:focus-visible {
-  outline: 2px solid #4fc3ff;
+  border-color: #50bde9;
+  outline: 2px solid rgba(80, 189, 233, 0.28);
   outline-offset: 2px;
 }
 
 .weekly-weather-body {
-  min-height: 258px;
-  padding: 18px;
+  min-height: 292px;
+  padding: 17px 22px 18px;
   overflow: auto;
   scrollbar-width: none;
 }
@@ -1262,76 +1288,159 @@ h2 {
   align-items: end;
   justify-content: space-between;
   gap: 16px;
+  min-height: 52px;
   margin-bottom: 14px;
 }
 
-.weekly-weather-summary span {
+.weekly-weather-summary-heading {
+  min-width: 0;
+}
+
+.weekly-weather-summary-heading > span {
   display: block;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
   color: #8fa6c5;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
+  letter-spacing: 0.05em;
 }
 
 .weekly-weather-summary h3 {
   margin: 0;
-  color: #f5f9ff;
-  font-size: clamp(19px, 3vw, 27px);
-  line-height: 1.2;
+  color: var(--weekly-panel-text);
+  font-size: clamp(21px, 2.7vw, 27px);
+  line-height: 1.1;
 }
 
-.weekly-weather-summary p {
+.weekly-weather-issued {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
   margin: 0;
-  color: #91a5bf;
-  font-size: 11px;
+  color: var(--weekly-panel-muted);
+  font-size: 10px;
   font-weight: 700;
-  line-height: 1.55;
+  line-height: 1.35;
   text-align: right;
+}
+
+.weekly-weather-issued small {
+  margin-bottom: 2px;
+  color: #7289a5;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.weekly-weather-issued strong {
+  color: #d9e7f7;
+  font-size: 11px;
 }
 
 .weekly-weather-days {
   display: grid;
-  grid-template-columns: repeat(7, minmax(98px, 1fr));
-  gap: 7px;
+  grid-template-columns: repeat(auto-fit, minmax(104px, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--weekly-panel-line);
+  border-radius: 14px;
+  background: var(--weekly-panel-card);
 }
 
 .weekly-weather-day {
-  --weekly-weather-glyph-surface: #0b192d;
+  --weekly-weather-glyph-surface: #0a1a2f;
+  position: relative;
+  display: grid;
+  grid-template:
+    "heading" auto
+    "icon" 58px
+    "label" minmax(36px, auto)
+    "temperature" minmax(28px, auto)
+    "precipitation" auto
+    / minmax(0, 1fr);
+  align-items: center;
   min-width: 0;
-  padding: 11px 8px 9px;
-  border: 1px solid rgba(126, 154, 190, 0.2);
-  border-radius: 13px;
-  background: rgba(8, 22, 43, 0.48);
+  padding: 12px 9px 10px;
+  border: 0;
+  border-right: 1px solid var(--weekly-panel-line);
+  border-radius: 0;
+  background: transparent;
   text-align: center;
 }
 
+.weekly-weather-day:last-child {
+  border-right: 0;
+}
+
 .weekly-weather-day.is-first {
-  --weekly-weather-glyph-surface: #102d48;
-  border-color: rgba(72, 187, 255, 0.48);
-  background: rgba(29, 88, 133, 0.32);
+  --weekly-weather-glyph-surface: #0c2841;
+  grid-row: auto;
+  padding: 12px 9px 10px;
+  background: var(--weekly-panel-card-strong);
+  text-align: center;
+}
+
+.weekly-weather-day-heading {
+  grid-area: heading;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 24px;
+  margin-bottom: 1px;
+}
+
+.weekly-weather-day-heading > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.weekly-weather-today {
+  padding: 3px 6px;
+  border-radius: 999px;
+  color: #061a2c;
+  background: #5bcbf6;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
 }
 
 .weekly-weather-day time {
-  display: block;
-  color: #c9d8eb;
-  font-size: 12px;
+  color: #d1dfef;
+  font-size: 11px;
   font-weight: 900;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 .weekly-weather-icon {
+  grid-area: icon;
   display: grid;
   place-items: center;
   height: 58px;
-  margin: 1px 0 0;
+  margin: 0;
+}
+
+.weekly-weather-day.is-first .weekly-weather-icon {
+  height: 58px;
 }
 
 .weekly-weather-glyph {
   display: block;
-  width: 82px;
-  height: 58px;
+  width: 74px;
+  height: 52px;
   max-width: 100%;
   overflow: visible;
   color: #fff;
+}
+
+.weekly-weather-day.is-first .weekly-weather-glyph {
+  width: 74px;
+  height: 52px;
 }
 
 .weekly-weather-glyph-main,
@@ -1392,32 +1501,57 @@ h2 {
   fill: rgba(238, 245, 255, 0.05);
 }
 
-.weekly-weather-day > strong {
+.weekly-weather-label {
+  grid-area: label;
   display: -webkit-box;
-  min-height: 37px;
+  min-width: 0;
+  max-height: 36px;
   overflow: hidden;
-  color: #f3f8ff;
-  font-size: 12px;
+  color: var(--weekly-panel-text);
+  font-size: 11px;
   line-height: 1.5;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
 
-.weekly-weather-temperature {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 4px;
-  min-height: 27px;
-  margin-top: 5px;
-  font-size: 16px;
-  font-weight: 900;
+.weekly-weather-day.is-first .weekly-weather-label {
+  max-height: 36px;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
-.weekly-weather-temperature i {
-  color: #7187a3;
-  font-size: 11px;
-  font-style: normal;
+.weekly-weather-temperature {
+  grid-area: temperature;
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  min-width: 0;
+  min-height: 24px;
+  margin: 1px 0 0;
+}
+
+.weekly-weather-day.is-first .weekly-weather-temperature {
+  justify-content: center;
+  gap: 8px;
+  margin-top: 1px;
+}
+
+.weekly-weather-temperature-item {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  min-width: 0;
+}
+
+.weekly-weather-temperature-item small {
+  color: #7890aa;
+  font-size: 7px;
+  font-weight: 800;
+}
+
+.weekly-weather-temperature-item b {
+  font-size: 16px;
+  line-height: 1;
 }
 
 .weekly-weather-high {
@@ -1430,29 +1564,51 @@ h2 {
 
 .weekly-weather-temperature-empty {
   color: #8296ae;
+  font-size: 10px;
+  font-weight: 700;
 }
 
-.weekly-weather-day > p {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  margin: 3px 0 0;
-  color: #8fa3bd;
+.weekly-weather-day.is-first .weekly-weather-temperature-empty {
+  color: #8296ae;
   font-size: 10px;
 }
 
-.weekly-weather-day > p b {
+.weekly-weather-precipitation {
+  grid-area: precipitation;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 6px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid rgba(132, 163, 199, 0.12);
+  color: #8299b3;
+  font-size: 9px;
+}
+
+.weekly-weather-precipitation b {
   color: #dcecff;
   font-size: 11px;
 }
 
+.weekly-weather-day.is-first .weekly-weather-precipitation {
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+}
+
 .weekly-weather-reliability {
-  display: inline-block;
-  margin-top: 4px;
-  color: #a9b9cc;
-  font-size: 9px;
-  font-weight: 700;
+  position: absolute;
+  top: 8px;
+  right: 7px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 4px;
+  color: #a8bad0;
+  background: rgba(111, 145, 181, 0.1);
+  font-size: 7px;
+  font-weight: 800;
+  line-height: 1;
 }
 
 .weekly-weather-source {
@@ -1460,8 +1616,10 @@ h2 {
   justify-content: space-between;
   gap: 12px;
   margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid var(--weekly-panel-line);
   color: #7890ae;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
 }
 
@@ -1514,8 +1672,24 @@ html[data-theme="light"] .weekly-weather-panel .settings-modal-kicker {
   color: #1675aa;
 }
 
+html[data-theme="light"] .weekly-weather-panel {
+  --weekly-panel-text: #152a41;
+  --weekly-panel-muted: #60758e;
+  --weekly-panel-line: rgba(75, 108, 139, 0.15);
+  --weekly-panel-card: rgba(255, 255, 255, 0.62);
+  --weekly-panel-card-strong: rgba(224, 243, 253, 0.76);
+}
+
 html[data-theme="light"] .weekly-weather-region-control label {
   color: #58718b;
+}
+
+html[data-theme="light"] .weekly-weather-region-control label small {
+  color: #71869c;
+}
+
+html[data-theme="light"] .weekly-weather-region-control {
+  background: rgba(224, 237, 247, 0.32);
 }
 
 html[data-theme="light"] .weekly-weather-region-control select {
@@ -1533,21 +1707,22 @@ html[data-theme="light"] .weekly-weather-state p {
 }
 
 html[data-theme="light"] .weekly-weather-summary h3,
-html[data-theme="light"] .weekly-weather-day > strong,
+html[data-theme="light"] .weekly-weather-label,
 html[data-theme="light"] .weekly-weather-state strong {
   color: #152a41;
 }
 
 html[data-theme="light"] .weekly-weather-day {
   --weekly-weather-glyph-surface: #f7fafc;
-  border-color: rgba(63, 92, 123, 0.18);
-  background: rgba(255, 255, 255, 0.64);
 }
 
 html[data-theme="light"] .weekly-weather-day.is-first {
   --weekly-weather-glyph-surface: #eaf6fc;
-  border-color: rgba(23, 142, 204, 0.42);
-  background: rgba(173, 223, 249, 0.28);
+}
+
+html[data-theme="light"] .weekly-weather-today {
+  color: #fff;
+  background: #137daf;
 }
 
 html[data-theme="light"] .weekly-weather-day time {
@@ -1562,37 +1737,55 @@ html[data-theme="light"] .weekly-weather-glyph-storm-cloud {
   fill: rgba(47, 71, 95, 0.04);
 }
 
-html[data-theme="light"] .weekly-weather-day > p {
+html[data-theme="light"] .weekly-weather-precipitation {
+  border-top-color: rgba(75, 108, 139, 0.12);
   color: #647c94;
 }
 
-html[data-theme="light"] .weekly-weather-day > p b {
+html[data-theme="light"] .weekly-weather-precipitation b {
   color: #203d59;
 }
 
 html[data-theme="light"] .weekly-weather-reliability {
-  color: #60758d;
+  border-color: rgba(75, 108, 139, 0.16);
+  color: #536d87;
+  background: rgba(88, 124, 156, 0.08);
+}
+
+html[data-theme="light"] .weekly-weather-issued strong {
+  color: #294a66;
 }
 
 @media (max-width: 800px) {
   .weekly-weather-modal {
     align-items: end;
-    padding: 8px;
+    padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
   }
 
   .weekly-weather-panel {
     width: 100%;
-    max-height: min(82dvh, 700px);
-    border-radius: 24px;
+    max-height: min(90dvh, 760px);
+    border-radius: 22px;
+  }
+
+  .weekly-weather-panel .settings-modal-header {
+    min-height: 66px;
+    padding: 12px 12px 11px 17px;
+  }
+
+  .weekly-weather-panel .settings-modal-header h2 {
+    font-size: 18px;
   }
 
   .weekly-weather-body {
-    min-height: 300px;
-    padding: 14px 12px max(18px, env(safe-area-inset-bottom));
+    min-height: 330px;
+    padding: 13px 14px max(16px, env(safe-area-inset-bottom));
   }
 
   .weekly-weather-region-control {
-    margin: 10px 12px 0;
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 8px;
+    padding: 10px 14px 11px;
   }
 
   .weekly-weather-region-control select {
@@ -1601,36 +1794,177 @@ html[data-theme="light"] .weekly-weather-reliability {
   }
 
   .weekly-weather-summary {
-    align-items: start;
-    margin-bottom: 11px;
+    min-height: 46px;
+    margin-bottom: 10px;
   }
 
-  .weekly-weather-summary p {
+  .weekly-weather-summary h3 {
+    font-size: 20px;
+  }
+
+  .weekly-weather-issued {
     font-size: 9px;
   }
 
   .weekly-weather-days {
-    display: flex;
-    gap: 8px;
-    margin-inline: -12px;
-    padding-inline: 12px;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scrollbar-width: none;
+    display: block;
   }
 
-  .weekly-weather-days::-webkit-scrollbar {
-    display: none;
+  .weekly-weather-day,
+  .weekly-weather-day.is-first {
+    grid-template:
+      "heading icon label temperature precipitation" minmax(68px, auto)
+      / 66px 64px minmax(90px, 1fr) 78px 58px;
+    gap: 7px;
+    padding: 7px 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--weekly-panel-line);
+    text-align: left;
   }
 
-  .weekly-weather-day {
-    flex: 0 0 116px;
-    scroll-snap-align: start;
+  .weekly-weather-day:last-child {
+    border-bottom: 0;
+  }
+
+  .weekly-weather-day-heading {
+    justify-content: start;
+    min-height: 0;
+    margin: 0;
+  }
+
+  .weekly-weather-day-heading > div {
+    display: grid;
+    justify-items: start;
+    gap: 3px;
+  }
+
+  .weekly-weather-today {
+    order: 1;
+  }
+
+  .weekly-weather-day time {
+    order: 2;
+  }
+
+  .weekly-weather-icon,
+  .weekly-weather-day.is-first .weekly-weather-icon {
+    height: 54px;
+  }
+
+  .weekly-weather-glyph,
+  .weekly-weather-day.is-first .weekly-weather-glyph {
+    width: 72px;
+    height: 50px;
+  }
+
+  .weekly-weather-label,
+  .weekly-weather-day.is-first .weekly-weather-label {
+    max-height: 40px;
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .weekly-weather-temperature,
+  .weekly-weather-day.is-first .weekly-weather-temperature {
+    display: grid;
+    justify-content: start;
+    gap: 3px;
+    margin: 0;
+  }
+
+  .weekly-weather-temperature-item {
+    justify-content: space-between;
+    gap: 4px;
+  }
+
+  .weekly-weather-temperature-item small {
+    font-size: 7px;
+  }
+
+  .weekly-weather-temperature-item b {
+    font-size: 15px;
+  }
+
+  .weekly-weather-precipitation,
+  .weekly-weather-day.is-first .weekly-weather-precipitation {
+    display: grid;
+    justify-items: end;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    text-align: right;
+  }
+
+  .weekly-weather-reliability {
+    position: static;
+    margin-top: 2px;
   }
 
   .weekly-weather-source {
     display: grid;
     gap: 2px;
+    margin-top: 11px;
+  }
+}
+
+@media (max-width: 430px) {
+  .weekly-weather-panel {
+    max-height: min(92dvh, 780px);
+  }
+
+  .weekly-weather-panel .settings-modal-header h2 {
+    font-size: 17px;
+  }
+
+  .weekly-weather-panel .settings-modal-kicker {
+    font-size: 9px;
+  }
+
+  .weekly-weather-region-control {
+    grid-template-columns: 66px minmax(0, 1fr);
+  }
+
+  .weekly-weather-region-control label {
+    font-size: 11px;
+  }
+
+  .weekly-weather-summary {
+    align-items: center;
+  }
+
+  .weekly-weather-summary h3 {
+    font-size: 19px;
+  }
+
+  .weekly-weather-day,
+  .weekly-weather-day.is-first {
+    grid-template:
+      "heading icon label temperature precipitation" minmax(64px, auto)
+      / 56px 54px minmax(72px, 1fr) 60px 44px;
+    gap: 5px;
+    padding-inline: 8px;
+  }
+
+  .weekly-weather-icon {
+    height: 48px;
+  }
+
+  .weekly-weather-glyph {
+    width: 65px;
+    height: 46px;
+  }
+
+  .weekly-weather-temperature {
+    gap: 3px;
+  }
+
+  .weekly-weather-temperature-item {
+    gap: 3px;
+  }
+
+  .weekly-weather-temperature-item b {
+    font-size: 15px;
   }
 }
 

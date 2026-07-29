@@ -87,13 +87,16 @@ function renderRegionOptions(catalog) {
     const group = document.createElement("optgroup");
     group.label = office.officeName;
     office.regions.forEach((region) => {
-      const key = `${office.officeCode}:${region.areaCode}`;
+      const key = `${office.officeCode}:${region.areaCode}:${region.forecastAreaCode}`;
       regionByKey.set(key, {
         ...region,
         officeCode: office.officeCode,
         officeName: office.officeName
       });
-      group.append(new Option(`${office.officeName}・${region.areaName}`, key));
+      const optionLabel = region.areaName === office.officeName
+        ? region.areaName
+        : `${office.officeName}・${region.areaName}`;
+      group.append(new Option(optionLabel, key));
     });
     fragment.append(group);
   });
@@ -123,7 +126,7 @@ async function loadWeeklyWeather() {
       if (locationInfo?.status !== "found" || !locationInfo.areaCode) {
         throw new Error(locationInfo?.message || "現在地を取得できませんでした。");
       }
-      renderState(body, "週間天気予報を取得中", "気象庁の最新VPFW50を読み込んでいます。", true);
+      renderState(body, "週間天気予報を取得中", "気象庁の最新予報を読み込んでいます。", true);
       forecast = await fetchWeeklyForecastForLocation(locationInfo);
     } else {
       const region = regionByKey.get(selectedValue);
@@ -131,7 +134,7 @@ async function loadWeeklyWeather() {
       renderState(
         body,
         `${region.areaName}の週間天気予報を取得中`,
-        "気象庁の最新VPFW50を読み込んでいます。",
+        "気象庁の最新予報を読み込んでいます。",
         true
       );
       forecast = await fetchWeeklyForecastForRegion(region);
@@ -154,20 +157,28 @@ async function loadWeeklyWeather() {
 
 function renderForecast(body, forecast) {
   const days = forecast.days ?? [];
+  const officeName = forecast.officeName || forecast.publishingOffice;
+  const summaryLabel = officeName && officeName !== forecast.areaName
+    ? officeName
+    : "予報区域";
   body.innerHTML = `
     <div class="weekly-weather-summary">
-      <div>
-        <span>${escapeHtml(forecast.officeName || forecast.publishingOffice)}</span>
+      <div class="weekly-weather-summary-heading">
+        <span>${escapeHtml(summaryLabel)}</span>
         <h3>${escapeHtml(forecast.areaName)}</h3>
       </div>
-      <p>${escapeHtml(forecast.reportTimeLabel)} 発表<br>${escapeHtml(forecast.publishingOffice)}</p>
+      <p class="weekly-weather-issued">
+        <small>最新発表</small>
+        <strong>${escapeHtml(forecast.reportTimeLabel)}</strong>
+        <span>${escapeHtml(forecast.publishingOffice)}</span>
+      </p>
     </div>
-    <div class="weekly-weather-days" role="list" aria-label="7日間の天気予報">
+    <div class="weekly-weather-days" role="list" aria-label="週間天気予報">
       ${days.map(renderDay).join("")}
     </div>
     <footer class="weekly-weather-source">
-      <span>気象庁 防災情報XML「府県週間天気予報」</span>
-      <span>VPFW50${forecast.stationName ? `・気温 ${escapeHtml(forecast.stationName)}` : ""}</span>
+      <span>気象庁 防災情報XML「府県天気予報・府県週間天気予報」</span>
+      <span>${escapeHtml(forecast.bulletinCode)}${forecast.stationName ? `・気温 ${escapeHtml(forecast.stationName)}` : ""}</span>
     </footer>
   `;
 }
@@ -184,23 +195,62 @@ function renderDay(day, index) {
       timeZone: "Asia/Tokyo"
     }).format(date);
   const temperature = day.maxTemperature === null && day.minTemperature === null
-    ? `<span class="weekly-weather-temperature-empty">－</span>`
-    : `<span class="weekly-weather-high">${formatTemperature(day.maxTemperature)}</span><i>/</i><span class="weekly-weather-low">${formatTemperature(day.minTemperature)}</span>`;
+    ? `<span class="weekly-weather-temperature-empty">気温未発表</span>`
+    : `
+      <span class="weekly-weather-temperature-item is-high">
+        <small>最高</small>
+        <b class="weekly-weather-high">${formatTemperature(day.maxTemperature)}</b>
+      </span>
+      <span class="weekly-weather-temperature-item is-low">
+        <small>最低</small>
+        <b class="weekly-weather-low">${formatTemperature(day.minTemperature)}</b>
+      </span>
+    `;
   const precipitation = day.precipitationProbability === null ? "－" : `${day.precipitationProbability}%`;
-  const reliability = day.reliability ? `<span class="weekly-weather-reliability">信頼度 ${escapeHtml(day.reliability)}</span>` : "";
+  const reliability = day.reliability
+    ? `<span class="weekly-weather-reliability" aria-label="予報の信頼度 ${escapeHtml(day.reliability)}">${escapeHtml(day.reliability)}</span>`
+    : "";
+  const relativeDayLabel = getWeeklyWeatherRelativeDayLabel(day.date);
+  const dayLabel = relativeDayLabel
+    ? `<span class="weekly-weather-today">${relativeDayLabel}</span>`
+    : "";
 
   return `
     <article class="weekly-weather-day${index === 0 ? " is-first" : ""}" role="listitem">
-      <time datetime="${escapeHtml(day.date)}">${escapeHtml(dateLabel)}</time>
+      <header class="weekly-weather-day-heading">
+        <div>${dayLabel}<time datetime="${escapeHtml(day.date)}">${escapeHtml(dateLabel)}</time></div>
+        ${reliability}
+      </header>
       <div class="weekly-weather-icon">
         ${renderWeeklyWeatherGlyph(day.weatherCode, weatherLabel)}
       </div>
-      <strong>${escapeHtml(weatherLabel)}</strong>
+      <strong class="weekly-weather-label">${escapeHtml(weatherLabel)}</strong>
       <div class="weekly-weather-temperature">${temperature}</div>
-      <p><span>降水</span><b>${escapeHtml(precipitation)}</b></p>
-      ${reliability}
+      <p class="weekly-weather-precipitation"><span>降水確率</span><b>${escapeHtml(precipitation)}</b></p>
     </article>
   `;
+}
+
+export function getWeeklyWeatherRelativeDayLabel(dayValue, referenceDate = new Date()) {
+  const dayKey = String(dayValue ?? "").slice(0, 10);
+  if (!dayKey) return "";
+  const todayKey = formatJapanDateKey(referenceDate);
+  if (dayKey === todayKey) return "今日";
+  const tomorrow = new Date(referenceDate.getTime() + 24 * 60 * 60 * 1000);
+  return dayKey === formatJapanDateKey(tomorrow) ? "明日" : "";
+}
+
+function formatJapanDateKey(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Asia/Tokyo"
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function renderState(body, title, message, loading = false, retry = false) {

@@ -1,10 +1,14 @@
 import { JMA_ENDPOINTS } from "../config.js";
 import { fetchJson, fetchText, parseJmaTime } from "./jmaClient.js";
-import { findLatestVpFw50DetailUrl, isVpFw50Xml } from "./vpfw50Feed.js";
+import {
+  findLatestJmaForecastDetailUrl,
+  isJmaForecastXml
+} from "./vpfw50Feed.js";
 
 const AREA_COLLECTIONS = ["class20s", "class15s", "class10s", "offices", "centers"];
-const WEEKLY_FORECAST_TTL_MS = 15 * 60 * 1000;
+const FORECAST_TTL_MS = 5 * 60 * 1000;
 const WEEKLY_AREA_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_MERGED_FORECAST_DAYS = 8;
 
 export async function fetchWeeklyForecastForLocation(locationInfo) {
   const municipalityCode = String(locationInfo?.areaCode ?? "").trim();
@@ -13,8 +17,7 @@ export async function fetchWeeklyForecastForLocation(locationInfo) {
   const [areaData, weekAreaData] = await fetchWeeklyForecastAreaData();
   const target = resolveWeeklyForecastTarget(areaData, weekAreaData, municipalityCode);
 
-  const xml = await fetchLatestVpFw50Xml(target.officeCode);
-  return parseWeeklyForecastXml(xml, {
+  return fetchAndMergeForecasts(target.officeCode, {
     areaPath: target.areaPath,
     targetAreaName: target.areaName,
     coordinates: locationInfo?.coordinates,
@@ -44,8 +47,7 @@ export async function fetchWeeklyForecastForRegion(region) {
     ...resolveJmaAreaPath(areaData, areaCode).filter((code) => code !== areaCode),
     officeCode
   ];
-  const xml = await fetchLatestVpFw50Xml(officeCode);
-  return parseWeeklyForecastXml(xml, {
+  return fetchAndMergeForecasts(officeCode, {
     areaPath: [...new Set(areaPath)],
     targetAreaName: String(region?.areaName ?? ""),
     municipalityName: officeName,
@@ -73,30 +75,52 @@ async function fetchWeeklyForecastAreaData() {
   ]);
 }
 
-async function fetchLatestVpFw50Xml(officeCode) {
+async function fetchAndMergeForecasts(officeCode, context) {
+  const [weeklyXml, shortTermXml] = await Promise.all([
+    fetchLatestForecastXml(officeCode, "VPFW50"),
+    fetchLatestForecastXml(officeCode, "VPFD51").catch((error) => {
+      console.warn("[MeteoScope] latest VPFD51 unavailable; using VPFW50 only", error);
+      return "";
+    })
+  ]);
+  const weeklyForecast = parseWeeklyForecastXml(weeklyXml, context);
+  if (!shortTermXml) return weeklyForecast;
   try {
-    return await fetchText(`${JMA_ENDPOINTS.weeklyForecastXml}?officeCode=${encodeURIComponent(officeCode)}`, {
-      ttlMs: WEEKLY_FORECAST_TTL_MS,
+    return mergeWeeklyForecastWithShortTerm(
+      weeklyForecast,
+      parseForecastXml(shortTermXml, context, "VPFD51")
+    );
+  } catch (error) {
+    console.warn("[MeteoScope] latest VPFD51 could not be merged; using VPFW50 only", error);
+    return weeklyForecast;
+  }
+}
+
+async function fetchLatestForecastXml(officeCode, bulletinCode) {
+  try {
+    const query = new URLSearchParams({ officeCode, bulletinCode });
+    return await fetchText(`${JMA_ENDPOINTS.weeklyForecastXml}?${query}`, {
+      ttlMs: FORECAST_TTL_MS,
       timeoutMs: 15 * 1000,
       staleIfError: true,
-      validate: isVpFw50Xml
+      validate: isJmaForecastXml
     });
   } catch (apiError) {
-    console.warn("[MeteoScope] weekly forecast API unavailable; using JMA XML feed", apiError);
+    console.warn(`[MeteoScope] ${bulletinCode} API unavailable; using JMA XML feed`, apiError);
     for (const feedUrl of [JMA_ENDPOINTS.weatherXmlFeed, JMA_ENDPOINTS.weatherXmlLongFeed]) {
       try {
         const feed = await fetchText(feedUrl, {
-          ttlMs: WEEKLY_FORECAST_TTL_MS,
+          ttlMs: FORECAST_TTL_MS,
           timeoutMs: 20 * 1000,
           staleIfError: true
         });
-        const detailUrl = findLatestVpFw50DetailUrl(feed, officeCode);
+        const detailUrl = findLatestJmaForecastDetailUrl(feed, officeCode, bulletinCode);
         if (detailUrl) {
           return fetchText(detailUrl, {
-            ttlMs: WEEKLY_FORECAST_TTL_MS,
+            ttlMs: FORECAST_TTL_MS,
             timeoutMs: 15 * 1000,
             staleIfError: true,
-            validate: isVpFw50Xml
+            validate: isJmaForecastXml
           });
         }
       } catch (feedError) {
@@ -134,28 +158,33 @@ export function resolveWeeklyForecastTarget(areaData, weekAreaData, areaCode) {
   const candidates = Array.isArray(weekAreaData?.[officeCode])
     ? weekAreaData[officeCode]
     : [];
-  const mapped = candidates.find((entry) => areaPath.includes(String(entry?.srf ?? ""))
-      && String(entry?.week ?? "") !== officeCode)
+  const forecastAreaCode = areaPath.find((code) =>
+    areaData?.class10s?.[code] || areaData?.class15s?.[code]
+  ) ?? "";
+  const officeWideMapping = candidates.find((entry) => String(entry?.week ?? "") === officeCode);
+  const mapped = candidates.find((entry) => String(entry?.srf ?? "") === forecastAreaCode)
+    ?? officeWideMapping
     ?? candidates.find((entry) => areaPath.includes(String(entry?.srf ?? "")))
-    ?? candidates.find((entry) => String(entry?.week ?? "") === officeCode)
     ?? candidates[0];
   const weeklyAreaCode = String(mapped?.week ?? officeCode);
-  const forecastAreaCode = String(mapped?.srf ?? weeklyAreaCode);
+  const resolvedForecastAreaCode = forecastAreaCode || String(mapped?.srf ?? weeklyAreaCode);
 
   return {
     officeCode,
     officeName: areaData?.offices?.[officeCode]?.name ?? "",
     areaCode: weeklyAreaCode,
-    forecastAreaCode,
-    areaName: findAreaEntry(areaData, forecastAreaCode)?.name
+    forecastAreaCode: resolvedForecastAreaCode,
+    areaName: findAreaEntry(areaData, resolvedForecastAreaCode)?.name
       ?? findAreaEntry(areaData, weeklyAreaCode)?.name
       ?? "",
     areaPath: [...new Set([
       weeklyAreaCode,
-      forecastAreaCode,
+      resolvedForecastAreaCode,
       ...areaPath.filter((code) => code !== weeklyAreaCode)
     ])],
-    stationCode: String(mapped?.amedas ?? "")
+    stationCode: String(mapped?.srf ?? "") === resolvedForecastAreaCode
+      ? String(mapped?.amedas ?? "")
+      : ""
   };
 }
 
@@ -165,27 +194,32 @@ export function buildWeeklyForecastRegionCatalog(areaData, weekAreaData) {
     const regions = [];
     const seen = new Set();
 
-    const mappingsByForecastArea = new Map();
+    const forecastAreas = Object.entries(areaData?.class10s ?? {})
+      .filter(([, entry]) => String(entry?.parent ?? "") === officeCode);
     mappings.forEach((mapping) => {
       const forecastAreaCode = String(mapping?.srf ?? "").trim();
-      if (!/^\d{6}$/u.test(forecastAreaCode)) return;
-      const candidates = mappingsByForecastArea.get(forecastAreaCode) ?? [];
-      candidates.push(mapping);
-      mappingsByForecastArea.set(forecastAreaCode, candidates);
+      if (!forecastAreas.some(([code]) => code === forecastAreaCode)) {
+        const areaEntry = findAreaEntry(areaData, forecastAreaCode);
+        if (areaEntry) forecastAreas.push([forecastAreaCode, areaEntry]);
+      }
     });
+    const officeWideMapping = mappings.find((entry) => String(entry?.week ?? "") === officeCode);
 
-    mappingsByForecastArea.forEach((candidates, forecastAreaCode) => {
+    forecastAreas.forEach(([forecastAreaCode, forecastAreaEntry]) => {
       if (seen.has(forecastAreaCode)) return;
       seen.add(forecastAreaCode);
-      const mapping = candidates.find((entry) => String(entry?.week ?? "") === forecastAreaCode)
-        ?? candidates[0];
+      const mapping = mappings.find((entry) => String(entry?.srf ?? "") === forecastAreaCode)
+        ?? officeWideMapping
+        ?? mappings[0];
       const areaCode = String(mapping?.week ?? forecastAreaCode).trim();
-      const areaEntry = findAreaEntry(areaData, forecastAreaCode);
       regions.push({
         areaCode,
         forecastAreaCode,
-        areaName: areaEntry?.name ?? areaData.offices[officeCode].name,
-        stationCode: String(mapping?.amedas ?? "").trim()
+        areaName: forecastAreaEntry?.name
+          ?? areaData.offices[officeCode].name,
+        stationCode: String(mapping?.srf ?? "") === forecastAreaCode
+          ? String(mapping?.amedas ?? "").trim()
+          : ""
       });
     });
     if (!regions.length) return [];
@@ -201,6 +235,10 @@ export function buildWeeklyForecastRegionCatalog(areaData, weekAreaData) {
 }
 
 export function parseWeeklyForecastXml(xml, context = {}) {
+  return parseForecastXml(xml, context, "VPFW50");
+}
+
+function parseForecastXml(xml, context = {}, bulletinCode = "VPFW50") {
   const documentNode = new DOMParser().parseFromString(String(xml ?? ""), "application/xml");
   if (elementsByLocalName(documentNode, "parsererror").length > 0) {
     throw new Error("週間天気予報XMLを解析できません。");
@@ -227,7 +265,9 @@ export function parseWeeklyForecastXml(xml, context = {}) {
     context.stationCode,
     areaSelection.itemIndex
   );
-  if (pointSelection) applyTemperatureValues(pointSelection.item, daysByRef);
+  if (pointSelection) {
+    applyTemperatureValues(pointSelection.series, pointSelection.item, daysByRef);
+  }
 
   const area = areaSelection.target;
   const station = pointSelection?.target ?? null;
@@ -235,7 +275,7 @@ export function parseWeeklyForecastXml(xml, context = {}) {
 
   return {
     source: "気象庁 防災情報XML",
-    bulletinCode: "VPFW50",
+    bulletinCode,
     reportTime,
     reportTimeLabel: parseJmaTime(reportTime) ?? reportTime,
     publishingOffice,
@@ -248,6 +288,53 @@ export function parseWeeklyForecastXml(xml, context = {}) {
     stationName: station?.name ?? "",
     days
   };
+}
+
+export function mergeWeeklyForecastWithShortTerm(weeklyForecast, shortTermForecast) {
+  if (!shortTermForecast?.days?.length) return weeklyForecast;
+  const daysByDate = new Map(
+    (weeklyForecast?.days ?? []).map((day) => [forecastDateKey(day.date), day])
+  );
+  shortTermForecast.days.forEach((shortTermDay) => {
+    const dateKey = forecastDateKey(shortTermDay.date);
+    const weeklyDay = daysByDate.get(dateKey);
+    daysByDate.set(dateKey, weeklyDay ? {
+      ...weeklyDay,
+      weather: shortTermDay.weather || weeklyDay.weather,
+      weatherCode: shortTermDay.weatherCode || weeklyDay.weatherCode,
+      precipitationProbability: shortTermDay.precipitationProbability
+        ?? weeklyDay.precipitationProbability,
+      minTemperature: shortTermDay.minTemperature ?? weeklyDay.minTemperature,
+      maxTemperature: shortTermDay.maxTemperature ?? weeklyDay.maxTemperature
+    } : shortTermDay);
+  });
+  const mergedDays = [...daysByDate.values()]
+    .sort((left, right) => forecastDateKey(left.date).localeCompare(forecastDateKey(right.date)))
+    .slice(0, MAX_MERGED_FORECAST_DAYS);
+  const shortTermIsNewer = forecastTimestamp(shortTermForecast.reportTime)
+    > forecastTimestamp(weeklyForecast.reportTime);
+  const latest = shortTermIsNewer ? shortTermForecast : weeklyForecast;
+
+  return {
+    ...weeklyForecast,
+    areaCode: shortTermForecast.areaCode || weeklyForecast.areaCode,
+    areaName: shortTermForecast.areaName || weeklyForecast.areaName,
+    reportTime: latest.reportTime,
+    reportTimeLabel: latest.reportTimeLabel,
+    publishingOffice: latest.publishingOffice,
+    bulletinCode: "VPFD51+VPFW50",
+    bulletinCodes: ["VPFD51", "VPFW50"],
+    days: mergedDays
+  };
+}
+
+function forecastDateKey(value) {
+  return String(value ?? "").slice(0, 10);
+}
+
+function forecastTimestamp(value) {
+  const timestamp = Date.parse(String(value ?? ""));
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function findAreaEntry(areaData, areaCode) {
@@ -285,14 +372,25 @@ function normalizeAreaName(value) {
 function choosePointSelection(infos, stationCode, preferredIndex = 0) {
   const selections = buildSeriesItemSelections(infos, "Station");
   if (stationCode) {
-    const exact = selections.find((selection) => selection.target?.code === String(stationCode));
+    const exactMatches = selections.filter(
+      (selection) => selection.target?.code === String(stationCode)
+    );
+    const exact = exactMatches.find((selection) => hasDailyTemperatureValues(selection.item))
+      ?? exactMatches[0];
     if (exact) return exact;
   }
   const firstSeries = selections[0]?.series;
-  return selections.find((selection) => selection.series === firstSeries
+  return selections.find((selection) => hasDailyTemperatureValues(selection.item))
+    ?? selections.find((selection) => selection.series === firstSeries
       && selection.itemIndex === preferredIndex)
     ?? selections[0]
     ?? null;
+}
+
+function hasDailyTemperatureValues(item) {
+  return elementsByLocalName(item, "Temperature").some((node) =>
+    Boolean(dailyTemperatureKey(node.getAttribute("type")))
+  );
 }
 
 function buildSeriesItemSelections(infos, targetTagName) {
@@ -341,19 +439,36 @@ function applyAreaForecastValues(series, days) {
   elementsByLocalName(series, "ReliabilityClass").forEach((node) => setDayValue(days, node, "reliability", node.textContent?.trim() ?? ""));
 }
 
-function applyTemperatureValues(series, days) {
-  elementsByLocalName(series, "Temperature").forEach((node) => {
-    const type = node.getAttribute("type") ?? "";
-    const key = {
-      "最低気温": "minTemperature",
-      "最低気温予測範囲（下端）": "minTemperatureLower",
-      "最低気温予測範囲（上端）": "minTemperatureUpper",
-      "最高気温": "maxTemperature",
-      "最高気温予測範囲（下端）": "maxTemperatureLower",
-      "最高気温予測範囲（上端）": "maxTemperatureUpper"
-    }[type];
-    if (key) setDayValue(days, node, key, numberOrNull(node.textContent));
+function applyTemperatureValues(series, item, days) {
+  const dateKeyByRef = new Map(
+    elementsByLocalName(series, "TimeDefine").map((definition) => [
+      definition.getAttribute("timeId") ?? "",
+      forecastDateKey(textOfFirst(definition, "DateTime"))
+    ])
+  );
+  const daysByDate = new Map(
+    [...days.values()].map((day) => [forecastDateKey(day.date), day])
+  );
+
+  elementsByLocalName(item, "Temperature").forEach((node) => {
+    const key = dailyTemperatureKey(node.getAttribute("type"));
+    const dateKey = dateKeyByRef.get(node.getAttribute("refID") ?? "");
+    const day = daysByDate.get(dateKey);
+    if (key && day) day[key] = numberOrNull(node.textContent);
   });
+}
+
+function dailyTemperatureKey(type) {
+  return {
+    "最低気温": "minTemperature",
+    "朝の最低気温": "minTemperature",
+    "最低気温予測範囲（下端）": "minTemperatureLower",
+    "最低気温予測範囲（上端）": "minTemperatureUpper",
+    "最高気温": "maxTemperature",
+    "日中の最高気温": "maxTemperature",
+    "最高気温予測範囲（下端）": "maxTemperatureLower",
+    "最高気温予測範囲（上端）": "maxTemperatureUpper"
+  }[String(type ?? "")] ?? "";
 }
 
 function setDayValue(days, node, key, value) {
