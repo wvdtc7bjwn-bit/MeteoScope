@@ -48,11 +48,12 @@ const [appSource, distributionClientSource] = await Promise.all([
 ]);
 assert.match(
   appSource,
-  /earthquakeView === "distribution"[\s\S]*refreshEarthquakeDistribution\(\{ force \}\)/u,
+  /refreshEarthquakeTabData\(\{[\s\S]*refreshOpenDistribution = true[\s\S]*earthquakeDistributionRecentXmlVisible[\s\S]*refreshOpenDistribution && earthquakeView === "distribution"[\s\S]*refreshEarthquakeDistribution\(\{ force \}\)/u,
   "Web版の自動更新で震央分布も更新する"
 );
 assert.match(distributionClientSource, /ttlMs: options\.force \? 0/u);
 assert.match(distributionClientSource, /cache: options\.force \? "no-store"/u);
+assert.match(distributionClientSource, /if \(options\.force\) parameters\.set\("fresh", "1"\)/u);
 assert.match(distributionClientSource, /includeRecentXml: filters\.includeRecentXml === false \? "0" : "1"/u);
 const weatherMapSource = await fs.readFile(path.join(root, "src", "map", "weatherMap.js"), "utf8");
 assert.match(

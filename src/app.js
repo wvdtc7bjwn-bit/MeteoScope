@@ -2211,11 +2211,7 @@ if (layerId === "river") {
         await refreshVolcanoData({ force });
         return;
       }
-      const tasks = [refreshEarthquakeData({ force })];
-      if (earthquakeView === "distribution") {
-        tasks.push(refreshEarthquakeDistribution({ force }));
-      }
-      await Promise.all(tasks);
+      await refreshEarthquakeTabData({ force });
       return;
     }
 
@@ -2245,6 +2241,22 @@ if (layerId === "river") {
     } finally {
       autoRefreshInFlight = false;
     }
+  }
+
+  async function refreshEarthquakeTabData({
+    force = false,
+    refreshOpenDistribution = true
+  } = {}) {
+    const nextData = await refreshEarthquakeData({ force });
+    const shouldRefreshDistribution = earthquakeContentMode !== "volcano"
+      && (
+        earthquakeDistributionRecentXmlVisible
+        || (refreshOpenDistribution && earthquakeView === "distribution")
+      );
+    if (shouldRefreshDistribution) {
+      await refreshEarthquakeDistribution({ force });
+    }
+    return nextData;
   }
 
   async function refreshEarthquakeData({ force = false } = {}) {
@@ -2517,13 +2529,19 @@ if (layerId === "river") {
 
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) {
-        refreshActiveTab();
-        refreshEarthquakeData({ force: true });
+        if (activeTab === "earthquake") {
+          refreshEarthquakeTabData({ force: true });
+        } else {
+          refreshActiveTab();
+        }
       }
     });
     window.addEventListener("focus", () => {
-      refreshActiveTab();
-      refreshEarthquakeData({ force: true });
+      if (activeTab === "earthquake") {
+        refreshEarthquakeTabData({ force: true });
+      } else {
+        refreshActiveTab();
+      }
     });
   }
 
@@ -2534,7 +2552,7 @@ if (layerId === "river") {
     earthquakeRefreshTimer = window.setTimeout(async () => {
       earthquakeRefreshTimer = null;
       try {
-        await refreshEarthquakeData();
+        await refreshEarthquakeTabData({ refreshOpenDistribution: false });
       } finally {
         scheduleEarthquakeRefresh();
       }

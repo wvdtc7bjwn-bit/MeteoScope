@@ -46,6 +46,10 @@ assert.deepEqual(
 );
 assert.match(worker, /pathname !== "\/distribution"/u);
 assert.match(worker, /runJmaXmlHypocenterSync/u);
+assert.match(worker, /requestUrl\.searchParams\.get\("fresh"\) === "1"/u);
+assert.match(worker, /jma-distribution-fresh-v1/u);
+assert.match(worker, /public, max-age=5, s-maxage=5/u);
+assert.match(worker, /withCacheControl\(response, "no-store"\)/u);
 assert.doesNotMatch(worker, /DMDATA|DM-D\.S\.S|EARTHQUAKE_HUB/u);
 assert.doesNotMatch(wrangler, /^DMDATA_[A-Z_]+\s*=/mu);
 assert.doesNotMatch(wrangler, /durable_objects/u);

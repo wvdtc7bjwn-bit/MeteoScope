@@ -19,16 +19,36 @@ function jsonResponse(payload, status = 200, extraHeaders = {}) {
   });
 }
 
+function withCacheControl(response, cacheControl) {
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", cacheControl);
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers
+  });
+}
+
 async function fetchDistribution(request, env, ctx) {
+  const requestUrl = new URL(request.url);
+  const fresh = requestUrl.searchParams.get("fresh") === "1";
   const cache = caches.default;
-  const cacheUrl = new URL(request.url);
-  cacheUrl.searchParams.set("_meteoscopeCache", "jma-distribution-v8");
+  const cacheUrl = new URL(requestUrl);
+  cacheUrl.searchParams.delete("fresh");
+  cacheUrl.searchParams.set(
+    "_meteoscopeCache",
+    fresh ? "jma-distribution-fresh-v1" : "jma-distribution-v8"
+  );
   const cacheKey = new Request(cacheUrl, { method: "GET" });
   const cached = await cache.match(cacheKey);
-  if (cached) return cached;
+  if (cached) return fresh ? withCacheControl(cached, "no-store") : cached;
   const response = await readJmaDailyHypocenterDistribution(request, env, ctx);
-  if (response.ok) ctx.waitUntil(cache.put(cacheKey, response.clone()));
-  return response;
+  if (!response.ok) return response;
+  const cacheResponse = fresh
+    ? withCacheControl(response.clone(), "public, max-age=5, s-maxage=5")
+    : response.clone();
+  ctx.waitUntil(cache.put(cacheKey, cacheResponse));
+  return fresh ? withCacheControl(response, "no-store") : response;
 }
 
 export default {

@@ -31,6 +31,7 @@ export async function fetchHypocenterDistribution(filters = {}, options = {}) {
   }
   const bounds = getPolygonBounds(filters.areaPolygon);
   if (bounds) parameters.set("bounds", bounds.join(","));
+  if (options.force) parameters.set("fresh", "1");
   let payload = await fetchJson(`${ENDPOINT}?${parameters}`, {
     ttlMs: options.force ? 0 : 60 * 1000,
     cache: options.force ? "no-store" : "default"
