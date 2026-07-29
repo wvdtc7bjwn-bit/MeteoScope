@@ -338,7 +338,7 @@ export async function readJmaDailyHypocenterDistribution(request, env, ctx) {
   return jsonResponse({
     ok: true,
     source: "jma-combined-hypocenters",
-    sourceLabel: "気象庁 防災情報XML／日々の震源リスト",
+    sourceLabel: "気象庁 防災情報XML（発表対象地震）／日々の震源リスト",
     sourceUrl: JMA_XML_SOURCE_URL,
     provisional: true,
     retentionDays: JMA_DAILY_RETENTION_DAYS,
@@ -434,7 +434,9 @@ async function queryDistribution(db, { summary, requestedDayOffset, minMagnitude
     ...summary,
     selectedSourceDate,
     selectedSource: usesXml ? "jma-xml" : "jma-daily",
-    selectedSourceLabel: usesXml ? "気象庁 防災情報XML" : "気象庁「日々の震源リスト」",
+    selectedSourceLabel: usesXml
+      ? "気象庁 防災情報XML（発表対象地震）"
+      : "気象庁「日々の震源リスト」",
     selectedSourceUrl: usesXml
       ? JMA_XML_SOURCE_URL
       : `${JMA_DAILY_BASE_URL}/index.html`,

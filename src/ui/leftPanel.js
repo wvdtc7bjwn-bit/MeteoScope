@@ -5411,7 +5411,7 @@ function buildEarthquakeDistributionMarkup(data) {
   const sourceType = snapshot?.selectedSource === "jma-xml" ? "jma-xml" : "jma-daily";
   const resultMeta = status === "error"
     ? "更新を確認できません"
-    : `${sourceType === "jma-xml" ? "XML速報値" : "暫定値"}・${snapshot?.availableDayCount ?? availableDates.length}日分収録`;
+    : `${sourceType === "jma-xml" ? "XML発表分" : "暫定値"}・${snapshot?.availableDayCount ?? availableDates.length}日分収録`;
   const syncStatusMarkup = buildDistributionSyncStatus(snapshot);
   const statusMarkup = status === "loading"
     ? `<div class="earthquake-empty">気象庁の震央分布を取得中です。</div>`
@@ -5457,7 +5457,7 @@ function buildEarthquakeDistributionSourceNote(snapshot) {
     : "https://www.data.jma.go.jp/eqev/data/daily_map/index.html";
   const label = usesXml ? "気象庁 防災情報XML" : "気象庁「日々の震源リスト」";
   const qualification = usesXml
-    ? "当日・前日は受信したXMLの震源情報を表示しています。"
+    ? "当日・前日は防災情報XMLが発表された地震のみを表示しています。日々の震源リスト相当の全地震ではありません。"
     : "2日前以前の震源要素は暫定値で、後日変更される場合があります。";
   return `<p class="earthquake-distribution-note">出典：<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>。${qualification}</p>`;
 }
