@@ -57,6 +57,15 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    if (event.target.closest("[data-settings-earthquake-recent-xml-toggle]")) {
+      const state = settingsOptions.getState?.() ?? {};
+      settingsOptions.onEarthquakeDistributionRecentXmlChange?.(
+        state.earthquakeDistributionRecentXmlVisible === false
+      );
+      renderSettingsEarthquake();
+      return;
+    }
+
     if (event.target.closest("[data-settings-early-access-activate]")) {
       void submitEarlyAccessCode();
       return;
@@ -131,6 +140,7 @@ export function refreshSettingsModalView() {
   renderSettingsMyAreas();
   renderSettingsTabOrder();
   renderSettingsPushNotifications();
+  renderSettingsEarthquake();
   renderSettingsTheme();
   renderSettingsEarlyAccess();
   void renderSettingsAccount();
@@ -148,6 +158,7 @@ export function openSettingsModal() {
   renderSettingsMyAreas();
   renderSettingsTabOrder();
   renderSettingsPushNotifications();
+  renderSettingsEarthquake();
   renderSettingsTheme();
   renderSettingsEarlyAccess();
   void renderSettingsAccount();
@@ -168,6 +179,19 @@ function resetSettingsGroups() {
   document.querySelectorAll("#settings-modal .settings-group").forEach((group) => {
     setSettingsGroupExpanded(group, false);
   });
+}
+
+function renderSettingsEarthquake() {
+  const button = document.getElementById("settings-earthquake-recent-xml-toggle");
+  if (!button) return;
+  const state = settingsOptions.getState?.() ?? {};
+  const enabled = state.earthquakeDistributionRecentXmlVisible !== false;
+  button.classList.toggle("is-enabled", enabled);
+  button.setAttribute("aria-checked", String(enabled));
+  button.setAttribute(
+    "aria-label",
+    `当日・前日の有感地震を${enabled ? "表示" : "非表示"}`
+  );
 }
 
 function toggleSettingsGroup(toggle) {

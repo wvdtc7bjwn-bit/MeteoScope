@@ -6,6 +6,10 @@ import {
   findHypocenterDateOffset,
   normalizeHypocenterDates
 } from "../src/ui/hypocenterDateWheel.js";
+import {
+  countHypocenterCoordinates,
+  groupHypocenterItemsByCoordinate
+} from "../src/domain/hypocenterDistribution.js";
 
 const dates = [
   "2026-07-17",
@@ -25,6 +29,18 @@ assert.equal(findHypocenterDateOffset(dates, "2026-07-18"), 1, "欠落日は直�
 assert.equal(findHypocenterDateOffset(dates, "2026-08-01"), 0, "未来日は最新日に丸める");
 assert.equal(findHypocenterDateOffset(dates, "2025-01-01"), 2, "保存範囲より古い日は最古日に丸める");
 
+const groupedHypocenters = groupHypocenterItemsByCoordinate([
+  { id: "latest", latitude: 32.5, longitude: 130.6, magnitude: 3.2 },
+  { id: "older", latitude: 32.5, longitude: 130.6, magnitude: 4.1 },
+  { id: "other", latitude: 40.7, longitude: 140.7, magnitude: 2.0 },
+  { id: "invalid", latitude: null, longitude: 140.7, magnitude: 1.0 }
+]);
+assert.equal(groupedHypocenters.length, 2, "同一の発表座標は地図上で1マーカーにまとめる");
+assert.equal(groupedHypocenters[0].id, "latest", "重なりマーカーは最新の地震を代表表示する");
+assert.equal(groupedHypocenters[0].coordinateEventCount, 2, "同一座標の地震件数を保持する");
+assert.equal(groupedHypocenters[0].maximumMagnitude, 4.1, "重なりマーカーの大きさに最大Mを使う");
+assert.equal(countHypocenterCoordinates(groupedHypocenters), 2, "地図上の座標数を集計できる");
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [appSource, distributionClientSource] = await Promise.all([
   fs.readFile(path.join(root, "src", "app.js"), "utf8"),
@@ -37,4 +53,5 @@ assert.match(
 );
 assert.match(distributionClientSource, /ttlMs: options\.force \? 0/u);
 assert.match(distributionClientSource, /cache: options\.force \? "no-store"/u);
+assert.match(distributionClientSource, /includeRecentXml: filters\.includeRecentXml === false \? "0" : "1"/u);
 console.log("Hypocenter date wheel tests passed.");

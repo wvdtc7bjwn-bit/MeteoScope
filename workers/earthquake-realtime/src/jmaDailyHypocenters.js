@@ -327,24 +327,27 @@ export async function readJmaDailyHypocenterDistribution(request, env, ctx) {
   const maxDepth = maxDepthText === "all"
     ? null
     : parseChoice(maxDepthText, [30, 100, 300, 700], 700);
+  const includeRecentXml = url.searchParams.get("includeRecentXml") !== "0";
   const summary = await readDistributionSummary(db, request, ctx);
   const snapshot = await queryDistribution(db, {
     summary,
     requestedDayOffset,
     minMagnitude,
-    maxDepth
+    maxDepth,
+    includeRecentXml
   });
 
   return jsonResponse({
     ok: true,
     source: "jma-combined-hypocenters",
-    sourceLabel: "気象庁 防災情報XML（発表対象地震）／日々の震源リスト",
+    sourceLabel: "気象庁 防災情報XML（有感地震）／日々の震源リスト",
     sourceUrl: JMA_XML_SOURCE_URL,
     provisional: true,
     retentionDays: JMA_DAILY_RETENTION_DAYS,
     requestedDayOffset,
     minMagnitude: minMagnitudeText,
     maxDepth: maxDepthText,
+    includeRecentXml,
     ...snapshot
   }, 200, { "cache-control": "public, max-age=60, s-maxage=60" });
 }
@@ -406,8 +409,21 @@ async function syncOneDate(db, date, fetchImpl) {
   }
 }
 
-async function queryDistribution(db, { summary, requestedDayOffset, minMagnitude, maxDepth }) {
-  const availableDates = summary.availableDates;
+export function filterDistributionDates(availableDates, includeRecentXml, timestamp = Date.now()) {
+  const dates = Array.isArray(availableDates) ? availableDates : [];
+  if (includeRecentXml !== false) return [...dates];
+  const recentDates = new Set(getJmaXmlRetentionDates(timestamp));
+  return dates.filter((date) => !recentDates.has(date));
+}
+
+async function queryDistribution(
+  db,
+  { summary, requestedDayOffset, minMagnitude, maxDepth, includeRecentXml }
+) {
+  const availableDates = filterDistributionDates(
+    summary.availableDates,
+    includeRecentXml
+  );
   const dayOffset = availableDates.length
     ? Math.min(requestedDayOffset, availableDates.length - 1)
     : 0;
@@ -432,10 +448,12 @@ async function queryDistribution(db, { summary, requestedDayOffset, minMagnitude
   const visibleItems = items.slice(0, 5000);
   return {
     ...summary,
+    availableDates,
+    availableDayCount: availableDates.length,
     selectedSourceDate,
     selectedSource: usesXml ? "jma-xml" : "jma-daily",
     selectedSourceLabel: usesXml
-      ? "気象庁 防災情報XML（発表対象地震）"
+      ? "気象庁 防災情報XML（有感地震）"
       : "気象庁「日々の震源リスト」",
     selectedSourceUrl: usesXml
       ? JMA_XML_SOURCE_URL

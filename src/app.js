@@ -164,6 +164,7 @@ const EARTHQUAKE_LAYER_VISIBILITY_STORAGE_KEYS = {
   plateDepthContours: "meteoscope-earthquake-plate-depth-contours-visible-v1",
   estimatedIntensity: "meteoscope-earthquake-estimated-intensity-visible-v1"
 };
+const EARTHQUAKE_DISTRIBUTION_RECENT_XML_STORAGE_KEY = "meteoscope-earthquake-distribution-recent-xml-v1";
 
 function loadEarthquakeLayerVisibility(layerId) {
   try {
@@ -176,6 +177,22 @@ function loadEarthquakeLayerVisibility(layerId) {
 function saveEarthquakeLayerVisibility(layerId, visible) {
   try {
     localStorage.setItem(EARTHQUAKE_LAYER_VISIBILITY_STORAGE_KEYS[layerId], visible ? "1" : "0");
+  } catch {
+    // Storage can be unavailable in privacy-restricted environments.
+  }
+}
+
+function loadEarthquakeDistributionRecentXmlVisibility() {
+  try {
+    return localStorage.getItem(EARTHQUAKE_DISTRIBUTION_RECENT_XML_STORAGE_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+
+function saveEarthquakeDistributionRecentXmlVisibility(visible) {
+  try {
+    localStorage.setItem(EARTHQUAKE_DISTRIBUTION_RECENT_XML_STORAGE_KEY, visible ? "1" : "0");
   } catch {
     // Storage can be unavailable in privacy-restricted environments.
   }
@@ -262,7 +279,14 @@ export function createWeatherApp() {
   const volcanoLatestActivityRequests = new Map();
   let earthquakeView = "recent";
   let earthquakeDistribution3DEnabled = false;
-  let earthquakeDistributionFilters = { dayOffset: 0, minMagnitude: "0", maxDepth: "all" };
+  let earthquakeDistributionRecentXmlVisible =
+    loadEarthquakeDistributionRecentXmlVisibility();
+  let earthquakeDistributionFilters = {
+    dayOffset: 0,
+    minMagnitude: "0",
+    maxDepth: "all",
+    includeRecentXml: earthquakeDistributionRecentXmlVisible
+  };
   let earthquakeDistributionState = { status: "idle", data: null, error: "" };
   let earthquakeDistributionRequestId = 0;
   let earthquakeSummaryPage = "earthquake";
@@ -1056,13 +1080,33 @@ if (layerId === "river") {
         ? Math.min(HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET, Math.max(0, Number(filters.dayOffset)))
         : earthquakeDistributionFilters.dayOffset,
       minMagnitude: filters.minMagnitude ?? earthquakeDistributionFilters.minMagnitude,
-      maxDepth: filters.maxDepth ?? earthquakeDistributionFilters.maxDepth
+      maxDepth: filters.maxDepth ?? earthquakeDistributionFilters.maxDepth,
+      includeRecentXml: earthquakeDistributionRecentXmlVisible
     };
     if (activeTab === "earthquake") {
       const tab = TABS.find((item) => item.id === "earthquake");
       updateCurrentView(tab, latestDataByTab.earthquake ?? {});
     }
     void refreshEarthquakeDistribution();
+  }
+
+  function setEarthquakeDistributionRecentXmlVisible(visible) {
+    earthquakeDistributionRecentXmlVisible = Boolean(visible);
+    saveEarthquakeDistributionRecentXmlVisibility(
+      earthquakeDistributionRecentXmlVisible
+    );
+    earthquakeDistributionFilters = {
+      ...earthquakeDistributionFilters,
+      dayOffset: 0,
+      includeRecentXml: earthquakeDistributionRecentXmlVisible
+    };
+    earthquakeDistributionState = { status: "loading", data: null, error: "" };
+    refreshSettingsModalView();
+    if (activeTab === "earthquake") {
+      const tab = TABS.find((item) => item.id === "earthquake");
+      updateCurrentView(tab, latestDataByTab.earthquake ?? {});
+    }
+    void refreshEarthquakeDistribution({ force: true });
   }
 
   function selectEarthquakeDistributionPresentation(presentation) {
@@ -2529,6 +2573,7 @@ if (layerId === "river") {
       adminNoticePush: adminNoticePush.getState(),
       myAreaLimit: getMyAreaLimit(),
       themePreference: themeController.getPreference(),
+      earthquakeDistributionRecentXmlVisible,
       earlyAccessEnabled,
       earlyAccessState
     };
@@ -2742,6 +2787,8 @@ if (layerId === "river") {
       onClearDisasterMapPdf: clearStoredDisasterMapPdf,
       onToggleAdminNoticePush: toggleAdminNoticePush,
       onThemeChange: (theme) => themeController.setPreference(theme),
+      onEarthquakeDistributionRecentXmlChange:
+        setEarthquakeDistributionRecentXmlVisible,
       onActivateEarlyAccess: authenticateEarlyAccess,
       onDeactivateEarlyAccess: releaseEarlyAccess,
       onOpenGuide: onboarding.open,

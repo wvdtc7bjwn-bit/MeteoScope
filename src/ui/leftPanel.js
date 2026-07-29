@@ -5407,11 +5407,13 @@ function buildEarthquakeDistributionMarkup(data) {
   const dayOffset = Math.min(maximumOffset, Math.max(0, Number(filters.dayOffset ?? snapshot?.dayOffset ?? 0)));
   const selectedDate = availableDates[dayOffset] ?? snapshot?.selectedSourceDate ?? "";
   const isPendingDate = snapshot && Number(snapshot.dayOffset) !== dayOffset;
-  const displayedCount = isPendingDate ? "取得中" : `${count.toLocaleString("ja-JP")}個`;
+  const displayedCount = isPendingDate
+    ? "取得中"
+    : `${count.toLocaleString("ja-JP")}件`;
   const sourceType = snapshot?.selectedSource === "jma-xml" ? "jma-xml" : "jma-daily";
   const resultMeta = status === "error"
     ? "更新を確認できません"
-    : `${sourceType === "jma-xml" ? "XML発表分" : "暫定値"}・${snapshot?.availableDayCount ?? availableDates.length}日分収録`;
+    : `${sourceType === "jma-xml" ? "有感地震・XML" : "暫定値"}・${snapshot?.availableDayCount ?? availableDates.length}日分収録`;
   const syncStatusMarkup = buildDistributionSyncStatus(snapshot);
   const statusMarkup = status === "loading"
     ? `<div class="earthquake-empty">気象庁の震央分布を取得中です。</div>`
@@ -5457,7 +5459,7 @@ function buildEarthquakeDistributionSourceNote(snapshot) {
     : "https://www.data.jma.go.jp/eqev/data/daily_map/index.html";
   const label = usesXml ? "気象庁 防災情報XML" : "気象庁「日々の震源リスト」";
   const qualification = usesXml
-    ? "当日・前日は防災情報XMLが発表された地震のみを表示しています。日々の震源リスト相当の全地震ではありません。"
+    ? "当日・前日は防災情報XMLで発表された有感地震のみを表示しています。同一発表座標の地震は件数付きで重ねて表示します。"
     : "2日前以前の震源要素は暫定値で、後日変更される場合があります。";
   return `<p class="earthquake-distribution-note">出典：<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>。${qualification}</p>`;
 }
@@ -5486,6 +5488,7 @@ function buildEarthquakeDistributionTrend(snapshot) {
 
 function buildEarthquakeDailyTrend(dailyCounts) {
   const points = (Array.isArray(dailyCounts) ? dailyCounts : [])
+    .filter((item) => item?.source !== "jma-xml")
     .map((item) => ({ sourceDate: String(item?.sourceDate ?? ""), count: Math.max(0, Number(item?.count) || 0) }))
     .filter((item) => /^\d{4}-\d{2}-\d{2}$/u.test(item.sourceDate))
     .sort((a, b) => a.sourceDate.localeCompare(b.sourceDate));
@@ -5512,7 +5515,7 @@ function buildEarthquakeDailyTrend(dailyCounts) {
     return `<line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" class="earthquake-chart-grid"></line><text x="${left - 6}" y="${y + 3}" text-anchor="end" class="earthquake-chart-axis-text">${value}</text>`;
   }).join("");
   const polyline = coordinates.map((point) => `${point.x},${point.y}`).join(" ");
-  const circles = coordinates.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="2.5" class="earthquake-chart-point"><title>${escapeHtml(formatDistributionFullDate(point.sourceDate))} ${point.count}個</title></circle>`).join("");
+  const circles = coordinates.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="2.5" class="earthquake-chart-point"><title>${escapeHtml(formatDistributionFullDate(point.sourceDate))} ${point.count}件</title></circle>`).join("");
   const labelIndexes = [...new Set([0, Math.floor((points.length - 1) / 2), points.length - 1])];
   const labels = labelIndexes.map((index) => {
     const point = coordinates[index];
@@ -5522,7 +5525,7 @@ function buildEarthquakeDailyTrend(dailyCounts) {
   return `
     <div class="earthquake-distribution-chart-head"><strong>日別の総地震回数</strong><span>古い日 → 最新</span></div>
     <svg class="earthquake-distribution-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="収録${HYPOCENTER_DISTRIBUTION_DAY_COUNT}日間の日別総地震回数">${grid}<polyline points="${polyline}" class="earthquake-chart-line"></polyline>${circles}${labels}</svg>
-    <p class="earthquake-distribution-chart-caption">全規模・全深さの日別収録件数。グラフ専用のD1保存は行いません。</p>
+    <p class="earthquake-distribution-chart-caption">2日前以前の「日々の震源リスト」による全規模・全深さの日別収録件数。当日・前日の有感地震XMLは含みません。</p>
   `;
 }
 
@@ -5573,7 +5576,9 @@ function buildEarthquakeDistributionMobileContextMarkup(data) {
       <div class="mobile-dock-earthquake-distribution-head">
         <span class="mobile-dock-kicker">震央分布・${escapeHtml(selectedDate ? formatDistributionDate(selectedDate) : "取得待ち")}・暫定値</span>
         ${buildHypocenterPresentationToggle(data.distribution3DEnabled === true, true)}
-        <strong>${isPendingDate ? "取得中" : `${count.toLocaleString("ja-JP")}個`}</strong>
+        <strong>${isPendingDate
+          ? "取得中"
+          : `${count.toLocaleString("ja-JP")}件`}</strong>
       </div>
       ${buildDistributionDateButton(selectedDate, true, maximumOffset === 0, dayOffset, maximumOffset)}
     </div>

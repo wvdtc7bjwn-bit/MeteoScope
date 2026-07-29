@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   buildDistributionSummary,
+  filterDistributionDates,
   JMA_DAILY_RETENTION_DAYS,
   parseJmaDailyHypocenterHtml
 } from "../workers/earthquake-realtime/src/jmaDailyHypocenters.js";
@@ -25,6 +26,24 @@ const [worker, wrangler, migration, xmlMigration, xmlWorker, pagesRoute] = await
 ]);
 
 assert.equal(JMA_DAILY_RETENTION_DAYS, 731);
+assert.deepEqual(
+  filterDistributionDates(
+    ["2026-07-29", "2026-07-28", "2026-07-27"],
+    false,
+    Date.parse("2026-07-29T08:00:00Z")
+  ),
+  ["2026-07-27"],
+  "設定で非表示にした場合は当日・前日を日付候補から除外する"
+);
+assert.deepEqual(
+  filterDistributionDates(
+    ["2026-07-29", "2026-07-28", "2026-07-27"],
+    true,
+    Date.parse("2026-07-29T08:00:00Z")
+  ),
+  ["2026-07-29", "2026-07-28", "2026-07-27"],
+  "設定で表示する場合は当日・前日を保持する"
+);
 assert.match(worker, /pathname !== "\/distribution"/u);
 assert.match(worker, /runJmaXmlHypocenterSync/u);
 assert.doesNotMatch(worker, /DMDATA|DM-D\.S\.S|EARTHQUAKE_HUB/u);

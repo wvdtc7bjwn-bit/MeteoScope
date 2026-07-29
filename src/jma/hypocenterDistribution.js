@@ -17,14 +17,44 @@ export async function fetchHypocenterDistribution(filters = {}, options = {}) {
   const parameters = new URLSearchParams({
     dayOffset: String(dayOffset),
     minMagnitude,
-    maxDepth
+    maxDepth,
+    includeRecentXml: filters.includeRecentXml === false ? "0" : "1"
   });
-  const payload = await fetchJson(`${ENDPOINT}?${parameters}`, {
+  let payload = await fetchJson(`${ENDPOINT}?${parameters}`, {
     ttlMs: options.force ? 0 : 60 * 1000,
     cache: options.force ? "no-store" : "default"
   });
+  if (filters.includeRecentXml === false && payload?.includeRecentXml !== false) {
+    const availableDates = Array.isArray(payload?.availableDates)
+      ? payload.availableDates
+      : [];
+    const recentDates = new Set(getRecentJstDates());
+    const filteredDates = availableDates.filter((date) => !recentDates.has(date));
+    const skippedDateCount = availableDates.length - filteredDates.length;
+    if (skippedDateCount > 0) {
+      parameters.set("dayOffset", String(dayOffset + skippedDateCount));
+      payload = await fetchJson(`${ENDPOINT}?${parameters}`, {
+        ttlMs: options.force ? 0 : 60 * 1000,
+        cache: options.force ? "no-store" : "default"
+      });
+    }
+    payload = {
+      ...payload,
+      includeRecentXml: false,
+      availableDates: filteredDates,
+      availableDayCount: filteredDates.length,
+      dayOffset
+    };
+  }
   if (payload?.ok !== true || !Array.isArray(payload?.items)) {
     throw new Error("気象庁の震央分布を取得できませんでした");
   }
   return payload;
+}
+
+function getRecentJstDates(timestamp = Date.now()) {
+  const jstTimestamp = timestamp + 9 * 60 * 60 * 1000;
+  return [0, 1].map((dayOffset) =>
+    new Date(jstTimestamp - dayOffset * 86_400_000).toISOString().slice(0, 10)
+  );
 }

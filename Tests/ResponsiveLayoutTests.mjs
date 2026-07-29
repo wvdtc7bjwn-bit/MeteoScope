@@ -69,7 +69,9 @@ assert.match(
 assert.match(index, /width=device-width/);
 assert.match(index, /viewport-fit=cover/);
 assert.match(index, /id="map-utility-menu-toggle"[\s\S]*?aria-controls="map-utility-actions"/u);
-assert.match(index, /id="map-utility-actions"[\s\S]*?id="disaster-quiz-button"[\s\S]*?id="weekly-weather-button"[\s\S]*?id="disaster-map-button"[\s\S]*?id="social-share-map-button"/u);
+assert.match(index, /id="map-utility-actions"[\s\S]*?id="disaster-quiz-button"[\s\S]*?id="weekly-weather-button"[\s\S]*?id="disaster-map-button"[\s\S]*?id="social-share-map-button"[\s\S]*?id="settings-button"/u);
+assert.equal((index.match(/id="settings-button"/gu) ?? []).length, 1, "設定ボタンを機能メニュー内だけに置く");
+assert.match(styles, /\.map-settings-open-button::before\s*\{[\s\S]*?mask:/u);
 assert.match(styles, /\.map-utility-actions\s*\{[\s\S]*?display:\s*flex;[\s\S]*?gap:\s*8px;/u);
 assert.match(styles, /\.map-utility-actions\[hidden\]\s*\{[\s\S]*?display:\s*none;/u);
 assert.match(mapUtilityMenu, /toggle\.addEventListener\("click"/u);

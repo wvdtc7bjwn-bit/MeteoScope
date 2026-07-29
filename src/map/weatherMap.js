@@ -23,6 +23,7 @@ import {
   getAvailableVolcanoAshForecasts,
   getHighestPriorityVolcanoReport
 } from "../jma/volcanoXml.js";
+import { groupHypocenterItemsByCoordinate } from "../domain/hypocenterDistribution.js";
 import { getRecoloredEstimatedIntensityImageData } from "../jma/estimatedIntensity.js";
 import {
   getVolcanoAshfallLevel,
@@ -39,7 +40,7 @@ const MODE_CLASS = {
 };
 
 const SAMPLE_SOURCE_ID = "weather-samples";
-const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "earthquake-area-intensity-marker", "earthquake-station-intensity-circle", "earthquake-station-intensity-label", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
+const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-circle", "earthquake-station-intensity-label", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
 const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "earthquake-station-intensity-circle", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-line"];
 const EARTHQUAKE_STATION_RADIUS = 7.5;
@@ -993,6 +994,31 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           "#f8fbff"
         ],
         "circle-stroke-width": SAMPLE_CIRCLE_STROKE_WIDTH_EXPRESSION
+      }
+    });
+
+    map.addLayer({
+      id: "hypocenter-distribution-count",
+      type: "symbol",
+      source: SAMPLE_SOURCE_ID,
+      filter: ["all",
+        ["==", ["geometry-type"], "Point"],
+        ["==", ["get", "markerType"], "hypocenter-distribution"],
+        [">", ["get", "coordinateEventCount"], 1]
+      ],
+      layout: {
+        "text-field": ["to-string", ["get", "coordinateEventCount"]],
+        "text-font": ["Noto Sans JP"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 3, 9, 7, 11],
+        "text-anchor": "center",
+        "text-allow-overlap": true,
+        "text-ignore-placement": true,
+        "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
+      },
+      paint: {
+        "text-color": "#ffffff",
+        "text-halo-color": "rgba(5, 9, 20, 0.9)",
+        "text-halo-width": 1.2
       }
     });
 
@@ -3967,12 +3993,19 @@ function createEarthquakeFeatures(data) {
   }
   if (getEarthquakeMapView(data) === "distribution") {
     const is3D = data?.distribution3DEnabled === true;
-    const distributionFeatures = (data?.distributionItems ?? []).flatMap((item) => {
+    const distributionItems = is3D
+      ? (data?.distributionItems ?? [])
+      : groupHypocenterItemsByCoordinate(data?.distributionItems ?? []);
+    const distributionFeatures = distributionItems.flatMap((item) => {
       const longitude = Number(item.longitude);
       const latitude = Number(item.latitude);
       if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return [];
-      const magnitude = Number(item.magnitude);
+      const magnitude = Number(item.maximumMagnitude ?? item.magnitude);
       const depth = Number(item.depthKm);
+      const coordinateEventCount = Math.max(1, Number(item.coordinateEventCount) || 1);
+      const magnitudeRadius = Number.isFinite(magnitude)
+        ? Math.max(3.5, Math.min(11, 3 + magnitude * 1.2))
+        : 4;
       return [{
         type: "Feature",
         geometry: { type: "Point", coordinates: [longitude, latitude] },
@@ -3980,13 +4013,19 @@ function createEarthquakeFeatures(data) {
           color: getHypocenterDepthColor(Number.isFinite(depth) ? depth : null),
           opacity: is3D ? 0.2 : 0.68,
           strokeWidth: 0,
-          markerType: "circle",
+          markerType: "hypocenter-distribution",
           markerScaleMode: "fixed",
           radius: is3D
             ? 2.5
-            : (Number.isFinite(magnitude) ? Math.max(3.5, Math.min(11, 3 + magnitude * 1.2)) : 4),
+            : Math.max(
+              magnitudeRadius,
+              coordinateEventCount > 1
+                ? Math.min(16, 6 + Math.sqrt(coordinateEventCount) * 1.65)
+                : magnitudeRadius
+            ),
           sortKey: Number.isFinite(magnitude) ? magnitude : -10,
           label: "",
+          coordinateEventCount,
           popup: buildHypocenterDistributionPopup(item)
         }
       }];
@@ -4208,10 +4247,14 @@ function getVolcanoMarkerColor(level) {
 function buildHypocenterDistributionPopup(item) {
   const magnitude = Number.isFinite(Number(item.magnitude)) ? `M${Number(item.magnitude).toFixed(1)}` : "M不明";
   const depth = Number.isFinite(Number(item.depthKm)) ? `${Number(item.depthKm)}km` : "不明";
+  const coordinateEventCount = Math.max(1, Number(item.coordinateEventCount) || 1);
+  const overlap = coordinateEventCount > 1
+    ? `<br><strong>同一発表座標に ${coordinateEventCount}件</strong>`
+    : "";
   return `
     <strong>${escapePopup(item.place ?? "震央地名不明")}</strong><br>
     <span>${escapePopup(formatDistributionOriginTime(item.originTime))}</span><br>
-    <span>${escapePopup(magnitude)}・深さ ${escapePopup(depth)}</span><br>
+    <span>${escapePopup(magnitude)}・深さ ${escapePopup(depth)}</span>${overlap}<br>
     <small>気象庁の暫定値</small>
   `;
 }
