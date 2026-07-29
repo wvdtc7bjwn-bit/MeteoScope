@@ -67,11 +67,15 @@ assert.match(
 );
 assert.match(
   styles,
-  /\.earthquake-distribution-range-controls label\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/
+  /\.earthquake-distribution-range-controls label\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;[\s\S]*?overflow:\s*hidden;/
 );
 assert.match(
   styles,
   /\.earthquake-distribution-range-controls input\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;[\s\S]*?box-sizing:\s*border-box;/
+);
+assert.match(
+  styles,
+  /@supports \(-webkit-touch-callout:\s*none\)\s*\{[\s\S]*?@media \(max-width:\s*600px\)\s*\{[\s\S]*?\.earthquake-distribution-range-controls input\[type="date"\]\s*\{[\s\S]*?-webkit-appearance:\s*none;[\s\S]*?appearance:\s*none;[\s\S]*?inline-size:\s*100%;[\s\S]*?min-inline-size:\s*0;[\s\S]*?max-inline-size:\s*100%;[\s\S]*?overflow:\s*hidden;/
 );
 
 assert.match(index, /width=device-width/);
