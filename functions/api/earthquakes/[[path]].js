@@ -44,6 +44,9 @@ export async function onRequest(context) {
     );
     const headers = new Headers(upstream.headers);
     Object.entries(RESPONSE_HEADERS).forEach(([key, value]) => headers.set(key, value));
+    if (sourceUrl.searchParams.get("fresh") === "1") {
+      headers.set("cache-control", "no-store");
+    }
     return new Response(upstream.body, {
       status: upstream.status,
       statusText: upstream.statusText,

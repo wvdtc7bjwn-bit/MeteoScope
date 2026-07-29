@@ -65,6 +65,11 @@ assert.match(xmlWorker, /DELETE FROM jma_xml_feed_entries[\s\S]*source_date < \?
 assert.match(pagesRoute, /HYPOCENTER_ARCHIVE/u, "震央分布WorkerのService bindingを使用する");
 assert.match(pagesRoute, /earthquake-worker\.internal\/api\/earthquakes/u);
 
+assert.match(
+  pagesRoute,
+  /sourceUrl\.searchParams\.get\("fresh"\) === "1"[\s\S]*headers\.set\("cache-control", "no-store"\)/u
+);
+
 const parsed = parseJmaDailyHypocenterHtml(`
   <html><body><pre>
   2026 07 20 01:02 03.4 35° 00.0'N 140° 00.0'E 10 2.5 千葉県東方沖
