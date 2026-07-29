@@ -3828,14 +3828,6 @@ html[data-theme="light"] .weekly-weather-issued strong {
   margin: 0 0 14px;
 }
 
-.earthquake-list.is-distribution-view {
-  gap: 0;
-}
-
-.earthquake-list.is-distribution-view .earthquake-detail-mode {
-  gap: 0;
-}
-
 .earthquake-detail-mode {
   display: grid;
   gap: 10px;
