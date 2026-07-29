@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { gzipSync, gunzipSync } from "node:zlib";
+import { gzipSync } from "node:zlib";
 import { webcrypto } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
@@ -84,9 +84,9 @@ const authorized = await onRequest({
 });
 assert.equal(authorized.status, 200);
 assert.equal(authorized.headers.get("Content-Type"), "application/geo+json; charset=utf-8");
-assert.equal(authorized.headers.get("Content-Encoding"), "gzip");
+assert.equal(authorized.headers.get("Content-Encoding"), null);
 assert.match(authorized.headers.get("Cache-Control"), /private/u);
-const restored = JSON.parse(gunzipSync(Buffer.from(await authorized.arrayBuffer())).toString("utf8"));
+const restored = await authorized.json();
 assert.deepEqual(restored, geojson);
 
 const incompleteDb = new FakeD1(new Map([

@@ -54,10 +54,17 @@ async function getProtectedActiveFaultData(token, db) {
   }
 
   const gzipBytes = decodeBase64(chunks.map((row) => row.value).join(""));
-  return withHeaders(new Response(gzipBytes, {
+  let geoJsonText;
+  try {
+    geoJsonText = await decompressGzipText(gzipBytes);
+    const data = JSON.parse(geoJsonText);
+    if (data?.type !== "FeatureCollection" || !Array.isArray(data.features)) throw new Error("Invalid GeoJSON");
+  } catch {
+    return response({ error: "産総研活断層データを展開できませんでした。" }, 503);
+  }
+  return withHeaders(new Response(geoJsonText, {
     headers: {
       "Content-Type": "application/geo+json; charset=utf-8",
-      "Content-Encoding": "gzip",
       "Cache-Control": "private, no-store, max-age=0",
       "X-Content-Type-Options": "nosniff",
       "X-Meteoscope-Data-Source": "GSJ Active Fault Database"
@@ -80,6 +87,11 @@ function decodeBase64(value) {
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
   return bytes;
+}
+
+async function decompressGzipText(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return new Response(stream).text();
 }
 
 function corsHeadersForProtectedData() {
