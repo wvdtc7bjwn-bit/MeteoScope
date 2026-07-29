@@ -65,6 +65,14 @@ assert.match(
   styles,
   /@media \(max-width: 600px\)\s*\{[\s\S]*?\.social-share-panel\s*\{[\s\S]*?border-radius:\s*var\(--modal-shell-radius\);/
 );
+assert.match(
+  styles,
+  /\.earthquake-distribution-range-controls label\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/
+);
+assert.match(
+  styles,
+  /\.earthquake-distribution-range-controls input\s*\{[\s\S]*?width:\s*100%;[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;[\s\S]*?box-sizing:\s*border-box;/
+);
 
 assert.match(index, /width=device-width/);
 assert.match(index, /viewport-fit=cover/);
