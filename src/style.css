@@ -3836,31 +3836,6 @@ html[data-theme="light"] .weekly-weather-issued strong {
   gap: 0;
 }
 
-.earthquake-list.is-distribution-view .earthquake-view-toggle {
-  height: 38px;
-  margin-bottom: 9px;
-  padding: 4px;
-  border-radius: 12px;
-  background: rgba(10, 23, 42, 0.56);
-}
-
-.earthquake-list.is-distribution-view .earthquake-view-toggle button {
-  height: 28px;
-  min-height: 28px;
-  border-radius: 9px;
-}
-
-.earthquake-list.is-distribution-view .earthquake-map-layer-controls {
-  gap: 5px;
-  margin-bottom: 10px;
-}
-
-.earthquake-list.is-distribution-view .earthquake-map-layer-button {
-  min-height: 40px;
-  border-radius: 10px;
-  background: rgba(8, 18, 34, 0.48);
-}
-
 .earthquake-detail-mode {
   display: grid;
   gap: 10px;
