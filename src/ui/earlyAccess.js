@@ -45,6 +45,41 @@ export function getEarlyAccessToken() {
   return readToken();
 }
 
+export async function fetchEarlyAccessActiveFaultSegments() {
+  const token = readToken();
+  if (!token) throw new Error("産総研活断層データの取得にはアーリーアクセス認証が必要です。");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+  try {
+    const response = await fetch(ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "active-fault", token }),
+      signal: controller.signal,
+      cache: "no-store"
+    });
+    const contentType = response.headers.get("Content-Type") ?? "";
+    if (!response.ok) {
+      const result = contentType.includes("json")
+        ? await response.json().catch(() => ({}))
+        : {};
+      const error = new Error(result.error || "産総研活断層データを取得できませんでした。");
+      error.status = response.status;
+      throw error;
+    }
+    const data = await response.json();
+    if (data?.type !== "FeatureCollection" || !Array.isArray(data.features)) {
+      throw new Error("産総研活断層データの形式が正しくありません。");
+    }
+    return data;
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("産総研活断層データの取得がタイムアウトしました。");
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function flushPendingRelease() {
   const token = readPendingRelease();
   if (!token) return;

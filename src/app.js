@@ -53,7 +53,7 @@ import { sampleCurrentKikikuruStatus } from "./location/kikikuruStatus.js";
 import { createAdminNoticePush } from "./push/adminNoticePush.js";
 import { setupRemoteConfig } from "./remoteConfig.js";
 import { setupTheme } from "./ui/theme.js";
-import { activateEarlyAccess, deactivateEarlyAccess, validateEarlyAccess } from "./ui/earlyAccess.js";
+import { activateEarlyAccess, deactivateEarlyAccess, fetchEarlyAccessActiveFaultSegments, validateEarlyAccess } from "./ui/earlyAccess.js";
 import { CommunityReportClient } from "./domain/communityReportClient.js";
 import { openCommunityReportModal, setupCommunityReportModal } from "./ui/communityReportModal.js";
 import { yieldToMainThread } from "./scheduling.js";
@@ -165,6 +165,8 @@ const EARTHQUAKE_LAYER_VISIBILITY_STORAGE_KEYS = {
   plateDepthContours: "meteoscope-earthquake-plate-depth-contours-visible-v1",
   estimatedIntensity: "meteoscope-earthquake-estimated-intensity-visible-v1"
 };
+const EARLY_ACCESS_ACTIVE_FAULT_SOURCE_STORAGE_KEY =
+  "meteoscope-early-access-active-fault-source-v1";
 const EARTHQUAKE_DISTRIBUTION_RECENT_XML_STORAGE_KEY = "meteoscope-earthquake-distribution-recent-xml-v1";
 
 function loadEarthquakeLayerVisibility(layerId) {
@@ -178,6 +180,27 @@ function loadEarthquakeLayerVisibility(layerId) {
 function saveEarthquakeLayerVisibility(layerId, visible) {
   try {
     localStorage.setItem(EARTHQUAKE_LAYER_VISIBILITY_STORAGE_KEYS[layerId], visible ? "1" : "0");
+  } catch {
+    // Storage can be unavailable in privacy-restricted environments.
+  }
+}
+
+function loadEarlyAccessActiveFaultSource() {
+  try {
+    return localStorage.getItem(EARLY_ACCESS_ACTIVE_FAULT_SOURCE_STORAGE_KEY) === "gsj"
+      ? "gsj"
+      : "jshis";
+  } catch {
+    return "jshis";
+  }
+}
+
+function saveEarlyAccessActiveFaultSource(source) {
+  try {
+    localStorage.setItem(
+      EARLY_ACCESS_ACTIVE_FAULT_SOURCE_STORAGE_KEY,
+      source === "gsj" ? "gsj" : "jshis"
+    );
   } catch {
     // Storage can be unavailable in privacy-restricted environments.
   }
@@ -296,6 +319,10 @@ export function createWeatherApp() {
   let earthquakeDistributionRequestId = 0;
   let earthquakeSummaryPage = "earthquake";
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
+  let earlyAccessActiveFaultSource = loadEarlyAccessActiveFaultSource();
+  let earlyAccessActiveFaultDataState = { status: "idle", data: null, error: "" };
+  let earlyAccessActiveFaultDataRequest = null;
+  let earlyAccessActiveFaultDataRequestId = 0;
   let earthquakePlateBoundaryVisible = loadEarthquakeLayerVisibility("plateBoundary");
   let earthquakePlateDepthContoursVisible = loadEarthquakeLayerVisibility("plateDepthContours");
   let earthquakeEstimatedIntensityVisible = loadEarthquakeLayerVisibility("estimatedIntensity");
@@ -563,6 +590,7 @@ export function createWeatherApp() {
   }
 
   function applyEarlyAccessState() {
+    void applyActiveFaultDataSource();
     refreshWeatherChartAccessMode();
     if (!earlyAccessEnabled && amedasDailyChartDayOffset === 1) {
       amedasDailyChartDayOffset = 0;
@@ -573,6 +601,77 @@ export function createWeatherApp() {
       refreshAmedasPanel();
     }
     refreshSettingsModalView();
+  }
+
+  function getEffectiveActiveFaultSource() {
+    return earlyAccessEnabled && earlyAccessActiveFaultSource === "gsj" ? "gsj" : "jshis";
+  }
+
+  function setEarlyAccessActiveFaultSource(source) {
+    if (!earlyAccessEnabled) return getEffectiveActiveFaultSource();
+    earlyAccessActiveFaultSource = source === "gsj" ? "gsj" : "jshis";
+    saveEarlyAccessActiveFaultSource(earlyAccessActiveFaultSource);
+    void applyActiveFaultDataSource();
+    refreshSettingsModalView();
+    if (activeTab === "earthquake") refreshActivePanel();
+    return getEffectiveActiveFaultSource();
+  }
+
+  async function applyActiveFaultDataSource() {
+    const source = getEffectiveActiveFaultSource();
+    if (source !== "gsj") {
+      earlyAccessActiveFaultDataRequestId += 1;
+      earlyAccessActiveFaultDataRequest = null;
+      if (!earlyAccessEnabled) {
+        earlyAccessActiveFaultDataState = { status: "idle", data: null, error: "" };
+        weatherMap?.setGsjActiveFaultData(null);
+      }
+      weatherMap?.setActiveFaultDataSource("jshis");
+      return "jshis";
+    }
+
+    if (earlyAccessActiveFaultDataState.data) {
+      weatherMap?.setGsjActiveFaultData(earlyAccessActiveFaultDataState.data);
+      weatherMap?.setActiveFaultDataSource("gsj");
+      return "gsj";
+    }
+    if (earlyAccessActiveFaultDataRequest) return earlyAccessActiveFaultDataRequest;
+
+    const requestId = ++earlyAccessActiveFaultDataRequestId;
+    earlyAccessActiveFaultDataState = { status: "loading", data: null, error: "" };
+    weatherMap?.setActiveFaultDataSource("jshis");
+    refreshSettingsModalView();
+    if (activeTab === "earthquake") refreshActivePanel();
+
+    const request = fetchEarlyAccessActiveFaultSegments()
+      .then((data) => {
+        if (requestId !== earlyAccessActiveFaultDataRequestId || getEffectiveActiveFaultSource() !== "gsj") {
+          return getEffectiveActiveFaultSource();
+        }
+        earlyAccessActiveFaultDataState = { status: "ready", data, error: "" };
+        weatherMap?.setGsjActiveFaultData(data);
+        weatherMap?.setActiveFaultDataSource("gsj");
+        return "gsj";
+      })
+      .catch((error) => {
+        if (requestId !== earlyAccessActiveFaultDataRequestId) return getEffectiveActiveFaultSource();
+        console.warn("[MeteoScope] protected GSJ active-fault load failed", error);
+        earlyAccessActiveFaultDataState = {
+          status: "error",
+          data: null,
+          error: error?.message || "産総研活断層データを取得できませんでした。"
+        };
+        weatherMap?.setActiveFaultDataSource("jshis");
+        return "jshis";
+      })
+      .finally(() => {
+        if (requestId !== earlyAccessActiveFaultDataRequestId) return;
+        earlyAccessActiveFaultDataRequest = null;
+        refreshSettingsModalView();
+        if (activeTab === "earthquake") refreshActivePanel();
+      });
+    earlyAccessActiveFaultDataRequest = request;
+    return request;
   }
 
   function refreshWeatherChartAccessMode() {
@@ -1591,6 +1690,7 @@ if (layerId === "river") {
         earthquakeHistoryLoadingMore,
         earthquakeHistoryLoadMoreError,
         activeFaultVisible: earthquakeActiveFaultVisible,
+        activeFaultSource: getEffectiveActiveFaultSource(),
         plateBoundaryVisible: earthquakePlateBoundaryVisible,
         plateDepthContoursVisible: earthquakePlateDepthContoursVisible,
         estimatedIntensityVisible: earthquakeEstimatedIntensityVisible
@@ -1606,6 +1706,7 @@ if (layerId === "river") {
       ...distributionData,
       ...tideData,
       activeFaultVisible: earthquakeActiveFaultVisible,
+      activeFaultSource: getEffectiveActiveFaultSource(),
       plateBoundaryVisible: earthquakePlateBoundaryVisible,
       plateDepthContoursVisible: earthquakePlateDepthContoursVisible,
       estimatedIntensityVisible: earthquakeEstimatedIntensityVisible,
@@ -2633,6 +2734,8 @@ if (layerId === "river") {
       themePreference: themeController.getPreference(),
       earthquakeDistributionRecentXmlVisible,
       earlyAccessEnabled,
+      earlyAccessActiveFaultSource,
+      earlyAccessActiveFaultDataState,
       earlyAccessState
     };
   }
@@ -2691,6 +2794,7 @@ if (layerId === "river") {
 
   function start() {
     weatherMap = createWeatherMap("map");
+    void applyActiveFaultDataSource();
     weatherMap.setActiveFaultVisible(earthquakeActiveFaultVisible);
     weatherMap.setPlateBoundaryVisible(earthquakePlateBoundaryVisible);
     weatherMap.setPlateDepthContoursVisible(earthquakePlateDepthContoursVisible);
@@ -2852,6 +2956,7 @@ if (layerId === "river") {
         setEarthquakeDistributionRecentXmlVisible,
       onActivateEarlyAccess: authenticateEarlyAccess,
       onDeactivateEarlyAccess: releaseEarlyAccess,
+      onEarlyAccessActiveFaultSourceChange: setEarlyAccessActiveFaultSource,
       onOpenGuide: onboarding.open,
       onOpenAccount: openDisasterQuizModal,
       tabs: TABS,

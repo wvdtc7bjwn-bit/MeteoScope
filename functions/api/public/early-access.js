@@ -18,11 +18,75 @@ export async function onRequest({ request, env }) {
   if (!env.NOTIFICATIONS_DB) return withHeaders(response({ active: false, error: "認証機能が設定されていません。" }, 503), cors);
   const payload = await request.json().catch(() => ({}));
   let result;
-  if (payload.action === "deactivate") result = await deactivateToken(String(payload.token ?? ""), env.NOTIFICATIONS_DB);
+  if (payload.action === "active-fault") {
+    result = await getProtectedActiveFaultData(String(payload.token ?? ""), env.NOTIFICATIONS_DB);
+  } else if (payload.action === "deactivate") result = await deactivateToken(String(payload.token ?? ""), env.NOTIFICATIONS_DB);
   else if (payload.code) result = await activateCode(String(payload.code), env.NOTIFICATIONS_DB);
   else if (payload.token) result = await validateToken(String(payload.token), env.NOTIFICATIONS_DB);
   else result = response({ active: false, error: "シリアルコードを入力してください。" }, 400);
   return withHeaders(result, cors);
+}
+
+const ACTIVE_FAULT_MANIFEST_KEY = "early-access-active-fault:manifest";
+const ACTIVE_FAULT_CHUNK_PREFIX = "early-access-active-fault:chunk:";
+
+async function getProtectedActiveFaultData(token, db) {
+  const access = await validateEarlyAccessToken(db, token);
+  if (!access.active) return response(access, 401);
+
+  const manifest = await readAppRecord(db, ACTIVE_FAULT_MANIFEST_KEY);
+  const chunkCount = Math.max(0, Number(manifest?.chunkCount) || 0);
+  if (!chunkCount || manifest?.encoding !== "gzip-base64") {
+    return response({ error: "産総研活断層データが設定されていません。" }, 503);
+  }
+
+  const rows = await db.prepare(
+    `SELECT key, value
+       FROM app_records
+      WHERE key LIKE ?
+      ORDER BY key`
+  ).bind(`${ACTIVE_FAULT_CHUNK_PREFIX}%`).all();
+  const chunks = (rows?.results ?? [])
+    .map((row) => ({ key: String(row?.key ?? ""), value: parseStoredJson(row?.value, "") }))
+    .filter((row) => row.key.startsWith(ACTIVE_FAULT_CHUNK_PREFIX) && typeof row.value === "string");
+  if (chunks.length !== chunkCount) {
+    return response({ error: "産総研活断層データが不完全です。" }, 503);
+  }
+
+  const gzipBytes = decodeBase64(chunks.map((row) => row.value).join(""));
+  return withHeaders(new Response(gzipBytes, {
+    headers: {
+      "Content-Type": "application/geo+json; charset=utf-8",
+      "Content-Encoding": "gzip",
+      "Cache-Control": "private, no-store, max-age=0",
+      "X-Content-Type-Options": "nosniff",
+      "X-Meteoscope-Data-Source": "GSJ Active Fault Database"
+    }
+  }), corsHeadersForProtectedData());
+}
+
+async function readAppRecord(db, key) {
+  const row = await db.prepare("SELECT value FROM app_records WHERE key = ?").bind(key).first();
+  return parseStoredJson(row?.value, null);
+}
+
+function parseStoredJson(value, fallback) {
+  if (typeof value !== "string") return fallback;
+  try { return JSON.parse(value); } catch { return fallback; }
+}
+
+function decodeBase64(value) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+function corsHeadersForProtectedData() {
+  return {
+    "Content-Disposition": "inline",
+    "Vary": "Origin"
+  };
 }
 
 async function activateCode(code, db) {

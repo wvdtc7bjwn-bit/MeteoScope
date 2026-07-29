@@ -11029,6 +11029,35 @@ html[data-theme="light"] .tsunami-area-row.level-advisory .tsunami-level-badge {
 .settings-early-access-active > div { display: grid; gap: 2px; }
 .settings-early-access-active small, .settings-early-access-status { color: var(--muted-text, #9aa8bd); }
 .settings-early-access-status { min-height: 1.4em; margin: 8px 0 0; font-size: 12px; }
+.settings-early-access-features {
+  display: grid;
+  gap: 9px;
+  margin-top: 10px;
+  padding: 11px 12px;
+  border: 1px solid rgba(126, 155, 190, 0.28);
+  border-radius: 10px;
+  background: rgba(7, 16, 34, 0.26);
+}
+.settings-early-access-features[hidden] { display: none; }
+.settings-early-access-features > div:first-child {
+  display: grid;
+  gap: 2px;
+}
+.settings-early-access-features strong {
+  color: #e4edfb;
+  font-size: 13px;
+}
+.settings-early-access-features span,
+.settings-early-access-features small {
+  color: var(--muted-text, #9aa8bd);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.settings-active-fault-source-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.settings-active-fault-source-status[data-state="ready"] { color: #6ed5b0; }
+.settings-active-fault-source-status[data-state="error"] { color: #ff9b8f; }
 
 .radar-time-meta {
   display: flex;
@@ -11248,6 +11277,12 @@ html[data-theme="light"] .community-report-status[data-state="success"] { color:
 .settings-early-access-status[data-state="active"] { color: #55b7d8; }
 
 html[data-theme="light"] .settings-early-access-form input { background: rgba(255, 255, 255, 0.62); border-color: rgba(68, 96, 126, 0.28); }
+html[data-theme="light"] .settings-early-access-features {
+  border-color: rgba(66, 96, 129, 0.2);
+  background: rgba(230, 239, 247, 0.58);
+}
+html[data-theme="light"] .settings-early-access-features strong { color: #18324b; }
+html[data-theme="light"] .settings-early-access-features :is(span, small) { color: #5d748b; }
 
 html[data-theme="light"] .settings-modal-header {
   border-bottom-color: var(--modal-shell-divider);

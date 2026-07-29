@@ -167,7 +167,7 @@
         </button>
         <div id="legend-list" class="legend-list" hidden></div>
       </section>
-      <div id="map-attribution"><a href="https://www.jma.go.jp/" target="_blank" rel="noopener noreferrer">気象庁</a>の公開データをMeteoScopeが加工・可視化 / <a href="https://xml.kishou.go.jp/" target="_blank" rel="noopener noreferrer">地震・津波: 気象庁防災情報XML</a> / <a href="https://www.jma.go.jp/bosai/map.html#contents=estimated_intensity_map" target="_blank" rel="noopener noreferrer">推計震度分布: 気象庁</a> / <a href="https://www.jma.go.jp/bosai/volcano/" target="_blank" rel="noopener noreferrer">火山: 気象庁 火山情報</a> / <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">背景地図: 国土地理院</a> / <a href="https://www.arcgis.com/home/item.html?id=dd9f222b9b61428abd2d26414c10928f&amp;sublayer=0" target="_blank" rel="noopener noreferrer">河川形状: ESRIジャパン株式会社・気象庁</a> / <a href="https://www.j-shis.bosai.go.jp/" target="_blank" rel="noopener noreferrer">主要活断層帯: J-SHIS（防災科研）</a> / <a href="https://earthquake.usgs.gov/arcgis/rest/services/eq/map_plateboundaries/MapServer" target="_blank" rel="noopener noreferrer">プレート境界: USGS</a> / <a href="https://www.usgs.gov/data/slab2-a-comprehensive-subduction-zone-geometry-model" target="_blank" rel="noopener noreferrer">プレート面・等深線: USGS Slab2</a> / MapLibre GL JS</div>
+      <div id="map-attribution"><a href="https://www.jma.go.jp/" target="_blank" rel="noopener noreferrer">気象庁</a>の公開データをMeteoScopeが加工・可視化 / <a href="https://xml.kishou.go.jp/" target="_blank" rel="noopener noreferrer">地震・津波: 気象庁防災情報XML</a> / <a href="https://www.jma.go.jp/bosai/map.html#contents=estimated_intensity_map" target="_blank" rel="noopener noreferrer">推計震度分布: 気象庁</a> / <a href="https://www.jma.go.jp/bosai/volcano/" target="_blank" rel="noopener noreferrer">火山: 気象庁 火山情報</a> / <a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">背景地図: 国土地理院</a> / <a href="https://www.arcgis.com/home/item.html?id=dd9f222b9b61428abd2d26414c10928f&amp;sublayer=0" target="_blank" rel="noopener noreferrer">河川形状: ESRIジャパン株式会社・気象庁</a> / <a href="https://www.j-shis.bosai.go.jp/" target="_blank" rel="noopener noreferrer">主要活断層帯: J-SHIS（防災科研）</a> / <a href="https://gbank.gsj.jp/activefault/" target="_blank" rel="noopener noreferrer">活動セグメント: 産総研地質調査総合センター 活断層データベース（MeteoScope加工）</a> / <a href="https://earthquake.usgs.gov/arcgis/rest/services/eq/map_plateboundaries/MapServer" target="_blank" rel="noopener noreferrer">プレート境界: USGS</a> / <a href="https://www.usgs.gov/data/slab2-a-comprehensive-subduction-zone-geometry-model" target="_blank" rel="noopener noreferrer">プレート面・等深線: USGS Slab2</a> / MapLibre GL JS</div>
     </main>
 
     <div id="warning-modal" class="warning-modal" hidden>
@@ -221,8 +221,20 @@
                   <button id="settings-early-access-activate" type="button" data-settings-early-access-activate>認証</button></div>
               </div>
               <div id="settings-early-access-active" class="settings-early-access-active" hidden>
-                <div><strong>昨日グラフ・天気図7日履歴</strong><small id="settings-early-access-label">認証済み</small></div>
+                <div><strong>昨日グラフ・天気図7日履歴・活断層データ選択</strong><small id="settings-early-access-label">認証済み</small></div>
                 <button type="button" data-settings-early-access-deactivate>解除</button>
+              </div>
+              <div id="settings-early-access-features" class="settings-early-access-features" hidden>
+                <div>
+                  <strong>活断層データ</strong>
+                  <span>地震タブの「活断層」で表示する情報源を選択します。</span>
+                </div>
+                <div id="settings-active-fault-source-options" class="settings-theme-options settings-active-fault-source-options" role="radiogroup" aria-label="活断層データ">
+                  <button type="button" data-settings-active-fault-source="jshis" role="radio" aria-checked="false">現在（J-SHIS）</button>
+                  <button type="button" data-settings-active-fault-source="gsj" role="radio" aria-checked="false">産総研（GSJ）</button>
+                </div>
+                <small>産総研を選ぶと、認証済み端末だけが保護された活断層データを必要時に読み込みます。データの一般公開は行いません。</small>
+                <small id="settings-active-fault-source-status" class="settings-active-fault-source-status" role="status"></small>
               </div>
               <p id="settings-early-access-status" class="settings-early-access-status" role="status"></p>
             </div>
@@ -316,7 +328,7 @@
                 <p><strong>区域の形状</strong><br>市区町村境界、地震区域、都道府県境界は、気象庁の<a href="https://www.data.jma.go.jp/developer/gis.html" target="_blank" rel="noopener noreferrer">予報区等GISデータ</a>をGeoJSONへ変換し、区域コード・名称・表示用属性を付加して利用しています。原データには国土地理院の測量成果が使用されています。</p>
                 <p><strong>震度観測点</strong><br>気象庁の<a href="https://www.data.jma.go.jp/eqev/data/intens-st/" target="_blank" rel="noopener noreferrer">震度観測点</a>で公開されている、気象庁・地方公共団体・防災科研の観測点名称、表示用座標、所属区分を加工して利用しています。</p>
                 <p><strong>背景地図</strong><br><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院の地理院タイル（標準地図）</a>を背景として利用し、その上に気象・防災情報を重ねています。</p>
-                <p><strong>主要活断層帯</strong><br>防災科学技術研究所の<a href="https://www.j-shis.bosai.go.jp/api-vectortile-majorfault" target="_blank" rel="noopener noreferrer">J-SHIS主要活断層帯（2022年版・最大ケース）</a>をMVTで取得し、地震タブの地図に配色して重ねています。クリック表示の断層帯名、想定規模（M／Mw）、30年確率はJ-SHISの属性をMeteoScopeが表示用に整形したものです。</p>
+                <p><strong>活断層</strong><br>通常表示には防災科学技術研究所の<a href="https://www.j-shis.bosai.go.jp/api-vectortile-majorfault" target="_blank" rel="noopener noreferrer">J-SHIS主要活断層帯（2022年版・最大ケース）</a>を利用しています。アーリーアクセスでは、<a href="https://gbank.gsj.jp/activefault/" target="_blank" rel="noopener noreferrer">産業技術総合研究所 地質調査総合センター「活断層データベース」</a>の活動セグメントをMeteoScopeがGeoJSONへ変換・表示用に加工したデータへ切り替えられます。</p>
                 <p><strong>プレート境界</strong><br><a href="https://earthquake.usgs.gov/arcgis/rest/services/eq/map_plateboundaries/MapServer" target="_blank" rel="noopener noreferrer">U.S. Geological Survey（USGS）のTectonic Plate Boundaries</a>（境界モデル: Bird, 2003）から日本周辺を抽出し、収束境界・横ずれ境界・その他をMeteoScopeが配色して地震タブへ重ねています。境界線は科学モデルに基づく概略位置で、個別地点の危険度や断層位置を示すものではありません。</p>
                 <p><strong>プレート面・等深線</strong><br><a href="https://www.usgs.gov/data/slab2-a-comprehensive-subduction-zone-geometry-model" target="_blank" rel="noopener noreferrer">U.S. Geological Survey（USGS）のSlab2</a>から日本周辺の沈み込むプレート上面の深さを20km間隔で抽出し、浅い側を赤、深い側を青の連続色で地震タブへ重ねています。立体表示の面は、USGSの収束境界を0km側の端とし、隣接する等深線間をMeteoScopeが補間した概略表現です。距離が離れた箇所やデータの裏付けがない隙間には面を張りません。CC0の静的データを使用し、Web版で3D表示します。モデル値・補間表示であり、地下の境界位置や危険度を地点単位で確定するものではありません。</p>
                 <p><strong>指定河川の形状</strong><br><a href="https://www.arcgis.com/home/item.html?id=dd9f222b9b61428abd2d26414c10928f&amp;sublayer=0" target="_blank" rel="noopener noreferrer">ESRIジャパン「指定河川洪水予報河川および洪水予報河川」</a>を利用しています。原典は気象業務支援センターが公開する流路データと河川名対応表、気象庁の個別コード表です。MeteoScopeが気象庁XMLの発表情報と照合し、地図上の配色と表示を加工しています。</p>

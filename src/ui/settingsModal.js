@@ -77,6 +77,15 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    const activeFaultSourceButton = event.target.closest("[data-settings-active-fault-source]");
+    if (activeFaultSourceButton) {
+      settingsOptions.onEarlyAccessActiveFaultSourceChange?.(
+        activeFaultSourceButton.dataset.settingsActiveFaultSource
+      );
+      renderSettingsEarlyAccess();
+      return;
+    }
+
     if (event.target.closest("[data-settings-account-refresh]")) {
       void renderSettingsAccount();
       return;
@@ -293,14 +302,36 @@ function renderSettingsEarlyAccess() {
   const active = document.getElementById("settings-early-access-active");
   const status = document.getElementById("settings-early-access-status");
   const button = document.getElementById("settings-early-access-activate");
+  const features = document.getElementById("settings-early-access-features");
   if (!form || !active || !status || !button) return;
   form.hidden = Boolean(access.active);
   active.hidden = !access.active;
+  if (features) features.hidden = !access.active;
   button.disabled = earlyAccessBusy || access.status === "checking";
   button.textContent = button.disabled ? "確認中" : "認証";
   document.getElementById("settings-early-access-label").textContent = access.label || "認証済み";
   status.textContent = access.message || "";
   status.dataset.state = access.active ? "active" : access.status || "inactive";
+  const activeFaultSource = state.earlyAccessActiveFaultSource === "gsj" ? "gsj" : "jshis";
+  document.querySelectorAll("[data-settings-active-fault-source]").forEach((sourceButton) => {
+    const selected = sourceButton.dataset.settingsActiveFaultSource === activeFaultSource;
+    sourceButton.classList.toggle("active", selected);
+    sourceButton.setAttribute("aria-checked", String(selected));
+  });
+  const activeFaultStatus = document.getElementById("settings-active-fault-source-status");
+  if (activeFaultStatus) {
+    const dataState = state.earlyAccessActiveFaultDataState ?? {};
+    activeFaultStatus.dataset.state = activeFaultSource === "gsj" ? dataState.status || "idle" : "idle";
+    activeFaultStatus.textContent = activeFaultSource !== "gsj"
+      ? "現在のJ-SHIS表示を使用します。"
+      : dataState.status === "loading"
+        ? "産総研データを認証・取得中です。取得完了まではJ-SHISを表示します。"
+        : dataState.status === "ready"
+          ? `産総研データを表示中です（${Number(dataState.data?.features?.length || 0).toLocaleString("ja-JP")}区間）。`
+          : dataState.status === "error"
+            ? `${dataState.error} J-SHIS表示へ一時的に戻しています。`
+            : "産総研データは地震タブで活断層表示時に取得します。";
+  }
 }
 
 async function renderSettingsAccount() {

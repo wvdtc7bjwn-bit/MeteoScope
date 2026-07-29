@@ -201,11 +201,15 @@ const RIVER_FLOOD_LAYERS = ["jma-river-flood-casing", "jma-river-flood-line", "j
 const JSHIS_MAJOR_FAULT_SOURCE_ID = "jshis-major-faults";
 const JSHIS_MAJOR_FAULT_FILL_LAYER_ID = "jshis-major-fault-fill";
 const JSHIS_MAJOR_FAULT_LINE_LAYER_ID = "jshis-major-fault-line";
+const GSJ_ACTIVE_FAULT_SOURCE_ID = "gsj-active-faults";
+const GSJ_ACTIVE_FAULT_LINE_LAYER_ID = "gsj-active-fault-line";
 const ACTIVE_FAULT_LAYERS = [
   JSHIS_MAJOR_FAULT_FILL_LAYER_ID,
-  JSHIS_MAJOR_FAULT_LINE_LAYER_ID
+  JSHIS_MAJOR_FAULT_LINE_LAYER_ID,
+  GSJ_ACTIVE_FAULT_LINE_LAYER_ID
 ];
 const JSHIS_MAJOR_FAULT_INTERACTIVE_LAYERS = [JSHIS_MAJOR_FAULT_FILL_LAYER_ID, JSHIS_MAJOR_FAULT_LINE_LAYER_ID];
+const GSJ_ACTIVE_FAULT_INTERACTIVE_LAYERS = [GSJ_ACTIVE_FAULT_LINE_LAYER_ID];
 const PLATE_BOUNDARY_SOURCE_ID = "usgs-tectonic-plate-boundaries";
 const PLATE_BOUNDARY_LAYER_IDS = {
   convergent: "usgs-plate-boundary-convergent",
@@ -363,6 +367,8 @@ export function createWeatherMap(elementId) {
   let activeMode = "radar";
   let activeTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
   let activeFaultVisible = true;
+  let activeFaultDataSource = "jshis";
+  let gsjActiveFaultData = EMPTY_GEOJSON;
   let plateBoundaryVisible = true;
   let plateDepthContoursVisible = true;
   let warningAreasByCode = new Map();
@@ -528,6 +534,26 @@ export function createWeatherMap(elementId) {
     syncActiveFaultVisibility();
   }
 
+  function setActiveFaultDataSource(source) {
+    const nextSource = source === "gsj" ? "gsj" : "jshis";
+    if (activeFaultDataSource === nextSource) {
+      syncActiveFaultVisibility();
+      return;
+    }
+    activeFaultDataSource = nextSource;
+    hideMapInfo("active-fault");
+    syncActiveFaultVisibility();
+  }
+
+  function setGsjActiveFaultData(data) {
+    gsjActiveFaultData = data?.type === "FeatureCollection" && Array.isArray(data.features)
+      ? data
+      : EMPTY_GEOJSON;
+    const source = map?.getSource(GSJ_ACTIVE_FAULT_SOURCE_ID);
+    if (source?.setData) source.setData(gsjActiveFaultData);
+    syncActiveFaultVisibility();
+  }
+
   function setPlateBoundaryVisible(visible) {
     plateBoundaryVisible = Boolean(visible);
     syncPlateBoundaryVisibility();
@@ -543,15 +569,29 @@ export function createWeatherMap(elementId) {
     const shouldShow = activeMode === "earthquake" && activeFaultVisible;
     if (shouldShow) ensureActiveFaultLayers();
     ACTIVE_FAULT_LAYERS.forEach((layerId) => {
-      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", shouldShow ? "visible" : "none");
+      if (!map.getLayer(layerId)) return;
+      const matchesSource = activeFaultDataSource === "gsj"
+        ? layerId === GSJ_ACTIVE_FAULT_LINE_LAYER_ID
+        : layerId !== GSJ_ACTIVE_FAULT_LINE_LAYER_ID;
+      map.setLayoutProperty(layerId, "visibility", shouldShow && matchesSource ? "visible" : "none");
     });
   }
 
   function ensureActiveFaultLayers() {
-    if (!map || map.getSource(JSHIS_MAJOR_FAULT_SOURCE_ID)) return;
+    if (!map) return;
+    ensureJshisActiveFaultLayers();
+    ensureGsjActiveFaultLayers();
+  }
+
+  function ensureJshisActiveFaultLayers() {
+    if (map.getSource(JSHIS_MAJOR_FAULT_SOURCE_ID)) return;
     const colors = MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark;
     const beforeLayerId = map.getLayer("sample-circle") ? "sample-circle" : undefined;
-    const visibility = activeMode === "earthquake" && activeFaultVisible ? "visible" : "none";
+    const visibility = activeMode === "earthquake"
+      && activeFaultVisible
+      && activeFaultDataSource === "jshis"
+      ? "visible"
+      : "none";
     map.addSource(JSHIS_MAJOR_FAULT_SOURCE_ID, {
       type: "vector",
       tiles: [MAP_DATA_ENDPOINTS.jshisMajorFaultTiles],
@@ -588,6 +628,49 @@ export function createWeatherMap(elementId) {
     JSHIS_MAJOR_FAULT_INTERACTIVE_LAYERS.forEach((layerId) => {
       map.on("mouseenter", layerId, () => {
         if (activeMode === "earthquake" && activeFaultVisible) map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", layerId, () => {
+        if (activeMode === "earthquake") map.getCanvas().style.cursor = "";
+      });
+    });
+  }
+
+  function ensureGsjActiveFaultLayers() {
+    if (map.getSource(GSJ_ACTIVE_FAULT_SOURCE_ID)) return;
+    const colors = MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark;
+    const beforeLayerId = map.getLayer("sample-circle") ? "sample-circle" : undefined;
+    map.addSource(GSJ_ACTIVE_FAULT_SOURCE_ID, {
+      type: "geojson",
+      data: gsjActiveFaultData
+    });
+    map.addLayer({
+      id: GSJ_ACTIVE_FAULT_LINE_LAYER_ID,
+      type: "line",
+      source: GSJ_ACTIVE_FAULT_SOURCE_ID,
+      minzoom: 4,
+      maxzoom: 16,
+      layout: {
+        visibility: activeMode === "earthquake"
+          && activeFaultVisible
+          && activeFaultDataSource === "gsj"
+          ? "visible"
+          : "none",
+        "line-cap": "round",
+        "line-join": "round"
+      },
+      paint: {
+        "line-color": colors.activeFault,
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 4, 0.76, 8, 0.9, 12, 0.98],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 4, 1.2, 8, 2.1, 12, 3.4]
+      }
+    }, beforeLayerId);
+    GSJ_ACTIVE_FAULT_INTERACTIVE_LAYERS.forEach((layerId) => {
+      map.on("mouseenter", layerId, () => {
+        if (
+          activeMode === "earthquake"
+          && activeFaultVisible
+          && activeFaultDataSource === "gsj"
+        ) map.getCanvas().style.cursor = "pointer";
       });
       map.on("mouseleave", layerId, () => {
         if (activeMode === "earthquake") map.getCanvas().style.cursor = "";
@@ -2040,7 +2123,10 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         hideMapInfo("active-fault");
         return;
       }
-      const layers = JSHIS_MAJOR_FAULT_INTERACTIVE_LAYERS.filter((layerId) => map.getLayer(layerId));
+      const interactiveLayers = activeFaultDataSource === "gsj"
+        ? GSJ_ACTIVE_FAULT_INTERACTIVE_LAYERS
+        : JSHIS_MAJOR_FAULT_INTERACTIVE_LAYERS;
+      const layers = interactiveLayers.filter((layerId) => map.getLayer(layerId));
       const feature = layers.length > 0
         ? map.queryRenderedFeatures(event.point, { layers })[0]
         : null;
@@ -2048,7 +2134,10 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         hideMapInfo("active-fault");
         return;
       }
-      showMapInfo("active-fault", event.lngLat, buildJshisMajorFaultPopup(feature.properties));
+      const popup = activeFaultDataSource === "gsj"
+        ? buildGsjActiveFaultPopup(feature.properties)
+        : buildJshisMajorFaultPopup(feature.properties);
+      showMapInfo("active-fault", event.lngLat, popup);
     });
 
     map.on("zoomend", () => hideMapInfo("active-fault"));
@@ -2243,7 +2332,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setActiveFaultVisible, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, setHypocenterAreaSelection, clearHypocenterAreaSelection };
 }
 
 function normalizeAreaPolygon(polygon) {
@@ -2690,6 +2779,23 @@ function createBaseStyle(theme = "dark") {
   };
 }
 
+function buildGsjActiveFaultPopup(properties = {}) {
+  const faultName = formatMapInfoTitle(
+    properties.segment_name
+    || properties.name
+    || "活断層"
+  );
+  const description = escapeMapInfoHtml(properties.description || "産総研 活断層データベース収録区間");
+  return `
+    <article class="map-info-card active-fault-popup-card">
+      <h3>${faultName}</h3>
+      <div class="map-info-popup-body">
+        <p>${description}</p>
+        <p class="map-info-popup-note">産総研 地質調査総合センター 活断層データベース</p>
+      </div>
+    </article>`;
+}
+
 function revealInitialGeometryLayers(map) {
   INITIAL_GEOMETRY_LAYER_IDS.forEach((layerId) => {
     if (map.getLayer(layerId)) {
@@ -2727,6 +2833,7 @@ function applyMapTheme(map, theme) {
     ["sample-volcano", "icon-halo-width", colors.volcanoBaseHaloWidth],
     [JSHIS_MAJOR_FAULT_FILL_LAYER_ID, "fill-color", colors.activeFaultFill],
     [JSHIS_MAJOR_FAULT_LINE_LAYER_ID, "line-color", colors.activeFault],
+    [GSJ_ACTIVE_FAULT_LINE_LAYER_ID, "line-color", colors.activeFault],
     [PLATE_BOUNDARY_LAYER_IDS.convergent, "line-color", colors.plateConvergent],
     [PLATE_BOUNDARY_LAYER_IDS.transform, "line-color", colors.plateTransform],
     [PLATE_BOUNDARY_LAYER_IDS.other, "line-color", colors.plateOther],
