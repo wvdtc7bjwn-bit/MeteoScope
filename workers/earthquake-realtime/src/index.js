@@ -2,6 +2,7 @@ import {
   readJmaDailyHypocenterDistribution,
   runJmaDailyFastBackfill
 } from "./jmaDailyHypocenters.js";
+import { runJmaXmlHypocenterSync } from "./jmaXmlHypocenters.js";
 
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -21,7 +22,7 @@ function jsonResponse(payload, status = 200, extraHeaders = {}) {
 async function fetchDistribution(request, env, ctx) {
   const cache = caches.default;
   const cacheUrl = new URL(request.url);
-  cacheUrl.searchParams.set("_meteoscopeCache", "jma-distribution-v6");
+  cacheUrl.searchParams.set("_meteoscopeCache", "jma-distribution-v7");
   const cacheKey = new Request(cacheUrl, { method: "GET" });
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
@@ -56,6 +57,9 @@ export default {
 
   async scheduled(_controller, env, ctx) {
     const cache = typeof caches !== "undefined" ? caches.default : null;
-    ctx.waitUntil(runJmaDailyFastBackfill(env, { cache }));
+    ctx.waitUntil(Promise.allSettled([
+      runJmaXmlHypocenterSync(env),
+      runJmaDailyFastBackfill(env, { cache })
+    ]));
   }
 };

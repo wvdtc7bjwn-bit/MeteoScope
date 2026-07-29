@@ -3,9 +3,9 @@ main = "src/index.js"
 compatibility_date = "2026-07-15"
 
 [triggers]
-# The 1-minute trigger backfills one missing day per run to stay within the
-# Workers Free CPU limit. Once the latest 731 days exist it performs no
-# external fetch or D1 write; completion is cached per source date for six hours.
+# The 1-minute trigger receives today's and yesterday's earthquake XML updates,
+# prunes older XML rows, and backfills at most one missing daily-list date.
+# Daily-list completion is cached per source date for six hours.
 crons = ["* * * * *"]
 
 # Delete the retired realtime-ingestion Durable Object class and its stored instances when

@@ -1,3 +1,11 @@
+import {
+  getJmaXmlRetentionDates,
+  isJmaXmlRetentionDate,
+  JMA_XML_SOURCE_URL,
+  readJmaXmlDailyCounts,
+  readJmaXmlDay
+} from "./jmaXmlHypocenters.js";
+
 const JMA_DAILY_BASE_URL = "https://www.data.jma.go.jp/eqev/data/daily_map";
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
@@ -14,8 +22,8 @@ const JMA_DAILY_PUBLICATION_LAG_DAYS = 2;
 const RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 const MAX_RECORDS_PER_DAY = 5_000;
 const MAX_PAYLOAD_BYTES = 1_500_000;
-const SUMMARY_CACHE_SECONDS = 5 * 60;
-const SUMMARY_CACHE_VERSION = "jma-daily-summary-v1";
+const SUMMARY_CACHE_SECONDS = 60;
+const SUMMARY_CACHE_VERSION = "jma-combined-summary-v1";
 const FAST_BACKFILL_COMPLETE_CACHE_SECONDS = 6 * 60 * 60;
 const MAX_STATUS_DATE_DETAILS = 31;
 
@@ -329,16 +337,16 @@ export async function readJmaDailyHypocenterDistribution(request, env, ctx) {
 
   return jsonResponse({
     ok: true,
-    source: "jma-daily-hypocenters",
-    sourceLabel: "気象庁 日々の震源リスト",
-    sourceUrl: `${JMA_DAILY_BASE_URL}/index.html`,
+    source: "jma-combined-hypocenters",
+    sourceLabel: "気象庁 防災情報XML／日々の震源リスト",
+    sourceUrl: JMA_XML_SOURCE_URL,
     provisional: true,
     retentionDays: JMA_DAILY_RETENTION_DAYS,
     requestedDayOffset,
     minMagnitude: minMagnitudeText,
     maxDepth: maxDepthText,
     ...snapshot
-  }, 200, { "cache-control": "public, max-age=300, s-maxage=300" });
+  }, 200, { "cache-control": "public, max-age=60, s-maxage=60" });
 }
 
 async function syncOneDate(db, date, fetchImpl) {
@@ -404,13 +412,16 @@ async function queryDistribution(db, { summary, requestedDayOffset, minMagnitude
     ? Math.min(requestedDayOffset, availableDates.length - 1)
     : 0;
   const selectedSourceDate = availableDates[dayOffset] ?? null;
-  const selectedDay = selectedSourceDate
-    ? await db.prepare(`
-        SELECT payload_json FROM jma_daily_hypocenter_days
-        WHERE source_date = ? LIMIT 1
-      `).bind(selectedSourceDate).first()
-    : null;
-  const items = parseStoredPayload(selectedDay?.payload_json)
+  const usesXml = Boolean(selectedSourceDate && isJmaXmlRetentionDate(selectedSourceDate));
+  const storedItems = usesXml
+    ? await readJmaXmlDay(db, selectedSourceDate)
+    : parseStoredPayload(selectedSourceDate
+      ? (await db.prepare(`
+          SELECT payload_json FROM jma_daily_hypocenter_days
+          WHERE source_date = ? LIMIT 1
+        `).bind(selectedSourceDate).first())?.payload_json
+      : null);
+  const items = storedItems
     .filter((item) => minMagnitude === null || (
       Number.isFinite(item.magnitude) && item.magnitude >= minMagnitude
     ))
@@ -422,6 +433,12 @@ async function queryDistribution(db, { summary, requestedDayOffset, minMagnitude
   return {
     ...summary,
     selectedSourceDate,
+    selectedSource: usesXml ? "jma-xml" : "jma-daily",
+    selectedSourceLabel: usesXml ? "気象庁 防災情報XML" : "気象庁「日々の震源リスト」",
+    selectedSourceUrl: usesXml
+      ? JMA_XML_SOURCE_URL
+      : `${JMA_DAILY_BASE_URL}/index.html`,
+    selectedProvisional: true,
     dayOffset,
     truncated: items.length > visibleItems.length,
     items: visibleItems
@@ -430,31 +447,38 @@ async function queryDistribution(db, { summary, requestedDayOffset, minMagnitude
 
 async function readDistributionSummary(db, request, ctx) {
   const cache = globalThis.caches?.default;
+  const currentJstDate = getJmaXmlRetentionDates()[0];
   const cacheKey = cache
-    ? new Request(`https://meteoscope-cache.invalid/earthquakes/distribution-summary?v=${SUMMARY_CACHE_VERSION}`)
+    ? new Request(`https://meteoscope-cache.invalid/earthquakes/distribution-summary?v=${SUMMARY_CACHE_VERSION}&date=${currentJstDate}`)
     : null;
   if (cache && cacheKey) {
     const cached = await cache.match(cacheKey);
     if (cached) return cached.json();
   }
 
-  const result = await db.prepare(`
-    SELECT daily.source_date, daily.record_count, daily.fetched_at,
-      'ok' AS status, NULL AS error
-    FROM jma_daily_hypocenter_days AS daily
-    UNION ALL
-    SELECT sync.source_date, 0 AS record_count, sync.fetched_at,
-      sync.status, sync.error
-    FROM jma_daily_hypocenter_sync AS sync
-    WHERE sync.status = 'error'
-      AND NOT EXISTS (
-        SELECT 1 FROM jma_daily_hypocenter_days AS stored
-        WHERE stored.source_date = sync.source_date
-      )
-    ORDER BY source_date DESC
-    LIMIT ${JMA_DAILY_RETENTION_DAYS + JMA_DAILY_SOURCE_LAG_BUFFER_DAYS}
-  `).bind().all();
-  const summary = buildDistributionSummary(result?.results ?? []);
+  const [result, xmlRows] = await Promise.all([
+    db.prepare(`
+      SELECT daily.source_date, daily.record_count, daily.fetched_at,
+        'ok' AS status, NULL AS error, 'jma-daily' AS source_type
+      FROM jma_daily_hypocenter_days AS daily
+      UNION ALL
+      SELECT sync.source_date, 0 AS record_count, sync.fetched_at,
+        sync.status, sync.error, 'jma-daily' AS source_type
+      FROM jma_daily_hypocenter_sync AS sync
+      WHERE sync.status = 'error'
+        AND NOT EXISTS (
+          SELECT 1 FROM jma_daily_hypocenter_days AS stored
+          WHERE stored.source_date = sync.source_date
+        )
+      ORDER BY source_date DESC
+      LIMIT ${JMA_DAILY_RETENTION_DAYS + JMA_DAILY_SOURCE_LAG_BUFFER_DAYS}
+    `).bind().all(),
+    readJmaXmlDailyCounts(db)
+  ]);
+  const summary = buildDistributionSummary([
+    ...xmlRows,
+    ...(result?.results ?? [])
+  ]);
 
   if (cache && cacheKey) {
     const response = jsonResponse(summary, 200, {
@@ -467,36 +491,58 @@ async function readDistributionSummary(db, request, ctx) {
   return summary;
 }
 
-export function buildDistributionSummary(rows) {
+export function buildDistributionSummary(rows, timestamp = Date.now()) {
   const normalized = Array.isArray(rows) ? rows : [];
+  const xmlDates = new Set(getJmaXmlRetentionDates(timestamp));
+  const seenDates = new Set();
   const successfulRows = normalized
-    .filter((row) => row?.status !== "error" && DATE_PATTERN.test(String(row?.source_date ?? "")))
+    .filter((row) => row?.status !== "error"
+      && DATE_PATTERN.test(String(row?.source_date ?? "")))
+    .filter((row) => {
+      const sourceDate = String(row.source_date);
+      return xmlDates.has(sourceDate)
+        ? row.source_type === "jma-xml"
+        : row.source_type !== "jma-xml";
+    })
     .sort((left, right) => String(right.source_date).localeCompare(String(left.source_date)))
+    .filter((row) => {
+      const sourceDate = String(row.source_date);
+      if (seenDates.has(sourceDate)) return false;
+      seenDates.add(sourceDate);
+      return true;
+    })
     .slice(0, JMA_DAILY_RETENTION_DAYS);
-  const allDailyCounts = successfulRows.map((row) => ({
-    sourceDate: String(row.source_date),
-    count: Math.max(0, Number(row.record_count) || 0)
-  }));
+  const allDailyCounts = successfulRows.map((row) => {
+    const sourceDate = String(row.source_date);
+    return {
+      sourceDate,
+      count: Math.max(0, Number(row.record_count) || 0),
+      source: xmlDates.has(sourceDate) ? "jma-xml" : "jma-daily"
+    };
+  });
   const availableDates = allDailyCounts.map((row) => row.sourceDate);
   const latestSourceDate = availableDates[0] ?? null;
   const expectedDates = latestSourceDate
     ? buildDatesFromSourceDate(latestSourceDate, JMA_DAILY_RETENTION_DAYS)
     : [];
   const availableSet = new Set(availableDates);
-  const expectedLatestSourceDate = buildRecentJstDates(1)[0];
+  const expectedLatestSourceDate = getJmaXmlRetentionDates(timestamp)[0];
+  const expectedLatestDailySourceDate = buildRecentJstDates(1, timestamp)[0];
   const errorRows = normalized.filter((row) => (
-    row?.status === "error" && DATE_PATTERN.test(String(row?.source_date ?? ""))
+    row?.status === "error"
+      && row?.source_type !== "jma-xml"
+      && DATE_PATTERN.test(String(row?.source_date ?? ""))
   ));
   const pendingPublicationDates = errorRows
     .filter((row) => row.error === "jma_daily_list_not_published"
-      && String(row.source_date) <= expectedLatestSourceDate
-      && (!latestSourceDate || String(row.source_date) > latestSourceDate))
+      && String(row.source_date) <= expectedLatestDailySourceDate
+      && !availableSet.has(String(row.source_date)))
     .map((row) => String(row.source_date))
     .sort((left, right) => right.localeCompare(left));
   const pendingSet = new Set(pendingPublicationDates);
   const failedSourceDates = errorRows
     .map((row) => String(row.source_date))
-    .filter((date) => date <= expectedLatestSourceDate)
+    .filter((date) => date <= expectedLatestDailySourceDate)
     .filter((date) => !pendingSet.has(date))
     .sort((left, right) => right.localeCompare(left));
   const missingStoredDates = expectedDates.filter((date) => !availableSet.has(date));

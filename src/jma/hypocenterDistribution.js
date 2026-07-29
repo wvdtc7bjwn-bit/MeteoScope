@@ -20,7 +20,7 @@ export async function fetchHypocenterDistribution(filters = {}, options = {}) {
     maxDepth
   });
   const payload = await fetchJson(`${ENDPOINT}?${parameters}`, {
-    ttlMs: options.force ? 0 : 5 * 60 * 1000,
+    ttlMs: options.force ? 0 : 60 * 1000,
     cache: options.force ? "no-store" : "default"
   });
   if (payload?.ok !== true || !Array.isArray(payload?.items)) {
