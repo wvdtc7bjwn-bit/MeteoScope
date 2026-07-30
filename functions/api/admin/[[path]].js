@@ -50,6 +50,7 @@ export async function onRequest({ request, env }) {
     }
     if (route === "push/broadcasts" && method === "GET") return await getPushBroadcasts(env);
     if (route === "push/broadcasts" && method === "POST") return await postPushBroadcast(request, env);
+    if (route === "discord/test" && method === "POST") return await postDiscordTest(env);
     if (route.startsWith("push/broadcasts/") && method === "DELETE") {
       return await deletePushBroadcast(route.slice("push/broadcasts/".length), env);
     }
@@ -146,6 +147,31 @@ async function status(env) {
           && (env.CLOUDFLARE_ANALYTICS_API_TOKEN || env.CLOUDFLARE_API_TOKEN)
       )
     }
+  });
+}
+
+async function postDiscordTest(env) {
+  if (!env.HYPOCENTER_ARCHIVE || !env.METEOSCOPE_ADMIN_SERVICE_TOKEN) {
+    return json({ error: "Discordテスト投稿の内部接続が未設定です。" }, { status: 503 });
+  }
+  const response = await env.HYPOCENTER_ARCHIVE.fetch(new Request(
+    "https://earthquake-worker.internal/api/earthquakes/internal/discord/test",
+    {
+      method: "POST",
+      headers: {
+        "x-meteoscope-admin-token": env.METEOSCOPE_ADMIN_SERVICE_TOKEN
+      }
+    }
+  ));
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return json({
+      error: String(payload.error || "Discordテスト投稿に失敗しました。")
+    }, { status: response.status });
+  }
+  return json({
+    ok: true,
+    sentAt: payload.sentAt || new Date().toISOString()
   });
 }
 

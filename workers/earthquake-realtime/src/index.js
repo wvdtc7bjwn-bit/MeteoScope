@@ -3,6 +3,7 @@ import {
   runJmaDailyFastBackfill
 } from "./jmaDailyHypocenters.js";
 import { runJmaXmlHypocenterSync } from "./jmaXmlHypocenters.js";
+import { sendDiscordEarthquakeTestNotification } from "./discordEarthquakeNotifications.js";
 
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -69,17 +70,60 @@ async function runScheduledSync(env, cache) {
   return results.map((result) => result.value);
 }
 
+async function postDiscordTest(request, env) {
+  if (!timingSafeEqual(
+    request.headers.get("x-meteoscope-admin-token"),
+    env.METEOSCOPE_ADMIN_SERVICE_TOKEN
+  )) {
+    return jsonResponse({ ok: false, error: "not_found" }, 404);
+  }
+  const result = await sendDiscordEarthquakeTestNotification(env);
+  if (result.ok) {
+    return jsonResponse({ ok: true, sentAt: result.sentAt });
+  }
+  const messages = {
+    discord_webhook_not_configured: "Discord Webhook Secretが未設定です。",
+    discord_rate_limited: "Discordの送信制限中です。時間をおいて再試行してください。",
+    discord_timeout: "Discordへの接続がタイムアウトしました。",
+    discord_network_error: "Discordへ接続できませんでした。",
+    discord_message_id_missing: "Discordから投稿結果を確認できませんでした。"
+  };
+  return jsonResponse({
+    ok: false,
+    error: messages[result.error] || "Discordテスト投稿に失敗しました。"
+  }, result.status || 502);
+}
+
+function timingSafeEqual(leftValue, rightValue) {
+  const left = new TextEncoder().encode(String(leftValue ?? ""));
+  const right = new TextEncoder().encode(String(rightValue ?? ""));
+  let difference = left.length ^ right.length;
+  const length = Math.max(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    difference |= (left[index] || 0) ^ (right[index] || 0);
+  }
+  return left.length > 0 && right.length > 0 && difference === 0;
+}
+
 export default {
   async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: JSON_HEADERS });
+    }
+    const pathname = new URL(request.url).pathname.replace(/^\/api\/earthquakes/u, "");
+    if (pathname === "/internal/discord/test") {
+      if (request.method !== "POST") {
+        return jsonResponse({ ok: false, error: "method_not_allowed" }, 405, {
+          allow: "POST"
+        });
+      }
+      return postDiscordTest(request, env);
     }
     if (!["GET", "HEAD"].includes(request.method)) {
       return jsonResponse({ ok: false, error: "method_not_allowed" }, 405, {
         allow: "GET, HEAD, OPTIONS"
       });
     }
-    const pathname = new URL(request.url).pathname.replace(/^\/api\/earthquakes/u, "");
     if (pathname !== "/distribution") {
       return jsonResponse({ ok: false, error: "not_found" }, 404);
     }

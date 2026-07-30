@@ -158,7 +158,10 @@ const [adminRoute, adminPage, adminScript, adminStyles, pushSource] = await Prom
 ]);
 assert.match(adminRoute, /route === "accounts" && method === "GET"/u);
 assert.match(adminRoute, /route === "quota" && method === "GET"/u);
+assert.match(adminRoute, /route === "discord\/test" && method === "POST"/u);
 assert.match(adminRoute, /readCloudflareFreeTierUsage/u);
+assert.match(adminRoute, /HYPOCENTER_ARCHIVE\.fetch/u);
+assert.match(adminRoute, /METEOSCOPE_ADMIN_SERVICE_TOKEN/u);
 assert.match(adminRoute, /route\.startsWith\("accounts\/"\) && method === "DELETE"/u);
 assert.match(adminRoute, /route\.startsWith\("push\/broadcasts\/"\) && method === "DELETE"/u);
 assert.match(adminRoute, /listAdminPushBroadcasts\(env, 50\)/u);
@@ -167,8 +170,10 @@ assert.match(adminPage, /id="admin-account-list"/u);
 assert.match(adminPage, /id="free-tier-monitoring"/u);
 assert.match(adminPage, /id="quota-metrics"/u);
 assert.match(adminPage, /管理者通知管理/u);
+assert.match(adminPage, /id="discord-test-button"/u);
 assert.match(adminScript, /data-delete-account/u);
 assert.match(adminScript, /data-delete-push-broadcast/u);
+assert.match(adminScript, /sendDiscordTestNotification/u);
 assert.match(adminScript, /function renderCloudflareQuota/u);
 assert.match(adminScript, /DO実行時間/u);
 assert.match(pushSource, /ADMIN_BROADCAST_IMMEDIATE_BATCHES = 5/u);
@@ -180,5 +185,6 @@ assert.match(pushSource, /signal: controller\.signal/u);
 assert.match(adminScript, /残り\$\{pending\}件は再試行/u);
 assert.match(adminStyles, /\.admin-account-item/u);
 assert.match(adminStyles, /\.admin-quota-grid/u);
+assert.match(adminStyles, /\.admin-discord-test/u);
 
 console.log("Admin account and notification management tests passed.");

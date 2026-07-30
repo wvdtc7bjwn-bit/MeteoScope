@@ -58,7 +58,9 @@ const elements = {
   pushBody: document.getElementById("admin-push-body"),
   pushUrl: document.getElementById("admin-push-url"),
   pushSubmit: document.getElementById("admin-push-submit"),
-  pushHistory: document.getElementById("admin-push-history")
+  pushHistory: document.getElementById("admin-push-history"),
+  discordTestButton: document.getElementById("discord-test-button"),
+  discordTestMessage: document.getElementById("discord-test-message")
 };
 
 void initialize();
@@ -150,6 +152,9 @@ function bindEvents() {
   elements.pushHistory?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-delete-push-broadcast]");
     if (button) void deletePushBroadcast(button.dataset.deletePushBroadcast, button);
+  });
+  elements.discordTestButton?.addEventListener("click", () => {
+    void sendDiscordTestNotification();
   });
   elements.refreshAccountsButton?.addEventListener("click", () => {
     void refreshAccounts({ reset: true });
@@ -320,6 +325,29 @@ async function sendAdminPushBroadcast() {
     setMessage(elements.dashboardMessage, error.message || "プッシュ通知を予約できませんでした。", "error");
   } finally {
     if (elements.pushSubmit) elements.pushSubmit.disabled = false;
+  }
+}
+
+async function sendDiscordTestNotification() {
+  if (elements.discordTestButton?.disabled) return;
+  if (!confirm("DiscordへTEST表記の地震情報を1件投稿しますか？")) return;
+  if (elements.discordTestButton) elements.discordTestButton.disabled = true;
+  setMessage(elements.discordTestMessage, "Discordへ送信中...");
+  try {
+    const response = await requestJson("/discord/test", { method: "POST" });
+    setMessage(
+      elements.discordTestMessage,
+      `テスト投稿を送信しました（${formatDateTime(response.sentAt)}）。`,
+      "success"
+    );
+  } catch (error) {
+    setMessage(
+      elements.discordTestMessage,
+      error.message || "Discordテスト投稿に失敗しました。",
+      "error"
+    );
+  } finally {
+    if (elements.discordTestButton) elements.discordTestButton.disabled = false;
   }
 }
 

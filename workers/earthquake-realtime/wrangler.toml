@@ -8,6 +8,11 @@ compatibility_date = "2026-07-15"
 # Daily-list completion is cached per source date for six hours.
 crons = ["* * * * *"]
 
+# Discord earthquake notifications are enabled only when this Worker has the
+# DISCORD_EARTHQUAKE_WEBHOOK_URL secret. Never place the webhook URL in this file.
+[secrets]
+required = ["DISCORD_EARTHQUAKE_WEBHOOK_URL"]
+
 # Delete the retired realtime-ingestion Durable Object class and its stored instances when
 # this Worker revision is deployed. No Durable Object binding remains.
 [[migrations]]

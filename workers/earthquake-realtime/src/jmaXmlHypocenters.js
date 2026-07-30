@@ -1,4 +1,10 @@
 import { DOMParser } from "@xmldom/xmldom";
+import {
+  buildDiscordEarthquakeNotificationUpsert,
+  deliverPendingDiscordEarthquakeNotifications,
+  ensureDiscordEarthquakeNotificationSchema,
+  isDiscordNotifiableEarthquakeReport
+} from "./discordEarthquakeNotifications.js";
 
 const JMA_XML_FEED_URLS = [
   "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml",
@@ -62,6 +68,7 @@ export async function ensureJmaXmlHypocenterSchema(db) {
       ON jma_xml_feed_entries(source_date, status)
     `)
   ]);
+  await ensureDiscordEarthquakeNotificationSchema(db);
 }
 
 export function parseJmaXmlFeed(text) {
@@ -111,6 +118,12 @@ export function parseJmaXmlHypocenterReport(text, entry = {}) {
   const cancelled = infoType.includes("取消");
   const normalStatus = !status || status === "通常";
   const normalizedEventId = String(eventId || buildFallbackEventId(originTime, coordinate)).trim();
+  const observation = firstDescendant(body, "Observation");
+  const maxIntensity = childText(observation, "MaxInt");
+  const tsunamiText = descendants(report, "Text")
+    .map((node) => String(node.textContent ?? "").replace(/\s+/gu, " ").trim())
+    .find((value) => value.includes("津波"))
+    || "";
 
   if (!normalStatus) {
     return {
@@ -138,6 +151,8 @@ export function parseJmaXmlHypocenterReport(text, entry = {}) {
     sourceUrl: entry.url || "",
     reportPriority: getReportPriority(xmlCode),
     infoType,
+    maxIntensity,
+    tsunamiText,
     active: cancelled ? 0 : 1,
     ignored: !cancelled && !coordinate,
     reason: !cancelled && !coordinate ? "hypocenter_missing" : null
@@ -177,6 +192,10 @@ export async function runJmaXmlHypocenterSync(env, options = {}) {
     ));
   }
   const cleanupAfterSync = await trimJmaXmlHypocenters(db, retainedDates);
+  const discord = await deliverPendingDiscordEarthquakeNotifications(env, {
+    fetchImpl,
+    now
+  });
 
   return {
     feedCount: feeds.filter((result) => result.status === "fulfilled").length,
@@ -186,8 +205,11 @@ export async function runJmaXmlHypocenterSync(env, options = {}) {
     failedCount: results.filter((result) => result.status === "error").length,
     cleanup: {
       deletedHypocenters: cleanup.deletedHypocenters + cleanupAfterSync.deletedHypocenters,
-      deletedFeedEntries: cleanup.deletedFeedEntries + cleanupAfterSync.deletedFeedEntries
+      deletedFeedEntries: cleanup.deletedFeedEntries + cleanupAfterSync.deletedFeedEntries,
+      deletedDiscordNotifications:
+        cleanup.deletedDiscordNotifications + cleanupAfterSync.deletedDiscordNotifications
     },
+    discord,
     retainedDates
   };
 }
@@ -298,6 +320,9 @@ async function syncOneEntry(db, entry, fetchImpl, now) {
     const statements = [];
     if (!report.ignored) {
       statements.push(buildReportUpsert(db, report, processedAt));
+    }
+    if (isDiscordNotifiableEarthquakeReport(report)) {
+      statements.push(buildDiscordEarthquakeNotificationUpsert(db, report, entry, now));
     }
     statements.push(buildEntryUpsert(db, {
       ...entry,
@@ -421,11 +446,16 @@ async function trimJmaXmlHypocenters(db, retainedDates) {
     db.prepare(`
       DELETE FROM jma_xml_feed_entries
       WHERE source_date < ? OR source_date > ?
+    `).bind(retainedDates[1], retainedDates[0]),
+    db.prepare(`
+      DELETE FROM discord_earthquake_notifications
+      WHERE source_date < ? OR source_date > ?
     `).bind(retainedDates[1], retainedDates[0])
   ]);
   return {
     deletedHypocenters: Number(results?.[0]?.meta?.changes ?? 0),
-    deletedFeedEntries: Number(results?.[1]?.meta?.changes ?? 0)
+    deletedFeedEntries: Number(results?.[1]?.meta?.changes ?? 0),
+    deletedDiscordNotifications: Number(results?.[2]?.meta?.changes ?? 0)
   };
 }
 

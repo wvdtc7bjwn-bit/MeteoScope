@@ -14,14 +14,35 @@ import {
   parseJmaXmlHypocenterReport,
   selectJmaXmlCandidates
 } from "../workers/earthquake-realtime/src/jmaXmlHypocenters.js";
+import {
+  buildDiscordEarthquakeTestWebhookPayload,
+  buildDiscordEarthquakeWebhookPayload,
+  computeDiscordRetryDelayMs,
+  deliverPendingDiscordEarthquakeNotifications,
+  isDiscordNotifiableEarthquakeReport,
+  parseDiscordWebhookUrl,
+  sendDiscordEarthquakeTestNotification
+} from "../workers/earthquake-realtime/src/discordEarthquakeNotifications.js";
+import earthquakeWorkerHandler from "../workers/earthquake-realtime/src/index.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const [worker, wrangler, migration, xmlMigration, xmlWorker, pagesRoute] = await Promise.all([
+const [
+  worker,
+  wrangler,
+  migration,
+  xmlMigration,
+  discordMigration,
+  xmlWorker,
+  discordWorker,
+  pagesRoute
+] = await Promise.all([
   fs.readFile(path.join(root, "workers", "earthquake-realtime", "src", "index.js"), "utf8"),
   fs.readFile(path.join(root, "workers", "earthquake-realtime", "wrangler.toml"), "utf8"),
   fs.readFile(path.join(root, "workers", "earthquake-realtime", "migrations", "0003_remove_dmdata.sql"), "utf8"),
   fs.readFile(path.join(root, "workers", "earthquake-realtime", "migrations", "0004_jma_xml_hypocenters.sql"), "utf8"),
+  fs.readFile(path.join(root, "workers", "earthquake-realtime", "migrations", "0005_discord_earthquake_notifications.sql"), "utf8"),
   fs.readFile(path.join(root, "workers", "earthquake-realtime", "src", "jmaXmlHypocenters.js"), "utf8"),
+  fs.readFile(path.join(root, "workers", "earthquake-realtime", "src", "discordEarthquakeNotifications.js"), "utf8"),
   fs.readFile(path.join(root, "functions", "api", "earthquakes", "[[path]].js"), "utf8")
 ]);
 
@@ -45,6 +66,9 @@ assert.deepEqual(
   "設定で表示する場合は当日・前日を保持する"
 );
 assert.match(worker, /pathname !== "\/distribution"/u);
+assert.match(worker, /\/internal\/discord\/test/u);
+assert.match(worker, /METEOSCOPE_ADMIN_SERVICE_TOKEN/u);
+assert.match(worker, /timingSafeEqual/u);
 assert.match(worker, /runJmaXmlHypocenterSync/u);
 assert.match(worker, /requestUrl\.searchParams\.get\("fresh"\) === "1"/u);
 assert.match(worker, /jma-distribution-fresh-v1/u);
@@ -70,8 +94,17 @@ assert.match(migration, /DROP TABLE IF EXISTS station_intensities/u);
 assert.match(migration, /DROP TABLE IF EXISTS tsunami_history/u);
 assert.match(xmlMigration, /CREATE TABLE IF NOT EXISTS jma_xml_hypocenters/u);
 assert.match(xmlMigration, /CREATE TABLE IF NOT EXISTS jma_xml_feed_entries/u);
+assert.match(discordMigration, /CREATE TABLE IF NOT EXISTS discord_earthquake_notifications/u);
 assert.match(xmlWorker, /DELETE FROM jma_xml_hypocenters[\s\S]*source_date < \? OR source_date > \?/u);
 assert.match(xmlWorker, /DELETE FROM jma_xml_feed_entries[\s\S]*source_date < \? OR source_date > \?/u);
+assert.match(xmlWorker, /isDiscordNotifiableEarthquakeReport/u);
+assert.match(xmlWorker, /deliverPendingDiscordEarthquakeNotifications/u);
+assert.match(discordWorker, /DISCORD_EARTHQUAKE_WEBHOOK_URL/u);
+assert.match(discordWorker, /allowed_mentions:\s*\{\s*parse:\s*\[\]\s*\}/u);
+assert.match(discordWorker, /requestUrl\.searchParams\.set\("wait", "true"\)/u);
+assert.match(discordWorker, /method = "PATCH"/u);
+assert.match(discordWorker, /response\.status === 429/u);
+assert.doesNotMatch(discordWorker, /discord(?:app)?\.com\/api\/webhooks\/\d+/u);
 assert.match(pagesRoute, /HYPOCENTER_ARCHIVE/u, "震央分布WorkerのService bindingを使用する");
 assert.match(pagesRoute, /earthquake-worker\.internal\/api\/earthquakes/u);
 
@@ -124,6 +157,8 @@ const report = parseJmaXmlHypocenterReport(`<?xml version="1.0" encoding="UTF-8"
         </Area></Hypocenter>
         <jmx_eb:Magnitude xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">2.8</jmx_eb:Magnitude>
       </Earthquake>
+      <Intensity><Observation><MaxInt>5-</MaxInt></Observation></Intensity>
+      <Comments><ForecastComment><Text>この地震による津波の心配はありません。</Text></ForecastComment></Comments>
     </Body>
   </Report>`, reportEntry);
 assert.equal(report.eventId, "20260729235900");
@@ -133,6 +168,192 @@ assert.equal(report.longitude, 130.8);
 assert.equal(report.depthKm, 10);
 assert.equal(report.magnitude, 2.8);
 assert.equal(report.active, 1);
+assert.equal(report.maxIntensity, "5-");
+assert.equal(report.tsunamiText, "この地震による津波の心配はありません。");
+assert.equal(
+  isDiscordNotifiableEarthquakeReport(report),
+  true,
+  "震源・震度に関する情報（VXSE53）の確定報だけをDiscord通知対象にする"
+);
+assert.equal(
+  isDiscordNotifiableEarthquakeReport({ ...report, xmlCode: "VXSE51" }),
+  false,
+  "震度速報（VXSE51）はDiscord通知しない"
+);
+assert.equal(
+  isDiscordNotifiableEarthquakeReport({ ...report, xmlCode: "VXSE52" }),
+  false,
+  "震源情報（VXSE52）もDiscord通知しない"
+);
+assert.equal(
+  isDiscordNotifiableEarthquakeReport({ ...report, maxIntensity: "" }),
+  false,
+  "観測最大震度を持たない不完全なVXSE53は通知しない"
+);
+
+const discordPayload = buildDiscordEarthquakeWebhookPayload(report);
+assert.deepEqual(discordPayload.allowed_mentions, { parse: [] });
+assert.match(discordPayload.embeds[0].title, /最大震度 5弱/u);
+assert.equal(
+  discordPayload.embeds[0].fields.find((field) => field.name === "津波")?.value,
+  "津波の心配なし"
+);
+assert.ok(parseDiscordWebhookUrl("https://discord.com/api/webhooks/123/token"));
+assert.equal(
+  parseDiscordWebhookUrl("https://discordapp.com/api/webhooks/123/token")?.hostname,
+  "discord.com",
+  "旧discordapp.com形式は公式discord.comへ正規化する"
+);
+assert.equal(parseDiscordWebhookUrl("https://example.com/api/webhooks/123/token"), null);
+assert.equal(computeDiscordRetryDelayMs(0, 2.5), 2_500);
+
+const testPayload = buildDiscordEarthquakeTestWebhookPayload(Date.parse("2026-07-30T03:00:00Z"));
+assert.match(testPayload.embeds[0].title, /TEST/u);
+assert.match(testPayload.embeds[0].description, /実際の地震情報ではありません/u);
+assert.deepEqual(testPayload.allowed_mentions, { parse: [] });
+const testDeliveryCalls = [];
+const testDelivery = await sendDiscordEarthquakeTestNotification({
+  DISCORD_EARTHQUAKE_WEBHOOK_URL: "https://discord.com/api/webhooks/123/token"
+}, {
+  now: Date.parse("2026-07-30T03:00:00Z"),
+  fetchImpl: async (url, init) => {
+    testDeliveryCalls.push({ url: String(url), init });
+    return Response.json({ id: "discord-test-message-1" });
+  }
+});
+assert.equal(testDelivery.ok, true);
+assert.match(testDeliveryCalls[0].url, /\?wait=true$/u);
+assert.equal(testDeliveryCalls[0].init.method, "POST");
+assert.equal(
+  JSON.parse(testDeliveryCalls[0].init.body).embeds[0].title,
+  "【TEST】地震情報通知"
+);
+
+const unauthorizedDiscordTestResponse = await earthquakeWorkerHandler.fetch(
+  new Request("https://worker.example/api/earthquakes/internal/discord/test", {
+    method: "POST",
+    headers: { "x-meteoscope-admin-token": "wrong-token" }
+  }),
+  {
+    METEOSCOPE_ADMIN_SERVICE_TOKEN: "internal-token",
+    DISCORD_EARTHQUAKE_WEBHOOK_URL: "https://discord.com/api/webhooks/123/token"
+  },
+  {}
+);
+assert.equal(unauthorizedDiscordTestResponse.status, 404);
+
+const originalFetch = globalThis.fetch;
+const internalDiscordTestCalls = [];
+try {
+  globalThis.fetch = async (url, init) => {
+    internalDiscordTestCalls.push({ url: String(url), init });
+    return Response.json({ id: "discord-internal-test-message-1" });
+  };
+  const authorizedDiscordTestResponse = await earthquakeWorkerHandler.fetch(
+    new Request("https://worker.example/api/earthquakes/internal/discord/test", {
+      method: "POST",
+      headers: { "x-meteoscope-admin-token": "internal-token" }
+    }),
+    {
+      METEOSCOPE_ADMIN_SERVICE_TOKEN: "internal-token",
+      DISCORD_EARTHQUAKE_WEBHOOK_URL: "https://discord.com/api/webhooks/123/token"
+    },
+    {}
+  );
+  assert.equal(authorizedDiscordTestResponse.status, 200);
+  assert.equal((await authorizedDiscordTestResponse.json()).ok, true);
+  assert.equal(internalDiscordTestCalls.length, 1);
+}
+finally {
+  globalThis.fetch = originalFetch;
+}
+
+function createDiscordDeliveryDb(row) {
+  const updates = [];
+  return {
+    updates,
+    prepare(sql) {
+      let bound = [];
+      return {
+        bind(...values) {
+          bound = values;
+          return this;
+        },
+        async all() {
+          return { results: row ? [row] : [] };
+        },
+        async run() {
+          updates.push({ sql, bound });
+          return { success: true };
+        }
+      };
+    }
+  };
+}
+
+const deliveryCalls = [];
+const deliveryDb = createDiscordDeliveryDb({
+  event_id: report.eventId,
+  payload_json: JSON.stringify(discordPayload),
+  discord_message_id: null,
+  attempts: 0
+});
+const delivery = await deliverPendingDiscordEarthquakeNotifications({
+  EQ_D1: deliveryDb,
+  DISCORD_EARTHQUAKE_WEBHOOK_URL: "https://discord.com/api/webhooks/123/token"
+}, {
+  now: Date.parse("2026-07-30T00:05:00Z"),
+  fetchImpl: async (url, init) => {
+    deliveryCalls.push({ url: String(url), init });
+    return Response.json({ id: "discord-message-1" });
+  }
+});
+assert.equal(delivery.sent, 1);
+assert.equal(deliveryCalls[0].init.method, "POST");
+assert.match(deliveryCalls[0].url, /\?wait=true$/u);
+assert.equal(deliveryDb.updates.at(-1).bound[0], "discord-message-1");
+
+const correctionCalls = [];
+const correctionDb = createDiscordDeliveryDb({
+  event_id: report.eventId,
+  payload_json: JSON.stringify(discordPayload),
+  discord_message_id: "discord-message-1",
+  attempts: 1
+});
+const correctionDelivery = await deliverPendingDiscordEarthquakeNotifications({
+  EQ_D1: correctionDb,
+  DISCORD_EARTHQUAKE_WEBHOOK_URL: "https://discord.com/api/webhooks/123/token"
+}, {
+  now: Date.parse("2026-07-30T00:06:00Z"),
+  fetchImpl: async (url, init) => {
+    correctionCalls.push({ url: String(url), init });
+    return Response.json({});
+  }
+});
+assert.equal(correctionDelivery.sent, 1);
+assert.equal(correctionCalls[0].init.method, "PATCH");
+assert.match(correctionCalls[0].url, /\/messages\/discord-message-1$/u);
+
+const rateLimitedDb = createDiscordDeliveryDb({
+  event_id: report.eventId,
+  payload_json: JSON.stringify(discordPayload),
+  discord_message_id: null,
+  attempts: 0
+});
+const rateLimitedDelivery = await deliverPendingDiscordEarthquakeNotifications({
+  EQ_D1: rateLimitedDb,
+  DISCORD_EARTHQUAKE_WEBHOOK_URL: "https://discord.com/api/webhooks/123/token"
+}, {
+  now: Date.parse("2026-07-30T00:07:00Z"),
+  fetchImpl: async () => Response.json({ retry_after: 2.5 }, { status: 429 })
+});
+assert.equal(rateLimitedDelivery.retried, 1);
+assert.match(rateLimitedDb.updates.at(-1).sql, /status = 'retry'/u);
+assert.equal(
+  Date.parse(rateLimitedDb.updates.at(-1).bound[1]),
+  Date.parse("2026-07-30T00:07:02.500Z"),
+  "Discordのretry_afterを守って次回送信時刻を保存する"
+);
 
 const cancelled = parseJmaXmlHypocenterReport(`<?xml version="1.0" encoding="UTF-8"?>
   <Report xmlns="http://xml.kishou.go.jp/jmaxml1/">
