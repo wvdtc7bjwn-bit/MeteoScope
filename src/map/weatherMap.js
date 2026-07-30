@@ -2261,6 +2261,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   }
 
   function clearHypocenterAreaSelection() {
+    cancelHypocenterAreaDrawing();
     setHypocenterAreaSelection([]);
   }
 
@@ -2294,7 +2295,10 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         ]);
       overlay.remove();
       hypocenterAreaOverlay = null;
-      if (polygon.length < 3) return;
+      if (polygon.length < 3) {
+        onComplete?.([]);
+        return;
+      }
       setHypocenterAreaSelection(polygon);
       onComplete?.(polygon);
     };
@@ -2332,7 +2336,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
 }
 
 function normalizeAreaPolygon(polygon) {

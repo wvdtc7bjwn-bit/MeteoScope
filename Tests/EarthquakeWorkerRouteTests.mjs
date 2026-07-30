@@ -38,7 +38,9 @@ const [
   discordMigration,
   xmlWorker,
   discordWorker,
-  pagesRoute
+  pagesRoute,
+  packageJson,
+  workerDeployScript
 ] = await Promise.all([
   fs.readFile(path.join(root, "workers", "earthquake-realtime", "src", "index.js"), "utf8"),
   fs.readFile(path.join(root, "workers", "earthquake-realtime", "wrangler.toml"), "utf8"),
@@ -47,7 +49,9 @@ const [
   fs.readFile(path.join(root, "workers", "earthquake-realtime", "migrations", "0005_discord_earthquake_notifications.sql"), "utf8"),
   fs.readFile(path.join(root, "workers", "earthquake-realtime", "src", "jmaXmlHypocenters.js"), "utf8"),
   fs.readFile(path.join(root, "workers", "earthquake-realtime", "src", "discordEarthquakeNotifications.js"), "utf8"),
-  fs.readFile(path.join(root, "functions", "api", "earthquakes", "[[path]].js"), "utf8")
+  fs.readFile(path.join(root, "functions", "api", "earthquakes", "[[path]].js"), "utf8"),
+  fs.readFile(path.join(root, "package.json"), "utf8"),
+  fs.readFile(path.join(root, "scripts", "deploy-earthquake-worker.mjs"), "utf8")
 ]);
 
 assert.equal(JMA_DAILY_RETENTION_DAYS, 731);
@@ -86,6 +90,19 @@ assert.equal(getScheduledSyncName("unknown"), "jma-xml");
 assert.match(worker, /runScheduledSync\(controller\?\.cron, env, cache\)/u);
 assert.doesNotMatch(worker, /Promise\.allSettled\(jobs/u);
 assert.match(wrangler, /crons\s*=\s*\["\* \* \* \* \*", "17 \* \* \* \*"\]/u);
+assert.equal(
+  JSON.parse(packageJson).scripts["deploy:earthquake-worker"],
+  "node scripts/deploy-earthquake-worker.mjs",
+  "Worker本体とCronを一体で反映する専用デプロイコマンドを維持する"
+);
+assert.match(workerDeployScript, /"deploy"/u);
+assert.match(workerDeployScript, /"triggers",\s*"deploy"/u);
+assert.match(workerDeployScript, /"deployments",\s*"status"/u);
+assert.doesNotMatch(
+  workerDeployScript,
+  /"versions",\s*"(?:upload|deploy)"/u,
+  "Cron反映が別操作になるversions方式を専用デプロイ経路では使用しない"
+);
 assert.match(
   await fs.readFile(
     path.join(root, "workers", "earthquake-realtime", "src", "jmaDailyHypocenters.js"),

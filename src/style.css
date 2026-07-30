@@ -10775,6 +10775,9 @@ html[data-theme="light"] .earthquake-distribution-range-controls input {
   background: #ffffff;
   color-scheme: light;
 }
+html[data-theme="light"] .earthquake-distribution-range-controls input[aria-invalid="true"] {
+  border-color: #c64545;
+}
 html[data-theme="light"] .earthquake-distribution-range-presets button {
   border-color: rgba(72, 100, 132, 0.18);
   color: #536b82;
@@ -10791,6 +10794,13 @@ html[data-theme="light"] .earthquake-distribution-area-actions .earthquake-distr
 }
 html[data-theme="light"] .earthquake-distribution-range-controls p,
 html[data-theme="light"] .mobile-dock-earthquake-distribution-range-hint { color: #60758a; }
+html[data-theme="light"] .earthquake-distribution-range-search {
+  color: #ffffff;
+  background: #1688bd;
+}
+html[data-theme="light"] .earthquake-distribution-range-controls p.earthquake-distribution-range-error {
+  color: #a52e2e;
+}
 html[data-theme="light"] .earthquake-distribution-date-control button {
   border-color: rgba(72, 100, 132, 0.22);
   background: #ffffff;
@@ -12231,6 +12241,11 @@ html[data-theme="light"] .typhoon-world-attribution a {
   background: rgba(24, 129, 185, 0.42);
 }
 
+.earthquake-distribution-range-presets button:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
 .earthquake-distribution-range-controls label {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -12258,6 +12273,10 @@ html[data-theme="light"] .typhoon-world-attribution a {
   font-weight: 750;
 }
 
+.earthquake-distribution-range-controls input[aria-invalid="true"] {
+  border-color: #ff7373;
+}
+
 @supports (-webkit-touch-callout: none) {
   @media (max-width: 600px) {
     .earthquake-distribution-range-controls input[type="date"] {
@@ -12272,6 +12291,33 @@ html[data-theme="light"] .typhoon-world-attribution a {
   }
 }
 
+.earthquake-distribution-range-search {
+  grid-column: 1 / -1;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid rgba(93, 196, 244, 0.48);
+  border-radius: 9px;
+  color: #f2fbff;
+  background: #167fb4;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.earthquake-distribution-range-search:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.earthquake-distribution-range-controls p.earthquake-distribution-range-error {
+  color: #ff9a9a;
+}
+
+.earthquake-distribution-range-error[hidden] {
+  display: none;
+}
+
 .earthquake-distribution-area-actions {
   display: flex;
   grid-column: 1 / -1;
@@ -12279,6 +12325,9 @@ html[data-theme="light"] .typhoon-world-attribution a {
 }
 
 .earthquake-distribution-area-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: 1 1 0;
   min-height: 36px;
   padding: 0 14px;
@@ -12289,6 +12338,13 @@ html[data-theme="light"] .typhoon-world-attribution a {
   font: inherit;
   font-size: 12px;
   font-weight: 850;
+}
+
+.earthquake-distribution-area-search.is-drawing {
+  border-color: rgba(116, 207, 247, 0.72);
+  color: #ffffff;
+  background: #125f89;
+  box-shadow: inset 0 0 0 1px rgba(204, 239, 255, 0.18);
 }
 
 .earthquake-distribution-area-actions .earthquake-distribution-area-clear {

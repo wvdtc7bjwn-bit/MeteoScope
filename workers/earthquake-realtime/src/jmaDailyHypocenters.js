@@ -567,8 +567,7 @@ function getRequestedRangeDates(availableDates, startDate, endDate) {
   const oldest = startDate <= endDate ? startDate : endDate;
   const newest = startDate <= endDate ? endDate : startDate;
   return availableDates
-    .filter((date) => date >= oldest && date <= newest)
-    .slice(0, 30);
+    .filter((date) => date >= oldest && date <= newest);
 }
 
 function parseSourceDate(value) {

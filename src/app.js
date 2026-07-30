@@ -317,6 +317,7 @@ export function createWeatherApp() {
   };
   let earthquakeDistributionState = { status: "idle", data: null, error: "" };
   let earthquakeDistributionRequestId = 0;
+  let earthquakeDistributionAreaDrawing = false;
   let earthquakeSummaryPage = "earthquake";
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
   let earlyAccessActiveFaultSource = loadEarlyAccessActiveFaultSource();
@@ -1169,6 +1170,10 @@ if (layerId === "river") {
 
   function selectEarthquakeView(view) {
     if (!["recent", "distribution"].includes(view)) return;
+    if (view !== "distribution" && earthquakeDistributionAreaDrawing) {
+      weatherMap?.cancelHypocenterAreaDrawing();
+      earthquakeDistributionAreaDrawing = false;
+    }
     earthquakeView = view;
     if (activeTab !== "earthquake") return;
     const tab = TABS.find((item) => item.id === "earthquake");
@@ -1208,6 +1213,7 @@ if (layerId === "river") {
   function selectEarthquakeDistributionRangeMode(enabled) {
     if (!enabled) {
       weatherMap?.clearHypocenterAreaSelection();
+      earthquakeDistributionAreaDrawing = false;
       updateEarthquakeDistributionFilters({
         rangeEnabled: false,
         areaPolygon: []
@@ -1217,15 +1223,26 @@ if (layerId === "river") {
     const availableDates = earthquakeDistributionState.data?.availableDates ?? [];
     const endDate = earthquakeDistributionFilters.endDate || availableDates[0] || "";
     const startDate = earthquakeDistributionFilters.startDate || availableDates[Math.min(6, availableDates.length - 1)] || endDate;
-    updateEarthquakeDistributionFilters({
+    earthquakeDistributionFilters = {
+      ...earthquakeDistributionFilters,
       rangeEnabled: true,
       startDate,
       endDate
-    });
+    };
+    if (activeTab === "earthquake") {
+      const tab = TABS.find((item) => item.id === "earthquake");
+      updateCurrentView(tab, latestDataByTab.earthquake ?? {});
+    }
   }
 
   function startEarthquakeDistributionAreaSearch() {
     if (activeTab !== "earthquake" || earthquakeView !== "distribution") return;
+    if (earthquakeDistributionAreaDrawing) {
+      weatherMap?.cancelHypocenterAreaDrawing();
+      earthquakeDistributionAreaDrawing = false;
+      updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+      return;
+    }
     earthquakeDistribution3DEnabled = false;
     const availableDates = earthquakeDistributionState.data?.availableDates ?? [];
     const endDate = earthquakeDistributionFilters.endDate || availableDates[0] || "";
@@ -1236,14 +1253,22 @@ if (layerId === "river") {
       startDate,
       endDate
     };
-    updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
-    weatherMap?.startHypocenterAreaSelection((areaPolygon) => {
+    const started = weatherMap?.startHypocenterAreaSelection((areaPolygon) => {
+      earthquakeDistributionAreaDrawing = false;
+      if (!Array.isArray(areaPolygon) || areaPolygon.length < 3) {
+        updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+        return;
+      }
       updateEarthquakeDistributionFilters({ areaPolygon, rangeEnabled: true });
     });
+    if (!started) return;
+    earthquakeDistributionAreaDrawing = true;
+    updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
   }
 
   function clearEarthquakeDistributionAreaSearch() {
     weatherMap?.clearHypocenterAreaSelection();
+    earthquakeDistributionAreaDrawing = false;
     updateEarthquakeDistributionFilters({ areaPolygon: [] });
   }
 
@@ -1672,6 +1697,7 @@ if (layerId === "river") {
       distributionStatus: earthquakeDistributionState.status,
       distributionError: earthquakeDistributionState.error,
       distribution,
+      distributionAreaDrawing: earthquakeDistributionAreaDrawing,
       distributionItems: distribution?.items ?? []
     };
     const tideData = {

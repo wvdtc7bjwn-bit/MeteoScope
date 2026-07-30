@@ -36,7 +36,8 @@
     "test:consent": "node Tests/LegalConsentTests.mjs",
     "test:resilience": "node Tests/RuntimeResilienceTests.mjs",
     "data:build:warning-map": "node scripts/build-warning-geometry-fixes.mjs",
-    "deploy:cloudflare": "npm run build && npx wrangler pages deploy dist --project-name meteoscope"
+    "deploy:cloudflare": "npm run build && npx wrangler pages deploy dist --project-name meteoscope",
+    "deploy:earthquake-worker": "node scripts/deploy-earthquake-worker.mjs"
   },
   "dependencies": {
     "maplibre-gl": "^5.24.0",

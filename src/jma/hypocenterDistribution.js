@@ -6,7 +6,9 @@ const ARCHIVE_DAY_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const RECENT_DAY_CACHE_TTL_MS = 60 * 1000;
 export const HYPOCENTER_DISTRIBUTION_DAY_COUNT = 731;
 export const HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET = HYPOCENTER_DISTRIBUTION_DAY_COUNT - 1;
-export const HYPOCENTER_DISTRIBUTION_MAX_RANGE_DAYS = 30;
+export const HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS = 5;
+export const HYPOCENTER_DISTRIBUTION_RANGE_TOO_LONG_MESSAGE =
+  "表示期間が上限の5か月を超えています。開始日または終了日を変更してください。";
 
 export async function fetchHypocenterDistribution(filters = {}, options = {}) {
   const dayOffset = Number.isInteger(Number(filters.dayOffset))
@@ -25,6 +27,13 @@ export async function fetchHypocenterDistribution(filters = {}, options = {}) {
     includeRecentXml: filters.includeRecentXml === false ? "0" : "1"
   });
   const range = normalizeHypocenterDistributionRange(filters.startDate, filters.endDate);
+  if (
+    filters.rangeEnabled
+    && range
+    && !isHypocenterDistributionRangeWithinLimit(range.startDate, range.endDate)
+  ) {
+    throw new Error(HYPOCENTER_DISTRIBUTION_RANGE_TOO_LONG_MESSAGE);
+  }
   if (filters.rangeEnabled && range) {
     parameters.set("startDate", range.startDate);
     parameters.set("endDate", range.endDate);
@@ -39,14 +48,20 @@ export async function fetchHypocenterDistribution(filters = {}, options = {}) {
   if (
     filters.rangeEnabled
     && range
-    && payload?.rangeMode !== true
+    && !doesHypocenterDistributionCoverRange(
+      payload,
+      range.startDate,
+      range.endDate,
+      filters.includeRecentXml !== false
+    )
   ) {
     payload = await fetchRangeWithSingleDayCompatibility(
       payload,
       parameters,
       range.startDate,
       range.endDate,
-      options
+      options,
+      filters.areaPolygon
     );
   }
   if (filters.includeRecentXml === false && payload?.includeRecentXml !== false) {
@@ -85,7 +100,8 @@ async function fetchRangeWithSingleDayCompatibility(
   baseParameters,
   startDate,
   endDate,
-  options
+  options,
+  areaPolygon
 ) {
   const oldest = startDate <= endDate ? startDate : endDate;
   const newest = startDate <= endDate ? endDate : startDate;
@@ -98,8 +114,7 @@ async function fetchRangeWithSingleDayCompatibility(
     ? availableDates
     : availableDates.filter((date) => !recentDates.has(date));
   const rangeDates = compatibleDates
-    .filter((date) => date >= oldest && date <= newest)
-    .slice(0, HYPOCENTER_DISTRIBUTION_MAX_RANGE_DAYS);
+    .filter((date) => date >= oldest && date <= newest);
   const payloads = [];
   for (let index = 0; index < rangeDates.length; index += RANGE_COMPATIBILITY_CONCURRENCY) {
     const batch = rangeDates.slice(index, index + RANGE_COMPATIBILITY_CONCURRENCY);
@@ -108,7 +123,6 @@ async function fetchRangeWithSingleDayCompatibility(
       const parameters = new URLSearchParams(baseParameters);
       parameters.delete("startDate");
       parameters.delete("endDate");
-      parameters.delete("bounds");
       parameters.set("dayOffset", String(dayOffset));
       return await fetchJson(`${ENDPOINT}?${parameters}`, {
         ttlMs: options.force
@@ -121,7 +135,8 @@ async function fetchRangeWithSingleDayCompatibility(
   const allItems = payloads.flatMap((payload) =>
     Array.isArray(payload?.items) ? payload.items : []
   );
-  const items = allItems.slice(0, 75000);
+  const filteredItems = filterHypocentersByPolygon(allItems, areaPolygon);
+  const items = filteredItems.slice(0, 75000);
   return {
     ...initialPayload,
     selectedSourceDate: null,
@@ -134,24 +149,65 @@ async function fetchRangeWithSingleDayCompatibility(
     includeRecentXml,
     availableDates: compatibleDates,
     availableDayCount: compatibleDates.length,
-    truncated: allItems.length > items.length || payloads.some((payload) => payload?.truncated === true),
+    truncated: filteredItems.length > items.length || payloads.some((payload) => payload?.truncated === true),
     items
   };
 }
 
+export function doesHypocenterDistributionCoverRange(
+  payload,
+  startDate,
+  endDate,
+  includeRecentXml = true
+) {
+  if (payload?.rangeMode !== true) return false;
+  const normalizedRange = normalizeHypocenterDistributionRange(startDate, endDate);
+  if (!normalizedRange) return false;
+  const recentDates = new Set(getRecentJstDates());
+  const availableDates = (Array.isArray(payload?.availableDates) ? payload.availableDates : [])
+    .filter(isSourceDate)
+    .filter((date) => includeRecentXml || !recentDates.has(date))
+    .filter((date) =>
+      date >= normalizedRange.startDate
+      && date <= normalizedRange.endDate
+    );
+  if (!availableDates.length) return false;
+  const expectedStartDate = availableDates.at(-1);
+  const expectedEndDate = availableDates[0];
+  return payload.rangeStartDate === expectedStartDate
+    && payload.rangeEndDate === expectedEndDate
+    && Number(payload.rangeDayCount) === availableDates.length;
+}
+
 export function normalizeHypocenterDistributionRange(startDate, endDate) {
   if (!isSourceDate(startDate) || !isSourceDate(endDate)) return null;
-  const oldest = startDate <= endDate ? startDate : endDate;
-  const newest = startDate <= endDate ? endDate : startDate;
-  const newestTime = Date.parse(`${newest}T00:00:00Z`);
-  const oldestAllowedTime = newestTime - ((HYPOCENTER_DISTRIBUTION_MAX_RANGE_DAYS - 1) * 24 * 60 * 60 * 1000);
-  const requestedOldestTime = Date.parse(`${oldest}T00:00:00Z`);
   return {
-    startDate: requestedOldestTime < oldestAllowedTime
-      ? new Date(oldestAllowedTime).toISOString().slice(0, 10)
-      : oldest,
-    endDate: newest
+    startDate: startDate <= endDate ? startDate : endDate,
+    endDate: startDate <= endDate ? endDate : startDate
   };
+}
+
+export function isHypocenterDistributionRangeWithinLimit(startDate, endDate) {
+  const range = normalizeHypocenterDistributionRange(startDate, endDate);
+  if (!range) return false;
+  return range.endDate <= addMonthsToSourceDate(
+    range.startDate,
+    HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS
+  );
+}
+
+export function addMonthsToSourceDate(sourceDate, monthCount) {
+  if (!isSourceDate(sourceDate)) return "";
+  const [year, month, day] = sourceDate.split("-").map(Number);
+  const targetMonthIndex = year * 12 + month - 1 + Number(monthCount);
+  const targetYear = Math.floor(targetMonthIndex / 12);
+  const targetMonth = targetMonthIndex % 12 + 1;
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate();
+  return [
+    targetYear,
+    String(targetMonth).padStart(2, "0"),
+    String(Math.min(day, lastDay)).padStart(2, "0")
+  ].join("-");
 }
 
 export function filterHypocentersByPolygon(items, polygon) {

@@ -18,7 +18,12 @@ import {
 import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
 import { buildEarthquakeObservationRows } from "../earthquakeDetails.js";
 import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
-import { HYPOCENTER_DISTRIBUTION_DAY_COUNT } from "../jma/hypocenterDistribution.js";
+import {
+  HYPOCENTER_DISTRIBUTION_DAY_COUNT,
+  HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS,
+  HYPOCENTER_DISTRIBUTION_RANGE_TOO_LONG_MESSAGE,
+  isHypocenterDistributionRangeWithinLimit
+} from "../jma/hypocenterDistribution.js";
 import {
   HYPOCENTER_DEPTH_STOPS,
   HYPOCENTER_UNKNOWN_DEPTH_COLOR
@@ -1181,10 +1186,35 @@ export function setupEarthquakeSelector({
     }
     const rangePresetButton = event.target.closest("[data-earthquake-distribution-range-preset]");
     if (rangePresetButton) {
+      event.preventDefault();
+      const controls = rangePresetButton.closest(".earthquake-distribution-range-controls");
+      const startInput = controls?.querySelector('[data-earthquake-distribution-range-date="startDate"]');
+      const endInput = controls?.querySelector('[data-earthquake-distribution-range-date="endDate"]');
+      if (startInput instanceof HTMLInputElement) {
+        startInput.value = rangePresetButton.dataset.rangeStartDate ?? "";
+      }
+      if (endInput instanceof HTMLInputElement) {
+        endInput.value = rangePresetButton.dataset.rangeEndDate ?? "";
+      }
+      controls?.querySelectorAll("[data-earthquake-distribution-range-preset]").forEach((button) => {
+        const active = button === rangePresetButton;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+      validateDistributionRangeDraft(controls);
+      return;
+    }
+    const rangeSearchButton = event.target.closest("[data-earthquake-distribution-range-search]");
+    if (rangeSearchButton) {
+      event.preventDefault();
+      const draft = validateDistributionRangeDraft(
+        rangeSearchButton.closest(".earthquake-distribution-range-controls")
+      );
+      if (!draft.valid) return;
       onDistributionFilterChange?.({
         rangeEnabled: true,
-        startDate: rangePresetButton.dataset.rangeStartDate,
-        endDate: rangePresetButton.dataset.rangeEndDate
+        startDate: draft.startDate,
+        endDate: draft.endDate
       });
       return;
     }
@@ -1219,10 +1249,12 @@ export function setupEarthquakeSelector({
       return;
     }
     if (target instanceof HTMLInputElement && target.dataset.earthquakeDistributionRangeDate) {
-      onDistributionFilterChange?.({
-        rangeEnabled: true,
-        [target.dataset.earthquakeDistributionRangeDate]: target.value
+      const controls = target.closest(".earthquake-distribution-range-controls");
+      controls?.querySelectorAll("[data-earthquake-distribution-range-preset]").forEach((button) => {
+        button.classList.remove("active");
+        button.setAttribute("aria-pressed", "false");
       });
+      validateDistributionRangeDraft(controls);
       return;
     }
     if (!(target instanceof HTMLSelectElement) || !target.dataset.earthquakeDistributionFilter) return;
@@ -5437,6 +5469,7 @@ function buildEarthquakeDistributionMarkup(data) {
   const filters = data.distributionFilters ?? { dayOffset: 0, minMagnitude: "0", maxDepth: "all" };
   const rangeEnabled = filters.rangeEnabled === true;
   const hasArea = Array.isArray(filters.areaPolygon) && filters.areaPolygon.length >= 3;
+  const areaDrawing = data.distributionAreaDrawing === true;
   const snapshot = data.distribution;
   const status = data.distributionStatus ?? "idle";
   const count = snapshot?.items?.length ?? 0;
@@ -5454,8 +5487,11 @@ function buildEarthquakeDistributionMarkup(data) {
   const rangeEndDate = requestedRangeStartDate <= requestedRangeEndDate
     ? requestedRangeEndDate
     : requestedRangeStartDate;
+  const rangeExceeded = rangeEnabled
+    && !isHypocenterDistributionRangeWithinLimit(rangeStartDate, rangeEndDate);
+  const rangeLoading = rangeEnabled && (status === "loading" || status === "refreshing");
   const isPendingDate = snapshot && Number(snapshot.dayOffset) !== dayOffset;
-  const displayedCount = isPendingDate
+  const displayedCount = isPendingDate || rangeLoading
     ? "取得中"
     : `${count.toLocaleString("ja-JP")}件`;
   const sourceType = snapshot?.selectedSource === "jma-xml"
@@ -5468,7 +5504,7 @@ function buildEarthquakeDistributionMarkup(data) {
     : `${sourceType === "jma-xml" ? "有感地震・XML" : sourceType === "jma-combined" ? `指定期間${snapshot?.rangeDayCount ?? 0}日` : "暫定値"}・${hasArea ? "囲み範囲" : "全域"}`;
   const syncStatusMarkup = buildDistributionSyncStatus(snapshot);
   const statusMarkup = status === "loading"
-    ? `<div class="earthquake-empty">気象庁の震央分布を取得中です。</div>`
+    ? `<div class="earthquake-empty">${rangeEnabled ? "指定期間の震央分布を取得中です。" : "気象庁の震央分布を取得中です。"}</div>`
     : status === "error" && !snapshot
       ? `<div class="earthquake-empty">${escapeHtml(data.distributionError ?? "震央分布を取得できませんでした")}<button type="button" class="earthquake-distribution-retry" data-earthquake-distribution-retry>再試行</button></div>`
       : `<div class="earthquake-distribution-result">
@@ -5480,7 +5516,11 @@ function buildEarthquakeDistributionMarkup(data) {
           </div>
           <div class="earthquake-distribution-result-count">
             <strong>${escapeHtml(displayedCount)}</strong>
-            <span>${escapeHtml(isPendingDate || status === "refreshing" ? "日付を切り替えています" : resultMeta)}</span>
+            <span>${escapeHtml(rangeLoading
+              ? "指定期間を検索しています"
+              : isPendingDate || status === "refreshing"
+                ? "日付を切り替えています"
+                : resultMeta)}</span>
           </div>
         </div>`;
   return `
@@ -5488,14 +5528,26 @@ function buildEarthquakeDistributionMarkup(data) {
       <div class="earthquake-distribution-control-card earthquake-distribution-period-card">
         <div class="earthquake-distribution-section-head">
           <strong>表示期間</strong>
-          <span>${rangeEnabled ? "最大30日" : "1日ごとに確認"}</span>
+          <span>${rangeEnabled
+            ? rangeExceeded
+              ? `${HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS}か月を超えています`
+              : `最大${HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS}か月`
+            : "1日ごとに確認"}</span>
         </div>
         <div class="earthquake-distribution-range-mode mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented" role="group" aria-label="震央分布の期間">
           <button type="button" class="mobile-dock-action${rangeEnabled ? "" : " active"}" data-earthquake-distribution-range-mode="day" aria-pressed="${rangeEnabled ? "false" : "true"}">1日</button>
           <button type="button" class="mobile-dock-action${rangeEnabled ? " active" : ""}" data-earthquake-distribution-range-mode="range" aria-pressed="${rangeEnabled ? "true" : "false"}">期間指定</button>
         </div>
         ${rangeEnabled
-          ? buildDistributionRangeControls(rangeStartDate, rangeEndDate, hasArea, availableDates)
+          ? buildDistributionRangeControls(
+            rangeStartDate,
+            rangeEndDate,
+            hasArea,
+            areaDrawing,
+            availableDates,
+            rangeExceeded,
+            rangeLoading
+          )
           : buildDistributionDateButton(selectedDate, false, maximumOffset === 0, dayOffset, maximumOffset)}
       </div>
       <div class="earthquake-distribution-control-card">
@@ -5526,26 +5578,71 @@ function buildEarthquakeDistributionMarkup(data) {
   `;
 }
 
-function buildDistributionRangeControls(startDate, endDate, hasArea, availableDates = []) {
+function buildDistributionRangeControls(
+  startDate,
+  endDate,
+  hasArea,
+  areaDrawing,
+  availableDates = [],
+  rangeExceeded = false,
+  rangeLoading = false
+) {
   const presets = [7, 15, 30].map((days) => {
     const endIndex = Math.max(0, availableDates.indexOf(endDate));
     const startIndex = Math.min(availableDates.length - 1, endIndex + days - 1);
     const presetStartDate = availableDates[startIndex] ?? startDate;
     const active = startDate === presetStartDate;
-    return `<button type="button" class="${active ? "active" : ""}" data-earthquake-distribution-range-preset="${days}" data-range-start-date="${escapeHtml(presetStartDate)}" data-range-end-date="${escapeHtml(endDate)}" aria-pressed="${active ? "true" : "false"}">${days}日</button>`;
+    return `<button type="button" class="${active ? "active" : ""}" data-earthquake-distribution-range-preset="${days}" data-range-start-date="${escapeHtml(presetStartDate)}" data-range-end-date="${escapeHtml(endDate)}" aria-pressed="${active ? "true" : "false"}" ${rangeLoading ? "disabled" : ""}>${days}日</button>`;
   }).join("");
   return `
-    <div class="earthquake-distribution-range-controls">
+    <div class="earthquake-distribution-range-controls" data-range-loading="${rangeLoading ? "true" : "false"}">
       <div class="earthquake-distribution-range-presets" role="group" aria-label="期間のプリセット">${presets}</div>
-      <label><span>開始日</span><input type="date" data-earthquake-distribution-range-date="startDate" value="${escapeHtml(startDate)}"></label>
-      <label><span>終了日</span><input type="date" data-earthquake-distribution-range-date="endDate" value="${escapeHtml(endDate)}"></label>
+      <label><span>開始日</span><input type="date" data-earthquake-distribution-range-date="startDate" value="${escapeHtml(startDate)}" aria-invalid="${rangeExceeded ? "true" : "false"}" ${rangeLoading ? "disabled" : ""}></label>
+      <label><span>終了日</span><input type="date" data-earthquake-distribution-range-date="endDate" value="${escapeHtml(endDate)}" aria-invalid="${rangeExceeded ? "true" : "false"}" ${rangeLoading ? "disabled" : ""}></label>
+      <button
+        type="button"
+        class="earthquake-distribution-range-search"
+        data-earthquake-distribution-range-search
+        ${rangeExceeded || rangeLoading ? "disabled" : ""}
+        aria-busy="${rangeLoading ? "true" : "false"}"
+      >${rangeLoading ? "取得中…" : "この期間で検索"}</button>
+      <p
+        class="earthquake-distribution-range-error"
+        data-earthquake-distribution-range-error
+        role="alert"
+        ${rangeExceeded ? "" : "hidden"}
+      >${escapeHtml(HYPOCENTER_DISTRIBUTION_RANGE_TOO_LONG_MESSAGE)}</p>
       <div class="earthquake-distribution-area-actions">
-        <button type="button" class="earthquake-distribution-area-search" data-earthquake-distribution-area-search>${hasArea ? "囲み直す" : "囲って検索"}</button>
+        <button
+          type="button"
+          class="earthquake-distribution-area-search${areaDrawing ? " is-drawing" : ""}"
+          data-earthquake-distribution-area-search
+          aria-pressed="${areaDrawing ? "true" : "false"}"
+        >${areaDrawing ? "範囲選択を中止" : hasArea ? "囲み直す" : "囲って検索"}</button>
         ${hasArea ? '<button type="button" class="earthquake-distribution-area-clear" data-earthquake-distribution-area-clear>範囲解除</button>' : ""}
       </div>
       <p>${hasArea ? "地図上の囲み範囲だけを表示しています。" : "囲って検索すると、地図上で指定した範囲だけに絞れます。"}</p>
     </div>
   `;
+}
+
+function validateDistributionRangeDraft(controls) {
+  const startInput = controls?.querySelector('[data-earthquake-distribution-range-date="startDate"]');
+  const endInput = controls?.querySelector('[data-earthquake-distribution-range-date="endDate"]');
+  const searchButton = controls?.querySelector("[data-earthquake-distribution-range-search]");
+  const error = controls?.querySelector("[data-earthquake-distribution-range-error]");
+  const startDate = startInput instanceof HTMLInputElement ? startInput.value : "";
+  const endDate = endInput instanceof HTMLInputElement ? endInput.value : "";
+  const complete = Boolean(startDate && endDate);
+  const withinLimit = complete && isHypocenterDistributionRangeWithinLimit(startDate, endDate);
+  const loading = controls?.dataset.rangeLoading === "true";
+  const valid = withinLimit && !loading;
+  const invalid = complete && !withinLimit;
+  startInput?.setAttribute("aria-invalid", invalid ? "true" : "false");
+  endInput?.setAttribute("aria-invalid", invalid ? "true" : "false");
+  if (searchButton instanceof HTMLButtonElement) searchButton.disabled = !valid;
+  if (error instanceof HTMLElement) error.hidden = !invalid;
+  return { valid, startDate, endDate };
 }
 
 function buildEarthquakeDistributionSourceNote(snapshot) {
