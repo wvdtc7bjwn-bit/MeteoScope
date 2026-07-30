@@ -3,10 +3,11 @@ main = "src/index.js"
 compatibility_date = "2026-07-15"
 
 [triggers]
-# The 1-minute trigger receives today's and yesterday's earthquake XML updates,
-# prunes older XML rows, and backfills at most one missing daily-list date.
-# Daily-list completion is cached per source date for six hours.
-crons = ["* * * * *"]
+# Keep real-time XML ingestion and Discord delivery isolated from the heavier
+# daily-list maintenance so one job cannot exhaust the other's CPU budget.
+# The first trigger handles today's and yesterday's earthquake XML every minute.
+# The second backfills at most one missing daily-list date once per hour.
+crons = ["* * * * *", "17 * * * *"]
 
 # Discord earthquake notifications are enabled only when this Worker has the
 # DISCORD_EARTHQUAKE_WEBHOOK_URL secret. Never place the webhook URL in this file.

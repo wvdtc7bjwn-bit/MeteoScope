@@ -23,7 +23,11 @@ import {
   parseDiscordWebhookUrl,
   sendDiscordEarthquakeTestNotification
 } from "../workers/earthquake-realtime/src/discordEarthquakeNotifications.js";
-import earthquakeWorkerHandler from "../workers/earthquake-realtime/src/index.js";
+import earthquakeWorkerHandler, {
+  getScheduledSyncName,
+  JMA_DAILY_BACKFILL_CRON,
+  JMA_XML_SYNC_CRON
+} from "../workers/earthquake-realtime/src/index.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [
@@ -74,8 +78,14 @@ assert.match(worker, /requestUrl\.searchParams\.get\("fresh"\) === "1"/u);
 assert.match(worker, /jma-distribution-fresh-v1/u);
 assert.match(worker, /public, max-age=5, s-maxage=5/u);
 assert.match(worker, /withCacheControl\(response, "no-store"\)/u);
-assert.match(worker, /scheduled_earthquake_sync_failed/u);
-assert.match(worker, /ctx\.waitUntil\(runScheduledSync\(env, cache\)\)/u);
+assert.equal(JMA_XML_SYNC_CRON, "* * * * *");
+assert.equal(JMA_DAILY_BACKFILL_CRON, "17 * * * *");
+assert.equal(getScheduledSyncName(JMA_XML_SYNC_CRON), "jma-xml");
+assert.equal(getScheduledSyncName(JMA_DAILY_BACKFILL_CRON), "daily-backfill");
+assert.equal(getScheduledSyncName("unknown"), "jma-xml");
+assert.match(worker, /runScheduledSync\(controller\?\.cron, env, cache\)/u);
+assert.doesNotMatch(worker, /Promise\.allSettled\(jobs/u);
+assert.match(wrangler, /crons\s*=\s*\["\* \* \* \* \*", "17 \* \* \* \*"\]/u);
 assert.match(
   await fs.readFile(
     path.join(root, "workers", "earthquake-realtime", "src", "jmaDailyHypocenters.js"),

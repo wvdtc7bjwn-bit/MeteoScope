@@ -5,6 +5,9 @@ import {
 import { runJmaXmlHypocenterSync } from "./jmaXmlHypocenters.js";
 import { sendDiscordEarthquakeTestNotification } from "./discordEarthquakeNotifications.js";
 
+export const JMA_XML_SYNC_CRON = "* * * * *";
+export const JMA_DAILY_BACKFILL_CRON = "17 * * * *";
+
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
   "access-control-allow-origin": "*",
@@ -52,22 +55,22 @@ async function fetchDistribution(request, env, ctx) {
   return fresh ? withCacheControl(response, "no-store") : response;
 }
 
-async function runScheduledSync(env, cache) {
-  const jobs = [
-    ["JMA XML", runJmaXmlHypocenterSync(env)],
-    ["JMA daily backfill", runJmaDailyFastBackfill(env, { cache })]
-  ];
-  const results = await Promise.allSettled(jobs.map(([, job]) => job));
-  const failures = results.flatMap((result, index) => {
-    if (result.status !== "rejected") return [];
-    const [name] = jobs[index];
-    console.error(`[MeteoScopeHypocenterWorker] ${name} sync failed`, result.reason);
-    return [result.reason instanceof Error ? result.reason : new Error(String(result.reason))];
-  });
-  if (failures.length) {
-    throw new AggregateError(failures, "scheduled_earthquake_sync_failed");
+export function getScheduledSyncName(cron) {
+  return cron === JMA_DAILY_BACKFILL_CRON ? "daily-backfill" : "jma-xml";
+}
+
+async function runScheduledSync(cron, env, cache) {
+  const syncName = getScheduledSyncName(cron);
+  try {
+    if (syncName === "daily-backfill") {
+      return await runJmaDailyFastBackfill(env, { cache });
+    }
+    return await runJmaXmlHypocenterSync(env);
   }
-  return results.map((result) => result.value);
+  catch (error) {
+    console.error(`[MeteoScopeHypocenterWorker] ${syncName} sync failed`, error);
+    throw error;
+  }
 }
 
 async function postDiscordTest(request, env) {
@@ -137,8 +140,8 @@ export default {
     }
   },
 
-  async scheduled(_controller, env, ctx) {
+  async scheduled(controller, env, ctx) {
     const cache = typeof caches !== "undefined" ? caches.default : null;
-    ctx.waitUntil(runScheduledSync(env, cache));
+    ctx.waitUntil(runScheduledSync(controller?.cron, env, cache));
   }
 };
