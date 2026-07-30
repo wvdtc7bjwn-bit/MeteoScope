@@ -26,6 +26,8 @@ import {
 import earthquakeWorkerHandler, {
   getScheduledSyncName,
   JMA_DAILY_BACKFILL_CRON,
+  JMA_DAILY_MAINTENANCE_CRON,
+  JMA_XML_MAINTENANCE_CRON,
   JMA_XML_SYNC_CRON
 } from "../workers/earthquake-realtime/src/index.js";
 
@@ -53,6 +55,10 @@ const [
   fs.readFile(path.join(root, "package.json"), "utf8"),
   fs.readFile(path.join(root, "scripts", "deploy-earthquake-worker.mjs"), "utf8")
 ]);
+const dailyWorker = await fs.readFile(
+  path.join(root, "workers", "earthquake-realtime", "src", "jmaDailyHypocenters.js"),
+  "utf8"
+);
 
 assert.equal(JMA_DAILY_RETENTION_DAYS, 731);
 assert.deepEqual(
@@ -84,18 +90,26 @@ assert.match(worker, /public, max-age=5, s-maxage=5/u);
 assert.match(worker, /withCacheControl\(response, "no-store"\)/u);
 assert.equal(JMA_XML_SYNC_CRON, "* * * * *");
 assert.equal(JMA_DAILY_BACKFILL_CRON, "17 * * * *");
+assert.equal(JMA_XML_MAINTENANCE_CRON, "43 15 * * *");
+assert.equal(JMA_DAILY_MAINTENANCE_CRON, "49 15 * * *");
 assert.equal(getScheduledSyncName(JMA_XML_SYNC_CRON), "jma-xml");
 assert.equal(getScheduledSyncName(JMA_DAILY_BACKFILL_CRON), "daily-backfill");
+assert.equal(getScheduledSyncName(JMA_XML_MAINTENANCE_CRON), "jma-xml-maintenance");
+assert.equal(getScheduledSyncName(JMA_DAILY_MAINTENANCE_CRON), "jma-daily-maintenance");
 assert.equal(getScheduledSyncName("unknown"), "jma-xml");
 assert.match(worker, /runScheduledSync\(controller\?\.cron, env, cache\)/u);
 assert.doesNotMatch(worker, /Promise\.allSettled\(jobs/u);
-assert.match(wrangler, /crons\s*=\s*\["\* \* \* \* \*", "17 \* \* \* \*"\]/u);
+assert.match(
+  wrangler,
+  /crons\s*=\s*\["\* \* \* \* \*", "17 \* \* \* \*", "43 15 \* \* \*", "49 15 \* \* \*"\]/u
+);
 assert.equal(
   JSON.parse(packageJson).scripts["deploy:earthquake-worker"],
   "node scripts/deploy-earthquake-worker.mjs",
   "Worker本体とCronを一体で反映する専用デプロイコマンドを維持する"
 );
 assert.match(workerDeployScript, /"deploy"/u);
+assert.match(workerDeployScript, /"d1",\s*"migrations",\s*"apply"/u);
 assert.match(workerDeployScript, /"triggers",\s*"deploy"/u);
 assert.match(workerDeployScript, /"deployments",\s*"status"/u);
 assert.doesNotMatch(
@@ -135,6 +149,39 @@ assert.doesNotMatch(
   xmlWorker,
   /eqvol_l\.xml/u,
   "長期フィードを毎分解析してWorkers FreeのCPU上限を超えない"
+);
+assert.doesNotMatch(
+  xmlWorker,
+  /DOMParser|@xmldom\/xmldom/u,
+  "毎分CronのXML解析でDOMツリーを構築しない"
+);
+const realtimeXmlSyncSource = xmlWorker.slice(
+  xmlWorker.indexOf("export async function runJmaXmlHypocenterSync"),
+  xmlWorker.indexOf("export async function runJmaXmlHypocenterMaintenance")
+);
+assert.doesNotMatch(
+  realtimeXmlSyncSource,
+  /ensureJmaXmlHypocenterSchema|trimJmaXmlHypocenters/u,
+  "毎分CronでDDLと保持期限整理を実行しない"
+);
+assert.match(
+  xmlWorker,
+  /export async function runJmaXmlHypocenterMaintenance[\s\S]*trimJmaXmlHypocenters/u,
+  "保持期限整理は独立したメンテナンスCronで行う"
+);
+const dailyBackfillSource = dailyWorker.slice(
+  dailyWorker.indexOf("async function syncNextJmaDailyHypocenter"),
+  dailyWorker.indexOf("async function findNextJmaDailySyncDate")
+);
+assert.doesNotMatch(
+  dailyBackfillSource,
+  /ensureJmaDailyHypocenterSchema|trimJmaDailyHypocenters/u,
+  "毎時バックフィルでDDLと保持期限整理を実行しない"
+);
+assert.match(
+  dailyWorker,
+  /export async function runJmaDailyHypocenterMaintenance[\s\S]*trimJmaDailyHypocenters/u,
+  "日別データの保持期限整理も独立したメンテナンスCronで行う"
 );
 assert.match(discordWorker, /DISCORD_EARTHQUAKE_WEBHOOK_URL/u);
 assert.match(discordWorker, /allowed_mentions:\s*\{\s*parse:\s*\[\]\s*\}/u);
@@ -236,13 +283,47 @@ assert.equal(
 
 const discordPayload = buildDiscordEarthquakeWebhookPayload(report);
 assert.deepEqual(discordPayload.allowed_mentions, { parse: [] });
-assert.match(discordPayload.embeds[0].title, /最大震度 5弱/u);
-assert.match(discordPayload.embeds[0].title, /熊本県熊本地方/u);
-assert.match(discordPayload.embeds[0].description, /7月29日 23:59ごろ発生/u);
-assert.match(discordPayload.embeds[0].description, /M2\.8　／　深さ 10km/u);
-assert.match(discordPayload.embeds[0].description, /津波の心配なし/u);
+assert.equal(discordPayload.embeds[0].title, "地震情報");
+assert.deepEqual(
+  discordPayload.embeds[0].description.split("\n"),
+  [
+    "発生時刻：7月29日23:59頃",
+    "震源地：熊本県熊本地方",
+    "最大震度：5弱",
+    "規模：M2.8",
+    "深さ：10km",
+    "この地震による津波の心配はありません。"
+  ],
+  "通知本文は発生時刻・震源地・最大震度・規模・深さ・津波情報の順に表示する"
+);
+assert.doesNotMatch(
+  discordPayload.embeds[0].description,
+  /\*/u,
+  "iOSの通知プレビューにMarkdown記号を露出させない"
+);
 assert.equal(discordPayload.embeds[0].fields, undefined);
 assert.equal(discordPayload.username, "MeteoScope");
+
+const tsunamiWarningPayload = buildDiscordEarthquakeWebhookPayload({
+  ...report,
+  tsunamiText: "この地震により、津波警報等を発表中です"
+});
+assert.equal(
+  tsunamiWarningPayload.embeds[0].description.split("\n").at(-1),
+  "この地震により、津波警報等を発表中です。",
+  "津波警報・注意報等は気象庁XMLの文言を保って表示する"
+);
+
+const pendingTsunamiPayload = buildDiscordEarthquakeWebhookPayload({
+  ...report,
+  tsunamiText: ""
+});
+assert.equal(
+  pendingTsunamiPayload.embeds[0].description.split("\n").at(-1),
+  "津波情報を確認中です。",
+  "津波情報が未収録の確定報を「心配なし」と誤表示しない"
+);
+
 assert.ok(parseDiscordWebhookUrl("https://discord.com/api/webhooks/123/token"));
 assert.equal(
   parseDiscordWebhookUrl("https://discordapp.com/api/webhooks/123/token")?.hostname,
@@ -341,7 +422,13 @@ function createDiscordDeliveryDb(row) {
 const deliveryCalls = [];
 const deliveryDb = createDiscordDeliveryDb({
   event_id: report.eventId,
-  payload_json: JSON.stringify(discordPayload),
+  payload_json: JSON.stringify({
+    ...discordPayload,
+    embeds: [{
+      ...discordPayload.embeds[0],
+      description: `**${discordPayload.embeds[0].description.replace("　", "　／　")}**`
+    }]
+  }),
   discord_message_id: null,
   attempts: 0
 });
@@ -358,6 +445,11 @@ const delivery = await deliverPendingDiscordEarthquakeNotifications({
 assert.equal(delivery.sent, 1);
 assert.equal(deliveryCalls[0].init.method, "POST");
 assert.match(deliveryCalls[0].url, /\?wait=true$/u);
+assert.doesNotMatch(
+  JSON.parse(deliveryCalls[0].init.body).embeds[0].description,
+  /\*\*|　／　/u,
+  "更新前に保存された通知も送信時にプレーンテキストへ正規化する"
+);
 assert.equal(deliveryDb.updates.at(-1).bound[0], "discord-message-1");
 
 const correctionCalls = [];

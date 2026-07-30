@@ -6,6 +6,16 @@ const WRANGLER_VERSION = "4.95.0";
 const WORKER_CONFIG = "workers/earthquake-realtime/wrangler.toml";
 
 runWrangler([
+  "d1",
+  "migrations",
+  "apply",
+  "meteoscope-earthquakes",
+  "--remote",
+  "--config",
+  WORKER_CONFIG
+]);
+
+runWrangler([
   "deploy",
   "--config",
   WORKER_CONFIG

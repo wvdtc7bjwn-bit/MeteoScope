@@ -1,12 +1,18 @@
 import {
   readJmaDailyHypocenterDistribution,
+  runJmaDailyHypocenterMaintenance,
   runJmaDailyFastBackfill
 } from "./jmaDailyHypocenters.js";
-import { runJmaXmlHypocenterSync } from "./jmaXmlHypocenters.js";
+import {
+  runJmaXmlHypocenterMaintenance,
+  runJmaXmlHypocenterSync
+} from "./jmaXmlHypocenters.js";
 import { sendDiscordEarthquakeTestNotification } from "./discordEarthquakeNotifications.js";
 
 export const JMA_XML_SYNC_CRON = "* * * * *";
 export const JMA_DAILY_BACKFILL_CRON = "17 * * * *";
+export const JMA_XML_MAINTENANCE_CRON = "43 15 * * *";
+export const JMA_DAILY_MAINTENANCE_CRON = "49 15 * * *";
 
 const JSON_HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -56,6 +62,8 @@ async function fetchDistribution(request, env, ctx) {
 }
 
 export function getScheduledSyncName(cron) {
+  if (cron === JMA_XML_MAINTENANCE_CRON) return "jma-xml-maintenance";
+  if (cron === JMA_DAILY_MAINTENANCE_CRON) return "jma-daily-maintenance";
   return cron === JMA_DAILY_BACKFILL_CRON ? "daily-backfill" : "jma-xml";
 }
 
@@ -64,6 +72,12 @@ async function runScheduledSync(cron, env, cache) {
   try {
     if (syncName === "daily-backfill") {
       return await runJmaDailyFastBackfill(env, { cache });
+    }
+    if (syncName === "jma-xml-maintenance") {
+      return await runJmaXmlHypocenterMaintenance(env);
+    }
+    if (syncName === "jma-daily-maintenance") {
+      return await runJmaDailyHypocenterMaintenance(env);
     }
     return await runJmaXmlHypocenterSync(env);
   }

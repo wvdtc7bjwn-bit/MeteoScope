@@ -9,37 +9,14 @@ const DISCORD_MAX_ATTEMPTS = 8;
 const DISCORD_MAX_RETRY_MS = 60 * 60 * 1000;
 const METEOSCOPE_EARTHQUAKE_URL = "https://meteoscope.pages.dev/?tab=earthquake";
 const VXSE53_CODE = "VXSE53";
-
-export function ensureDiscordEarthquakeNotificationSchema(db) {
-  if (!db) throw new Error("earthquake_database_unavailable");
-  return db.batch([
-    db.prepare(`
-      CREATE TABLE IF NOT EXISTS discord_earthquake_notifications (
-        event_id TEXT PRIMARY KEY,
-        source_date TEXT NOT NULL,
-        entry_url TEXT NOT NULL,
-        entry_updated TEXT NOT NULL,
-        payload_json TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        discord_message_id TEXT,
-        attempts INTEGER NOT NULL DEFAULT 0,
-        next_attempt_at TEXT,
-        last_error TEXT,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        sent_at TEXT
-      )
-    `),
-    db.prepare(`
-      CREATE INDEX IF NOT EXISTS idx_discord_earthquake_notifications_delivery
-      ON discord_earthquake_notifications(status, next_attempt_at, entry_updated)
-    `),
-    db.prepare(`
-      CREATE INDEX IF NOT EXISTS idx_discord_earthquake_notifications_date
-      ON discord_earthquake_notifications(source_date)
-    `)
-  ]);
-}
+const JST_SHORT_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("ja-JP", {
+  timeZone: "Asia/Tokyo",
+  month: "numeric",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false
+});
 
 export function isDiscordNotifiableEarthquakeReport(report) {
   if (!report || report.xmlCode !== VXSE53_CODE) return false;
@@ -103,16 +80,19 @@ export function buildDiscordEarthquakeWebhookPayload(report) {
     username: "MeteoScope",
     allowed_mentions: { parse: [] },
     embeds: [{
-      author: { name: "地震情報" },
-      title: `${correction}最大震度 ${maximumIntensity}｜${place}`,
+      author: { name: "気象庁 防災情報XML" },
+      title: `${correction}地震情報`,
       url: METEOSCOPE_EARTHQUAKE_URL,
       color: intensityColor(report.maxIntensity),
       description: [
-        `**${formatJstShortDateTime(report.originTime)}ごろ発生**`,
-        `${magnitude}　／　深さ ${depth}`,
-        `**${formatTsunamiText(report.tsunamiText)}**`
+        `発生時刻：${formatJstShortDateTime(report.originTime)}頃`,
+        `震源地：${place}`,
+        `最大震度：${maximumIntensity}`,
+        `規模：${magnitude}`,
+        `深さ：${depth}`,
+        formatTsunamiText(report.tsunamiText)
       ].join("\n"),
-      footer: { text: "気象庁 防災情報XML｜MeteoScope" },
+      footer: { text: "気象庁 防災情報XML・MeteoScope" },
       timestamp: normalizeIsoTimestamp(report.reportTime)
     }]
   };
@@ -127,7 +107,7 @@ export function buildDiscordEarthquakeTestWebhookPayload(now = Date.now()) {
       url: METEOSCOPE_EARTHQUAKE_URL,
       color: 0x1768a5,
       description: [
-        "**管理者画面からの接続テストです**",
+        "管理者画面からの接続テストです",
         "実際の地震情報ではありません。",
         "",
         "通知対象：確定報（VXSE53）のみ",
@@ -252,6 +232,7 @@ async function deliverOneNotification({ db, fetchImpl, webhookUrl, row, now }) {
   let payload;
   try {
     payload = JSON.parse(String(row.payload_json ?? ""));
+    payload = normalizeDiscordNotificationPayload(payload);
   }
   catch {
     await markPermanentFailure(db, row.event_id, attempts + 1, "payload_json_invalid", now);
@@ -318,6 +299,25 @@ async function deliverOneNotification({ db, fetchImpl, webhookUrl, row, now }) {
     await markRetry(db, row.event_id, attempts + 1, errorCode, now);
     return "retried";
   }
+}
+
+function normalizeDiscordNotificationPayload(payload) {
+  if (!payload || typeof payload !== "object" || !Array.isArray(payload.embeds)) {
+    return payload;
+  }
+  return {
+    ...payload,
+    embeds: payload.embeds.map((embed) => {
+      if (!embed || typeof embed !== "object") return embed;
+      return {
+        ...embed,
+        title: String(embed.title ?? "").replaceAll("｜", "　"),
+        description: String(embed.description ?? "")
+          .replaceAll("**", "")
+          .replaceAll("　／　", "　")
+      };
+    })
+  };
 }
 
 async function markDeletedMessageForRepost(db, eventId, attempts, now) {
@@ -394,16 +394,9 @@ function normalizeIsoTimestamp(value, fallback = Date.now()) {
 function formatJstShortDateTime(value) {
   const timestamp = Date.parse(String(value ?? ""));
   if (!Number.isFinite(timestamp)) return "時刻不明";
-  const parts = new Intl.DateTimeFormat("ja-JP", {
-    timeZone: "Asia/Tokyo",
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).formatToParts(new Date(timestamp));
+  const parts = JST_SHORT_DATE_TIME_FORMATTER.formatToParts(new Date(timestamp));
   const getPart = (type) => parts.find((part) => part.type === type)?.value || "";
-  return `${getPart("month")}月${getPart("day")}日 ${getPart("hour")}:${getPart("minute")}`;
+  return `${getPart("month")}月${getPart("day")}日${getPart("hour")}:${getPart("minute")}`;
 }
 
 function formatIntensity(value) {
@@ -420,11 +413,16 @@ function formatDepth(depthKm) {
 
 function formatTsunamiText(value) {
   const text = String(value ?? "").replace(/\s+/gu, " ").trim();
-  if (!text) return "情報なし";
-  if (/津波の心配はありません/u.test(text)) return "津波の心配なし";
-  if (/若干の海面変動/u.test(text)) return "若干の海面変動の可能性";
-  if (/津波警報等/u.test(text)) return "津波警報等を確認";
-  return truncate(text, 1_024);
+  if (!text) return "津波情報を確認中です。";
+  if (/津波の心配はありません/u.test(text)) {
+    return "この地震による津波の心配はありません。";
+  }
+  return ensureJapanesePeriod(truncate(text, 1_024));
+}
+
+function ensureJapanesePeriod(value) {
+  const text = String(value ?? "").trim();
+  return !text || /[。！？]$/u.test(text) ? text : `${text}。`;
 }
 
 function intensityColor(value) {

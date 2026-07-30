@@ -1,8 +1,6 @@
-import { DOMParser } from "@xmldom/xmldom";
 import {
   buildDiscordEarthquakeNotificationUpsert,
   deliverPendingDiscordEarthquakeNotifications,
-  ensureDiscordEarthquakeNotificationSchema,
   isDiscordNotifiableEarthquakeReport
 } from "./discordEarthquakeNotifications.js";
 
@@ -28,57 +26,12 @@ const FEED_UPDATED_PATTERN =
   /<(?:[A-Za-z_][\w.-]*:)?updated\b[^>]*>([\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?updated\s*>/iu;
 const FEED_LINK_PATTERN =
   /<(?:[A-Za-z_][\w.-]*:)?link\b[^>]*\bhref\s*=\s*(["'])(.*?)\1[^>]*>/iu;
-
-export async function ensureJmaXmlHypocenterSchema(db) {
-  if (!db) throw new Error("earthquake_database_unavailable");
-  await db.batch([
-    db.prepare(`
-      CREATE TABLE IF NOT EXISTS jma_xml_hypocenters (
-        event_id TEXT PRIMARY KEY,
-        source_date TEXT NOT NULL,
-        origin_time TEXT,
-        report_time TEXT NOT NULL,
-        latitude REAL,
-        longitude REAL,
-        depth_km REAL,
-        magnitude REAL,
-        place TEXT,
-        xml_code TEXT NOT NULL,
-        source_url TEXT NOT NULL,
-        report_priority INTEGER NOT NULL DEFAULT 0,
-        info_type TEXT,
-        active INTEGER NOT NULL DEFAULT 1,
-        updated_at TEXT NOT NULL
-      )
-    `),
-    db.prepare(`
-      CREATE INDEX IF NOT EXISTS idx_jma_xml_hypocenters_date
-      ON jma_xml_hypocenters(source_date, active, origin_time)
-    `),
-    db.prepare(`
-      CREATE TABLE IF NOT EXISTS jma_xml_feed_entries (
-        entry_url TEXT PRIMARY KEY,
-        entry_updated TEXT,
-        source_date TEXT NOT NULL,
-        xml_code TEXT NOT NULL,
-        event_id TEXT,
-        status TEXT NOT NULL,
-        processed_at TEXT NOT NULL,
-        error TEXT
-      )
-    `),
-    db.prepare(`
-      CREATE INDEX IF NOT EXISTS idx_jma_xml_feed_entries_date
-      ON jma_xml_feed_entries(source_date, status)
-    `)
-  ]);
-  await ensureDiscordEarthquakeNotificationSchema(db);
-}
+const XML_TAG_PREFIX = "(?:[A-Za-z_][\\w.-]*:)?";
 
 export function parseJmaXmlFeed(text) {
   // Atom feeds are flat and only id/updated are needed. Building a complete
   // DOM for the feed consumes most of the Workers Free 10 ms CPU allowance.
-  // Full DOM parsing remains in use for each selected JMA report.
+  // Selected JMA reports use the same targeted text extraction below.
   const feedEntries = Array.from(String(text ?? "").matchAll(FEED_ENTRY_PATTERN));
   if (!feedEntries.length) throw new Error("jma_xml_feed_parse_failed");
   return feedEntries
@@ -113,40 +66,81 @@ function decodeXmlEntities(value) {
   return String(value ?? "").replace(
     /&(amp|lt|gt|quot|apos);/gu,
     (entity) => entities[entity] ?? entity
+  ).replace(/&#(\d+);|&#x([\da-f]+);/giu, (entity, decimal, hexadecimal) => {
+    const codePoint = Number.parseInt(decimal || hexadecimal, decimal ? 10 : 16);
+    return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
+      ? String.fromCodePoint(codePoint)
+      : entity;
+  });
+}
+
+function hasXmlElement(source, localName) {
+  return new RegExp(`<${XML_TAG_PREFIX}${localName}\\b`, "iu").test(String(source ?? ""));
+}
+
+function readXmlSection(source, localName) {
+  const match = String(source ?? "").match(new RegExp(
+    `<${XML_TAG_PREFIX}${localName}\\b[^>]*>([\\s\\S]*?)<\\/${XML_TAG_PREFIX}${localName}\\s*>`,
+    "iu"
+  ));
+  return match?.[1] ?? "";
+}
+
+function readXmlText(source, localName) {
+  return normalizeXmlText(readXmlSection(source, localName));
+}
+
+function readXmlTexts(source, localName) {
+  const pattern = new RegExp(
+    `<${XML_TAG_PREFIX}${localName}\\b[^>]*>([\\s\\S]*?)<\\/${XML_TAG_PREFIX}${localName}\\s*>`,
+    "giu"
   );
+  return Array.from(String(source ?? "").matchAll(pattern), (match) => (
+    normalizeXmlText(match[1])
+  ));
+}
+
+function normalizeXmlText(value) {
+  return decodeXmlEntities(String(value ?? "")
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gu, "$1")
+    .replace(/<[^>]+>/gu, ""))
+    .trim();
 }
 
 export function parseJmaXmlHypocenterReport(text, entry = {}) {
-  const document = parseXml(text, "jma_xml_report_parse_failed");
-  const report = firstDescendant(document, "Report") ?? document;
-  const control = firstChild(report, "Control");
-  const head = firstChild(report, "Head");
-  const body = firstChild(report, "Body");
-  const status = childText(control, "Status");
-  const infoType = childText(head, "InfoType");
-  const eventId = childText(head, "EventID") || childText(control, "EventID");
+  const report = String(text ?? "");
+  if (!hasXmlElement(report, "Report")) {
+    throw new Error("jma_xml_report_parse_failed");
+  }
+
+  const control = readXmlSection(report, "Control");
+  const head = readXmlSection(report, "Head");
+  const body = readXmlSection(report, "Body");
+  const status = readXmlText(control, "Status");
+  const infoType = readXmlText(head, "InfoType");
+  const eventId = readXmlText(head, "EventID") || readXmlText(control, "EventID");
   const reportTime = normalizeTimestamp(
-    childText(head, "ReportDateTime") || childText(control, "DateTime") || entry.updated
+    readXmlText(head, "ReportDateTime") || readXmlText(control, "DateTime") || entry.updated
   );
-  const earthquake = firstChild(body, "Earthquake");
-  const originTime = childText(earthquake, "OriginTime")
-    || childText(earthquake, "ArrivalTime")
-    || childText(head, "TargetDateTime");
+  const earthquake = readXmlSection(body, "Earthquake");
+  const originTime = readXmlText(earthquake, "OriginTime")
+    || readXmlText(earthquake, "ArrivalTime")
+    || readXmlText(head, "TargetDateTime");
   const sourceDate = getJstDate(originTime || reportTime);
-  const hypocenter = firstDescendant(earthquake, "Hypocenter");
-  const area = firstChild(hypocenter, "Area");
-  const coordinate = parseJmaCoordinate(childText(area, "Coordinate"));
-  const magnitudeText = childText(earthquake, "Magnitude");
+  const hypocenter = readXmlSection(earthquake, "Hypocenter");
+  const area = readXmlSection(hypocenter, "Area");
+  const coordinate = parseJmaCoordinate(readXmlText(area, "Coordinate"));
+  const magnitudeText = readXmlText(earthquake, "Magnitude");
   const magnitude = Number(magnitudeText);
   const xmlCode = entry.xmlCode || getXmlCodeFromUrl(entry.url);
-  const cancelled = infoType.includes("取消");
-  const normalStatus = !status || status === "通常";
+  const cancelled = infoType.includes("\u53d6\u6d88");
+  const normalStatus = !status || status === "\u901a\u5e38";
   const normalizedEventId = String(eventId || buildFallbackEventId(originTime, coordinate)).trim();
-  const observation = firstDescendant(body, "Observation");
-  const maxIntensity = childText(observation, "MaxInt");
-  const tsunamiText = descendants(report, "Text")
-    .map((node) => String(node.textContent ?? "").replace(/\s+/gu, " ").trim())
-    .find((value) => value.includes("津波"))
+  const observation = readXmlSection(body, "Observation");
+  const maxIntensity = readXmlText(observation, "MaxInt");
+  const tsunamiText = readXmlTexts(report, "Text")
+    .map((value) => value.replace(/\s+/gu, " ").trim())
+    .find((value) => value.includes("\u6d25\u6ce2"))
     || "";
 
   if (!normalStatus) {
@@ -170,7 +164,7 @@ export function parseJmaXmlHypocenterReport(text, entry = {}) {
     longitude: coordinate?.longitude ?? null,
     depthKm: coordinate?.depthKm ?? null,
     magnitude: Number.isFinite(magnitude) ? magnitude : null,
-    place: childText(area, "Name") || "震源地名不明",
+    place: readXmlText(area, "Name") || "\u9707\u6e90\u5730\u540d\u4e0d\u660e",
     xmlCode,
     sourceUrl: entry.url || "",
     reportPriority: getReportPriority(xmlCode),
@@ -186,11 +180,9 @@ export function parseJmaXmlHypocenterReport(text, entry = {}) {
 export async function runJmaXmlHypocenterSync(env, options = {}) {
   const db = env?.EQ_D1;
   if (!db) throw new Error("earthquake_database_unavailable");
-  await ensureJmaXmlHypocenterSchema(db);
 
   const now = Number(options.now ?? Date.now());
   const retainedDates = getJmaXmlRetentionDates(now);
-  const cleanup = await trimJmaXmlHypocenters(db, retainedDates);
   const fetchImpl = options.fetchImpl ?? fetch;
   // The long-term Atom feed is roughly 17x larger than the live feed and its
   // DOM parse alone exceeds the Workers Free 10 ms CPU budget. The live feed
@@ -225,12 +217,17 @@ export async function runJmaXmlHypocenterSync(env, options = {}) {
     storedCount: results.filter((result) => result.status === "stored").length,
     ignoredCount: results.filter((result) => result.status === "ignored").length,
     failedCount: results.filter((result) => result.status === "error").length,
-    cleanup: {
-      deletedHypocenters: cleanup.deletedHypocenters,
-      deletedFeedEntries: cleanup.deletedFeedEntries,
-      deletedDiscordNotifications: cleanup.deletedDiscordNotifications
-    },
     discord,
+    retainedDates
+  };
+}
+
+export async function runJmaXmlHypocenterMaintenance(env, options = {}) {
+  const db = env?.EQ_D1;
+  if (!db) throw new Error("earthquake_database_unavailable");
+  const retainedDates = getJmaXmlRetentionDates(Number(options.now ?? Date.now()));
+  return {
+    cleanup: await trimJmaXmlHypocenters(db, retainedDates),
     retainedDates
   };
 }
@@ -500,35 +497,6 @@ async function fetchText(url, fetchImpl, accept) {
   finally {
     clearTimeout(timeout);
   }
-}
-
-function parseXml(text, errorCode) {
-  const document = new DOMParser().parseFromString(String(text ?? ""), "application/xml");
-  if (!document?.documentElement || descendants(document, "parsererror").length) {
-    throw new Error(errorCode);
-  }
-  return document;
-}
-
-function descendants(node, localName) {
-  if (!node?.getElementsByTagName) return [];
-  return Array.from(node.getElementsByTagName("*"))
-    .filter((item) => item.localName === localName || item.nodeName === localName);
-}
-
-function firstDescendant(node, localName) {
-  return descendants(node, localName)[0] ?? null;
-}
-
-function firstChild(node, localName) {
-  return Array.from(node?.childNodes ?? [])
-    .find((item) => item.nodeType === 1
-      && (item.localName === localName || item.nodeName === localName))
-    ?? null;
-}
-
-function childText(node, localName) {
-  return String(firstChild(node, localName)?.textContent ?? "").trim();
 }
 
 function parseJmaCoordinate(value) {

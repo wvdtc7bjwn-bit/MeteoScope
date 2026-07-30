@@ -7,7 +7,9 @@ compatibility_date = "2026-07-15"
 # daily-list maintenance so one job cannot exhaust the other's CPU budget.
 # The first trigger handles today's and yesterday's earthquake XML every minute.
 # The second backfills at most one missing daily-list date once per hour.
-crons = ["* * * * *", "17 * * * *"]
+# The last two perform XML and daily-list retention cleanup once a day, each
+# with an independent CPU budget.
+crons = ["* * * * *", "17 * * * *", "43 15 * * *", "49 15 * * *"]
 
 # Discord earthquake notifications are enabled only when this Worker has the
 # DISCORD_EARTHQUAKE_WEBHOOK_URL secret. Never place the webhook URL in this file.

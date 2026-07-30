@@ -30,30 +30,6 @@ const MAX_STATUS_DATE_DETAILS = 31;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DAILY_ROW_PATTERN = /^(\d{4})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{2}):(\d{2})\s+(\d{1,2}(?:\.\d+)?)\s+(\d{1,3})°\s*(\d{1,2}(?:\.\d+)?)'[NS]\s+(\d{1,3})°\s*(\d{1,2}(?:\.\d+)?)'[EW]\s+(\d+|-)\s+(-?\d+(?:\.\d+)?|-)\s+(.+)$/u;
 
-export async function ensureJmaDailyHypocenterSchema(db) {
-  if (!db) throw new Error("earthquake_database_unavailable");
-  await db.batch([
-    db.prepare(`
-      CREATE TABLE IF NOT EXISTS jma_daily_hypocenter_days (
-        source_date TEXT PRIMARY KEY,
-        record_count INTEGER NOT NULL,
-        payload_bytes INTEGER NOT NULL,
-        payload_json TEXT NOT NULL,
-        fetched_at TEXT NOT NULL
-      )
-    `),
-    db.prepare(`
-      CREATE TABLE IF NOT EXISTS jma_daily_hypocenter_sync (
-        source_date TEXT PRIMARY KEY,
-        status TEXT NOT NULL,
-        record_count INTEGER NOT NULL DEFAULT 0,
-        fetched_at TEXT,
-        error TEXT
-      )
-    `)
-  ]);
-}
-
 export function parseJmaDailyHypocenterHtml(html, expectedDate = "") {
   const source = String(html ?? "");
   const preMatch = source.match(/<pre(?:\s[^>]*)?>([\s\S]*?)<\/pre>/iu);
@@ -162,6 +138,14 @@ export async function runJmaDailyFastBackfill(env, options = {}) {
   });
 }
 
+export async function runJmaDailyHypocenterMaintenance(env) {
+  const db = env?.EQ_D1;
+  if (!db) throw new Error("earthquake_database_unavailable");
+  return {
+    cleanup: await trimJmaDailyHypocenters(db)
+  };
+}
+
 async function readJmaDailyRetentionState(db) {
   try {
     const row = await db.prepare(`
@@ -194,7 +178,6 @@ async function readJmaDailyRetentionState(db) {
 
 async function syncNextJmaDailyHypocenter(env, options = {}) {
   const db = env?.EQ_D1;
-  await ensureJmaDailyHypocenterSchema(db);
   const now = Number(options.now ?? Date.now());
   const retention = options.retention ?? await readJmaDailyRetentionState(db);
   const candidate = await findNextJmaDailySyncDate(db, retention, now);
@@ -203,20 +186,15 @@ async function syncNextJmaDailyHypocenter(env, options = {}) {
       attempted: 0,
       skipped: "no_retryable_date",
       results: [],
-      cleanup: { deletedDays: 0, deletedSyncRows: 0 },
       backfill: buildBackfillProgress(retention.storedDayCount)
     };
   }
 
   const result = await syncOneDate(db, candidate, options.fetchImpl ?? fetch);
   const newlyStoredDayCount = result.ok ? 1 : 0;
-  const cleanup = retention.storedDayCount + newlyStoredDayCount > JMA_DAILY_RETENTION_DAYS
-    ? await trimJmaDailyHypocenters(db)
-    : { deletedDays: 0, deletedSyncRows: 0 };
   return {
     attempted: 1,
     results: [result],
-    cleanup,
     backfill: buildBackfillProgress(retention.storedDayCount + newlyStoredDayCount)
   };
 }
