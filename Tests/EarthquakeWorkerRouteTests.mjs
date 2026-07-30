@@ -50,6 +50,8 @@ assert.match(worker, /requestUrl\.searchParams\.get\("fresh"\) === "1"/u);
 assert.match(worker, /jma-distribution-fresh-v1/u);
 assert.match(worker, /public, max-age=5, s-maxage=5/u);
 assert.match(worker, /withCacheControl\(response, "no-store"\)/u);
+assert.match(worker, /scheduled_earthquake_sync_failed/u);
+assert.match(worker, /ctx\.waitUntil\(runScheduledSync\(env, cache\)\)/u);
 assert.doesNotMatch(worker, /DMDATA|DM-D\.S\.S|EARTHQUAKE_HUB/u);
 assert.doesNotMatch(wrangler, /^DMDATA_[A-Z_]+\s*=/mu);
 assert.doesNotMatch(wrangler, /durable_objects/u);
@@ -148,7 +150,7 @@ const retentionDates = getJmaXmlRetentionDates(boundaryNow);
 const pendingEntries = retentionDates.flatMap((sourceDate, dateIndex) => (
   Array.from({ length: 40 }, (_, index) => ({
     url: `https://example.test/${dateIndex}-${index}_VXSE53_.xml`,
-    updated: `${sourceDate}T${String(index % 24).padStart(2, "0")}:00:00+09:00`,
+    updated: `${sourceDate}T00:${String(index).padStart(2, "0")}:00+09:00`,
     sourceDate,
     xmlCode: "VXSE53"
   }))
@@ -159,16 +161,28 @@ const selectedEntries = selectJmaXmlCandidates(
   boundaryNow,
   retentionDates
 );
-assert.equal(selectedEntries.length, 48, "1回のcronで許容上限までXMLを処理する");
+assert.equal(selectedEntries.length, 8, "1回のcronを小分けにしてWorker上限へ余裕を持たせる");
 assert.equal(
   selectedEntries.filter((entry) => entry.sourceDate === retentionDates[0]).length,
-  24,
-  "当日分だけで上限を消費しない"
+  4,
+  "当日分の最新4件を処理する"
 );
 assert.equal(
   selectedEntries.filter((entry) => entry.sourceDate === retentionDates[1]).length,
-  24,
-  "前日分も同じcronで処理する"
+  4,
+  "前日分も同じcronで最新4件を処理する"
+);
+assert.deepEqual(
+  selectedEntries
+    .filter((entry) => entry.sourceDate === retentionDates[0])
+    .map((entry) => entry.updated),
+  [
+    "2026-07-30T00:39:00+09:00",
+    "2026-07-30T00:38:00+09:00",
+    "2026-07-30T00:37:00+09:00",
+    "2026-07-30T00:36:00+09:00"
+  ],
+  "大量発表時も古い順ではなく最新発表から追いつく"
 );
 const combined = buildDistributionSummary([
   { source_date: "2026-07-30", record_count: 2, status: "ok", source_type: "jma-xml" },

@@ -8,9 +8,12 @@ const JMA_XML_SOURCE_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.
 const JMA_XML_CODES = new Set(["VXSE51", "VXSE52", "VXSE53"]);
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
-const MAX_REPORTS_PER_SYNC = 48;
-const MAX_REPORTS_PER_SOURCE_DATE = 24;
-const MAX_CONCURRENT_REPORTS = 8;
+// Keep each cron invocation well below the Workers Free external-subrequest and
+// CPU limits. Processing a small, balanced batch every minute also lets the
+// newest reports bypass a large backlog after an active earthquake sequence.
+const MAX_REPORTS_PER_SYNC = 8;
+const MAX_REPORTS_PER_SOURCE_DATE = 4;
+const MAX_CONCURRENT_REPORTS = 4;
 const ERROR_RETRY_MS = 10 * 60 * 1000;
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -216,9 +219,7 @@ export function selectJmaXmlCandidates(entries, processed, now, retainedDates) {
     selected.push(entry);
     selectedUrls.add(entry.url);
   }
-  return selected
-    .slice(0, MAX_REPORTS_PER_SYNC)
-    .sort((left, right) => String(left.updated).localeCompare(String(right.updated)));
+  return selected.slice(0, MAX_REPORTS_PER_SYNC);
 }
 
 export async function readJmaXmlDay(db, sourceDate) {

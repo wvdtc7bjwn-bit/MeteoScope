@@ -51,6 +51,24 @@ async function fetchDistribution(request, env, ctx) {
   return fresh ? withCacheControl(response, "no-store") : response;
 }
 
+async function runScheduledSync(env, cache) {
+  const jobs = [
+    ["JMA XML", runJmaXmlHypocenterSync(env)],
+    ["JMA daily backfill", runJmaDailyFastBackfill(env, { cache })]
+  ];
+  const results = await Promise.allSettled(jobs.map(([, job]) => job));
+  const failures = results.flatMap((result, index) => {
+    if (result.status !== "rejected") return [];
+    const [name] = jobs[index];
+    console.error(`[MeteoScopeHypocenterWorker] ${name} sync failed`, result.reason);
+    return [result.reason instanceof Error ? result.reason : new Error(String(result.reason))];
+  });
+  if (failures.length) {
+    throw new AggregateError(failures, "scheduled_earthquake_sync_failed");
+  }
+  return results.map((result) => result.value);
+}
+
 export default {
   async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") {
@@ -77,9 +95,6 @@ export default {
 
   async scheduled(_controller, env, ctx) {
     const cache = typeof caches !== "undefined" ? caches.default : null;
-    ctx.waitUntil(Promise.allSettled([
-      runJmaXmlHypocenterSync(env),
-      runJmaDailyFastBackfill(env, { cache })
-    ]));
+    ctx.waitUntil(runScheduledSync(env, cache));
   }
 };
