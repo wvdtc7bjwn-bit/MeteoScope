@@ -6,6 +6,8 @@ import {
   buildDistributionSummary,
   filterDistributionDates,
   JMA_DAILY_RETENTION_DAYS,
+  parseMaximumDepthFilter,
+  parseMinimumMagnitudeFilter,
   parseJmaDailyHypocenterHtml
 } from "../workers/earthquake-realtime/src/jmaDailyHypocenters.js";
 import {
@@ -61,6 +63,10 @@ const dailyWorker = await fs.readFile(
 );
 
 assert.equal(JMA_DAILY_RETENTION_DAYS, 731);
+assert.equal(parseMinimumMagnitudeFilter("2.5"), 2.5);
+assert.equal(parseMinimumMagnitudeFilter("invalid"), 0);
+assert.equal(parseMaximumDepthFilter("50"), 50);
+assert.equal(parseMaximumDepthFilter("all"), null);
 assert.deepEqual(
   filterDistributionDates(
     ["2026-07-29", "2026-07-28", "2026-07-27"],

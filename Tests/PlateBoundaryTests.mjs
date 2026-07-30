@@ -126,6 +126,25 @@ assert.match(panel, /legend-hypocenter-depth/u);
 assert.match(style, /\.legend-hypocenter-depth\s*\{[^}]*border-radius:\s*50%/u);
 assert.match(style, /\.mobile-dock-segmented button\s*\{[^}]*touch-action:\s*pan-y/u);
 assert.match(style, /\.earthquake-view-toggle button\.active\s*\{[^}]*background:\s*transparent/u);
+assert.match(style, /\.earthquake-distribution-presentation-card\s*\{[^}]*box-shadow:\s*none/u);
+assert.match(
+  style,
+  /\.earthquake-distribution-presentation-card \.hypocenter-presentation\s*\{[^}]*background:\s*transparent[^}]*box-shadow:\s*none/u,
+);
+assert.match(
+  style,
+  /\.earthquake-distribution-presentation-card \.hypocenter-presentation-switch::before\s*\{[^}]*box-shadow:\s*none/u,
+);
+assert.match(
+  style,
+  /html\[data-theme="light"\] \.earthquake-distribution-presentation-card \.hypocenter-presentation\s*\{[^}]*background:\s*transparent[^}]*box-shadow:\s*none/u,
+);
+assert.match(
+  style,
+  /html\[data-theme="light"\] \.earthquake-distribution-presentation-card \.hypocenter-presentation-switch::before\s*\{[^}]*box-shadow:\s*none/u,
+);
+assert.match(style, /\.hypocenter-presentation\.compact \.hypocenter-presentation-switch::before\s*\{[^}]*box-shadow:\s*none/u);
+assert.match(style, /html\[data-theme="light"\] \.hypocenter-presentation\.compact\s*\{[^}]*background:\s*transparent/u);
 assert.match(depthRenderer, /uniform float u_depth_scale/u);
 assert.match(depthRenderer, /a_position\.z \* u_depth_scale/u);
 assert.match(hypocenter3DLayer, /getDepth3DZoomScale\(state\.map\?\.getZoom\(\)\)/u);

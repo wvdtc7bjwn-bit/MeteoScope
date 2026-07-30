@@ -1,4 +1,4 @@
-[
+export default [
   {"id":"beginner-01","difficulty":"beginner","question":"家の中で強い揺れを感じたとき、最初に優先する行動は？","choices":["丈夫な机の下などで頭を守る","すぐ外へ飛び出す","窓を開けに走る"],"correctIndex":0,"explanation":"まず身の安全を確保します。落下物から頭を守り、揺れが収まるまで慌てて外へ飛び出さないことが大切です。","sourceLabel":"消防庁 防災マニュアル","sourceURL":"https://www.fdma.go.jp/relocation/bousai_manual/"},
   {"id":"beginner-02","difficulty":"beginner","question":"海岸付近で強い揺れ、または弱くても長い揺れを感じたら？","choices":["津波警報を待たず高い安全な場所へ避難する","海の様子を見に行く","自宅で次の揺れを待つ"],"correctIndex":0,"explanation":"津波警報を待たず、海岸や川沿いから離れて高台や津波避難ビルなどへ避難します。","sourceLabel":"気象庁 津波から身を守るために","sourceURL":"https://www.jma.go.jp/jma/kishou/know/jishin/tsunami_bosai/index.html"},
   {"id":"beginner-03","difficulty":"beginner","question":"家庭で備蓄する食料・水の最低目安は？","choices":["最低3日分、できれば1週間分","1食分だけ","必ず30日分"],"correctIndex":0,"explanation":"支援が届くまでを想定し、最低3日分、可能なら1週間分の備蓄が勧められています。","sourceLabel":"内閣府 災害への備え","sourceURL":"https://www.bousai.go.jp/kyoiku/hokenkyousai/check.html"},

@@ -7,6 +7,32 @@ const RECENT_DAY_CACHE_TTL_MS = 60 * 1000;
 export const HYPOCENTER_DISTRIBUTION_DAY_COUNT = 731;
 export const HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET = HYPOCENTER_DISTRIBUTION_DAY_COUNT - 1;
 export const HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS = 5;
+const HYPOCENTER_DISTRIBUTION_MAGNITUDE_STEPS = Object.freeze([
+  0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7
+]);
+const HYPOCENTER_DISTRIBUTION_DEPTH_STEPS = Object.freeze([
+  10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 300, 500, 700
+]);
+export const HYPOCENTER_DISTRIBUTION_MAGNITUDE_OPTIONS = Object.freeze([
+  Object.freeze(["all", "すべて"]),
+  ...HYPOCENTER_DISTRIBUTION_MAGNITUDE_STEPS.map((value) => Object.freeze([
+    String(value),
+    `M${Number.isInteger(value) ? value : value.toFixed(1)}以上`
+  ]))
+]);
+export const HYPOCENTER_DISTRIBUTION_DEPTH_OPTIONS = Object.freeze([
+  Object.freeze(["all", "すべて"]),
+  ...HYPOCENTER_DISTRIBUTION_DEPTH_STEPS.map((value) => Object.freeze([
+    String(value),
+    `${value}km以内`
+  ]))
+]);
+const HYPOCENTER_DISTRIBUTION_MAGNITUDE_VALUES = new Set(
+  HYPOCENTER_DISTRIBUTION_MAGNITUDE_OPTIONS.map(([value]) => value)
+);
+const HYPOCENTER_DISTRIBUTION_DEPTH_VALUES = new Set(
+  HYPOCENTER_DISTRIBUTION_DEPTH_OPTIONS.map(([value]) => value)
+);
 export const HYPOCENTER_DISTRIBUTION_RANGE_TOO_LONG_MESSAGE =
   "表示期間が上限の5か月を超えています。開始日または終了日を変更してください。";
 
@@ -14,12 +40,8 @@ export async function fetchHypocenterDistribution(filters = {}, options = {}) {
   const dayOffset = Number.isInteger(Number(filters.dayOffset))
     ? Math.min(HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET, Math.max(0, Number(filters.dayOffset)))
     : 0;
-  const minMagnitude = ["all", "0", "1", "2", "3", "4", "5"].includes(String(filters.minMagnitude))
-    ? String(filters.minMagnitude)
-    : "0";
-  const maxDepth = ["all", "30", "100", "300", "700"].includes(String(filters.maxDepth))
-    ? String(filters.maxDepth)
-    : "all";
+  const minMagnitude = normalizeHypocenterDistributionMinMagnitude(filters.minMagnitude);
+  const maxDepth = normalizeHypocenterDistributionMaxDepth(filters.maxDepth);
   const parameters = new URLSearchParams({
     dayOffset: String(dayOffset),
     minMagnitude,
@@ -93,6 +115,16 @@ export async function fetchHypocenterDistribution(filters = {}, options = {}) {
     ...payload,
     items: filterHypocentersByPolygon(payload.items, filters.areaPolygon)
   };
+}
+
+export function normalizeHypocenterDistributionMinMagnitude(value) {
+  const normalized = String(value ?? "0");
+  return HYPOCENTER_DISTRIBUTION_MAGNITUDE_VALUES.has(normalized) ? normalized : "0";
+}
+
+export function normalizeHypocenterDistributionMaxDepth(value) {
+  const normalized = String(value ?? "all");
+  return HYPOCENTER_DISTRIBUTION_DEPTH_VALUES.has(normalized) ? normalized : "all";
 }
 
 async function fetchRangeWithSingleDayCompatibility(

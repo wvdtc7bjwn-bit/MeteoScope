@@ -298,13 +298,9 @@ export async function readJmaDailyHypocenterDistribution(request, env, ctx) {
     0
   );
   const minMagnitudeText = url.searchParams.get("minMagnitude") ?? "0";
-  const minMagnitude = minMagnitudeText === "all"
-    ? null
-    : parseChoice(minMagnitudeText, [0, 1, 2, 3, 4, 5], 0);
+  const minMagnitude = parseMinimumMagnitudeFilter(minMagnitudeText);
   const maxDepthText = url.searchParams.get("maxDepth") ?? "all";
-  const maxDepth = maxDepthText === "all"
-    ? null
-    : parseChoice(maxDepthText, [30, 100, 300, 700], 700);
+  const maxDepth = parseMaximumDepthFilter(maxDepthText);
   const includeRecentXml = url.searchParams.get("includeRecentXml") !== "0";
   const requestedStartDate = parseSourceDate(url.searchParams.get("startDate"));
   const requestedEndDate = parseSourceDate(url.searchParams.get("endDate"));
@@ -804,9 +800,18 @@ function decodeHtmlEntities(value) {
     .replace(/&#x([0-9a-f]+);/giu, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)));
 }
 
-function parseChoice(value, choices, fallback) {
+export function parseMinimumMagnitudeFilter(value) {
+  if (value === "all") return null;
   const numeric = Number(value);
-  return choices.includes(numeric) ? numeric : fallback;
+  if (!Number.isFinite(numeric) || numeric < 0 || numeric > 10) return 0;
+  return Math.round(numeric * 10) / 10;
+}
+
+export function parseMaximumDepthFilter(value) {
+  if (value === "all") return null;
+  const numeric = Number(value);
+  if (!Number.isInteger(numeric) || numeric < 0 || numeric > 700) return 700;
+  return numeric;
 }
 
 function clampInteger(value, minimum, maximum, fallback) {

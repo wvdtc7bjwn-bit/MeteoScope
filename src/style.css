@@ -4594,6 +4594,22 @@ html[data-theme="light"] .weekly-weather-issued strong {
   background: rgba(8, 18, 34, 0.52);
 }
 
+.earthquake-distribution-presentation-card {
+  box-shadow: none;
+}
+
+.earthquake-distribution-presentation-card .hypocenter-presentation {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.earthquake-distribution-presentation-card .hypocenter-presentation-switch::before {
+  box-shadow: none;
+}
+
 .earthquake-distribution-section-head {
   display: flex;
   align-items: baseline;
@@ -5071,6 +5087,10 @@ html[data-theme="light"] .weekly-weather-issued strong {
 .hypocenter-presentation.compact .hypocenter-presentation-switch {
   width: 72px;
   padding: 1px;
+}
+
+.hypocenter-presentation.compact .hypocenter-presentation-switch::before {
+  box-shadow: none;
 }
 
 .hypocenter-presentation.compact .hypocenter-presentation-switch button {
@@ -10754,6 +10774,9 @@ html[data-theme="light"] :is(
   border-color: rgba(72, 100, 132, 0.16);
   background: rgba(246, 250, 255, 0.76);
 }
+html[data-theme="light"] .earthquake-distribution-presentation-card {
+  box-shadow: none;
+}
 html[data-theme="light"] .earthquake-distribution-result {
   border-color: rgba(36, 139, 201, 0.2);
   background: rgba(104, 190, 234, 0.13);
@@ -10831,6 +10854,22 @@ html[data-theme="light"] .hypocenter-date-wheel-highlight {
 html[data-theme="light"] .hypocenter-presentation {
   border-color: rgba(68, 98, 128, 0.16);
   background: rgba(225, 235, 244, 0.72);
+}
+
+html[data-theme="light"] .earthquake-distribution-presentation-card .hypocenter-presentation {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+html[data-theme="light"] .earthquake-distribution-presentation-card .hypocenter-presentation-switch::before {
+  box-shadow: none;
+}
+
+html[data-theme="light"] .hypocenter-presentation.compact {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 html[data-theme="light"] .hypocenter-presentation > span strong { color: #20364e; }

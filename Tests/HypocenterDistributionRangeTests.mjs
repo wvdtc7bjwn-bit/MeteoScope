@@ -7,9 +7,13 @@ import {
   doesHypocenterDistributionCoverRange,
   filterHypocentersByPolygon,
   getPolygonBounds,
+  HYPOCENTER_DISTRIBUTION_DEPTH_OPTIONS,
+  HYPOCENTER_DISTRIBUTION_MAGNITUDE_OPTIONS,
   HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS,
   HYPOCENTER_DISTRIBUTION_RANGE_TOO_LONG_MESSAGE,
   isHypocenterDistributionRangeWithinLimit,
+  normalizeHypocenterDistributionMaxDepth,
+  normalizeHypocenterDistributionMinMagnitude,
   normalizeHypocenterDistributionRange,
   pointInPolygon
 } from "../src/jma/hypocenterDistribution.js";
@@ -29,6 +33,18 @@ assert.deepEqual(
   { startDate: "2026-05-01", endDate: "2026-07-29" }
 );
 assert.equal(HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS, 5);
+assert.equal(normalizeHypocenterDistributionMinMagnitude("2.5"), "2.5");
+assert.equal(normalizeHypocenterDistributionMinMagnitude("2.25"), "0");
+assert.equal(normalizeHypocenterDistributionMaxDepth("50"), "50");
+assert.equal(normalizeHypocenterDistributionMaxDepth("55"), "all");
+assert.equal(
+  HYPOCENTER_DISTRIBUTION_MAGNITUDE_OPTIONS.some(([value]) => value === "6.5"),
+  true
+);
+assert.equal(
+  HYPOCENTER_DISTRIBUTION_DEPTH_OPTIONS.some(([value]) => value === "150"),
+  true
+);
 assert.equal(addMonthsToSourceDate("2026-01-31", 5), "2026-06-30");
 assert.equal(isHypocenterDistributionRangeWithinLimit("2026-01-01", "2026-06-01"), true);
 assert.equal(isHypocenterDistributionRangeWithinLimit("2026-01-01", "2026-06-02"), false);
@@ -89,6 +105,8 @@ assert.match(panel, /範囲選択を中止/u);
 assert.match(panel, /data-earthquake-distribution-range-date="startDate"/u);
 assert.match(panel, /data-earthquake-distribution-range-date="endDate"/u);
 assert.match(panel, /data-earthquake-distribution-range-search/u);
+assert.match(panel, /HYPOCENTER_DISTRIBUTION_MAGNITUDE_OPTIONS/u);
+assert.match(panel, /HYPOCENTER_DISTRIBUTION_DEPTH_OPTIONS/u);
 assert.match(panel, /validateDistributionRangeDraft/u);
 assert.match(panel, /指定期間の震央分布を取得中です。/u);
 assert.match(panel, /指定期間を検索しています/u);

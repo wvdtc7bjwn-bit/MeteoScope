@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import questions from "../data/disaster-quiz.json" with { type: "json" };
+import questions from "../data/disasterQuizQuestions.js";
 import { onRequest } from "../functions/api/quiz/[[path]].js";
 import {
   hashQuizPassword,
@@ -63,7 +63,8 @@ const [
   settingsScript,
   appSource,
   accountAuthSource,
-  leaderboardCacheSource
+  leaderboardCacheSource,
+  quizCatalogSource
 ] = await Promise.all([
   fs.readFile(path.join(root, "functions", "api", "quiz", "[[path]].js"), "utf8"),
   fs.readFile(path.join(root, "migrations", "0005_quiz_accounts.sql"), "utf8"),
@@ -76,7 +77,8 @@ const [
   fs.readFile(path.join(root, "src", "ui", "settingsModal.js"), "utf8"),
   fs.readFile(path.join(root, "src", "app.js"), "utf8"),
   fs.readFile(path.join(root, "functions", "_shared", "accountAuth.js"), "utf8"),
-  fs.readFile(path.join(root, "functions", "_shared", "quizLeaderboardCache.js"), "utf8")
+  fs.readFile(path.join(root, "functions", "_shared", "quizLeaderboardCache.js"), "utf8"),
+  fs.readFile(path.join(root, "functions", "_shared", "quizCatalog.js"), "utf8")
 ]);
 for (const table of ["quiz_accounts", "quiz_sessions", "quiz_challenges", "quiz_attempts", "quiz_rate_limits"]) {
   assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`, "u"));
@@ -100,6 +102,7 @@ assert.match(routeSource, /QUIZ_LEADERBOARD_CACHE_SECONDS/u);
 assert.match(routeSource, /quizRankingDate/u);
 assert.match(routeSource, /invalidateAllQuizLeaderboardCaches\(\)/u);
 assert.match(leaderboardCacheSource, /QUIZ_DIFFICULTIES\.map\(\(difficulty\) => invalidateQuizLeaderboardCache\(difficulty, rankingDate\)\)/u);
+assert.doesNotMatch(quizCatalogSource, /\bwith\s*\{\s*type:\s*["']json["']\s*\}/u);
 assert.doesNotMatch(routeSource, /function bestScoresCTE/u);
 assert.match(privacyPage, /MeteoScopeアカウント/u);
 assert.match(supportPage, /MeteoScopeアカウント/u);

@@ -20,6 +20,8 @@ import { buildEarthquakeObservationRows } from "../earthquakeDetails.js";
 import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
 import {
   HYPOCENTER_DISTRIBUTION_DAY_COUNT,
+  HYPOCENTER_DISTRIBUTION_DEPTH_OPTIONS,
+  HYPOCENTER_DISTRIBUTION_MAGNITUDE_OPTIONS,
   HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS,
   HYPOCENTER_DISTRIBUTION_RANGE_TOO_LONG_MESSAGE,
   isHypocenterDistributionRangeWithinLimit
@@ -5556,8 +5558,8 @@ function buildEarthquakeDistributionMarkup(data) {
           <span>規模・深さ</span>
         </div>
         <div class="earthquake-distribution-filters">
-          ${buildDistributionSelect("minMagnitude", "規模", filters.minMagnitude, [["all", "すべて"], [0, "M0以上"], [1, "M1以上"], [2, "M2以上"], [3, "M3以上"], [4, "M4以上"], [5, "M5以上"]])}
-          ${buildDistributionSelect("maxDepth", "深さ", filters.maxDepth, [["all", "すべて"], [30, "30km以内"], [100, "100km以内"], [300, "300km以内"], [700, "700km以内"]])}
+          ${buildDistributionSelect("minMagnitude", "規模", filters.minMagnitude, HYPOCENTER_DISTRIBUTION_MAGNITUDE_OPTIONS)}
+          ${buildDistributionSelect("maxDepth", "深さ", filters.maxDepth, HYPOCENTER_DISTRIBUTION_DEPTH_OPTIONS)}
         </div>
       </div>
       <div class="earthquake-distribution-control-card earthquake-distribution-presentation-card">
