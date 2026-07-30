@@ -87,6 +87,7 @@ export function buildDiscordEarthquakeNotificationUpsert(db, report, entry, now)
 
 export function buildDiscordEarthquakeWebhookPayload(report) {
   const maximumIntensity = formatIntensity(report.maxIntensity);
+  const place = truncate(report.place || "震源地名不明", 170);
   const magnitude = report.magnitude !== null
     && report.magnitude !== undefined
     && Number.isFinite(Number(report.magnitude))
@@ -97,23 +98,21 @@ export function buildDiscordEarthquakeWebhookPayload(report) {
     && Number.isFinite(Number(report.depthKm))
     ? formatDepth(Number(report.depthKm))
     : "不明";
-  const fields = [
-    { name: "発生時刻", value: formatJstDateTime(report.originTime), inline: true },
-    { name: "震源地", value: truncate(report.place || "不明", 1_024), inline: true },
-    { name: "最大震度", value: maximumIntensity, inline: true },
-    { name: "規模", value: magnitude, inline: true },
-    { name: "深さ", value: depth, inline: true },
-    { name: "津波", value: formatTsunamiText(report.tsunamiText), inline: true }
-  ];
-  const correction = report.infoType === "訂正" ? "（訂正）" : "";
+  const correction = report.infoType === "訂正" ? "【訂正】" : "";
   return {
+    username: "MeteoScope",
     allowed_mentions: { parse: [] },
     embeds: [{
-      title: `地震情報${correction}｜最大震度 ${maximumIntensity}`,
+      author: { name: "地震情報" },
+      title: `${correction}最大震度 ${maximumIntensity}｜${place}`,
       url: METEOSCOPE_EARTHQUAKE_URL,
       color: intensityColor(report.maxIntensity),
-      fields,
-      footer: { text: "気象庁 防災情報XML・MeteoScope" },
+      description: [
+        `**${formatJstShortDateTime(report.originTime)}ごろ発生**`,
+        `${magnitude}　／　深さ ${depth}`,
+        `**${formatTsunamiText(report.tsunamiText)}**`
+      ].join("\n"),
+      footer: { text: "気象庁 防災情報XML｜MeteoScope" },
       timestamp: normalizeIsoTimestamp(report.reportTime)
     }]
   };
@@ -121,17 +120,20 @@ export function buildDiscordEarthquakeWebhookPayload(report) {
 
 export function buildDiscordEarthquakeTestWebhookPayload(now = Date.now()) {
   return {
+    username: "MeteoScope",
     allowed_mentions: { parse: [] },
     embeds: [{
       title: "【TEST】地震情報通知",
       url: METEOSCOPE_EARTHQUAKE_URL,
       color: 0x1768a5,
-      description: "管理者画面から送信した接続テストです。実際の地震情報ではありません。",
-      fields: [
-        { name: "通知対象", value: "確定報（VXSE53）のみ", inline: true },
-        { name: "震度速報", value: "通知しない", inline: true },
-        { name: "画像", value: "添付なし", inline: true }
-      ],
+      description: [
+        "**管理者画面からの接続テストです**",
+        "実際の地震情報ではありません。",
+        "",
+        "通知対象：確定報（VXSE53）のみ",
+        "震度速報：通知しません",
+        "画像：添付しません"
+      ].join("\n"),
       footer: { text: "MeteoScope・Discord通知テスト" },
       timestamp: new Date(Number(now)).toISOString()
     }]
@@ -389,19 +391,19 @@ function normalizeIsoTimestamp(value, fallback = Date.now()) {
   return new Date(Number.isFinite(timestamp) ? timestamp : fallback).toISOString();
 }
 
-function formatJstDateTime(value) {
+function formatJstShortDateTime(value) {
   const timestamp = Date.parse(String(value ?? ""));
-  if (!Number.isFinite(timestamp)) return "不明";
-  return new Intl.DateTimeFormat("ja-JP", {
+  if (!Number.isFinite(timestamp)) return "時刻不明";
+  const parts = new Intl.DateTimeFormat("ja-JP", {
     timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
+    month: "numeric",
+    day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    second: "2-digit",
     hour12: false
-  }).format(new Date(timestamp));
+  }).formatToParts(new Date(timestamp));
+  const getPart = (type) => parts.find((part) => part.type === type)?.value || "";
+  return `${getPart("month")}月${getPart("day")}日 ${getPart("hour")}:${getPart("minute")}`;
 }
 
 function formatIntensity(value) {

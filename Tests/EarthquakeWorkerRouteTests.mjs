@@ -194,10 +194,12 @@ assert.equal(
 const discordPayload = buildDiscordEarthquakeWebhookPayload(report);
 assert.deepEqual(discordPayload.allowed_mentions, { parse: [] });
 assert.match(discordPayload.embeds[0].title, /最大震度 5弱/u);
-assert.equal(
-  discordPayload.embeds[0].fields.find((field) => field.name === "津波")?.value,
-  "津波の心配なし"
-);
+assert.match(discordPayload.embeds[0].title, /熊本県熊本地方/u);
+assert.match(discordPayload.embeds[0].description, /7月29日 23:59ごろ発生/u);
+assert.match(discordPayload.embeds[0].description, /M2\.8　／　深さ 10km/u);
+assert.match(discordPayload.embeds[0].description, /津波の心配なし/u);
+assert.equal(discordPayload.embeds[0].fields, undefined);
+assert.equal(discordPayload.username, "MeteoScope");
 assert.ok(parseDiscordWebhookUrl("https://discord.com/api/webhooks/123/token"));
 assert.equal(
   parseDiscordWebhookUrl("https://discordapp.com/api/webhooks/123/token")?.hostname,
@@ -210,6 +212,8 @@ assert.equal(computeDiscordRetryDelayMs(0, 2.5), 2_500);
 const testPayload = buildDiscordEarthquakeTestWebhookPayload(Date.parse("2026-07-30T03:00:00Z"));
 assert.match(testPayload.embeds[0].title, /TEST/u);
 assert.match(testPayload.embeds[0].description, /実際の地震情報ではありません/u);
+assert.match(testPayload.embeds[0].description, /確定報（VXSE53）のみ/u);
+assert.equal(testPayload.embeds[0].fields, undefined);
 assert.deepEqual(testPayload.allowed_mentions, { parse: [] });
 const testDeliveryCalls = [];
 const testDelivery = await sendDiscordEarthquakeTestNotification({
