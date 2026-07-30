@@ -126,6 +126,16 @@ assert.match(xmlWorker, /DELETE FROM jma_xml_hypocenters[\s\S]*source_date < \? 
 assert.match(xmlWorker, /DELETE FROM jma_xml_feed_entries[\s\S]*source_date < \? OR source_date > \?/u);
 assert.match(xmlWorker, /isDiscordNotifiableEarthquakeReport/u);
 assert.match(xmlWorker, /deliverPendingDiscordEarthquakeNotifications/u);
+assert.match(
+  xmlWorker,
+  /const JMA_XML_SOURCE_URL = "https:\/\/www\.data\.jma\.go\.jp\/developer\/xml\/feed\/eqvol\.xml"/u,
+  "毎分Cronは軽量な短期フィードだけを取得する"
+);
+assert.doesNotMatch(
+  xmlWorker,
+  /eqvol_l\.xml/u,
+  "長期フィードを毎分解析してWorkers FreeのCPU上限を超えない"
+);
 assert.match(discordWorker, /DISCORD_EARTHQUAKE_WEBHOOK_URL/u);
 assert.match(discordWorker, /allowed_mentions:\s*\{\s*parse:\s*\[\]\s*\}/u);
 assert.match(discordWorker, /requestUrl\.searchParams\.set\("wait", "true"\)/u);
@@ -161,6 +171,12 @@ const feedEntries = parseJmaXmlFeed(`<?xml version="1.0" encoding="UTF-8"?>
 assert.equal(feedEntries.length, 1, "震源分布にはVXSE51-53だけを取り込む");
 assert.equal(feedEntries[0].xmlCode, "VXSE53");
 assert.equal(feedEntries[0].sourceDate, "2026-07-30", "Atom更新日時もJSTで日付判定する");
+
+assert.throws(
+  () => parseJmaXmlFeed("<html>not an Atom feed</html>"),
+  /jma_xml_feed_parse_failed/u,
+  "不正な応答を空フィードとして正常扱いしない"
+);
 
 const reportEntry = {
   url: feedEntries[0].url,

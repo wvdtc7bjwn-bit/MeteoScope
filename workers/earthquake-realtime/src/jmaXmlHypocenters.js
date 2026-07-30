@@ -6,10 +6,6 @@ import {
   isDiscordNotifiableEarthquakeReport
 } from "./discordEarthquakeNotifications.js";
 
-const JMA_XML_FEED_URLS = [
-  "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml",
-  "https://www.data.jma.go.jp/developer/xml/feed/eqvol_l.xml"
-];
 const JMA_XML_SOURCE_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml";
 const JMA_XML_CODES = new Set(["VXSE51", "VXSE52", "VXSE53"]);
 const FETCH_TIMEOUT_MS = 10_000;
@@ -24,6 +20,14 @@ const ERROR_RETRY_MS = 10 * 60 * 1000;
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
+const FEED_ENTRY_PATTERN =
+  /<(?:[A-Za-z_][\w.-]*:)?entry\b[^>]*>([\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?entry\s*>/giu;
+const FEED_ID_PATTERN =
+  /<(?:[A-Za-z_][\w.-]*:)?id\b[^>]*>([\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?id\s*>/iu;
+const FEED_UPDATED_PATTERN =
+  /<(?:[A-Za-z_][\w.-]*:)?updated\b[^>]*>([\s\S]*?)<\/(?:[A-Za-z_][\w.-]*:)?updated\s*>/iu;
+const FEED_LINK_PATTERN =
+  /<(?:[A-Za-z_][\w.-]*:)?link\b[^>]*\bhref\s*=\s*(["'])(.*?)\1[^>]*>/iu;
 
 export async function ensureJmaXmlHypocenterSchema(db) {
   if (!db) throw new Error("earthquake_database_unavailable");
@@ -72,16 +76,18 @@ export async function ensureJmaXmlHypocenterSchema(db) {
 }
 
 export function parseJmaXmlFeed(text) {
-  const document = parseXml(text, "jma_xml_feed_parse_failed");
-  return descendants(document, "entry")
-    .map((entry) => {
-      const url = childText(entry, "id")
-        || descendants(entry, "link")
-          .map((node) => node.getAttribute?.("href") ?? "")
-          .find(Boolean)
-        || "";
+  // Atom feeds are flat and only id/updated are needed. Building a complete
+  // DOM for the feed consumes most of the Workers Free 10 ms CPU allowance.
+  // Full DOM parsing remains in use for each selected JMA report.
+  const feedEntries = Array.from(String(text ?? "").matchAll(FEED_ENTRY_PATTERN));
+  if (!feedEntries.length) throw new Error("jma_xml_feed_parse_failed");
+  return feedEntries
+    .map((match) => {
+      const entry = match[1];
+      const url = readFeedValue(entry, FEED_ID_PATTERN)
+        || decodeXmlEntities(entry.match(FEED_LINK_PATTERN)?.[2] ?? "");
       const xmlCode = getXmlCodeFromUrl(url);
-      const updated = childText(entry, "updated");
+      const updated = readFeedValue(entry, FEED_UPDATED_PATTERN);
       return {
         url,
         xmlCode,
@@ -90,6 +96,24 @@ export function parseJmaXmlFeed(text) {
       };
     })
     .filter((entry) => entry.url && JMA_XML_CODES.has(entry.xmlCode) && entry.sourceDate);
+}
+
+function readFeedValue(entry, pattern) {
+  return decodeXmlEntities(String(entry ?? "").match(pattern)?.[1] ?? "").trim();
+}
+
+function decodeXmlEntities(value) {
+  const entities = {
+    "&amp;": "&",
+    "&lt;": "<",
+    "&gt;": ">",
+    "&quot;": "\"",
+    "&apos;": "'"
+  };
+  return String(value ?? "").replace(
+    /&(amp|lt|gt|quot|apos);/gu,
+    (entity) => entities[entity] ?? entity
+  );
 }
 
 export function parseJmaXmlHypocenterReport(text, entry = {}) {
@@ -168,18 +192,17 @@ export async function runJmaXmlHypocenterSync(env, options = {}) {
   const retainedDates = getJmaXmlRetentionDates(now);
   const cleanup = await trimJmaXmlHypocenters(db, retainedDates);
   const fetchImpl = options.fetchImpl ?? fetch;
-  const feeds = await Promise.allSettled(JMA_XML_FEED_URLS.map((url) => (
-    fetchText(url, fetchImpl, "application/atom+xml,application/xml")
-  )));
-  const entries = dedupeEntries(feeds
-    .filter((result) => result.status === "fulfilled")
-    .flatMap((result) => parseJmaXmlFeed(result.value))
+  // The long-term Atom feed is roughly 17x larger than the live feed and its
+  // DOM parse alone exceeds the Workers Free 10 ms CPU budget. The live feed
+  // is sufficient for continuous ingestion; already-seen reports remain in D1
+  // while the separate daily-catalog backfill covers historical gaps.
+  const feedText = await fetchText(
+    JMA_XML_SOURCE_URL,
+    fetchImpl,
+    "application/atom+xml,application/xml"
+  );
+  const entries = dedupeEntries(parseJmaXmlFeed(feedText)
     .filter((entry) => retainedDates.includes(entry.sourceDate)));
-
-  if (!entries.length && feeds.every((result) => result.status === "rejected")) {
-    throw feeds.find((result) => result.status === "rejected")?.reason
-      ?? new Error("jma_xml_feeds_unavailable");
-  }
 
   const processed = await readProcessedEntries(db, retainedDates);
   const candidates = selectJmaXmlCandidates(entries, processed, now, retainedDates);
@@ -191,23 +214,21 @@ export async function runJmaXmlHypocenterSync(env, options = {}) {
         .map((entry) => syncOneEntry(db, entry, fetchImpl, now))
     ));
   }
-  const cleanupAfterSync = await trimJmaXmlHypocenters(db, retainedDates);
   const discord = await deliverPendingDiscordEarthquakeNotifications(env, {
     fetchImpl,
     now
   });
 
   return {
-    feedCount: feeds.filter((result) => result.status === "fulfilled").length,
+    feedCount: 1,
     candidateCount: candidates.length,
     storedCount: results.filter((result) => result.status === "stored").length,
     ignoredCount: results.filter((result) => result.status === "ignored").length,
     failedCount: results.filter((result) => result.status === "error").length,
     cleanup: {
-      deletedHypocenters: cleanup.deletedHypocenters + cleanupAfterSync.deletedHypocenters,
-      deletedFeedEntries: cleanup.deletedFeedEntries + cleanupAfterSync.deletedFeedEntries,
-      deletedDiscordNotifications:
-        cleanup.deletedDiscordNotifications + cleanupAfterSync.deletedDiscordNotifications
+      deletedHypocenters: cleanup.deletedHypocenters,
+      deletedFeedEntries: cleanup.deletedFeedEntries,
+      deletedDiscordNotifications: cleanup.deletedDiscordNotifications
     },
     discord,
     retainedDates
