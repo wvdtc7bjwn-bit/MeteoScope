@@ -331,7 +331,8 @@ export async function readJmaDailyHypocenterDistribution(request, env, ctx) {
   const requestedStartDate = parseSourceDate(url.searchParams.get("startDate"));
   const requestedEndDate = parseSourceDate(url.searchParams.get("endDate"));
   const requestedBounds = parseBounds(url.searchParams.get("bounds"));
-  const summary = await readDistributionSummary(db, request, ctx);
+  const fresh = url.searchParams.get("fresh") === "1";
+  const summary = await readDistributionSummary(db, ctx, { fresh });
   const snapshot = await queryDistribution(db, {
     summary,
     requestedDayOffset,
@@ -593,13 +594,13 @@ function parseBounds(value) {
   ];
 }
 
-async function readDistributionSummary(db, request, ctx) {
+async function readDistributionSummary(db, ctx, { fresh = false } = {}) {
   const cache = globalThis.caches?.default;
   const currentJstDate = getJmaXmlRetentionDates()[0];
   const cacheKey = cache
     ? new Request(`https://meteoscope-cache.invalid/earthquakes/distribution-summary?v=${SUMMARY_CACHE_VERSION}&date=${currentJstDate}`)
     : null;
-  if (cache && cacheKey) {
+  if (!fresh && cache && cacheKey) {
     const cached = await cache.match(cacheKey);
     if (cached) return cached.json();
   }
@@ -628,7 +629,7 @@ async function readDistributionSummary(db, request, ctx) {
     ...(result?.results ?? [])
   ]);
 
-  if (cache && cacheKey) {
+  if (!fresh && cache && cacheKey) {
     const response = jsonResponse(summary, 200, {
       "cache-control": `public, max-age=${SUMMARY_CACHE_SECONDS}`
     });
@@ -701,6 +702,7 @@ export function buildDistributionSummary(rows, timestamp = Date.now()) {
   return {
     latestSourceDate,
     expectedLatestSourceDate,
+    lastDataUpdateAt: lastSuccessfulFetchAt,
     lastSuccessfulFetchAt,
     failedDates: failedSourceDates.length,
     failedSourceDateCount: failedSourceDates.length,

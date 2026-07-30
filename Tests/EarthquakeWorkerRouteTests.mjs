@@ -52,6 +52,14 @@ assert.match(worker, /public, max-age=5, s-maxage=5/u);
 assert.match(worker, /withCacheControl\(response, "no-store"\)/u);
 assert.match(worker, /scheduled_earthquake_sync_failed/u);
 assert.match(worker, /ctx\.waitUntil\(runScheduledSync\(env, cache\)\)/u);
+assert.match(
+  await fs.readFile(
+    path.join(root, "workers", "earthquake-realtime", "src", "jmaDailyHypocenters.js"),
+    "utf8"
+  ),
+  /const fresh = url\.searchParams\.get\("fresh"\) === "1";[\s\S]*readDistributionSummary\(db, ctx, \{ fresh \}\)[\s\S]*if \(!fresh && cache && cacheKey\)[\s\S]*lastDataUpdateAt: lastSuccessfulFetchAt/u,
+  "fresh指定は内部サマリーキャッシュも回避し、時刻の意味を明示する"
+);
 assert.doesNotMatch(worker, /DMDATA|DM-D\.S\.S|EARTHQUAKE_HUB/u);
 assert.doesNotMatch(wrangler, /^DMDATA_[A-Z_]+\s*=/mu);
 assert.doesNotMatch(wrangler, /durable_objects/u);
