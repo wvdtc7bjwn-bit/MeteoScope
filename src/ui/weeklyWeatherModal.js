@@ -7,6 +7,10 @@ import {
   getJmaWeeklyWeatherLabel,
   renderWeeklyWeatherGlyph
 } from "./weeklyWeatherGlyph.js";
+import {
+  getCurrentLanguage,
+  localizeText
+} from "./locale.js";
 
 let initialized = false;
 let getCurrentLocation = () => ({ status: "idle" });
@@ -36,6 +40,10 @@ export function setupWeeklyWeatherModal(options = {}) {
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeWeeklyWeatherModal();
+  });
+  window.addEventListener("meteoscope-language-change", () => {
+    if (regionCatalog.length) renderRegionOptions(regionCatalog);
+    if (!modal.hidden) void loadWeeklyWeather();
   });
 }
 
@@ -80,12 +88,14 @@ function renderRegionOptions(catalog) {
   const select = document.getElementById("weekly-weather-region-select");
   if (!select) return;
   const selectedValue = select.value || "current";
+  const language = getCurrentLanguage();
   const fragment = document.createDocumentFragment();
-  fragment.append(new Option("現在地", "current"));
+  fragment.append(new Option(localizeText("現在地", language), "current"));
 
   catalog.forEach((office) => {
     const group = document.createElement("optgroup");
-    group.label = office.officeName;
+    const officeLabel = localizeText(office.officeName, language);
+    group.label = officeLabel;
     office.regions.forEach((region) => {
       const key = `${office.officeCode}:${region.areaCode}:${region.forecastAreaCode}`;
       regionByKey.set(key, {
@@ -93,9 +103,10 @@ function renderRegionOptions(catalog) {
         officeCode: office.officeCode,
         officeName: office.officeName
       });
+      const areaLabel = localizeText(region.areaName, language);
       const optionLabel = region.areaName === office.officeName
-        ? region.areaName
-        : `${office.officeName}・${region.areaName}`;
+        ? areaLabel
+        : `${officeLabel} · ${areaLabel}`;
       group.append(new Option(optionLabel, key));
     });
     fragment.append(group);
@@ -161,39 +172,34 @@ function renderForecast(body, forecast) {
   const summaryLabel = officeName && officeName !== forecast.areaName
     ? officeName
     : "予報区域";
+  const language = getCurrentLanguage();
   body.innerHTML = `
     <div class="weekly-weather-summary">
       <div class="weekly-weather-summary-heading">
-        <span>${escapeHtml(summaryLabel)}</span>
-        <h3>${escapeHtml(forecast.areaName)}</h3>
+        <span>${escapeHtml(localizeText(summaryLabel, language))}</span>
+        <h3>${escapeHtml(localizeText(forecast.areaName, language))}</h3>
       </div>
       <p class="weekly-weather-issued">
         <small>最新発表</small>
         <strong>${escapeHtml(forecast.reportTimeLabel)}</strong>
-        <span>${escapeHtml(forecast.publishingOffice)}</span>
+        <span>${escapeHtml(localizeText(forecast.publishingOffice, language))}</span>
       </p>
     </div>
     <div class="weekly-weather-days" role="list" aria-label="週間天気予報">
-      ${days.map(renderDay).join("")}
+      ${days.map((day, index) => renderDay(day, index, language)).join("")}
     </div>
     <footer class="weekly-weather-source">
       <span>気象庁 防災情報XML「府県天気予報・府県週間天気予報」</span>
-      <span>${escapeHtml(forecast.bulletinCode)}${forecast.stationName ? `・気温 ${escapeHtml(forecast.stationName)}` : ""}</span>
+      <span>${escapeHtml(forecast.bulletinCode)}${forecast.stationName ? ` · ${escapeHtml(localizeText("気温", language))} ${escapeHtml(localizeText(forecast.stationName, language))}` : ""}</span>
     </footer>
   `;
 }
 
-function renderDay(day, index) {
+function renderDay(day, index, language = getCurrentLanguage()) {
   const date = new Date(day.date);
-  const weatherLabel = day.weather || getJmaWeeklyWeatherLabel(day.weatherCode) || "天気未取得";
-  const dateLabel = Number.isNaN(date.getTime())
-    ? day.date
-    : new Intl.DateTimeFormat("ja-JP", {
-      month: "numeric",
-      day: "numeric",
-      weekday: "short",
-      timeZone: "Asia/Tokyo"
-    }).format(date);
+  const sourceWeatherLabel = day.weather || getJmaWeeklyWeatherLabel(day.weatherCode) || "天気未取得";
+  const weatherLabel = localizeText(sourceWeatherLabel, language);
+  const dateLabel = formatWeeklyWeatherDateLabel(day.date, language);
   const temperature = day.maxTemperature === null && day.minTemperature === null
     ? `<span class="weekly-weather-temperature-empty">気温未発表</span>`
     : `
@@ -210,7 +216,7 @@ function renderDay(day, index) {
   const reliability = day.reliability
     ? `<span class="weekly-weather-reliability" aria-label="予報の信頼度 ${escapeHtml(day.reliability)}">${escapeHtml(day.reliability)}</span>`
     : "";
-  const relativeDayLabel = getWeeklyWeatherRelativeDayLabel(day.date);
+  const relativeDayLabel = getWeeklyWeatherRelativeDayLabel(day.date, new Date(), language);
   const dayLabel = relativeDayLabel
     ? `<span class="weekly-weather-today">${relativeDayLabel}</span>`
     : "";
@@ -222,7 +228,7 @@ function renderDay(day, index) {
         ${reliability}
       </header>
       <div class="weekly-weather-icon">
-        ${renderWeeklyWeatherGlyph(day.weatherCode, weatherLabel)}
+        ${renderWeeklyWeatherGlyph(day.weatherCode, sourceWeatherLabel)}
       </div>
       <strong class="weekly-weather-label">${escapeHtml(weatherLabel)}</strong>
       <div class="weekly-weather-temperature">${temperature}</div>
@@ -231,13 +237,28 @@ function renderDay(day, index) {
   `;
 }
 
-export function getWeeklyWeatherRelativeDayLabel(dayValue, referenceDate = new Date()) {
+export function getWeeklyWeatherRelativeDayLabel(
+  dayValue,
+  referenceDate = new Date(),
+  language = getCurrentLanguage()
+) {
   const dayKey = String(dayValue ?? "").slice(0, 10);
   if (!dayKey) return "";
   const todayKey = formatJapanDateKey(referenceDate);
-  if (dayKey === todayKey) return "今日";
+  if (dayKey === todayKey) return localizeText("今日", language);
   const tomorrow = new Date(referenceDate.getTime() + 24 * 60 * 60 * 1000);
-  return dayKey === formatJapanDateKey(tomorrow) ? "明日" : "";
+  return dayKey === formatJapanDateKey(tomorrow) ? localizeText("明日", language) : "";
+}
+
+export function formatWeeklyWeatherDateLabel(dayValue, language = getCurrentLanguage()) {
+  const date = new Date(dayValue);
+  if (Number.isNaN(date.getTime())) return String(dayValue ?? "");
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "ja-JP", {
+    month: "numeric",
+    day: "numeric",
+    weekday: "short",
+    timeZone: "Asia/Tokyo"
+  }).format(date);
 }
 
 function formatJapanDateKey(value) {

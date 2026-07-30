@@ -16,7 +16,10 @@ import {
   getTsunamiObservationStyle
 } from "../tsunami.js";
 import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
-import { buildEarthquakeObservationRows } from "../earthquakeDetails.js";
+import {
+  buildEarthquakeObservationRows,
+  groupEarthquakeObservationRowsByMunicipality
+} from "../earthquakeDetails.js";
 import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
 import {
   HYPOCENTER_DISTRIBUTION_DAY_COUNT,
@@ -47,6 +50,7 @@ import { findLatestRadarObservationIndex } from "../jma/radar.js";
 import { assignAmedasCompetitionRanks } from "../amedasRanking.js";
 import { setSocialSharePayload } from "../socialShareState.js";
 import { mergeRiverFloodWarningsIntoGroups } from "../warningRiverMerge.js";
+import { getCurrentLanguage, localizeText, localizeVolcanoText } from "./locale.js";
 
 let selectedWarningAreaCode = "";
 const amedasRankingOrderByMetric = {
@@ -2501,6 +2505,7 @@ function formatTideAxisTime(value, includeDate = false) {
 }
 
 function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
+  const isEnglish = getCurrentLanguage() === "en";
   const forecastMode = data.forecastMode === "world" ? "world" : "jma";
   const modeSwitch = `
     <div class="mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented mobile-dock-typhoon-mode" role="group" aria-label="台風進路の表示">
@@ -2528,7 +2533,9 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
           data-world-typhoon-model-toggle="${escapeHtml(model.id)}"
           style="--world-model-color: ${escapeHtml(model.modelInfo?.color ?? "#38bdf8")}"
           aria-pressed="${model.enabled}"
-          aria-label="${escapeHtml(`${model.modelInfo?.label ?? modelLabel}を${model.enabled ? "オフ" : "オン"}にする`)}"
+          aria-label="${escapeHtml(isEnglish
+            ? `${model.enabled ? "Hide" : "Show"} ${model.modelInfo?.label ?? modelLabel}`
+            : `${model.modelInfo?.label ?? modelLabel}を${model.enabled ? "オフ" : "オン"}にする`)}"
         >
           <span>${escapeHtml(modelLabel)}</span>
           <i aria-hidden="true"></i>
@@ -2632,10 +2639,10 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
   `;
 }
 
-function formatWorldForecastTime(value) {
+function formatWorldForecastTime(value, language = getCurrentLanguage()) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "";
-  return new Intl.DateTimeFormat("ja-JP", {
+  return new Intl.DateTimeFormat(language === "en" ? "en-US" : "ja-JP", {
     timeZone: "Asia/Tokyo",
     month: "numeric",
     day: "numeric",
@@ -2655,10 +2662,16 @@ function getWorldForecastMaxStep(system) {
   );
 }
 
-function formatWorldCandidateSupport(candidate) {
+function formatWorldCandidateSupport(candidate, language = getCurrentLanguage()) {
   const probability = Number(candidate?.genesisProbability);
-  if (Number.isFinite(probability)) return `発生確率 ${Math.round(probability)}%`;
-  return `${candidate?.memberCount ?? 0}本支持`;
+  if (Number.isFinite(probability)) {
+    return language === "en"
+      ? `Development probability ${Math.round(probability)}%`
+      : `発生確率 ${Math.round(probability)}%`;
+  }
+  return language === "en"
+    ? `${candidate?.memberCount ?? 0} members`
+    : `${candidate?.memberCount ?? 0}本支持`;
 }
 
 function normalizeSummaryValue(value) {
@@ -2736,35 +2749,37 @@ function buildMobileEarthquakeSummaryCarousel({
   tsunamiStatus,
   tideObservation
 }) {
+  const isEnglish = getCurrentLanguage() === "en";
   const tsunamiSummaryMarkup = buildMobileTsunamiSummaryMarkup(earthquake, tsunami, tsunamiStatus);
   const styleAttribute = containerStyle ? ` style="${containerStyle}"` : "";
+  const summaryPages = [
+    ["earthquake", primaryDotLabel],
+    ["tsunami", isEnglish ? "Tsunami information" : "津波情報"],
+    ["tide", isEnglish ? "Tide observations" : "潮位観測"]
+  ];
   return `
     <div class="${containerClass}"${styleAttribute}>
-      <div class="mobile-dock-earthquake-summary-viewport" role="group" aria-label="地震・津波情報要約" aria-roledescription="カルーセル">
+      <div class="mobile-dock-earthquake-summary-viewport" role="group" aria-label="${isEnglish ? "Earthquake and tsunami summaries" : "地震・津波情報要約"}" aria-roledescription="${isEnglish ? "carousel" : "カルーセル"}">
         <div class="mobile-dock-earthquake-summary-track">
           <section class="mobile-dock-earthquake-summary-page" data-mobile-earthquake-summary="earthquake" aria-label="${primaryAriaLabel}">
             ${primaryMarkup}
           </section>
-          <section class="mobile-dock-earthquake-summary-page" data-mobile-earthquake-summary="tsunami" aria-label="津波情報要約">
-            <div class="mobile-dock-tsunami-heading">津波情報</div>
+          <section class="mobile-dock-earthquake-summary-page" data-mobile-earthquake-summary="tsunami" aria-label="${isEnglish ? "Tsunami summary" : "津波情報要約"}">
+            <div class="mobile-dock-tsunami-heading">${isEnglish ? "Tsunami information" : "津波情報"}</div>
             ${tsunamiSummaryMarkup}
           </section>
-          <section class="mobile-dock-earthquake-summary-page mobile-dock-tide" data-mobile-earthquake-summary="tide" aria-label="潮位観測要約">
+          <section class="mobile-dock-earthquake-summary-page mobile-dock-tide" data-mobile-earthquake-summary="tide" aria-label="${isEnglish ? "Tide observation summary" : "潮位観測要約"}">
             ${buildTideObservationMobileContextMarkup(tideObservation)}
           </section>
         </div>
-        <div class="mobile-dock-earthquake-summary-dots" aria-label="要約表示の切り替え">
-          ${[
-            ["earthquake", primaryDotLabel],
-            ["tsunami", "津波情報"],
-            ["tide", "潮位観測"]
-          ].map(([page, label]) => `
+        <div class="mobile-dock-earthquake-summary-dots" aria-label="${isEnglish ? "Choose a summary" : "要約表示の切り替え"}">
+          ${summaryPages.map(([page, label]) => `
             <button
               type="button"
               data-mobile-dock-control
               data-mobile-earthquake-summary-dot="${page}"
               data-mobile-earthquake-summary-target="${page}"
-              aria-label="${label}へ切り替え"
+              aria-label="${isEnglish ? `Show ${label}` : `${label}へ切り替え`}"
             ></button>
           `).join("")}
         </div>
@@ -3031,7 +3046,7 @@ function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLoc
   const warningBadges = warningView === "status" && !isLoading
     ? buildWarningBadgesMarkup(warnings)
     : "";
-  const statusText = isLoading ? "取得中" : (topWarning?.label ?? "発表なし");
+  const statusText = localizeWarningDisplayText(isLoading ? "取得中" : (topWarning?.label ?? "発表なし"));
   const level = topWarning?.level ?? "none";
   const badgeColorClass = getMobileWarningBadgeColorClass(warningView, level);
   return `
@@ -3043,7 +3058,7 @@ function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLoc
         ? buildKikikuruMobileLayerRow(activeKikikuruLayer)
         : `<div class="mobile-dock-warning-main">
             <div class="mobile-dock-warning-text">
-              <strong>${escapeHtml(isLoading ? "現在地を確認中" : area)}</strong>
+              <strong>${escapeHtml(localizeWarningDisplayText(isLoading ? "現在地を確認中" : area))}</strong>
             </div>
             ${warningBadges
               ? `<div class="mobile-dock-warning-badges warning-badges">${warningBadges}</div>`
@@ -3144,11 +3159,23 @@ function getPointToRiverSegmentDistanceKm(point, start, end) {
   return Math.hypot(startX + ratio * deltaX, startY + ratio * deltaY);
 }
 function buildWarningBadgeMarkup(warning = {}) {
-  return `<span class="warning-badge warning-badge-${escapeHtml(warning.level ?? "none")}">${escapeHtml(warning.label ?? "")}</span>`;
+  return `<span class="warning-badge warning-badge-${escapeHtml(warning.level ?? "none")}">${escapeHtml(localizeWarningDisplayText(warning.label ?? ""))}</span>`;
 }
 
 function buildWarningBadgesMarkup(warnings = []) {
   return warnings.map(buildWarningBadgeMarkup).join("");
+}
+
+function localizeWarningDisplayText(value) {
+  const language = getCurrentLanguage();
+  const source = String(value ?? "").trim();
+  if (!source || language !== "en") return source;
+  const localized = localizeText(source, language);
+  if (!/[\u3040-\u30ff\u3400-\u9fff]/u.test(localized)) return localized;
+  return source
+    .split(/(\s+|・)/u)
+    .map((part) => /[\u3040-\u30ff\u3400-\u9fff]/u.test(part) ? localizeText(part, language) : part)
+    .join("");
 }
 
 function getPrimaryMobileWarning(warnings = []) {
@@ -3165,7 +3192,7 @@ function buildWarningMobileActionRow(warningView) {
   return `
     <div class="mobile-dock-action-row mobile-dock-warning-actions mobile-dock-segmented">
       ${options.map((option) => `
-        <button type="button" class="mobile-dock-action${option.active ? " active" : ""}" data-mobile-dock-control data-kikikuru-layer="${escapeHtml(option.id)}" aria-pressed="${option.active ? "true" : "false"}"${option.active ? " disabled" : ""}>${escapeHtml(option.label)}</button>
+        <button type="button" class="mobile-dock-action${option.active ? " active" : ""}" data-mobile-dock-control data-kikikuru-layer="${escapeHtml(option.id)}" aria-pressed="${option.active ? "true" : "false"}"${option.active ? " disabled" : ""}>${escapeHtml(localizeWarningDisplayText(option.label))}</button>
       `).join("")}
     </div>
   `;
@@ -3175,11 +3202,11 @@ function buildKikikuruMobileLayerRow(activeKikikuruLayer) {
   const options = KIKIKURU_LAYER_OPTIONS.map((option) => ({
     ...option,
     active: option.id === activeKikikuruLayer,
-    shortLabel: option.label.replace("キキクル", "")
+    shortLabel: localizeWarningDisplayText(option.label.replace("キキクル", ""))
   }));
   return `
     <div class="mobile-dock-kikikuru-layers">
-      <span class="mobile-dock-kikikuru-label">表示レイヤー</span>
+      <span class="mobile-dock-kikikuru-label">${escapeHtml(localizeWarningDisplayText("表示レイヤー"))}</span>
       <div class="mobile-dock-action-row mobile-dock-kikikuru-actions mobile-dock-segmented">
         ${options.map((option) => `
           <button type="button" class="mobile-dock-action${option.active ? " active" : ""}" data-mobile-dock-control data-kikikuru-layer="${escapeHtml(option.id)}" aria-pressed="${option.active ? "true" : "false"}"${option.active ? " disabled" : ""}>${escapeHtml(option.shortLabel)}</button>
@@ -3909,10 +3936,10 @@ if (warningView === "river") {
   }
 
   renderWarningGroupsProgressively(root, groups, renderGeneration, (group, { includeHeader } = {}) => `
-      ${includeHeader ? `<div class="warning-prefecture-label">${escapeHtml(group.prefecture)}<span>${escapeHtml(group.count ?? group.areas.length)}件</span></div>` : ""}
+      ${includeHeader ? `<div class="warning-prefecture-label">${escapeHtml(localizeWarningDisplayText(group.prefecture))}<span>${escapeHtml(localizeText(`${group.count ?? group.areas.length}件`, getCurrentLanguage()))}</span></div>` : ""}
       ${group.areas.map((area) => `
         <article class="warning-area-row${String(area.areaCode) === selectedWarningAreaCode ? " selected" : ""}" data-warning-area-code="${escapeHtml(area.areaCode)}">
-          <strong>${escapeHtml(area.areaName)}</strong>
+          <strong>${escapeHtml(localizeWarningDisplayText(area.areaName))}</strong>
           <div class="warning-badges">
             ${buildWarningBadgesMarkup(area.warnings)}
           </div>
@@ -3985,13 +4012,13 @@ function renderEarlyWarningDetails(root, state, renderGeneration) {
   ]);
 
   renderWarningGroupsProgressively(root, groups, renderGeneration, (group, { includeHeader } = {}) => `
-      ${includeHeader ? `<div class="warning-prefecture-label">${escapeHtml(group.prefecture)}<span>${escapeHtml(group.count ?? group.areas.length)}件</span></div>` : ""}
+      ${includeHeader ? `<div class="warning-prefecture-label">${escapeHtml(localizeWarningDisplayText(group.prefecture))}<span>${escapeHtml(localizeText(`${group.count ?? group.areas.length}件`, getCurrentLanguage()))}</span></div>` : ""}
       ${group.areas.map((area) => `
         <article class="warning-area-row early-warning-row${String(area.areaCode) === selectedWarningAreaCode ? " selected" : ""}" data-warning-area-code="${escapeHtml(area.areaCode)}">
-          <strong>${escapeHtml(area.areaName)}</strong>
+          <strong>${escapeHtml(localizeWarningDisplayText(area.areaName))}</strong>
           <div class="warning-badges">
             ${area.probabilities.map((probability) => `
-              <span class="warning-badge early-warning-badge early-warning-badge-${escapeHtml(probability.level)}">${escapeHtml(formatEarlyProbabilityBadge(probability))}</span>
+              <span class="warning-badge early-warning-badge early-warning-badge-${escapeHtml(probability.level)}">${escapeHtml(localizeWarningDisplayText(formatEarlyProbabilityBadge(probability)))}</span>
             `).join("")}
           </div>
         </article>
@@ -4084,8 +4111,8 @@ function openWarningModal(areaCode) {
   const outlookRows = area.outlook ?? [];
   content.innerHTML = `
     <header class="warning-modal-head">
-      <span>${escapeHtml(area.prefecture ?? "")}</span>
-      <h2 id="warning-modal-title">${escapeHtml(area.areaName)}</h2>
+      <span>${escapeHtml(localizeWarningDisplayText(area.prefecture ?? ""))}</span>
+      <h2 id="warning-modal-title">${escapeHtml(localizeWarningDisplayText(area.areaName))}</h2>
       <p>更新時刻: ${escapeHtml(formatWarningTime(area.updatedAt))}</p>
     </header>
     <section class="warning-modal-section">
@@ -4096,7 +4123,7 @@ function openWarningModal(areaCode) {
             ${buildWarningBadgeMarkup(warning)}
             <dl>
               <div><dt>更新時刻</dt><dd>${escapeHtml(formatWarningTime(warning.updatedAt))}</dd></div>
-              ${warning.status ? `<div><dt>状態</dt><dd>${escapeHtml(warning.status)}</dd></div>` : ""}
+              ${warning.status ? `<div><dt>状態</dt><dd>${escapeHtml(localizeWarningDisplayText(warning.status))}</dd></div>` : ""}
             </dl>
           </article>
         `).join("")}
@@ -4114,8 +4141,8 @@ function openWarningModal(areaCode) {
 function openEarlyWarningModal(area, modal, content) {
   content.innerHTML = `
     <header class="warning-modal-head">
-      <span>${escapeHtml(area.prefecture ?? "")}</span>
-      <h2 id="warning-modal-title">${escapeHtml(area.displayAreaName ?? area.areaName)}</h2>
+      <span>${escapeHtml(localizeWarningDisplayText(area.prefecture ?? ""))}</span>
+      <h2 id="warning-modal-title">${escapeHtml(localizeWarningDisplayText(area.displayAreaName ?? area.areaName))}</h2>
       <p>更新時刻: ${escapeHtml(formatWarningTime(area.updatedAt))}</p>
     </header>
     <section class="warning-modal-section">
@@ -4124,7 +4151,7 @@ function openEarlyWarningModal(area, modal, content) {
         <article class="warning-modal-warning">
           <div class="warning-badges">
             ${(area.probabilities ?? []).map((probability) => `
-              <span class="warning-badge early-warning-badge early-warning-badge-${escapeHtml(probability.level)}">${escapeHtml(formatEarlyProbabilityBadge(probability))}</span>
+              <span class="warning-badge early-warning-badge early-warning-badge-${escapeHtml(probability.level)}">${escapeHtml(localizeWarningDisplayText(formatEarlyProbabilityBadge(probability)))}</span>
             `).join("")}
           </div>
         </article>
@@ -4157,7 +4184,7 @@ function buildWarningOutlookTable(rows, options = {}) {
         <tbody>
           ${rows.map((row) => `
             <tr>
-              <th>${escapeHtml(formatOutlookTypeLabel(row.type))}${row.localName ? `<span>${escapeHtml(row.localName)}</span>` : ""}</th>
+              <th>${escapeHtml(localizeText(formatOutlookTypeLabel(row.type)))}${row.localName ? `<span>${escapeHtml(localizeText(row.localName))}</span>` : ""}</th>
               ${times.map((timeSlot) => findMatchingOutlookSlot(row.slots, timeSlot)).map((slot) => `
                 <td class="warning-outlook-level-${escapeHtml(slot.level ?? 0)}">${escapeHtml(formatOutlookCellLabel(slot))}</td>
               `).join("")}
@@ -4304,7 +4331,7 @@ function renderAmedasRanking(tab, state, metric) {
 
   root.innerHTML = `
     <div class="amedas-ranking-head">
-      <span>${escapeHtml(metric.label)}ランキング</span>
+      <span data-amedas-ranking-title="${escapeHtml(metric.id)}">${escapeHtml(metric.label)}ランキング</span>
       <button type="button" class="social-share-trigger amedas-ranking-share" data-social-share="amedas" aria-label="ランキングを画像で共有" title="ランキングを画像で共有">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0-11 4 4m-4-4L8 7M5 12v7h14v-7"/></svg>
       </button>
@@ -4634,6 +4661,7 @@ function getAmedasLevels(metricId) {
 }
 
 function buildWorldTyphoonModelDetails(layer) {
+  const isEnglish = getCurrentLanguage() === "en";
   const worldModel = layer.id;
   const isNoaaModel = worldModel === "gefs" || worldModel === "gefs-mean";
   const isDeterministicModel = worldModel === "ifs-hres" || worldModel === "aifs-single";
@@ -4647,7 +4675,7 @@ function buildWorldTyphoonModelDetails(layer) {
           <i aria-hidden="true"></i>
           <h3>${escapeHtml(modelLabel)}</h3>
         </header>
-        <div class="typhoon-empty"><strong>各国予想を取得中です。</strong></div>
+        <div class="typhoon-empty"><strong>${isEnglish ? "Loading global forecast..." : "各国予想を取得中です。"}</strong></div>
       </section>
     `;
   }
@@ -4659,7 +4687,7 @@ function buildWorldTyphoonModelDetails(layer) {
           <h3>${escapeHtml(modelLabel)}</h3>
         </header>
         <div class="typhoon-empty">
-          <strong>各国予想を取得できませんでした。</strong>
+          <strong>${isEnglish ? "Global forecast is unavailable." : "各国予想を取得できませんでした。"}</strong>
           <span>${escapeHtml(layer.error ?? "")}</span>
         </div>
       </section>
@@ -4675,7 +4703,7 @@ function buildWorldTyphoonModelDetails(layer) {
           <i aria-hidden="true"></i>
           <h3>${escapeHtml(modelLabel)}</h3>
         </header>
-        <div class="typhoon-empty"><strong>対象となる各国予想進路はありません。</strong></div>
+        <div class="typhoon-empty"><strong>${isEnglish ? "No matching global forecast track is available." : "対象となる各国予想進路はありません。"}</strong></div>
       </section>
     `;
   }
@@ -4692,13 +4720,23 @@ function buildWorldTyphoonModelDetails(layer) {
     ? "https://www.weather.gov/disclaimer"
     : "https://apps.ecmwf.int/datasets/licences/general/");
   const candidateExplanation = isDeterministicModel
-    ? "単一の決定論予報です。アンサンブルに基づく発生確率はありません。"
+    ? (isEnglish
+      ? "This is a single deterministic forecast and does not provide an ensemble-based development probability."
+      : "単一の決定論予報です。アンサンブルに基づく発生確率はありません。")
     : isNoaaModel
-    ? "NCEPのensemble trackerが示す発生確率20%以上の候補です。台風発生の確定情報ではありません。"
-    : "20本以上のアンサンブルメンバーが支持する上位候補です。発生確率や台風発生の確定情報ではありません。";
+    ? (isEnglish
+      ? "Candidates with at least 20% development probability in the NCEP ensemble tracker. This is not confirmation that a typhoon will form."
+      : "NCEPのensemble trackerが示す発生確率20%以上の候補です。台風発生の確定情報ではありません。")
+    : (isEnglish
+      ? "Leading candidates supported by at least 20 ensemble members. This is not a development probability or confirmation that a typhoon will form."
+      : "20本以上のアンサンブルメンバーが支持する上位候補です。発生確率や台風発生の確定情報ではありません。");
   const forecastExplanation = isDeterministicModel
-    ? "単一の数値予報による参考進路です。気象庁の公式な台風進路予報ではありません。"
-    : "数値予報のばらつきを示す参考情報です。気象庁の公式な台風進路予報ではありません。";
+    ? (isEnglish
+      ? "A reference track from one numerical forecast. This is not an official JMA typhoon track forecast."
+      : "単一の数値予報による参考進路です。気象庁の公式な台風進路予報ではありません。")
+    : (isEnglish
+      ? "Reference information showing numerical forecast spread. This is not an official JMA typhoon track forecast."
+      : "数値予報のばらつきを示す参考情報です。気象庁の公式な台風進路予報ではありません。");
   const mapSystems = layer.systems ?? [];
   const mapSystemCount = mapSystems.filter((mapSystem) =>
     (mapSystem.members ?? []).some((member) => member.coordinates?.length >= 2)
@@ -4718,41 +4756,43 @@ function buildWorldTyphoonModelDetails(layer) {
       <header class="typhoon-world-model-header">
         <i aria-hidden="true"></i>
         <h3>${escapeHtml(modelLabel)}</h3>
-        <span>${isDeterministicModel ? "単一予報" : "アンサンブル"}</span>
+        <span>${isEnglish
+          ? (isDeterministicModel ? "Deterministic" : "Ensemble")
+          : (isDeterministicModel ? "単一予報" : "アンサンブル")}</span>
       </header>
       <dl class="typhoon-world-summary">
-        <div><dt>対象</dt><dd>${escapeHtml(system.name)}</dd></div>
-        <div><dt>基準時刻</dt><dd>${escapeHtml(formatWorldForecastTime(system.forecastBaseTime))}</dd></div>
-        <div><dt>予報期間</dt><dd>${escapeHtml(`${Math.ceil(maxStep / 24)}日`)}</dd></div>
-        <div><dt>メンバー</dt><dd>${escapeHtml(`${system.memberCount}本`)}</dd></div>
-        <div><dt>地図に表示</dt><dd>${escapeHtml(`${mapSystemCount}系統 / ${mapTrackCount}本`)}</dd></div>
+        <div><dt>${isEnglish ? "Target" : "対象"}</dt><dd>${escapeHtml(system.name)}</dd></div>
+        <div><dt>${isEnglish ? "Base time" : "基準時刻"}</dt><dd>${escapeHtml(formatWorldForecastTime(system.forecastBaseTime, isEnglish ? "en" : "ja"))}</dd></div>
+        <div><dt>${isEnglish ? "Forecast range" : "予報期間"}</dt><dd>${escapeHtml(isEnglish ? `${Math.ceil(maxStep / 24)} days` : `${Math.ceil(maxStep / 24)}日`)}</dd></div>
+        <div><dt>${isEnglish ? "Members" : "メンバー"}</dt><dd>${escapeHtml(isEnglish ? `${system.memberCount}` : `${system.memberCount}本`)}</dd></div>
+        <div><dt>${isEnglish ? "On map" : "地図に表示"}</dt><dd>${escapeHtml(isEnglish ? `${mapSystemCount} systems / ${mapTrackCount} tracks` : `${mapSystemCount}系統 / ${mapTrackCount}本`)}</dd></div>
       </dl>
       <section class="typhoon-world-candidates">
         <div class="typhoon-world-candidates-head">
-          <h4>発達候補</h4>
-          <span>${escapeHtml(`${candidates.length}件`)}</span>
+          <h4>${isEnglish ? "Development candidates" : "発達候補"}</h4>
+          <span>${escapeHtml(isEnglish ? `${candidates.length} items` : `${candidates.length}件`)}</span>
         </div>
         <p>${escapeHtml(candidateExplanation)}</p>
         ${candidates.length ? `
           <table class="typhoon-world-candidate-list">
             <thead>
-              <tr><th scope="col">候補名</th><th scope="col">支持状況</th></tr>
+              <tr><th scope="col">${isEnglish ? "Candidate" : "候補名"}</th><th scope="col">${isEnglish ? "Support" : "支持状況"}</th></tr>
             </thead>
             <tbody>
               ${candidates.slice(0, 6).map((candidate) => `
-                <tr><th scope="row">${escapeHtml(candidate.name)}</th><td>${escapeHtml(formatWorldCandidateSupport(candidate))}</td></tr>
+                <tr><th scope="row">${escapeHtml(candidate.name)}</th><td>${escapeHtml(formatWorldCandidateSupport(candidate, isEnglish ? "en" : "ja"))}</td></tr>
               `).join("")}
             </tbody>
           </table>
         ` : ""}
       </section>
       <footer class="typhoon-world-attribution">
-        <p><strong>参考情報</strong>${escapeHtml(forecastExplanation)}</p>
-        <p><strong>出典</strong>${escapeHtml(source.attribution ?? modelLabel)}（加工済み）</p>
+        <p><strong>${isEnglish ? "Reference" : "参考情報"}</strong>${escapeHtml(forecastExplanation)}</p>
+        <p><strong>${isEnglish ? "Source" : "出典"}</strong>${escapeHtml(source.attribution ?? modelLabel)}${isEnglish ? " (processed)" : "（加工済み）"}</p>
         <div>
-          <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">データ</a>
-          <a href="${escapeHtml(licenseUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.license ?? "利用条件")}</a>
-          <a href="${escapeHtml(termsUrl)}" target="_blank" rel="noopener noreferrer">利用条件</a>
+          <a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">${isEnglish ? "Data" : "データ"}</a>
+          <a href="${escapeHtml(licenseUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.license ?? (isEnglish ? "License" : "利用条件"))}</a>
+          <a href="${escapeHtml(termsUrl)}" target="_blank" rel="noopener noreferrer">${isEnglish ? "Terms" : "利用条件"}</a>
         </div>
       </footer>
     </section>
@@ -5042,8 +5082,20 @@ function buildVolcanoMobileContextMarkup(state) {
   const selectedCode = String(state.selectedVolcanoCode ?? state.data?.selectedVolcanoCode ?? "");
   const report = reports.find((item) => String(item.volcanoCode ?? item.code ?? "") === selectedCode)
     ?? getHighestPriorityVolcanoReport(reports);
-  if (state.status === "loading") return buildMobileContextMarkup("火山情報", "取得中", "気象庁XML");
-  if (!report) return buildMobileContextMarkup("火山情報", "直近の発表はありません", "長押しで地震へ");
+  if (state.status === "loading") {
+    return buildMobileContextMarkup(
+      localizeText("火山情報"),
+      localizeText("取得中"),
+      getCurrentLanguage() === "en" ? "JMA XML" : "気象庁XML"
+    );
+  }
+  if (!report) {
+    return buildMobileContextMarkup(
+      localizeText("火山情報"),
+      getCurrentLanguage() === "en" ? "No recent bulletins" : "直近の発表はありません",
+      getCurrentLanguage() === "en" ? "Press and hold for earthquakes" : "長押しで地震へ"
+    );
+  }
   const level = Math.max(0, Math.min(5, Number(report.level) || 0));
   const priority = Math.max(0, Math.min(5, Number(report.alertPriority || level) || 0));
   const forecasts = getAvailableVolcanoAshForecasts(report);
@@ -5065,38 +5117,48 @@ function buildVolcanoMobileContextMarkup(state) {
       .replace(/^[(（]\s*|\s*[)）]$/g, "")
       .trim() || rawStatus
     : rawStatus;
+  const displayStatus = localizeVolcanoText(
+    conciseStatus,
+    level > 0
+      ? localizeText(VOLCANO_ALERT_LEVEL_GUIDE.find((item) => item.level === level)?.keyword ?? "警戒状況未確認")
+      : localizeText("警戒状況未確認")
+  );
+  const displayVolcanoName = report.volcanoName
+    ? localizeText(report.volcanoName)
+    : localizeText("火山名不明");
+  const displayReportTime = report.reportTime ?? localizeText("時刻不明");
   return `
     <div class="mobile-dock-content mobile-dock-volcano level-${priority}">
       <div class="mobile-dock-volcano-main">
         <div class="mobile-dock-volcano-copy">
           <div class="mobile-dock-volcano-meta">
-            <span>気象庁発表</span>
-            <time>${escapeHtml(report.reportTime ?? "時刻不明")}</time>
+            <span>${escapeHtml(localizeText("気象庁発表"))}</span>
+            <time>${escapeHtml(displayReportTime)}</time>
           </div>
           <div class="mobile-dock-volcano-title">
-            <strong>${escapeHtml(report.volcanoName ?? "火山名不明")}</strong>
-            <span>${escapeHtml(conciseStatus)}</span>
+            <strong>${escapeHtml(displayVolcanoName)}</strong>
+            <span>${escapeHtml(displayStatus)}</span>
           </div>
         </div>
-        <em>${level > 0 ? `レベル${level}` : "火山情報"}</em>
+        <em>${level > 0 ? escapeHtml(localizeText(`レベル${level}`)) : escapeHtml(localizeText("火山情報"))}</em>
       </div>
       ${forecasts.length > 1 ? `
         <div class="mobile-dock-volcano-forecast">
-          <span><b>降灰予報</b><strong>${escapeHtml(forecastTime)}</strong></span>
+          <span><b>${escapeHtml(localizeText("降灰予報"))}</b><strong>${escapeHtml(forecastTime)}</strong></span>
           <div class="volcano-ash-timeline">
             <div class="volcano-ash-timeline-rail" aria-hidden="true">
               ${forecasts.map(() => "<i></i>").join("")}
             </div>
-            <input class="volcano-ash-slider" type="range" min="0" max="${forecasts.length - 1}" step="1" value="${forecastIndex}" data-mobile-dock-control data-volcano-ash-forecast-index data-volcano-ash-forecast-times="${escapeHtml(JSON.stringify(forecastTimes))}" aria-label="降灰予報の予測時間" aria-valuetext="${escapeHtml(forecastTime)}">
+            <input class="volcano-ash-slider" type="range" min="0" max="${forecasts.length - 1}" step="1" value="${forecastIndex}" data-mobile-dock-control data-volcano-ash-forecast-index data-volcano-ash-forecast-times="${escapeHtml(JSON.stringify(forecastTimes))}" aria-label="${escapeHtml(localizeText("降灰予報の予測時間"))}" aria-valuetext="${escapeHtml(forecastTime)}">
           </div>
-        </div>` : forecast ? `<div class="mobile-dock-volcano-forecast"><span><b>降灰予報</b><strong>${escapeHtml(forecastTime)}</strong></span></div>` : ""}
+        </div>` : forecast ? `<div class="mobile-dock-volcano-forecast"><span><b>${escapeHtml(localizeText("降灰予報"))}</b><strong>${escapeHtml(forecastTime)}</strong></span></div>` : ""}
     </div>`;
 }
 
 function formatVolcanoForecastTime(value) {
   const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return String(value ?? "時刻不明");
-  return new Intl.DateTimeFormat("ja-JP", {
+  if (!Number.isFinite(date.getTime())) return String(value ?? localizeText("時刻不明"));
+  return new Intl.DateTimeFormat(getCurrentLanguage() === "en" ? "en-US" : "ja-JP", {
     timeZone: "Asia/Tokyo",
     month: "numeric",
     day: "numeric",
@@ -5151,21 +5213,21 @@ function buildVolcanoAlertLevelGuide() {
       <b>L${level}</b>
       <span
         style="--volcano-guide-scope:${scope}%"
-        title="${escapeHtml(keyword)}"
-        aria-label="${escapeHtml(keyword)}"
-      >${escapeHtml(chartKeyword)}</span>
+        title="${escapeHtml(localizeText(keyword))}"
+        aria-label="${escapeHtml(localizeText(keyword))}"
+      >${escapeHtml(localizeText(chartKeyword))}</span>
     </div>
   `;
   }).join("");
   const levelRows = VOLCANO_ALERT_LEVEL_GUIDE.map(({ level, keyword, range, action }) => `
     <li class="volcano-guide-level level-${level}">
-      <span class="volcano-guide-level-number"><small>レベル</small>${level}</span>
+      <span class="volcano-guide-level-number"><small>${escapeHtml(localizeText("レベル"))}</small>${level}</span>
       <div class="volcano-guide-level-copy">
         <div>
-          <strong>${escapeHtml(keyword)}</strong>
-          <span>${escapeHtml(range)}</span>
+          <strong>${escapeHtml(localizeText(keyword))}</strong>
+          <span>${escapeHtml(localizeText(range))}</span>
         </div>
-        <p>${escapeHtml(action)}</p>
+        <p>${escapeHtml(localizeText(action))}</p>
       </div>
     </li>
   `).join("");
@@ -5173,47 +5235,47 @@ function buildVolcanoAlertLevelGuide() {
   return `
     <article class="volcano-level-guide">
       <header class="volcano-level-guide-header">
-        <span>火山情報の見方</span>
-        <h2>噴火警戒レベル</h2>
-        <p>火山活動の状況と、防災上警戒すべき範囲を5段階で示します。</p>
+        <span>${escapeHtml(localizeText("火山情報の見方"))}</span>
+        <h2>${escapeHtml(localizeText("噴火警戒レベル"))}</h2>
+        <p>${escapeHtml(localizeText("火山活動の状況と、防災上警戒すべき範囲を5段階で示します。"))}</p>
       </header>
       <section class="volcano-guide-scope" aria-labelledby="volcano-guide-scope-title">
         <div class="volcano-guide-section-title">
-          <h3 id="volcano-guide-scope-title">警戒範囲の目安</h3>
-          <span>活動に応じて範囲が広がります</span>
+          <h3 id="volcano-guide-scope-title">${escapeHtml(localizeText("警戒範囲の目安"))}</h3>
+          <span>${escapeHtml(localizeText("活動に応じて範囲が広がります"))}</span>
         </div>
         <div class="volcano-guide-scope-chart">${scopeRows}</div>
         <div class="volcano-guide-scope-axis" aria-hidden="true">
-          <span>火口内</span>
-          <span>火口周辺</span>
-          <span>居住地域近く</span>
-          <span>居住地域</span>
+          <span>${escapeHtml(localizeText("火口内"))}</span>
+          <span>${escapeHtml(localizeText("火口周辺"))}</span>
+          <span>${escapeHtml(localizeText("居住地域近く"))}</span>
+          <span>${escapeHtml(localizeText("居住地域"))}</span>
         </div>
       </section>
       <section class="volcano-guide-levels" aria-labelledby="volcano-guide-levels-title">
         <div class="volcano-guide-section-title">
-          <h3 id="volcano-guide-levels-title">レベル別の行動</h3>
-          <span>対象範囲は火山ごとに異なります</span>
+          <h3 id="volcano-guide-levels-title">${escapeHtml(localizeText("レベル別の行動"))}</h3>
+          <span>${escapeHtml(localizeText("対象範囲は火山ごとに異なります"))}</span>
         </div>
         <ol>${levelRows}</ol>
       </section>
-      <p class="volcano-guide-footnote">地図上の▲を選択すると、その火山の発表内容を表示します。噴火警戒レベルを運用していない火山では、警報・予報の表現が異なります。実際の規制や避難対象は、気象庁・自治体等の最新発表に従ってください。</p>
+      <p class="volcano-guide-footnote">${escapeHtml(localizeText("地図上の▲を選択すると、その火山の発表内容を表示します。噴火警戒レベルを運用していない火山では、警報・予報の表現が異なります。実際の規制や避難対象は、気象庁・自治体等の最新発表に従ってください。"))}</p>
     </article>
   `;
 }
 
 function renderVolcanoList(state, render) {
   if (state.status === "loading") {
-    render('<div class="earthquake-empty">気象庁防災情報XMLから火山情報を取得中です。</div>');
+    render(`<div class="earthquake-empty">${escapeHtml(localizeText("気象庁防災情報XMLから火山情報を取得中です。"))}</div>`);
     return;
   }
   if (state.status === "error") {
-    render('<div class="earthquake-empty">火山情報を取得できませんでした。最新性を確認できていません。</div>');
+    render(`<div class="earthquake-empty">${escapeHtml(localizeText("火山情報を取得できませんでした。最新性を確認できていません。"))}</div>`);
     return;
   }
   const reports = state.data?.reports ?? [];
   if (!reports.length) {
-    render('<div class="earthquake-empty">直近の火山情報はありません。</div>');
+    render(`<div class="earthquake-empty">${escapeHtml(localizeText("直近の火山情報はありません。"))}</div>`);
     return;
   }
   const selectedCode = String(state.selectedVolcanoCode ?? state.data?.selectedVolcanoCode ?? "");
@@ -5228,13 +5290,13 @@ function renderVolcanoList(state, render) {
       ? ""
       : selectedReport
         ? `<div class="volcano-bulletin-detail-nav volcano-selection-nav">
-            <button type="button" data-volcano-clear-selection>← 火山情報の見方</button>
-            <span>地図で選択中</span>
+            <button type="button" data-volcano-clear-selection>${escapeHtml(localizeText("← 火山情報の見方"))}</button>
+            <span>${escapeHtml(localizeText("地図で選択中"))}</span>
           </div>`
         : `<section class="volcano-panel-intro">
             <div>
-              <strong>火山防災情報</strong>
-              <span>噴火警戒レベルと、必要な行動を確認できます。</span>
+              <strong>${escapeHtml(localizeText("火山防災情報"))}</strong>
+              <span>${escapeHtml(localizeText("噴火警戒レベルと、必要な行動を確認できます。"))}</span>
             </div>
           </section>`}
     <div class="volcano-report-list">
@@ -5242,7 +5304,7 @@ function renderVolcanoList(state, render) {
         ? buildSelectedVolcanoDetail(selectedReport, selectedBulletinId)
         : buildVolcanoAlertLevelGuide()}
     </div>
-    <p class="volcano-source-note">出典：<a href="https://www.jma.go.jp/bosai/volcano/" target="_blank" rel="noopener noreferrer">気象庁「火山情報」</a>。MeteoScopeは気象庁の公式アプリではありません。避難や規制は自治体等の公式発表も確認してください。</p>
+    <p class="volcano-source-note">${escapeHtml(localizeText("出典："))}<a href="https://www.jma.go.jp/bosai/volcano/" target="_blank" rel="noopener noreferrer">${escapeHtml(localizeText("気象庁「火山情報」"))}</a>${escapeHtml(localizeText("。MeteoScopeは気象庁の公式アプリではありません。避難や規制は自治体等の公式発表も確認してください。"))}</p>
   `);
 }
 
@@ -5257,7 +5319,11 @@ function buildSelectedVolcanoDetail(report, selectedBulletinId = "") {
   const priority = Math.max(0, Math.min(5, Number(report.alertPriority ?? level) || 0));
   const statusText = report.currentStatus ?? report.kindName ?? detailReport.kindName ?? "警戒状況未確認";
   const alertName = report.currentStatus ?? report.kindName ?? detailReport.kindName ?? statusText;
-  const restriction = extractVolcanoRestriction(alertName, alertName);
+  const levelGuide = VOLCANO_ALERT_LEVEL_GUIDE.find((item) => item.level === level);
+  const restriction = localizeVolcanoText(
+    extractVolcanoRestriction(alertName, alertName),
+    localizeText(levelGuide?.keyword ?? "警戒状況未確認")
+  );
   const warningText = warningDetailReport
     ? warningDetailReport.prevention || warningDetailReport.volcanoHeadline || warningDetailReport.headline
     : "";
@@ -5267,46 +5333,58 @@ function buildSelectedVolcanoDetail(report, selectedBulletinId = "") {
     group
   ])).values()];
   const craterName = relatedReports.find((item) => item.craterName)?.craterName ?? "";
-  const volcanoName = report.volcanoName ?? "火山名不明";
+  const volcanoName = report.volcanoName ? localizeText(report.volcanoName) : localizeText("火山名不明");
+  const localizedCraterName = craterName ? localizeText(craterName) : "";
   const displayName = craterName && !volcanoName.includes(craterName)
-    ? `${volcanoName}（${craterName}）`
+    ? `${volcanoName}${localizedCraterName ? ` (${localizedCraterName})` : ""}`
     : volcanoName;
   return `
     <article class="volcano-selected-detail level-${priority}">
       <header class="volcano-selected-header">
         <div>
           <h2>${escapeHtml(displayName)}</h2>
-          <time>${escapeHtml(detailReport.reportTime ?? report.reportTime ?? "発表時刻不明")}</time>
+          <time>${escapeHtml(detailReport.reportTime ?? report.reportTime ?? localizeText("発表時刻不明"))}</time>
         </div>
       </header>
-      <section class="volcano-alert-summary" aria-label="現在の噴火警報・予報">
-        <span>${level > 0 ? `噴火警戒レベル${level}` : escapeHtml(detailReport.infoKind ?? "火山情報")}</span>
+      ${buildVolcanoSummaryNotice()}
+      <section class="volcano-alert-summary" aria-label="${escapeHtml(localizeText("現在の噴火警報・予報"))}">
+        <span>${level > 0 ? escapeHtml(localizeText(`噴火警戒レベル${level}`)) : escapeHtml(localizeVolcanoText(detailReport.infoKind, localizeText("火山情報")))}</span>
         <strong>${escapeHtml(restriction)}</strong>
       </section>
       ${warningText ? `
         <section class="volcano-detail-section">
-          <h3>現在の警戒事項等</h3>
-          ${formatVolcanoParagraphs(warningText)}
+          <h3>${escapeHtml(localizeText("現在の警戒事項等"))}</h3>
+          ${formatVolcanoParagraphs(
+            warningText,
+            localizeText(levelGuide?.action ?? "発表内容は気象庁の原文で確認してください。")
+          )}
         </section>` : ""}
       ${detailReport.activity ? `
         <section class="volcano-detail-section">
-          <h3>火山活動の状況</h3>
-          ${formatVolcanoParagraphs(detailReport.activity)}
+          <h3>${escapeHtml(localizeText("火山活動の状況"))}</h3>
+          ${formatVolcanoParagraphs(
+            detailReport.activity,
+            "Detailed volcanic activity is available in the original JMA bulletin."
+          )}
         </section>` : ""}
       ${uniqueAreaGroups.length ? `
         <section class="volcano-detail-section">
-          <h3>噴火警報・予報の対象市町村</h3>
+          <h3>${escapeHtml(localizeText("噴火警報・予報の対象市町村"))}</h3>
           <div class="volcano-target-groups">
             ${uniqueAreaGroups.map(buildVolcanoTargetAreaGroup).join("")}
           </div>
         </section>` : ""}
       ${detailReport.nextAdvisory ? `
         <section class="volcano-detail-section volcano-next-advisory">
-          <h3>次回の情報</h3>
-          ${formatVolcanoParagraphs(detailReport.nextAdvisory)}
+          <h3>${escapeHtml(localizeText("次回の情報"))}</h3>
+          ${formatVolcanoParagraphs(
+            detailReport.nextAdvisory,
+            "The next bulletin schedule is available in the original JMA bulletin. Updates may be issued sooner if conditions change."
+          )}
         </section>` : ""}
+      ${buildVolcanoOriginalSourceLink(detailReport.sourceUrl)}
       <section class="volcano-detail-section volcano-history-section">
-        <h3>関連する発表</h3>
+        <h3>${escapeHtml(localizeText("関連する発表"))}</h3>
         <div class="volcano-detail-history">
           ${latestRelatedReports.map((item) => buildVolcanoHistoryItem(item, selectedBulletinId)).join("")}
         </div>
@@ -5315,43 +5393,62 @@ function buildSelectedVolcanoDetail(report, selectedBulletinId = "") {
 }
 
 function buildVolcanoBulletinDetail(volcano, bulletin) {
-  const volcanoName = volcano.volcanoName ?? "火山名不明";
+  const volcanoName = volcano.volcanoName ? localizeText(volcano.volcanoName) : localizeText("火山名不明");
   const craterName = bulletin.craterName ?? "";
+  const localizedCraterName = craterName ? localizeText(craterName) : "";
   const displayName = craterName && !volcanoName.includes(craterName)
-    ? `${volcanoName}（${craterName}）`
+    ? `${volcanoName}${localizedCraterName ? ` (${localizedCraterName})` : ""}`
     : volcanoName;
   const groups = bulletin.targetAreas ?? [];
   const sections = [
     bulletin.volcanoHeadline || bulletin.headline
-      ? `<section class="volcano-detail-section"><h3>発表内容</h3>${formatVolcanoParagraphs(bulletin.volcanoHeadline || bulletin.headline)}</section>`
+      ? `<section class="volcano-detail-section"><h3>${escapeHtml(localizeText("発表内容"))}</h3>${formatVolcanoParagraphs(bulletin.volcanoHeadline || bulletin.headline, "See the original JMA bulletin for the full announcement.")}</section>`
       : "",
     bulletin.activity
-      ? `<section class="volcano-detail-section"><h3>火山活動の状況</h3>${formatVolcanoParagraphs(bulletin.activity)}</section>`
+      ? `<section class="volcano-detail-section"><h3>${escapeHtml(localizeText("火山活動の状況"))}</h3>${formatVolcanoParagraphs(bulletin.activity, "Detailed volcanic activity is available in the original JMA bulletin.")}</section>`
       : "",
     bulletin.prevention
-      ? `<section class="volcano-detail-section"><h3>警戒事項等</h3>${formatVolcanoParagraphs(bulletin.prevention)}</section>`
+      ? `<section class="volcano-detail-section"><h3>${escapeHtml(localizeText("警戒事項等"))}</h3>${formatVolcanoParagraphs(bulletin.prevention, "Follow the current restrictions and safety instructions from JMA and local authorities.")}</section>`
       : "",
     groups.length
-      ? `<section class="volcano-detail-section"><h3>対象地域</h3><div class="volcano-target-groups">${groups.map(buildVolcanoTargetAreaGroup).join("")}</div></section>`
+      ? `<section class="volcano-detail-section"><h3>${escapeHtml(localizeText("対象地域"))}</h3><div class="volcano-target-groups">${groups.map(buildVolcanoTargetAreaGroup).join("")}</div></section>`
       : "",
     bulletin.nextAdvisory
-      ? `<section class="volcano-detail-section volcano-next-advisory"><h3>次回の情報</h3>${formatVolcanoParagraphs(bulletin.nextAdvisory)}</section>`
+      ? `<section class="volcano-detail-section volcano-next-advisory"><h3>${escapeHtml(localizeText("次回の情報"))}</h3>${formatVolcanoParagraphs(bulletin.nextAdvisory, "The next bulletin schedule is available in the original JMA bulletin. Updates may be issued sooner if conditions change.")}</section>`
       : ""
   ].filter(Boolean).join("");
   return `
     <article class="volcano-selected-detail volcano-bulletin-detail">
       <div class="volcano-bulletin-detail-nav">
-        <button type="button" data-volcano-bulletin-back>← ${escapeHtml(volcanoName)}の情報へ戻る</button>
-        <span>選択した発表</span>
+        <button type="button" data-volcano-bulletin-back>${getCurrentLanguage() === "en" ? `← Back to ${escapeHtml(volcanoName)}` : `← ${escapeHtml(volcanoName)}の情報へ戻る`}</button>
+        <span>${escapeHtml(localizeText("選択した発表"))}</span>
       </div>
       <header class="volcano-selected-header">
         <span class="volcano-selected-kicker">${escapeHtml(displayName)}</span>
-        <h2>${escapeHtml(formatVolcanoBulletinTitle(bulletin.title ?? bulletin.infoKind ?? "火山情報"))}</h2>
-        <time>${escapeHtml(bulletin.reportTime ?? "発表時刻不明")}</time>
+        <h2>${escapeHtml(localizeVolcanoText(
+          formatVolcanoBulletinTitle(bulletin.title ?? bulletin.infoKind ?? "火山情報"),
+          getVolcanoBulletinFallbackTitle(bulletin)
+        ))}</h2>
+        <time>${escapeHtml(bulletin.reportTime ?? localizeText("発表時刻不明"))}</time>
       </header>
-      ${sections || '<section class="volcano-detail-section"><p>この発表の本文は取得できませんでした。気象庁XML原文を確認してください。</p></section>'}
-      ${bulletin.sourceUrl ? `<a class="volcano-xml-source-link" href="${escapeHtml(bulletin.sourceUrl)}" target="_blank" rel="noopener noreferrer">気象庁発表原文を確認</a>` : ""}
+      ${buildVolcanoSummaryNotice()}
+      ${sections || `<section class="volcano-detail-section"><p>${escapeHtml(localizeText("この発表の本文は取得できませんでした。気象庁XML原文を確認してください。"))}</p></section>`}
+      ${buildVolcanoOriginalSourceLink(bulletin.sourceUrl)}
     </article>`;
+}
+
+function buildVolcanoSummaryNotice() {
+  if (getCurrentLanguage() !== "en") return "";
+  return `
+    <aside class="volcano-summary-notice" role="note">
+      <strong>Automated English summary</strong>
+      <p>Only details identified with high confidence are shown. Some observations, dates, quantities, locations, conditions, and precautions may be omitted. This is not an official or complete translation. Check the original JMA bulletin before making safety decisions.</p>
+    </aside>`;
+}
+
+function buildVolcanoOriginalSourceLink(sourceUrl) {
+  if (!sourceUrl) return "";
+  return `<a class="volcano-xml-source-link" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(localizeText("気象庁発表原文を確認"))}</a>`;
 }
 
 function extractVolcanoRestriction(statusText, fallback) {
@@ -5361,7 +5458,21 @@ function extractVolcanoRestriction(statusText, fallback) {
   return match?.[1] ?? fallback ?? statusText ?? "警戒状況未確認";
 }
 
-function formatVolcanoParagraphs(value) {
+function formatVolcanoParagraphs(value, englishFallback = "") {
+  if (getCurrentLanguage() === "en") {
+    const paragraphs = String(value ?? "")
+      .split(/\n{2,}/u)
+      .map((paragraph) => paragraph.trim())
+      .filter(Boolean)
+      .map((paragraph) => localizeVolcanoText(paragraph, englishFallback))
+      .filter((paragraph, index, values) =>
+        Boolean(paragraph) && values.indexOf(paragraph) === index
+      );
+    return (paragraphs.length ? paragraphs : [englishFallback])
+      .filter(Boolean)
+      .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+      .join("");
+  }
   return String(value ?? "")
     .split(/\n{2,}/u)
     .map((paragraph) => paragraph.trim())
@@ -5405,8 +5516,8 @@ function formatVolcanoParagraph(paragraph) {
 function buildVolcanoTargetAreaGroup(group) {
   return `
     <div class="volcano-target-group">
-      <strong>${escapeHtml(group.kindName ?? "対象地域")}</strong>
-      <ul>${(group.areas ?? []).map((area) => `<li>${escapeHtml(area.name ?? "地域名不明")}</li>`).join("")}</ul>
+      <strong>${escapeHtml(localizeVolcanoText(group.kindName, localizeText("対象地域")))}</strong>
+      <ul>${(group.areas ?? []).map((area) => `<li>${escapeHtml(area.name ? localizeText(area.name) : localizeText("対象地域不明"))}</li>`).join("")}</ul>
     </div>`;
 }
 
@@ -5414,11 +5525,34 @@ function buildVolcanoHistoryItem(report, selectedBulletinId = "") {
   const summary = report.volcanoHeadline || report.headline || report.activity || report.prevention || "発表内容は気象庁の原文で確認してください。";
   const reportId = String(report.id ?? "");
   const selectedClass = reportId === selectedBulletinId ? " is-selected" : "";
+  const title = localizeVolcanoText(
+    formatVolcanoBulletinTitle(report.title ?? report.kindName ?? report.infoKind ?? "火山情報"),
+    getVolcanoBulletinFallbackTitle(report)
+  );
+  const displaySummary = localizeVolcanoText(
+    summary,
+    "Open this bulletin for the latest volcanic activity and safety information."
+  );
   return `
     <button type="button" class="volcano-history-item${selectedClass}" data-volcano-bulletin-id="${escapeHtml(reportId)}"${reportId ? "" : " disabled"}>
-      <span><strong>${escapeHtml(formatVolcanoBulletinTitle(report.title ?? report.kindName ?? report.infoKind ?? "火山情報"))}</strong><time>${escapeHtml(report.reportTime ?? "発表時刻不明")}</time><small>${escapeHtml(summary)}</small></span>
+      <span><strong>${escapeHtml(title)}</strong><time>${escapeHtml(report.reportTime ?? localizeText("発表時刻不明"))}</time><small>${escapeHtml(displaySummary)}</small></span>
       <b aria-hidden="true">›</b>
     </button>`;
+}
+
+function getVolcanoBulletinFallbackTitle(report) {
+  const source = [
+    report?.title,
+    report?.kindName,
+    report?.infoKind,
+    report?.bulletinCode
+  ].filter(Boolean).join(" ");
+  if (/降灰/u.test(source) || /VFVO5[3-6]/u.test(source)) return "Ashfall forecast";
+  if (/解説/u.test(source) || /VFSV/u.test(source)) return "Volcano activity commentary";
+  if (/観測報/u.test(source) || /VFVO52/u.test(source)) return "Volcanic observation report";
+  if (/噴火速報/u.test(source) || /VFVO50/u.test(source)) return "Eruption bulletin";
+  if (/警報|予報/u.test(source) || /VFVO51/u.test(source)) return "Volcanic warning or forecast";
+  return localizeText("火山情報");
 }
 
 function formatVolcanoBulletinTitle(value) {
@@ -5753,6 +5887,7 @@ function formatDistributionFullDate(value) {
 }
 
 function buildEarthquakeDistributionMobileContextMarkup(data) {
+  const isEnglish = getCurrentLanguage() === "en";
   const snapshot = data.distribution;
   const filters = data.distributionFilters ?? {};
   const availableDates = Array.isArray(snapshot?.availableDates)
@@ -5768,27 +5903,33 @@ function buildEarthquakeDistributionMobileContextMarkup(data) {
   const isPendingDate = snapshot && Number(snapshot.dayOffset) !== dayOffset;
   const earthquakes = data.earthquakes ?? [];
   const earthquake = data.selectedEarthquake ?? earthquakes[0];
+  const periodLabel = rangeEnabled
+    ? `${formatDistributionDate(rangeStartDate)}–${formatDistributionDate(rangeEndDate)}`
+    : selectedDate ? formatDistributionDate(selectedDate) : isEnglish ? "Waiting" : "取得待ち";
+  const distributionKicker = isEnglish
+    ? `Epicenters · ${periodLabel} · ${rangeEnabled ? "Selected" : "Provisional"}`
+    : `震央分布・${periodLabel}・${rangeEnabled ? "指定範囲" : "暫定値"}`;
   const primaryMarkup = `
     ${buildEarthquakeMobileViewSwitch("distribution")}
     <div class="mobile-dock-earthquake-distribution-summary">
       <div class="mobile-dock-earthquake-distribution-head">
-        <span class="mobile-dock-kicker">震央分布・${escapeHtml(rangeEnabled
-          ? `${formatDistributionDate(rangeStartDate)}〜${formatDistributionDate(rangeEndDate)}`
-          : selectedDate ? formatDistributionDate(selectedDate) : "取得待ち")}・${rangeEnabled ? "指定範囲" : "暫定値"}</span>
+        <span class="mobile-dock-kicker">${escapeHtml(distributionKicker)}</span>
         ${buildHypocenterPresentationToggle(data.distribution3DEnabled === true, true)}
         <strong>${isPendingDate
-          ? "取得中"
-          : `${count.toLocaleString("ja-JP")}件`}</strong>
+          ? isEnglish ? "Loading" : "取得中"
+          : isEnglish ? `${count.toLocaleString("en-US")} items` : `${count.toLocaleString("ja-JP")}件`}</strong>
       </div>
       ${rangeEnabled
-        ? '<div class="mobile-dock-earthquake-distribution-range-hint">詳細パネルで期間・囲み範囲を変更</div>'
+        ? `<div class="mobile-dock-earthquake-distribution-range-hint">${isEnglish
+          ? "Change the period or selected area in Details"
+          : "詳細パネルで期間・囲み範囲を変更"}</div>`
         : buildDistributionDateButton(selectedDate, true, maximumOffset === 0, dayOffset, maximumOffset)}
     </div>
   `;
   return buildMobileEarthquakeSummaryCarousel({
     containerClass: "mobile-dock-content mobile-dock-earthquake-distribution mobile-dock-earthquake-carousel",
-    primaryAriaLabel: "震央分布要約",
-    primaryDotLabel: "地震・震央分布",
+    primaryAriaLabel: isEnglish ? "Epicenter distribution summary" : "震央分布要約",
+    primaryDotLabel: isEnglish ? "Epicenter distribution" : "地震・震央分布",
     primaryMarkup,
     earthquake,
     tsunami: data.tsunami,
@@ -5798,17 +5939,22 @@ function buildEarthquakeDistributionMobileContextMarkup(data) {
 }
 
 function buildDistributionDateButton(selectedDate, compact = false, disabled = false, dayOffset = 0, maximumOffset = 0) {
-  const label = selectedDate ? formatDistributionFullDate(selectedDate) : "日付を選択";
+  const isEnglish = getCurrentLanguage() === "en";
+  const label = selectedDate
+    ? isEnglish ? selectedDate.replaceAll("-", "/") : formatDistributionFullDate(selectedDate)
+    : isEnglish ? "Select date" : "日付を選択";
+  const previousLabel = isEnglish ? "Previous day's epicenter distribution" : "前日の震央分布";
+  const nextLabel = isEnglish ? "Next day's epicenter distribution" : "翌日の震央分布";
   return `
     <div class="earthquake-distribution-date-navigation${compact ? " compact" : ""}">
-      <button type="button" class="earthquake-distribution-date-step" data-earthquake-distribution-date-step="1" data-current-day-offset="${dayOffset}"${compact ? " data-mobile-dock-control" : ""}${dayOffset >= maximumOffset ? " disabled" : ""} aria-label="前日の震央分布">前日</button>
+      <button type="button" class="earthquake-distribution-date-step" data-earthquake-distribution-date-step="1" data-current-day-offset="${dayOffset}"${compact ? " data-mobile-dock-control" : ""}${dayOffset >= maximumOffset ? " disabled" : ""} aria-label="${previousLabel}">${isEnglish ? "Prev" : "前日"}</button>
       <label class="earthquake-distribution-date-control${compact ? " compact" : ""}">
-      ${compact ? "" : "<span>日付</span>"}
-      <button type="button" data-earthquake-distribution-date-open data-selected-date="${escapeHtml(selectedDate)}"${compact ? " data-mobile-dock-control" : ""}${disabled ? " disabled" : ""} aria-label="震央分布の日付を選択">
+      ${compact ? "" : `<span>${isEnglish ? "Date" : "日付"}</span>`}
+      <button type="button" data-earthquake-distribution-date-open data-selected-date="${escapeHtml(selectedDate)}"${compact ? " data-mobile-dock-control" : ""}${disabled ? " disabled" : ""} aria-label="${isEnglish ? "Select the epicenter distribution date" : "震央分布の日付を選択"}">
         <span>${escapeHtml(label)}</span><span aria-hidden="true">⌄</span>
       </button>
       </label>
-      <button type="button" class="earthquake-distribution-date-step" data-earthquake-distribution-date-step="-1" data-current-day-offset="${dayOffset}"${compact ? " data-mobile-dock-control" : ""}${dayOffset <= 0 ? " disabled" : ""} aria-label="翌日の震央分布">翌日</button>
+      <button type="button" class="earthquake-distribution-date-step" data-earthquake-distribution-date-step="-1" data-current-day-offset="${dayOffset}"${compact ? " data-mobile-dock-control" : ""}${dayOffset <= 0 ? " disabled" : ""} aria-label="${nextLabel}">${isEnglish ? "Next" : "翌日"}</button>
     </div>`;
 }
 
@@ -6062,9 +6208,12 @@ function renderTsunamiOfficialLink() {
 }
 
 function renderEarthquakeObservations(observations, observationsId) {
-  const title = observations[0]?.kind === "city" ? "各地の震度（市区町村）" : "各地の震度";
-  const body = observations.length
-    ? `<div class="earthquake-observation-list">${observations.map((observation) => {
+  const visibleObservations = getCurrentLanguage() === "en"
+    ? groupEarthquakeObservationRowsByMunicipality(observations)
+    : observations;
+  const title = visibleObservations[0]?.kind === "city" ? "各地の震度（市区町村）" : "各地の震度";
+  const body = visibleObservations.length
+    ? `<div class="earthquake-observation-list">${visibleObservations.map((observation) => {
       const intensityColor = getEarthquakeIntensityColor(observation.intensity);
       const intensityTextClass = getEarthquakeIntensityTextClass(observation.intensity);
       return `
@@ -6080,7 +6229,7 @@ function renderEarthquakeObservations(observations, observationsId) {
     <section id="${observationsId}" class="earthquake-observations" aria-label="${escapeHtml(title)}">
       <div class="earthquake-observations-heading">
         <h2>${escapeHtml(title)}</h2>
-        ${observations.length ? `<span>${observations.length}地点</span>` : ""}
+        ${visibleObservations.length ? `<span>${visibleObservations.length}地点</span>` : ""}
       </div>
       ${body}
     </section>

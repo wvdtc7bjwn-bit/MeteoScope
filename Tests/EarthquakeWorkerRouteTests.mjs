@@ -289,6 +289,11 @@ assert.equal(
 
 const discordPayload = buildDiscordEarthquakeWebhookPayload(report);
 assert.deepEqual(discordPayload.allowed_mentions, { parse: [] });
+assert.equal(
+  discordPayload.content,
+  "地震情報｜最大震度5弱｜熊本県熊本地方",
+  "端末通知は種別・最大震度・震源地を1行で判別できる"
+);
 assert.equal(discordPayload.embeds[0].title, "地震情報");
 assert.deepEqual(
   discordPayload.embeds[0].description.split("\n"),
@@ -298,6 +303,7 @@ assert.deepEqual(
     "最大震度：5弱",
     "規模：M2.8",
     "深さ：10km",
+    "",
     "この地震による津波の心配はありません。"
   ],
   "通知本文は発生時刻・震源地・最大震度・規模・深さ・津波情報の順に表示する"
@@ -319,6 +325,39 @@ assert.equal(
   "この地震により、津波警報等を発表中です。",
   "津波警報・注意報等は気象庁XMLの文言を保って表示する"
 );
+assert.equal(
+  tsunamiWarningPayload.content,
+  "津波警報等発表中｜最大震度5弱｜熊本県熊本地方",
+  "津波警報等の発表中は端末通知の先頭でも判別できる"
+);
+
+const majorTsunamiWarningPayload = buildDiscordEarthquakeWebhookPayload({
+  ...report,
+  tsunamiText: "大津波警報を発表しました。直ちに避難してください。"
+});
+assert.equal(
+  majorTsunamiWarningPayload.content,
+  "大津波警報発表中｜最大震度5弱｜熊本県熊本地方"
+);
+
+const tsunamiAdvisoryPayload = buildDiscordEarthquakeWebhookPayload({
+  ...report,
+  tsunamiText: "津波注意報を発表中です"
+});
+assert.equal(
+  tsunamiAdvisoryPayload.content,
+  "津波注意報発表中｜最大震度5弱｜熊本県熊本地方"
+);
+
+const correctedPayload = buildDiscordEarthquakeWebhookPayload({
+  ...report,
+  infoType: "訂正"
+});
+assert.equal(
+  correctedPayload.content,
+  "訂正｜地震情報｜最大震度5弱｜熊本県熊本地方"
+);
+assert.equal(correctedPayload.embeds[0].title, "【訂正】地震情報");
 
 const pendingTsunamiPayload = buildDiscordEarthquakeWebhookPayload({
   ...report,
@@ -340,6 +379,7 @@ assert.equal(parseDiscordWebhookUrl("https://example.com/api/webhooks/123/token"
 assert.equal(computeDiscordRetryDelayMs(0, 2.5), 2_500);
 
 const testPayload = buildDiscordEarthquakeTestWebhookPayload(Date.parse("2026-07-30T03:00:00Z"));
+assert.equal(testPayload.content, "TEST｜Discord通知接続確認");
 assert.match(testPayload.embeds[0].title, /TEST/u);
 assert.match(testPayload.embeds[0].description, /実際の地震情報ではありません/u);
 assert.match(testPayload.embeds[0].description, /確定報（VXSE53）のみ/u);
@@ -430,6 +470,7 @@ const deliveryDb = createDiscordDeliveryDb({
   event_id: report.eventId,
   payload_json: JSON.stringify({
     ...discordPayload,
+    content: `**${discordPayload.content}**`,
     embeds: [{
       ...discordPayload.embeds[0],
       description: `**${discordPayload.embeds[0].description.replace("　", "　／　")}**`
@@ -451,6 +492,11 @@ const delivery = await deliverPendingDiscordEarthquakeNotifications({
 assert.equal(delivery.sent, 1);
 assert.equal(deliveryCalls[0].init.method, "POST");
 assert.match(deliveryCalls[0].url, /\?wait=true$/u);
+assert.doesNotMatch(
+  JSON.parse(deliveryCalls[0].init.body).content,
+  /\*\*/u,
+  "更新前に保存された端末通知見出しからMarkdown記号を除去する"
+);
 assert.doesNotMatch(
   JSON.parse(deliveryCalls[0].init.body).embeds[0].description,
   /\*\*|　／　/u,

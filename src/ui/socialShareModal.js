@@ -4,6 +4,7 @@ import {
   renderSocialShareCard
 } from "../socialShareCard.js";
 import { loadMunicipalityLookup } from "../location/currentLocation.js";
+import { localizeText } from "./locale.js";
 
 let initialized = false;
 let activePayload = null;
@@ -67,6 +68,15 @@ export function setupSocialShareModal() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeSocialShareModal();
   });
+  window.addEventListener("meteoscope-language-change", () => {
+    if (!activePayload) return;
+    const copy = getShareCopy(activePayload);
+    const title = document.getElementById("social-share-title");
+    const description = document.getElementById("social-share-description");
+    if (title) title.textContent = localizeText(copy.title);
+    if (description) description.textContent = localizeText(copy.description);
+    void renderPreview();
+  });
 }
 
 export async function openSocialShareModal(payload) {
@@ -81,8 +91,8 @@ export async function openSocialShareModal(payload) {
   const title = document.getElementById("social-share-title");
   const description = document.getElementById("social-share-description");
   const copy = getShareCopy(payload);
-  if (title) title.textContent = copy.title;
-  if (description) description.textContent = copy.description;
+  if (title) title.textContent = localizeText(copy.title);
+  if (description) description.textContent = localizeText(copy.description);
   refreshControls();
   setStatus("画像を作成しています…");
   const loadingTasks = [document.fonts?.ready, loadAppIcon()];
@@ -243,8 +253,8 @@ async function sharePng() {
   }
   try {
     await navigator.share({
-      title: getShareCopy(activePayload).shareTitle,
-      text: "MeteoScopeの気象・防災情報",
+      title: localizeText(getShareCopy(activePayload).shareTitle),
+      text: localizeText("MeteoScopeの気象・防災情報"),
       files: [file]
     });
     setStatus("共有画面を開きました。", "success");

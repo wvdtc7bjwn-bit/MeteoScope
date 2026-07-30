@@ -150,7 +150,7 @@ assert.match(panel, /function buildMobileEarthquakeSummaryCarousel\(\{/);
 assert.equal(panel.match(/class="mobile-dock-earthquake-summary-track"/g)?.length, 1);
 assert.match(
   panel,
-  /function buildEarthquakeDistributionMobileContextMarkup[\s\S]*?return buildMobileEarthquakeSummaryCarousel\(\{[\s\S]*?primaryAriaLabel: "震央分布要約"[\s\S]*?primaryDotLabel: "地震・震央分布"/
+  /function buildEarthquakeDistributionMobileContextMarkup[\s\S]*?return buildMobileEarthquakeSummaryCarousel\(\{[\s\S]*?primaryAriaLabel: isEnglish \? "Epicenter distribution summary" : "震央分布要約"[\s\S]*?primaryDotLabel: isEnglish \? "Epicenter distribution" : "地震・震央分布"/
 );
 assert.match(panel, /export function setupMobileEarthquakeSummarySwipe\(\{ onChange \} = \{\}\)/);
 assert.match(panel, /mobileEarthquakeSummaryCommitTimer = window\.setTimeout/);
@@ -378,7 +378,21 @@ assert.match(
   styles,
   /@media \(max-width: 800px\) and \(orientation: portrait\)\s*\{[\s\S]*?html\[data-theme="light"\] #sidebar\s*\{[\s\S]*?background:\s*rgba\(246, 250, 254, 0\.94\)/
 );
-assert.match(panel, /class="mobile-dock-tsunami-heading">津波情報<\/div>/);
+assert.match(
+  panel,
+  /class="mobile-dock-tsunami-heading">\$\{isEnglish \? "Tsunami information" : "津波情報"\}<\/div>/
+);
+assert.match(panel, /`Epicenters · \$\{periodLabel\} · \$\{rangeEnabled \? "Selected" : "Provisional"\}`/);
+assert.match(panel, /\$\{isEnglish \? "Prev" : "前日"\}/);
+assert.match(panel, /\$\{isEnglish \? "Next" : "翌日"\}/);
+assert.match(
+  styles,
+  /\.earthquake-distribution-date-navigation\.compact \.earthquake-distribution-date-step\s*\{[\s\S]*?white-space:\s*nowrap;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-tsunami-heading,\s*\.mobile-tide-empty-heading\s*\{[\s\S]*?width:\s*max-content;[\s\S]*?min-width:\s*88px;[\s\S]*?height:\s*26px;[\s\S]*?white-space:\s*nowrap;/
+);
 assert.match(panel, /function applyMobileEarthquakeDetailPage\(page\)/);
 assert.match(
   panel,
@@ -426,6 +440,29 @@ assert.match(
 assert.match(
   styles,
   /html\[data-theme="light"\] \.social-share-segmented button\.active\s*\{[\s\S]*?background:\s*rgba\(116, 198, 236, 0\.42\);[\s\S]*?box-shadow:\s*none;/
+);
+for (const metric of ["temperature", "precipitation", "wind", "humidity", "pressure", "snow"]) {
+  assert.match(
+    styles,
+    new RegExp(`data-mobile-amedas-metric="${metric}"[^}]*::after`)
+  );
+  assert.match(
+    styles,
+    new RegExp(`data-amedas-ranking-title="${metric}"[^}]*::after`)
+  );
+}
+assert.match(
+  styles,
+  /html\[data-language="en"\] \.mobile-dock-amedas-grid \.mobile-dock-chip\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center;[\s\S]*?height:\s*30px;[\s\S]*?padding:\s*0;/
+);
+assert.doesNotMatch(
+  styles,
+  /\.mobile-dock-amedas-grid \[data-amedas-metric=/
+);
+assert.match(panel, /data-amedas-ranking-title="\$\{escapeHtml\(metric\.id\)\}"/);
+assert.match(
+  styles,
+  /html\[data-language="en"\] \.warning-area-row > strong\s*\{[\s\S]*?white-space:\s*nowrap;/
 );
 
 console.log("Responsive layouts: OK");

@@ -930,6 +930,18 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+html[data-language="en"] .warning-area-row {
+  grid-template-columns: minmax(116px, 0.9fr) minmax(0, 1.1fr);
+}
+
+html[data-language="en"] .warning-area-row > strong {
+  overflow: hidden;
+  font-size: 11px;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .warning-badges {
   display: flex;
   flex-wrap: wrap;
@@ -4498,7 +4510,8 @@ html[data-theme="light"] .weekly-weather-issued strong {
   font-weight: var(--type-info-title-weight);
 }
 
-.earthquake-view-toggle {
+.earthquake-view-toggle,
+.earthquake-distribution-range-mode {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2px;
@@ -4513,7 +4526,8 @@ html[data-theme="light"] .weekly-weather-issued strong {
   overflow: hidden;
 }
 
-.earthquake-view-toggle button {
+.earthquake-view-toggle button,
+.earthquake-distribution-range-mode .mobile-dock-action {
   height: 26px;
   min-height: 26px;
   padding-block: 0;
@@ -4528,7 +4542,8 @@ html[data-theme="light"] .weekly-weather-issued strong {
   cursor: pointer;
 }
 
-.earthquake-view-toggle button.active {
+.earthquake-view-toggle button.active,
+.earthquake-distribution-range-mode .mobile-dock-action.active {
   border-color: transparent;
   background: transparent;
   color: #eaf9ff;
@@ -4628,39 +4643,6 @@ html[data-theme="light"] .weekly-weather-issued strong {
   color: rgba(216, 230, 247, 0.58);
   font-size: 9px;
   font-weight: 750;
-}
-
-.earthquake-distribution-range-mode {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 34px;
-  min-height: 34px;
-  box-sizing: border-box;
-  margin-bottom: 9px;
-  padding: 3px;
-  border: 1px solid rgba(137, 170, 220, 0.22);
-  border-radius: 999px;
-  background: rgba(12, 30, 51, 0.72);
-  overflow: hidden;
-}
-
-.earthquake-distribution-range-mode .mobile-dock-action {
-  flex: 1 1 0;
-  height: 26px;
-  min-height: 26px;
-  border: 0;
-  border-radius: 999px;
-  color: rgba(220, 233, 248, 0.68);
-  background: transparent;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.earthquake-distribution-range-mode .mobile-dock-action.active {
-  color: #eef8ff;
-  background: transparent;
 }
 
 .earthquake-distribution-filters {
@@ -5113,6 +5095,7 @@ html[data-theme="light"] .weekly-weather-issued strong {
   padding: 0 7px;
   border-radius: 999px;
   background: rgba(26, 56, 84, 0.48);
+  white-space: nowrap;
 }
 
 .earthquake-distribution-date-control.compact button {
@@ -5392,6 +5375,13 @@ html[data-theme="light"] .weekly-weather-issued strong {
   line-height: 1;
   opacity: 0.9;
   transform: translateY(1px);
+}
+
+html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity small {
+  max-width: 48px;
+  font-size: 8px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 .earthquake-detail-button .earthquake-card-intensity strong > span {
@@ -8549,8 +8539,10 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   .mobile-dock-tsunami-heading,
   .mobile-tide-empty-heading {
     display: grid;
-    width: 88px;
+    width: max-content;
+    min-width: 88px;
     height: 26px;
+    padding-inline: 12px;
     justify-self: start;
     place-items: center;
     box-sizing: border-box;
@@ -8559,6 +8551,8 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     color: #d8e9f8;
     font-size: 11px;
     font-weight: 950;
+    line-height: 1;
+    white-space: nowrap;
     background: rgba(44, 82, 121, 0.32);
   }
 
@@ -8653,13 +8647,14 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   }
 
   .mobile-dock-earthquake-intensity {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: 11px minmax(0, 1fr);
     width: 50px;
     height: 50px;
-    align-items: center;
+    place-items: center;
     justify-content: center;
-    gap: 1px;
+    gap: 0;
+    padding: 5px 2px 3px;
     border: 1px solid rgba(255, 255, 255, 0.22);
     border-radius: 13px;
     color: #111827;
@@ -8675,8 +8670,19 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     line-height: 1;
   }
 
+  html[data-language="en"] .mobile-dock-earthquake-intensity small {
+    max-width: 42px;
+    font-size: 8px;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    text-align: center;
+  }
+
   .mobile-dock-earthquake-intensity span {
-    font-size: 21px;
+    align-self: center;
+    justify-self: center;
+    text-align: center;
+    font-size: 22px;
     font-weight: 950;
     line-height: 1.05;
   }
@@ -9350,6 +9356,51 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-amedas-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  html[data-language="en"] .mobile-dock-amedas-grid .mobile-dock-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+    min-height: 30px;
+    padding: 0;
+    font-size: 0;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  html[data-language="en"] .mobile-dock-amedas-grid .mobile-dock-chip::after {
+    display: block;
+    font-size: 11px;
+    line-height: 1;
+    color: inherit;
+  }
+
+  html[data-language="en"] .mobile-dock-amedas-grid [data-mobile-amedas-metric="temperature"]::after {
+    content: "Temp";
+  }
+
+  html[data-language="en"] .mobile-dock-amedas-grid [data-mobile-amedas-metric="precipitation"]::after {
+    content: "Rain";
+  }
+
+  html[data-language="en"] .mobile-dock-amedas-grid [data-mobile-amedas-metric="wind"]::after {
+    content: "Wind";
+  }
+
+  html[data-language="en"] .mobile-dock-amedas-grid [data-mobile-amedas-metric="humidity"]::after {
+    content: "Humidity";
+    font-size: 9px;
+  }
+
+  html[data-language="en"] .mobile-dock-amedas-grid [data-mobile-amedas-metric="pressure"]::after {
+    content: "Pressure";
+    font-size: 9px;
+  }
+
+  html[data-language="en"] .mobile-dock-amedas-grid [data-mobile-amedas-metric="snow"]::after {
+    content: "Snow";
   }
 
   .mobile-dock-chip {
@@ -10707,14 +10758,14 @@ html[data-theme="light"] :is(.earthquake-history-item, .earthquake-observation-l
   -webkit-backdrop-filter: none;
 }
 
-html[data-theme="light"] :is(.earthquake-view-toggle, .earthquake-map-layer-button, .earthquake-distribution-panel, .earthquake-empty) {
+html[data-theme="light"] :is(.earthquake-view-toggle, .earthquake-distribution-range-mode, .earthquake-map-layer-button, .earthquake-distribution-panel, .earthquake-empty) {
   border-color: rgba(72, 100, 132, 0.2);
   background: rgba(246, 250, 255, 0.94);
   color: #20364e;
 }
 
-html[data-theme="light"] .earthquake-view-toggle button { color: #60758a; }
-html[data-theme="light"] .earthquake-view-toggle button.active {
+html[data-theme="light"] :is(.earthquake-view-toggle, .earthquake-distribution-range-mode) button { color: #60758a; }
+html[data-theme="light"] :is(.earthquake-view-toggle, .earthquake-distribution-range-mode) button.active {
   background: transparent;
   color: #163b58;
   box-shadow: none;
@@ -10783,15 +10834,6 @@ html[data-theme="light"] .earthquake-distribution-result {
 }
 html[data-theme="light"] .earthquake-distribution-section-head strong { color: #20364e; }
 html[data-theme="light"] .earthquake-distribution-section-head span { color: #667d92; }
-html[data-theme="light"] .earthquake-distribution-range-mode {
-  border-color: rgba(72, 100, 132, 0.2);
-  background: rgba(220, 233, 244, 0.62);
-}
-html[data-theme="light"] .earthquake-distribution-range-mode .mobile-dock-action { color: #60758a; }
-html[data-theme="light"] .earthquake-distribution-range-mode .mobile-dock-action.active {
-  color: #174d69;
-  background: transparent;
-}
 html[data-theme="light"] .earthquake-distribution-range-controls input {
   border-color: rgba(72, 100, 132, 0.22);
   color: #20364e;
@@ -11076,6 +11118,12 @@ html[data-theme="light"] .tsunami-area-row.level-advisory .tsunami-level-badge {
 .settings-early-access-active { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid rgba(85, 183, 216, 0.45); border-radius: 8px; background: rgba(55, 132, 166, 0.16); }
 .settings-early-access-active[hidden] { display: none; }
 .settings-early-access-active > div { display: grid; gap: 2px; }
+.settings-early-access-active > div { min-width: 0; }
+.settings-early-access-active > button {
+  flex: 0 0 auto;
+  min-width: 78px;
+  white-space: nowrap;
+}
 .settings-early-access-active small, .settings-early-access-status { color: var(--muted-text, #9aa8bd); }
 .settings-early-access-status { min-height: 1.4em; margin: 8px 0 0; font-size: 12px; }
 .settings-early-access-features {
@@ -12101,6 +12149,28 @@ html[data-theme="light"] :is(.earthquake-card-info > strong, .earthquake-card-fa
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+.volcano-summary-notice {
+  display: grid;
+  gap: 5px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--panel-soft);
+}
+
+.volcano-summary-notice strong {
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.volcano-summary-notice p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.55;
 }
 
 .volcano-bulletin-detail-nav {
@@ -14079,6 +14149,46 @@ html[data-theme="light"] .river-affected-cities span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@media (max-width: 800px) and (orientation: portrait) {
+  html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title] {
+    font-size: 0;
+  }
+
+  html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title]::after {
+    display: block;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.2;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title="temperature"]::after {
+    content: "Temp ranking";
+  }
+
+  html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title="precipitation"]::after {
+    content: "Rain ranking";
+  }
+
+  html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title="wind"]::after {
+    content: "Wind ranking";
+  }
+
+  html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title="humidity"]::after {
+    content: "Humidity";
+  }
+
+  html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title="pressure"]::after {
+    content: "Pressure";
+  }
+
+  html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title="snow"]::after {
+    content: "Snow ranking";
+  }
 }
 
 .amedas-ranking-head .amedas-ranking-meta {

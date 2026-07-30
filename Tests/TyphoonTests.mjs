@@ -54,6 +54,28 @@ assert.equal(typhoon.details.direction, "-");
 assert.equal(typhoon.details.speed, "-");
 assert.equal(typhoon.updatedAt, "-");
 
+const jmaNamedTyphoon = normalizeTyphoon({
+  tropicalCyclone: "TC2609",
+  typhoonNumber: "2609",
+  forecast: [
+    {
+      part: "title",
+      typhoonNumber: "2609",
+      name: { jp: "ドルフィン", en: "DOLPHIN" },
+      issue: { JST: "2026-07-31T06:00:00+09:00" }
+    },
+    {
+      advancedHours: 0,
+      center: { lat: 25, lon: 135 },
+      validtime: { JST: "2026-07-31T06:00:00+09:00" }
+    }
+  ],
+  specifications: []
+});
+assert.equal(jmaNamedTyphoon.name, "台風第9号 (ドルフィン)");
+assert.equal(jmaNamedTyphoon.nameEn, "Typhoon No. 9 (DOLPHIN)");
+assert.equal(jmaNamedTyphoon.details.nameEn, "Typhoon No. 9 (DOLPHIN)");
+
 const selectedWorldSystem = selectWorldTyphoonSystem({
   systems: [
     { id: "far", name: "FAR", kind: "named", memberCount: 51, observedCenter: [-60, 20] },
@@ -257,6 +279,10 @@ assert.match(panelSource, /mobile-dock-horizontal-swipe/);
 assert.match(panelSource, /地図に表示/);
 assert.match(panelSource, /<dl class="typhoon-world-summary">/);
 assert.match(panelSource, /<table class="typhoon-world-candidate-list">/);
+assert.match(panelSource, /Development candidates/);
+assert.match(panelSource, /Forecast range/);
+assert.match(panelSource, /Development probability/);
+assert.match(appSource, /function localizeTyphoonForDisplay/);
 assert.doesNotMatch(panelSource, /<aside class="typhoon-world-attribution">/);
 assert.match(mapSource, /typhoon-world-ensemble/);
 assert.match(mapSource, /typhoon-world-control/);

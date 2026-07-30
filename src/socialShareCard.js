@@ -1,4 +1,5 @@
 import { getEarthquakeIntensityRank } from "./earthquakeIntensity.js";
+import { localizeText } from "./ui/locale.js";
 
 export const SOCIAL_SHARE_FORMATS = Object.freeze({
   portrait: Object.freeze({ width: 1080, height: 1350, label: "縦長" }),
@@ -50,26 +51,34 @@ export function renderSocialShareCard(canvas, payload, options = {}) {
 
   canvas.width = format.width;
   canvas.height = format.height;
-  context.clearRect(0, 0, format.width, format.height);
-  const type = getSocialShareType(payload);
-  if (type === "earthquake" || type === "typhoon" || type === "warning") drawEarthquakeBackground(context, format, theme);
-  else drawBackground(context, format, theme);
-  drawBrand(context, format, theme, options.appIcon);
+  const originalFillText = context.fillText;
+  context.fillText = function localizedFillText(text, ...args) {
+    return originalFillText.call(this, localizeText(text), ...args);
+  };
+  try {
+    context.clearRect(0, 0, format.width, format.height);
+    const type = getSocialShareType(payload);
+    if (type === "earthquake" || type === "typhoon" || type === "warning") drawEarthquakeBackground(context, format, theme);
+    else drawBackground(context, format, theme);
+    drawBrand(context, format, theme, options.appIcon);
 
-  if (type === "earthquake") {
-    drawEarthquakeCard(context, format, theme, payload, options.japanGeoJson);
-  } else if (type === "typhoon") {
-    drawTyphoonCard(context, format, theme, payload, {
-      japanGeoJson: options.japanGeoJson,
-      worldLandGeoJson: options.worldLandGeoJson,
-      worldCountriesGeoJson: options.worldCountriesGeoJson
-    });
-  } else if (type === "warning") {
-    drawWarningCard(context, format, theme, payload ?? {}, options.warningMunicipalities);
-  } else {
-    drawAmedasCard(context, format, theme, payload ?? {});
+    if (type === "earthquake") {
+      drawEarthquakeCard(context, format, theme, payload, options.japanGeoJson);
+    } else if (type === "typhoon") {
+      drawTyphoonCard(context, format, theme, payload, {
+        japanGeoJson: options.japanGeoJson,
+        worldLandGeoJson: options.worldLandGeoJson,
+        worldCountriesGeoJson: options.worldCountriesGeoJson
+      });
+    } else if (type === "warning") {
+      drawWarningCard(context, format, theme, payload ?? {}, options.warningMunicipalities);
+    } else {
+      drawAmedasCard(context, format, theme, payload ?? {});
+    }
+    drawFooter(context, format, theme);
+  } finally {
+    context.fillText = originalFillText;
   }
-  drawFooter(context, format, theme);
 }
 
 function getSocialShareType(payload) {

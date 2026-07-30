@@ -215,6 +215,14 @@ assert.match(
 );
 assert.match(
   leftPanelSource,
+  /function localizeWarningDisplayText\(value\)[\s\S]*?localizeText\(source, language\)[\s\S]*?split\(\/\(\\s\+\|・\)\//
+);
+assert.match(
+  leftPanelSource,
+  /mobile-dock-kikikuru-label[^]*?localizeWarningDisplayText\("表示レイヤー"\)/
+);
+assert.match(
+  leftPanelSource,
   /if \(groups\.length === 0\) \{[\s\S]*?発表中の警報・注意報はありません[\s\S]*?renderWarningGroupsProgressively\(root, groups/
 );
 assert.doesNotMatch(

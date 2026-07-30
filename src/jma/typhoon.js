@@ -104,6 +104,7 @@ export function normalizeTyphoon(item, index = 0) {
   const stormWarningArea = pickWarningArea(item);
   const stormWarningAreaShape = pickWarningAreaShape(item);
   const name = pickTyphoonName(item, index);
+  const nameEn = pickTyphoonEnglishName(item, index);
   const transitionStatus = formatTyphoonTransitionStatus(
     getTyphoonTransitionStatus(item.category, item.class, item.type, item.status),
     pickValue(item, ["typhoonNumber", "number", "tcNumber"])
@@ -115,6 +116,7 @@ export function normalizeTyphoon(item, index = 0) {
   return {
     id: String(pickValue(item, ["tropicalCyclone", "typhoonNumber", "id", "code"]) ?? `typhoon-${index + 1}`),
     name,
+    nameEn,
     transitionStatus,
     center,
     track,
@@ -126,6 +128,7 @@ export function normalizeTyphoon(item, index = 0) {
     stormRadius: pickRadius(item, ["stormRadius", "wind25mRadius", "violentWindRadius", "radius25m", "暴風域"]),
     details: {
       name,
+      nameEn,
       transitionStatus,
       size: formatClassification(pickValue(item, ["size", "scale", "typhoonSize", "stormSize", "classificationSize", "大きさ"])),
       strength: formatClassification(pickValue(item, ["strength", "intensity", "typhoonStrength", "stormIntensity", "classificationIntensity", "強さ"])),
@@ -153,6 +156,7 @@ function normalizeJmaTyphoon(item, index) {
   if (!center) return null;
 
   const name = pickJmaTyphoonName(title, item, index);
+  const nameEn = pickJmaTyphoonEnglishName(title, item, index);
   const transitionStatus = formatTyphoonTransitionStatus(
     getTyphoonTransitionStatus(
       specNow.category,
@@ -209,6 +213,7 @@ function normalizeJmaTyphoon(item, index) {
   return {
     id: String(item.tropicalCyclone ?? item.id ?? title.typhoonNumber ?? `typhoon-${index + 1}`),
     name,
+    nameEn,
     transitionStatus,
     center,
     track,
@@ -224,6 +229,7 @@ function normalizeJmaTyphoon(item, index) {
     stormCenter,
     details: {
       name,
+      nameEn,
       transitionStatus,
       size: formatClassification(specNow.scale ?? current.scale ?? null),
       strength: formatClassification(specNow.intensity ?? current.intensity ?? null),
@@ -403,6 +409,16 @@ function pickJmaTyphoonName(title, item, index) {
   return pickTyphoonName(item, index);
 }
 
+function pickJmaTyphoonEnglishName(title, item, index) {
+  const rawNumber = String(title.typhoonNumber ?? item.typhoonNumber ?? "");
+  if (isTropicalDepression(item) || isTropicalDepression(title) || isNonNumericTyphoonNumber(rawNumber)) {
+    return formatTropicalDepressionEnglishName(rawNumber);
+  }
+  const officialName = extractTyphoonLanguageName(title.name, "en")
+    || extractTyphoonLanguageName(item.name, "en");
+  return formatEnglishTyphoonName(rawNumber, officialName, pickTyphoonName(item, index));
+}
+
 function buildEmptyDetails(value) {
   return {
     name: value,
@@ -420,7 +436,7 @@ function buildEmptyDetails(value) {
 
 function pickTyphoonName(item, index) {
   const name = pickValue(item, ["name", "typhoonName", "stormName", "japaneseName", "displayName", "台風名", "名称"]);
-  if (name) return String(name);
+  if (name) return extractTyphoonLanguageName(name, "ja") || String(name);
 
   const number = pickValue(item, ["typhoonNumber", "number", "tcNumber"]);
   if (isTropicalDepression(item) || isNonNumericTyphoonNumber(number)) return formatTropicalDepressionName(number);
@@ -428,6 +444,43 @@ function pickTyphoonName(item, index) {
 
   const id = pickValue(item, ["tropicalCyclone", "id", "code"]);
   return id ? `台風 ${id}` : `台風 ${index + 1}`;
+}
+
+function pickTyphoonEnglishName(item, index) {
+  const rawNumber = pickValue(item, ["typhoonNumber", "number", "tcNumber"]);
+  if (isTropicalDepression(item) || isNonNumericTyphoonNumber(rawNumber)) {
+    return formatTropicalDepressionEnglishName(rawNumber);
+  }
+  const rawName = pickValue(item, ["name", "typhoonName", "stormName", "englishName", "displayName"]);
+  const officialName = extractTyphoonLanguageName(rawName, "en");
+  return formatEnglishTyphoonName(rawNumber, officialName, pickTyphoonName(item, index));
+}
+
+function extractTyphoonLanguageName(value, language) {
+  if (value === null || value === undefined) return "";
+  if (typeof value !== "object") return language === "en" ? "" : String(value).trim();
+  const keys = language === "en"
+    ? ["en", "english"]
+    : ["jp", "ja", "japanese", "label", "name"];
+  for (const key of keys) {
+    const candidate = value[key];
+    if (candidate !== null && candidate !== undefined && String(candidate).trim()) {
+      return String(candidate).trim();
+    }
+  }
+  return "";
+}
+
+function formatEnglishTyphoonName(rawNumber, officialName, fallback) {
+  const number = normalizeTyphoonDisplayNumber(rawNumber);
+  const name = String(officialName ?? "").trim().toLocaleUpperCase("en-US");
+  if (number) return `Typhoon No. ${number}${name ? ` (${name})` : ""}`;
+  return name || String(fallback ?? "");
+}
+
+function formatTropicalDepressionEnglishName(number) {
+  const suffix = number === null || number === undefined ? "" : String(number).trim();
+  return suffix ? `Tropical Depression ${suffix}` : "Tropical Depression";
 }
 
 function isTropicalDepression(item) {

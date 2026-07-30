@@ -76,9 +76,11 @@ export function buildDiscordEarthquakeWebhookPayload(report) {
     ? formatDepth(Number(report.depthKm))
     : "不明";
   const correction = report.infoType === "訂正" ? "【訂正】" : "";
+  const tsunamiText = formatTsunamiText(report.tsunamiText);
   return {
     username: "MeteoScope",
     allowed_mentions: { parse: [] },
+    content: buildDiscordNotificationHeadline(report, maximumIntensity, place),
     embeds: [{
       author: { name: "気象庁 防災情報XML" },
       title: `${correction}地震情報`,
@@ -90,7 +92,8 @@ export function buildDiscordEarthquakeWebhookPayload(report) {
         `最大震度：${maximumIntensity}`,
         `規模：${magnitude}`,
         `深さ：${depth}`,
-        formatTsunamiText(report.tsunamiText)
+        "",
+        tsunamiText
       ].join("\n"),
       footer: { text: "気象庁 防災情報XML・MeteoScope" },
       timestamp: normalizeIsoTimestamp(report.reportTime)
@@ -102,6 +105,7 @@ export function buildDiscordEarthquakeTestWebhookPayload(now = Date.now()) {
   return {
     username: "MeteoScope",
     allowed_mentions: { parse: [] },
+    content: "TEST｜Discord通知接続確認",
     embeds: [{
       title: "【TEST】地震情報通知",
       url: METEOSCOPE_EARTHQUAKE_URL,
@@ -307,17 +311,21 @@ function normalizeDiscordNotificationPayload(payload) {
   }
   return {
     ...payload,
+    content: normalizeDiscordPlainText(payload.content),
     embeds: payload.embeds.map((embed) => {
       if (!embed || typeof embed !== "object") return embed;
       return {
         ...embed,
-        title: String(embed.title ?? "").replaceAll("｜", "　"),
-        description: String(embed.description ?? "")
-          .replaceAll("**", "")
+        title: normalizeDiscordPlainText(embed.title).replaceAll("｜", "　"),
+        description: normalizeDiscordPlainText(embed.description)
           .replaceAll("　／　", "　")
       };
     })
   };
+}
+
+function normalizeDiscordPlainText(value) {
+  return String(value ?? "").replaceAll("**", "").trim();
 }
 
 async function markDeletedMessageForRepost(db, eventId, attempts, now) {
@@ -418,6 +426,32 @@ function formatTsunamiText(value) {
     return "この地震による津波の心配はありません。";
   }
   return ensureJapanesePeriod(truncate(text, 1_024));
+}
+
+function buildDiscordNotificationHeadline(report, maximumIntensity, place) {
+  const correction = report.infoType === "訂正" ? "訂正｜" : "";
+  const category = getDiscordNotificationCategory(report.tsunamiText);
+  return truncate(
+    `${correction}${category}｜最大震度${maximumIntensity}｜${place}`,
+    200
+  );
+}
+
+function getDiscordNotificationCategory(value) {
+  const text = String(value ?? "").replace(/\s+/gu, " ").trim();
+  if (/大津波警報/u.test(text) && !/解除/u.test(text)) {
+    return "大津波警報発表中";
+  }
+  if (/津波警報等[\s\S]*発表中/u.test(text)) {
+    return "津波警報等発表中";
+  }
+  if (/津波警報/u.test(text) && !/解除/u.test(text)) {
+    return "津波警報発表中";
+  }
+  if (/津波注意報/u.test(text) && !/解除/u.test(text)) {
+    return "津波注意報発表中";
+  }
+  return "地震情報";
 }
 
 function ensureJapanesePeriod(value) {

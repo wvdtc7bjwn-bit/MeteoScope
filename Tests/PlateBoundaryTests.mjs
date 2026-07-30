@@ -125,7 +125,10 @@ assert.match(panel, /data\?\.earthquakeView === "distribution"/u);
 assert.match(panel, /legend-hypocenter-depth/u);
 assert.match(style, /\.legend-hypocenter-depth\s*\{[^}]*border-radius:\s*50%/u);
 assert.match(style, /\.mobile-dock-segmented button\s*\{[^}]*touch-action:\s*pan-y/u);
-assert.match(style, /\.earthquake-view-toggle button\.active\s*\{[^}]*background:\s*transparent/u);
+assert.match(
+  style,
+  /\.earthquake-view-toggle button\.active(?:,\s*[^{}]+)?\s*\{[^}]*background:\s*transparent/u,
+);
 assert.match(style, /\.earthquake-distribution-presentation-card\s*\{[^}]*box-shadow:\s*none/u);
 assert.match(
   style,

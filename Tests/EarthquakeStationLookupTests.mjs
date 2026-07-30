@@ -4,7 +4,10 @@ import {
   buildStationCoordinateLookup,
   normalizeStationName
 } from "../src/jma/earthquakeStationLookup.js";
-import { buildEarthquakeObservationRows } from "../src/earthquakeDetails.js";
+import {
+  buildEarthquakeObservationRows,
+  groupEarthquakeObservationRowsByMunicipality
+} from "../src/earthquakeDetails.js";
 
 assert.equal(normalizeStationName("八戸市南郷＊"), "八戸市南郷");
 assert.equal(normalizeStationName("八戸市南郷*"), "八戸市南郷");
@@ -104,5 +107,15 @@ const cityRows = buildEarthquakeObservationRows({
 });
 assert.equal(cityRows[0].kind, "city");
 assert.equal(cityRows[0].name, "盛岡市");
+
+const groupedRows = groupEarthquakeObservationRowsByMunicipality(buildEarthquakeObservationRows({
+  intensityStations: [
+    { code: "1", stationName: "芦北町芦北", prefecture: "熊本県", intensity: "1", intensityShort: "1", rank: 1 },
+    { code: "2", stationName: "芦北町田浦町＊", prefecture: "熊本県", intensity: "2", intensityShort: "2", rank: 2 },
+    { code: "3", stationName: "上天草市姫戸町＊", prefecture: "熊本県", intensity: "1", intensityShort: "1", rank: 1 }
+  ]
+}));
+assert.deepEqual(groupedRows.map((row) => row.name), ["芦北町", "上天草市"]);
+assert.equal(groupedRows[0].intensityShort, "2");
 
 console.log("Earthquake station lookup tests passed");

@@ -1,3 +1,5 @@
+import { setupLocale } from "./ui/locale.js";
+
 const API_BASE = "/api/admin";
 const DEFAULT_CONFIG = {
   maintenance: {
@@ -63,6 +65,7 @@ const elements = {
   discordTestMessage: document.getElementById("discord-test-message")
 };
 
+setupLocale();
 void initialize();
 
 async function initialize() {

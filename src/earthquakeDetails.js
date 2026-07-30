@@ -29,3 +29,37 @@ export function buildEarthquakeObservationRows(earthquake = {}) {
     || a.name.localeCompare(b.name, "ja")
   ));
 }
+
+export function groupEarthquakeObservationRowsByMunicipality(observations = []) {
+  const grouped = new Map();
+
+  for (const observation of observations) {
+    const municipality = getObservationMunicipalityName(observation?.name);
+    const key = `${observation?.prefecture || ""}\u0000${municipality}`;
+    const current = grouped.get(key);
+    if (!current || Number(observation?.rank) > Number(current.rank)) {
+      grouped.set(key, {
+        ...observation,
+        id: municipality || observation?.id,
+        name: municipality || observation?.name
+      });
+    }
+  }
+
+  return [...grouped.values()].sort((a, b) => (
+    b.rank - a.rank
+    || a.prefecture.localeCompare(b.prefecture, "ja")
+    || a.name.localeCompare(b.name, "ja")
+  ));
+}
+
+function getObservationMunicipalityName(value) {
+  const name = String(value || "").replace(/[＊*]/gu, "").trim();
+  if (!name) return "";
+
+  const designatedWard = name.match(/^(.+?市.+?区)/u);
+  if (designatedWard) return designatedWard[1];
+
+  const municipality = name.match(/^(.+?(?:市|区|町|村))/u);
+  return municipality?.[1] || name;
+}

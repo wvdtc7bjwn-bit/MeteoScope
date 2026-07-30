@@ -30,6 +30,7 @@ const {
   renderWeeklyWeatherGlyph
 } = await import("../src/ui/weeklyWeatherGlyph.js");
 const {
+  formatWeeklyWeatherDateLabel,
   getWeeklyWeatherRelativeDayLabel
 } = await import("../src/ui/weeklyWeatherModal.js");
 
@@ -405,6 +406,9 @@ const relativeDayReference = new Date("2026-07-29T03:00:00+09:00");
 assert.equal(getWeeklyWeatherRelativeDayLabel("2026-07-29T00:00:00+09:00", relativeDayReference), "今日");
 assert.equal(getWeeklyWeatherRelativeDayLabel("2026-07-30T00:00:00+09:00", relativeDayReference), "明日");
 assert.equal(getWeeklyWeatherRelativeDayLabel("2026-07-31T00:00:00+09:00", relativeDayReference), "");
+assert.equal(getWeeklyWeatherRelativeDayLabel("2026-07-29T00:00:00+09:00", relativeDayReference, "en"), "Today");
+assert.equal(getWeeklyWeatherRelativeDayLabel("2026-07-30T00:00:00+09:00", relativeDayReference, "en"), "Tomorrow");
+assert.equal(formatWeeklyWeatherDateLabel("2026-07-31T00:00:00+09:00", "en"), "Fri, 7/31");
 
 const multiRegionXml = `<?xml version="1.0" encoding="UTF-8"?>
 <Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
@@ -564,7 +568,7 @@ assert.match(styles, /\.weekly-weather-glyph-transition-arrow/u);
 assert.match(modal, /気象庁の最新予報/u);
 assert.match(modal, /fetchWeeklyForecastRegionCatalog/u);
 assert.match(modal, /fetchWeeklyForecastForRegion/u);
-assert.match(modal, /renderWeeklyWeatherGlyph\(day\.weatherCode, weatherLabel\)/u);
+assert.match(modal, /renderWeeklyWeatherGlyph\(day\.weatherCode, sourceWeatherLabel\)/u);
 assert.match(modal, /getJmaWeeklyWeatherLabel\(day\.weatherCode\)/u);
 assert.doesNotMatch(modal, /forecast\/img/u);
 assert.match(glyph, /暴風雪/u);

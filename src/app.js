@@ -53,6 +53,7 @@ import { sampleCurrentKikikuruStatus } from "./location/kikikuruStatus.js";
 import { createAdminNoticePush } from "./push/adminNoticePush.js";
 import { setupRemoteConfig } from "./remoteConfig.js";
 import { setupTheme } from "./ui/theme.js";
+import { getCurrentLanguage, setupLocale } from "./ui/locale.js";
 import { activateEarlyAccess, deactivateEarlyAccess, fetchEarlyAccessActiveFaultSegments, validateEarlyAccess } from "./ui/earlyAccess.js";
 import { CommunityReportClient } from "./domain/communityReportClient.js";
 import { openCommunityReportModal, setupCommunityReportModal } from "./ui/communityReportModal.js";
@@ -235,6 +236,7 @@ async function fetchWarningTabData(options = {}) {
 }
 
 export function createWeatherApp() {
+  const localeController = setupLocale();
   const themeController = setupTheme();
   setupRemoteConfig();
 
@@ -1586,7 +1588,7 @@ if (layerId === "river") {
   }
 
   function buildTyphoonDisplayData(data = {}, { interpolateWorldTime = false } = {}) {
-    const typhoons = data.typhoons ?? [];
+    const typhoons = (data.typhoons ?? []).map(localizeTyphoonForDisplay);
     let selected = null;
     if (!typhoons.length) {
       activeTyphoonId = "";
@@ -1598,6 +1600,7 @@ if (layerId === "river") {
 
     const base = {
       ...data,
+      typhoons,
       forecastMode: activeTyphoonForecastMode,
       selectedTyphoonId: activeTyphoonId,
       selectedTyphoon: selected,
@@ -1681,6 +1684,18 @@ if (layerId === "river") {
       worldForecastBaseTime: firstLayer?.baseTime ?? "",
       worldForecastCandidates: firstLayer?.candidates ?? [],
       worldForecastSystem: firstLayer?.system ?? null
+    };
+  }
+
+  function localizeTyphoonForDisplay(typhoon) {
+    if (!typhoon || getCurrentLanguage() !== "en" || !typhoon.nameEn) return typhoon;
+    return {
+      ...typhoon,
+      name: typhoon.nameEn,
+      details: {
+        ...typhoon.details,
+        name: typhoon.details?.nameEn ?? typhoon.nameEn
+      }
     };
   }
 
@@ -2776,6 +2791,7 @@ if (layerId === "river") {
       adminNoticePush: adminNoticePush.getState(),
       myAreaLimit: getMyAreaLimit(),
       themePreference: themeController.getPreference(),
+      languagePreference: localeController.getPreference(),
       earthquakeDistributionRecentXmlVisible,
       earlyAccessEnabled,
       earlyAccessActiveFaultSource,
@@ -2845,6 +2861,9 @@ if (layerId === "river") {
     weatherMap.setTheme(themeController.getResolvedTheme());
     weatherMap.setCurrentLocationVisible(currentLocationMarkerVisible);
     themeController.subscribe(({ resolvedTheme }) => weatherMap?.setTheme(resolvedTheme));
+    localeController.subscribe(() => {
+      void selectTab(activeTab);
+    });
     weatherMap.initialize();
     tabControls = setupTabs({ onChange: selectTab, tabs: TABS });
     const earthquakeTabButton = document.querySelector('.tab-button[data-tab="earthquake"]');
@@ -2996,6 +3015,7 @@ if (layerId === "river") {
       onClearDisasterMapPdf: clearStoredDisasterMapPdf,
       onToggleAdminNoticePush: toggleAdminNoticePush,
       onThemeChange: (theme) => themeController.setPreference(theme),
+      onLanguageChange: (language) => localeController.setPreference(language),
       onEarthquakeDistributionRecentXmlChange:
         setEarthquakeDistributionRecentXmlVisible,
       onActivateEarlyAccess: authenticateEarlyAccess,

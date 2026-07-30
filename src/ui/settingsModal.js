@@ -1,5 +1,6 @@
 import { getDefaultTabOrder, normalizeTabOrder } from "./tabOrder.js";
 import { QuizRankingClient } from "../domain/quizRankingClient.js";
+import { getCurrentLanguage } from "./locale.js";
 
 let settingsModalInitialized = false;
 let settingsOptions = {};
@@ -104,6 +105,13 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    const languageButton = event.target.closest("[data-settings-language]");
+    if (languageButton) {
+      settingsOptions.onLanguageChange?.(languageButton.dataset.settingsLanguage);
+      renderSettingsLanguage();
+      return;
+    }
+
     const tabOrderButton = event.target.closest("[data-settings-tab-order-tab]");
     if (tabOrderButton) {
       handleSettingsTabOrderTap(tabOrderButton.dataset.settingsTabOrderTab);
@@ -151,6 +159,7 @@ export function refreshSettingsModalView() {
   renderSettingsPushNotifications();
   renderSettingsEarthquake();
   renderSettingsTheme();
+  renderSettingsLanguage();
   renderSettingsEarlyAccess();
   void renderSettingsAccount();
   void renderSettingsDisasterMapPdf();
@@ -169,6 +178,7 @@ export function openSettingsModal() {
   renderSettingsPushNotifications();
   renderSettingsEarthquake();
   renderSettingsTheme();
+  renderSettingsLanguage();
   renderSettingsEarlyAccess();
   void renderSettingsAccount();
   void renderSettingsDisasterMapPdf();
@@ -295,6 +305,16 @@ function renderSettingsTheme() {
   });
 }
 
+function renderSettingsLanguage() {
+  const state = settingsOptions.getState?.() ?? {};
+  const preference = state.languagePreference === "en" ? "en" : "ja";
+  document.querySelectorAll("#settings-language-options [data-settings-language]").forEach((button) => {
+    const active = button.dataset.settingsLanguage === preference;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-checked", active ? "true" : "false");
+  });
+}
+
 function renderSettingsEarlyAccess() {
   const state = settingsOptions.getState?.() ?? {};
   const access = state.earlyAccessState ?? {};
@@ -321,16 +341,26 @@ function renderSettingsEarlyAccess() {
   const activeFaultStatus = document.getElementById("settings-active-fault-source-status");
   if (activeFaultStatus) {
     const dataState = state.earlyAccessActiveFaultDataState ?? {};
+    const isEnglish = getCurrentLanguage() === "en";
+    const segmentCount = Number(dataState.data?.features?.length || 0);
     activeFaultStatus.dataset.state = activeFaultSource === "gsj" ? dataState.status || "idle" : "idle";
     activeFaultStatus.textContent = activeFaultSource !== "gsj"
-      ? "現在のJ-SHIS表示を使用します。"
+      ? isEnglish ? "Using the current J-SHIS display." : "現在のJ-SHIS表示を使用します。"
       : dataState.status === "loading"
-        ? "産総研データを認証・取得中です。取得完了まではJ-SHISを表示します。"
+        ? isEnglish
+          ? "Authenticating and loading GSJ data. J-SHIS remains visible until loading completes."
+          : "産総研データを認証・取得中です。取得完了まではJ-SHISを表示します。"
         : dataState.status === "ready"
-          ? `産総研データを表示中です（${Number(dataState.data?.features?.length || 0).toLocaleString("ja-JP")}区間）。`
+          ? isEnglish
+            ? `GSJ data is displayed (${segmentCount.toLocaleString("en-US")} segments).`
+            : `産総研データを表示中です（${segmentCount.toLocaleString("ja-JP")}区間）。`
           : dataState.status === "error"
-            ? `${dataState.error} J-SHIS表示へ一時的に戻しています。`
-            : "産総研データは地震タブで活断層表示時に取得します。";
+            ? isEnglish
+              ? `${dataState.error} Temporarily using the J-SHIS display.`
+              : `${dataState.error} J-SHIS表示へ一時的に戻しています。`
+            : isEnglish
+              ? "GSJ data is loaded when Active faults is enabled on the Earthquakes tab."
+              : "産総研データは地震タブで活断層表示時に取得します。";
   }
 }
 
