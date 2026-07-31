@@ -48,6 +48,11 @@
   --modal-close-size: 38px;
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body,
 body * {
   -webkit-user-select: none;
@@ -8558,9 +8563,9 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-earthquake-main {
     display: grid;
-    grid-template-columns: 50px minmax(0, 1fr) 62px;
+    grid-template-columns: 50px minmax(0, 1fr) 68px;
     align-items: center;
-    gap: 9px;
+    gap: 7px;
     min-width: 0;
     min-height: 50px;
   }
@@ -8568,20 +8573,23 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   .mobile-dock-earthquake-layer-list {
     display: grid;
     gap: 2px;
-    width: 62px;
+    width: 68px;
   }
 
   .mobile-dock-earthquake-layer {
     min-height: 14px;
-    padding: 1px 5px;
+    padding: 1px 3px;
     border: 1px solid rgba(173, 201, 226, 0.18);
     border-radius: 999px;
     color: rgba(211, 229, 246, 0.56);
     background: rgba(5, 14, 28, 0.28);
     font: inherit;
-    font-size: 8.5px;
+    font-size: 7.8px;
     font-weight: 850;
-    line-height: 1.15;
+    line-height: 1;
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: nowrap;
     cursor: pointer;
   }
 
@@ -8634,16 +8642,18 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   }
 
   .mobile-dock-earthquake-facts > span:first-child {
+    flex: 1 1 auto;
     min-width: 0;
     text-overflow: ellipsis;
   }
 
   .mobile-dock-earthquake-facts .earthquake-tsunami-status {
-    flex: 0 1 auto;
-    max-width: 98px;
+    flex: 0 0 auto;
+    max-width: none;
     padding: 2px 4px;
-    font-size: 8.5px;
+    font-size: 7.8px;
     line-height: 1.1;
+    white-space: nowrap;
   }
 
   .mobile-dock-earthquake-intensity {
@@ -9332,6 +9342,13 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     align-items: baseline;
     gap: 10px;
     min-width: 0;
+  }
+
+  .mobile-dock-amedas-head > strong {
+    min-width: max-content;
+    overflow-wrap: normal;
+    word-break: keep-all;
+    white-space: nowrap;
   }
 
   .mobile-dock-amedas-nearest {
@@ -14164,6 +14181,11 @@ html[data-theme="light"] .river-affected-cities span {
     text-align: left;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  html[data-language="en"] .tab-button-label {
+    font-size: 9px;
+    letter-spacing: -0.025em;
   }
 
   html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title="temperature"]::after {

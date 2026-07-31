@@ -455,6 +455,22 @@ assert.match(
   styles,
   /html\[data-language="en"\] \.mobile-dock-amedas-grid \.mobile-dock-chip\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center;[\s\S]*?height:\s*30px;[\s\S]*?padding:\s*0;/
 );
+assert.match(
+  styles,
+  /\.mobile-dock-amedas-head\s*>\s*strong\s*\{[\s\S]*?min-width:\s*max-content;[\s\S]*?white-space:\s*nowrap;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-layer\s*\{[\s\S]*?white-space:\s*nowrap;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-facts \.earthquake-tsunami-status\s*\{[\s\S]*?flex:\s*0 0 auto;[\s\S]*?white-space:\s*nowrap;/
+);
+assert.match(
+  styles,
+  /html\[data-language="en"\] \.tab-button-label\s*\{[\s\S]*?font-size:\s*9px;/
+);
 assert.doesNotMatch(
   styles,
   /\.mobile-dock-amedas-grid \[data-amedas-metric=/
