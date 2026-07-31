@@ -13,6 +13,9 @@ crons = ["* * * * *", "17 * * * *", "43 15 * * *", "49 15 * * *"]
 
 # Discord earthquake notifications are enabled only when this Worker has the
 # DISCORD_EARTHQUAKE_WEBHOOK_URL secret. Never place the webhook URL in this file.
+# DISCORD_EARTHQUAKE_ROLE_IDS is optional. Store a JSON object with the keys
+# 1, 2, 3, 4, 5-, 5+, 6-, 6+, and 7 and Discord role IDs as values. An event
+# mentions each configured minimum-intensity role at or below its maximum.
 [secrets]
 required = ["DISCORD_EARTHQUAKE_WEBHOOK_URL"]
 

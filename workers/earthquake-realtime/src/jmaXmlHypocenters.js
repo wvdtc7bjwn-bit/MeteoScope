@@ -203,7 +203,7 @@ export async function runJmaXmlHypocenterSync(env, options = {}) {
   for (let index = 0; index < candidates.length; index += MAX_CONCURRENT_REPORTS) {
     results.push(...await Promise.all(
       candidates.slice(index, index + MAX_CONCURRENT_REPORTS)
-        .map((entry) => syncOneEntry(db, entry, fetchImpl, now))
+        .map((entry) => syncOneEntry(db, entry, fetchImpl, now, env))
     ));
   }
   const discord = await deliverPendingDiscordEarthquakeNotifications(env, {
@@ -329,7 +329,7 @@ export function isJmaXmlRetentionDate(sourceDate, timestamp = Date.now()) {
 
 export { JMA_XML_SOURCE_URL };
 
-async function syncOneEntry(db, entry, fetchImpl, now) {
+async function syncOneEntry(db, entry, fetchImpl, now, env) {
   const processedAt = new Date(now).toISOString();
   try {
     const text = await fetchText(entry.url, fetchImpl, "application/xml,text/xml");
@@ -340,7 +340,13 @@ async function syncOneEntry(db, entry, fetchImpl, now) {
       statements.push(buildReportUpsert(db, report, processedAt));
     }
     if (isDiscordNotifiableEarthquakeReport(report)) {
-      statements.push(buildDiscordEarthquakeNotificationUpsert(db, report, entry, now));
+      statements.push(buildDiscordEarthquakeNotificationUpsert(
+        db,
+        report,
+        entry,
+        now,
+        env?.DISCORD_EARTHQUAKE_ROLE_IDS
+      ));
     }
     statements.push(buildEntryUpsert(db, {
       ...entry,

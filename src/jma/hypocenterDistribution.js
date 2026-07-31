@@ -6,7 +6,7 @@ const ARCHIVE_DAY_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const RECENT_DAY_CACHE_TTL_MS = 60 * 1000;
 export const HYPOCENTER_DISTRIBUTION_DAY_COUNT = 731;
 export const HYPOCENTER_DISTRIBUTION_MAX_DAY_OFFSET = HYPOCENTER_DISTRIBUTION_DAY_COUNT - 1;
-export const HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS = 5;
+export const HYPOCENTER_DISTRIBUTION_MAX_RANGE_DAYS = 30;
 const HYPOCENTER_DISTRIBUTION_MAGNITUDE_STEPS = Object.freeze([
   0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7
 ]);
@@ -34,7 +34,7 @@ const HYPOCENTER_DISTRIBUTION_DEPTH_VALUES = new Set(
   HYPOCENTER_DISTRIBUTION_DEPTH_OPTIONS.map(([value]) => value)
 );
 export const HYPOCENTER_DISTRIBUTION_RANGE_TOO_LONG_MESSAGE =
-  "表示期間が上限の5か月を超えています。開始日または終了日を変更してください。";
+  "表示期間が上限の30日を超えています。開始日または終了日を変更してください。";
 
 export async function fetchHypocenterDistribution(filters = {}, options = {}) {
   const dayOffset = Number.isInteger(Number(filters.dayOffset))
@@ -222,24 +222,10 @@ export function normalizeHypocenterDistributionRange(startDate, endDate) {
 export function isHypocenterDistributionRangeWithinLimit(startDate, endDate) {
   const range = normalizeHypocenterDistributionRange(startDate, endDate);
   if (!range) return false;
-  return range.endDate <= addMonthsToSourceDate(
-    range.startDate,
-    HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS
-  );
-}
-
-export function addMonthsToSourceDate(sourceDate, monthCount) {
-  if (!isSourceDate(sourceDate)) return "";
-  const [year, month, day] = sourceDate.split("-").map(Number);
-  const targetMonthIndex = year * 12 + month - 1 + Number(monthCount);
-  const targetYear = Math.floor(targetMonthIndex / 12);
-  const targetMonth = targetMonthIndex % 12 + 1;
-  const lastDay = new Date(Date.UTC(targetYear, targetMonth, 0)).getUTCDate();
-  return [
-    targetYear,
-    String(targetMonth).padStart(2, "0"),
-    String(Math.min(day, lastDay)).padStart(2, "0")
-  ].join("-");
+  const startTimestamp = Date.parse(`${range.startDate}T00:00:00Z`);
+  const endTimestamp = Date.parse(`${range.endDate}T00:00:00Z`);
+  const inclusiveDayCount = Math.floor((endTimestamp - startTimestamp) / 86_400_000) + 1;
+  return inclusiveDayCount <= HYPOCENTER_DISTRIBUTION_MAX_RANGE_DAYS;
 }
 
 export function filterHypocentersByPolygon(items, polygon) {

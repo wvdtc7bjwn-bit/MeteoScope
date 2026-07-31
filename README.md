@@ -153,7 +153,8 @@ D1のスキーマは `migrations/0001_notification_storage.sql`、
 `migrations/0004_ios_push_subscriptions.sql`（過去の適用履歴）、
 `migrations/0005_quiz_accounts.sql`、`migrations/0006_quiz_free_tier_optimization.sql`、
 `migrations/0007_quiz_daily_points_ranking.sql`、`migrations/0008_community_reports.sql`、
-`migrations/0009_community_report_quota.sql`、`migrations/0010_remove_ios_push_storage.sql`を
+`migrations/0009_community_report_quota.sql`、`migrations/0010_remove_ios_push_storage.sql`、
+`migrations/0011_push_subscription_retention.sql`を
 順番に適用します。Web通知購読、保留通知、管理設定、お知らせ、利用者意見、
 アーリーアクセス認証、VAPID鍵はすべてD1へ保存し、Workers KVは使用しません。
 Web Pushは管理者からのお知らせ専用で、現在地、通知対象区域、警報状態を保存しません。

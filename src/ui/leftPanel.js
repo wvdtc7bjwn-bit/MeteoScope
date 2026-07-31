@@ -25,7 +25,7 @@ import {
   HYPOCENTER_DISTRIBUTION_DAY_COUNT,
   HYPOCENTER_DISTRIBUTION_DEPTH_OPTIONS,
   HYPOCENTER_DISTRIBUTION_MAGNITUDE_OPTIONS,
-  HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS,
+  HYPOCENTER_DISTRIBUTION_MAX_RANGE_DAYS,
   HYPOCENTER_DISTRIBUTION_RANGE_TOO_LONG_MESSAGE,
   isHypocenterDistributionRangeWithinLimit
 } from "../jma/hypocenterDistribution.js";
@@ -1408,10 +1408,14 @@ if (state.data?.activeWarningView === "early") {
       if (state.status === "error") return "火山情報を取得できませんでした。前回取得した情報の最新性を確認できていません。";
       return "気象庁発表の噴火警報・予報、解説情報、観測報、降灰予報を表示しています。";
     }
-    if (state.status === "loading") return "気象庁防災情報XMLから地震情報を取得中です。";
-    if (state.status === "error") return "地震情報を取得できませんでした。";
+    if (state.status === "loading") {
+      return localizeText("気象庁防災情報XMLから地震情報を取得中です。");
+    }
+    if (state.status === "error") {
+      return localizeText("地震情報を取得できませんでした。");
+    }
     const count = state.data?.earthquakes?.length ?? 0;
-    return count > 0 ? "" : "直近の地震情報はありません。";
+    return count > 0 ? "" : localizeText("直近の地震情報はありません。");
   }
   if (tab.id === "radar" && state.weatherChartEnabled) {
     if (state.weatherChartStatus === "loading") return "天気図データを取得中です。";
@@ -2132,7 +2136,8 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
       estimatedIntensityVisible,
       state.data?.tsunami,
       state.data?.tsunamiStatus,
-      state.data?.tideObservation
+      state.data?.tideObservation,
+      state.status
     );
   }
   return buildMobileContextMarkup(tab.label ?? "情報", "詳細情報", "開く");
@@ -2698,8 +2703,33 @@ function buildEarthquakeMobileContextMarkup(
   estimatedIntensityVisible,
   tsunami,
   tsunamiStatus,
-  tideObservation
+  tideObservation,
+  status = "ok"
 ) {
+  if (!earthquake) {
+    const statusText = status === "loading"
+      ? localizeText("地震情報を読み込み中")
+      : (status === "error"
+        ? localizeText("地震情報を取得できませんでした。")
+        : localizeText("直近の地震情報はありません。"));
+    const primaryMarkup = `
+      ${buildEarthquakeMobileViewSwitch("recent")}
+      <div class="mobile-dock-earthquake-empty-state" role="${status === "error" ? "alert" : "status"}" aria-live="polite">
+        ${escapeHtml(statusText)}
+      </div>
+    `;
+    return buildMobileEarthquakeSummaryCarousel({
+      containerClass: "mobile-dock-content mobile-dock-earthquake mobile-dock-earthquake-carousel",
+      primaryAriaLabel: localizeText("地震情報要約"),
+      primaryDotLabel: localizeText("地震情報"),
+      primaryMarkup,
+      earthquake: null,
+      tsunami,
+      tsunamiStatus,
+      tideObservation
+    });
+  }
+
   const intensityColor = getEarthquakeIntensityColor(earthquake?.maxIntensity);
   const intensityTextClass = getEarthquakeIntensityTextClass(earthquake?.maxIntensity);
   const intensity = formatEarthquakeUnknownMetric(
@@ -4999,17 +5029,23 @@ function renderEarthquakeList(tab, state) {
   );
 
   if (state.status === "loading") {
-    renderRecent('<div class="earthquake-empty">気象庁防災情報XMLから地震情報を取得中です。</div>');
+    renderRecent(`<div class="earthquake-empty" role="status" aria-live="polite">${escapeHtml(
+      localizeText("気象庁防災情報XMLから地震情報を取得中です。")
+    )}</div>`);
     return;
   }
 
   if (state.status === "error") {
-    renderRecent('<div class="earthquake-empty">気象庁防災情報XMLから地震情報を取得できませんでした。</div>');
+    renderRecent(`<div class="earthquake-empty" role="alert">${escapeHtml(
+      localizeText("気象庁防災情報XMLから地震情報を取得できませんでした。")
+    )}</div>`);
     return;
   }
 
   if (!earthquakes.length) {
-    renderRecent('<div class="earthquake-empty">直近の地震情報はありません。</div>');
+    renderRecent(`<div class="earthquake-empty">${escapeHtml(
+      localizeText("直近の地震情報はありません。")
+    )}</div>`);
     return;
   }
 
@@ -5079,10 +5115,10 @@ function renderEarthquakeList(tab, state) {
       data-earthquake-history-load-more
       ${isLoadingMore ? 'disabled aria-busy="true"' : ""}
       aria-label="${isLoadingMore
-        ? "過去の地震履歴を読み込み中"
-        : "地震履歴をさらに読み込む"}"
+        ? escapeHtml(localizeText("過去の地震履歴を読み込み中"))
+        : escapeHtml(localizeText("地震履歴をさらに読み込む"))}"
     >
-      <span>${isLoadingMore ? "読み込み中…" : "さらに読み込む"}</span>
+      <span>${escapeHtml(localizeText(isLoadingMore ? "読み込み中…" : "さらに読み込む"))}</span>
     </button>
   ` : "";
   renderRecent(historyMarkup + loadMoreMarkup);
@@ -5677,8 +5713,8 @@ function buildEarthquakeDistributionMarkup(data) {
           <strong>表示期間</strong>
           <span>${rangeEnabled
             ? rangeExceeded
-              ? `${HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS}か月を超えています`
-              : `最大${HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS}か月`
+              ? `${HYPOCENTER_DISTRIBUTION_MAX_RANGE_DAYS}日を超えています`
+              : `最大${HYPOCENTER_DISTRIBUTION_MAX_RANGE_DAYS}日`
             : "1日ごとに確認"}</span>
         </div>
         <div class="earthquake-distribution-range-mode mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented" role="group" aria-label="震央分布の期間">

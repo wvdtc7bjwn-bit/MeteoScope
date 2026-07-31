@@ -3,13 +3,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  addMonthsToSourceDate,
   doesHypocenterDistributionCoverRange,
   filterHypocentersByPolygon,
   getPolygonBounds,
   HYPOCENTER_DISTRIBUTION_DEPTH_OPTIONS,
   HYPOCENTER_DISTRIBUTION_MAGNITUDE_OPTIONS,
-  HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS,
+  HYPOCENTER_DISTRIBUTION_MAX_RANGE_DAYS,
   HYPOCENTER_DISTRIBUTION_RANGE_TOO_LONG_MESSAGE,
   isHypocenterDistributionRangeWithinLimit,
   normalizeHypocenterDistributionMaxDepth,
@@ -32,7 +31,7 @@ assert.deepEqual(
   normalizeHypocenterDistributionRange("2026-05-01", "2026-07-29"),
   { startDate: "2026-05-01", endDate: "2026-07-29" }
 );
-assert.equal(HYPOCENTER_DISTRIBUTION_MAX_RANGE_MONTHS, 5);
+assert.equal(HYPOCENTER_DISTRIBUTION_MAX_RANGE_DAYS, 30);
 assert.equal(normalizeHypocenterDistributionMinMagnitude("2.5"), "2.5");
 assert.equal(normalizeHypocenterDistributionMinMagnitude("2.25"), "0");
 assert.equal(normalizeHypocenterDistributionMaxDepth("50"), "50");
@@ -45,10 +44,10 @@ assert.equal(
   HYPOCENTER_DISTRIBUTION_DEPTH_OPTIONS.some(([value]) => value === "150"),
   true
 );
-assert.equal(addMonthsToSourceDate("2026-01-31", 5), "2026-06-30");
-assert.equal(isHypocenterDistributionRangeWithinLimit("2026-01-01", "2026-06-01"), true);
-assert.equal(isHypocenterDistributionRangeWithinLimit("2026-01-01", "2026-06-02"), false);
-assert.match(HYPOCENTER_DISTRIBUTION_RANGE_TOO_LONG_MESSAGE, /5か月を超えています/u);
+assert.equal(isHypocenterDistributionRangeWithinLimit("2026-07-01", "2026-07-30"), true);
+assert.equal(isHypocenterDistributionRangeWithinLimit("2026-07-01", "2026-07-31"), false);
+assert.equal(isHypocenterDistributionRangeWithinLimit("2026-07-30", "2026-07-01"), true);
+assert.match(HYPOCENTER_DISTRIBUTION_RANGE_TOO_LONG_MESSAGE, /30日を超えています/u);
 assert.equal(
   doesHypocenterDistributionCoverRange({
     rangeMode: true,
@@ -119,7 +118,8 @@ assert.doesNotMatch(
 assert.match(panel, /const presets = \[7, 15, 30\]/u);
 assert.match(panel, /type="date"/u);
 assert.doesNotMatch(panel, /data-earthquake-distribution-range-date-open/u);
-assert.doesNotMatch(panel, /最大30日/u);
+assert.match(panel, /最大\$\{HYPOCENTER_DISTRIBUTION_MAX_RANGE_DAYS\}日/u);
+assert.doesNotMatch(panel, /最大5か月/u);
 assert.doesNotMatch(panel, /90日/u);
 assert.match(app, /startHypocenterAreaSelection/u);
 assert.match(app, /earthquakeDistributionAreaDrawing/u);

@@ -97,5 +97,11 @@ assert.match(mapSource, /lightning-observation-ground/);
 assert.match(mapSource, /"text-field": "×"/);
 assert.match(mapSource, /filter: \["!=", \["get", "type"\], 4\]/);
 assert.match(mapSource, /moveLightningObservationLayersToFront\(map\)/);
+assert.match(mapSource, /const LIGHTNING_MAX_ZOOM = 8\.9/);
+assert.match(
+  mapSource,
+  /lightningVisible[\s\S]*\? LIGHTNING_MAX_ZOOM[\s\S]*: DEFAULT_VIEW\.maxZoom/
+);
+assert.match(mapSource, /setRadarOverlayZoomLimit\(map, mode, data\)/);
 
 console.log("Lightning tests passed.");

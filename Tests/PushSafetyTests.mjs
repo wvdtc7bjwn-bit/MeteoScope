@@ -109,4 +109,70 @@ assert.equal(freeTierCycle.retention.skipped, true);
 assert.equal(freeTierCycle.webSubscriptionMigration.skipped, true);
 assert.ok(countingD1.queries < 50, `D1 query budget exceeded: ${countingD1.queries}`);
 
+class PushRetentionD1 {
+  constructor() {
+    this.statements = [];
+  }
+
+  prepare(sql) {
+    const database = this;
+    return {
+      sql,
+      values: [],
+      bind(...values) {
+        this.values = values;
+        return this;
+      },
+      async first() {
+        database.statements.push(this);
+        return null;
+      },
+      async all() {
+        database.statements.push(this);
+        return { results: [] };
+      },
+      async run() {
+        database.statements.push(this);
+        return { meta: { changes: 0 } };
+      }
+    };
+  }
+
+  async batch(statements) {
+    this.statements.push(...statements);
+    return statements.map(() => ({ meta: { changes: 0 } }));
+  }
+}
+
+const retentionD1 = new PushRetentionD1();
+const retentionCycle = await runPushMaintenance(
+  { NOTIFICATIONS_DB: retentionD1 },
+  { now: new Date("2026-07-31T15:10:00.000Z"), forceMaintenance: true }
+);
+assert.equal(retentionCycle.retention.ran, true);
+assert.equal(retentionCycle.retention.inactiveSubscriptionRetentionDays, 180);
+const staleSubscriptionDelete = retentionD1.statements.find(({ sql }) =>
+  sql.includes("DELETE FROM push_subscriptions") && sql.includes("updated_at")
+);
+assert.ok(staleSubscriptionDelete, "Inactive push subscription cleanup query was not executed");
+assert.equal(staleSubscriptionDelete.values[0], "2026-02-01T15:10:00.000Z");
+assert.match(staleSubscriptionDelete.sql, /d\.status = 'pending'/);
+
+const heartbeatD1 = new PushRetentionD1();
+const pendingResponse = await onRequest({
+  request: new Request("https://example.test/api/push/pending", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ endpoint: "https://push.example.test/subscription" })
+  }),
+  env: { NOTIFICATIONS_DB: heartbeatD1 }
+});
+assert.equal(pendingResponse.status, 200);
+assert.ok(
+  heartbeatD1.statements.some(({ sql }) =>
+    sql.includes("UPDATE push_subscriptions") && sql.includes("$.updatedAt")
+  ),
+  "Polling for pending messages did not refresh subscription activity"
+);
+
 console.log("Push safety tests passed");

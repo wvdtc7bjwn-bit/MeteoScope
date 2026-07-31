@@ -186,6 +186,10 @@ assert.match(webMap, /if \(!hitReport\) hideMapInfo\("community-report"\)/u);
 assert.doesNotMatch(webSummary, /mobile-dock-community-report-open/u);
 assert.match(webIndex, /data-community-report-open/u);
 assert.match(webIndex, /map-community-report-button/u);
+assert.match(webModal, /import \{ getCurrentLanguage, localizeText \} from "\.\/locale\.js";/u);
+assert.match(webModal, /Reporting area: Get your current location/u);
+assert.match(webModal, /comment\.placeholder = localizeText\("例：風が強く、傘が差しにくいです"\)/u);
+assert.match(webModal, /element\.textContent = localizeText\(message\)/u);
 assert.match(privacyPage, /5時間/u);
 assert.match(privacyPage, /約2km/u);
 

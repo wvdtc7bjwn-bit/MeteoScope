@@ -1,6 +1,8 @@
 import {
+  EARTHQUAKE_INTENSITY_LEVELS,
   getEarthquakeIntensityColor,
-  getEarthquakeIntensityLabel
+  getEarthquakeIntensityLabel,
+  getEarthquakeIntensityRank
 } from "../../../src/earthquakeIntensity.js";
 
 const DISCORD_NOTIFICATION_LIMIT = 4;
@@ -9,6 +11,9 @@ const DISCORD_MAX_ATTEMPTS = 8;
 const DISCORD_MAX_RETRY_MS = 60 * 60 * 1000;
 const METEOSCOPE_EARTHQUAKE_URL = "https://meteoscope.pages.dev/?tab=earthquake";
 const VXSE53_CODE = "VXSE53";
+const DISCORD_ROLE_ID_PATTERN = /^\d{15,22}$/u;
+const DISCORD_INTENSITY_THRESHOLDS = [...EARTHQUAKE_INTENSITY_LEVELS]
+  .sort((left, right) => left.rank - right.rank);
 const JST_SHORT_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("ja-JP", {
   timeZone: "Asia/Tokyo",
   month: "numeric",
@@ -25,11 +30,17 @@ export function isDiscordNotifiableEarthquakeReport(report) {
   return report.infoType === "発表" || report.infoType === "訂正";
 }
 
-export function buildDiscordEarthquakeNotificationUpsert(db, report, entry, now) {
+export function buildDiscordEarthquakeNotificationUpsert(
+  db,
+  report,
+  entry,
+  now,
+  roleConfig = null
+) {
   const currentTime = Number(now ?? Date.now());
   const entryUpdated = normalizeIsoTimestamp(entry?.updated || report.reportTime, currentTime);
   const updatedAt = new Date(currentTime).toISOString();
-  const payloadJson = JSON.stringify(buildDiscordEarthquakeWebhookPayload(report));
+  const payloadJson = JSON.stringify(buildDiscordEarthquakeWebhookPayload(report, roleConfig));
   return db.prepare(`
     INSERT INTO discord_earthquake_notifications (
       event_id, source_date, entry_url, entry_updated, payload_json, status,
@@ -62,7 +73,7 @@ export function buildDiscordEarthquakeNotificationUpsert(db, report, entry, now)
   );
 }
 
-export function buildDiscordEarthquakeWebhookPayload(report) {
+export function buildDiscordEarthquakeWebhookPayload(report, roleConfig = null) {
   const maximumIntensity = formatIntensity(report.maxIntensity);
   const place = truncate(report.place || "震源地名不明", 170);
   const magnitude = report.magnitude !== null
@@ -77,10 +88,16 @@ export function buildDiscordEarthquakeWebhookPayload(report) {
     : "不明";
   const correction = report.infoType === "訂正" ? "【訂正】" : "";
   const tsunamiText = formatTsunamiText(report.tsunamiText);
+  const headline = buildDiscordNotificationHeadline(report, maximumIntensity, place);
+  const roleIds = resolveDiscordEarthquakeRoleMentions(report.maxIntensity, roleConfig);
   return {
     username: "MeteoScope",
-    allowed_mentions: { parse: [] },
-    content: buildDiscordNotificationHeadline(report, maximumIntensity, place),
+    allowed_mentions: roleIds.length
+      ? { parse: [], roles: roleIds }
+      : { parse: [] },
+    content: roleIds.length
+      ? `${headline}\n${roleIds.map((roleId) => `<@&${roleId}>`).join(" ")}`
+      : headline,
     embeds: [{
       author: { name: "気象庁 防災情報XML" },
       title: `${correction}地震情報`,
@@ -229,6 +246,40 @@ export function parseDiscordWebhookUrl(value) {
   catch {
     return null;
   }
+}
+
+export function parseDiscordEarthquakeRoleIds(value) {
+  if (!value) return {};
+  let source = value;
+  if (typeof value === "string") {
+    try {
+      source = JSON.parse(value);
+    }
+    catch {
+      return {};
+    }
+  }
+  if (!source || typeof source !== "object" || Array.isArray(source)) return {};
+
+  const configuredRoles = {};
+  const usedRoleIds = new Set();
+  for (const threshold of DISCORD_INTENSITY_THRESHOLDS) {
+    const roleId = String(source[threshold.value] ?? "").trim();
+    if (!DISCORD_ROLE_ID_PATTERN.test(roleId) || usedRoleIds.has(roleId)) continue;
+    configuredRoles[threshold.value] = roleId;
+    usedRoleIds.add(roleId);
+  }
+  return configuredRoles;
+}
+
+export function resolveDiscordEarthquakeRoleMentions(maxIntensity, roleConfig) {
+  const maximumRank = getEarthquakeIntensityRank(maxIntensity);
+  if (!maximumRank) return [];
+  const configuredRoles = parseDiscordEarthquakeRoleIds(roleConfig);
+  return DISCORD_INTENSITY_THRESHOLDS
+    .filter((threshold) => threshold.rank <= maximumRank)
+    .map((threshold) => configuredRoles[threshold.value])
+    .filter(Boolean);
 }
 
 async function deliverOneNotification({ db, fetchImpl, webhookUrl, row, now }) {

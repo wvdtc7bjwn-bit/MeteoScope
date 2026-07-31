@@ -555,6 +555,8 @@ assert.match(styles, /\.weekly-weather-open-button::before/u);
 assert.match(styles, /\.weekly-weather-region-control select/u);
 assert.match(styles, /\.weekly-weather-days\s*\{[\s\S]*?grid-template-columns:\s*repeat\(auto-fit,/u);
 assert.match(modal, /weekly-weather-today/u);
+assert.match(styles, /\.weekly-weather-today\s*\{[\s\S]*?white-space:\s*nowrap;/u);
+assert.match(styles, /@media\s*\(max-width:\s*430px\)[\s\S]*?grid-template:[\s\S]*?\/\s*66px\s+54px/u);
 assert.match(modal, /weekly-weather-precipitation/u);
 assert.match(styles, /\.weekly-weather-glyph-main/u);
 assert.match(styles, /\.weekly-weather-glyph\s*\{[\s\S]*?color:\s*#fff;/u);

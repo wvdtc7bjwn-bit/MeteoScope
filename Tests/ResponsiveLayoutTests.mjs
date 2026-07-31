@@ -67,6 +67,14 @@ assert.match(
 );
 assert.match(
   styles,
+  /@media \(max-width: 520px\)\s*\{[\s\S]*?\.community-report-panel\s*\{[\s\S]*?border-radius:\s*var\(--modal-shell-radius\);/
+);
+assert.doesNotMatch(
+  styles,
+  /\.community-report-panel\s*\{[^}]*border-radius:\s*var\(--modal-shell-radius\)\s+var\(--modal-shell-radius\)\s+0\s+0;/
+);
+assert.match(
+  styles,
   /\.earthquake-distribution-range-controls label\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;[\s\S]*?overflow:\s*hidden;/
 );
 assert.match(
@@ -130,6 +138,18 @@ assert.match(
 assert.match(
   styles,
   /\.mobile-dock-earthquake-text strong\s*\{[\s\S]*?line-height:\s*1\.24;/
+);
+assert.match(
+  panel,
+  /localizeText\("地震情報を読み込み中"\)/
+);
+assert.match(
+  panel,
+  /mobile-dock-earthquake-empty-state/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-empty-state\s*\{[\s\S]*?place-items:\s*center;[\s\S]*?overflow-wrap:\s*anywhere;/
 );
 assert.doesNotMatch(
   styles,

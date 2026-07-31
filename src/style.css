@@ -1417,6 +1417,9 @@ html[data-language="en"] .warning-area-row > strong {
 }
 
 .weekly-weather-today {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 3px 6px;
   border-radius: 999px;
   color: #061a2c;
@@ -1424,6 +1427,8 @@ html[data-language="en"] .warning-area-row > strong {
   font-size: 8px;
   font-weight: 900;
   letter-spacing: 0.05em;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .weekly-weather-day time {
@@ -1958,7 +1963,7 @@ html[data-theme="light"] .weekly-weather-issued strong {
   .weekly-weather-day.is-first {
     grid-template:
       "heading icon label temperature precipitation" minmax(64px, auto)
-      / 56px 54px minmax(72px, 1fr) 60px 44px;
+      / 66px 54px minmax(72px, 1fr) 60px 44px;
     gap: 5px;
     padding-inline: 8px;
   }
@@ -4513,6 +4518,9 @@ html[data-theme="light"] .weekly-weather-issued strong {
   color: #d8e6f7;
   font-size: 13px;
   font-weight: var(--type-info-title-weight);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 
 .earthquake-view-toggle,
@@ -8570,6 +8578,20 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     min-height: 50px;
   }
 
+  .mobile-dock-earthquake-empty-state {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    min-height: 50px;
+    padding-inline: 12px;
+    color: rgba(220, 233, 246, 0.78);
+    font-size: 12px;
+    font-weight: 850;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+
   .mobile-dock-earthquake-layer-list {
     display: grid;
     gap: 2px;
@@ -11383,7 +11405,13 @@ html[data-theme="light"] .community-report-status[data-state="error"] { color: #
 html[data-theme="light"] .community-report-status[data-state="success"] { color: #176d39; }
 
 @media (max-width: 520px) {
-  .community-report-panel { width: 100%; max-width: none; max-height: 92dvh; align-self: end; border-radius: var(--modal-shell-radius) var(--modal-shell-radius) 0 0; }
+  .community-report-panel {
+    width: 100%;
+    max-width: none;
+    max-height: 92dvh;
+    align-self: end;
+    border-radius: var(--modal-shell-radius);
+  }
   .community-report-body { padding: 15px 16px 22px; }
   .community-report-form-grid { grid-template-columns: 1fr; }
   .community-report-requirement { align-items: stretch; flex-direction: column; }
@@ -11670,6 +11698,10 @@ html[data-theme="light"] .mobile-dock-world-time-control {
 }
 
 html[data-theme="light"] :is(.mobile-dock-typhoon-switch.is-static, .mobile-dock-typhoon-values em, .mobile-dock-earthquake-time, .mobile-dock-earthquake-text span) {
+  color: #536b83;
+}
+
+html[data-theme="light"] .mobile-dock-earthquake-empty-state {
   color: #536b83;
 }
 

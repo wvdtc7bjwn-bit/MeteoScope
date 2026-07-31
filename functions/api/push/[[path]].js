@@ -9,6 +9,7 @@ const ADMIN_BROADCAST_BATCH_SIZE = 4;
 const ADMIN_BROADCAST_IMMEDIATE_BATCHES = 5;
 const ADMIN_BROADCAST_MAX_ATTEMPTS = 3;
 const RETENTION_DAYS = 30;
+const INACTIVE_SUBSCRIPTION_RETENTION_DAYS = 180;
 const RETENTION_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const RETENTION_CLEANUP_KEY = "retention:last-cleanup";
 const DAILY_MAINTENANCE_UTC_HOUR = 15;
@@ -220,6 +221,7 @@ export async function runAdminPushBroadcasts(env, options = {}) {
     }
     const pushResult = await sendEmptyPushSafely(subscription.pushSubscription, env, vapidKeys);
     if (pushResult.ok) {
+      await touchSubscription(env, subscriptionId, now);
       await markAdminDelivery(env, broadcast.id, subscriptionId, "sent", Number(delivery.attempts) + 1, "", now);
       sent += 1;
       continue;
@@ -342,6 +344,7 @@ async function pending(request, env) {
 
   const id = await subscriptionId(endpoint);
   const messages = await takePendingMessages(env, id);
+  await touchSubscription(env, id);
   return json({ messages: Array.isArray(messages) ? messages : [] });
 }
 
@@ -509,6 +512,9 @@ async function runNotificationRetentionCleanup(env, at = new Date()) {
   }
 
   const now = cleanupDate.toISOString();
+  const inactiveSubscriptionCutoff = new Date(
+    cleanupDate.getTime() - INACTIVE_SUBSCRIPTION_RETENTION_DAYS * 86400000
+  ).toISOString();
   const results = await env.NOTIFICATIONS_DB.batch([
     env.NOTIFICATIONS_DB.prepare(
       `DELETE FROM admin_push_deliveries
@@ -534,6 +540,28 @@ async function runNotificationRetentionCleanup(env, at = new Date()) {
          AND datetime(json_extract(value, '$.expiresAt')) < datetime('now')`
     ),
     env.NOTIFICATIONS_DB.prepare(
+      `DELETE FROM push_pending_messages
+       WHERE subscription_id IN (
+         SELECT s.id
+         FROM push_subscriptions s
+         WHERE COALESCE(datetime(s.updated_at), datetime('1970-01-01')) < datetime(?)
+           AND NOT EXISTS (
+             SELECT 1
+             FROM admin_push_deliveries d
+             WHERE d.subscription_id = s.id AND d.status = 'pending'
+           )
+       )`
+    ).bind(inactiveSubscriptionCutoff),
+    env.NOTIFICATIONS_DB.prepare(
+      `DELETE FROM push_subscriptions
+       WHERE COALESCE(datetime(updated_at), datetime('1970-01-01')) < datetime(?)
+         AND NOT EXISTS (
+           SELECT 1
+           FROM admin_push_deliveries d
+           WHERE d.subscription_id = push_subscriptions.id AND d.status = 'pending'
+         )`
+    ).bind(inactiveSubscriptionCutoff),
+    env.NOTIFICATIONS_DB.prepare(
       `INSERT INTO push_meta (key, value) VALUES (?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`
     ).bind(RETENTION_CLEANUP_KEY, now)
@@ -545,6 +573,9 @@ async function runNotificationRetentionCleanup(env, at = new Date()) {
     deliveries: getD1Changes(results[0]),
     pendingMessages: getD1Changes(results[2]),
     expiredEarlyAccessActivations: getD1Changes(results[3]),
+    inactiveSubscriptions: getD1Changes(results[5]),
+    inactiveSubscriptionPendingMessages: getD1Changes(results[4]),
+    inactiveSubscriptionRetentionDays: INACTIVE_SUBSCRIPTION_RETENTION_DAYS,
     lastCleanupAt: now
   };
 }
@@ -766,6 +797,16 @@ async function saveSubscription(env, subscription) {
     `INSERT INTO push_subscriptions (id, data, updated_at) VALUES (?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at`
   ).bind(id, JSON.stringify(subscription), new Date().toISOString()).run();
+}
+
+async function touchSubscription(env, id, at = new Date()) {
+  if (!id) return;
+  const updatedAt = validCronDate(at).toISOString();
+  await env.NOTIFICATIONS_DB.prepare(
+    `UPDATE push_subscriptions
+     SET data = json_set(data, '$.updatedAt', ?), updated_at = ?
+     WHERE id = ?`
+  ).bind(updatedAt, updatedAt, id).run();
 }
 
 async function deleteSubscription(env, id) {

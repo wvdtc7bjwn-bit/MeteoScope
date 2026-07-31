@@ -188,6 +188,7 @@ const WEATHER_CHART_LAYERS = [
   "weather-chart-pressure-value-label"
 ];
 const WEATHER_CHART_MAX_ZOOM = 6.4;
+const LIGHTNING_MAX_ZOOM = 8.9;
 const WEATHER_FRONT_COLD_IMAGE_ID = "weather-front-cold-triangle";
 const WEATHER_FRONT_WARM_IMAGE_ID = "weather-front-warm-semicircle";
 const WEATHER_FRONT_OCCLUDED_IMAGE_ID = "weather-front-occluded-pair";
@@ -358,7 +359,7 @@ const EMPTY_GEOJSON = { type: "FeatureCollection", features: [] };
 let worldGeometryPromise = null;
 const warningFeatureStateCache = new WeakMap();
 const kikikuruTileUrlCache = new Map();
-const weatherChartZoomLimitCache = new WeakMap();
+const radarOverlayZoomLimitCache = new WeakMap();
 
 export function createWeatherMap(elementId) {
   let map = null;
@@ -471,7 +472,10 @@ export function createWeatherMap(elementId) {
       return;
     }
     setRadarVisible(map, mode === "radar");
-    if (mode !== "radar") setWeatherChartVisible(map, false);
+    if (mode !== "radar") {
+      setWeatherChartVisible(map, false);
+      setRadarOverlayZoomLimit(map, mode);
+    }
     if (mode !== "warnings") {
       setKikikuruVisible(map, false);
     }
@@ -845,6 +849,7 @@ export function createWeatherMap(elementId) {
     updateLightningLayer(map, mode, data);
     updateLightningObservationLayer(map, mode, data);
     updateWeatherChartLayer(map, mode, data);
+    setRadarOverlayZoomLimit(map, mode, data);
     updateKikikuruLayer(map, mode, data);
     updateEstimatedIntensityLayer(map, mode, data);
     updateRiverFloodLayer(map, mode, data);
@@ -3943,20 +3948,28 @@ function setWeatherChartVisible(map, isVisible) {
       map.setLayoutProperty(layerId, "visibility", isVisible ? "visible" : "none");
     }
   });
-  setWeatherChartZoomLimit(map, isVisible);
 }
 
-function setWeatherChartZoomLimit(map, shouldLimit) {
+function setRadarOverlayZoomLimit(map, mode, data = {}) {
   if (!map?.setMaxZoom) return;
 
-  const isLimited = weatherChartZoomLimitCache.get(map) === true;
-  if (isLimited === shouldLimit) return;
+  const weatherChartVisible = mode === "radar"
+    && data?.weatherChartEnabled
+    && data?.weatherChart?.featureCount > 0;
+  const lightningVisible = mode === "radar"
+    && data?.lightningEnabled
+    && Boolean(data?.lightningTileUrl);
+  const maxZoom = weatherChartVisible
+    ? WEATHER_CHART_MAX_ZOOM
+    : lightningVisible
+      ? LIGHTNING_MAX_ZOOM
+      : DEFAULT_VIEW.maxZoom;
+  if (radarOverlayZoomLimitCache.get(map) === maxZoom) return;
 
-  weatherChartZoomLimitCache.set(map, shouldLimit);
-  const maxZoom = shouldLimit ? WEATHER_CHART_MAX_ZOOM : DEFAULT_VIEW.maxZoom;
+  radarOverlayZoomLimitCache.set(map, maxZoom);
   map.setMaxZoom(maxZoom);
 
-  if (shouldLimit && map.getZoom() > maxZoom) {
+  if (map.getZoom() > maxZoom) {
     map.easeTo({
       zoom: maxZoom,
       duration: 260,

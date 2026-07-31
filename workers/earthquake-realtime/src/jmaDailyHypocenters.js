@@ -11,6 +11,7 @@ const FETCH_TIMEOUT_MS = 10_000;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 export const JMA_DAILY_RETENTION_DAYS = 731;
 export const JMA_DAILY_MAX_DAY_OFFSET = JMA_DAILY_RETENTION_DAYS - 1;
+export const JMA_DAILY_MAX_RANGE_DAYS = 30;
 export const JMA_DAILY_TREND_DAYS = 90;
 export const JMA_DAILY_MONTHLY_SUMMARY_AFTER_DAYS = 183;
 // Workers Free の CPU 上限を超えないよう、1回の Cron では1日だけ解析する。
@@ -304,6 +305,17 @@ export async function readJmaDailyHypocenterDistribution(request, env, ctx) {
   const includeRecentXml = url.searchParams.get("includeRecentXml") !== "0";
   const requestedStartDate = parseSourceDate(url.searchParams.get("startDate"));
   const requestedEndDate = parseSourceDate(url.searchParams.get("endDate"));
+  if (
+    requestedStartDate
+    && requestedEndDate
+    && !isJmaDailyDistributionRangeWithinLimit(requestedStartDate, requestedEndDate)
+  ) {
+    return jsonResponse({
+      ok: false,
+      error: "distribution_range_too_long",
+      maxRangeDays: JMA_DAILY_MAX_RANGE_DAYS
+    }, 400, { "cache-control": "no-store" });
+  }
   const requestedBounds = parseBounds(url.searchParams.get("bounds"));
   const fresh = url.searchParams.get("fresh") === "1";
   const summary = await readDistributionSummary(db, ctx, { fresh });
@@ -542,6 +554,12 @@ function getRequestedRangeDates(availableDates, startDate, endDate) {
   const newest = startDate <= endDate ? endDate : startDate;
   return availableDates
     .filter((date) => date >= oldest && date <= newest);
+}
+
+export function isJmaDailyDistributionRangeWithinLimit(startDate, endDate) {
+  const oldest = startDate <= endDate ? startDate : endDate;
+  const newest = startDate <= endDate ? endDate : startDate;
+  return countInclusiveDays(oldest, newest) <= JMA_DAILY_MAX_RANGE_DAYS;
 }
 
 function parseSourceDate(value) {

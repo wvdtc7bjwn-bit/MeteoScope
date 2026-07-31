@@ -1,5 +1,6 @@
 import { CommunityReportClient } from "../domain/communityReportClient.js";
 import { QuizRankingClient } from "../domain/quizRankingClient.js";
+import { getCurrentLanguage, localizeText } from "./locale.js";
 
 let contextProvider = () => ({});
 let submittedHandler = () => {};
@@ -36,6 +37,7 @@ export function setupCommunityReportModal({ getContext, onSubmitted, onOpenAccou
 export async function openCommunityReportModal() {
   const modal = document.getElementById("community-report-modal");
   if (!modal) return;
+  applyCommunityReportLocale();
   modal.hidden = false;
   document.body.classList.add("modal-open");
   setStatus("利用条件を確認しています…", "checking");
@@ -58,7 +60,12 @@ export async function openCommunityReportModal() {
     return;
   }
   setFormEnabled(true);
-  setStatus(`${account.displayName} で投稿できます。投稿は5時間後に自動で消え、1日12回までです。`, "ready");
+  setStatus(
+    getCurrentLanguage() === "en"
+      ? `${account.displayName} can post. Reports disappear after 5 hours. Up to 12 reports per day.`
+      : `${account.displayName} で投稿できます。投稿は5時間後に自動で消え、1日12回までです。`,
+    "ready"
+  );
 }
 
 export function closeCommunityReportModal() {
@@ -112,9 +119,22 @@ function roundReportCoordinate(value) {
 function renderLocation(location) {
   const element = document.getElementById("community-report-location");
   if (!element) return;
-  element.textContent = location?.status === "found"
-    ? `投稿地点：${location.areaName || "現在地周辺"}（約2km単位で表示）`
+  const isEnglish = getCurrentLanguage() === "en";
+  if (location?.status === "found") {
+    const areaName = localizeText(location.areaName || "現在地周辺");
+    element.textContent = isEnglish
+      ? `Reporting area: ${areaName} (shown in approx. 2 km units)`
+      : `投稿地点：${areaName}（約2km単位で表示）`;
+    return;
+  }
+  element.textContent = isEnglish
+    ? "Reporting area: Get your current location"
     : "投稿地点：現在地を取得してください";
+}
+
+function applyCommunityReportLocale() {
+  const comment = document.querySelector("#community-report-form textarea[name='comment']");
+  if (comment) comment.placeholder = localizeText("例：風が強く、傘が差しにくいです");
 }
 
 function setFormEnabled(enabled) {
@@ -126,6 +146,6 @@ function setFormEnabled(enabled) {
 function setStatus(message, state) {
   const element = document.getElementById("community-report-status");
   if (!element) return;
-  element.textContent = message;
+  element.textContent = localizeText(message);
   element.dataset.state = state;
 }

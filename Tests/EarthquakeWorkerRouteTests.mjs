@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import {
   buildDistributionSummary,
   filterDistributionDates,
+  isJmaDailyDistributionRangeWithinLimit,
+  JMA_DAILY_MAX_RANGE_DAYS,
   JMA_DAILY_RETENTION_DAYS,
   parseMaximumDepthFilter,
   parseMinimumMagnitudeFilter,
@@ -22,7 +24,9 @@ import {
   computeDiscordRetryDelayMs,
   deliverPendingDiscordEarthquakeNotifications,
   isDiscordNotifiableEarthquakeReport,
+  parseDiscordEarthquakeRoleIds,
   parseDiscordWebhookUrl,
+  resolveDiscordEarthquakeRoleMentions,
   sendDiscordEarthquakeTestNotification
 } from "../workers/earthquake-realtime/src/discordEarthquakeNotifications.js";
 import earthquakeWorkerHandler, {
@@ -63,6 +67,9 @@ const dailyWorker = await fs.readFile(
 );
 
 assert.equal(JMA_DAILY_RETENTION_DAYS, 731);
+assert.equal(JMA_DAILY_MAX_RANGE_DAYS, 30);
+assert.equal(isJmaDailyDistributionRangeWithinLimit("2026-07-01", "2026-07-30"), true);
+assert.equal(isJmaDailyDistributionRangeWithinLimit("2026-07-01", "2026-07-31"), false);
 assert.equal(parseMinimumMagnitudeFilter("2.5"), 2.5);
 assert.equal(parseMinimumMagnitudeFilter("invalid"), 0);
 assert.equal(parseMaximumDepthFilter("50"), 50);
@@ -190,6 +197,7 @@ assert.match(
   "日別データの保持期限整理も独立したメンテナンスCronで行う"
 );
 assert.match(discordWorker, /DISCORD_EARTHQUAKE_WEBHOOK_URL/u);
+assert.match(xmlWorker, /DISCORD_EARTHQUAKE_ROLE_IDS/u);
 assert.match(discordWorker, /allowed_mentions:\s*\{\s*parse:\s*\[\]\s*\}/u);
 assert.match(discordWorker, /requestUrl\.searchParams\.set\("wait", "true"\)/u);
 assert.match(discordWorker, /method = "PATCH"/u);
@@ -315,6 +323,60 @@ assert.doesNotMatch(
 );
 assert.equal(discordPayload.embeds[0].fields, undefined);
 assert.equal(discordPayload.username, "MeteoScope");
+
+const discordRoleConfig = JSON.stringify({
+  "1": "100000000000000001",
+  "2": "100000000000000002",
+  "3": "100000000000000003",
+  "4": "100000000000000004",
+  "5-": "100000000000000005",
+  "5+": "100000000000000006",
+  "6-": "100000000000000007",
+  "6+": "100000000000000008",
+  "7": "100000000000000009"
+});
+assert.deepEqual(
+  resolveDiscordEarthquakeRoleMentions("5-", discordRoleConfig),
+  [
+    "100000000000000001",
+    "100000000000000002",
+    "100000000000000003",
+    "100000000000000004",
+    "100000000000000005"
+  ],
+  "最大震度以下の最低震度ロールだけを段階的に通知する"
+);
+assert.deepEqual(
+  parseDiscordEarthquakeRoleIds(JSON.stringify({
+    "1": "100000000000000001",
+    "2": "not-a-role",
+    "3": "100000000000000001",
+    unknown: "100000000000000010"
+  })),
+  { "1": "100000000000000001" },
+  "不正・重複・未知のロールIDを通知対象へ入れない"
+);
+const discordRolePayload = buildDiscordEarthquakeWebhookPayload(report, discordRoleConfig);
+assert.deepEqual(
+  discordRolePayload.allowed_mentions,
+  {
+    parse: [],
+    roles: [
+      "100000000000000001",
+      "100000000000000002",
+      "100000000000000003",
+      "100000000000000004",
+      "100000000000000005"
+    ]
+  },
+  "Discordには設定済みの地震通知ロールだけをメンション許可する"
+);
+assert.match(discordRolePayload.content, /<@&100000000000000005>/u);
+assert.doesNotMatch(
+  discordRolePayload.content,
+  /<@&100000000000000006>/u,
+  "観測最大震度を超える閾値ロールは通知しない"
+);
 
 const tsunamiWarningPayload = buildDiscordEarthquakeWebhookPayload({
   ...report,
