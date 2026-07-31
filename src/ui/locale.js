@@ -445,6 +445,7 @@ const EXACT_TRANSLATIONS = new Map(Object.entries({
   "現在地未取得": "Location unavailable",
   "発表状況": "Current warnings",
   "早期注意情報": "Early warning information",
+  "早期注意情報（警報級の可能性）": "Early warning information (potential for warning-level conditions)",
   "早期": "Early",
   "キキクル": "Risk map",
   "河川": "Rivers",
@@ -528,6 +529,7 @@ const EXACT_TRANSLATIONS = new Map(Object.entries({
   "氾濫警報": "Flood warning",
   "氾濫危険警報": "Flood danger warning",
   "氾濫特別警報": "Flood emergency warning",
+  "氾濫特別警報・発生情報": "Flood emergency warning / occurrence information",
   "各国予想": "Global models",
   "気象庁": "JMA",
   "予報時刻の位置": "Position at forecast time",
@@ -589,6 +591,7 @@ const EXACT_TRANSLATIONS = new Map(Object.entries({
   "最高気温": "High",
   "最低気温": "Low",
   "降水確率": "Precipitation",
+  "気温未発表": "Temperature unavailable",
   "信頼度": "Confidence",
   "晴れ": "Sunny",
   "くもり": "Cloudy",
@@ -919,11 +922,19 @@ const DYNAMIC_UI_TRANSLATIONS = new Map(Object.entries({
   "避難": "Evacuation",
   "高齢者等避難": "Evacuation of older residents and others",
   "指定河川洪水予報": "Designated river flood forecast",
+  "指定河川洪水予報の発表状況": "Designated river flood forecast status",
   "現在、指定河川洪水予報は発表されていません": "No designated river flood forecast is currently in effect.",
   "指定河川洪水予報を取得できませんでした": "Could not load designated river flood forecasts.",
   "指定河川洪水予報を取得中...": "Loading designated river flood forecasts...",
   "予報区域外": "Outside forecast area",
   "最寄りの指定河川": "Nearest designated river",
+  "観測所の水位実況・予測": "Observed and forecast river levels",
+  "流域雨量": "Basin rainfall",
+  "期間別の可能性": "Potential by period",
+  "早期注意情報は発表されていません": "No early warning information is currently in effect.",
+  "現在地に発表中の早期注意情報はありません。": "No early warning information is currently in effect for your location.",
+  "現在地直下の危険度を確認しています。": "Checking the risk level at your location.",
+  "詳細な発表本文は気象庁の原文で確認してください。": "Check the original JMA bulletin for the full detailed text.",
   "取得中…": "Loading…",
   "取得失敗": "Failed",
   "取得待ち": "Waiting",
@@ -1338,6 +1349,8 @@ const DYNAMIC_UI_TRANSLATIONS = new Map(Object.entries({
   "現在地・指定河川洪水予報": "Current location · Designated river flood forecast",
   "現在地周辺の指定河川情報はありません。": "No designated river flood information is available near your current location.",
   "予報区域を特定しています。": "Identifying forecast area.",
+  "現在地を確認しています": "Checking current location",
+  "現在地を取得できませんでした。": "Could not get your current location.",
   "要約から詳しい情報へ": "From summary to details",
   "利用条件を確認しています…": "Checking usage requirements…",
   "雨雲、観測、警報、台風、地震を下部の表示切替から確認できます。": "Use the bottom navigation to view radar, observations, warnings, typhoons, and earthquakes.",
@@ -1906,6 +1919,17 @@ function translateCore(core) {
     ?? ADMIN_TRANSLATIONS.get(core);
   if (exact) return exact;
 
+  // Translate JMA office names as a unit so the generic place-name pass cannot
+  // leave mixed labels such as "Nara Region気象台".
+  const localMeteorologicalOfficeMatch = core.match(/^(.+?)地方気象台$/u);
+  if (localMeteorologicalOfficeMatch) {
+    return `${translateMeteorologicalOfficeLocation(localMeteorologicalOfficeMatch[1])} Local Meteorological Office`;
+  }
+  const meteorologicalObservatoryMatch = core.match(/^(.+?)気象台$/u);
+  if (meteorologicalObservatoryMatch) {
+    return `${translateMeteorologicalOfficeLocation(meteorologicalObservatoryMatch[1])} Meteorological Observatory`;
+  }
+
   const tideCriterionMatch = core.match(
     /^(レベル4危険警報基準|レベル5特別警報基準|過去最高潮位)(?:\s+(.+))?$/u
   );
@@ -2356,6 +2380,17 @@ function translateOfficialPlaceNames(value) {
     }
   }
   return output;
+}
+
+function translateMeteorologicalOfficeLocation(value) {
+  const translated = translateOfficialPlaceNames(value);
+  if (!/[\u3400-\u9fff]/u.test(translated)) return translated;
+
+  for (const suffix of ["県", "府", "都", "道"]) {
+    const prefectureName = PREFECTURE_TRANSLATIONS.get(`${value}${suffix}`);
+    if (prefectureName) return prefectureName;
+  }
+  return translated;
 }
 
 function translatePlaceExpression(value) {

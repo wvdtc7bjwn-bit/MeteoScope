@@ -1261,6 +1261,11 @@ html[data-language="en"] .warning-area-row > strong {
   letter-spacing: 0.02em;
 }
 
+.weekly-weather-region-control label > span,
+.weekly-weather-region-control label small {
+  white-space: nowrap;
+}
+
 .weekly-weather-region-control label small {
   color: #7288a3;
   font-size: 9px;
@@ -1588,6 +1593,7 @@ html[data-language="en"] .warning-area-row > strong {
   color: #8296ae;
   font-size: 10px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .weekly-weather-day.is-first .weekly-weather-temperature-empty {
@@ -1611,6 +1617,10 @@ html[data-language="en"] .warning-area-row > strong {
 .weekly-weather-precipitation b {
   color: #dcecff;
   font-size: 11px;
+}
+
+.weekly-weather-precipitation span {
+  white-space: nowrap;
 }
 
 .weekly-weather-day.is-first .weekly-weather-precipitation {
@@ -1944,11 +1954,16 @@ html[data-theme="light"] .weekly-weather-issued strong {
   }
 
   .weekly-weather-region-control {
-    grid-template-columns: 66px minmax(0, 1fr);
+    grid-template-columns: 108px minmax(0, 1fr);
+    gap: 7px;
   }
 
   .weekly-weather-region-control label {
-    font-size: 11px;
+    font-size: 10px;
+  }
+
+  .weekly-weather-region-control label small {
+    font-size: 8px;
   }
 
   .weekly-weather-summary {
@@ -1963,9 +1978,14 @@ html[data-theme="light"] .weekly-weather-issued strong {
   .weekly-weather-day.is-first {
     grid-template:
       "heading icon label temperature precipitation" minmax(64px, auto)
-      / 66px 54px minmax(72px, 1fr) 60px 44px;
-    gap: 5px;
+      / 64px 52px minmax(68px, 1fr) 54px 38px;
+    gap: 4px;
     padding-inline: 8px;
+  }
+
+  .weekly-weather-today {
+    padding-inline: 5px;
+    font-size: 7.5px;
   }
 
   .weekly-weather-icon {

@@ -223,6 +223,22 @@ assert.match(
 );
 assert.match(
   leftPanelSource,
+  /function localizeWarningDataText\(value, fallback = ""\)[\s\S]*?containsJapaneseWarningText\(localized\)[\s\S]*?localizeWarningDisplayText\(fallback\)/
+);
+assert.match(
+  leftPanelSource,
+  /function getRiverForecastDisplayName\(report = \{\}\)[\s\S]*?Designated river forecast[\s\S]*?localizeWarningDataText/
+);
+assert.match(
+  leftPanelSource,
+  /function buildRiverBulletinTextMarkup\(report = \{\}\)[\s\S]*?Check the original JMA bulletin[\s\S]*?気象庁発表原文を確認/
+);
+assert.match(
+  leftPanelSource,
+  /buildRiverFloodListMarkup[\s\S]*?getRiverForecastDisplayName\(report\)[\s\S]*?localizeWarningDisplayText\(report\.levelLabel\)/
+);
+assert.match(
+  leftPanelSource,
   /if \(groups\.length === 0\) \{[\s\S]*?発表中の警報・注意報はありません[\s\S]*?renderWarningGroupsProgressively\(root, groups/
 );
 assert.doesNotMatch(

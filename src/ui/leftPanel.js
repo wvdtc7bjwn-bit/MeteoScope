@@ -1356,23 +1356,25 @@ function buildDescription(tab, state) {
     return `アメダス観測地点の${metric.label}を表示しています。${count > 0 ? `\n表示地点: ${count}地点` : ""}`;
   }
   if (tab.id === "warnings") {
-    if (state.status === "loading") return "市区町村ごとの警報・注意報を取得中です。";
-    if (state.status === "error") return "警報・注意報データを取得できませんでした。";
+    if (state.status === "loading") return localizeText("市区町村ごとの警報・注意報を取得中です。");
+    if (state.status === "error") return localizeText("警報・注意報データを取得できませんでした。");
     if (state.data?.activeWarningView === "kikikuru") {
-      if (state.data?.kikikuru?.deferred) return "キキクルのタイルを取得中です。";
-      if (state.data?.kikikuru?.unavailable) return "キキクルのタイルを取得できませんでした。";
+      if (state.data?.kikikuru?.deferred) return localizeText("キキクルのタイルを取得中です。");
+      if (state.data?.kikikuru?.unavailable) return localizeText("キキクルのタイルを取得できませんでした。");
       const layerLabel = KIKIKURU_LAYER_OPTIONS.find((element) => element.id === state.data?.activeKikikuruLayer)?.label ?? "キキクル";
-      return `${layerLabel}を地図上に重ねて表示しています。`;
+      return getCurrentLanguage() === "en"
+        ? `Showing ${localizeWarningDisplayText(layerLabel)} on the map.`
+        : `${layerLabel}を地図上に重ねて表示しています。`;
     }
-if (state.data?.activeWarningView === "early") {
-      return "早期注意情報（警報級の可能性）を発表区域ごとに表示しています。";
+    if (state.data?.activeWarningView === "early") {
+      return localizeText("早期注意情報（警報級の可能性）を発表区域ごとに表示しています。");
     }
     if (state.data?.activeWarningView === "river") {
-      if (state.data?.riverFlood?.status === "loading") return "指定河川洪水予報を取得中です。";
-      if (state.data?.riverFlood?.status === "error") return "指定河川洪水予報を取得できませんでした。";
-      return "発表中の指定河川洪水予報を河川区間ごとに表示しています。";
+      if (state.data?.riverFlood?.status === "loading") return localizeText("指定河川洪水予報を取得中です。");
+      if (state.data?.riverFlood?.status === "error") return localizeText("指定河川洪水予報を取得できませんでした。");
+      return localizeText("発表中の指定河川洪水予報を河川区間ごとに表示しています。");
     }
-    return "都道府県ごとに、市区町村の注意報・警報・危険警報・特別警報を表示しています。";
+    return localizeText("都道府県ごとに、市区町村の注意報・警報・危険警報・特別警報を表示しています。");
   }
   if (tab.id === "typhoon") {
     if (state.data?.worldForecastMode) {
@@ -1578,7 +1580,7 @@ function renderLegend(tabId, amedasMetricId, warningView = "status", data = null
     : ""}${items
     .map(([label, className, color]) => {
       const swatchStyle = color ? ` style="background:${escapeHtml(color)}"` : "";
-      return `<div class="legend-item"><span class="legend-swatch ${className}"${swatchStyle}></span>${escapeHtml(label)}</div>`;
+      return `<div class="legend-item"><span class="legend-swatch ${className}"${swatchStyle}></span>${escapeHtml(localizeText(label))}</div>`;
     })
     .join("")}`;
 
@@ -3114,13 +3116,14 @@ function buildRiverFloodMobileContextMarkup(riverFlood = {}, currentLocation = {
   const report = selectRiverFloodSummaryReport(riverFlood, currentLocation);
   const loading = riverFlood?.status === "loading" || !riverFlood?.status;
   const failed = riverFlood?.status === "error";
-  const label = loading ? "取得中" : (failed ? "取得失敗" : (report?.levelLabel ?? "発表なし"));
+  const label = localizeWarningDisplayText(loading ? "取得中" : (failed ? "取得失敗" : (report?.levelLabel ?? "発表なし")));
+  const forecastAreaName = getRiverForecastDisplayName(report);
   return `
     <div class="mobile-dock-content mobile-dock-warning mobile-dock-river">
       <div class="mobile-dock-warning-head">${buildWarningMobileActionRow("river")}</div>
       <div class="mobile-dock-warning-main">
         <div class="mobile-dock-warning-text">
-          <strong>${escapeHtml(report?.forecastAreaName ?? "指定河川洪水予報")}</strong>
+          <strong>${escapeHtml(forecastAreaName)}</strong>
         </div>
         <span class="river-flood-level river-flood-level-${escapeHtml(report?.level ?? 0)}">${escapeHtml(label)}</span>
       </div>
@@ -3217,6 +3220,22 @@ function localizeWarningDisplayText(value) {
     .split(/(\s+|・)/u)
     .map((part) => /[\u3040-\u30ff\u3400-\u9fff]/u.test(part) ? localizeText(part, language) : part)
     .join("");
+}
+
+function containsJapaneseWarningText(value) {
+  return /[\u3040-\u30ff\u3400-\u9fff]/u.test(String(value ?? ""));
+}
+
+function localizeWarningDataText(value, fallback = "") {
+  const localized = localizeWarningDisplayText(value);
+  if (getCurrentLanguage() !== "en" || !containsJapaneseWarningText(localized)) return localized;
+  return localizeWarningDisplayText(fallback);
+}
+
+function getRiverForecastDisplayName(report = {}) {
+  const code = String(report?.forecastAreaCode ?? "").trim();
+  const fallback = code ? `Designated river forecast (${code})` : "Designated river flood forecast";
+  return localizeWarningDataText(report?.forecastAreaName ?? "指定河川洪水予報", fallback);
 }
 
 function getPrimaryMobileWarning(warnings = []) {
@@ -3645,7 +3664,7 @@ function syncWeatherTimelineActiveTick(timeline, activeIndex) {
 function renderCurrentLocationCard(tab, info, context = {}) {
   const root = document.getElementById("current-location-card");
   if (!root) return;
-  const contextLabel = getCurrentLocationCardLabel(context.warningView, context.activeKikikuruLayer);
+  const contextLabel = localizeWarningDisplayText(getCurrentLocationCardLabel(context.warningView, context.activeKikikuruLayer));
 
   if (tab.id !== "warnings" || !info || info.status === "idle") {
     root.hidden = true;
@@ -3659,7 +3678,7 @@ function renderCurrentLocationCard(tab, info, context = {}) {
   if (info.status === "loading") {
     root.innerHTML = `
       <span>${escapeHtml(contextLabel)}</span>
-      <strong>${escapeHtml(info.message ?? "現在地を取得中です...")}</strong>
+      <strong>${escapeHtml(localizeWarningDataText(info.message ?? "現在地を取得中です...", "Loading current location..."))}</strong>
     `;
     return;
   }
@@ -3667,7 +3686,7 @@ function renderCurrentLocationCard(tab, info, context = {}) {
   if (info.status === "error") {
     root.innerHTML = `
       <span>${escapeHtml(contextLabel)}</span>
-      <strong>${escapeHtml(info.message ?? "現在地を取得できませんでした。")}</strong>
+      <strong>${escapeHtml(localizeWarningDataText(info.message ?? "現在地を取得できませんでした。", "Could not get your current location."))}</strong>
     `;
     return;
   }
@@ -3677,8 +3696,9 @@ function renderCurrentLocationCard(tab, info, context = {}) {
     ? `<div class="current-location-warnings">${card.badges.join("")}</div>`
     : "";
   const detailButton = card.detailAreaCode && card.badges.length > 0
-    ? `<button type="button" data-current-location-area-code="${escapeHtml(card.detailAreaCode)}">詳細</button>`
+    ? `<button type="button" data-current-location-area-code="${escapeHtml(card.detailAreaCode)}">${escapeHtml(localizeText("詳細"))}</button>`
     : "";
+  const currentPlace = localizeWarningDataText([info.prefecture, info.areaName].filter(Boolean).join(" ") || "現在地", "Current location");
 
   root.innerHTML = `
     <div class="current-location-head">
@@ -3686,8 +3706,8 @@ function renderCurrentLocationCard(tab, info, context = {}) {
       ${detailButton}
     </div>
     <div class="current-location-place-row">
-      <strong>${escapeHtml([info.prefecture, info.areaName].filter(Boolean).join(" ")) || "現在地"}</strong>
-      ${card.updatedAt ? `<small>更新時刻: ${escapeHtml(formatWarningTime(card.updatedAt))}</small>` : ""}
+      <strong>${escapeHtml(currentPlace)}</strong>
+      ${card.updatedAt ? `<small>${escapeHtml(localizeText("更新時刻"))}: ${escapeHtml(formatWarningTime(card.updatedAt))}</small>` : ""}
     </div>
     ${card.badgesFirst ? badgesMarkup : ""}
     <p>${escapeHtml(card.message)}</p>
@@ -3744,14 +3764,20 @@ function getCurrentLocationCardLabel(warningView = "status", activeKikikuruLayer
 function buildCurrentLocationCardContent(info, { warningView = "status", activeKikikuruLayer = "land", data = {} } = {}) {
   if (warningView === "early") {
     const warnings = info.earlyWarnings ?? [];
+    const areaName = localizeWarningDataText(
+      info.earlyWarningArea?.displayAreaName || info.earlyWarningArea?.areaName || info.areaName,
+      "Current forecast area"
+    );
     return {
-      label: "現在地・早期注意情報",
-      message: warnings.length
-        ? `${info.earlyWarningArea?.displayAreaName || info.earlyWarningArea?.areaName || info.areaName}に早期注意情報があります。`
-        : "現在地に発表中の早期注意情報はありません。",
+      label: localizeWarningDisplayText("現在地・早期注意情報"),
+      message: getCurrentLanguage() === "en"
+        ? (warnings.length ? `Early warning information is in effect for ${areaName}.` : localizeText("現在地に発表中の早期注意情報はありません。"))
+        : (warnings.length
+          ? `${info.earlyWarningArea?.displayAreaName || info.earlyWarningArea?.areaName || info.areaName}に早期注意情報があります。`
+          : "現在地に発表中の早期注意情報はありません。"),
       updatedAt: info.earlyUpdatedAt,
       detailAreaCode: info.areaCode,
-      badges: warnings.map((warning) => `<span class="warning-badge early-warning-badge early-warning-badge-${escapeHtml(warning.level)}">${escapeHtml(warning.label)}</span>`)
+      badges: warnings.map((warning) => `<span class="warning-badge early-warning-badge early-warning-badge-${escapeHtml(warning.level)}">${escapeHtml(localizeWarningDisplayText(warning.label))}</span>`)
     };
   }
 
@@ -3760,14 +3786,20 @@ function buildCurrentLocationCardContent(info, { warningView = "status", activeK
     const layerLabel = KIKIKURU_LAYER_OPTIONS.find((item) => item.id === activeKikikuruLayer)?.label ?? "キキクル";
     const isLoading = status.status === "loading";
     const isReady = status.status === "ready";
-    const statusLabel = isLoading ? "取得中" : (isReady ? status.label : "取得できません");
+    const statusLabel = localizeWarningDisplayText(isLoading ? "取得中" : (isReady ? status.label : "取得できません"));
+    const localizedLayerLabel = localizeWarningDisplayText(layerLabel);
+    const localizedRiskLabel = localizeWarningDisplayText(status.label);
     const rank = Number(status.rank ?? 0);
     const textClass = rank === 0 ? " is-neutral" : (rank <= 2 ? " is-dark-text" : "");
     return {
-      label: `現在地・${layerLabel}`,
-      message: isLoading
-        ? "現在地直下の危険度を確認しています。"
-        : (isReady ? `現在地直下の${layerLabel}は「${status.label}」です。` : `現在地直下の${layerLabel}を確認できませんでした。`),
+      label: getCurrentLanguage() === "en" ? `Current location · ${localizedLayerLabel}` : `現在地・${layerLabel}`,
+      message: getCurrentLanguage() === "en"
+        ? (isLoading
+          ? localizeText("現在地直下の危険度を確認しています。")
+          : (isReady ? `${localizedLayerLabel} at your location: ${localizedRiskLabel}.` : `${localizedLayerLabel} is unavailable at your location.`))
+        : (isLoading
+          ? "現在地直下の危険度を確認しています。"
+          : (isReady ? `現在地直下の${layerLabel}は「${status.label}」です。` : `現在地直下の${layerLabel}を確認できませんでした。`)),
       updatedAt: status.latestTime,
       detailAreaCode: "",
       badgesFirst: true,
@@ -3778,17 +3810,22 @@ function buildCurrentLocationCardContent(info, { warningView = "status", activeK
   if (warningView === "river") {
     const report = selectRiverFloodSummaryReport(data?.riverFlood, info);
     const outsideArea = report?.levelLabel === "予報区域外";
+    const forecastAreaName = getRiverForecastDisplayName(report);
     return {
-      label: "現在地・指定河川洪水予報",
-      message: report
-        ? (outsideArea ? `予報区域外です。最も近い河川は${report.forecastAreaName}です。` : `${report.forecastAreaName}の予報区域に含まれています。`)
-        : "現在地周辺の指定河川情報はありません。",
+      label: localizeWarningDisplayText("現在地・指定河川洪水予報"),
+      message: getCurrentLanguage() === "en"
+        ? (report
+          ? (outsideArea ? `Outside the forecast area. The nearest designated river is ${forecastAreaName}.` : `Your location is within the ${forecastAreaName} area.`)
+          : localizeText("現在地周辺の指定河川情報はありません。"))
+        : (report
+          ? (outsideArea ? `予報区域外です。最も近い河川は${report.forecastAreaName}です。` : `${report.forecastAreaName}の予報区域に含まれています。`)
+          : "現在地周辺の指定河川情報はありません。"),
       updatedAt: outsideArea ? "" : report?.updatedAt,
       detailAreaCode: "",
       badgesFirst: true,
       badges: report ? [
-        `<span class="river-flood-current-name">${escapeHtml(report.forecastAreaName)}</span>`,
-        `<span class="river-flood-level river-flood-level-${escapeHtml(report.level ?? 0)}">${escapeHtml(report.levelLabel ?? "発表なし")}</span>`
+        `<span class="river-flood-current-name">${escapeHtml(forecastAreaName)}</span>`,
+        `<span class="river-flood-level river-flood-level-${escapeHtml(report.level ?? 0)}">${escapeHtml(localizeWarningDisplayText(report.levelLabel ?? "発表なし"))}</span>`
       ] : []
     };
   }
@@ -3934,14 +3971,14 @@ function renderWarningDetails(tab, state, warningView = "status") {
   lastWarningDetailsAreaCode = selectedWarningAreaCode;
 
   if (state.status === "loading") {
-    root.innerHTML = `<div class="warning-empty">取得中...</div>`;
+    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("取得中..."))}</div>`;
     activeWarningAreasByCode = new Map();
     activeWarningDetailsLoaded = false;
     return;
   }
 
   if (state.status === "error") {
-    root.innerHTML = `<div class="warning-empty">取得失敗</div>`;
+    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("取得失敗"))}</div>`;
     activeWarningAreasByCode = new Map();
     activeWarningDetailsLoaded = false;
     return;
@@ -3994,15 +4031,15 @@ function renderRiverFloodDetails(root, riverFlood = {}) {
   activeRiverFloodReportsById = new Map(reports.map((report) => [String(report.id), report]));
   activeWarningAreasByCode = new Map();
   if (!riverFlood?.status || riverFlood.status === "loading") {
-    root.innerHTML = `<div class="warning-empty">指定河川洪水予報を取得中...</div>`;
+    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("指定河川洪水予報を取得中..."))}</div>`;
     return;
   }
   if (riverFlood.status === "error") {
-    root.innerHTML = `<div class="warning-empty">指定河川洪水予報を取得できませんでした</div>`;
+    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("指定河川洪水予報を取得できませんでした"))}</div>`;
     return;
   }
   if (!reports.length) {
-    root.innerHTML = `<div class="warning-empty">現在、指定河川洪水予報は発表されていません</div>`;
+    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("現在、指定河川洪水予報は発表されていません"))}</div>`;
     return;
   }
   root.innerHTML = buildRiverFloodListMarkup(reports);
@@ -4020,11 +4057,11 @@ function buildRiverFloodListMarkup(reports = []) {
   return `<div class="river-flood-list">${reports.map((report) => `
     <button type="button" class="river-flood-row" data-river-flood-id="${escapeHtml(report.id)}">
       <span class="river-flood-row-main">
-        <strong>${escapeHtml(report.forecastAreaName)}</strong>
-        <small>更新時刻: ${escapeHtml(formatWarningTime(report.updatedAt))}</small>
+        <strong>${escapeHtml(getRiverForecastDisplayName(report))}</strong>
+        <small>${escapeHtml(localizeText("更新時刻"))}: ${escapeHtml(formatWarningTime(report.updatedAt))}</small>
       </span>
       <span class="river-flood-row-status">
-        <span class="river-flood-level river-flood-level-${escapeHtml(report.level)}">${escapeHtml(report.levelLabel)}</span>
+        <span class="river-flood-level river-flood-level-${escapeHtml(report.level)}">${escapeHtml(localizeWarningDisplayText(report.levelLabel))}</span>
       </span>
     </button>`).join("")}</div>`;
 }
@@ -4034,14 +4071,14 @@ function renderEarlyWarningDetails(root, state, renderGeneration) {
   const municipalityAreas = state.data?.earlyWarnings?.municipalityAreas ?? [];
 
   if (!state.data?.detailsLoaded) {
-    root.innerHTML = `<div class="warning-empty">取得中...</div>`;
+    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("取得中..."))}</div>`;
     activeWarningAreasByCode = new Map();
     activeWarningDetailsLoaded = false;
     return;
   }
 
   if (groups.length === 0) {
-    root.innerHTML = `<div class="warning-empty">早期注意情報は発表されていません</div>`;
+    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("早期注意情報は発表されていません"))}</div>`;
     activeWarningAreasByCode = new Map();
     refreshOpenWarningModal();
     return;
@@ -4067,6 +4104,33 @@ function renderEarlyWarningDetails(root, state, renderGeneration) {
     `);
 }
 
+function buildRiverBulletinTextMarkup(report = {}) {
+  const sourceValues = [report.condition, report.headline, ...(report.warningTexts ?? [])]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+  if (getCurrentLanguage() !== "en") {
+    return sourceValues.map((value, index) => `<p class="${index === 0 ? "river-flood-condition" : "river-flood-message"}">${escapeHtml(value)}</p>`).join("");
+  }
+
+  const localizedValues = sourceValues
+    .map((value) => localizeWarningDataText(value, ""))
+    .filter(Boolean);
+  const omitted = localizedValues.length < sourceValues.length;
+  const statusFallback = Number(report.level ?? 0) > 0
+    ? `Level ${report.level} designated river flood forecast is in effect.`
+    : "No designated river flood forecast is currently in effect.";
+  const statusMarkup = localizedValues.length
+    ? localizedValues.map((value, index) => `<p class="${index === 0 ? "river-flood-condition" : "river-flood-message"}">${escapeHtml(value)}</p>`).join("")
+    : `<p class="river-flood-condition">${escapeHtml(statusFallback)}</p>`;
+  const sourceLink = omitted && report.url
+    ? `<p class="river-flood-message"><a href="${escapeHtml(report.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(localizeText("気象庁発表原文を確認"))}</a></p>`
+    : "";
+  const omittedNote = omitted
+    ? `<p class="river-flood-message">${escapeHtml(localizeText("詳細な発表本文は気象庁の原文で確認してください。"))}</p>`
+    : "";
+  return `${statusMarkup}${omittedNote}${sourceLink}`;
+}
+
 function openRiverFloodModal(reportId, fallback = {}) {
   const report = activeRiverFloodReportsById.get(String(reportId)) ?? {
     forecastAreaCode: fallback.forecastAreaCode ?? "",
@@ -4082,18 +4146,17 @@ function openRiverFloodModal(reportId, fallback = {}) {
   const modal = document.getElementById("warning-modal");
   const content = document.getElementById("warning-modal-content");
   if (!modal || !content) return;
+  const forecastAreaName = getRiverForecastDisplayName(report);
   content.innerHTML = `
     <header class="warning-modal-head river-flood-modal-head">
-      <span>指定河川洪水予報</span>
-      <h2 id="warning-modal-title">${escapeHtml(report.forecastAreaName)}</h2>
-      ${report.updatedAt ? `<p>更新時刻: ${escapeHtml(formatWarningTime(report.updatedAt))}</p>` : ""}
+      <span>${escapeHtml(localizeText("指定河川洪水予報"))}</span>
+      <h2 id="warning-modal-title">${escapeHtml(forecastAreaName)}</h2>
+      ${report.updatedAt ? `<p>${escapeHtml(localizeText("更新時刻"))}: ${escapeHtml(formatWarningTime(report.updatedAt))}</p>` : ""}
     </header>
     <section class="warning-modal-section">
-      <h3>発表状況</h3>
-      <span class="river-flood-level river-flood-level-${escapeHtml(report.level)}">${escapeHtml(report.levelLabel)}</span>
-      ${report.condition ? `<p class="river-flood-condition">${escapeHtml(report.condition)}</p>` : ""}
-      ${report.headline ? `<p class="river-flood-headline">${escapeHtml(report.headline)}</p>` : ""}
-      ${(report.warningTexts ?? []).map((value) => `<p class="river-flood-message">${escapeHtml(value)}</p>`).join("")}
+      <h3>${escapeHtml(localizeText("発表状況"))}</h3>
+      <span class="river-flood-level river-flood-level-${escapeHtml(report.level)}">${escapeHtml(localizeWarningDisplayText(report.levelLabel))}</span>
+      ${buildRiverBulletinTextMarkup(report)}
     </section>
     ${buildRiverStationSection(report.stations)}
     ${buildRiverRainfallSection(report.rainfall)}
@@ -4105,37 +4168,40 @@ function openRiverFloodModal(reportId, fallback = {}) {
 
 function buildRiverStationSection(stations = []) {
   if (!stations.length) return "";
-  return `<section class="warning-modal-section"><h3>観測所の水位実況・予測</h3><div class="river-station-list">${stations.map((station) => {
+  return `<section class="warning-modal-section"><h3>${escapeHtml(localizeText("観測所の水位実況・予測"))}</h3><div class="river-station-list">${stations.map((station, index) => {
     const latest = station.values?.[0];
     const peak = [...(station.values ?? [])].filter((value) => Number.isFinite(value.value)).sort((left, right) => right.value - left.value)[0];
-    return `<article class="river-station-card"><div><strong>${escapeHtml(station.name)}</strong><span>${escapeHtml(station.location)}</span></div><dl><div><dt>現在</dt><dd>${escapeHtml(formatRiverWaterLevel(latest))}</dd></div><div><dt>予測最大</dt><dd>${escapeHtml(formatRiverWaterLevel(peak))}</dd></div></dl></article>`;
+    const stationName = localizeWarningDataText(station.name, `Observation station ${index + 1}`);
+    const stationLocation = localizeWarningDataText(station.location, "");
+    return `<article class="river-station-card"><div><strong>${escapeHtml(stationName)}</strong>${stationLocation ? `<span>${escapeHtml(stationLocation)}</span>` : ""}</div><dl><div><dt>${escapeHtml(localizeText("現在"))}</dt><dd>${escapeHtml(formatRiverWaterLevel(latest))}</dd></div><div><dt>${escapeHtml(localizeText("予測最大"))}</dt><dd>${escapeHtml(formatRiverWaterLevel(peak))}</dd></div></dl></article>`;
   }).join("")}</div></section>`;
 }
 
 function buildRiverRainfallSection(items = []) {
   if (!items.length) return "";
-  return `<section class="warning-modal-section"><h3>流域雨量</h3><div class="river-rainfall-list">${items.map((item) => {
+  return `<section class="warning-modal-section"><h3>${escapeHtml(localizeText("流域雨量"))}</h3><div class="river-rainfall-list">${items.map((item, index) => {
     const latest = item.values?.at(-1);
-    return `<div><strong>${escapeHtml(item.areaName)}</strong><span>${escapeHtml(formatRiverRainfall(latest))}</span></div>`;
+    return `<div><strong>${escapeHtml(localizeWarningDataText(item.areaName, `River basin ${index + 1}`))}</strong><span>${escapeHtml(formatRiverRainfall(latest))}</span></div>`;
   }).join("")}</div></section>`;
 }
 
 function formatRiverRainfall(value) {
   if (!value) return "-";
-  if (!Number.isFinite(value.value)) return value.condition || "欠測";
+  if (!Number.isFinite(value.value)) return localizeWarningDataText(value.condition || "欠測", "Missing");
   return `${value.value}${value.unit || "mm"}`;
 }
 
 function buildRiverAffectedAreaSection(areas = []) {
   if (!areas.length) return "";
-  const cities = [...new Set(areas.map((area) => [area.prefecture, area.city].filter(Boolean).join(" ")).filter(Boolean))];
-  return `<section class="warning-modal-section"><h3>氾濫により浸水が想定される地区</h3><div class="river-affected-cities">${cities.map((city) => `<span>${escapeHtml(city)}</span>`).join("")}</div></section>`;
+  const cities = [...new Set(areas.map((area) => [area.prefecture, area.city].filter(Boolean).join(" ")).filter(Boolean))]
+    .map((city, index) => localizeWarningDataText(city, `Affected area ${index + 1}`));
+  return `<section class="warning-modal-section"><h3>${escapeHtml(localizeText("氾濫により浸水が想定される地区"))}</h3><div class="river-affected-cities">${cities.map((city) => `<span>${escapeHtml(city)}</span>`).join("")}</div></section>`;
 }
 
 function formatRiverWaterLevel(value) {
   if (!value) return "-";
-  if (!Number.isFinite(value.value)) return value.condition || "欠測";
-  const level = Number.isFinite(value.level) ? ` / レベル${value.level}` : "";
+  if (!Number.isFinite(value.value)) return localizeWarningDataText(value.condition || "欠測", "Missing");
+  const level = Number.isFinite(value.level) ? ` / ${localizeText(`レベル${value.level}`)}` : "";
   return `${value.value}${value.unit || "m"}${level}`;
 }
 function openWarningModal(areaCode) {
@@ -4184,10 +4250,10 @@ function openEarlyWarningModal(area, modal, content) {
     <header class="warning-modal-head">
       <span>${escapeHtml(localizeWarningDisplayText(area.prefecture ?? ""))}</span>
       <h2 id="warning-modal-title">${escapeHtml(localizeWarningDisplayText(area.displayAreaName ?? area.areaName))}</h2>
-      <p>更新時刻: ${escapeHtml(formatWarningTime(area.updatedAt))}</p>
+      <p>${escapeHtml(localizeText("更新時刻"))}: ${escapeHtml(formatWarningTime(area.updatedAt))}</p>
     </header>
     <section class="warning-modal-section">
-      <h3>早期注意情報（警報級の可能性）</h3>
+      <h3>${escapeHtml(localizeText("早期注意情報（警報級の可能性）"))}</h3>
       <div class="warning-modal-warning-list">
         <article class="warning-modal-warning">
           <div class="warning-badges">
@@ -4199,7 +4265,7 @@ function openEarlyWarningModal(area, modal, content) {
       </div>
     </section>
     <section class="warning-modal-section">
-      <h3>期間別の可能性</h3>
+      <h3>${escapeHtml(localizeText("期間別の可能性"))}</h3>
       ${buildWarningOutlookTable(area.rows ?? [])}
     </section>
   `;
@@ -4209,7 +4275,7 @@ function openEarlyWarningModal(area, modal, content) {
 
 function buildWarningOutlookTable(rows, options = {}) {
   if (!Array.isArray(rows) || rows.length === 0) {
-    return `<p class="warning-modal-empty">${options.loading ? "今後の見通しを取得中です。" : "今後の見通しはありません。"}</p>`;
+    return `<p class="warning-modal-empty">${escapeHtml(localizeText(options.loading ? "今後の見通しを取得中です。" : "今後の見通しはありません。"))}</p>`;
   }
 
   const times = collectOutlookTableSlots(rows);
@@ -4218,7 +4284,7 @@ function buildWarningOutlookTable(rows, options = {}) {
       <table class="warning-outlook-table">
         <thead>
           <tr>
-            <th>種別</th>
+            <th>${escapeHtml(localizeText("種別"))}</th>
             ${times.map((slot) => `<th>${escapeHtml(formatOutlookTime(slot))}</th>`).join("")}
           </tr>
         </thead>
@@ -4227,7 +4293,7 @@ function buildWarningOutlookTable(rows, options = {}) {
             <tr>
               <th>${escapeHtml(localizeText(formatOutlookTypeLabel(row.type)))}${row.localName ? `<span>${escapeHtml(localizeText(row.localName))}</span>` : ""}</th>
               ${times.map((timeSlot) => findMatchingOutlookSlot(row.slots, timeSlot)).map((slot) => `
-                <td class="warning-outlook-level-${escapeHtml(slot.level ?? 0)}">${escapeHtml(formatOutlookCellLabel(slot))}</td>
+                <td class="warning-outlook-level-${escapeHtml(slot.level ?? 0)}">${escapeHtml(localizeWarningDisplayText(formatOutlookCellLabel(slot)))}</td>
               `).join("")}
             </tr>
           `).join("")}

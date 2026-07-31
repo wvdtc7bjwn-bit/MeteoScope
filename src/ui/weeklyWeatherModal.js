@@ -142,9 +142,11 @@ async function loadWeeklyWeather() {
     } else {
       const region = regionByKey.get(selectedValue);
       if (!region) throw new Error("選択した予報区域を確認できません。");
+      const language = getCurrentLanguage();
+      const localizedAreaName = localizeText(region.areaName, language);
       renderState(
         body,
-        `${region.areaName}の週間天気予報を取得中`,
+        language === "en" ? `Loading weekly forecast for ${localizedAreaName}` : `${region.areaName}の週間天気予報を取得中`,
         "気象庁の最新予報を読み込んでいます。",
         true
       );
@@ -180,12 +182,12 @@ function renderForecast(body, forecast) {
         <h3>${escapeHtml(localizeText(forecast.areaName, language))}</h3>
       </div>
       <p class="weekly-weather-issued">
-        <small>最新発表</small>
+        <small>${escapeHtml(localizeText("最新発表", language))}</small>
         <strong>${escapeHtml(forecast.reportTimeLabel)}</strong>
         <span>${escapeHtml(localizeText(forecast.publishingOffice, language))}</span>
       </p>
     </div>
-    <div class="weekly-weather-days" role="list" aria-label="週間天気予報">
+    <div class="weekly-weather-days" role="list" aria-label="${escapeHtml(localizeText("週間天気予報", language))}">
       ${days.map((day, index) => renderDay(day, index, language)).join("")}
     </div>
     <footer class="weekly-weather-source">
@@ -200,15 +202,21 @@ function renderDay(day, index, language = getCurrentLanguage()) {
   const sourceWeatherLabel = day.weather || getJmaWeeklyWeatherLabel(day.weatherCode) || "天気未取得";
   const weatherLabel = localizeText(sourceWeatherLabel, language);
   const dateLabel = formatWeeklyWeatherDateLabel(day.date, language);
+  const temperatureUnavailableLabel = localizeText("気温未発表", language);
+  const temperatureUnavailableText = language === "en" ? "N/A" : temperatureUnavailableLabel;
+  const highLabel = localizeText("最高", language);
+  const lowLabel = localizeText("最低", language);
+  const precipitationLabel = localizeText("降水確率", language);
+  const precipitationText = language === "en" ? "Rain" : precipitationLabel;
   const temperature = day.maxTemperature === null && day.minTemperature === null
-    ? `<span class="weekly-weather-temperature-empty">気温未発表</span>`
+    ? `<span class="weekly-weather-temperature-empty" aria-label="${escapeHtml(temperatureUnavailableLabel)}">${escapeHtml(temperatureUnavailableText)}</span>`
     : `
       <span class="weekly-weather-temperature-item is-high">
-        <small>最高</small>
+        <small>${escapeHtml(highLabel)}</small>
         <b class="weekly-weather-high">${formatTemperature(day.maxTemperature)}</b>
       </span>
       <span class="weekly-weather-temperature-item is-low">
-        <small>最低</small>
+        <small>${escapeHtml(lowLabel)}</small>
         <b class="weekly-weather-low">${formatTemperature(day.minTemperature)}</b>
       </span>
     `;
@@ -232,7 +240,7 @@ function renderDay(day, index, language = getCurrentLanguage()) {
       </div>
       <strong class="weekly-weather-label">${escapeHtml(weatherLabel)}</strong>
       <div class="weekly-weather-temperature">${temperature}</div>
-      <p class="weekly-weather-precipitation"><span>降水確率</span><b>${escapeHtml(precipitation)}</b></p>
+      <p class="weekly-weather-precipitation"><span aria-label="${escapeHtml(precipitationLabel)}">${escapeHtml(precipitationText)}</span><b>${escapeHtml(precipitation)}</b></p>
     </article>
   `;
 }
@@ -275,12 +283,13 @@ function formatJapanDateKey(value) {
 }
 
 function renderState(body, title, message, loading = false, retry = false) {
+  const language = getCurrentLanguage();
   body.innerHTML = `
     <div class="weekly-weather-state${loading ? " is-loading" : ""}">
       <span class="weekly-weather-state-icon" aria-hidden="true"></span>
-      <strong>${escapeHtml(title)}</strong>
-      <p>${escapeHtml(message)}</p>
-      ${retry ? `<button type="button" data-weekly-weather-retry>再読み込み</button>` : ""}
+      <strong>${escapeHtml(localizeText(title, language))}</strong>
+      <p>${escapeHtml(localizeText(message, language))}</p>
+      ${retry ? `<button type="button" data-weekly-weather-retry>${escapeHtml(localizeText("再読み込み", language))}</button>` : ""}
     </div>
   `;
 }
