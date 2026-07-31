@@ -1,5 +1,5 @@
 import { getEarthquakeIntensityRank } from "./earthquakeIntensity.js";
-import { localizeText } from "./ui/locale.js";
+import { getCurrentLanguage, localizeText } from "./ui/locale.js";
 
 export const SOCIAL_SHARE_FORMATS = Object.freeze({
   portrait: Object.freeze({ width: 1080, height: 1350, label: "縦長" }),
@@ -48,12 +48,20 @@ export function renderSocialShareCard(canvas, payload, options = {}) {
   const theme = THEMES[options.theme] ?? THEMES.dark;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Canvasを初期化できません");
+  const language = options.language ?? getCurrentLanguage();
 
   canvas.width = format.width;
   canvas.height = format.height;
   const originalFillText = context.fillText;
+  const originalMeasureText = context.measureText;
+  const hadShareLanguage = Object.hasOwn(context, "__meteoscopeShareLanguage");
+  const originalShareLanguage = context.__meteoscopeShareLanguage;
+  context.__meteoscopeShareLanguage = language;
   context.fillText = function localizedFillText(text, ...args) {
-    return originalFillText.call(this, localizeText(text), ...args);
+    return originalFillText.call(this, localizeText(text, language), ...args);
+  };
+  context.measureText = function localizedMeasureText(text) {
+    return originalMeasureText.call(this, localizeText(text, language));
   };
   try {
     context.clearRect(0, 0, format.width, format.height);
@@ -63,21 +71,24 @@ export function renderSocialShareCard(canvas, payload, options = {}) {
     drawBrand(context, format, theme, options.appIcon);
 
     if (type === "earthquake") {
-      drawEarthquakeCard(context, format, theme, payload, options.japanGeoJson);
+      drawEarthquakeCard(context, format, theme, payload, options.japanGeoJson, language);
     } else if (type === "typhoon") {
       drawTyphoonCard(context, format, theme, payload, {
         japanGeoJson: options.japanGeoJson,
         worldLandGeoJson: options.worldLandGeoJson,
         worldCountriesGeoJson: options.worldCountriesGeoJson
-      });
+      }, language);
     } else if (type === "warning") {
-      drawWarningCard(context, format, theme, payload ?? {}, options.warningMunicipalities);
+      drawWarningCard(context, format, theme, payload ?? {}, options.warningMunicipalities, language);
     } else {
-      drawAmedasCard(context, format, theme, payload ?? {});
+      drawAmedasCard(context, format, theme, payload ?? {}, language);
     }
     drawFooter(context, format, theme);
   } finally {
     context.fillText = originalFillText;
+    context.measureText = originalMeasureText;
+    if (hadShareLanguage) context.__meteoscopeShareLanguage = originalShareLanguage;
+    else delete context.__meteoscopeShareLanguage;
   }
 }
 
@@ -159,11 +170,17 @@ function drawBrand(context, format, theme, appIcon) {
   context.textAlign = "right";
   context.fillStyle = theme.muted;
   context.font = `600 24px ${FONT_FAMILY}`;
-  context.fillText("気象・防災情報", format.width - padding, 72);
+  drawFittedText(
+    context,
+    "気象・防災情報",
+    format.width - padding,
+    72,
+    Math.max(170, format.width - padding * 2 - 340)
+  );
   context.textAlign = "left";
 }
 
-function drawAmedasCard(context, format, theme, payload) {
+function drawAmedasCard(context, format, theme, payload, language) {
   const landscape = format.height < 800;
   const padding = Math.round(format.width * 0.065);
   const top = landscape ? 115 : 135;
@@ -172,11 +189,23 @@ function drawAmedasCard(context, format, theme, payload) {
 
   context.fillStyle = theme.text;
   context.font = `800 ${landscape ? 34 : 42}px ${FONT_FAMILY}`;
-  context.fillText(`${payload.metricLabel ?? "アメダス"}ランキング`, padding + 32, top + 52);
+  drawFittedText(
+    context,
+    `${payload.metricLabel ?? "アメダス"}ランキング`,
+    padding + 32,
+    top + 52,
+    format.width - padding * 2 - 64
+  );
   context.fillStyle = theme.muted;
   context.font = `600 ${landscape ? 17 : 21}px ${FONT_FAMILY}`;
-  const meta = `${payload.orderLabel ?? ""}  ${payload.totalLocations ?? 0}地点  更新 ${payload.updatedAt ?? "--:--"}`.trim();
-  context.fillText(meta, padding + 32, top + (landscape ? 82 : 88));
+  const meta = formatAmedasShareMeta(payload, language);
+  drawFittedText(
+    context,
+    meta,
+    padding + 32,
+    top + (landscape ? 82 : 88),
+    format.width - padding * 2 - 64
+  );
 
   const items = Array.isArray(payload.items) ? payload.items.slice(0, 100) : [];
   const columns = landscape ? 5 : 4;
@@ -241,7 +270,14 @@ const WARNING_SHARE_LEVELS = Object.freeze({
   none: Object.freeze({ label: "発表なし", color: "#75889d", text: "#ffffff", rank: 0 })
 });
 
-function drawWarningCard(context, format, theme, payload, municipalities = []) {
+function drawWarningCard(
+  context,
+  format,
+  theme,
+  payload,
+  municipalities = [],
+  language = getCurrentLanguage()
+) {
   const landscape = format.height < 800;
   const padding = Math.round(format.width * 0.065);
   const top = landscape ? 130 : 150;
@@ -259,11 +295,23 @@ function drawWarningCard(context, format, theme, payload, municipalities = []) {
   context.fillRect(panelX + inset, top + 32, 5, landscape ? 26 : 32);
   context.fillStyle = theme.text;
   context.font = `800 ${landscape ? 22 : 28}px ${FONT_FAMILY}`;
-  context.fillText("現在地付近の警報・注意報", panelX + inset + 18, top + (landscape ? 55 : 59));
+  drawFittedText(
+    context,
+    "現在地付近の警報・注意報",
+    panelX + inset + 18,
+    top + (landscape ? 55 : 59),
+    panelWidth * 0.62
+  );
   context.textAlign = "right";
   context.fillStyle = theme.muted;
   context.font = `600 ${landscape ? 16 : 19}px ${FONT_FAMILY}`;
-  context.fillText(formatWarningShareTime(payload.updatedAt), panelX + panelWidth - inset, top + 56);
+  drawFittedText(
+    context,
+    formatWarningShareTime(payload.updatedAt),
+    panelX + panelWidth - inset,
+    top + 56,
+    panelWidth * 0.32
+  );
   context.textAlign = "left";
 
   const headerBottom = top + (landscape ? 76 : 84);
@@ -326,7 +374,13 @@ function drawWarningCard(context, format, theme, payload, municipalities = []) {
 
   context.fillStyle = theme.muted;
   context.font = `700 ${landscape ? 15 : 18}px ${FONT_FAMILY}`;
-  context.fillText(`${warnings.length}件発表中`, contentX, titleRuleY + (landscape ? 27 : 34));
+  context.fillText(
+    language === "en"
+      ? `${warnings.length} active ${warnings.length === 1 ? "item" : "items"}`
+      : `${warnings.length}件発表中`,
+    contentX,
+    titleRuleY + (landscape ? 27 : 34)
+  );
 
   const listTop = titleRuleY + (landscape ? 42 : 52);
   const listBottom = top + panelHeight - (landscape ? 24 : 34);
@@ -377,7 +431,9 @@ function drawWarningCard(context, format, theme, payload, municipalities = []) {
     context.font = `700 ${landscape ? 14 : 18}px ${FONT_FAMILY}`;
     context.textAlign = "right";
     context.fillText(
-      `ほか ${warnings.length - visibleWarnings.length}件`,
+      language === "en"
+        ? `+${warnings.length - visibleWarnings.length} more`
+        : `ほか ${warnings.length - visibleWarnings.length}件`,
       contentX + contentWidth,
       listBottom
     );
@@ -541,7 +597,14 @@ function formatWarningShareTime(value) {
   return match ? `更新 ${match[1]} ${match[2]}` : `更新 ${text}`;
 }
 
-function drawEarthquakeCard(context, format, theme, payload, japanGeoJson) {
+function drawEarthquakeCard(
+  context,
+  format,
+  theme,
+  payload,
+  japanGeoJson,
+  language = getCurrentLanguage()
+) {
   const landscape = format.height < 800;
   const padding = Math.round(format.width * 0.065);
   const top = landscape ? 130 : 150;
@@ -555,11 +618,23 @@ function drawEarthquakeCard(context, format, theme, payload, japanGeoJson) {
   context.fillRect(panelX + inset, top + 34, 5, landscape ? 28 : 34);
   context.fillStyle = theme.text;
   context.font = `800 ${landscape ? 22 : 28}px ${FONT_FAMILY}`;
-  context.fillText("地震情報", panelX + inset + 18, top + (landscape ? 57 : 62));
+  drawFittedText(
+    context,
+    "地震情報",
+    panelX + inset + 18,
+    top + (landscape ? 57 : 62),
+    panelWidth * 0.45
+  );
   context.textAlign = "right";
   context.fillStyle = theme.muted;
   context.font = `600 ${landscape ? 18 : 22}px ${FONT_FAMILY}`;
-  context.fillText(payload.eventTime ?? "--", format.width - padding - 42, top + 58);
+  drawFittedText(
+    context,
+    payload.eventTime ?? "--",
+    format.width - padding - 42,
+    top + 58,
+    panelWidth * 0.45
+  );
   context.textAlign = "left";
 
   const headerBottom = top + (landscape ? 78 : 88);
@@ -594,10 +669,19 @@ function drawEarthquakeCard(context, format, theme, payload, japanGeoJson) {
   context.fillStyle = getReadableTextColor(payload.intensityColor || theme.accent);
   context.textAlign = "center";
   context.font = `700 ${landscape ? 14 : 18}px ${FONT_FAMILY}`;
-  context.fillText("最大震度", intensityX + intensitySize / 2, intensityY + (landscape ? 27 : 34));
+  context.fillText(
+    "最大震度",
+    intensityX + intensitySize / 2,
+    intensityY + (landscape ? 27 : 34),
+    intensitySize - 16
+  );
   context.font = `900 ${landscape ? 50 : 70}px ${FONT_FAMILY}`;
   context.textBaseline = "middle";
-  context.fillText(payload.intensity ?? "--", intensityX + intensitySize / 2, intensityY + intensitySize * 0.64);
+  context.fillText(
+    language === "en" ? formatShareIntensity(payload.intensity) : (payload.intensity ?? "--"),
+    intensityX + intensitySize / 2,
+    intensityY + intensitySize * 0.64
+  );
 
   const contentX = intensityX + intensitySize + (landscape ? 22 : 34);
   const contentWidth = panelX + panelWidth - inset - contentX;
@@ -605,7 +689,7 @@ function drawEarthquakeCard(context, format, theme, payload, japanGeoJson) {
   context.textBaseline = "alphabetic";
   context.fillStyle = theme.muted;
   context.font = `700 ${landscape ? 14 : 18}px ${FONT_FAMILY}`;
-  context.fillText("震央", contentX, intensityY + (landscape ? 23 : 30));
+  context.fillText("震央", contentX, intensityY + (landscape ? 23 : 30), contentWidth);
   context.fillStyle = theme.text;
   context.font = `800 ${landscape ? 27 : 38}px ${FONT_FAMILY}`;
   drawFittedText(context, payload.hypocenter ?? "調査中", contentX, intensityY + (landscape ? 59 : 78), contentWidth);
@@ -638,7 +722,12 @@ function drawEarthquakeCard(context, format, theme, payload, japanGeoJson) {
     }
     context.fillStyle = theme.muted;
     context.font = `600 ${landscape ? 13 : 16}px ${FONT_FAMILY}`;
-    context.fillText(label, x + (landscape ? 0 : 16), y + (landscape ? 22 : 30));
+    context.fillText(
+      label,
+      x + (landscape ? 0 : 16),
+      y + (landscape ? 22 : 30),
+      Math.max(20, metricWidth - (landscape ? 82 : 32))
+    );
     context.fillStyle = theme.text;
     context.font = `800 ${landscape ? 20 : 25}px ${FONT_FAMILY}`;
     if (landscape) {
@@ -665,7 +754,8 @@ function drawEarthquakeCard(context, format, theme, payload, japanGeoJson) {
       mapWidth,
       Math.max(0, summaryBottom - summaryY),
       theme,
-      payload.observations
+      payload.observations,
+      language
     );
   }
 }
@@ -732,7 +822,7 @@ function drawEarthquakeMap(context, box, theme, geoJson, coordinates, observatio
   context.font = `700 ${Math.max(13, box.width * 0.024)}px ${FONT_FAMILY}`;
   context.textAlign = "left";
   context.textBaseline = "top";
-  context.fillText("各地の震度", box.x + 14, box.y + 12);
+  context.fillText("各地の震度", box.x + 14, box.y + 12, box.width - 28);
 
   sortEarthquakeObservationsForMap(observations).forEach((observation) => {
     if (!isCoordinate(observation?.coordinates)) return;
@@ -805,7 +895,16 @@ function calculateEarthquakeMapBounds(observationPoints, epicenter, box) {
   return { minLon, maxLon, minLat, maxLat };
 }
 
-function drawEarthquakeObservationSummary(context, x, y, width, height, theme, observations = []) {
+function drawEarthquakeObservationSummary(
+  context,
+  x,
+  y,
+  width,
+  height,
+  theme,
+  observations = [],
+  language = getCurrentLanguage()
+) {
   if (height < 28 || !observations.length) return;
   const groups = new Map();
   observations.forEach((observation) => {
@@ -822,19 +921,26 @@ function drawEarthquakeObservationSummary(context, x, y, width, height, theme, o
   const rowHeight = Math.min(27, height / (rows.length + 1));
   context.fillStyle = theme.muted;
   context.font = `700 ${Math.max(14, rowHeight * 0.62)}px ${FONT_FAMILY}`;
-  context.fillText("各地の震度", x, y + rowHeight * 0.7);
+  context.fillText("各地の震度", x, y + rowHeight * 0.7, width);
   rows.forEach(([intensity, names], index) => {
     const rowY = y + rowHeight * (index + 1.7);
     const shownNames = names.slice(0, 4);
     const remainder = names.length - shownNames.length;
-    const label = `震度${String(intensity).replace(/^震度/u, "")}  ${shownNames.join("・")}${remainder > 0 ? ` ほか${remainder}地点` : ""}`;
+    const label = formatEarthquakeObservationShareLabel(intensity, shownNames, remainder, language);
     context.fillStyle = theme.text;
     context.font = `600 ${Math.max(13, rowHeight * 0.57)}px ${FONT_FAMILY}`;
     drawFittedText(context, label, x, rowY, width);
   });
 }
 
-function drawTyphoonCard(context, format, theme, payload, mapData) {
+function drawTyphoonCard(
+  context,
+  format,
+  theme,
+  payload,
+  mapData,
+  language = getCurrentLanguage()
+) {
   const landscape = format.height < 800;
   const padding = Math.round(format.width * 0.065);
   const top = landscape ? 130 : 150;
@@ -848,7 +954,13 @@ function drawTyphoonCard(context, format, theme, payload, mapData) {
   context.fillRect(panelX + inset, top + 30, 5, landscape ? 27 : 32);
   context.fillStyle = theme.text;
   context.font = `800 ${landscape ? 21 : 27}px ${FONT_FAMILY}`;
-  context.fillText("台風情報", panelX + inset + 18, top + (landscape ? 52 : 57));
+  drawFittedText(
+    context,
+    "台風情報",
+    panelX + inset + 18,
+    top + (landscape ? 52 : 57),
+    panelWidth * 0.45
+  );
   context.textAlign = "right";
   context.fillStyle = theme.muted;
   context.font = `600 ${landscape ? 16 : 20}px ${FONT_FAMILY}`;
@@ -893,7 +1005,12 @@ function drawTyphoonCard(context, format, theme, payload, mapData) {
   const classifications = [payload.size, payload.strength]
     .map((value) => String(value ?? "").trim())
     .filter((value) => value && value !== "-");
-  const subline = status || classifications.join("・") || "解析情報";
+  const subline = status
+    ? localizeText(status, language)
+    : (
+      classifications.map((value) => localizeText(value, language)).join(" · ")
+      || localizeText("解析情報", language)
+    );
   drawTyphoonHeadline(
     context,
     contentX,
@@ -918,7 +1035,7 @@ function drawTyphoonCard(context, format, theme, payload, mapData) {
 function drawTyphoonHeadline(context, x, y, width, name, status, theme, landscape) {
   context.fillStyle = theme.accent;
   context.font = `800 ${landscape ? 13 : 16}px ${FONT_FAMILY}`;
-  context.fillText("気象庁発表", x, y + (landscape ? 16 : 18));
+  context.fillText("気象庁発表", x, y + (landscape ? 16 : 18), width);
 
   context.fillStyle = theme.text;
   context.font = `800 ${landscape ? 30 : 39}px ${FONT_FAMILY}`;
@@ -962,7 +1079,12 @@ function drawTyphoonMetricGrid(context, x, y, width, metrics, theme, landscape) 
     const boxY = y + row * rowHeight;
     context.fillStyle = theme.muted;
     context.font = `700 ${landscape ? 12 : 15}px ${FONT_FAMILY}`;
-    context.fillText(label, boxX + 15, boxY + (landscape ? 22 : 30));
+    context.fillText(
+      label,
+      boxX + 15,
+      boxY + (landscape ? 22 : 30),
+      columnWidth - 30
+    );
     context.fillStyle = theme.text;
     context.font = `800 ${landscape ? 18 : 23}px ${FONT_FAMILY}`;
     drawFittedText(
@@ -1405,6 +1527,33 @@ export function sortEarthquakeObservationsForMap(observations = []) {
   ));
 }
 
+export function formatAmedasShareMeta(payload = {}, language = getCurrentLanguage()) {
+  const count = Number(payload.totalLocations ?? 0);
+  const order = localizeText(payload.orderLabel ?? "", language).trim();
+  const stations = language === "en"
+    ? `${count} ${count === 1 ? "station" : "stations"}`
+    : `${count}地点`;
+  const updated = language === "en"
+    ? `Updated ${payload.updatedAt ?? "--:--"}`
+    : `更新 ${payload.updatedAt ?? "--:--"}`;
+  return [order, stations, updated].filter(Boolean).join(" · ");
+}
+
+export function formatEarthquakeObservationShareLabel(
+  intensity,
+  names = [],
+  remainder = 0,
+  language = getCurrentLanguage()
+) {
+  const normalizedIntensity = String(intensity ?? "--").replace(/^震度/u, "");
+  const localizedNames = names.map((name) => localizeText(name, language));
+  if (language === "en") {
+    const suffix = remainder > 0 ? ` +${remainder} more` : "";
+    return `Intensity ${formatShareIntensity(normalizedIntensity)} · ${localizedNames.join(", ")}${suffix}`;
+  }
+  return `震度${normalizedIntensity}  ${names.join("・")}${remainder > 0 ? ` ほか${remainder}地点` : ""}`;
+}
+
 function getSocialShareIntensityRank(value) {
   const normalized = String(value ?? "")
     .trim()
@@ -1412,6 +1561,10 @@ function getSocialShareIntensityRank(value) {
     .replace("弱", "-")
     .replace("強", "+");
   return getEarthquakeIntensityRank(normalized);
+}
+
+function formatShareIntensity(value) {
+  return String(value ?? "--").replace("弱", "-").replace("強", "+");
 }
 
 function isCoordinate(value) {
@@ -1440,9 +1593,14 @@ function drawFooter(context, format, theme) {
   const padding = Math.round(format.width * 0.065);
   context.fillStyle = theme.muted;
   context.font = `600 ${format.height < 800 ? 18 : 22}px ${FONT_FAMILY}`;
-  context.fillText("出典：気象庁", padding, format.height - 48);
+  context.fillText("出典：気象庁", padding, format.height - 48, format.width * 0.44);
   context.textAlign = "right";
-  context.fillText("meteoscope.pages.dev", format.width - padding, format.height - 48);
+  context.fillText(
+    "meteoscope.pages.dev",
+    format.width - padding,
+    format.height - 48,
+    format.width * 0.44
+  );
   context.textAlign = "left";
 }
 
@@ -1453,7 +1611,10 @@ function roundedRect(context, x, y, width, height, radius) {
 }
 
 function drawFittedText(context, value, x, y, maxWidth) {
-  const text = String(value ?? "");
+  const text = localizeText(
+    String(value ?? ""),
+    context.__meteoscopeShareLanguage ?? getCurrentLanguage()
+  );
   if (context.measureText(text).width <= maxWidth) {
     context.fillText(text, x, y);
     return;

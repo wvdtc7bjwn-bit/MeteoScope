@@ -1380,9 +1380,20 @@ if (state.data?.activeWarningView === "early") {
         .map((layer) => layer.modelInfo?.shortLabel)
         .filter(Boolean);
       const modelLabel = enabledLabels.join("・") || "各国予想";
-      if (["idle", "loading"].includes(state.data?.worldForecastStatus)) return `${modelLabel}の予想を取得中です。`;
-      if (state.data?.worldForecastStatus === "error") return `${modelLabel}の予想を取得できませんでした。`;
-      return `${modelLabel}の進路分布と、台風に発達する可能性がある熱帯擾乱候補です。気象庁の公式な台風進路予報ではありません。`;
+      const isEnglish = getCurrentLanguage() === "en";
+      if (["idle", "loading"].includes(state.data?.worldForecastStatus)) {
+        return isEnglish
+          ? `Loading ${modelLabel} forecasts.`
+          : `${modelLabel}の予想を取得中です。`;
+      }
+      if (state.data?.worldForecastStatus === "error") {
+        return isEnglish
+          ? `${modelLabel} forecasts could not be loaded.`
+          : `${modelLabel}の予想を取得できませんでした。`;
+      }
+      return isEnglish
+        ? `${modelLabel} track distributions and tropical-disturbance candidates that may develop into typhoons. This is not an official JMA typhoon track forecast.`
+        : `${modelLabel}の進路分布と、台風に発達する可能性がある熱帯擾乱候補です。気象庁の公式な台風進路予報ではありません。`;
     }
     if (state.status === "loading") return "台風データを取得中です。";
     if (state.status === "error") return "台風データを取得できませんでした。";
@@ -2779,7 +2790,7 @@ function buildMobileEarthquakeSummaryCarousel({
               data-mobile-dock-control
               data-mobile-earthquake-summary-dot="${page}"
               data-mobile-earthquake-summary-target="${page}"
-              aria-label="${isEnglish ? `Show ${label}` : `${label}へ切り替え`}"
+              aria-label="${isEnglish ? `Show ${localizeText(label, "en")}` : `${label}へ切り替え`}"
             ></button>
           `).join("")}
         </div>

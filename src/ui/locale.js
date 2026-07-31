@@ -1,3 +1,5 @@
+import { TIDE_STATION_NAME_TRANSLATIONS } from "./tideStationNamesEn.js";
+
 const LANGUAGE_STORAGE_KEY = "meteoscope-language";
 const LANGUAGE_VALUES = new Set(["ja", "en"]);
 const TRANSLATABLE_ATTRIBUTES = ["aria-label", "title", "placeholder", "alt"];
@@ -349,7 +351,7 @@ const EXACT_TRANSLATIONS = new Map(Object.entries({
   "境界": "Boundaries",
   "等深線": "Depth contours",
   "プレート境界": "Plate boundaries",
-  "プレート等深線": "Plate depth contours",
+  "プレート等深線": "Depth contours",
   "表示期間": "Display period",
   "最大5か月": "Up to 5 months",
   "最大30日": "Up to 30 days",
@@ -395,6 +397,22 @@ const EXACT_TRANSLATIONS = new Map(Object.entries({
   "潮位観測": "Tide observations",
   "観測点を選択": "Select a station",
   "地図上の潮位観測点をタップしてください": "Tap a tide observation station on the map.",
+  "気象庁 潮位観測": "JMA tide observations",
+  "実測潮位": "Observed tide",
+  "天文潮位": "Predicted tide",
+  "実測": "Observed",
+  "天文": "Predicted",
+  "レベル4基準": "Level 4 threshold",
+  "レベル5基準": "Level 5 threshold",
+  "レベル4危険警報基準": "Level 4 danger-warning threshold",
+  "レベル5特別警報基準": "Level 5 emergency-warning threshold",
+  "潮位偏差": "Tide anomaly",
+  "実測潮位 − 天文潮位": "Observed tide − predicted tide",
+  "港湾局": "Port authority",
+  "気象庁の潮位観測情報を開く": "Open JMA tide observations",
+  "プラスは実測潮位が天文潮位より高く、マイナスは低いことを示します。": "Positive values are above the predicted tide; negative values are below it.",
+  "観測値は速報値です。機器や通信の状態により異常値を含む場合があります。": "Observations are preliminary and may include anomalies caused by equipment or communication conditions.",
+  "新潟西港": "Niigata West Port",
   "さらに読み込む": "Load more",
   "津波の心配なし": "No tsunami threat",
   "津波の心配はありません": "No tsunami threat",
@@ -404,6 +422,8 @@ const EXACT_TRANSLATIONS = new Map(Object.entries({
   "ごく浅い": "Very shallow",
   "未入電": "Data pending",
   "気温ランキング": "Temperature ranking",
+  "かつらぎ": "Katsuragi",
+  "熊本県熊本地方": "Kumamoto Region",
   "上位 100地点": "Top 100 stations",
   "今日ここまで": "Today so far",
   "高い順": "Highest first",
@@ -437,7 +457,7 @@ const EXACT_TRANSLATIONS = new Map(Object.entries({
   "現在地": "Current location",
   "現在地へ移動。長押しで現在地マーカーを非表示": "Move to current location. Press and hold to hide the location marker",
   "現在地へ移動。長押しで現在地マーカーを表示": "Move to current location. Press and hold to show the location marker",
-  "現在地の発表状況": "Warnings near current location",
+  "現在地の発表状況": "Local warnings",
   "発表なし": "No warnings",
   "現在地・警報注意報": "Current location · Warnings and advisories",
   "位置情報の利用が許可されていません。": "Location access is not allowed.",
@@ -1243,6 +1263,7 @@ const DYNAMIC_UI_TRANSLATIONS = new Map(Object.entries({
   "中・西部": "Central and Western Area",
   "東部・富士五湖": "Eastern Area and Fuji Five Lakes",
   "宗谷地方": "Soya Region",
+  "天売焼尻": "Teuri and Yagishiri",
   "十勝地方": "Tokachi Region",
   "胆振地方": "Iburi Region",
   "空知地方": "Sorachi Region",
@@ -1874,11 +1895,22 @@ function applyLocale() {
 
 function translateCore(core) {
   const exact = VOLCANO_NAME_TRANSLATIONS.get(core)
+    ?? TIDE_STATION_NAME_TRANSLATIONS.get(core)
     ?? EXACT_TRANSLATIONS.get(core)
     ?? STATIC_UI_TRANSLATIONS.get(core)
     ?? DYNAMIC_UI_TRANSLATIONS.get(core)
     ?? ADMIN_TRANSLATIONS.get(core);
   if (exact) return exact;
+
+  const tideCriterionMatch = core.match(
+    /^(レベル4危険警報基準|レベル5特別警報基準|過去最高潮位)(?:\s+(.+))?$/u
+  );
+  if (tideCriterionMatch) {
+    const label = EXACT_TRANSLATIONS.get(tideCriterionMatch[1])
+      ?? STATIC_UI_TRANSLATIONS.get(tideCriterionMatch[1])
+      ?? DYNAMIC_UI_TRANSLATIONS.get(tideCriterionMatch[1]);
+    return [label, tideCriterionMatch[2]].filter(Boolean).join(" ");
+  }
 
   const volcanicAlertLevelMatch = core.match(/^噴火警戒レベル\s*([1-5])(?:\s*[（(](.+)[）)])?$/u);
   if (volcanicAlertLevelMatch) {
@@ -1912,6 +1944,19 @@ function translateCore(core) {
   const tideGraphMatch = core.match(/^(.+)の潮位グラフ$/u);
   if (tideGraphMatch) return `${translateCore(tideGraphMatch[1])} tide-level chart`;
 
+  const areaWarningsMatch = core.match(/^(.+)の警報・注意報$/u);
+  if (areaWarningsMatch) {
+    return `${translateCore(areaWarningsMatch[1])} warnings and advisories`;
+  }
+
+  const tideDeviationValueMatch = core.match(/^偏差\s+(.+)$/u);
+  if (tideDeviationValueMatch) return `Anomaly ${tideDeviationValueMatch[1]}`;
+
+  const tideAgencyTimeMatch = core.match(/^(.+?)\s*\/\s*(\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2})$/u);
+  if (tideAgencyTimeMatch) {
+    return `${translateCore(tideAgencyTimeMatch[1])} / ${tideAgencyTimeMatch[2]}`;
+  }
+
   const nextTyphoonMatch = core.match(/^次の台風\s+(.+)\s+に切り替え$/u);
   if (nextTyphoonMatch) return `Show next typhoon: ${translateOfficialPlaceNames(nextTyphoonMatch[1])}`;
 
@@ -1926,6 +1971,9 @@ function translateCore(core) {
 
   const rankingPeriodMatch = core.match(/^(.+)ランキング集計期間$/u);
   if (rankingPeriodMatch) return `${translateCore(rankingPeriodMatch[1])} ranking period`;
+
+  const rankingTitleMatch = core.match(/^(.+)ランキング$/u);
+  if (rankingTitleMatch) return `${translateCore(rankingTitleMatch[1])} ranking`;
 
   const globalModelsMatch = core.match(/^各国予想・(\d+)モデル・発達候補(\d+)件$/u);
   if (globalModelsMatch) {

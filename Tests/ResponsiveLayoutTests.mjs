@@ -127,6 +127,10 @@ assert.match(
   styles,
   /\.mobile-dock-earthquake-summary-page\s*\{[\s\S]*?padding-inline:\s*24px;/
 );
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-text strong\s*\{[\s\S]*?line-height:\s*1\.24;/
+);
 assert.doesNotMatch(
   styles,
   /\.mobile-dock-earthquake-distribution\s*\{[^}]*transform:\s*translateY/
@@ -457,7 +461,7 @@ assert.match(
 );
 assert.match(
   styles,
-  /\.mobile-dock-amedas-head\s*>\s*strong\s*\{[\s\S]*?min-width:\s*max-content;[\s\S]*?white-space:\s*nowrap;/
+  /\.mobile-dock-amedas-head\s*>\s*\.mobile-dock-kicker\s*\{[\s\S]*?min-width:\s*max-content;[\s\S]*?white-space:\s*nowrap;/
 );
 assert.match(
   styles,

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { localizeText, localizeVolcanoText } from "../src/ui/locale.js";
+import { TIDE_STATION_NAME_TRANSLATIONS } from "../src/ui/tideStationNamesEn.js";
 
 const cases = new Map([
   ["最大震度", "Max."],
@@ -15,6 +16,7 @@ const cases = new Map([
   ["瀬戸内側", "Seto Inland Sea side"],
   ["気温", "Temperature"],
   ["積雪量", "Snow depth"],
+  ["プレート等深線", "Depth contours"],
   ["晴時々曇", "Sunny, occasionally cloudy"],
   ["曇時々晴", "Cloudy, occasionally sunny"],
   ["晴れ時々くもり", "Sunny, occasionally cloudy"],
@@ -29,8 +31,31 @@ const cases = new Map([
   ["観測点を選択してください", "Select an observation station"],
   ["現在地と凡例を活用する", "Use your location and the map legend"],
   ["現在地の様子を投稿", "Report local conditions"],
+  ["現在地の発表状況", "Local warnings"],
   ["表示する日付", "Display date"],
   ["東京都の潮位と警報基準", "Tokyo tide levels and warning thresholds"],
+  ["気象庁 潮位観測", "JMA tide observations"],
+  ["新潟西港", "Niigata West Port"],
+  ["港湾局 / 7/31 09:29", "Port authority / 7/31 09:29"],
+  ["現在地付近の警報・注意報", "Near current location warnings and advisories"],
+  ["偏差 +15cm", "Anomaly +15cm"],
+  ["実測潮位", "Observed tide"],
+  ["天文潮位", "Predicted tide"],
+  ["実測", "Observed"],
+  ["天文", "Predicted"],
+  ["レベル4基準", "Level 4 threshold"],
+  ["レベル5基準", "Level 5 threshold"],
+  ["レベル4危険警報基準", "Level 4 danger-warning threshold"],
+  ["レベル5特別警報基準", "Level 5 emergency-warning threshold"],
+  ["レベル5特別警報基準 190cm", "Level 5 emergency-warning threshold 190cm"],
+  ["レベル4危険警報基準 140cm", "Level 4 danger-warning threshold 140cm"],
+  ["過去最高潮位 192cm", "Historical maximum tide level 192cm"],
+  ["潮位偏差", "Tide anomaly"],
+  ["実測潮位 − 天文潮位", "Observed tide − predicted tide"],
+  [
+    "観測値は速報値です。機器や通信の状態により異常値を含む場合があります。",
+    "Observations are preliminary and may include anomalies caused by equipment or communication conditions."
+  ],
   ["収録90日間の日別総地震回数", "Daily earthquake count for 90 recorded days"],
   ["各国予想・6モデル・発達候補30件", "Global forecasts · 6 models · 30 development candidates"],
   ["伊豆諸島北部", "Northern Izu Islands"],
@@ -41,6 +66,7 @@ const cases = new Map([
   ["沿岸南部", "Southern Coast"],
   ["中・西部", "Central and Western Area"],
   ["宗谷地方", "Soya Region"],
+  ["天売焼尻", "Teuri and Yagishiri"],
   ["飛騨地方", "Hida Region"],
   ["隠岐", "Oki Islands"],
   ["中予", "Chuyo"],
@@ -69,6 +95,12 @@ const cases = new Map([
   ["海徳海山", "Kaitoku Seamount"],
   ["火口内", "Inside the crater"]
 ]);
+
+assert.equal(TIDE_STATION_NAME_TRANSLATIONS.size, 166);
+for (const [japanese, english] of TIDE_STATION_NAME_TRANSLATIONS) {
+  assert.equal(localizeText(japanese, "en"), english, `tide station: ${japanese}`);
+  assert.doesNotMatch(english, /[\u3040-\u30ff\u3400-\u9fff]/u, `tide station English: ${japanese}`);
+}
 
 for (const [japanese, expected] of cases) {
   assert.equal(localizeText(japanese, "en"), expected, japanese);
@@ -116,6 +148,8 @@ assert.equal(
   localizeText("\u9e7f\u5150\u5cf6\u770c\u85a9\u6469\u5730\u65b9", "en"),
   "Satsuma Region, Kagoshima Prefecture"
 );
+assert.equal(localizeText("かつらぎ", "en"), "Katsuragi");
+assert.equal(localizeText("熊本県熊本地方", "en"), "Kumamoto Region");
 assert.equal(
   localizeText("\u718a\u672c\u770c", "en"),
   "Kumamoto Prefecture"

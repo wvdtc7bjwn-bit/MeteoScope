@@ -8384,7 +8384,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     min-width: 0;
     overflow: hidden;
     color: #f5fbff;
-    font-size: 16px;
+    font-size: 14px;
     font-weight: 950;
     line-height: 1.18;
     text-overflow: ellipsis;
@@ -8619,7 +8619,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     color: #f5fbff;
     font-size: 17px;
     font-weight: 900;
-    line-height: 1.18;
+    line-height: 1.24;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -9344,7 +9344,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     min-width: 0;
   }
 
-  .mobile-dock-amedas-head > strong {
+  .mobile-dock-amedas-head > .mobile-dock-kicker {
     min-width: max-content;
     overflow-wrap: normal;
     word-break: keep-all;

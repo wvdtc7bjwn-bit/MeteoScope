@@ -282,6 +282,11 @@ assert.match(panelSource, /<table class="typhoon-world-candidate-list">/);
 assert.match(panelSource, /Development candidates/);
 assert.match(panelSource, /Forecast range/);
 assert.match(panelSource, /Development probability/);
+assert.match(
+  panelSource,
+  /track distributions and tropical-disturbance candidates that may develop into typhoons/
+);
+assert.match(panelSource, /Loading \$\{modelLabel\} forecasts/);
 assert.match(appSource, /function localizeTyphoonForDisplay/);
 assert.doesNotMatch(panelSource, /<aside class="typhoon-world-attribution">/);
 assert.match(mapSource, /typhoon-world-ensemble/);
