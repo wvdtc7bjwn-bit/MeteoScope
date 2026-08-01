@@ -159,6 +159,7 @@
         <button id="settings-button" class="disaster-map-open-button map-settings-open-button" type="button" aria-label="設定を開く" title="設定" aria-haspopup="dialog" aria-controls="settings-modal" aria-expanded="false"></button>
       </div>
       <button id="locate-button" class="map-locate-button" type="button" aria-label="現在地へ移動。長押しで現在地マーカーを非表示" title="現在地へ移動。長押しで現在地マーカーを非表示" aria-keyshortcuts="Shift+Enter"></button>
+      <button id="world-typhoon-target-button" class="map-world-typhoon-target-button" type="button" aria-label="各国予想の対象を選択" title="対象選択" aria-haspopup="dialog" aria-controls="world-typhoon-target-modal" aria-expanded="false" hidden></button>
       <button id="community-report-map-open" class="map-community-report-button" type="button" data-community-report-open aria-label="現在地の様子を投稿" title="現在地の様子を投稿" aria-haspopup="dialog" aria-controls="community-report-modal" hidden></button>
       <div id="radar-overlay-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs radar-overlay-tabs" hidden></div>
       <div id="kikikuru-layer-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs" hidden></div>
@@ -513,6 +514,20 @@
             <p>現在地を取得して、対応する府県週間天気予報を読み込みます。</p>
           </div>
         </div>
+      </section>
+    </div>
+
+    <div id="world-typhoon-target-modal" class="warning-modal world-typhoon-target-modal" hidden>
+      <div class="warning-modal-backdrop" data-world-typhoon-target-close></div>
+      <section class="warning-modal-panel world-typhoon-target-panel" role="dialog" aria-modal="true" aria-labelledby="world-typhoon-target-title">
+        <header class="settings-modal-header">
+          <div>
+            <span class="settings-modal-kicker">各国予想</span>
+            <h2 id="world-typhoon-target-title">対象選択</h2>
+          </div>
+          <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-world-typhoon-target-close>×</button>
+        </header>
+        <div id="world-typhoon-target-body" class="world-typhoon-target-body" aria-live="polite"></div>
       </section>
     </div>
 

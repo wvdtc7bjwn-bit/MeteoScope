@@ -221,6 +221,8 @@ const [
   panelSource,
   mapSource,
   styleSource,
+  targetModalSource,
+  indexSource,
   worldSource,
   configSource,
   workflowSource,
@@ -231,6 +233,8 @@ const [
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
+  readFile(new URL("../src/ui/worldTyphoonTargetModal.js", import.meta.url), "utf8"),
+  readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/worldTyphoon.js", import.meta.url), "utf8"),
   readFile(new URL("../src/config.js", import.meta.url), "utf8"),
   readFile(new URL("../.github/workflows/world-typhoon-data.yml", import.meta.url), "utf8"),
@@ -268,7 +272,20 @@ assert.match(appSource, /updateWorldTyphoonForecastPositions/);
 assert.match(appSource, /interpolateWorldTime:\s*true/);
 assert.match(appSource, /forecastPositions:/);
 assert.match(appSource, /systems:\s*forecastState\.data\?\.systems\s*\?\?\s*\[\]/);
-assert.match(appSource, /timelineSystems:\s*layer\.systems/);
+assert.match(appSource, /const worldForecastTargets = worldForecastModelStates/);
+assert.match(appSource, /selectedWorldForecastTargetKeys:\s*activeWorldTyphoonTargetKeys/);
+assert.match(appSource, /timelineSystems:\s*systems/);
+assert.match(appSource, /selectedWorldForecastTargetKeys\.has\(`/);
+assert.match(targetModalSource, /selectedKeys:\s*\[\]/);
+assert.match(targetModalSource, /selectedKeys\.includes\(option\.key\)/);
+assert.match(targetModalSource, /data-world-typhoon-target-key/);
+assert.match(targetModalSource, /\"対象選択\"/);
+assert.match(targetModalSource, /\"各国予想\"/);
+assert.match(targetModalSource, /\"すべての対象を表示\"/);
+assert.doesNotMatch(targetModalSource, /縺|繧|蜷|蟇|雎|譛|鬚|莠|逋|蜿/);
+assert.match(indexSource, /id="world-typhoon-target-button"/);
+assert.match(indexSource, /id="world-typhoon-target-modal"/);
+assert.match(styleSource, /\.map-world-typhoon-target-button/);
 assert.match(mapSource, /worldForecastLayers/);
 assert.match(mapSource, /WORLD_TYPHOON_MODELS/);
 assert.match(mapSource, /renderWorldCopies:\s*true/);
