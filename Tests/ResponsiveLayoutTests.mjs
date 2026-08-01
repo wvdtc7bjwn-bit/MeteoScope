@@ -32,12 +32,14 @@ assert.match(
   styles,
   /html\[data-theme="light"\] #main-tabs\.is-dragging::after\s*\{[\s\S]*?radial-gradient[\s\S]*?inset 0 -1px 0 rgba\(47, 117, 165, 0\.06\);/
 );
-assert.match(tabs, /root\?\.addEventListener\("lostpointercapture",[\s\S]*?cancelIndicatorDrag\(\)/);
+assert.match(tabs, /root\?\.addEventListener\("lostpointercapture", \(event\) => \{[\s\S]*?finishIndicatorDrag/);
 assert.match(tabs, /window\.addEventListener\("blur", cancelIndicatorDrag\)/);
 assert.match(
   tabs,
-  /const completedPointerId = dragPointerId;[\s\S]*?activateTab\(getTabFromPoint[\s\S]*?dragPointerId = null;[\s\S]*?hasPointerCapture\?\.\(completedPointerId\)[\s\S]*?releasePointerCapture\(completedPointerId\)/
+  /function finishIndicatorDrag[\s\S]*?const completedPointerId = dragPointerId;[\s\S]*?activateTab\(completedTabId[\s\S]*?dragPointerId = null;[\s\S]*?hasPointerCapture\?\.\(completedPointerId\)[\s\S]*?releasePointerCapture\(completedPointerId\)/
 );
+assert.match(tabs, /dragTargetTabId = getTabFromPoint\(point, dragAxis\) \?\? dragTargetTabId/);
+assert.match(tabs, /const completedTabId = type === "pointerup" && point[\s\S]*?getTabFromPoint\(point, dragAxis\) \?\? dragTargetTabId/);
 assert.match(
   styles,
   /@media screen\s*\{[\s\S]*?#sidebar\s*\{[\s\S]*?html:not\(\.mobile-drawer-open\) #sidebar\s*\{[\s\S]*?opacity:\s*0;[\s\S]*?\.mobile-context-dock\s*\{[\s\S]*?display:\s*block;/
@@ -289,11 +291,11 @@ assert.match(
 );
 assert.match(
   tabs,
-  /root\?\.addEventListener\("pointerdown", \(event\) => \{[\s\S]*?suppressNextClick = false;/
+  /function beginIndicatorDrag\([\s\S]*?suppressNextClick = false;/
 );
 assert.match(
   tabs,
-  /if \(dragMoved\) \{[\s\S]*?suppressNextClick = true;[\s\S]*?activateTab\(getTabFromPoint\(event, dragAxis\), \{ force: true \}\);/
+  /if \(dragMoved && completedTabId\) \{[\s\S]*?suppressNextClick = true;[\s\S]*?activateTab\(completedTabId, \{ force: true \}\);/
 );
 assert.doesNotMatch(tabs, /suppressClickUntil/);
 assert.match(
