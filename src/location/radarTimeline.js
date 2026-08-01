@@ -40,6 +40,56 @@ export async function buildLocationRadarTimeline(coordinates, radarData = {}) {
   };
 }
 
+export async function sampleRadarAtLocation(coordinates, radarData = {}) {
+  const [lng, lat] = Array.isArray(coordinates) ? coordinates.map(Number) : [];
+  if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+    return { status: "unavailable", intensity: null, value: "", time: "" };
+  }
+
+  const frame = selectLatestObservationFrame(radarData);
+  if (!frame) {
+    return { status: "unavailable", intensity: null, value: "", time: "" };
+  }
+
+  const sample = await sampleRadarFrame(frame, lng, lat);
+  if (!sample.available) {
+    return { status: "unavailable", intensity: null, value: "", time: frame.label ?? "" };
+  }
+
+  return {
+    status: "ready",
+    intensity: sample.intensity,
+    time: sample.label || frame.label || ""
+  };
+}
+
+export function formatRadarIntensityBand(intensity, language = "ja") {
+  const numeric = Number(intensity);
+  if (!Number.isFinite(numeric) || numeric <= 0) return "0mm/h";
+
+  const levels = AMEDAS_PRECIPITATION_LEVELS;
+  const index = levels.findIndex((level) => numeric >= level.min);
+  if (index < 0) return "0mm/h";
+  const minimum = levels[index].min;
+  if (index === 0) return language === "en"
+    ? `${minimum}mm/h or more`
+    : `${minimum}mm/h以上`;
+  const maximum = levels[index - 1].min;
+  return language === "en"
+    ? `${minimum}–${maximum}mm/h`
+    : `${minimum}〜${maximum}mm/h`;
+}
+
+export function selectLatestObservationFrame(data) {
+  if (data?.activeFrame && !data.activeFrame.isForecast) return data.activeFrame;
+  const frames = Array.isArray(data?.frames) ? data.frames : [];
+  const activeIndex = Number(data?.activeFrameIndex);
+  if (Number.isInteger(activeIndex) && frames[activeIndex] && !frames[activeIndex].isForecast) {
+    return frames[activeIndex];
+  }
+  return [...frames].reverse().find((frame) => !frame?.isForecast) ?? null;
+}
+
 async function mapWithConcurrency(items, limit, mapper) {
   const results = new Array(items.length);
   let nextIndex = 0;
@@ -150,13 +200,13 @@ function matchPrecipitationColor(color) {
   let best = null;
   AMEDAS_PRECIPITATION_LEVELS.forEach((level) => {
     const levelColor = hexToRgb(level.color);
-    const distance = colorDistance(color, levelColor);
+    const distance = rgbColorDistance(color, levelColor);
     if (!best || distance < best.distance) best = { ...level, distance };
   });
   return best && best.distance <= 150 ? best : null;
 }
 
-function colorDistance(a, b) {
+export function rgbColorDistance(a, b) {
   return Math.sqrt(
     (a.r - b.r) ** 2 +
     (a.g - b.g) ** 2 +

@@ -48,7 +48,8 @@ import {
 import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFrameIndex } from "./jma/weatherChart.js";
 import { resolveCurrentLocationInfo, searchMunicipalities } from "./location/currentLocation.js";
 import { addMyArea, getMyAreaLimit, loadMyAreas, removeMyArea } from "./location/myAreas.js";
-import { buildLocationRadarTimeline } from "./location/radarTimeline.js";
+import { buildLocationRadarTimeline, sampleRadarAtLocation } from "./location/radarTimeline.js";
+import { sampleLightningAtLocation } from "./location/lightningStatus.js";
 import { sampleCurrentKikikuruStatus } from "./location/kikikuruStatus.js";
 import { createAdminNoticePush } from "./push/adminNoticePush.js";
 import { setupRemoteConfig } from "./remoteConfig.js";
@@ -81,10 +82,16 @@ const TAB_DATA_TTL_MS = {
 };
 
 let disasterMapModulePromise = null;
+let disasterDashboardModulePromise = null;
 
 function loadDisasterMapModule() {
   disasterMapModulePromise ??= import("./ui/disasterMapModal.js");
   return disasterMapModulePromise;
+}
+
+function loadDisasterDashboardModule() {
+  disasterDashboardModulePromise ??= import("./ui/disasterDashboardModal.js");
+  return disasterDashboardModulePromise;
 }
 
 function getStoredDisasterMapPdfInfo(...args) {
@@ -1104,15 +1111,20 @@ if (layerId === "river") {
   async function refreshVolcanoData({ force = false } = {}) {
     if (activeTab !== "earthquake" || earthquakeContentMode !== "volcano") return volcanoData;
     if (document.hidden && !force) return volcanoData;
+    const nextData = await ensureVolcanoData({ force });
+    if (activeTab === "earthquake" && earthquakeContentMode === "volcano" && nextData) {
+      updateCurrentView(TABS.find((item) => item.id === "earthquake"), nextData);
+    }
+    return nextData;
+  }
+
+  async function ensureVolcanoData({ force = false } = {}) {
     if (!force && volcanoData && Date.now() - volcanoLoadedAt < TAB_DATA_TTL_MS.earthquake) return volcanoData;
     if (volcanoRefreshRequest) return volcanoRefreshRequest;
     volcanoRefreshRequest = fetchVolcanoXmlList()
       .then((nextData) => {
         volcanoData = nextData;
         volcanoLoadedAt = Date.now();
-        if (activeTab === "earthquake" && earthquakeContentMode === "volcano") {
-          updateCurrentView(TABS.find((item) => item.id === "earthquake"), nextData);
-        }
         return nextData;
       })
       .catch((error) => {
@@ -2219,6 +2231,101 @@ if (layerId === "river") {
     return request;
   }
 
+  async function ensureDashboardTabData(tabId, { force = false } = {}) {
+    const cached = latestDataByTab[tabId];
+    const loadedAt = Number(tabDataLoadedAt[tabId]) || 0;
+    const fresh = cached && loadedAt > 0 && Date.now() - loadedAt < (TAB_DATA_TTL_MS[tabId] ?? 0);
+    if (!force && fresh) return cached;
+
+    const nextData = await loadTabData(tabId);
+    latestDataByTab[tabId] = mergeRefreshedData(tabId, cached, nextData);
+    tabDataLoadedAt[tabId] = Date.now();
+    return latestDataByTab[tabId];
+  }
+
+  async function loadDisasterDashboardData({ force = false } = {}) {
+    if (currentLocationInfo?.status !== "found") {
+      await requestAndFocusCurrentPosition({ announceLoading: false, setBusy: false });
+    }
+    if (currentLocationInfo?.status !== "found") {
+      return {
+        currentLocation: currentLocationInfo,
+        generatedAt: new Date().toISOString(),
+        partialFailure: false
+      };
+    }
+
+    if (force) lightningLoadedAt = 0;
+    const results = await Promise.allSettled([
+      refreshWarningDetailsData({ force }),
+      refreshRiverFloodData({ force }),
+      refreshKikikuruData({ force }),
+      ensureDashboardTabData("earthquake", { force }),
+      ensureDashboardTabData("radar", { force }),
+      ensureDashboardTabData("amedas", { force }),
+      ensureVolcanoData({ force }),
+      refreshLightningData()
+    ]);
+
+    const kikikuruStatuses = await loadDashboardKikikuruStatuses();
+    const coordinates = currentLocationInfo.coordinates;
+    const [radarPointResult, lightningPointResult] = await Promise.allSettled([
+      sampleRadarAtLocation(coordinates, latestDataByTab.radar),
+      sampleLightningAtLocation(coordinates, lightningData)
+    ]);
+    const radarPoint = radarPointResult.status === "fulfilled"
+      ? radarPointResult.value
+      : { status: "unavailable", intensity: null, value: "", time: "" };
+    const lightningPoint = lightningPointResult.status === "fulfilled"
+      ? lightningPointResult.value
+      : { status: "unavailable", level: null, time: "" };
+    const sourceUnavailable = [
+      latestDataByTab.warnings?.riverFlood?.status === "error",
+      latestDataByTab.warnings?.kikikuru?.unavailable === true,
+      !latestDataByTab.earthquake,
+      !latestDataByTab.radar,
+      !latestDataByTab.amedas,
+      !volcanoData,
+      !lightningData
+    ].some(Boolean);
+
+    return {
+      currentLocation: currentLocationInfo,
+      riverFlood: latestDataByTab.warnings?.riverFlood,
+      kikikuruStatuses,
+      earthquake: latestDataByTab.earthquake,
+      volcano: volcanoData,
+      radar: { ...latestDataByTab.radar, pointSample: radarPoint },
+      lightning: { ...lightningData, pointSample: lightningPoint },
+      amedas: latestDataByTab.amedas,
+      generatedAt: new Date().toISOString(),
+      partialFailure: sourceUnavailable
+        || results.some((result) => result.status === "rejected")
+        || radarPointResult.status === "rejected"
+        || lightningPointResult.status === "rejected"
+    };
+  }
+
+  async function loadDashboardKikikuruStatuses() {
+    const coordinates = currentLocationInfo?.coordinates;
+    const kikikuru = latestDataByTab.warnings?.kikikuru;
+    if (currentLocationInfo?.status !== "found" || !Array.isArray(coordinates) || !kikikuru?.tileUrls) {
+      return {};
+    }
+
+    const entries = await Promise.all(KIKIKURU_LAYER_OPTIONS
+      .filter((layer) => layer.id === "land" || layer.id === "inund")
+      .map(async (layer) => {
+        try {
+          return [layer.id, await sampleCurrentKikikuruStatus(coordinates, kikikuru, layer.id)];
+        } catch (error) {
+          console.warn(`[MeteoScope] dashboard Kikikuru sample failed for ${layer.id}`, error);
+          return [layer.id, { status: "unavailable", elementId: layer.id }];
+        }
+      }));
+    return Object.fromEntries(entries);
+  }
+
   async function refreshCommunityReports({ force = false } = {}) {
     if (communityReportsRequest) return communityReportsRequest;
     communityReportsRequest = CommunityReportClient.list({
@@ -3032,6 +3139,19 @@ if (layerId === "river") {
       getCurrentLocation: () => currentLocationInfo,
       requestCurrentLocation: () => requestAndFocusCurrentPosition({ announceLoading: true, setBusy: true })
     });
+    const disasterDashboardButton = document.getElementById("disaster-dashboard-button");
+    disasterDashboardButton?.addEventListener("click", () => {
+      void loadDisasterDashboardModule().then((dashboardModule) => {
+        dashboardModule.setupDisasterDashboardModal({
+          loadData: loadDisasterDashboardData,
+          requestCurrentLocation: () => requestAndFocusCurrentPosition({ announceLoading: true, setBusy: true }),
+          onNavigate: (tabId) => selectTab(tabId)
+        });
+        return dashboardModule.openDisasterDashboardModal();
+      }).catch((error) => {
+        console.warn("[MeteoScope] failed to open disaster dashboard", error);
+      });
+    }, { once: true });
     setupDisasterQuizModal();
     setupMapUtilityMenu();
     setupCommunityReportModal({
