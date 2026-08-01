@@ -22,6 +22,62 @@ assert.match(
 assert.match(styles, /#main-tabs\s*\{[\s\S]*?bottom:\s*max\(8px,\s*env\(safe-area-inset-bottom\)\)/);
 assert.match(
   styles,
+  /@media \(max-width: 800px\) and \(orientation: portrait\)\s*\{[\s\S]*?#main-tabs::after,\s*html\[data-theme="light"\] #main-tabs::after\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none;[\s\S]*?#main-tabs,\s*#main-tabs \.tab-button\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;/
+);
+assert.match(
+  styles,
+  /@media screen\s*\{[\s\S]*?#sidebar\s*\{[\s\S]*?html:not\(\.mobile-drawer-open\) #sidebar\s*\{[\s\S]*?opacity:\s*0;[\s\S]*?\.mobile-context-dock\s*\{[\s\S]*?display:\s*block;/
+);
+assert.match(
+  styles,
+  /@media \(orientation: landscape\), \(min-width: 801px\)\s*\{[\s\S]*?--shared-dock-left:\s*12px;[\s\S]*?--shared-nav-height:\s*64px;[\s\S]*?--shared-summary-height:\s*118px;[\s\S]*?#app\s*\{[\s\S]*?display:\s*block;[\s\S]*?#main-tabs\s*\{[\s\S]*?inset:\s*auto auto var\(--shared-dock-bottom\) var\(--shared-dock-left\);[\s\S]*?\.mobile-context-dock\s*\{[\s\S]*?left:\s*var\(--shared-dock-left\);/
+);
+assert.match(
+  styles,
+  /@media screen\s*\{[\s\S]*?#sidebar-drawer-handle\s*\{[\s\S]*?height:\s*22px;[\s\S]*?touch-action:\s*none;[\s\S]*?#sidebar-drawer-handle::before\s*\{[\s\S]*?content:\s*"";[\s\S]*?width:\s*48px;[\s\S]*?height:\s*5px;[\s\S]*?border-radius:\s*999px;/
+);
+assert.match(
+  styles,
+  /@media \(orientation: landscape\), \(min-width: 801px\)\s*\{[\s\S]*?#sidebar,[\s\S]*?width:\s*var\(--shared-dock-width\);/
+);
+assert.match(
+  styles,
+  /@media \(min-width: 801px\)\s*\{[\s\S]*?--shared-dock-left:\s*20px;[\s\S]*?--shared-dock-width:\s*390px;/
+);
+assert.match(
+  styles,
+  /@media \(min-width: 801px\)\s*\{[\s\S]*?--shared-nav-height:\s*68px;[\s\S]*?--shared-summary-height:\s*126px;/
+);
+assert.match(
+  styles,
+  /@media \(orientation: landscape\), \(min-width: 801px\)\s*\{[\s\S]*?\.map-utility-menu-toggle\s*\{[\s\S]*?left:\s*var\(--shared-dock-left\);[\s\S]*?\.map-locate-button\s*\{[\s\S]*?bottom:\s*var\(--shared-map-controls-bottom\);[\s\S]*?\.map-legend\s*\{[\s\S]*?bottom:\s*calc\(var\(--shared-map-controls-bottom\) \+ 54px\);/
+);
+assert.match(
+  styles,
+  /@media \(orientation: landscape\), \(min-width: 801px\)\s*\{[\s\S]*?#map-attribution\s*\{[\s\S]*?left:\s*auto;[\s\S]*?display:\s*block;[\s\S]*?max-width:\s*calc\(100vw - var\(--shared-dock-left\) - var\(--shared-dock-width\) - 32px\);[\s\S]*?text-overflow:\s*ellipsis;/
+);
+assert.doesNotMatch(
+  styles,
+  /#sidebar-drawer-handle,\s*\.mobile-context-dock\s*\{\s*display:\s*none\s*!important;/
+);
+assert.doesNotMatch(panelToggle, /isMobileSheet/);
+assert.doesNotMatch(panelToggle, /isPortraitSheet/);
+assert.match(panelToggle, /sidebar\.style\.transform = "translateY\(0\) translateZ\(0\)";/);
+assert.match(panelToggle, /setDrawerState\(drawerState === "peek" \? "full" : "peek"\);/);
+assert.match(
+  styles,
+  /\.weather-time-timeline,\s*\.weather-time-timeline \*\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;/
+);
+assert.match(
+  styles,
+  /\.weather-time-range\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none;[\s\S]*?-webkit-tap-highlight-color:\s*transparent;/
+);
+assert.match(
+  styles,
+  /\.volcano-ash-timeline,\s*\.volcano-ash-timeline \*\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;/
+);
+assert.match(
+  styles,
   /\.mobile-context-dock\s*\{[\s\S]*?bottom:\s*calc\(max\(0px,\s*env\(safe-area-inset-bottom\)\)\s*\+\s*76px\);[\s\S]*?width:\s*min\(390px,\s*calc\(100vw\s*-\s*22px\)\);[\s\S]*?height:\s*126px;[\s\S]*?min-height:\s*126px;[\s\S]*?max-height:\s*126px;/
 );
 assert.match(

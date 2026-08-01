@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
 
 import {
+  buildDashboardEarthquakeMetrics,
   buildDisasterDashboardViewModel,
   earthquakeMatchesArea,
   reportMatchesArea,
   volcanoMatchesArea
 } from "../src/ui/disasterDashboardModal.js";
+import {
+  formatEarthquakeDepthText,
+  formatEarthquakeMagnitude
+} from "../src/earthquakeFormat.js";
 
 const areaCode = "4320200";
 
@@ -13,6 +18,24 @@ assert.equal(reportMatchesArea({ affectedAreas: [{ cityCode: areaCode }] }, area
 assert.equal(reportMatchesArea({ affectedAreas: [{ cityCode: "1310160" }] }, areaCode), false);
 assert.equal(earthquakeMatchesArea({ intensityCities: [{ code: areaCode }] }, areaCode), true);
 assert.equal(volcanoMatchesArea({ targetAreas: [{ areas: [{ code: areaCode }] }] }, areaCode), true);
+assert.equal(formatEarthquakeMagnitude("M2.5", { prefix: true, compact: true }), "M2.5");
+assert.equal(formatEarthquakeMagnitude("2.5", { prefix: true, compact: true }), "M2.5");
+assert.equal(formatEarthquakeDepthText(0, { compact: true }), "ごく浅い");
+assert.equal(formatEarthquakeDepthText("0km", { compact: true }), "ごく浅い");
+assert.equal(formatEarthquakeDepthText(10, { compact: true }), "10km");
+assert.equal(formatEarthquakeDepthText(null, { compact: true }), "--");
+assert.deepEqual(
+  buildDashboardEarthquakeMetrics(
+    { maxIntensity: "1", localIntensity: "2", magnitude: "M2.5", depth: 0 },
+    { intensity: "最大震度", magnitude: "規模", depth: "深さ" },
+    "ja"
+  ),
+  [
+    { label: "最大震度", value: "1" },
+    { label: "規模", value: "M2.5" },
+    { label: "深さ", value: "ごく浅い" }
+  ]
+);
 
 const model = buildDisasterDashboardViewModel({
   currentLocation: {

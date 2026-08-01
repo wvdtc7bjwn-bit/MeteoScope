@@ -7,8 +7,6 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   const sidebar = document.getElementById("sidebar");
   if (!sidebar) return;
 
-  const isMobileSheet = () => window.matchMedia("(max-width: 800px)").matches;
-  const isPortraitSheet = () => window.matchMedia("(max-width: 800px) and (orientation: portrait)").matches;
   const mobileContextDock = document.getElementById("mobile-context-dock");
   let handle = document.getElementById("sidebar-drawer-handle");
   if (!handle) {
@@ -50,24 +48,16 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   }
 
   function getSheetHeight() {
-    if (isPortraitSheet()) {
-      const viewportHeight = window.innerHeight || 0;
-      const narrowPhone = (window.innerWidth || 0) <= 420;
-      const ratio = narrowPhone ? 0.72 : 0.7;
-      const maxHeight = narrowPhone ? 590 : 620;
-      const minHeight = narrowPhone ? 330 : 360;
-      return Math.max(minHeight, Math.min(viewportHeight * ratio, maxHeight));
-    }
-    return sidebar.getBoundingClientRect().height || 0;
+    const viewportHeight = window.innerHeight || 0;
+    const compactViewport = (window.innerWidth || 0) <= 420;
+    const maxHeight = compactViewport ? 590 : 620;
+    const minHeight = Math.min(compactViewport ? 330 : 360, Math.max(240, viewportHeight - 24));
+    return Math.max(minHeight, Math.min(viewportHeight * 0.72, maxHeight));
   }
 
   function getPeekVisibleHeight() {
-    const viewportHeight = window.innerHeight || 0;
-    if (window.matchMedia("(max-width: 800px) and (orientation: portrait)").matches) {
-      const tabBarHeight = document.getElementById("main-tabs")?.getBoundingClientRect().height || 74;
-      return Math.max(68, Math.min(96, tabBarHeight));
-    }
-    return Math.min(260, Math.max(178, viewportHeight * 0.34));
+    const tabBarHeight = document.getElementById("main-tabs")?.getBoundingClientRect().height || 74;
+    return Math.max(68, Math.min(96, tabBarHeight));
   }
 
   function getMiddleVisibleHeight() {
@@ -177,19 +167,8 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   }
 
   function applyTransform(offset = null) {
-    if (!isMobileSheet()) {
-      sidebar.style.transform = "";
-      sidebar.classList.remove("drawer-open");
-      sidebar.classList.remove("drawer-middle");
-      document.documentElement.classList.remove("mobile-drawer-open");
-      handle.setAttribute("aria-expanded", "false");
-      document.documentElement.style.removeProperty("--mobile-sidebar-visible-height");
-      drawerOffset = null;
-      return;
-    }
-
     const nextOffset = clampOffset(offset ?? getCurrentOffset());
-    sidebar.style.transform = isPortraitSheet() ? "translateY(0)" : `translateY(${nextOffset}px)`;
+    sidebar.style.transform = "translateY(0) translateZ(0)";
     sidebar.classList.toggle("drawer-open", nextOffset <= 2);
     sidebar.classList.toggle("drawer-middle", nextOffset > 2 && nextOffset < getSnapOffsets().peek - 2);
     document.documentElement.classList.toggle("mobile-drawer-open", nextOffset < getSnapOffsets().peek - 2);
@@ -218,7 +197,6 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   }
 
   function beginDrag(event, target = handle, initialAxis = "y") {
-    if (!isMobileSheet()) return;
     if (initialAxis === "y") event.preventDefault();
     dragging = true;
     dragTarget = target;
@@ -308,11 +286,10 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   handle.addEventListener("pointerup", finishDrag);
   handle.addEventListener("pointercancel", finishDrag);
   handle.addEventListener("click", () => {
-    if (Date.now() < suppressClickUntil || !isMobileSheet()) return;
-    setDrawerState(drawerState === "full" ? "peek" : "full");
+    if (Date.now() < suppressClickUntil) return;
+    setDrawerState(drawerState === "peek" ? "full" : "peek");
   });
   handle.addEventListener("keydown", (event) => {
-    if (!isMobileSheet()) return;
     if (event.key === "ArrowUp") {
       event.preventDefault();
       setDrawerOffset(getCurrentOffset() - 96, { transition: true });
@@ -325,7 +302,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     }
     if (event.key !== "Enter" && event.key !== " ") return;
     event.preventDefault();
-    setDrawerState(drawerState === "full" ? "peek" : "full");
+    setDrawerState(drawerState === "peek" ? "full" : "peek");
   });
 
   mobileContextDock?.addEventListener("pointerdown", (event) => {
@@ -341,12 +318,11 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   mobileContextDock?.setAttribute("aria-expanded", "false");
   mobileContextDock?.addEventListener("click", (event) => {
     if (isDockControlEvent(event)) return;
-    if (Date.now() < suppressClickUntil || !isMobileSheet()) return;
+    if (Date.now() < suppressClickUntil) return;
     setDrawerState("full");
   });
   mobileContextDock?.addEventListener("keydown", (event) => {
     if (isDockControlEvent(event)) return;
-    if (!isMobileSheet()) return;
     if (event.key === "ArrowUp") {
       event.preventDefault();
       setDrawerOffset(getCurrentOffset() - 96, { transition: true });

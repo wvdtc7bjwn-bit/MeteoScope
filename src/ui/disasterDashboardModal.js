@@ -1,5 +1,6 @@
 import { getCurrentLanguage, localizeText } from "./locale.js";
 import { formatRadarIntensityBand } from "../location/radarTimeline.js";
+import { formatEarthquakeDepthText, formatEarthquakeMagnitude } from "../earthquakeFormat.js";
 
 let initialized = false;
 let loadDashboardData = async () => ({});
@@ -483,17 +484,22 @@ function renderEarthquake(model) {
   const item = model.earthquake;
   if (!item) return `<p class="disaster-dashboard-empty">${escapeHtml(model.copy.noEarthquake)}</p>`;
   const context = item.local ? model.copy.observedHere : model.copy.latestNationwide;
+  const metrics = buildDashboardEarthquakeMetrics(item, model.copy, model.language);
   return `
     <article class="disaster-dashboard-earthquake">
       <div><span>${escapeHtml(context)}</span><time>${escapeHtml(item.eventTime ?? "")}</time></div>
       <strong>${escapeHtml(item.name)}</strong>
-      <dl>
-        <div><dt>${escapeHtml(model.copy.magnitude)}</dt><dd>M${escapeHtml(item.magnitude ?? "-")}</dd></div>
-        <div><dt>${escapeHtml(model.copy.depth)}</dt><dd>${formatDepth(item.depth)}</dd></div>
-        <div><dt>${escapeHtml(item.local ? model.copy.localIntensity : model.copy.intensity)}</dt><dd>${escapeHtml(item.localIntensity || item.maxIntensity || "-")}</dd></div>
-      </dl>
+      <dl>${metrics.map((metric) => `<div><dt>${escapeHtml(metric.label)}</dt><dd>${escapeHtml(metric.value)}</dd></div>`).join("")}</dl>
     </article>
   `;
+}
+
+export function buildDashboardEarthquakeMetrics(item, copy, language) {
+  return [
+    { label: copy.intensity, value: item.maxIntensity || "-" },
+    { label: copy.magnitude, value: formatEarthquakeMagnitude(item.magnitude, { prefix: true, compact: true }) },
+    { label: copy.depth, value: localizeText(formatEarthquakeDepthText(item.depth, { compact: true }), language) }
+  ];
 }
 
 function renderVolcano(model) {
@@ -601,11 +607,6 @@ function buildNearestAmedasValues(coordinates, points = [], copy, language) {
 function isObservedNumber(value) {
   if (value === null || value === undefined || value === "") return false;
   return Number.isFinite(Number(value));
-}
-
-function formatDepth(value) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? `${numeric}km` : "-";
 }
 
 function formatShortTime(value) {

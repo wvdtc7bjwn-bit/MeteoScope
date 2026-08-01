@@ -15,7 +15,7 @@ import {
   getTsunamiLevelLabel,
   getTsunamiObservationStyle
 } from "../tsunami.js";
-import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
+import { formatEarthquakeDepthText, formatEarthquakeMagnitude } from "../earthquakeFormat.js";
 import {
   buildEarthquakeObservationRows,
   groupEarthquakeObservationRowsByMunicipality
@@ -6353,13 +6353,6 @@ function buildMobileTsunamiStatusMarkup(earthquake, tsunami, status) {
   const tsunamiState = getEarthquakeTsunamiState(earthquake, tsunami, status);
   const label = getEarthquakeTsunamiMetricText(tsunamiState);
   return `<span class="earthquake-tsunami-status level-${escapeHtml(tsunamiState.level)}">${escapeHtml(label)}</span>`;
-}
-
-function formatEarthquakeMagnitude(value, options = {}) {
-  const text = String(value ?? "").trim();
-  if (!text || text === "--") return "--";
-  const magnitude = text.replace(/^M\s*/i, "");
-  return options.prefix ? `M ${magnitude}` : magnitude;
 }
 
 function formatEarthquakeEventTime(value) {

@@ -6206,11 +6206,12 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   margin: -2px 0 10px;
   overflow: hidden;
   touch-action: none;
-  -webkit-touch-callout: none;
 }
 
 .weather-time-timeline,
 .weather-time-timeline * {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
 }
@@ -6317,6 +6318,11 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   appearance: none;
   opacity: 0;
   cursor: ew-resize;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
   -webkit-user-drag: none;
 }
 
@@ -7870,7 +7876,10 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   }
 }
 
-@media (max-width: 800px) and (orientation: portrait) {
+/* The bottom navigation, summary dock, and pull-up detail sheet use one shared
+   layout at every interactive screen size. Geometry is refined below for
+   portrait phones, landscape phones, and desktop. */
+@media screen {
   #sidebar {
     bottom: calc(max(0px, env(safe-area-inset-bottom)) + 8px);
     left: 11px;
@@ -7912,8 +7921,29 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     transform: translateY(0) translateZ(0);
   }
 
+  #sidebar-drawer-handle {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 22px;
+    min-height: 22px;
+    flex: 0 0 22px;
+    margin: 0 0 2px;
+    border: 0;
+    box-sizing: border-box;
+    cursor: ns-resize;
+    touch-action: none;
+  }
+
   #sidebar-drawer-handle::before {
+    content: "";
     width: 48px;
+    height: 5px;
+    border-radius: 999px;
     background: rgba(237, 246, 255, 0.58);
     box-shadow: none;
   }
@@ -11903,20 +11933,33 @@ html[data-theme="light"] .settings-modal-header h2 { color: #132b43; }
 }
 
 .disaster-dashboard-earthquake dl > div {
-  display: grid;
-  gap: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
   padding-top: 7px;
+  white-space: nowrap;
 }
 
 .disaster-dashboard-earthquake dt {
+  flex: 0 1 auto;
+  overflow: hidden;
   color: var(--dashboard-muted);
-  font-size: 9.5px;
+  font-size: 9px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .disaster-dashboard-earthquake dd {
+  flex: 0 0 auto;
+  overflow: hidden;
   margin: 0;
   font-size: 12px;
   font-weight: 800;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .disaster-dashboard-observations {
@@ -12377,6 +12420,22 @@ html[data-theme="light"] .tab-button.active {
 html[data-theme="light"] .tab-button.active::before {
   background: #0677ad;
   filter: drop-shadow(0 2px 5px rgba(24, 126, 181, 0.24));
+}
+
+@media (max-width: 800px) and (orientation: portrait) {
+  #main-tabs::after,
+  html[data-theme="light"] #main-tabs::after {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  #main-tabs,
+  #main-tabs .tab-button {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
 }
 
 html[data-theme="light"] .mobile-context-dock {
@@ -13639,6 +13698,12 @@ html[data-theme="light"] .typhoon-world-attribution a {
   touch-action: none;
 }
 
+.volcano-ash-timeline,
+.volcano-ash-timeline * {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
 .volcano-ash-timeline-rail {
   position: absolute;
   top: 50%;
@@ -13673,8 +13738,10 @@ html[data-theme="light"] .typhoon-world-attribution a {
   appearance: none;
   cursor: grab;
   background: transparent;
+  box-shadow: none;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-user-drag: none;
   touch-action: none;
 }
 
@@ -14760,11 +14827,6 @@ html[data-theme="light"] .river-affected-cities span {
     pointer-events: auto;
   }
 
-  #sidebar-drawer-handle,
-  .mobile-context-dock {
-    display: none !important;
-  }
-
   .current-panel {
     margin-bottom: 8px;
     padding: 10px 11px 12px;
@@ -15252,5 +15314,172 @@ html[data-theme="light"] .social-share-preview-shell {
 
   .social-share-actions button {
     min-width: 0;
+  }
+}
+
+/* Shared dock layout for desktop and landscape phones. Portrait phones keep
+   their existing centered geometry, while wider layouts anchor the same
+   controls and drawer interaction to the lower-left corner. */
+@media (orientation: landscape), (min-width: 801px) {
+  :root {
+    --shared-dock-left: 12px;
+    --shared-dock-bottom: max(8px, env(safe-area-inset-bottom));
+    --shared-dock-width: min(390px, calc(100vw - 24px));
+    --shared-nav-height: 64px;
+    --shared-summary-height: 118px;
+    --shared-map-control-gap: 10px;
+    --shared-map-controls-bottom: calc(
+      var(--shared-dock-bottom) + var(--shared-nav-height) + var(--shared-summary-height) + var(--shared-map-control-gap)
+    );
+  }
+
+  #app {
+    display: block;
+  }
+
+  #map-area {
+    width: 100%;
+    height: 100dvh;
+  }
+
+  #sidebar,
+  #sidebar.drawer-open {
+    position: fixed;
+    inset: auto auto var(--shared-dock-bottom) var(--shared-dock-left);
+    z-index: 420;
+    width: var(--shared-dock-width);
+    height: var(--mobile-sidebar-visible-height, min(72dvh, 590px));
+    min-height: 0;
+    max-height: min(72dvh, 590px);
+    padding: 0 0 max(96px, calc(env(safe-area-inset-bottom) + 96px));
+    overflow-y: auto;
+    border: 1px solid rgba(207, 232, 255, 0.22);
+    border-radius: 36px;
+    background: rgba(7, 16, 34, 0.1);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.035),
+      0 -12px 30px rgba(1, 7, 20, 0.22);
+    opacity: 1;
+    transform: translateY(0) translateZ(0);
+    transition:
+      transform 340ms cubic-bezier(0.16, 1, 0.3, 1),
+      height 320ms cubic-bezier(0.16, 1, 0.3, 1),
+      opacity 220ms ease,
+      filter 220ms ease;
+    pointer-events: auto;
+    backdrop-filter: blur(26px) saturate(1.5);
+    -webkit-backdrop-filter: blur(26px) saturate(1.5);
+  }
+
+  html:not(.mobile-drawer-open) #sidebar {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .mobile-drawer-open #sidebar {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  #main-tabs {
+    position: fixed;
+    inset: auto auto var(--shared-dock-bottom) var(--shared-dock-left);
+    width: var(--shared-dock-width);
+    min-height: var(--shared-nav-height);
+    transform: none;
+  }
+
+  .mobile-context-dock {
+    right: auto;
+    bottom: calc(var(--shared-dock-bottom) + var(--shared-nav-height));
+    left: var(--shared-dock-left);
+    display: block;
+    width: var(--shared-dock-width);
+    height: var(--shared-summary-height);
+    min-height: var(--shared-summary-height);
+    max-height: var(--shared-summary-height);
+    transform: none;
+  }
+
+  .mobile-context-dock[data-tab="earthquake"] {
+    bottom: calc(var(--shared-dock-bottom) + var(--shared-nav-height));
+  }
+
+  .map-utility-menu-toggle {
+    top: max(10px, env(safe-area-inset-top));
+    left: var(--shared-dock-left);
+  }
+
+  .map-utility-actions {
+    top: max(10px, env(safe-area-inset-top));
+    left: calc(var(--shared-dock-left) + 56px);
+    gap: 6px;
+  }
+
+  .map-locate-button {
+    left: var(--shared-dock-left);
+    bottom: var(--shared-map-controls-bottom);
+  }
+
+  .map-legend {
+    left: var(--shared-dock-left);
+    bottom: calc(var(--shared-map-controls-bottom) + 54px);
+    max-height: calc(100dvh - var(--shared-map-controls-bottom) - 68px);
+  }
+
+  #map-attribution {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: var(--shared-dock-bottom);
+    left: auto;
+    display: block;
+    box-sizing: border-box;
+    width: max-content;
+    max-width: calc(100vw - var(--shared-dock-left) - var(--shared-dock-width) - 32px);
+    max-height: 24px;
+    padding: 4px 7px;
+    overflow: hidden;
+    border-radius: 7px;
+    font-size: 8px;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-drawer-open :is(.map-locate-button, .map-legend) {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .mobile-drawer-open .mobile-context-dock {
+    transform: translateY(14px) translateZ(0);
+  }
+
+  html[data-theme="light"] #sidebar {
+    border-color: rgba(54, 83, 114, 0.4);
+    background: rgba(246, 250, 254, 0.72);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.94),
+      0 -12px 30px rgba(44, 67, 94, 0.16);
+  }
+}
+
+@media (min-width: 801px) {
+  :root {
+    --shared-dock-left: 20px;
+    --shared-dock-bottom: 20px;
+    --shared-dock-width: 390px;
+    --shared-nav-height: 68px;
+    --shared-summary-height: 126px;
+    --shared-map-control-gap: 12px;
+  }
+
+  .map-utility-menu-toggle,
+  .map-utility-actions {
+    top: 20px;
+  }
+
+  #map-attribution {
+    right: 20px;
+    font-size: 10px;
   }
 }
