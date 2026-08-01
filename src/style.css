@@ -11468,6 +11468,10 @@ html[data-theme="light"] .settings-modal-header h2 { color: #132b43; }
 /* Current-location disaster dashboard */
 .disaster-dashboard-modal {
   z-index: 1260;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 
 .disaster-dashboard-panel {
@@ -11477,8 +11481,10 @@ html[data-theme="light"] .settings-modal-header h2 { color: #132b43; }
   --dashboard-text: #f2f6fb;
   --dashboard-muted: #9fb0c4;
   --dashboard-accent: #55b8e8;
-  width: min(900px, calc(100vw - 28px));
+  width: min(900px, 100%);
+  max-width: 100%;
   max-height: min(90dvh, 780px);
+  margin-inline: auto;
   padding: 0;
   overflow: hidden;
   display: flex;
@@ -12126,8 +12132,13 @@ html[data-theme="light"] .disaster-dashboard-open-button::before {
 }
 
 @media (max-width: 640px) {
+  .disaster-dashboard-modal {
+    padding-inline: 10px;
+  }
+
   .disaster-dashboard-panel {
-    width: calc(100vw - 20px);
+    width: 100%;
+    max-width: 100%;
     max-height: min(88dvh, 760px);
     border-radius: 20px;
   }

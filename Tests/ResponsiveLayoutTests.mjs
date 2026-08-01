@@ -55,6 +55,14 @@ assert.match(
 );
 assert.match(
   styles,
+  /\.disaster-dashboard-modal\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center;[\s\S]*?box-sizing:\s*border-box;/
+);
+assert.match(
+  styles,
+  /\.disaster-dashboard-panel\s*\{[\s\S]*?width:\s*min\(900px,\s*100%\);[\s\S]*?max-width:\s*100%;[\s\S]*?margin-inline:\s*auto;/
+);
+assert.match(
+  styles,
   /\.settings-modal-header\s*\{[\s\S]*?min-height:\s*var\(--modal-header-height\);[\s\S]*?padding:\s*var\(--modal-header-padding\);[\s\S]*?border-bottom:\s*1px solid var\(--modal-shell-divider\);/
 );
 assert.match(
