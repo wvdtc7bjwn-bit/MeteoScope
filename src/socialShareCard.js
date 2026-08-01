@@ -1,5 +1,9 @@
 import { getEarthquakeIntensityRank } from "./earthquakeIntensity.js";
 import { getCurrentLanguage, localizeText } from "./ui/locale.js";
+import {
+  buildStormWarningAreaLineSegments,
+  destinationPoint
+} from "./typhoonGeometry.js";
 
 export const SOCIAL_SHARE_FORMATS = Object.freeze({
   portrait: Object.freeze({ width: 1080, height: 1350, label: "縦長" }),
@@ -1127,6 +1131,7 @@ function drawTyphoonMap(context, box, theme, mapData, payload) {
   ];
   appendTyphoonRadiusExtentPoints(extentPoints, strongWindCenter, payload.strongWindRadius);
   appendTyphoonRadiusExtentPoints(extentPoints, stormCenter, payload.stormRadius);
+  appendTyphoonStormWarningExtentPoints(extentPoints, payload);
   (payload.forecastCircles ?? []).forEach((forecast) => {
     appendTyphoonRadiusExtentPoints(extentPoints, forecast?.center, forecast?.radius);
   });
@@ -1177,6 +1182,7 @@ function drawTyphoonMap(context, box, theme, mapData, payload) {
     box,
     theme.text
   );
+  drawTyphoonStormWarningArea(context, payload, project, box);
 
   drawTyphoonTrack(context, track, project, theme.muted, [], Math.max(2, box.width / 250));
   drawTyphoonTrack(
@@ -1229,6 +1235,7 @@ function drawTyphoonMap(context, box, theme, mapData, payload) {
   drawTyphoonMapLegend(context, box, theme, {
     hasStrongWindArea: Number(payload.strongWindRadius) > 0,
     hasStormArea: Number(payload.stormRadius) > 0,
+    hasStormWarningArea: hasTyphoonStormWarningArea(payload),
     hasForecastCircles: (payload.forecastCircles ?? []).some((forecast) => Number(forecast?.radius) > 0)
   });
   context.restore();
@@ -1295,6 +1302,66 @@ function drawTyphoonForecastEnvelope(
     context.stroke();
   }
   context.restore();
+}
+
+function appendTyphoonStormWarningExtentPoints(points, payload) {
+  const paths = getTyphoonStormWarningPaths(payload);
+  if (paths.length) {
+    paths.forEach((path) => points.push(...path));
+    return;
+  }
+
+  getTyphoonStormWarningCircles(payload).forEach((circle) => {
+    appendTyphoonRadiusExtentPoints(points, circle.center, circle.radius);
+  });
+}
+
+function drawTyphoonStormWarningArea(context, payload, project, box) {
+  const paths = getTyphoonStormWarningPaths(payload);
+  if (paths.length) {
+    paths.forEach((path) => {
+      drawTyphoonTrack(context, path, project, "#ff2800", [], Math.max(2.4, box.width / 230));
+    });
+    return;
+  }
+
+  getTyphoonStormWarningCircles(payload).forEach((circle) => {
+    drawTyphoonRadiusArea(context, circle.center, circle.radius, project, {
+      fillStyle: "rgba(0, 0, 0, 0)",
+      strokeStyle: "#ff2800",
+      lineWidth: Math.max(2.4, box.width / 230)
+    });
+  });
+}
+
+function hasTyphoonStormWarningArea(payload) {
+  return getTyphoonStormWarningPaths(payload).length > 0
+    || getTyphoonStormWarningCircles(payload).length > 0;
+}
+
+function getTyphoonStormWarningPaths(payload) {
+  const shapePaths = buildStormWarningAreaLineSegments(payload?.stormWarningAreaShape);
+  if (shapePaths.length) return shapePaths;
+
+  const area = payload?.stormWarningArea;
+  if (!Array.isArray(area)) return [];
+  const line = area.filter(isCoordinate);
+  return line.length >= 2 ? [line] : [];
+}
+
+function getTyphoonStormWarningCircles(payload) {
+  const grouped = (payload?.stormWarningGroups ?? [])
+    .flatMap((group) => Array.isArray(group) ? group : [])
+    .filter(isTyphoonStormWarningCircle);
+  if (grouped.length) return grouped;
+
+  return (payload?.stormWarningArea ?? []).filter(isTyphoonStormWarningCircle);
+}
+
+function isTyphoonStormWarningCircle(value) {
+  return isCoordinate(value?.center)
+    && Number.isFinite(Number(value?.radius))
+    && Number(value.radius) > 0;
 }
 
 export function calculateTyphoonCircleTangents(circleA, circleB) {
@@ -1383,6 +1450,7 @@ function drawTyphoonMapLegend(context, box, theme, visibility) {
   const items = [
     visibility.hasStrongWindArea ? { label: "強風域", color: "#facc15", dash: [] } : null,
     visibility.hasStormArea ? { label: "暴風域", color: "#ef4444", dash: [] } : null,
+    visibility.hasStormWarningArea ? { label: "暴風警戒域", color: "#ff2800", dash: [] } : null,
     visibility.hasForecastCircles ? { label: "予報円", color: theme.text, dash: [5, 4] } : null
   ].filter(Boolean);
   if (!items.length) return;
@@ -1443,7 +1511,7 @@ function drawTyphoonRadiusArea(context, center, radiusKm, project, options = {})
 function getTyphoonProjectedCircle(center, radiusKm, project) {
   const [centerX, centerY] = project(center);
   if (!(Number(radiusKm) > 0)) return { x: centerX, y: centerY, radius: 0 };
-  const eastEdge = project(destinationPointForTyphoonCard(center, Number(radiusKm), 90));
+  const eastEdge = project(destinationPoint(center, Number(radiusKm), 90));
   return {
     x: centerX,
     y: centerY,
@@ -1455,28 +1523,8 @@ function appendTyphoonRadiusExtentPoints(points, center, radiusKm) {
   const radius = Number(radiusKm);
   if (!isCoordinate(center) || !Number.isFinite(radius) || radius <= 0) return;
   [0, 90, 180, 270].forEach((bearing) => {
-    points.push(destinationPointForTyphoonCard(center, radius, bearing));
+    points.push(destinationPoint(center, radius, bearing));
   });
-}
-
-function destinationPointForTyphoonCard([longitude, latitude], distanceKm, bearingDegrees) {
-  const earthRadiusKm = 6371.0088;
-  const angularDistance = distanceKm / earthRadiusKm;
-  const bearing = bearingDegrees * Math.PI / 180;
-  const latitudeRadians = latitude * Math.PI / 180;
-  const longitudeRadians = longitude * Math.PI / 180;
-  const destinationLatitude = Math.asin(
-    Math.sin(latitudeRadians) * Math.cos(angularDistance)
-    + Math.cos(latitudeRadians) * Math.sin(angularDistance) * Math.cos(bearing)
-  );
-  const destinationLongitude = longitudeRadians + Math.atan2(
-    Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(latitudeRadians),
-    Math.cos(angularDistance) - Math.sin(latitudeRadians) * Math.sin(destinationLatitude)
-  );
-  return [
-    ((destinationLongitude * 180 / Math.PI + 540) % 360) - 180,
-    destinationLatitude * 180 / Math.PI
-  ];
 }
 
 function drawTyphoonTrack(context, points, project, color, dash, width) {

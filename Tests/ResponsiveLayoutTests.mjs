@@ -22,6 +22,14 @@ assert.match(
 assert.match(styles, /#main-tabs\s*\{[\s\S]*?bottom:\s*max\(8px,\s*env\(safe-area-inset-bottom\)\)/);
 assert.match(
   styles,
+  /#main-tabs\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;[\s\S]*?-webkit-user-select:\s*none;/
+);
+assert.match(
+  styles,
+  /\.tab-button\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;[\s\S]*?-webkit-user-drag:\s*none;/
+);
+assert.match(
+  styles,
   /@media \(max-width: 800px\) and \(orientation: portrait\)\s*\{[\s\S]*?#main-tabs,\s*#main-tabs \.tab-button\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;/
 );
 assert.match(
@@ -119,6 +127,14 @@ assert.match(
 assert.match(
   styles,
   /\.weather-time-range\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none;[\s\S]*?-webkit-tap-highlight-color:\s*transparent;/
+);
+assert.match(
+  styles,
+  /\.weather-time-range::-webkit-slider-runnable-track\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none;/
+);
+assert.match(
+  styles,
+  /\.weather-time-range::-webkit-slider-thumb\s*\{[\s\S]*?-webkit-appearance:\s*none;[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none;[\s\S]*?opacity:\s*0;/
 );
 assert.match(
   styles,

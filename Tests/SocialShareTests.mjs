@@ -138,7 +138,13 @@ const englishSharePayloads = [
     pressure: "970hPa",
     maxWind: "30m/s",
     maxGust: "45m/s",
-    movement: "西北西 15km/h"
+    movement: "西北西 15km/h",
+    center: [135, 25],
+    track: [[134, 24], [135, 25]],
+    stormWarningAreaShape: {
+      arc: [{ center: [135, 25], radius: 160, start: 320, end: 40 }],
+      line: [[[133.9, 25.4], [136.1, 25.4]]]
+    }
   }
 ];
 const japaneseTextPattern = /[\u3040-\u30ff\u3400-\u9fff]/u;
@@ -213,6 +219,9 @@ assert.match(leftPanelSource, /coordinates:\s*selectedEarthquake\.coordinates/);
 assert.match(leftPanelSource, /forecastTrack:\s*selectedTyphoon\.forecastTrack/);
 assert.match(leftPanelSource, /strongWindRadius:\s*selectedTyphoon\.strongWindRadius/);
 assert.match(leftPanelSource, /stormRadius:\s*selectedTyphoon\.stormRadius/);
+assert.match(leftPanelSource, /stormWarningArea:\s*selectedTyphoon\.stormWarningArea/);
+assert.match(leftPanelSource, /stormWarningAreaShape:\s*selectedTyphoon\.stormWarningAreaShape/);
+assert.match(leftPanelSource, /stormWarningGroups:\s*selectedTyphoon\.stormWarningGroups/);
 
 const modalSource = await readFile(new URL("../src/ui/socialShareModal.js", import.meta.url), "utf8");
 assert.match(modalSource, /fetch\("\/data\/japan-prefectures\.geojson"\)/);
@@ -241,7 +250,10 @@ assert.match(cardSource, /function drawTyphoonRadiusArea\(/);
 assert.match(cardSource, /function buildTyphoonForecastLine\(/);
 assert.match(cardSource, /function drawTyphoonForecastEnvelope\(/);
 assert.match(cardSource, /function calculateTyphoonCircleTangents\(/);
-assert.match(cardSource, /function destinationPointForTyphoonCard\(/);
+assert.match(cardSource, /function drawTyphoonStormWarningArea\(/);
+assert.match(cardSource, /hasStormWarningArea:\s*hasTyphoonStormWarningArea\(payload\)/);
+assert.match(cardSource, /暴風警戒域/);
+assert.doesNotMatch(cardSource, /function destinationPointForTyphoonCard\(/);
 assert.match(cardSource, /forecast\?\.radius/);
 assert.doesNotMatch(cardSource, /strokeStyle:\s*"rgba\(255,\s*255,\s*255,\s*0\.9\)"/);
 assert.match(cardSource, /context\.fillStyle = theme\.text;\s*context\.beginPath\(\);\s*context\.arc\(pointX, pointY, radius/);
