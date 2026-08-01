@@ -99,7 +99,19 @@ assert.doesNotMatch(
 assert.doesNotMatch(panelToggle, /isMobileSheet/);
 assert.doesNotMatch(panelToggle, /isPortraitSheet/);
 assert.match(panelToggle, /sidebar\.style\.transform = "translateY\(0\) translateZ\(0\)";/);
+assert.match(
+  panelToggle,
+  /function setSummaryTransition\(offset, offsets = getSnapOffsets\(\)\)[\s\S]*?tabBarHeight[\s\S]*?summaryHeight[\s\S]*?retreatDistance[\s\S]*?absorptionProgress[\s\S]*?--mobile-summary-retreat-y[\s\S]*?--mobile-summary-absorb-opacity[\s\S]*?--mobile-summary-absorb-scale/
+);
+assert.match(panelToggle, /setSummaryTransition\(nextOffset, offsets\);/);
+assert.match(panelToggle, /classList\.toggle\("is-vertical-dragging", initialAxis === "y"\)/);
+assert.match(panelToggle, /classList\.remove\("is-vertical-dragging"\)/);
 assert.match(panelToggle, /setDrawerState\(drawerState === "peek" \? "full" : "peek"\);/);
+assert.match(
+  styles,
+  /\.mobile-context-dock\s*\{[\s\S]*?opacity:\s*var\(--mobile-summary-absorb-opacity, 1\);[\s\S]*?translateX\(-50%\) translateY\(var\(--mobile-summary-retreat-y, 0px\)\) scale\(var\(--mobile-summary-absorb-scale, 1\)\)[\s\S]*?transform-origin:\s*50% 100%;[\s\S]*?\.mobile-drawer-open \.mobile-context-dock:not\(\.is-vertical-dragging\)\s*\{[\s\S]*?pointer-events:\s*none;[\s\S]*?\.mobile-context-dock\.is-vertical-dragging\s*\{[\s\S]*?transition:\s*none;/
+);
+assert.doesNotMatch(styles, /\.mobile-drawer-open \.mobile-context-dock\s*\{[\s\S]{0,160}?opacity:\s*0;/);
 assert.match(
   styles,
   /\.weather-time-timeline,\s*\.weather-time-timeline \*\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;/
