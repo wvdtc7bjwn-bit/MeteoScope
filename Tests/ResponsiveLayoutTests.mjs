@@ -35,6 +35,10 @@ assert.match(
 assert.match(tabs, /root\?\.addEventListener\("lostpointercapture",[\s\S]*?cancelIndicatorDrag\(\)/);
 assert.match(tabs, /window\.addEventListener\("blur", cancelIndicatorDrag\)/);
 assert.match(
+  tabs,
+  /const completedPointerId = dragPointerId;[\s\S]*?activateTab\(getTabFromPoint[\s\S]*?dragPointerId = null;[\s\S]*?hasPointerCapture\?\.\(completedPointerId\)[\s\S]*?releasePointerCapture\(completedPointerId\)/
+);
+assert.match(
   styles,
   /@media screen\s*\{[\s\S]*?#sidebar\s*\{[\s\S]*?html:not\(\.mobile-drawer-open\) #sidebar\s*\{[\s\S]*?opacity:\s*0;[\s\S]*?\.mobile-context-dock\s*\{[\s\S]*?display:\s*block;/
 );
