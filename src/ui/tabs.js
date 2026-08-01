@@ -142,6 +142,14 @@ export function setupTabs({ onChange, tabs = [] }) {
     window.requestAnimationFrame(syncIndicatorToActive);
   }
 
+  function cancelIndicatorDrag() {
+    if (dragPointerId === null) return;
+    stopIndicatorDrag();
+    dragPointerId = null;
+    dragMoved = false;
+    clearPointerPreview();
+  }
+
   function applyTabOrder(order) {
     if (!root) return [];
     const normalized = normalizeTabOrder(order, tabs);
@@ -238,6 +246,14 @@ export function setupTabs({ onChange, tabs = [] }) {
 
   root?.addEventListener("pointerup", finishDrag);
   root?.addEventListener("pointercancel", finishDrag);
+  root?.addEventListener("lostpointercapture", (event) => {
+    if (dragPointerId !== event.pointerId) return;
+    cancelIndicatorDrag();
+  });
+  window.addEventListener("blur", cancelIndicatorDrag);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) cancelIndicatorDrag();
+  });
   window.addEventListener("resize", () => {
     if (resizeFrame) return;
     resizeFrame = window.requestAnimationFrame(() => {

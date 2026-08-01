@@ -39,6 +39,10 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   let lastHorizontalTime = 0;
   let horizontalVelocityX = 0;
 
+  function isCompactLandscape() {
+    return window.matchMedia?.("(orientation: landscape) and (max-width: 1024px) and (max-height: 600px) and (hover: none) and (pointer: coarse)").matches === true;
+  }
+
   function isDockControlEvent(event) {
     const path = typeof event.composedPath === "function" ? event.composedPath() : [event.target];
     return path.some((node) => node instanceof Element && (
@@ -49,6 +53,10 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
 
   function getSheetHeight() {
     const viewportHeight = window.innerHeight || 0;
+    if (isCompactLandscape()) {
+      const minHeight = Math.min(280, Math.max(240, viewportHeight - 16));
+      return Math.max(minHeight, Math.min(viewportHeight * 0.82, 480));
+    }
     const compactViewport = (window.innerWidth || 0) <= 420;
     const maxHeight = compactViewport ? 590 : 620;
     const minHeight = Math.min(compactViewport ? 330 : 360, Math.max(240, viewportHeight - 24));

@@ -22,8 +22,18 @@ assert.match(
 assert.match(styles, /#main-tabs\s*\{[\s\S]*?bottom:\s*max\(8px,\s*env\(safe-area-inset-bottom\)\)/);
 assert.match(
   styles,
-  /@media \(max-width: 800px\) and \(orientation: portrait\)\s*\{[\s\S]*?#main-tabs::after,\s*html\[data-theme="light"\] #main-tabs::after\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none;[\s\S]*?#main-tabs,\s*#main-tabs \.tab-button\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;/
+  /@media \(max-width: 800px\) and \(orientation: portrait\)\s*\{[\s\S]*?#main-tabs,\s*#main-tabs \.tab-button\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;/
 );
+assert.match(
+  styles,
+  /@media screen\s*\{[\s\S]*?#main-tabs::after\s*\{[\s\S]*?background:\s*rgba\(151, 174, 199, 0\.14\);[\s\S]*?box-shadow:\s*none;[\s\S]*?#main-tabs\.is-dragging::after\s*\{[\s\S]*?radial-gradient[\s\S]*?backdrop-filter:\s*blur\(8px\) saturate\(1\.08\);/
+);
+assert.match(
+  styles,
+  /html\[data-theme="light"\] #main-tabs\.is-dragging::after\s*\{[\s\S]*?radial-gradient[\s\S]*?inset 0 -1px 0 rgba\(47, 117, 165, 0\.06\);/
+);
+assert.match(tabs, /root\?\.addEventListener\("lostpointercapture",[\s\S]*?cancelIndicatorDrag\(\)/);
+assert.match(tabs, /window\.addEventListener\("blur", cancelIndicatorDrag\)/);
 assert.match(
   styles,
   /@media screen\s*\{[\s\S]*?#sidebar\s*\{[\s\S]*?html:not\(\.mobile-drawer-open\) #sidebar\s*\{[\s\S]*?opacity:\s*0;[\s\S]*?\.mobile-context-dock\s*\{[\s\S]*?display:\s*block;/
@@ -47,6 +57,26 @@ assert.match(
 assert.match(
   styles,
   /@media \(min-width: 801px\)\s*\{[\s\S]*?--shared-nav-height:\s*68px;[\s\S]*?--shared-summary-height:\s*126px;/
+);
+assert.match(
+  styles,
+  /@media \(orientation: landscape\) and \(max-width: 1024px\) and \(max-height: 600px\) and \(hover: none\) and \(pointer: coarse\)\s*\{[\s\S]*?--shared-dock-width:\s*min\(360px, calc\(100vw - 24px\)\);[\s\S]*?--shared-nav-height:\s*62px;[\s\S]*?--shared-summary-height:\s*120px;[\s\S]*?#sidebar,[\s\S]*?max-height:\s*min\(82dvh, 480px\);/
+);
+assert.match(
+  styles,
+  /:root\s*\{[\s\S]*?--shared-shell-glass-background:\s*rgba\(7, 16, 34, 0\.34\);[\s\S]*?--shared-shell-glass-filter:\s*blur\(26px\) saturate\(1\.5\);/
+);
+assert.match(
+  styles,
+  /html\[data-theme="light"\]\s*\{[\s\S]*?--shared-shell-glass-background:\s*rgba\(246, 250, 255, 0\.34\);/
+);
+assert.match(
+  styles,
+  /The sheet, summary bar, and bottom tab slider share the same glass density\.[\s\S]*?:is\(#sidebar, #sidebar\.drawer-open, \.mobile-context-dock, #main-tabs\)[\s\S]*?background:\s*var\(--shared-shell-glass-background\);[\s\S]*?backdrop-filter:\s*var\(--shared-shell-glass-filter\);[\s\S]*?#sidebar \.current-panel,[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none;/
+);
+assert.match(
+  panelToggle,
+  /function isCompactLandscape\(\)[\s\S]*?max-width: 1024px[\s\S]*?pointer: coarse[\s\S]*?if \(isCompactLandscape\(\)\)[\s\S]*?viewportHeight \* 0\.82, 480/
 );
 assert.match(
   styles,
@@ -444,7 +474,7 @@ assert.match(styles, /\.weather-time-active-marker\s*\{[\s\S]*?left:\s*50%/);
 assert.match(styles, /\.weather-time-(?:labels|ticks)[\s\S]*?translateX\(var\(--weather-time-shift\)\)/);
 assert.match(
   styles,
-  /html\[data-theme="light"\] :is\(#main-tabs, \.mobile-context-dock\)\s*\{[\s\S]*?background:\s*rgba\(244, 249, 253, 0\.9\)/
+  /html\[data-theme="light"\] :is\(#main-tabs, \.mobile-context-dock\)\s*\{[\s\S]*?background:\s*var\(--shared-shell-glass-background\);[\s\S]*?backdrop-filter:\s*var\(--shared-shell-glass-filter\);/
 );
 assert.match(
   styles,
@@ -462,10 +492,7 @@ assert.match(
   styles,
   /html\[data-theme="light"\] \.volcano-selected-header h2\s*\{[\s\S]*?color:\s*#0c2b47;[\s\S]*?font-weight:\s*950;/
 );
-assert.match(
-  styles,
-  /@media \(max-width: 800px\) and \(orientation: portrait\)\s*\{[\s\S]*?html\[data-theme="light"\] #sidebar\s*\{[\s\S]*?background:\s*rgba\(246, 250, 254, 0\.94\)/
-);
+assert.doesNotMatch(styles, /html\[data-theme="light"\] #sidebar\s*\{[\s\S]{0,320}?background:\s*rgba\(246, 250, 254, 0\.94\)/);
 assert.match(
   panel,
   /class="mobile-dock-tsunami-heading">\$\{isEnglish \? "Tsunami information" : "津波情報"\}<\/div>/

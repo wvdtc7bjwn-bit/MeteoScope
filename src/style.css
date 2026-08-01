@@ -46,6 +46,12 @@
   --modal-header-height: 62px;
   --modal-header-padding: 12px 18px;
   --modal-close-size: 38px;
+  --shared-shell-glass-background: rgba(7, 16, 34, 0.34);
+  --shared-shell-glass-filter: blur(26px) saturate(1.5);
+}
+
+html[data-theme="light"] {
+  --shared-shell-glass-background: rgba(246, 250, 255, 0.34);
 }
 
 html {
@@ -7888,12 +7894,12 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     padding-bottom: max(96px, calc(env(safe-area-inset-bottom) + 96px));
     border: 1px solid rgba(207, 232, 255, 0.22);
     border-radius: 36px;
-    background: rgba(7, 16, 34, 0.1);
+    background: var(--shared-shell-glass-background);
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.035),
       0 -12px 30px rgba(1, 7, 20, 0.22);
-    backdrop-filter: blur(26px) saturate(1.5);
-    -webkit-backdrop-filter: blur(26px) saturate(1.5);
+    backdrop-filter: var(--shared-shell-glass-filter);
+    -webkit-backdrop-filter: var(--shared-shell-glass-filter);
     transform-origin: bottom center;
     transition:
       transform 340ms cubic-bezier(0.16, 1, 0.3, 1),
@@ -8057,15 +8063,19 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     gap: var(--tab-shell-gap);
     border: 1px solid var(--tab-glass-rim);
     border-radius: 999px;
-    background: rgba(7, 16, 34, 0.1);
+    background: var(--shared-shell-glass-background);
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.035),
       0 18px 42px var(--tab-glass-shadow);
     transform: translateX(-50%);
-    backdrop-filter: blur(26px) saturate(1.5);
-    -webkit-backdrop-filter: blur(26px) saturate(1.5);
+    backdrop-filter: var(--shared-shell-glass-filter);
+    -webkit-backdrop-filter: var(--shared-shell-glass-filter);
     isolation: isolate;
     touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
     overflow: hidden;
   }
 
@@ -8086,13 +8096,13 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     border-radius: 36px;
     color: #edf7ff;
     text-align: left;
-    background: rgba(7, 16, 34, 0.1);
+    background: var(--shared-shell-glass-background);
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.035),
       0 -12px 30px rgba(1, 7, 20, 0.22);
     transform: translateX(-50%);
-    backdrop-filter: blur(26px) saturate(1.5);
-    -webkit-backdrop-filter: blur(26px) saturate(1.5);
+    backdrop-filter: var(--shared-shell-glass-filter);
+    -webkit-backdrop-filter: var(--shared-shell-glass-filter);
     cursor: ns-resize;
     touch-action: none;
     overflow: hidden;
@@ -9548,23 +9558,34 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     width: calc((100% - (var(--tab-shell-padding) * 2) - (var(--tab-shell-gap) * 4) - (var(--tab-active-edge-inset) * 2)) / 5);
     height: auto;
     box-sizing: border-box;
-    border: 1px solid rgba(211, 239, 255, 0.38);
+    border: 1px solid rgba(211, 239, 255, 0.2);
     border-radius: 999px;
-    background: rgba(79, 155, 226, 0.14);
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.045),
-      0 10px 24px rgba(20, 64, 150, 0.1);
-    opacity: 0.82;
+    background: rgba(151, 174, 199, 0.14);
+    box-shadow: none;
+    opacity: 1;
     pointer-events: none;
     transform: translate3d(var(--tab-indicator-x), 0, 0);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 140ms ease;
+    transition:
+      transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      border-color 160ms ease,
+      background 160ms ease,
+      box-shadow 160ms ease;
     will-change: transform;
   }
 
   #main-tabs.is-dragging::after {
     transition: none;
+    border-color: rgba(211, 237, 252, 0.26);
+    background:
+      radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.06), transparent 56%),
+      linear-gradient(180deg, rgba(101, 168, 218, 0.16), rgba(55, 111, 176, 0.12));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -1px 0 rgba(8, 30, 70, 0.1);
+    backdrop-filter: blur(8px) saturate(1.08);
+    -webkit-backdrop-filter: blur(8px) saturate(1.08);
   }
 
   .tab-button {
@@ -11183,12 +11204,12 @@ html[data-theme="light"] .tsunami-area-row.level-advisory .tsunami-level-badge {
   html[data-theme="light"] .mobile-context-dock,
   html[data-theme="light"] #main-tabs {
     border-color: rgba(72, 100, 132, 0.24);
-    background: rgba(246, 250, 255, 0.34);
+    background: var(--shared-shell-glass-background);
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.46),
       0 -12px 30px rgba(51, 73, 99, 0.16);
-    backdrop-filter: blur(26px) saturate(1.5);
-    -webkit-backdrop-filter: blur(26px) saturate(1.5);
+    backdrop-filter: var(--shared-shell-glass-filter);
+    -webkit-backdrop-filter: var(--shared-shell-glass-filter);
   }
 
   html[data-theme="light"] .current-panel {
@@ -12375,13 +12396,13 @@ html[data-theme="light"] .settings-tab-order-preview {
 /* Keep the glass hierarchy and contrast in the light appearance. */
 html[data-theme="light"] :is(#main-tabs, .mobile-context-dock) {
   border-color: rgba(54, 83, 114, 0.4);
-  background: rgba(244, 249, 253, 0.9);
+  background: var(--shared-shell-glass-background);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.92),
     inset 0 0 0 1px rgba(255, 255, 255, 0.34),
     0 14px 34px rgba(44, 67, 94, 0.24);
-  backdrop-filter: blur(24px) saturate(1.32) contrast(1.06);
-  -webkit-backdrop-filter: blur(24px) saturate(1.32) contrast(1.06);
+  backdrop-filter: var(--shared-shell-glass-filter);
+  -webkit-backdrop-filter: var(--shared-shell-glass-filter);
 }
 
 html[data-theme="light"] #main-tabs::before {
@@ -12390,11 +12411,19 @@ html[data-theme="light"] #main-tabs::before {
 }
 
 html[data-theme="light"] #main-tabs::after {
-  border-color: rgba(25, 119, 174, 0.38);
-  background: rgba(76, 169, 222, 0.2);
+  border-color: rgba(72, 98, 124, 0.16);
+  background: rgba(96, 112, 130, 0.1);
+  box-shadow: none;
+}
+
+html[data-theme="light"] #main-tabs.is-dragging::after {
+  border-color: rgba(96, 157, 196, 0.22);
+  background:
+    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.18), transparent 56%),
+    linear-gradient(180deg, rgba(190, 222, 241, 0.24), rgba(129, 185, 219, 0.12));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 7px 18px rgba(31, 100, 146, 0.16);
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 -1px 0 rgba(47, 117, 165, 0.06);
 }
 
 html[data-theme="light"] .tab-button {
@@ -12423,12 +12452,6 @@ html[data-theme="light"] .tab-button.active::before {
 }
 
 @media (max-width: 800px) and (orientation: portrait) {
-  #main-tabs::after,
-  html[data-theme="light"] #main-tabs::after {
-    background: transparent;
-    box-shadow: none;
-  }
-
   #main-tabs,
   #main-tabs .tab-button {
     -webkit-tap-highlight-color: transparent;
@@ -13841,12 +13864,12 @@ html[data-theme="light"] .amedas-temperature-chart-grid line {
 @media (max-width: 800px) and (orientation: portrait) {
   html[data-theme="light"] #sidebar {
     border-color: rgba(54, 83, 114, 0.4);
-    background: rgba(246, 250, 254, 0.94);
+    background: var(--shared-shell-glass-background);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.94),
       0 -14px 34px rgba(44, 67, 94, 0.24);
-    backdrop-filter: blur(24px) saturate(1.28) contrast(1.06);
-    -webkit-backdrop-filter: blur(24px) saturate(1.28) contrast(1.06);
+    backdrop-filter: var(--shared-shell-glass-filter);
+    -webkit-backdrop-filter: var(--shared-shell-glass-filter);
   }
 }
 
@@ -15355,7 +15378,7 @@ html[data-theme="light"] .social-share-preview-shell {
     overflow-y: auto;
     border: 1px solid rgba(207, 232, 255, 0.22);
     border-radius: 36px;
-    background: rgba(7, 16, 34, 0.1);
+    background: var(--shared-shell-glass-background);
     box-shadow:
       inset 0 0 0 1px rgba(255, 255, 255, 0.035),
       0 -12px 30px rgba(1, 7, 20, 0.22);
@@ -15367,8 +15390,8 @@ html[data-theme="light"] .social-share-preview-shell {
       opacity 220ms ease,
       filter 220ms ease;
     pointer-events: auto;
-    backdrop-filter: blur(26px) saturate(1.5);
-    -webkit-backdrop-filter: blur(26px) saturate(1.5);
+    backdrop-filter: var(--shared-shell-glass-filter);
+    -webkit-backdrop-filter: var(--shared-shell-glass-filter);
   }
 
   html:not(.mobile-drawer-open) #sidebar {
@@ -15455,11 +15478,17 @@ html[data-theme="light"] .social-share-preview-shell {
   }
 
   html[data-theme="light"] #sidebar {
-    border-color: rgba(54, 83, 114, 0.4);
-    background: rgba(246, 250, 254, 0.72);
+    border-color: rgba(72, 100, 132, 0.24);
+    background: var(--shared-shell-glass-background);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.94),
+      inset 0 0 0 1px rgba(255, 255, 255, 0.46),
       0 -12px 30px rgba(44, 67, 94, 0.16);
+  }
+
+  html[data-theme="light"] #sidebar .current-panel {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
   }
 }
 
@@ -15481,5 +15510,58 @@ html[data-theme="light"] .social-share-preview-shell {
   #map-attribution {
     right: 20px;
     font-size: 10px;
+  }
+}
+
+/* Phones and small tablets in landscape keep the shared drawer behavior, but
+   use a denser dock so the map remains the dominant surface. This block comes
+   after the desktop overrides because modern phones can exceed 800 CSS px in
+   landscape. */
+@media (orientation: landscape) and (max-width: 1024px) and (max-height: 600px) and (hover: none) and (pointer: coarse) {
+  :root {
+    --shared-dock-left: max(10px, env(safe-area-inset-left));
+    --shared-dock-bottom: max(8px, env(safe-area-inset-bottom));
+    --shared-dock-width: min(360px, calc(100vw - 24px));
+    --shared-nav-height: 62px;
+    --shared-summary-height: 120px;
+    --shared-map-control-gap: 8px;
+  }
+
+  #sidebar,
+  #sidebar.drawer-open {
+    width: var(--shared-dock-width);
+    max-height: min(82dvh, 480px);
+    padding-bottom: max(88px, calc(env(safe-area-inset-bottom) + 88px));
+    border-radius: 32px;
+  }
+
+  #main-tabs {
+    height: var(--shared-nav-height);
+    min-height: var(--shared-nav-height);
+  }
+
+  .mobile-context-dock {
+    height: var(--shared-summary-height);
+    min-height: var(--shared-summary-height);
+    max-height: var(--shared-summary-height);
+    border-radius: 32px;
+  }
+}
+
+/* The sheet, summary bar, and bottom tab slider share the same glass density.
+   Keep this after viewport/theme refinements so every layout resolves to the
+   same opacity and blur while retaining its light/dark border and shadow. */
+@media screen {
+  :is(#sidebar, #sidebar.drawer-open, .mobile-context-dock, #main-tabs),
+  html[data-theme="light"] :is(#sidebar, #sidebar.drawer-open, .mobile-context-dock, #main-tabs) {
+    background: var(--shared-shell-glass-background);
+    backdrop-filter: var(--shared-shell-glass-filter);
+    -webkit-backdrop-filter: var(--shared-shell-glass-filter);
+  }
+
+  #sidebar .current-panel,
+  html[data-theme="light"] #sidebar .current-panel {
+    background: transparent;
+    box-shadow: none;
   }
 }
