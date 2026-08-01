@@ -45,13 +45,40 @@
   --modal-backdrop-blur: 4px;
   --modal-header-height: 62px;
   --modal-header-padding: 12px 18px;
-  --modal-close-size: 38px;
+  --modal-close-size: 42px;
   --shared-shell-glass-background: rgba(7, 16, 34, 0.34);
   --shared-shell-glass-filter: blur(26px) saturate(1.5);
+  --segmented-track-border: rgba(207, 232, 255, 0.2);
+  --segmented-track-background: rgba(7, 16, 34, 0.12);
+  --segmented-track-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+  --segmented-indicator-border: rgba(211, 239, 255, 0.2);
+  --segmented-indicator-background: rgba(151, 174, 199, 0.14);
+  --segmented-indicator-shadow: none;
+  --segmented-indicator-filter: none;
+  --segmented-drag-border: rgba(211, 239, 255, 0.3);
+  --segmented-drag-background:
+    radial-gradient(circle at 24% 16%, rgba(255, 255, 255, 0.13), transparent 44%),
+    linear-gradient(135deg, rgba(72, 184, 236, 0.1), rgba(185, 126, 236, 0.065) 52%, rgba(93, 215, 192, 0.08)),
+    rgba(151, 174, 199, 0.18);
+  --segmented-drag-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 4px 12px rgba(20, 64, 150, 0.07);
+  --segmented-drag-filter: blur(10px) saturate(1.16);
 }
 
 html[data-theme="light"] {
   --shared-shell-glass-background: rgba(246, 250, 255, 0.34);
+  --segmented-track-border: rgba(71, 99, 130, 0.2);
+  --segmented-track-background: rgba(233, 240, 248, 0.56);
+  --segmented-track-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.52);
+  --segmented-indicator-border: rgba(72, 98, 124, 0.16);
+  --segmented-indicator-background: rgba(96, 112, 130, 0.1);
+  --segmented-indicator-shadow: none;
+  --segmented-drag-border: rgba(72, 98, 124, 0.22);
+  --segmented-drag-background:
+    radial-gradient(circle at 24% 16%, rgba(255, 255, 255, 0.38), transparent 44%),
+    linear-gradient(135deg, rgba(69, 175, 223, 0.12), rgba(197, 137, 229, 0.08) 52%, rgba(91, 204, 181, 0.1)),
+    rgba(151, 174, 199, 0.12);
+  --segmented-drag-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48), 0 4px 12px rgba(36, 101, 145, 0.08);
+  --segmented-drag-filter: blur(8px) saturate(1.1);
 }
 
 html {
@@ -1034,10 +1061,6 @@ html[data-language="en"] .warning-area-row > strong {
   font-weight: 900;
 }
 
-.warning-modal[hidden] {
-  display: none;
-}
-
 .warning-modal {
   position: fixed;
   inset: 0;
@@ -1045,6 +1068,16 @@ html[data-language="en"] .warning-area-row > strong {
   display: grid;
   place-items: center;
   padding: 18px;
+  visibility: visible;
+  pointer-events: auto;
+  transition: visibility 0s linear 0s;
+}
+
+.warning-modal[hidden] {
+  display: grid !important;
+  visibility: hidden;
+  pointer-events: none;
+  transition: visibility 0s linear 320ms;
 }
 
 .warning-modal-backdrop {
@@ -1053,6 +1086,14 @@ html[data-language="en"] .warning-area-row > strong {
   background: var(--modal-backdrop-bg);
   backdrop-filter: blur(var(--modal-backdrop-blur));
   -webkit-backdrop-filter: blur(var(--modal-backdrop-blur));
+  opacity: 1;
+  transition: opacity 220ms ease-out;
+}
+
+.warning-modal[hidden] .warning-modal-backdrop {
+  opacity: 0;
+  transition-duration: 180ms;
+  transition-timing-function: ease-in;
 }
 
 .warning-modal-panel {
@@ -1069,6 +1110,28 @@ html[data-language="en"] .warning-area-row > strong {
   box-shadow: var(--modal-shell-shadow);
   backdrop-filter: blur(28px) saturate(1.35);
   -webkit-backdrop-filter: blur(28px) saturate(1.35);
+  transform: translate3d(0, 0, 0);
+  transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.warning-modal[hidden] .warning-modal-panel {
+  transform: translate3d(0, 100vh, 0);
+  transform: translate3d(0, 100dvh, 0);
+  transition-duration: 320ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .warning-modal,
+  .warning-modal-backdrop,
+  .warning-modal-panel,
+  .warning-modal[hidden],
+  .warning-modal[hidden] .warning-modal-backdrop,
+  .warning-modal[hidden] .warning-modal-panel {
+    transition-duration: 0.01ms;
+    transition-delay: 0s;
+  }
 }
 
 .warning-modal-panel::-webkit-scrollbar {
@@ -1083,25 +1146,47 @@ html[data-language="en"] .warning-area-row > strong {
   place-items: center;
   width: var(--modal-close-size);
   height: var(--modal-close-size);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.07);
   color: #f6f9ff;
   font-size: 0;
+  box-shadow:
+    0 5px 14px rgba(0, 0, 0, 0.16),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 120ms ease;
   cursor: pointer;
 }
 
-.warning-modal-close::before {
+.warning-modal-close::before,
+.warning-modal-close::after {
+  content: "";
   position: absolute;
   left: 50%;
   top: 50%;
-  content: "×";
-  color: inherit;
-  font-family: Arial, sans-serif;
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1;
-  transform: translate(-50%, -50%);
+  width: 21px;
+  height: 2.5px;
+  border-radius: 999px;
+  background: #f7f9fc;
+}
+
+.warning-modal-close::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.warning-modal-close::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.warning-modal-close:is(:hover, :focus-visible) {
+  border-color: rgba(122, 196, 236, 0.48);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.warning-modal-close:active {
+  transform: scale(0.94);
 }
 
 .warning-modal-head {
@@ -1244,6 +1329,181 @@ html[data-language="en"] .warning-area-row > strong {
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
+}
+
+.world-typhoon-target-modal {
+  z-index: 1240;
+}
+
+.world-typhoon-target-panel {
+  width: min(520px, calc(100vw - 28px));
+  max-height: min(82dvh, 680px);
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.world-typhoon-target-panel .settings-modal-header > div {
+  min-width: 0;
+}
+
+.world-typhoon-target-panel .settings-modal-kicker {
+  display: block;
+  margin-bottom: 3px;
+  color: #83c8ed;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+}
+
+.world-typhoon-target-body {
+  display: grid;
+  gap: 4px;
+  padding: 8px 18px 16px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.world-typhoon-target-body::-webkit-scrollbar {
+  display: none;
+}
+
+.world-typhoon-target-group {
+  display: grid;
+  gap: 0;
+}
+
+.world-typhoon-target-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 2px 8px;
+  color: #aebed2;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.world-typhoon-target-group h3 span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--world-target-model-color, #56b7f2);
+}
+
+.world-typhoon-target-options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid rgba(151, 181, 214, 0.18);
+  border-radius: 12px;
+  background: rgba(8, 24, 45, 0.2);
+}
+
+.world-typhoon-target-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 52px;
+  padding: 9px 12px;
+  border: 0;
+  border-bottom: 1px solid rgba(151, 181, 214, 0.14);
+  border-radius: 0;
+  color: #e9f2fc;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.world-typhoon-target-option.is-all {
+  width: 100%;
+  min-height: 58px;
+  margin-bottom: 4px;
+  padding-inline: 2px;
+  border-bottom-color: rgba(151, 181, 214, 0.2);
+}
+
+.world-typhoon-target-option:is(:hover, :focus-visible) {
+  background: transparent;
+}
+
+.world-typhoon-target-option:focus-visible {
+  outline: 2px solid #56b7f2;
+  outline-offset: 2px;
+}
+
+.world-typhoon-target-option.is-selected {
+  background: transparent;
+}
+
+.world-typhoon-target-options .world-typhoon-target-option:last-child {
+  border-bottom: 0;
+}
+
+.world-typhoon-target-option-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.world-typhoon-target-option-copy strong,
+.world-typhoon-target-option-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.world-typhoon-target-option-copy strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.world-typhoon-target-option-copy small {
+  color: #93a8c0;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.world-typhoon-target-option > i {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border: 2px solid rgba(168, 191, 216, 0.46);
+  border-radius: 50%;
+}
+
+.world-typhoon-target-option.is-selected > i {
+  border-color: #57c4f6;
+  background: #57c4f6;
+}
+
+.world-typhoon-target-option.is-selected > i::after {
+  content: "";
+  width: 7px;
+  height: 4px;
+  border-left: 2px solid #06233a;
+  border-bottom: 2px solid #06233a;
+  transform: translateY(-1px) rotate(-45deg);
+}
+
+.world-typhoon-target-empty {
+  display: grid;
+  gap: 5px;
+  padding: 20px;
+  border-radius: 14px;
+  color: #d8e7f7;
+  background: rgba(8, 24, 45, 0.42);
+}
+
+.world-typhoon-target-empty span {
+  color: #94a9c0;
+  font-size: 12px;
 }
 
 .weekly-weather-region-control {
@@ -4557,11 +4817,11 @@ html[data-theme="light"] .weekly-weather-issued strong {
   height: 34px;
   margin-bottom: 10px;
   padding: 3px;
-  border: 1px solid rgba(207, 232, 255, 0.2);
+  border: 1px solid var(--segmented-track-border);
   border-radius: 999px;
   box-sizing: border-box;
-  background: rgba(7, 16, 34, 0.12);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+  background: var(--segmented-track-background);
+  box-shadow: var(--segmented-track-shadow);
   overflow: hidden;
 }
 
@@ -4789,22 +5049,28 @@ html[data-theme="light"] .weekly-weather-issued strong {
   left: 0;
   z-index: 0;
   width: var(--mobile-dock-indicator-width);
-  border: 1px solid rgba(211, 239, 255, 0.36);
+  border: 1px solid var(--segmented-indicator-border);
   border-radius: 999px;
   box-sizing: border-box;
-  background: rgba(79, 155, 226, 0.16);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.04),
-    0 8px 18px rgba(20, 64, 150, 0.08);
+  background: var(--segmented-indicator-background);
+  box-shadow: var(--segmented-indicator-shadow);
   transform: translate3d(calc(var(--mobile-dock-indicator-x) + var(--mobile-dock-drag-x)), 0, 0);
-  backdrop-filter: blur(16px) saturate(1.65);
-  -webkit-backdrop-filter: blur(16px) saturate(1.65);
+  backdrop-filter: var(--segmented-indicator-filter);
+  -webkit-backdrop-filter: var(--segmented-indicator-filter);
   pointer-events: none;
   transition: transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
 }
 
-.mobile-dock-segmented.is-dragging::before,
+.mobile-dock-segmented.is-dragging::before {
+  transition: none;
+  border-color: var(--segmented-drag-border);
+  background: var(--segmented-drag-background);
+  box-shadow: var(--segmented-drag-shadow);
+  backdrop-filter: var(--segmented-drag-filter);
+  -webkit-backdrop-filter: var(--segmented-drag-filter);
+}
+
 .mobile-dock-segmented.is-initializing::before {
   transition: none;
 }
@@ -4856,9 +5122,10 @@ html[data-theme="light"] .weekly-weather-issued strong {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   width: 108px;
   padding: 2px;
-  border: 1px solid rgba(137, 170, 220, 0.2);
+  border: 1px solid var(--segmented-track-border);
   border-radius: 999px;
-  background: rgba(7, 15, 28, 0.52);
+  background: var(--segmented-track-background);
+  box-shadow: var(--segmented-track-shadow);
 }
 
 .hypocenter-presentation-switch button {
@@ -5711,10 +5978,10 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   box-sizing: border-box;
   margin: 0 0 9px auto;
   padding: var(--amedas-chart-period-padding);
-  border: 1px solid rgba(207, 232, 255, 0.16);
+  border: 1px solid var(--segmented-track-border);
   border-radius: 999px;
-  background: rgba(18, 31, 53, 0.48);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: var(--segmented-track-background);
+  box-shadow: var(--segmented-track-shadow);
   isolation: isolate;
   overflow: hidden;
   clip-path: inset(0 round 999px);
@@ -5730,10 +5997,12 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   z-index: 0;
   width: calc((100% - (var(--amedas-chart-period-padding) * 2)) / 2);
   box-sizing: border-box;
-  border: 1px solid rgba(179, 224, 255, 0.3);
+  border: 1px solid var(--segmented-indicator-border);
   border-radius: 999px;
-  background: rgba(69, 157, 217, 0.24);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: var(--segmented-indicator-background);
+  box-shadow: var(--segmented-indicator-shadow);
+  backdrop-filter: var(--segmented-indicator-filter);
+  -webkit-backdrop-filter: var(--segmented-indicator-filter);
   content: "";
   pointer-events: none;
   transform: translate3d(calc((var(--amedas-chart-period-index, 0) * 100%) + var(--amedas-chart-period-drag-x, 0px)), 0, 0);
@@ -5743,6 +6012,11 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 
 .amedas-chart-period-toggle.is-dragging::before {
   transition: none;
+  border-color: var(--segmented-drag-border);
+  background: var(--segmented-drag-background);
+  box-shadow: var(--segmented-drag-shadow);
+  backdrop-filter: var(--segmented-drag-filter);
+  -webkit-backdrop-filter: var(--segmented-drag-filter);
 }
 
 .amedas-chart-period-toggle button {
@@ -5959,10 +6233,10 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   gap: var(--ranking-gap);
   margin: 0 0 8px;
   padding: var(--ranking-padding);
-  border: 1px solid rgba(207, 232, 255, 0.16);
+  border: 1px solid var(--segmented-track-border);
   border-radius: 999px;
-  background: rgba(18, 31, 53, 0.48);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 18px rgba(0, 0, 0, 0.14);
+  background: var(--segmented-track-background);
+  box-shadow: var(--segmented-track-shadow);
   backdrop-filter: blur(14px) saturate(1.35);
   -webkit-backdrop-filter: blur(14px) saturate(1.35);
   isolation: isolate;
@@ -5980,10 +6254,12 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   z-index: 0;
   width: calc((100% - (var(--ranking-padding) * 2) - (var(--ranking-gap) * (var(--ranking-count) - 1))) / var(--ranking-count));
   box-sizing: border-box;
-  border: 1px solid rgba(179, 224, 255, 0.34);
+  border: 1px solid var(--segmented-indicator-border);
   border-radius: 999px;
-  background: rgba(69, 157, 217, 0.2);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 5px 14px rgba(16, 68, 124, 0.16);
+  background: var(--segmented-indicator-background);
+  box-shadow: var(--segmented-indicator-shadow);
+  backdrop-filter: var(--segmented-indicator-filter);
+  -webkit-backdrop-filter: var(--segmented-indicator-filter);
   pointer-events: none;
   transform: translate3d(calc(var(--ranking-index-offset) + var(--ranking-gap-offset) + var(--ranking-drag-x, 0px)), 0, 0);
   transition: transform 380ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -5992,6 +6268,11 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 
 .amedas-ranking-slider.is-dragging::before {
   transition: none;
+  border-color: var(--segmented-drag-border);
+  background: var(--segmented-drag-background);
+  box-shadow: var(--segmented-drag-shadow);
+  backdrop-filter: var(--segmented-drag-filter);
+  -webkit-backdrop-filter: var(--segmented-drag-filter);
 }
 
 .amedas-ranking-toggle button {
@@ -6875,16 +7156,11 @@ html[data-theme="light"] .legend-typhoon-center::after {
     linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.012) 48%, rgba(120, 192, 255, 0.035)),
     rgba(255, 255, 255, 0.018);
   --tab-glass-overlay-opacity: 0.62;
-  --tab-lens-border: rgba(211, 239, 255, 0.38);
-  --tab-lens-bg:
-    linear-gradient(180deg, rgba(92, 155, 219, 0.22), rgba(34, 86, 160, 0.16)),
-    rgba(79, 155, 226, 0.12);
-  --tab-lens-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 rgba(5, 16, 38, 0.3),
-    0 10px 24px rgba(20, 64, 150, 0.12);
-  --tab-lens-filter: blur(20px) saturate(1.7) contrast(1.06);
-  --tab-lens-opacity: 0.88;
+  --tab-lens-border: var(--segmented-indicator-border);
+  --tab-lens-bg: var(--segmented-indicator-background);
+  --tab-lens-shadow: var(--segmented-indicator-shadow);
+  --tab-lens-filter: var(--segmented-indicator-filter);
+  --tab-lens-opacity: 1;
   position: absolute;
   top: 78px;
   left: calc(var(--sidebar-width) + 16px);
@@ -7170,7 +7446,8 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 #map-attribution,
 .map-legend,
 .map-locate-button,
-.map-community-report-button {
+.map-community-report-button,
+.map-world-typhoon-target-button {
   position: absolute;
   z-index: 450;
   color: #d8e6f7;
@@ -7212,7 +7489,49 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   -webkit-touch-callout: none;
 }
 
-.map-community-report-button[hidden] {
+.map-world-typhoon-target-button {
+  right: 9px;
+  bottom: 82px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(7, 14, 27, 0.78);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
+.map-world-typhoon-target-button:not([data-selected-count="0"])::after {
+  content: attr(data-selected-count);
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  display: grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 999px;
+  color: #fff;
+  background: #168fc8;
+  box-shadow: 0 2px 7px rgba(7, 50, 79, 0.28);
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.map-world-typhoon-target-button:not([data-selected-count="0"])::before {
+  transform: translate(-3px, 2px);
+}
+
+.map-community-report-button[hidden],
+.map-world-typhoon-target-button[hidden] {
   display: none !important;
 }
 
@@ -7225,12 +7544,23 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   mask: var(--community-report-icon) center / contain no-repeat;
 }
 
-.map-community-report-button:is(:hover, :focus-visible) {
+.map-world-typhoon-target-button::before {
+  content: "";
+  width: 23px;
+  height: 23px;
+  background: #f8fbff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h24l-9 10v8.2l-6 2.8V16L4 6Z'/%3E%3Cpath d='m18.2 10.8 2.2 2.2 4.2-4.2'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h24l-9 10v8.2l-6 2.8V16L4 6Z'/%3E%3Cpath d='m18.2 10.8 2.2 2.2 4.2-4.2'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.map-community-report-button:is(:hover, :focus-visible),
+.map-world-typhoon-target-button:is(:hover, :focus-visible) {
   border-color: rgba(86, 183, 242, 0.46);
   background: rgba(15, 30, 52, 0.88);
 }
 
-.map-community-report-button:focus-visible {
+.map-community-report-button:focus-visible,
+.map-world-typhoon-target-button:focus-visible {
   outline: 2px solid #56b7f2;
   outline-offset: 3px;
 }
@@ -7727,6 +8057,11 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     bottom: calc(var(--mobile-sidebar-visible-height, 34dvh) + 70px);
   }
 
+  .map-world-typhoon-target-button {
+    right: 17px;
+    bottom: calc(var(--mobile-sidebar-visible-height, 34dvh) + 70px);
+  }
+
   .tab-button {
     width: 50px;
     height: 50px;
@@ -8206,10 +8541,10 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     gap: 2px;
     min-width: 0;
     padding: 3px;
-    border: 1px solid rgba(207, 232, 255, 0.2);
+    border: 1px solid var(--segmented-track-border);
     border-radius: 999px;
-    background: rgba(7, 16, 34, 0.12);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+    background: var(--segmented-track-background);
+    box-shadow: var(--segmented-track-shadow);
     backdrop-filter: blur(18px) saturate(1.5);
     -webkit-backdrop-filter: blur(18px) saturate(1.5);
     overflow: hidden;
@@ -9417,10 +9752,10 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 2px;
     padding: 3px;
-    border: 1px solid rgba(207, 232, 255, 0.2);
+    border: 1px solid var(--segmented-track-border);
     border-radius: 999px;
-    background: rgba(7, 16, 34, 0.12);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+    background: var(--segmented-track-background);
+    box-shadow: var(--segmented-track-shadow);
     backdrop-filter: blur(18px) saturate(1.5);
     -webkit-backdrop-filter: blur(18px) saturate(1.5);
     overflow: hidden;
@@ -9562,15 +9897,15 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     width: calc((100% - (var(--tab-shell-padding) * 2) - (var(--tab-shell-gap) * 4) - (var(--tab-active-edge-inset) * 2)) / 5);
     height: auto;
     box-sizing: border-box;
-    border: 1px solid rgba(211, 239, 255, 0.2);
+    border: 1px solid var(--segmented-indicator-border);
     border-radius: 999px;
-    background: rgba(151, 174, 199, 0.14);
-    box-shadow: none;
+    background: var(--segmented-indicator-background);
+    box-shadow: var(--segmented-indicator-shadow);
     opacity: 1;
     pointer-events: none;
     transform: translate3d(var(--tab-indicator-x), 0, 0);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    backdrop-filter: var(--segmented-indicator-filter);
+    -webkit-backdrop-filter: var(--segmented-indicator-filter);
     transition:
       transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
       border-color 160ms ease,
@@ -9581,15 +9916,11 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   #main-tabs.is-dragging::after {
     transition: none;
-    border-color: rgba(211, 237, 252, 0.26);
-    background:
-      radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.06), transparent 56%),
-      linear-gradient(180deg, rgba(101, 168, 218, 0.16), rgba(55, 111, 176, 0.12));
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      inset 0 -1px 0 rgba(8, 30, 70, 0.1);
-    backdrop-filter: blur(8px) saturate(1.08);
-    -webkit-backdrop-filter: blur(8px) saturate(1.08);
+    border-color: var(--segmented-drag-border);
+    background: var(--segmented-drag-background);
+    box-shadow: var(--segmented-drag-shadow);
+    backdrop-filter: var(--segmented-drag-filter);
+    -webkit-backdrop-filter: var(--segmented-drag-filter);
   }
 
   .tab-button {
@@ -9680,6 +10011,14 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     );
   }
 
+  .map-world-typhoon-target-button {
+    right: 17px;
+    bottom: max(
+      calc(var(--mobile-sidebar-visible-height, 48dvh) + 70px),
+      calc(max(0px, env(safe-area-inset-bottom)) + 220px)
+    );
+  }
+
   .map-community-report-button {
     right: 17px;
     bottom: max(
@@ -9689,7 +10028,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     display: grid;
   }
 
-  .mobile-drawer-open .map-community-report-button {
+  .mobile-drawer-open :is(.map-community-report-button, .map-world-typhoon-target-button) {
     opacity: 0;
     pointer-events: none;
   }
@@ -10326,9 +10665,50 @@ html[data-theme="light"] .warning-modal-panel {
 }
 
 html[data-theme="light"] .warning-modal-close {
-  border-color: rgba(52, 79, 108, 0.22);
-  color: #28435f;
-  background: rgba(224, 234, 244, 0.72);
+  border-color: rgba(70, 87, 108, 0.14);
+  color: #151a22;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    0 5px 15px rgba(46, 62, 80, 0.09),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.62);
+}
+
+html[data-theme="light"] .warning-modal-close::before,
+html[data-theme="light"] .warning-modal-close::after {
+  background: #151a22;
+}
+
+html[data-theme="light"] .warning-modal-close:is(:hover, :focus-visible) {
+  border-color: rgba(38, 128, 180, 0.34);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+html[data-theme="light"] .world-typhoon-target-options,
+html[data-theme="light"] .world-typhoon-target-empty {
+  border-color: rgba(67, 101, 139, 0.2);
+  color: #17304d;
+  background: rgba(245, 249, 253, 0.38);
+}
+
+html[data-theme="light"] .world-typhoon-target-option {
+  border-bottom-color: rgba(67, 101, 139, 0.14);
+  color: #17304d;
+}
+
+html[data-theme="light"] .world-typhoon-target-option:is(:hover, :focus-visible) {
+  background: transparent;
+}
+
+html[data-theme="light"] .world-typhoon-target-option.is-selected {
+  background: transparent;
+}
+
+html[data-theme="light"] :is(
+  .world-typhoon-target-group h3,
+  .world-typhoon-target-option-copy small,
+  .world-typhoon-target-empty span
+) {
+  color: #58718a;
 }
 
 html[data-theme="light"] .warning-modal-head span {
@@ -10463,8 +10843,8 @@ html[data-theme="light"] :is(.amedas-sub-button, .kikikuru-layer-button, .radar-
 }
 
 html[data-theme="light"] .amedas-chart-period-toggle {
-  border-color: rgba(62, 91, 122, 0.18);
-  background: rgba(224, 234, 246, 0.68);
+  border-color: var(--segmented-track-border);
+  background: var(--segmented-track-background);
 }
 
 html[data-theme="light"] .amedas-chart-period-toggle button {
@@ -10478,8 +10858,8 @@ html[data-theme="light"] .amedas-chart-period-toggle button.active {
 }
 
 html[data-theme="light"] .amedas-chart-period-toggle::before {
-  border-color: rgba(37, 143, 199, 0.28);
-  background: rgba(86, 183, 242, 0.2);
+  border-color: var(--segmented-indicator-border);
+  background: var(--segmented-indicator-background);
 }
 
 html[data-theme="light"] #radar-time-kind {
@@ -10656,7 +11036,7 @@ html[data-theme="light"] #map-attribution {
   background: rgba(247, 251, 255, 0.78);
 }
 
-html[data-theme="light"] :is(.map-legend, .map-locate-button, .map-community-report-button, .map-kikikuru-tabs) {
+html[data-theme="light"] :is(.map-legend, .map-locate-button, .map-community-report-button, .map-world-typhoon-target-button, .map-kikikuru-tabs) {
   border-color: rgba(67, 91, 118, 0.2);
   color: #1b2d43;
   background: rgba(250, 253, 255, 0.8);
@@ -10667,7 +11047,7 @@ html[data-theme="light"] .map-locate-button::before {
   background: #243d58;
 }
 
-html[data-theme="light"] .map-community-report-button::before {
+html[data-theme="light"] :is(.map-community-report-button, .map-world-typhoon-target-button)::before {
   background: #243d58;
 }
 
@@ -10686,9 +11066,9 @@ html[data-theme="light"] #main-tabs {
   --tab-glass-bg: rgba(247, 251, 255, 0.7);
   --tab-glass-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 15px 34px rgba(52, 73, 98, 0.18);
   --tab-glass-overlay: rgba(255, 255, 255, 0.18);
-  --tab-lens-border: rgba(49, 133, 184, 0.3);
-  --tab-lens-bg: rgba(89, 182, 235, 0.18);
-  --tab-lens-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.74), 0 8px 18px rgba(50, 106, 146, 0.14);
+  --tab-lens-border: var(--segmented-indicator-border);
+  --tab-lens-bg: var(--segmented-indicator-background);
+  --tab-lens-shadow: var(--segmented-indicator-shadow);
 }
 
 html[data-theme="light"] .tab-button {
@@ -10729,8 +11109,9 @@ html[data-theme="light"] :is(.mobile-dock-kicker, .mobile-dock-row span, .mobile
 }
 
 html[data-theme="light"] :is(.mobile-dock-action-row, .mobile-dock-chip-grid) {
-  border-color: rgba(71, 99, 130, 0.2);
-  background: rgba(233, 240, 248, 0.56);
+  border-color: var(--segmented-track-border);
+  background: var(--segmented-track-background);
+  box-shadow: var(--segmented-track-shadow);
 }
 
 html[data-theme="light"] :is(.mobile-dock-action, .mobile-dock-chip) {
@@ -10742,9 +11123,9 @@ html[data-theme="light"] :is(.mobile-dock-action, .mobile-dock-chip).active {
 }
 
 html[data-theme="light"] .mobile-dock-segmented::before {
-  border-color: rgba(39, 133, 184, 0.3);
-  background: rgba(80, 177, 231, 0.16);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 6px 14px rgba(36, 101, 145, 0.12);
+  border-color: var(--segmented-indicator-border);
+  background: var(--segmented-indicator-background);
+  box-shadow: var(--segmented-indicator-shadow);
 }
 
 html[data-theme="light"] .settings-modal-body,
@@ -10884,6 +11265,12 @@ html[data-theme="light"] :is(.earthquake-view-toggle, .earthquake-distribution-r
   border-color: rgba(72, 100, 132, 0.2);
   background: rgba(246, 250, 255, 0.94);
   color: #20364e;
+}
+
+html[data-theme="light"] :is(.earthquake-view-toggle, .earthquake-distribution-range-mode) {
+  border-color: var(--segmented-track-border);
+  background: var(--segmented-track-background);
+  box-shadow: var(--segmented-track-shadow);
 }
 
 html[data-theme="light"] :is(.earthquake-view-toggle, .earthquake-distribution-range-mode) button { color: #60758a; }
@@ -11039,8 +11426,9 @@ html[data-theme="light"] .hypocenter-presentation.compact {
 html[data-theme="light"] .hypocenter-presentation > span strong { color: #20364e; }
 html[data-theme="light"] .hypocenter-presentation > span small { color: #667d92; }
 html[data-theme="light"] .hypocenter-presentation-switch {
-  border-color: rgba(68, 98, 128, 0.18);
-  background: rgba(255, 255, 255, 0.58);
+  border-color: var(--segmented-track-border);
+  background: var(--segmented-track-background);
+  box-shadow: var(--segmented-track-shadow);
 }
 html[data-theme="light"] .hypocenter-presentation-switch button { color: #61768a; }
 html[data-theme="light"] .hypocenter-presentation-switch button.active {
@@ -12415,19 +12803,15 @@ html[data-theme="light"] #main-tabs::before {
 }
 
 html[data-theme="light"] #main-tabs::after {
-  border-color: rgba(72, 98, 124, 0.16);
-  background: rgba(96, 112, 130, 0.1);
-  box-shadow: none;
+  border-color: var(--segmented-indicator-border);
+  background: var(--segmented-indicator-background);
+  box-shadow: var(--segmented-indicator-shadow);
 }
 
 html[data-theme="light"] #main-tabs.is-dragging::after {
-  border-color: rgba(96, 157, 196, 0.22);
-  background:
-    radial-gradient(circle at 50% 8%, rgba(255, 255, 255, 0.18), transparent 56%),
-    linear-gradient(180deg, rgba(190, 222, 241, 0.24), rgba(129, 185, 219, 0.12));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    inset 0 -1px 0 rgba(47, 117, 165, 0.06);
+  border-color: var(--segmented-drag-border);
+  background: var(--segmented-drag-background);
+  box-shadow: var(--segmented-drag-shadow);
 }
 
 html[data-theme="light"] .tab-button {
@@ -14989,6 +15373,11 @@ html[data-theme="light"] .river-affected-cities span {
     bottom: max(76px, calc(env(safe-area-inset-bottom) + 76px));
   }
 
+  .map-world-typhoon-target-button {
+    right: 12px;
+    bottom: max(76px, calc(env(safe-area-inset-bottom) + 76px));
+  }
+
   .map-kikikuru-tabs {
     left: 64px;
     bottom: max(76px, calc(env(safe-area-inset-bottom) + 76px));
@@ -15448,6 +15837,11 @@ html[data-theme="light"] .social-share-preview-shell {
     bottom: var(--shared-map-controls-bottom);
   }
 
+  .map-world-typhoon-target-button {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: var(--shared-map-controls-bottom);
+  }
+
   .map-legend {
     left: var(--shared-dock-left);
     bottom: calc(var(--shared-map-controls-bottom) + 54px);
@@ -15472,7 +15866,7 @@ html[data-theme="light"] .social-share-preview-shell {
     white-space: nowrap;
   }
 
-  .mobile-drawer-open :is(.map-locate-button, .map-legend) {
+  .mobile-drawer-open :is(.map-locate-button, .map-world-typhoon-target-button, .map-legend) {
     opacity: 0;
     pointer-events: none;
   }

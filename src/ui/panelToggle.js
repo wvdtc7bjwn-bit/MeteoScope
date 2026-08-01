@@ -123,26 +123,33 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     document.documentElement.style.setProperty("--mobile-sidebar-visible-height", `${visibleHeight}px`);
   }
 
-  function setSummaryTransition(offset, offsets = getSnapOffsets()) {
-    if (!mobileContextDock) return;
+  function setDrawerTransition(offset, offsets = getSnapOffsets()) {
     const expansionProgress = Math.min(1, Math.max(0, (offsets.peek - offset) / Math.max(1, offsets.peek)));
-    const tabBarHeight = document.getElementById("main-tabs")?.getBoundingClientRect().height || 68;
-    const summaryHeight = mobileContextDock.offsetHeight || 126;
-    const retreatDistance = Math.max(72, (summaryHeight + tabBarHeight) / 2 - 1);
-    const absorptionProgress = Math.min(1, Math.max(0, (expansionProgress - 0.16) / 0.56));
-    mobileContextDock.style.setProperty("--mobile-drawer-progress", expansionProgress.toFixed(4));
-    mobileContextDock.style.setProperty(
-      "--mobile-summary-retreat-y",
-      `${(expansionProgress * retreatDistance).toFixed(2)}px`
-    );
-    mobileContextDock.style.setProperty(
-      "--mobile-summary-absorb-opacity",
-      (1 - absorptionProgress).toFixed(4)
-    );
-    mobileContextDock.style.setProperty(
-      "--mobile-summary-absorb-scale",
-      (1 - absorptionProgress * 0.055).toFixed(4)
-    );
+    const detailRevealProgress = Math.min(1, Math.max(0, (expansionProgress - 0.04) / 0.58));
+    const easedDetailProgress = detailRevealProgress * detailRevealProgress * (3 - 2 * detailRevealProgress);
+    sidebar.style.opacity = easedDetailProgress.toFixed(4);
+    sidebar.style.transform = `translateY(${((1 - easedDetailProgress) * 18).toFixed(2)}px) translateZ(0)`;
+    sidebar.style.setProperty("--mobile-detail-reveal-progress", easedDetailProgress.toFixed(4));
+
+    if (mobileContextDock) {
+      const tabBarHeight = document.getElementById("main-tabs")?.getBoundingClientRect().height || 68;
+      const summaryHeight = mobileContextDock.offsetHeight || 126;
+      const retreatDistance = Math.max(72, (summaryHeight + tabBarHeight) / 2 - 1);
+      const absorptionProgress = Math.min(1, Math.max(0, (expansionProgress - 0.16) / 0.56));
+      mobileContextDock.style.setProperty("--mobile-drawer-progress", expansionProgress.toFixed(4));
+      mobileContextDock.style.setProperty(
+        "--mobile-summary-retreat-y",
+        `${(expansionProgress * retreatDistance).toFixed(2)}px`
+      );
+      mobileContextDock.style.setProperty(
+        "--mobile-summary-absorb-opacity",
+        (1 - absorptionProgress).toFixed(4)
+      );
+      mobileContextDock.style.setProperty(
+        "--mobile-summary-absorb-scale",
+        (1 - absorptionProgress * 0.055).toFixed(4)
+      );
+    }
   }
 
   function notifyLayoutChange() {
@@ -199,7 +206,6 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   function applyTransform(offset = null) {
     const offsets = getSnapOffsets();
     const nextOffset = Math.min(offsets.peek, Math.max(0, offset ?? getCurrentOffset()));
-    sidebar.style.transform = "translateY(0) translateZ(0)";
     sidebar.classList.toggle("drawer-open", nextOffset <= 2);
     sidebar.classList.toggle("drawer-middle", nextOffset > 2 && nextOffset < offsets.peek - 2);
     document.documentElement.classList.toggle("mobile-drawer-open", nextOffset < offsets.peek - 2);
@@ -207,7 +213,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     handle.setAttribute("aria-expanded", String(isExpanded));
     mobileContextDock?.setAttribute("aria-expanded", String(isExpanded));
     setVisibleHeight(nextOffset);
-    setSummaryTransition(nextOffset, offsets);
+    setDrawerTransition(nextOffset, offsets);
   }
 
   function setDrawerState(state) {

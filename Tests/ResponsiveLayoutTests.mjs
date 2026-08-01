@@ -26,11 +26,11 @@ assert.match(
 );
 assert.match(
   styles,
-  /@media screen\s*\{[\s\S]*?#main-tabs::after\s*\{[\s\S]*?background:\s*rgba\(151, 174, 199, 0\.14\);[\s\S]*?box-shadow:\s*none;[\s\S]*?#main-tabs\.is-dragging::after\s*\{[\s\S]*?radial-gradient[\s\S]*?backdrop-filter:\s*blur\(8px\) saturate\(1\.08\);/
+  /@media screen\s*\{[\s\S]*?#main-tabs::after\s*\{[\s\S]*?background:\s*var\(--segmented-indicator-background\);[\s\S]*?box-shadow:\s*var\(--segmented-indicator-shadow\);[\s\S]*?#main-tabs\.is-dragging::after\s*\{[\s\S]*?background:\s*var\(--segmented-drag-background\);/
 );
 assert.match(
   styles,
-  /html\[data-theme="light"\] #main-tabs\.is-dragging::after\s*\{[\s\S]*?radial-gradient[\s\S]*?inset 0 -1px 0 rgba\(47, 117, 165, 0\.06\);/
+  /html\[data-theme="light"\] #main-tabs\.is-dragging::after\s*\{[\s\S]*?background:\s*var\(--segmented-drag-background\);[\s\S]*?box-shadow:\s*var\(--segmented-drag-shadow\);/
 );
 assert.match(tabs, /root\?\.addEventListener\("lostpointercapture", \(event\) => \{[\s\S]*?finishIndicatorDrag/);
 assert.match(tabs, /window\.addEventListener\("blur", cancelIndicatorDrag\)/);
@@ -98,12 +98,12 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(panelToggle, /isMobileSheet/);
 assert.doesNotMatch(panelToggle, /isPortraitSheet/);
-assert.match(panelToggle, /sidebar\.style\.transform = "translateY\(0\) translateZ\(0\)";/);
+assert.doesNotMatch(panelToggle, /sidebar\.style\.transform = "translateY\(0\) translateZ\(0\)";/);
 assert.match(
   panelToggle,
-  /function setSummaryTransition\(offset, offsets = getSnapOffsets\(\)\)[\s\S]*?tabBarHeight[\s\S]*?summaryHeight[\s\S]*?retreatDistance[\s\S]*?absorptionProgress[\s\S]*?--mobile-summary-retreat-y[\s\S]*?--mobile-summary-absorb-opacity[\s\S]*?--mobile-summary-absorb-scale/
+  /function setDrawerTransition\(offset, offsets = getSnapOffsets\(\)\)[\s\S]*?detailRevealProgress[\s\S]*?easedDetailProgress[\s\S]*?sidebar\.style\.opacity[\s\S]*?translateY[\s\S]*?--mobile-detail-reveal-progress[\s\S]*?tabBarHeight[\s\S]*?summaryHeight[\s\S]*?retreatDistance[\s\S]*?absorptionProgress[\s\S]*?--mobile-summary-retreat-y[\s\S]*?--mobile-summary-absorb-opacity[\s\S]*?--mobile-summary-absorb-scale/
 );
-assert.match(panelToggle, /setSummaryTransition\(nextOffset, offsets\);/);
+assert.match(panelToggle, /setDrawerTransition\(nextOffset, offsets\);/);
 assert.match(panelToggle, /classList\.toggle\("is-vertical-dragging", initialAxis === "y"\)/);
 assert.match(panelToggle, /classList\.remove\("is-vertical-dragging"\)/);
 assert.match(panelToggle, /setDrawerState\(drawerState === "peek" \? "full" : "peek"\);/);
@@ -612,6 +612,38 @@ assert.match(panel, /data-amedas-ranking-title="\$\{escapeHtml\(metric\.id\)\}"/
 assert.match(
   styles,
   /html\[data-language="en"\] \.warning-area-row > strong\s*\{[\s\S]*?white-space:\s*nowrap;/
+);
+assert.match(
+  styles,
+  /\.warning-modal\[hidden\]\s*\{[\s\S]*?display:\s*grid !important;[\s\S]*?visibility:\s*hidden;[\s\S]*?pointer-events:\s*none;/
+);
+assert.match(
+  styles,
+  /\.warning-modal-panel\s*\{[\s\S]*?transition:\s*transform 380ms cubic-bezier\(0\.22, 1, 0\.36, 1\);/
+);
+assert.match(
+  styles,
+  /\.warning-modal\[hidden\] \.warning-modal-panel\s*\{[\s\S]*?translate3d\(0, 100dvh, 0\);[\s\S]*?transition-duration:\s*320ms;/
+);
+assert.match(
+  styles,
+  /--segmented-track-border:\s*rgba\(207, 232, 255, 0\.2\);[\s\S]*?--segmented-indicator-background:\s*rgba\(151, 174, 199, 0\.14\);[\s\S]*?--segmented-indicator-shadow:\s*none;[\s\S]*?--segmented-indicator-filter:\s*none;[\s\S]*?--segmented-drag-filter:\s*blur\(10px\) saturate\(1\.16\);/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-segmented::before\s*\{[\s\S]*?border:\s*1px solid var\(--segmented-indicator-border\);[\s\S]*?background:\s*var\(--segmented-indicator-background\);[\s\S]*?box-shadow:\s*var\(--segmented-indicator-shadow\);/
+);
+assert.match(
+  styles,
+  /#main-tabs::after\s*\{[\s\S]*?border:\s*1px solid var\(--tab-lens-border\);[\s\S]*?background:\s*var\(--tab-lens-bg\);[\s\S]*?box-shadow:\s*var\(--tab-lens-shadow\);/
+);
+assert.match(
+  styles,
+  /#main-tabs\.is-dragging::after\s*\{[\s\S]*?transition:\s*none;[\s\S]*?background:\s*var\(--segmented-drag-background\);/
+);
+assert.doesNotMatch(
+  styles,
+  /#main-tabs\.is-dragging::after\s*\{[^}]*radial-gradient/
 );
 
 console.log("Responsive layouts: OK");

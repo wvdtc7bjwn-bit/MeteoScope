@@ -58,6 +58,7 @@ import { getCurrentLanguage, setupLocale } from "./ui/locale.js";
 import { activateEarlyAccess, deactivateEarlyAccess, fetchEarlyAccessActiveFaultSegments, validateEarlyAccess } from "./ui/earlyAccess.js";
 import { CommunityReportClient } from "./domain/communityReportClient.js";
 import { openCommunityReportModal, setupCommunityReportModal } from "./ui/communityReportModal.js";
+import { setupWorldTyphoonTargetModal, updateWorldTyphoonTargetPicker } from "./ui/worldTyphoonTargetModal.js";
 import { yieldToMainThread } from "./scheduling.js";
 import { setupLongPressButton } from "./ui/longPressButton.js";
 import { setupEarthquakeLongPressHint } from "./ui/earthquakeLongPressHint.js";
@@ -260,6 +261,7 @@ export function createWeatherApp() {
   let activeKikikuruLayer = KIKIKURU_LAYER_OPTIONS[0]?.id ?? "land";
   let activeTyphoonId = "";
   let activeTyphoonForecastMode = "jma";
+  let activeWorldTyphoonTargetKeys = [];
   let activeWorldTyphoonForecastTime = "";
   let worldTyphoonPositionFrame = 0;
   let worldTyphoonPositionTimer = 0;
@@ -830,6 +832,22 @@ if (layerId === "river") {
         weatherMap?.updateWorldTyphoonForecastPositions(displayData);
       }, delay);
     });
+  }
+
+  function selectWorldTyphoonTarget(targetKey) {
+    const nextKey = String(targetKey ?? "all");
+    const nextKeys = nextKey === "all"
+      ? []
+      : (activeWorldTyphoonTargetKeys.includes(nextKey)
+        ? activeWorldTyphoonTargetKeys.filter((key) => key !== nextKey)
+        : [...activeWorldTyphoonTargetKeys, nextKey]);
+    if (
+      nextKeys.length === activeWorldTyphoonTargetKeys.length
+      && nextKeys.every((key, index) => key === activeWorldTyphoonTargetKeys[index])
+    ) return;
+    activeWorldTyphoonTargetKeys = nextKeys;
+    if (activeTab !== "typhoon" || activeTyphoonForecastMode !== "world") return;
+    updateCurrentView(TABS.find((item) => item.id === "typhoon"), latestDataByTab.typhoon ?? {});
   }
 
   function ensureWorldTyphoonForecast({
@@ -1457,6 +1475,11 @@ if (layerId === "river") {
 
   function updateCurrentView(tab, data, options = {}) {
     const displayData = buildDisplayData(tab, data);
+    updateWorldTyphoonTargetPicker({
+      visible: tab.id === "typhoon" && Boolean(displayData.worldForecastMode),
+      options: displayData.worldForecastTargets,
+      selectedKeys: displayData.selectedWorldForecastTargetKeys
+    });
     if (tab.id === "radar") {
       displayData.weatherChartEnabled = weatherChartEnabled;
       displayData.weatherChartStatus = weatherChartStatus;
@@ -1636,12 +1659,48 @@ if (layerId === "river") {
         system: selectWorldTyphoonSystem(forecastState.data, selected)
       };
     });
-    const enabledWorldForecastLayers = worldForecastModelStates
+    const worldForecastTargets = worldForecastModelStates
       .filter((layer) => layer.enabled)
-      .map((layer) => ({
-        ...layer,
-        timelineSystems: layer.systems
-      }));
+      .flatMap((layer) => {
+        const candidateIds = new Set(layer.candidates.map((candidate) => String(candidate.id)));
+        return layer.systems
+          .filter((system) => system.kind !== "genesis" || candidateIds.has(String(system.id)))
+          .map((system) => ({
+            key: `${layer.id}::${system.id}`,
+            modelId: layer.id,
+            modelLabel: layer.modelInfo?.label ?? layer.id,
+            modelColor: layer.modelInfo?.color ?? "#56b7f2",
+            systemId: String(system.id),
+            name: system.name ?? system.id,
+            kind: system.kind,
+            memberCount: system.memberCount
+          }));
+      });
+    const availableWorldForecastTargetKeys = new Set(worldForecastTargets.map((target) => target.key));
+    activeWorldTyphoonTargetKeys = activeWorldTyphoonTargetKeys.filter((key) => (
+      availableWorldForecastTargetKeys.has(key)
+    ));
+    const selectedWorldForecastTargets = worldForecastTargets.filter((target) => (
+      activeWorldTyphoonTargetKeys.includes(target.key)
+    ));
+    const selectedWorldForecastTargetKeys = new Set(activeWorldTyphoonTargetKeys);
+    const selectedWorldForecastModelIds = new Set(selectedWorldForecastTargets.map((target) => target.modelId));
+    const enabledWorldForecastLayers = worldForecastModelStates
+      .filter((layer) => (
+        layer.enabled
+        && (!selectedWorldForecastTargets.length || selectedWorldForecastModelIds.has(layer.id))
+      ))
+      .map((layer) => {
+        const systems = selectedWorldForecastTargets.length
+          ? layer.systems.filter((system) => selectedWorldForecastTargetKeys.has(`${layer.id}::${system.id}`))
+          : layer.systems;
+        return {
+          ...layer,
+          systems,
+          timelineSystems: systems,
+          system: selectedWorldForecastTargets.length ? systems[0] ?? null : layer.system
+        };
+      });
     const worldForecastTimes = buildWorldTyphoonTimeline(enabledWorldForecastLayers);
     const requestedForecastTime = Date.parse(activeWorldTyphoonForecastTime || "") || Date.now();
     const nearestWorldForecastTime = worldForecastTimes.reduce((nearest, time) => (
@@ -1682,6 +1741,8 @@ if (layerId === "river") {
       hasTyphoon: readyLayers.some((layer) => Boolean(layer.system)),
       worldForecastMode: true,
       worldForecastModelStates,
+      worldForecastTargets,
+      selectedWorldForecastTargetKeys: activeWorldTyphoonTargetKeys,
       worldForecastLayers,
       worldForecastTimes,
       worldForecastTime,
@@ -3026,6 +3087,7 @@ if (layerId === "river") {
       onModelToggle: toggleWorldTyphoonModel,
       onTimeChange: selectWorldTyphoonForecastTime
     });
+    setupWorldTyphoonTargetModal({ onSelect: selectWorldTyphoonTarget });
     setupEarthquakeSelector({
       onChange: selectEarthquake,
       onHistoryLoadMore: loadMoreEarthquakeHistory,
