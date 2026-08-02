@@ -5163,15 +5163,8 @@ function renderEarthquakeList(tab, state) {
           ${summaryMarkup}
           <span class="earthquake-card-chevron" aria-hidden="true"></span>
         </button>
-        ${isExpanded ? renderEarthquakeObservations(observations, observationsId) : ""}
+        ${isExpanded ? renderEarthquakeObservations(observations, observationsId, { showShareButton: true }) : ""}
         ${isExpanded ? renderEarthquakeTsunamiDetails(tsunamiState) : ""}
-        ${isExpanded ? `
-          <div class="earthquake-share-row">
-            <button type="button" class="social-share-trigger earthquake-share-button" data-social-share="earthquake" aria-label="地震情報を画像で共有" title="地震情報を画像で共有">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0-11 4 4m-4-4L8 7M5 12v7h14v-7"/></svg>
-            </button>
-          </div>
-        ` : ""}
       </article>
     `;
   }).join("");
@@ -6323,7 +6316,7 @@ function renderTsunamiOfficialLink() {
   return `<a class="tsunami-official-link" href="https://www.jma.go.jp/bosai/map.html#contents=tsunami" target="_blank" rel="noopener noreferrer">気象庁の津波情報を開く</a>`;
 }
 
-function renderEarthquakeObservations(observations, observationsId) {
+function renderEarthquakeObservations(observations, observationsId, { showShareButton = false } = {}) {
   const visibleObservations = getCurrentLanguage() === "en"
     ? groupEarthquakeObservationRowsByMunicipality(observations)
     : observations;
@@ -6344,7 +6337,14 @@ function renderEarthquakeObservations(observations, observationsId) {
   return `
     <section id="${observationsId}" class="earthquake-observations" aria-label="${escapeHtml(title)}">
       <div class="earthquake-observations-heading">
-        <h2>${escapeHtml(title)}</h2>
+        <div class="earthquake-observations-title-row">
+          <h2>${escapeHtml(title)}</h2>
+          ${showShareButton ? `
+            <button type="button" class="social-share-trigger earthquake-share-button" data-social-share="earthquake" aria-label="地震情報を画像で共有" title="地震情報を画像で共有">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0-11 4 4m-4-4L8 7M5 12v7h14v-7"/></svg>
+            </button>
+          ` : ""}
+        </div>
         ${visibleObservations.length ? `<span>${visibleObservations.length}地点</span>` : ""}
       </div>
       ${body}

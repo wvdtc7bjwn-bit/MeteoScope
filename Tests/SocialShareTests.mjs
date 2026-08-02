@@ -211,6 +211,8 @@ assert.match(leftPanelSource, /areaWarnings:\s*\(state\.data\?\.activeAreas \?\?
 assert.match(leftPanelSource, /data-social-share="amedas"/);
 assert.match(leftPanelSource, /data-social-share="earthquake"/);
 assert.match(leftPanelSource, /data-social-share="typhoon"/);
+assert.match(leftPanelSource, /earthquake-observations-title-row[\s\S]*?earthquake-share-button[\s\S]*?visibleObservations\.length/);
+assert.doesNotMatch(leftPanelSource, /earthquake-share-row/);
 assert.match(indexSource, /id="map-utility-actions"[\s\S]*?id="social-share-map-button"/);
 assert.match(styleSource, /\.map-utility-actions\s*\{[\s\S]*?left:\s*calc\(var\(--sidebar-width\) \+ 72px\)/);
 assert.match(styleSource, /@media \(max-width: 800px\)[\s\S]*?\.map-utility-actions\s*\{[\s\S]*?left:\s*12px/);

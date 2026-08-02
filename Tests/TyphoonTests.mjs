@@ -54,6 +54,20 @@ assert.equal(
   "台風12号は熱帯低気圧に変わりました"
 );
 
+assert.equal(
+  formatTyphoonTransitionStatus(getTyphoonTransitionStatus("TD"), "b"),
+  null
+);
+
+const newTropicalDepression = normalizeTyphoon({
+  id: "TD-b",
+  typhoonNumber: "b",
+  category: "TD",
+  center: [130, 20]
+});
+
+assert.equal(newTropicalDepression.transitionStatus, null);
+
 const typhoon = normalizeTyphoon({
   id: "TC2609",
   typhoonNumber: "2609",

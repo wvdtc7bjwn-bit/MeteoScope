@@ -503,6 +503,7 @@ export function getTyphoonTransitionStatus(...sources) {
 export function formatTyphoonTransitionStatus(status, rawNumber) {
   if (!status) return null;
   const number = normalizeTyphoonDisplayNumber(rawNumber);
+  if (!number && status === "熱帯低気圧に変わりました") return null;
   return number ? `台風${number}号は${status}` : status;
 }
 

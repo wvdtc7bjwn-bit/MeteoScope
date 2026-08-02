@@ -201,7 +201,6 @@ export function setupTabs({ onChange, tabs = [] }) {
     dragPointerId = pointerId;
     dragAxis = getSliderAxis();
     dragStartCoord = getAxisCoordinate(point, dragAxis);
-    dragStartIndicatorOffset = getActiveIndicatorOffset(dragAxis);
     dragMoved = false;
     pointerStartTabId = getActiveTabId();
     const button = target instanceof Element ? target.closest(".tab-button") : null;
@@ -209,6 +208,10 @@ export function setupTabs({ onChange, tabs = [] }) {
     pointerPreviewChanged = Boolean(pointerPreviewTabId && pointerPreviewTabId !== pointerStartTabId);
     dragTargetTabId = pointerPreviewTabId ?? pointerStartTabId;
     if (pointerPreviewChanged) setActiveButton(pointerPreviewTabId);
+    // Start the sliding indicator from the tab under the pointer. Measuring
+    // before the preview is applied makes it jump back to the previously
+    // active tab as soon as the gesture crosses the drag threshold.
+    dragStartIndicatorOffset = getActiveIndicatorOffset(dragAxis);
   }
 
   function moveIndicatorDrag({ pointerId, point, pointerType, preventDefault }) {
