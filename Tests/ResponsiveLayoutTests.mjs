@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [styles, index, panel, app, weatherMap, panelToggle, tabs, time, mapUtilityMenu] = await Promise.all([
+const [styles, index, panel, app, weatherMap, panelToggle, tabs, time, mapUtilityMenu, remoteConfig] = await Promise.all([
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
@@ -10,10 +10,36 @@ const [styles, index, panel, app, weatherMap, panelToggle, tabs, time, mapUtilit
   readFile(new URL("../src/ui/panelToggle.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/tabs.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/time.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/ui/mapUtilityMenu.js", import.meta.url), "utf8")
+  readFile(new URL("../src/ui/mapUtilityMenu.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/remoteConfig.js", import.meta.url), "utf8")
 ]);
 
 assert.match(styles, /--sidebar-width:\s*clamp\(300px,\s*24vw,\s*380px\)/);
+assert.match(
+  styles,
+  /\.remote-notice-ticker\s*\{[\s\S]*?grid-template-rows:\s*auto minmax\(28px, auto\);[\s\S]*?min-height:\s*58px;[\s\S]*?border-radius:\s*14px;/
+);
+assert.match(styles, /\.remote-notice-ticker-header\s*\{[\s\S]*?display:\s*flex;[\s\S]*?border-bottom:/);
+assert.match(
+  styles,
+  /@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*?\.remote-notice-ticker-track\s*\{[\s\S]*?animation:\s*none;/
+);
+assert.match(
+  remoteConfig,
+  /header\.className = "remote-notice-ticker-header";[\s\S]*?header\.append\(label, close\);[\s\S]*?ticker\.append\(header, viewport\);/
+);
+assert.match(remoteConfig, /viewport\.addEventListener\("click", toggleTickerPause\)/);
+assert.match(remoteConfig, /track\.addEventListener\("animationend", \(event\) => \{/);
+assert.match(remoteConfig, /index = \(index \+ 1\) % notices\.length;[\s\S]*?showNotice\(\);/);
+assert.match(remoteConfig, /startTickerNoticeSequence\(\{ ticker, track, label, message, notices: tickerNotices, sequenceVersion \}\)/);
+assert.doesNotMatch(remoteConfig, /window\.setInterval\(/);
+assert.doesNotMatch(remoteConfig, /ticker\.append\(label, viewport, close\)/);
+assert.match(remoteConfig, /const MAX_DISMISSED_NOTICES = 200;/);
+assert.match(remoteConfig, /localStorage\.getItem\(noticeDismissKey\(notice\)\) !== null/);
+assert.match(remoteConfig, /localStorage\.setItem\(noticeDismissKey\(notice\), String\(Date\.now\(\)\)\)/);
+assert.match(remoteConfig, /\.slice\(0, dismissed\.length - MAX_DISMISSED_NOTICES\)/);
+assert.match(remoteConfig, /localStorage\.removeItem\(key\)/);
+assert.doesNotMatch(remoteConfig, /sessionStorage\.(?:getItem|setItem)\(/);
 assert.match(styles, /grid-template-columns:\s*var\(--sidebar-width\)\s+minmax\(0,\s*1fr\)/);
 assert.match(
   styles,
