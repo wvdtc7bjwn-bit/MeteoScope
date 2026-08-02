@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [styles, index, panel, app, weatherMap, panelToggle, tabs, time, mapUtilityMenu, remoteConfig] = await Promise.all([
+const [styles, index, panel, app, weatherMap, panelToggle, tabs, time, mapUtilityMenu, legendToggle, remoteConfig] = await Promise.all([
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
@@ -11,6 +11,7 @@ const [styles, index, panel, app, weatherMap, panelToggle, tabs, time, mapUtilit
   readFile(new URL("../src/ui/tabs.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/time.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/mapUtilityMenu.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/ui/legendToggle.js", import.meta.url), "utf8"),
   readFile(new URL("../src/remoteConfig.js", import.meta.url), "utf8")
 ]);
 
@@ -74,6 +75,11 @@ assert.match(
 );
 assert.match(tabs, /dragTargetTabId = getTabFromPoint\(point, dragAxis\) \?\? dragTargetTabId/);
 assert.match(tabs, /const completedTabId = type === "pointerup" && point[\s\S]*?getTabFromPoint\(point, dragAxis\) \?\? dragTargetTabId/);
+assert.match(
+  tabs,
+  /if \(pointerPreviewChanged\) setActiveButton\(pointerPreviewTabId\);[\s\S]*?dragStartIndicatorOffset = getActiveIndicatorOffset\(dragAxis\);/,
+  "tab dragging must measure its origin after previewing the tab under the pointer"
+);
 assert.match(
   styles,
   /@media screen\s*\{[\s\S]*?#sidebar\s*\{[\s\S]*?html:not\(\.mobile-drawer-open\) #sidebar\s*\{[\s\S]*?opacity:\s*0;[\s\S]*?\.mobile-context-dock\s*\{[\s\S]*?display:\s*block;/
@@ -242,14 +248,28 @@ assert.match(
 
 assert.match(index, /width=device-width/);
 assert.match(index, /viewport-fit=cover/);
+assert.match(index, /maximum-scale=1/);
+assert.match(index, /user-scalable=no/);
+assert.match(styles, /html,\s*body\s*\{\s*touch-action:\s*pan-x pan-y;/);
 assert.match(index, /id="map-utility-menu-toggle"[\s\S]*?aria-controls="map-utility-actions"/u);
 assert.match(index, /id="map-utility-actions"[\s\S]*?id="disaster-quiz-button"[\s\S]*?id="weekly-weather-button"[\s\S]*?id="disaster-map-button"[\s\S]*?id="social-share-map-button"[\s\S]*?id="settings-button"/u);
 assert.equal((index.match(/id="settings-button"/gu) ?? []).length, 1, "設定ボタンを機能メニュー内だけに置く");
 assert.match(styles, /\.map-settings-open-button::before\s*\{[\s\S]*?mask:/u);
 assert.match(styles, /\.map-utility-actions\s*\{[\s\S]*?display:\s*flex;[\s\S]*?gap:\s*8px;/u);
 assert.match(styles, /\.map-utility-actions\[hidden\]\s*\{[\s\S]*?display:\s*none;/u);
+assert.match(styles, /\.map-utility-menu-toggle\[aria-expanded="true"\]::before\s*\{[\s\S]*?opacity:\s*0;/u);
+assert.match(styles, /\.map-utility-menu-toggle\[aria-expanded="true"\]::after\s*\{[\s\S]*?opacity:\s*1;/u);
+assert.match(styles, /\.map-utility-actions\.is-open\s*\{[\s\S]*?opacity:\s*1;[\s\S]*?pointer-events:\s*auto;/u);
+assert.match(styles, /\.map-utility-actions\.is-open \.disaster-map-open-button\s*\{[\s\S]*?transition-delay:\s*calc\(/u);
 assert.match(mapUtilityMenu, /toggle\.addEventListener\("click"/u);
 assert.match(mapUtilityMenu, /event\.key !== "Escape"/u);
+assert.match(mapUtilityMenu, /actions\.setAttribute\("aria-hidden", String\(!open\)\)/u);
+assert.match(mapUtilityMenu, /actions\.inert = !open/u);
+assert.match(mapUtilityMenu, /window\.setTimeout\(finishClose, closeDurationMs\)/u);
+assert.match(styles, /\.map-legend\.collapsed \.legend-list\s*\{[\s\S]*?opacity:\s*0;[\s\S]*?transform:\s*translate3d\(/u);
+assert.match(styles, /\.map-legend\.is-open\s*\{[\s\S]*?backdrop-filter:\s*blur\(22px\) saturate\(1\.24\)/u);
+assert.match(legendToggle, /list\.setAttribute\("aria-hidden", String\(isCollapsed\)\)/u);
+assert.match(legendToggle, /window\.setTimeout\(finishCollapse, collapseDurationMs\)/u);
 assert.match(app, /setupMapUtilityMenu\(\)/u);
 assert.match(time, /hour:\s*"2-digit"[\s\S]*?minute:\s*"2-digit"[\s\S]*?second:\s*"2-digit"/u);
 assert.doesNotMatch(time, /month:\s*"2-digit"|day:\s*"2-digit"/u);
@@ -629,6 +649,14 @@ for (const metric of ["temperature", "precipitation", "wind", "humidity", "press
 assert.match(
   styles,
   /html\[data-language="en"\] \.mobile-dock-amedas-grid \.mobile-dock-chip\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center;[\s\S]*?height:\s*30px;[\s\S]*?padding:\s*0;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-segmented\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;[\s\S]*?-webkit-user-select:\s*none;[\s\S]*?user-select:\s*none;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-segmented button\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;[\s\S]*?-webkit-user-select:\s*none;[\s\S]*?user-select:\s*none;/
 );
 assert.match(
   styles,

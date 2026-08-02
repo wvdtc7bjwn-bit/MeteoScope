@@ -86,6 +86,11 @@ html {
   text-size-adjust: 100%;
 }
 
+html,
+body {
+  touch-action: pan-x pan-y;
+}
+
 body,
 body * {
   -webkit-user-select: none;
@@ -5125,6 +5130,10 @@ html[data-theme="light"] .weekly-weather-issued strong {
   --mobile-dock-drag-x: 0px;
   position: relative;
   isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .mobile-dock-segmented::before {
@@ -5170,6 +5179,10 @@ html[data-theme="light"] .weekly-weather-issued strong {
   position: relative;
   z-index: 1;
   touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .hypocenter-presentation {
@@ -5967,6 +5980,13 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   color: #f4f8ff;
   font-size: 14px;
   font-weight: 900;
+}
+
+.earthquake-observations-title-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 7px;
 }
 
 .earthquake-observations-heading span {
@@ -7798,14 +7818,58 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
 .map-utility-menu-toggle {
   left: calc(var(--sidebar-width) + 16px);
+  overflow: hidden;
+  isolation: isolate;
+  transition:
+    border-color 180ms ease,
+    border-radius 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 180ms ease,
+    box-shadow 240ms ease,
+    transform 180ms ease;
 }
 
-.map-utility-menu-toggle::before {
+.map-utility-menu-toggle::before,
+.map-utility-menu-toggle::after {
+  grid-area: 1 / 1;
   width: 23px;
   height: 23px;
   background: #f4f9ff;
+  transition:
+    opacity 170ms ease,
+    transform 260ms cubic-bezier(0.2, 1.22, 0.36, 1);
+}
+
+.map-utility-menu-toggle::before {
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 6.5h16M4 12h16M4 17.5h16'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 6.5h16M4 12h16M4 17.5h16'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.map-utility-menu-toggle::after {
+  content: "";
+  opacity: 0;
+  transform: rotate(-52deg) scale(0.58);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='m6 6 12 12M18 6 6 18'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='m6 6 12 12M18 6 6 18'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.map-utility-menu-toggle[aria-expanded="true"] {
+  border-color: rgba(120, 208, 255, 0.5);
+  border-radius: 17px;
+  background: rgba(18, 43, 72, 0.84);
+  box-shadow:
+    0 14px 32px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 0 0 1px rgba(79, 183, 242, 0.12);
+}
+
+.map-utility-menu-toggle[aria-expanded="true"]::before {
+  opacity: 0;
+  transform: rotate(52deg) scale(0.58);
+}
+
+.map-utility-menu-toggle[aria-expanded="true"]::after {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
 }
 
 .map-utility-actions {
@@ -7815,6 +7879,32 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   z-index: 452;
   display: flex;
   gap: 8px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: rgba(12, 25, 44, 0.67);
+  box-shadow:
+    0 14px 34px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  filter: blur(4px);
+  pointer-events: none;
+  transform: translate3d(-14px, 0, 0) scale(0.9);
+  transform-origin: left center;
+  transition:
+    opacity 170ms ease,
+    filter 220ms ease,
+    transform 260ms cubic-bezier(0.2, 1.18, 0.36, 1);
+  backdrop-filter: blur(22px) saturate(1.28);
+  -webkit-backdrop-filter: blur(22px) saturate(1.28);
+  will-change: opacity, filter, transform;
+}
+
+.map-utility-actions.is-open {
+  opacity: 1;
+  filter: blur(0);
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
 .map-utility-actions[hidden] {
@@ -7825,6 +7915,34 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   position: relative;
   top: auto;
   left: auto;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(8, 19, 35, 0.46);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  opacity: 0;
+  transform: translate3d(-10px, 0, 0) scale(0.78);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    opacity 170ms ease,
+    transform 250ms cubic-bezier(0.2, 1.2, 0.36, 1);
+  transition-delay: 0ms;
+}
+
+.map-utility-actions .disaster-map-open-button:nth-child(1) { --menu-item-index: 0; }
+.map-utility-actions .disaster-map-open-button:nth-child(2) { --menu-item-index: 1; }
+.map-utility-actions .disaster-map-open-button:nth-child(3) { --menu-item-index: 2; }
+.map-utility-actions .disaster-map-open-button:nth-child(4) { --menu-item-index: 3; }
+.map-utility-actions .disaster-map-open-button:nth-child(5) { --menu-item-index: 4; }
+.map-utility-actions .disaster-map-open-button:nth-child(6) { --menu-item-index: 5; }
+
+.map-utility-actions.is-open .disaster-map-open-button {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  transition-delay: calc(34ms + var(--menu-item-index, 0) * 22ms);
+}
+
+.map-utility-actions.is-closing .disaster-map-open-button {
+  transition-delay: 0ms;
 }
 
 #clock {
@@ -7864,7 +7982,15 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   border-radius: 14px;
   background: rgba(9, 15, 29, 0.78);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
-  transition: bottom 220ms ease, width 180ms ease, padding 180ms ease, border-radius 180ms ease;
+  transform-origin: bottom left;
+  transition:
+    bottom 220ms ease,
+    width 220ms cubic-bezier(0.2, 1.08, 0.36, 1),
+    max-height 220ms cubic-bezier(0.2, 1.08, 0.36, 1),
+    padding 180ms ease,
+    border-radius 180ms ease,
+    background-color 180ms ease,
+    box-shadow 220ms ease;
 }
 
 .legend-toggle {
@@ -7897,6 +8023,10 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.24),
     0 4px 10px rgba(0, 0, 0, 0.28);
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 240ms cubic-bezier(0.2, 1.16, 0.36, 1);
 }
 
 .legend-toggle:focus-visible {
@@ -7931,10 +8061,35 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     linear-gradient(#dce8fa, #dce8fa) center / 9px 2px no-repeat,
     linear-gradient(#dce8fa, #dce8fa) center / 2px 9px no-repeat,
     rgba(255, 255, 255, 0.08);
+  transform: rotate(90deg) scale(1.02);
 }
 
 .map-legend.collapsed .legend-list {
-  display: none;
+  opacity: 0;
+  filter: blur(3px);
+  pointer-events: none;
+  transform: translate3d(0, 8px, 0) scale(0.96);
+}
+
+.map-legend.is-open {
+  border-color: rgba(117, 198, 244, 0.24);
+  background: rgba(10, 22, 40, 0.72);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(22px) saturate(1.24);
+  -webkit-backdrop-filter: blur(22px) saturate(1.24);
+}
+
+.map-legend .legend-list {
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, 0, 0) scale(1);
+  transform-origin: top left;
+  transition:
+    opacity 160ms ease 42ms,
+    filter 200ms ease 28ms,
+    transform 220ms cubic-bezier(0.2, 1.12, 0.36, 1) 24ms;
 }
 
 @media (max-width: 800px) {
@@ -10739,6 +10894,12 @@ html[data-theme="light"] .quiz-leaderboard-list li time { color: #60758a; }
   .map-utility-actions {
     top: calc(max(18px, env(safe-area-inset-top)) + 50px);
     left: 12px;
+    transform: translate3d(0, -12px, 0) scale(0.9);
+    transform-origin: top left;
+  }
+
+  .map-utility-actions.is-open {
+    transform: translate3d(0, 0, 0) scale(1);
   }
 
   .disaster-quiz-modal {
@@ -11039,6 +11200,33 @@ html[data-theme="light"] .disaster-map-open-button {
 
 html[data-theme="light"] .disaster-map-open-button::before {
   background: #243d58;
+}
+
+html[data-theme="light"] .map-utility-menu-toggle::after {
+  background: #243d58;
+}
+
+html[data-theme="light"] .map-utility-menu-toggle[aria-expanded="true"] {
+  border-color: rgba(44, 136, 190, 0.34);
+  background: rgba(244, 250, 255, 0.82);
+  box-shadow:
+    0 14px 30px rgba(67, 90, 116, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88),
+    0 0 0 1px rgba(54, 155, 211, 0.08);
+}
+
+html[data-theme="light"] .map-utility-actions {
+  border-color: rgba(72, 99, 127, 0.18);
+  background: rgba(244, 249, 254, 0.72);
+  box-shadow:
+    0 14px 32px rgba(66, 86, 112, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+html[data-theme="light"] .map-utility-actions .disaster-map-open-button {
+  border-color: rgba(72, 99, 127, 0.12);
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 html[data-theme="light"] .disaster-map-body {
@@ -15650,18 +15838,25 @@ html[data-theme="light"] .river-affected-cities span {
   border-radius: 12px;
 }
 
-.earthquake-share-row {
-  display: flex;
-  justify-content: flex-end;
-  padding: 8px 12px 12px;
-}
-
 .earthquake-share-button {
   width: 36px;
   height: 36px;
   min-height: 36px;
   padding: 0;
   border-radius: 12px;
+}
+
+.earthquake-observations-heading .earthquake-share-button {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  border-radius: 10px;
+}
+
+.earthquake-observations-heading .earthquake-share-button svg {
+  width: 17px;
+  height: 17px;
 }
 
 .typhoon-share-row {
