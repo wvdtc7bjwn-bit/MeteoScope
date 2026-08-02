@@ -128,7 +128,10 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     const detailRevealProgress = Math.min(1, Math.max(0, (expansionProgress - 0.04) / 0.58));
     const easedDetailProgress = detailRevealProgress * detailRevealProgress * (3 - 2 * detailRevealProgress);
     sidebar.style.opacity = easedDetailProgress.toFixed(4);
-    sidebar.style.transform = `translateY(${((1 - easedDetailProgress) * 18).toFixed(2)}px) translateZ(0)`;
+    // Keep the sheet anchored to the bottom-navigation edge while it appears.
+    // A subtle scale preserves the soft transition without moving the sheet
+    // underneath the navigation before it becomes visible.
+    sidebar.style.transform = `scaleY(${(0.985 + easedDetailProgress * 0.015).toFixed(4)}) translateZ(0)`;
     sidebar.style.setProperty("--mobile-detail-reveal-progress", easedDetailProgress.toFixed(4));
 
     if (mobileContextDock) {

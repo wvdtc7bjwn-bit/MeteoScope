@@ -15,6 +15,24 @@ import {
   selectWorldTyphoonSystem
 } from "../src/worldTyphoon.js";
 import { splitLineAtAntimeridian } from "../src/map/geoLine.js";
+import {
+  buildStormWarningAreaLineSegments,
+  destinationPoint
+} from "../src/typhoonGeometry.js";
+
+const warningAreaSegments = buildStormWarningAreaLineSegments({
+  arc: [{ center: [130, 20], radius: 100, start: 350, end: 10 }],
+  line: [[[130, 20], [131, 21]]]
+});
+assert.equal(warningAreaSegments.length, 2);
+assert.ok(warningAreaSegments[0].length >= 9);
+assert.deepEqual(warningAreaSegments[1], [[130, 20], [131, 21]]);
+assert.ok(warningAreaSegments[0].every((point) => (
+  point.length === 2 && point.every(Number.isFinite)
+)));
+const eastOfCenter = destinationPoint([130, 20], 100, 90);
+assert.ok(eastOfCenter[0] > 130);
+assert.ok(Math.abs(eastOfCenter[1] - 20) < 0.1);
 
 const worldTyphoonModelColors = [
   "ecmwf",

@@ -22,6 +22,14 @@ assert.match(
 assert.match(styles, /#main-tabs\s*\{[\s\S]*?bottom:\s*max\(8px,\s*env\(safe-area-inset-bottom\)\)/);
 assert.match(
   styles,
+  /#main-tabs\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;[\s\S]*?-webkit-user-select:\s*none;/
+);
+assert.match(
+  styles,
+  /\.tab-button\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;[\s\S]*?-webkit-user-drag:\s*none;/
+);
+assert.match(
+  styles,
   /@media \(max-width: 800px\) and \(orientation: portrait\)\s*\{[\s\S]*?#main-tabs,\s*#main-tabs \.tab-button\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;/
 );
 assert.match(
@@ -98,10 +106,10 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(panelToggle, /isMobileSheet/);
 assert.doesNotMatch(panelToggle, /isPortraitSheet/);
-assert.doesNotMatch(panelToggle, /sidebar\.style\.transform = "translateY\(0\) translateZ\(0\)";/);
+assert.doesNotMatch(panelToggle, /sidebar\.style\.transform[\s\S]*?translateY/);
 assert.match(
   panelToggle,
-  /function setDrawerTransition\(offset, offsets = getSnapOffsets\(\)\)[\s\S]*?detailRevealProgress[\s\S]*?easedDetailProgress[\s\S]*?sidebar\.style\.opacity[\s\S]*?translateY[\s\S]*?--mobile-detail-reveal-progress[\s\S]*?tabBarHeight[\s\S]*?summaryHeight[\s\S]*?retreatDistance[\s\S]*?absorptionProgress[\s\S]*?--mobile-summary-retreat-y[\s\S]*?--mobile-summary-absorb-opacity[\s\S]*?--mobile-summary-absorb-scale/
+  /function setDrawerTransition\(offset, offsets = getSnapOffsets\(\)\)[\s\S]*?detailRevealProgress[\s\S]*?easedDetailProgress[\s\S]*?sidebar\.style\.opacity[\s\S]*?scaleY[\s\S]*?--mobile-detail-reveal-progress[\s\S]*?tabBarHeight[\s\S]*?summaryHeight[\s\S]*?retreatDistance[\s\S]*?absorptionProgress[\s\S]*?--mobile-summary-retreat-y[\s\S]*?--mobile-summary-absorb-opacity[\s\S]*?--mobile-summary-absorb-scale/
 );
 assert.match(panelToggle, /setDrawerTransition\(nextOffset, offsets\);/);
 assert.match(panelToggle, /classList\.toggle\("is-vertical-dragging", initialAxis === "y"\)/);
@@ -109,7 +117,7 @@ assert.match(panelToggle, /classList\.remove\("is-vertical-dragging"\)/);
 assert.match(panelToggle, /setDrawerState\(drawerState === "peek" \? "full" : "peek"\);/);
 assert.match(
   styles,
-  /\.mobile-context-dock\s*\{[\s\S]*?opacity:\s*var\(--mobile-summary-absorb-opacity, 1\);[\s\S]*?translateX\(-50%\) translateY\(var\(--mobile-summary-retreat-y, 0px\)\) scale\(var\(--mobile-summary-absorb-scale, 1\)\)[\s\S]*?transform-origin:\s*50% 100%;[\s\S]*?\.mobile-drawer-open \.mobile-context-dock:not\(\.is-vertical-dragging\)\s*\{[\s\S]*?pointer-events:\s*none;[\s\S]*?\.mobile-context-dock\.is-vertical-dragging\s*\{[\s\S]*?transition:\s*none;/
+  /\.mobile-context-dock\s*\{[\s\S]*?opacity:\s*var\(--mobile-summary-absorb-opacity, 1\);[\s\S]*?translateX\(-50%\) translateY\(var\(--mobile-summary-retreat-y, 0px\)\) scale\(var\(--mobile-summary-absorb-scale, 1\)\)[\s\S]*?transform-origin:\s*50% 100%;[\s\S]*?transition:\s*opacity 180ms cubic-bezier\(0\.16, 1, 0\.3, 1\), transform 210ms cubic-bezier\(0\.16, 1, 0\.3, 1\);[\s\S]*?\.mobile-drawer-open \.mobile-context-dock:not\(\.is-vertical-dragging\)\s*\{[\s\S]*?pointer-events:\s*none;[\s\S]*?\.mobile-context-dock\.is-vertical-dragging\s*\{[\s\S]*?transition:\s*none;/
 );
 assert.doesNotMatch(styles, /\.mobile-drawer-open \.mobile-context-dock\s*\{[\s\S]{0,160}?opacity:\s*0;/);
 assert.match(
@@ -119,6 +127,14 @@ assert.match(
 assert.match(
   styles,
   /\.weather-time-range\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none;[\s\S]*?-webkit-tap-highlight-color:\s*transparent;/
+);
+assert.match(
+  styles,
+  /\.weather-time-range::-webkit-slider-runnable-track\s*\{[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none;/
+);
+assert.match(
+  styles,
+  /\.weather-time-range::-webkit-slider-thumb\s*\{[\s\S]*?-webkit-appearance:\s*none;[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none;[\s\S]*?opacity:\s*0;/
 );
 assert.match(
   styles,

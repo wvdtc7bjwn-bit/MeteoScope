@@ -30,6 +30,10 @@ import {
   VOLCANO_SMALL_CINDERS_STYLE
 } from "../volcanoAshfall.js";
 import { WORLD_TYPHOON_MODELS } from "../worldTyphoon.js";
+import {
+  buildStormWarningAreaLineSegments,
+  destinationPoint
+} from "../typhoonGeometry.js";
 
 const MODE_CLASS = {
   radar: "mode-radar",
@@ -5325,40 +5329,6 @@ function getStormWarningVectorCosine(a, b) {
   return (a.x * b.x + a.y * b.y) / (aLength * bLength);
 }
 
-function buildStormWarningAreaLineSegments(stormWarningArea) {
-  const segments = [];
-
-  (stormWarningArea?.arc ?? []).forEach((arc) => {
-    const segment = makeStormWarningArcSegment(arc);
-    if (segment?.length >= 2) segments.push(segment);
-  });
-
-  (stormWarningArea?.line ?? []).forEach((line) => {
-    const segment = line.filter((point) => point?.length === 2);
-    if (segment.length >= 2) segments.push(segment);
-  });
-
-  return segments;
-}
-
-function makeStormWarningArcSegment(arc) {
-  const { center, radius } = arc ?? {};
-  if (!center || !Number.isFinite(radius)) return null;
-  let start = Number(arc.start);
-  let end = Number(arc.end);
-  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
-  if (end < start) end += 360;
-
-  const span = Math.max(1, end - start);
-  const steps = Math.max(8, Math.ceil(span / 5));
-  const coordinates = [];
-  for (let index = 0; index <= steps; index += 1) {
-    const bearing = start + (span * index / steps);
-    coordinates.push(destinationPoint(center, radius, bearing));
-  }
-  return coordinates;
-}
-
 function createTyphoonForecastAreaFeatures(typhoon) {
   if (!typhoon.center?.length || !typhoon.forecastCircles?.length) return [];
 
@@ -5941,27 +5911,6 @@ function unprojectMercatorPixel(point) {
   const y = 0.5 - point.y / worldSize;
   const lat = 90 - 360 * Math.atan(Math.exp(-y * 2 * Math.PI)) / Math.PI;
   return [lng, lat];
-}
-
-function destinationPoint([lng, lat], distanceKm, bearingDeg) {
-  const earthRadiusKm = 6371.0088;
-  const angularDistance = distanceKm / earthRadiusKm;
-  const bearing = bearingDeg * Math.PI / 180;
-  const lat1 = lat * Math.PI / 180;
-  const lng1 = lng * Math.PI / 180;
-  const lat2 = Math.asin(
-    Math.sin(lat1) * Math.cos(angularDistance)
-    + Math.cos(lat1) * Math.sin(angularDistance) * Math.cos(bearing)
-  );
-  const lng2 = lng1 + Math.atan2(
-    Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(lat1),
-    Math.cos(angularDistance) - Math.sin(lat1) * Math.sin(lat2)
-  );
-
-  return [
-    ((lng2 * 180 / Math.PI + 540) % 360) - 180,
-    lat2 * 180 / Math.PI
-  ];
 }
 
 function getPointDistanceSq(a, b) {
