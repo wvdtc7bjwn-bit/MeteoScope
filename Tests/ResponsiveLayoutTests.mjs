@@ -148,6 +148,18 @@ assert.match(panelToggle, /classList\.toggle\("is-vertical-dragging", initialAxi
 assert.match(panelToggle, /classList\.remove\("is-vertical-dragging"\)/);
 assert.match(panelToggle, /setDrawerState\(drawerState === "peek" \? "full" : "peek"\);/);
 assert.match(
+  panelToggle,
+  /dragStartedOnControl = target === mobileContextDock && isDockControlEvent\(event\);[\s\S]*?if \(dragStartedOnControl && prefersHorizontal\)[\s\S]*?dragAxis = horizontalSummarySwipeEnabled && prefersHorizontal \? "x" : "y";/
+);
+assert.match(
+  panelToggle,
+  /mobileContextDock\?\.addEventListener\("pointerdown", \(event\) => \{\s*beginDrag\(event, mobileContextDock, null\);/
+);
+assert.match(
+  panelToggle,
+  /mobileContextDock\?\.addEventListener\("click", \(event\) => \{[\s\S]*?event\.stopImmediatePropagation\(\);[\s\S]*?\}, \{ capture: true \}\);/
+);
+assert.match(
   styles,
   /\.mobile-context-dock\s*\{[\s\S]*?opacity:\s*var\(--mobile-summary-absorb-opacity, 1\);[\s\S]*?translateX\(-50%\) translateY\(var\(--mobile-summary-retreat-y, 0px\)\) scale\(var\(--mobile-summary-absorb-scale, 1\)\)[\s\S]*?transform-origin:\s*50% 100%;[\s\S]*?transition:\s*opacity 180ms cubic-bezier\(0\.16, 1, 0\.3, 1\), transform 210ms cubic-bezier\(0\.16, 1, 0\.3, 1\);[\s\S]*?\.mobile-drawer-open \.mobile-context-dock:not\(\.is-vertical-dragging\)\s*\{[\s\S]*?pointer-events:\s*none;[\s\S]*?\.mobile-context-dock\.is-vertical-dragging\s*\{[\s\S]*?transition:\s*none;/
 );

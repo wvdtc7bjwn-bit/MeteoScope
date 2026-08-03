@@ -15,8 +15,9 @@ import {
   isWarningMapTimePayload
 } from "../src/jma/warnings.js";
 
-const [appSource, leftPanelSource, weatherMapSource, warningGeometryFixes] = await Promise.all([
+const [appSource, warningsSource, leftPanelSource, weatherMapSource, warningGeometryFixes] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/jma/warnings.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
   readFile(new URL("../public/data/jma-weather-warning-municipality-fixes.geojson", import.meta.url), "utf8")
@@ -237,7 +238,18 @@ assert.match(
   appSource,
   /warningDetailsLoadedAtByKey\.set\(requestKey, Date\.now\(\)\);[\s\S]*?weatherMap\?\.prepareWarningData\(latestDataByTab\.warnings\)/
 );
-assert.doesNotMatch(appSource, /scheduleWarningDetailRefresh/);
+assert.match(
+  appSource,
+  /const EARLY_WARNING_REFRESH_INTERVAL_MS = 60 \* 1000;[\s\S]*?function syncEarlyWarningRefreshTimer\(\)[\s\S]*?activeTab !== "warnings" \|\| activeWarningView !== "early"[\s\S]*?refreshWarningDetails\(\{ force: true, includeEarlyWarnings: true \}\)/
+);
+assert.match(
+  appSource,
+  /document\.addEventListener\("visibilitychange"[\s\S]*?syncEarlyWarningRefreshTimer\(\);[\s\S]*?refreshWarningDetails\(\{ includeEarlyWarnings: true \}\)/
+);
+assert.match(
+  warningsSource,
+  /fetchJson\(JMA_ENDPOINTS\.probabilityMap, \{[\s\S]*?ttlMs: 0,[\s\S]*?cache: "no-cache"/
+);
 assert.doesNotMatch(
   appSource,
   /else if \(tab\.id === "warnings"\)[\s\S]*?refreshWarningDetails/

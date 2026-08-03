@@ -38,6 +38,8 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   let lastHorizontalX = 0;
   let lastHorizontalTime = 0;
   let horizontalVelocityX = 0;
+  let dragStartedOnControl = false;
+  let horizontalSummarySwipeEnabled = false;
 
   function isCompactLandscape() {
     return window.matchMedia?.("(orientation: landscape) and (max-width: 1024px) and (max-height: 600px) and (hover: none) and (pointer: coarse)").matches === true;
@@ -248,11 +250,15 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     lastHorizontalX = startX;
     lastHorizontalTime = event.timeStamp || performance.now();
     horizontalVelocityX = 0;
+    dragStartedOnControl = target === mobileContextDock && isDockControlEvent(event);
+    horizontalSummarySwipeEnabled = target === mobileContextDock
+      && !dragStartedOnControl
+      && Boolean(mobileContextDock?.querySelector(".mobile-dock-earthquake-summary-track"));
     startOffset = getCurrentOffset();
     currentOffset = startOffset;
     sidebar.style.transition = "none";
     mobileContextDock?.classList.toggle("is-vertical-dragging", initialAxis === "y");
-    target.setPointerCapture?.(event.pointerId);
+    if (initialAxis === "y") target.setPointerCapture?.(event.pointerId);
   }
 
   function moveDrag(event) {
@@ -262,8 +268,18 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     currentX = event.clientX;
     if (dragAxis === null) {
       if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) <= 6) return;
-      dragAxis = Math.abs(deltaX) > Math.abs(deltaY) * 1.12 ? "x" : "y";
+      const prefersHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 1.12;
+      if (dragStartedOnControl && prefersHorizontal) {
+        dragging = false;
+        dragTarget = null;
+        dragAxis = "y";
+        dragStartedOnControl = false;
+        horizontalSummarySwipeEnabled = false;
+        return;
+      }
+      dragAxis = horizontalSummarySwipeEnabled && prefersHorizontal ? "x" : "y";
       mobileContextDock?.classList.toggle("is-vertical-dragging", dragAxis === "y");
+      dragTarget?.setPointerCapture?.(event.pointerId);
     }
     event.preventDefault();
     if (dragAxis === "x") {
@@ -315,6 +331,8 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
       dragTarget?.releasePointerCapture?.(event.pointerId);
       dragTarget = null;
       dragAxis = "y";
+      dragStartedOnControl = false;
+      horizontalSummarySwipeEnabled = false;
       return;
     }
     const moved = Math.abs(currentOffset - startOffset) > 6 || Math.abs(event.clientY - startY) > 6;
@@ -325,6 +343,8 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     dragTarget?.releasePointerCapture?.(event.pointerId);
     dragTarget = null;
     dragAxis = "y";
+    dragStartedOnControl = false;
+    horizontalSummarySwipeEnabled = false;
     setDrawerOffset(moved ? currentOffset : startOffset);
   }
 
@@ -351,16 +371,17 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   });
 
   mobileContextDock?.addEventListener("pointerdown", (event) => {
-    if (isDockControlEvent(event)) return;
-    const supportsHorizontalSwipe = Boolean(
-      mobileContextDock.querySelector(".mobile-dock-earthquake-summary-track")
-    );
-    beginDrag(event, mobileContextDock, supportsHorizontalSwipe ? null : "y");
+    beginDrag(event, mobileContextDock, null);
   });
   mobileContextDock?.addEventListener("pointermove", moveDrag);
   mobileContextDock?.addEventListener("pointerup", finishDrag);
   mobileContextDock?.addEventListener("pointercancel", finishDrag);
   mobileContextDock?.setAttribute("aria-expanded", "false");
+  mobileContextDock?.addEventListener("click", (event) => {
+    if (Date.now() >= suppressClickUntil) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, { capture: true });
   mobileContextDock?.addEventListener("click", (event) => {
     if (isDockControlEvent(event)) return;
     if (Date.now() < suppressClickUntil) return;

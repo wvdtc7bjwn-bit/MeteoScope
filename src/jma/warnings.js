@@ -198,7 +198,11 @@ async function fetchWarningOfficePayloads({ baseUrl, unavailableLabel, fallbackV
 
 async function fetchEarlyWarningReports(options = {}) {
   try {
-    const reports = await fetchJson(JMA_ENDPOINTS.probabilityMap, { signal: options.signal });
+    const reports = await fetchJson(JMA_ENDPOINTS.probabilityMap, {
+      ttlMs: 0,
+      cache: "no-cache",
+      signal: options.signal
+    });
     return Array.isArray(reports) ? reports : [];
   } catch (error) {
     if (error?.name === "AbortError") throw error;

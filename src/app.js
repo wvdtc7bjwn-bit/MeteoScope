@@ -157,6 +157,7 @@ async function fetchEarthquakeTabData({
 
 const KIKIKURU_DATA_TTL_MS = 60 * 1000;
 const WARNING_DETAILS_TTL_MS = 60 * 1000;
+const EARLY_WARNING_REFRESH_INTERVAL_MS = 60 * 1000;
 const RIVER_FLOOD_DATA_TTL_MS = 60 * 1000;
 const WEATHER_CHART_DATA_TTL_MS = 10 * 60 * 1000;
 const LIGHTNING_REFRESH_INTERVAL_MS = 60 * 1000;
@@ -353,6 +354,7 @@ export function createWeatherApp() {
   let weatherChartPlayTimer = null;
   let autoRefreshTimer = null;
   let lightningRefreshTimer = null;
+  let earlyWarningRefreshTimer = null;
   let earthquakeRefreshTimer = null;
   let activeLoadRequestId = 0;
   let autoRefreshInFlight = false;
@@ -441,6 +443,7 @@ export function createWeatherApp() {
       warningDetailsRequest.controller.abort();
     }
     activeTab = tab.id;
+    syncEarlyWarningRefreshTimer();
     syncSocialShareMapButton(tab.id);
     invalidateScheduledMapRender();
     invalidateScheduledPanelRender();
@@ -720,6 +723,7 @@ export function createWeatherApp() {
   function selectKikikuruLayer(layerId) {
     if (layerId === "status") {
       activeWarningView = activeWarningView === "status" ? "early" : "status";
+      syncEarlyWarningRefreshTimer();
       if (activeTab !== "warnings") return;
       const tab = TABS.find((item) => item.id === "warnings");
       updateCurrentView(tab, latestDataByTab.warnings, { immediateMap: true });
@@ -729,6 +733,7 @@ export function createWeatherApp() {
 
     if (layerId === "early") {
       activeWarningView = "early";
+      syncEarlyWarningRefreshTimer();
       if (activeTab !== "warnings") return;
       const tab = TABS.find((item) => item.id === "warnings");
       updateCurrentView(tab, latestDataByTab.warnings, { immediateMap: true });
@@ -738,6 +743,7 @@ export function createWeatherApp() {
 
 if (layerId === "river") {
       activeWarningView = "river";
+      syncEarlyWarningRefreshTimer();
       if (activeTab !== "warnings") return;
       const tab = TABS.find((item) => item.id === "warnings");
       if (!latestDataByTab.warnings?.riverFlood) {
@@ -753,6 +759,7 @@ if (layerId === "river") {
 
     if (layerId !== "kikikuru" && !KIKIKURU_LAYER_OPTIONS.some((element) => element.id === layerId)) return;
     activeWarningView = "kikikuru";
+    syncEarlyWarningRefreshTimer();
     if (layerId !== "kikikuru") activeKikikuruLayer = layerId;
     currentKikikuruStatus = { status: "loading", elementId: activeKikikuruLayer };
     if (activeTab !== "warnings") return;
@@ -2743,10 +2750,16 @@ if (layerId === "river") {
       refreshActiveLightning({ force: true });
     }, LIGHTNING_REFRESH_INTERVAL_MS);
 
+    syncEarlyWarningRefreshTimer();
+
     scheduleEarthquakeRefresh();
 
     document.addEventListener("visibilitychange", () => {
+      syncEarlyWarningRefreshTimer();
       if (!document.hidden) {
+        if (activeTab === "warnings" && activeWarningView === "early") {
+          void refreshWarningDetails({ includeEarlyWarnings: true });
+        }
         if (activeTab === "earthquake") {
           refreshEarthquakeTabData({ force: true });
         } else {
@@ -2755,6 +2768,10 @@ if (layerId === "river") {
       }
     });
     window.addEventListener("focus", () => {
+      syncEarlyWarningRefreshTimer();
+      if (activeTab === "warnings" && activeWarningView === "early") {
+        void refreshWarningDetails({ includeEarlyWarnings: true });
+      }
       if (activeTab === "earthquake") {
         refreshEarthquakeTabData({ force: true });
       } else {
@@ -2807,6 +2824,18 @@ if (layerId === "river") {
     } catch (error) {
       console.warn(`[MeteoScope] ${tabId} prefetch failed`, error);
     }
+  }
+
+  function syncEarlyWarningRefreshTimer() {
+    if (earlyWarningRefreshTimer) {
+      window.clearInterval(earlyWarningRefreshTimer);
+      earlyWarningRefreshTimer = null;
+    }
+    if (document.hidden || activeTab !== "warnings" || activeWarningView !== "early") return;
+
+    earlyWarningRefreshTimer = window.setInterval(() => {
+      void refreshWarningDetails({ force: true, includeEarlyWarnings: true });
+    }, EARLY_WARNING_REFRESH_INTERVAL_MS);
   }
 
   async function refreshWarningDetails(options = {}) {
