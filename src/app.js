@@ -157,6 +157,7 @@ async function fetchEarthquakeTabData({
 
 const KIKIKURU_DATA_TTL_MS = 60 * 1000;
 const WARNING_DETAILS_TTL_MS = 60 * 1000;
+const EARLY_WARNING_REFRESH_INTERVAL_MS = 60 * 1000;
 const RIVER_FLOOD_DATA_TTL_MS = 60 * 1000;
 const WEATHER_CHART_DATA_TTL_MS = 10 * 60 * 1000;
 const LIGHTNING_REFRESH_INTERVAL_MS = 60 * 1000;
@@ -235,12 +236,16 @@ async function fetchWarningTabData(options = {}) {
   const includeDetails = Boolean(options.includeDetails);
   if (!includeDetails) {
     return {
-      ...await fetchWarningMap({ includeDetails: false }),
+      ...await fetchWarningMap({ includeDetails: false, signal: options.signal }),
       kikikuru: { unavailable: true, deferred: true }
     };
   }
 
-  return await fetchWarningDetails();
+  return await fetchWarningDetails({
+    areaCode: options.areaCode,
+    includeEarlyWarnings: Boolean(options.includeEarlyWarnings),
+    signal: options.signal
+  });
 }
 
 export function createWeatherApp() {
@@ -349,6 +354,7 @@ export function createWeatherApp() {
   let weatherChartPlayTimer = null;
   let autoRefreshTimer = null;
   let lightningRefreshTimer = null;
+  let earlyWarningRefreshTimer = null;
   let earthquakeRefreshTimer = null;
   let activeLoadRequestId = 0;
   let autoRefreshInFlight = false;
@@ -390,7 +396,7 @@ export function createWeatherApp() {
   let warningDetailsRequest = null;
   let warningKikikuruRequest = null;
   let riverFloodRequest = null;
-  let warningDetailsLoadedAt = 0;
+  const warningDetailsLoadedAtByKey = new Map();
   let warningKikikuruLoadedAt = 0;
   let riverFloodLoadedAt = 0;
   let backgroundPrefetchStarted = false;
@@ -433,7 +439,11 @@ export function createWeatherApp() {
   async function selectTab(tabId) {
     const switchStartedAt = performance.now();
     const tab = TABS.find((item) => item.id === tabId) ?? TABS[0];
+    if (activeTab === "warnings" && tab.id !== "warnings" && warningDetailsRequest?.abortOnTabChange) {
+      warningDetailsRequest.controller.abort();
+    }
     activeTab = tab.id;
+    syncEarlyWarningRefreshTimer();
     syncSocialShareMapButton(tab.id);
     invalidateScheduledMapRender();
     invalidateScheduledPanelRender();
@@ -470,8 +480,6 @@ export function createWeatherApp() {
         }
         if (tab.id === "warnings" && activeWarningView === "river") {
           void refreshRiverFloodData();
-        } else if (tab.id === "warnings") {
-          scheduleWarningDetailRefresh();
         }
         if (!isTabDataFresh(tab.id)) void refreshCachedTab(tab);
         scheduleBackgroundPrefetch(tab.id);
@@ -524,7 +532,6 @@ export function createWeatherApp() {
       }
       updateCurrentView(tab, data, { deferPanel: true });
       if (tab.id === "warnings" && activeWarningView === "river") void refreshRiverFloodData();
-      else if (tab.id === "warnings") scheduleWarningDetailRefresh();
       scheduleBackgroundPrefetch(tab.id);
       recordDiagnostic("tab-switch", {
         tab: tab.id,
@@ -716,24 +723,27 @@ export function createWeatherApp() {
   function selectKikikuruLayer(layerId) {
     if (layerId === "status") {
       activeWarningView = activeWarningView === "status" ? "early" : "status";
+      syncEarlyWarningRefreshTimer();
       if (activeTab !== "warnings") return;
       const tab = TABS.find((item) => item.id === "warnings");
       updateCurrentView(tab, latestDataByTab.warnings, { immediateMap: true });
-      if (activeWarningView === "early") refreshWarningDetails();
+      if (activeWarningView === "early") refreshWarningDetails({ includeEarlyWarnings: true });
       return;
     }
 
     if (layerId === "early") {
       activeWarningView = "early";
+      syncEarlyWarningRefreshTimer();
       if (activeTab !== "warnings") return;
       const tab = TABS.find((item) => item.id === "warnings");
       updateCurrentView(tab, latestDataByTab.warnings, { immediateMap: true });
-      refreshWarningDetails();
+      refreshWarningDetails({ includeEarlyWarnings: true });
       return;
     }
 
 if (layerId === "river") {
       activeWarningView = "river";
+      syncEarlyWarningRefreshTimer();
       if (activeTab !== "warnings") return;
       const tab = TABS.find((item) => item.id === "warnings");
       if (!latestDataByTab.warnings?.riverFlood) {
@@ -749,6 +759,7 @@ if (layerId === "river") {
 
     if (layerId !== "kikikuru" && !KIKIKURU_LAYER_OPTIONS.some((element) => element.id === layerId)) return;
     activeWarningView = "kikikuru";
+    syncEarlyWarningRefreshTimer();
     if (layerId !== "kikikuru") activeKikikuruLayer = layerId;
     currentKikikuruStatus = { status: "loading", elementId: activeKikikuruLayer };
     if (activeTab !== "warnings") return;
@@ -2318,7 +2329,12 @@ if (layerId === "river") {
 
     if (force) lightningLoadedAt = 0;
     const results = await Promise.allSettled([
-      refreshWarningDetailsData({ force }),
+      refreshWarningDetailsData({
+        force,
+        areaCode: currentLocationInfo.areaCode,
+        includeEarlyWarnings: true,
+        abortOnTabChange: false
+      }),
       refreshRiverFloodData({ force }),
       refreshKikikuruData({ force }),
       ensureDashboardTabData("earthquake", { force }),
@@ -2734,10 +2750,16 @@ if (layerId === "river") {
       refreshActiveLightning({ force: true });
     }, LIGHTNING_REFRESH_INTERVAL_MS);
 
+    syncEarlyWarningRefreshTimer();
+
     scheduleEarthquakeRefresh();
 
     document.addEventListener("visibilitychange", () => {
+      syncEarlyWarningRefreshTimer();
       if (!document.hidden) {
+        if (activeTab === "warnings" && activeWarningView === "early") {
+          void refreshWarningDetails({ includeEarlyWarnings: true });
+        }
         if (activeTab === "earthquake") {
           refreshEarthquakeTabData({ force: true });
         } else {
@@ -2746,6 +2768,10 @@ if (layerId === "river") {
       }
     });
     window.addEventListener("focus", () => {
+      syncEarlyWarningRefreshTimer();
+      if (activeTab === "warnings" && activeWarningView === "early") {
+        void refreshWarningDetails({ includeEarlyWarnings: true });
+      }
       if (activeTab === "earthquake") {
         refreshEarthquakeTabData({ force: true });
       } else {
@@ -2800,18 +2826,20 @@ if (layerId === "river") {
     }
   }
 
-  async function refreshWarningDetails() {
-    return refreshWarningDetailsData();
+  function syncEarlyWarningRefreshTimer() {
+    if (earlyWarningRefreshTimer) {
+      window.clearInterval(earlyWarningRefreshTimer);
+      earlyWarningRefreshTimer = null;
+    }
+    if (document.hidden || activeTab !== "warnings" || activeWarningView !== "early") return;
+
+    earlyWarningRefreshTimer = window.setInterval(() => {
+      void refreshWarningDetails({ force: true, includeEarlyWarnings: true });
+    }, EARLY_WARNING_REFRESH_INTERVAL_MS);
   }
 
-  function scheduleWarningDetailRefresh() {
-    window.requestAnimationFrame(() => {
-      window.setTimeout(() => {
-        if (activeTab === "warnings" && (activeWarningView === "status" || activeWarningView === "early")) {
-          void refreshWarningDetailsData();
-        }
-      }, 80);
-    });
+  async function refreshWarningDetails(options = {}) {
+    return refreshWarningDetailsData(options);
   }
 
   async function refreshCurrentLocationWarningInfo(warningData) {
@@ -2823,26 +2851,49 @@ if (layerId === "river") {
       console.warn("[MeteoScope] current location warning refresh failed", error);
     }
   }
-  async function refreshWarningDetailsData({ force = false } = {}) {
-    if (!force && hasFreshWarningDetails(latestDataByTab.warnings, warningDetailsLoadedAt)) return latestDataByTab.warnings;
-    if (warningDetailsRequest) return warningDetailsRequest;
-    warningDetailsRequest = fetchWarningTabData({ includeDetails: true })
+  async function refreshWarningDetailsData({
+    force = false,
+    areaCode = "",
+    includeEarlyWarnings = false,
+    abortOnTabChange = true
+  } = {}) {
+    const normalizedAreaCode = String(areaCode ?? "").trim();
+    const requestKey = includeEarlyWarnings ? "early" : (normalizedAreaCode ? `area:${normalizedAreaCode}` : "");
+    if (!requestKey) return latestDataByTab.warnings;
+    const loadedAt = warningDetailsLoadedAtByKey.get(requestKey) ?? 0;
+    if (!force && hasFreshWarningDetails(latestDataByTab.warnings, loadedAt, {
+      areaCode: normalizedAreaCode,
+      includeEarlyWarnings
+    })) return latestDataByTab.warnings;
+    if (warningDetailsRequest?.key === requestKey) return warningDetailsRequest.promise;
+    warningDetailsRequest?.controller.abort();
+
+    const controller = new AbortController();
+    const request = fetchWarningTabData({
+      includeDetails: true,
+      areaCode: normalizedAreaCode,
+      includeEarlyWarnings,
+      signal: controller.signal
+    })
       .then(async (detailsData) => {
+        if (controller.signal.aborted) return latestDataByTab.warnings;
         latestDataByTab.warnings = mergeWarningTabData(latestDataByTab.warnings, detailsData);
-        warningDetailsLoadedAt = Date.now();
+        warningDetailsLoadedAtByKey.set(requestKey, Date.now());
         weatherMap?.prepareWarningData(latestDataByTab.warnings);
         await refreshCurrentLocationWarningInfo(latestDataByTab.warnings);
-        refreshWarningsView({ updateMap: true });
+        if (activeTab === "warnings") refreshWarningsView({ updateMap: true });
         return latestDataByTab.warnings;
       })
       .catch((error) => {
+        if (error?.name === "AbortError") return latestDataByTab.warnings;
         console.warn("[MeteoScope] warning detail load failed", error);
         return latestDataByTab.warnings;
       })
       .finally(() => {
-        warningDetailsRequest = null;
+        if (warningDetailsRequest?.controller === controller) warningDetailsRequest = null;
       });
-    return warningDetailsRequest;
+    warningDetailsRequest = { key: requestKey, promise: request, controller, abortOnTabChange };
+    return request;
   }
 
   async function refreshRiverFloodData({ force = false } = {}) {
@@ -3078,7 +3129,7 @@ if (layerId === "river") {
     });
     setupKikikuruLayerToggles({ onChange: selectKikikuruLayer });
     setupWarningAreaSelection({
-      onDetailRequest: () => refreshWarningDetails(),
+      onDetailRequest: (areaCode) => refreshWarningDetails({ areaCode }),
       onListExpansion: () => refreshWarningsView()
     });
     setupTyphoonSelector({ onChange: selectTyphoon });
@@ -3361,12 +3412,15 @@ function hasFreshKikikuruData(kikikuru, loadedAt) {
   );
 }
 
-function hasFreshWarningDetails(warningData, loadedAt) {
-  return Boolean(
-    warningData?.detailsLoaded &&
-    loadedAt > 0 &&
-    Date.now() - loadedAt < WARNING_DETAILS_TTL_MS
-  );
+function hasFreshWarningDetails(warningData, loadedAt, options = {}) {
+  const normalizedAreaCode = String(options.areaCode ?? "").trim();
+  const requestedDetailsLoaded = options.includeEarlyWarnings
+    ? Boolean(warningData?.earlyDetailsLoaded)
+    : Boolean(
+        normalizedAreaCode
+        && warningData?.statusDetailAreaCodes?.some((areaCode) => String(areaCode) === normalizedAreaCode)
+      );
+  return requestedDetailsLoaded && loadedAt > 0 && Date.now() - loadedAt < WARNING_DETAILS_TTL_MS;
 }
 
 function requestCurrentPosition() {
@@ -3484,9 +3538,29 @@ function mergeAmedasData(currentData, nextData) {
 function mergeWarningTabData(currentData, nextData = {}) {
   if (!currentData) return nextData;
   if (nextData.detailsLoaded) {
+    const activeAreas = mergeWarningAreaDetails(currentData.activeAreas, nextData.activeAreas);
+    const outlookAreas = mergeWarningOutlookAreas(currentData.outlookAreas, nextData.outlookAreas);
+    const groups = mergeWarningGroupDetails(nextData.groups, activeAreas);
+    const statusDetailAreaCodes = [...new Set([
+      ...(currentData.statusDetailAreaCodes ?? []),
+      ...(nextData.statusDetailAreaCodes ?? [])
+    ].map(String))];
+    const preserveEarlyDetails = !nextData.earlyDetailsLoaded && currentData.earlyDetailsLoaded;
     return {
       ...currentData,
       ...nextData,
+      activeAreas,
+      outlookAreas,
+      groups,
+      earlyWarnings: preserveEarlyDetails ? currentData.earlyWarnings : nextData.earlyWarnings,
+      earlyAreas: preserveEarlyDetails ? currentData.earlyAreas : nextData.earlyAreas,
+      earlyMunicipalityAreas: preserveEarlyDetails
+        ? currentData.earlyMunicipalityAreas
+        : nextData.earlyMunicipalityAreas,
+      statusDetailsLoaded: Boolean(currentData.statusDetailsLoaded || nextData.statusDetailsLoaded),
+      statusDetailAreaCodes,
+      earlyDetailsLoaded: Boolean(currentData.earlyDetailsLoaded || nextData.earlyDetailsLoaded),
+      detailsLoaded: true,
       kikikuru: nextData.kikikuru ?? currentData.kikikuru,
       riverFlood: nextData.riverFlood ?? currentData.riverFlood
     };
@@ -3500,8 +3574,34 @@ function mergeWarningTabData(currentData, nextData = {}) {
     earlyMunicipalityAreas: currentData.earlyMunicipalityAreas ?? nextData.earlyMunicipalityAreas,
     kikikuru: currentData.kikikuru ?? nextData.kikikuru,
     riverFlood: currentData.riverFlood ?? nextData.riverFlood,
-    detailsLoaded: Boolean(nextData.detailsLoaded)
+    statusDetailsLoaded: Boolean(currentData.statusDetailsLoaded),
+    statusDetailAreaCodes: currentData.statusDetailAreaCodes ?? [],
+    earlyDetailsLoaded: Boolean(currentData.earlyDetailsLoaded),
+    detailsLoaded: Boolean(currentData.detailsLoaded)
   };
+}
+
+function mergeWarningAreaDetails(currentAreas = [], nextAreas = []) {
+  const currentByCode = new Map((currentAreas ?? []).map((area) => [String(area.areaCode), area]));
+  return (nextAreas ?? []).map((area) => {
+    const current = currentByCode.get(String(area.areaCode));
+    if (!current || area.outlook?.length) return area;
+    return { ...area, outlook: current.outlook ?? [] };
+  });
+}
+
+function mergeWarningOutlookAreas(currentAreas = [], nextAreas = []) {
+  const merged = new Map((currentAreas ?? []).map((area) => [String(area.areaCode), area]));
+  (nextAreas ?? []).forEach((area) => merged.set(String(area.areaCode), area));
+  return [...merged.values()];
+}
+
+function mergeWarningGroupDetails(nextGroups = [], activeAreas = []) {
+  const detailByCode = new Map((activeAreas ?? []).map((area) => [String(area.areaCode), area]));
+  return (nextGroups ?? []).map((group) => ({
+    ...group,
+    areas: (group.areas ?? []).map((area) => detailByCode.get(String(area.areaCode)) ?? area)
+  }));
 }
 
 function clampIndex(index, items = []) {

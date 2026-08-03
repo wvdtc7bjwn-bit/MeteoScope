@@ -31,6 +31,7 @@ export async function fetchArrayBuffer(url, options = {}) {
 }
 
 async function fetchCached(url, options) {
+  throwIfAborted(options.signal);
   const ttlMs = Number.isFinite(options.ttlMs) ? options.ttlMs : DEFAULT_REQUEST_TTL_MS;
   const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : DEFAULT_REQUEST_TIMEOUT_MS;
   const retryCount = Number.isInteger(options.retryCount) ? Math.max(0, options.retryCount) : DEFAULT_RETRY_COUNT;
@@ -40,7 +41,7 @@ async function fetchCached(url, options) {
   if (ttlMs > 0 && cached && cached.expiresAt > now) return cached.value;
 
   const inFlight = inFlightRequests.get(cacheKey);
-  if (inFlight) return inFlight;
+  if (inFlight) return waitForRequest(inFlight, options.signal);
 
   const startedAt = performance.now();
   const request = fetchWithRetry(url, {
@@ -88,7 +89,31 @@ async function fetchCached(url, options) {
     });
 
   inFlightRequests.set(cacheKey, request);
-  return request;
+  return waitForRequest(request, options.signal);
+}
+
+function waitForRequest(request, signal) {
+  if (!signal) return request;
+  throwIfAborted(signal);
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(signal.reason ?? createAbortError());
+    signal.addEventListener("abort", onAbort, { once: true });
+    request.then(resolve, reject).finally(() => {
+      signal.removeEventListener("abort", onAbort);
+    });
+  });
+}
+
+function throwIfAborted(signal) {
+  if (!signal?.aborted) return;
+  throw signal.reason ?? createAbortError();
+}
+
+function createAbortError() {
+  if (typeof DOMException === "function") return new DOMException("Request aborted", "AbortError");
+  const error = new Error("Request aborted");
+  error.name = "AbortError";
+  return error;
 }
 
 async function fetchWithRetry(url, { accept, cache, parse, validate, retryCount, timeoutMs }) {

@@ -17,33 +17,61 @@ const EARLY_WARNING_WIND_ONLY_CLASS10_CODES = new Set([
   "471010", "471020", "471030", "472000", "473000", "474010", "474020"
 ]);
 const WARNING_OFFICE_BATCH_SIZE = 8;
+const WARNING_MAP_TIME_TTL_MS = 20 * 1000;
+let warningMapSnapshot = null;
 
 export { getPrefectureNameByCode } from "./warningCore.js";
 
 export async function fetchWarningMap(options = {}) {
   const includeDetails = Boolean(options.includeDetails);
+  const detailAreaCode = String(options.areaCode ?? "").trim();
+  const includeEarlyWarnings = Boolean(options.includeEarlyWarnings);
+  const signal = options.signal;
   const [warningReports, municipalityIndexData] = await Promise.all([
-    fetchWarningReports(),
-    fetchJson(JMA_ENDPOINTS.warningMunicipalityIndex, { ttlMs: STATIC_DATA_CACHE_TTL_MS, cache: "no-cache" })
+    fetchWarningReports({ signal }),
+    fetchJson(JMA_ENDPOINTS.warningMunicipalityIndex, {
+      ttlMs: STATIC_DATA_CACHE_TTL_MS,
+      cache: "no-cache",
+      signal
+    })
   ]);
   await yieldToMainThread();
   const municipalityIndex = buildMunicipalityIndex(municipalityIndexData);
   let outlookByAreaCode = new Map();
   let earlyWarnings = buildEmptyEarlyWarningData();
+  let statusDetailsLoaded = false;
+  let earlyDetailsLoaded = false;
 
   if (includeDetails) {
-    const [warningTimelineReports, areaConst, earlyWarningReports, noWaveTideConst] = await Promise.all([
-      fetchWarningTimelineReports(),
-      fetchJson(JMA_ENDPOINTS.areaConst, { ttlMs: STATIC_DATA_CACHE_TTL_MS, cache: "force-cache" }),
-      fetchEarlyWarningReports(),
-      fetchNoWaveTideConst()
-    ]);
+    const areaConst = await fetchJson(JMA_ENDPOINTS.areaConst, {
+      ttlMs: STATIC_DATA_CACHE_TTL_MS,
+      cache: "force-cache",
+      signal
+    });
     const areaHierarchy = buildAreaHierarchy(areaConst, municipalityIndex);
-    const noWaveTideIndex = buildNoWaveTideIndex(noWaveTideConst);
-    outlookByAreaCode = buildWarningOutlookMap(warningTimelineReports, municipalityIndex);
-    await yieldToMainThread();
-    earlyWarnings = buildEarlyWarningData(earlyWarningReports, municipalityIndex, areaHierarchy, noWaveTideIndex);
-    await yieldToMainThread();
+    const officeCode = detailAreaCode ? areaHierarchy.getOfficeCode(detailAreaCode) : "";
+    const [warningTimelineReports, earlyWarningReports, noWaveTideConst] = await Promise.all([
+      officeCode
+        ? fetchWarningTimelineReports({ officeCode, signal })
+        : Promise.resolve([]),
+      includeEarlyWarnings
+        ? fetchEarlyWarningReports({ signal })
+        : Promise.resolve([]),
+      includeEarlyWarnings
+        ? fetchNoWaveTideConst({ signal })
+        : Promise.resolve({})
+    ]);
+    if (officeCode) {
+      outlookByAreaCode = buildWarningOutlookMap(warningTimelineReports, municipalityIndex);
+      statusDetailsLoaded = true;
+      await yieldToMainThread();
+    }
+    if (includeEarlyWarnings) {
+      const noWaveTideIndex = buildNoWaveTideIndex(noWaveTideConst);
+      earlyWarnings = buildEarlyWarningData(earlyWarningReports, municipalityIndex, areaHierarchy, noWaveTideIndex);
+      earlyDetailsLoaded = true;
+      await yieldToMainThread();
+    }
   }
 
   const areaMap = await buildWarningAreaMap(warningReports, municipalityIndex, outlookByAreaCode);
@@ -63,24 +91,81 @@ export async function fetchWarningMap(options = {}) {
     summary: `発表中 ${activeAreas.length} 市区町村`,
     latestTime: parseJmaTime(latestReportTime) ?? latestReportTime,
     updatedAt: parseJmaTime(latestReportTime) ?? "取得済み",
-    detailsLoaded: includeDetails
+    detailsLoaded: statusDetailsLoaded || earlyDetailsLoaded,
+    statusDetailsLoaded,
+    statusDetailAreaCodes: statusDetailsLoaded ? [detailAreaCode] : [],
+    earlyDetailsLoaded
   };
 }
 
-export async function fetchWarningDetails() {
-  return fetchWarningMap({ includeDetails: true });
+export async function fetchWarningDetails(options = {}) {
+  const normalizedOptions = typeof options === "string" ? { areaCode: options } : options;
+  return fetchWarningMap({ ...normalizedOptions, includeDetails: true });
 }
 
-async function fetchWarningReports() {
+export async function fetchWarningReports(options = {}) {
+  const signal = options.signal;
+  try {
+    const timestampPayload = await fetchJson(JMA_ENDPOINTS.warningsMapTime, {
+      ttlMs: WARNING_MAP_TIME_TTL_MS,
+      cache: "no-cache",
+      signal,
+      validate: isWarningMapTimePayload
+    });
+    const timestamp = getWarningMapTimestamp(timestampPayload);
+    if (warningMapSnapshot?.timestamp === timestamp) return warningMapSnapshot.reports;
+
+    const reports = await fetchJson(JMA_ENDPOINTS.warningsMap, {
+      ttlMs: 0,
+      cache: "no-cache",
+      signal,
+      validate: isWarningMapPayload
+    });
+    warningMapSnapshot = { timestamp, reports };
+    return reports;
+  } catch (error) {
+    if (error?.name === "AbortError") throw error;
+    console.warn("[MeteoScope] aggregated warning JSON unavailable; using office fallback", error);
+  }
+
   const reportsByOffice = await fetchWarningOfficePayloads({
     baseUrl: JMA_ENDPOINTS.warningsBase,
     unavailableLabel: "warning JSON",
-    fallbackValue: []
+    fallbackValue: [],
+    signal
   });
   return reportsByOffice.flat();
 }
 
-async function fetchWarningTimelineReports() {
+export function isWarningMapTimePayload(payload) {
+  return Boolean(getWarningMapTimestamp(payload));
+}
+
+export function getWarningMapTimestamp(payload) {
+  return typeof payload?.latestControlDatetime === "string"
+    ? payload.latestControlDatetime.trim()
+    : "";
+}
+
+export function isWarningMapPayload(payload) {
+  return Array.isArray(payload) && payload.every((report) =>
+    report && typeof report === "object"
+    && typeof report.reportDatetime === "string"
+    && Array.isArray(report.warning?.class20Items)
+  );
+}
+
+async function fetchWarningTimelineReports({ officeCode, signal } = {}) {
+  if (officeCode) {
+    try {
+      const report = await fetchJson(`${JMA_ENDPOINTS.warningTimelineBase}/${officeCode}.json`, { signal });
+      return report ? [report] : [];
+    } catch (error) {
+      if (error?.name === "AbortError") throw error;
+      console.warn(`[MeteoScope] warning timeline JSON unavailable: ${officeCode}`, error);
+      return [];
+    }
+  }
   const reportsByOffice = await fetchWarningOfficePayloads({
     baseUrl: JMA_ENDPOINTS.warningTimelineBase,
     unavailableLabel: "warning timeline JSON",
@@ -89,15 +174,16 @@ async function fetchWarningTimelineReports() {
   return reportsByOffice.filter(Boolean);
 }
 
-async function fetchWarningOfficePayloads({ baseUrl, unavailableLabel, fallbackValue }) {
+async function fetchWarningOfficePayloads({ baseUrl, unavailableLabel, fallbackValue, signal }) {
   const payloads = [];
   const officeCodeBatches = chunkItems(JMA_WARNING_OFFICE_CODES, WARNING_OFFICE_BATCH_SIZE);
   for (let batchIndex = 0; batchIndex < officeCodeBatches.length; batchIndex += 1) {
     const officeCodes = officeCodeBatches[batchIndex];
     const batch = await Promise.all(officeCodes.map(async (officeCode) => {
       try {
-        return await fetchJson(`${baseUrl}/${officeCode}.json`);
+        return await fetchJson(`${baseUrl}/${officeCode}.json`, { signal });
       } catch (error) {
+        if (error?.name === "AbortError") throw error;
         console.warn(`[MeteoScope] ${unavailableLabel} unavailable: ${officeCode}`, error);
         return fallbackValue;
       }
@@ -110,20 +196,30 @@ async function fetchWarningOfficePayloads({ baseUrl, unavailableLabel, fallbackV
   return payloads;
 }
 
-async function fetchEarlyWarningReports() {
+async function fetchEarlyWarningReports(options = {}) {
   try {
-    const reports = await fetchJson(JMA_ENDPOINTS.probabilityMap);
+    const reports = await fetchJson(JMA_ENDPOINTS.probabilityMap, {
+      ttlMs: 0,
+      cache: "no-cache",
+      signal: options.signal
+    });
     return Array.isArray(reports) ? reports : [];
   } catch (error) {
+    if (error?.name === "AbortError") throw error;
     console.warn("[MeteoScope] early warning probability JSON unavailable", error);
     return [];
   }
 }
 
-async function fetchNoWaveTideConst() {
+async function fetchNoWaveTideConst(options = {}) {
   try {
-    return await fetchJson(JMA_ENDPOINTS.noWaveTide, { ttlMs: STATIC_DATA_CACHE_TTL_MS, cache: "force-cache" });
+    return await fetchJson(JMA_ENDPOINTS.noWaveTide, {
+      ttlMs: STATIC_DATA_CACHE_TTL_MS,
+      cache: "force-cache",
+      signal: options.signal
+    });
   } catch (error) {
+    if (error?.name === "AbortError") throw error;
     console.warn("[MeteoScope] no-wave/tide JSON unavailable", error);
     return {};
   }
@@ -390,7 +486,26 @@ function buildAreaHierarchy(areaConst, municipalityIndex) {
     return class10Children.length > 0 ? class10Children : [normalizedCode];
   }
 
-  return { collectMunicipalityCodes, getAreaName, getDisplayAreaCodes };
+  function getOfficeCode(areaCode) {
+    const normalizedCode = String(areaCode ?? "");
+    let currentCode = normalizedCode;
+    if (!nodes.has(currentCode)) {
+      currentCode = [...nodes.keys()].find((code) =>
+        nodes.get(code)?.buckets?.has("class20s")
+        && code.slice(0, 5) === normalizedCode.slice(0, 5)
+      ) ?? "";
+    }
+    const visited = new Set();
+    while (currentCode && !visited.has(currentCode)) {
+      visited.add(currentCode);
+      const node = nodes.get(currentCode);
+      if (node?.buckets?.has("offices")) return currentCode;
+      currentCode = String(node?.parent ?? "");
+    }
+    return "";
+  }
+
+  return { collectMunicipalityCodes, getAreaName, getDisplayAreaCodes, getOfficeCode };
 }
 
 function buildNoWaveTideIndex(noWaveTideConst = {}) {

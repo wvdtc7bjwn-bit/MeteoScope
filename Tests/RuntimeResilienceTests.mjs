@@ -51,6 +51,27 @@ try {
     }),
     (error) => error?.name === "TimeoutError"
   );
+
+  let resolveSharedRequest;
+  globalThis.fetch = async () => new Promise((resolve) => {
+    resolveSharedRequest = resolve;
+  });
+  const abortController = new AbortController();
+  const abortedConsumer = fetchJson("https://example.test/shared-abort", {
+    ttlMs: 0,
+    retryCount: 0,
+    timeoutMs: 1000,
+    signal: abortController.signal
+  });
+  const remainingConsumer = fetchJson("https://example.test/shared-abort", {
+    ttlMs: 0,
+    retryCount: 0,
+    timeoutMs: 1000
+  });
+  abortController.abort();
+  await assert.rejects(abortedConsumer, (error) => error?.name === "AbortError");
+  resolveSharedRequest(Response.json({ shared: true }));
+  assert.deepEqual(await remainingConsumer, { shared: true });
 } finally {
   globalThis.fetch = originalFetch;
 }

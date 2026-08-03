@@ -1,15 +1,33 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { getRiverFloodLevelLabel, isRiverFloodReportActive, normalizeRiverWarningText, resolveRiverFloodLevel } from "../src/jma/riverFlood.js";
-import { buildWarningLevelMap, planWarningFeatureStateChanges } from "../src/map/warningFeatureState.js";
+import {
+  buildWarningLevelMap,
+  planWarningFeatureStateChanges,
+  runWarningFeatureStateOperations
+} from "../src/map/warningFeatureState.js";
+import { WARNING_GEOMETRY_FIX_CODES } from "../src/map/warningGeometryFixCodes.js";
 import { chunkItems } from "../src/scheduling.js";
 import { getRiverFloodWarningStatus, mergeRiverFloodWarningsIntoGroups } from "../src/warningRiverMerge.js";
+import {
+  getWarningMapTimestamp,
+  isWarningMapPayload,
+  isWarningMapTimePayload
+} from "../src/jma/warnings.js";
 
-const [appSource, leftPanelSource, weatherMapSource] = await Promise.all([
+const [appSource, warningsSource, leftPanelSource, weatherMapSource, warningGeometryFixes] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/jma/warnings.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8")
+  readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
+  readFile(new URL("../public/data/jma-weather-warning-municipality-fixes.geojson", import.meta.url), "utf8")
 ]);
+
+const warningGeometryFixCollection = JSON.parse(warningGeometryFixes);
+const misakiGeometryFix = warningGeometryFixCollection.features.find((feature) => feature?.properties?.code === "2736600");
+assert.ok(WARNING_GEOMETRY_FIX_CODES.includes("2736600"));
+assert.ok(misakiGeometryFix, "岬町の警報境界補正が必要です");
+assert.equal(countStrictGeometryIntersections(misakiGeometryFix.geometry), 0);
 
 assert.equal(
   normalizeRiverWarningText("【警戒レベル３相当情報】袋川では、今後、氾濫危険水位に到達する見込み"),
@@ -105,6 +123,17 @@ const officeCodeBatches = chunkItems(officeCodes, 8);
 assert.deepEqual(officeCodeBatches.map((batch) => batch.length), [8, 8, 8, 8, 8, 8, 8, 2]);
 assert.deepEqual(officeCodeBatches.flat(), officeCodes);
 
+const mapTimePayload = { latestControlDatetime: "2026-08-03T09:59:35Z" };
+assert.equal(isWarningMapTimePayload(mapTimePayload), true);
+assert.equal(getWarningMapTimestamp(mapTimePayload), "2026-08-03T09:59:35Z");
+assert.equal(isWarningMapTimePayload({ latestControlDatetime: "" }), false);
+const aggregateFixture = [{
+  reportDatetime: "2026-08-03T16:06:00+09:00",
+  warning: { class20Items: [{ areaCode: "4320200", kinds: [] }] }
+}];
+assert.equal(isWarningMapPayload(aggregateFixture), true);
+assert.equal(isWarningMapPayload([{ reportDatetime: "2026-08-03T16:06:00+09:00" }]), false);
+
 const levels = buildWarningLevelMap([
   { areaCode: "0110100", level: "advisory" },
   { areaCode: "0110200", level: "warning" },
@@ -139,6 +168,42 @@ const unchanged = planWarningFeatureStateChanges(plan.desiredLevels, [
 ]);
 assert.deepEqual(unchanged.operations, []);
 
+let simulatedNow = 0;
+let simulatedFrames = 0;
+let simulatedApplied = 0;
+const largeOperationResult = await runWarningFeatureStateOperations(
+  Array.from({ length: 1000 }, (_, index) => ({ type: "set", areaCode: String(index), level: "warning" })),
+  {
+    budgetMs: 7,
+    maxPerFrame: 48,
+    now: () => simulatedNow,
+    yieldFrame: async () => { simulatedFrames += 1; },
+    apply: () => {
+      simulatedApplied += 1;
+      simulatedNow += 0.14;
+    }
+  }
+);
+assert.equal(largeOperationResult.applied, true);
+assert.equal(simulatedApplied, 1000);
+assert.equal(largeOperationResult.frameCount, simulatedFrames);
+assert.ok(largeOperationResult.frameCount >= 21 && largeOperationResult.frameCount <= 22);
+assert.ok(largeOperationResult.maxFrameDurationMs <= 6.8);
+
+let cancelChecks = 0;
+let cancelledApplied = 0;
+const cancelledOperationResult = await runWarningFeatureStateOperations(
+  Array.from({ length: 100 }, (_, index) => ({ areaCode: String(index) })),
+  {
+    maxPerFrame: 32,
+    yieldFrame: async () => {},
+    isCurrent: () => ++cancelChecks < 3,
+    apply: () => { cancelledApplied += 1; }
+  }
+);
+assert.equal(cancelledOperationResult.applied, false);
+assert.equal(cancelledApplied, 64);
+
 assert.match(
   appSource,
   /function scheduleCriticalWarningPrefetch\(\)[\s\S]*?await prefetchTabData\("warnings"\);[\s\S]*?setTimeout\(\(\) => void run\(\), 250\)/
@@ -171,11 +236,31 @@ assert.match(
 );
 assert.match(
   appSource,
-  /warningDetailsLoadedAt = Date\.now\(\);[\s\S]*?weatherMap\?\.prepareWarningData\(latestDataByTab\.warnings\)/
+  /warningDetailsLoadedAtByKey\.set\(requestKey, Date\.now\(\)\);[\s\S]*?weatherMap\?\.prepareWarningData\(latestDataByTab\.warnings\)/
 );
 assert.match(
   appSource,
-  /if \(tab\.id === "warnings" && activeWarningView === "river"\) \{[\s\S]*?refreshRiverFloodData\(\);[\s\S]*?else if \(tab\.id === "warnings"\) \{[\s\S]*?scheduleWarningDetailRefresh\(\)/
+  /const EARLY_WARNING_REFRESH_INTERVAL_MS = 60 \* 1000;[\s\S]*?function syncEarlyWarningRefreshTimer\(\)[\s\S]*?activeTab !== "warnings" \|\| activeWarningView !== "early"[\s\S]*?refreshWarningDetails\(\{ force: true, includeEarlyWarnings: true \}\)/
+);
+assert.match(
+  appSource,
+  /document\.addEventListener\("visibilitychange"[\s\S]*?syncEarlyWarningRefreshTimer\(\);[\s\S]*?refreshWarningDetails\(\{ includeEarlyWarnings: true \}\)/
+);
+assert.match(
+  warningsSource,
+  /fetchJson\(JMA_ENDPOINTS\.probabilityMap, \{[\s\S]*?ttlMs: 0,[\s\S]*?cache: "no-cache"/
+);
+assert.doesNotMatch(
+  appSource,
+  /else if \(tab\.id === "warnings"\)[\s\S]*?refreshWarningDetails/
+);
+assert.match(
+  appSource,
+  /onDetailRequest: \(areaCode\) => refreshWarningDetails\(\{ areaCode \}\)/
+);
+assert.match(
+  appSource,
+  /activeTab === "warnings" && tab\.id !== "warnings" && warningDetailsRequest\?\.abortOnTabChange/
 );
 assert.match(
   appSource,
@@ -262,15 +347,16 @@ assert.match(
   weatherMapSource,
   /function prepareWarningData\(data\)[\s\S]*?updateWarningFeatureStates\(map, statusAreas, "status"\)[\s\S]*?updateWarningFeatureStates\(map, earlyAreas, "early"\)/
 );
-assert.match(weatherMapSource, /const chunkSize = 8;/);
+assert.match(weatherMapSource, /runWarningFeatureStateOperations\(operations, \{[\s\S]*?budgetMs: 7,[\s\S]*?maxPerFrame: getWarningFeatureStateBatchLimit\(\)/);
 assert.match(
   weatherMapSource,
   /const WARNING_FEATURE_STATE_KEYS = \{[\s\S]*?status: "warningStatusLevel"[\s\S]*?early: "warningEarlyLevel"/
 );
-assert.match(
-  weatherMapSource,
-  /setWarningOverlayVisibility\(map, null\);[\s\S]*?updateWarningFeatureStates\(map, activeAreas, warningView\)\.then\(\(applied\) => \{[\s\S]*?displayGeneration !== displayGeneration[\s\S]*?setWarningOverlayVisibility\(map, warningView\)/
-);
+const activeWarningPaintBranch = weatherMapSource.match(
+  /function updateWarningMunicipalityPaint\(map, mode, data = \{\}\) \{[\s\S]*?\n\}/
+)?.[0] ?? "";
+assert.match(activeWarningPaintBranch, /if \(!cache\.visibleChannel\) \{[\s\S]*?setWarningOverlayVisibility\(map, warningView\)/);
+assert.doesNotMatch(activeWarningPaintBranch, /setWarningOverlayVisibility\(map, null\);\s*setWarningHatchVisibility\(map, false\);\s*\n\s*void updateWarningFeatureStates/);
 assert.match(
   weatherMapSource,
   /const visible = mode === "warnings" && data\?\.activeWarningView === "river";/
@@ -282,3 +368,27 @@ assert.match(
 assert.doesNotMatch(weatherMapSource, /setWarningOverlayPaint|updateWarningHatchPaint/);
 
 console.log("Warning responsiveness tests passed");
+
+function countStrictGeometryIntersections(geometry) {
+  const polygons = geometry?.type === "Polygon"
+    ? [geometry.coordinates]
+    : geometry?.type === "MultiPolygon"
+      ? geometry.coordinates
+      : [];
+  let crossings = 0;
+  polygons.forEach((polygon) => polygon.forEach((ring) => {
+    for (let index = 0; index < ring.length - 1; index += 1) {
+      for (let compared = index + 2; compared < ring.length - 1; compared += 1) {
+        if (index === 0 && compared === ring.length - 2) continue;
+        const [a, b, c, d] = [ring[index], ring[index + 1], ring[compared], ring[compared + 1]];
+        if (orientation(a, b, c) * orientation(a, b, d) < 0
+          && orientation(c, d, a) * orientation(c, d, b) < 0) crossings += 1;
+      }
+    }
+  }));
+  return crossings;
+}
+
+function orientation(a, b, c) {
+  return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+}

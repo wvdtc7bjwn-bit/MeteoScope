@@ -42,6 +42,8 @@ export const JMA_ENDPOINTS = {
   radarTileBase: "https://www.jma.go.jp/bosai/jmatile/data/nowc",
   amedasTimeList: "https://www.jma.go.jp/bosai/amedas/data/latest_time.txt",
   warningsBase: "https://www.jma.go.jp/bosai/warning/data/r8",
+  warningsMapTime: "https://www.jma.go.jp/bosai/warning/data/r8/map_time.json",
+  warningsMap: "https://www.jma.go.jp/bosai/warning/data/r8/map.json",
   warningTimelineBase: "https://www.jma.go.jp/bosai/warning_timeline/data",
   probabilityMap: "https://www.jma.go.jp/bosai/probability/data/probability/r8/map.json",
   noWaveTide: "https://www.jma.go.jp/bosai/warning/const/no_wave_tide.json",

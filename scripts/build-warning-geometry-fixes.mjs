@@ -11,7 +11,10 @@ const source = JSON.parse(await readFile(sourcePath, "utf8"));
 const fixCodes = new Set(WARNING_GEOMETRY_FIX_CODES);
 const features = (source.features ?? [])
   .filter((feature) => fixCodes.has(String(feature?.properties?.code ?? "")))
-  .map((feature) => ({ ...feature, geometry: normalizeGeometry(feature.geometry) }));
+  .map((feature) => ({
+    ...feature,
+    geometry: normalizeGeometry(feature.geometry, feature?.properties?.code === "2736600")
+  }));
 
 if (features.length !== fixCodes.size) {
   throw new Error(`Expected ${fixCodes.size} geometry fixes, found ${features.length}`);
@@ -28,7 +31,7 @@ await Promise.all([
 ]);
 console.log(`Wrote ${features.length} warning geometry fixes and ${areas.length} index entries`);
 
-function normalizeGeometry(geometry) {
+function normalizeGeometry(geometry, splitSelfIntersections = false) {
   if (!geometry?.coordinates) return geometry;
   const polygons = geometry.type === "Polygon"
     ? [geometry.coordinates]
@@ -37,7 +40,7 @@ function normalizeGeometry(geometry) {
       : null;
   if (!polygons) return geometry;
 
-  const normalizedPolygons = polygons.flatMap((polygon) => normalizePolygonParts(polygon));
+  const normalizedPolygons = polygons.flatMap((polygon) => normalizePolygonParts(polygon, splitSelfIntersections));
   if (geometry.type === "Polygon") {
     if (normalizedPolygons.length <= 1) return { ...geometry, coordinates: normalizedPolygons[0] ?? [] };
     return { type: "MultiPolygon", coordinates: normalizedPolygons };
@@ -45,10 +48,10 @@ function normalizeGeometry(geometry) {
   return { ...geometry, coordinates: normalizedPolygons };
 }
 
-function normalizePolygonParts(polygon) {
+function normalizePolygonParts(polygon, splitSelfIntersections = false) {
   if (!Array.isArray(polygon)) return [];
   const rings = polygon
-    .map((ring) => normalizeRing(ring))
+    .flatMap((ring) => splitSelfIntersections ? normalizeRingParts(ring) : [normalizeRing(ring)])
     .filter((ring) => ring.length >= 4 && Math.abs(getRingArea(ring)) > 1e-12);
   if (rings.length <= 1) return rings.length === 1 ? [[rings[0]]] : [];
 
@@ -64,6 +67,37 @@ function normalizePolygonParts(polygon) {
     else outerInfos.push({ ...info, holes: [] });
   });
   return outerInfos.map((outer) => [outer.ring, ...outer.holes]);
+}
+
+function normalizeRingParts(ring) {
+  const pending = [closeRing(ring)];
+  const normalized = [];
+  let splits = 0;
+  while (pending.length && splits < 64) {
+    const candidate = pending.pop();
+    if (candidate.length < 4) continue;
+    const intersection = findRingIntersection(candidate);
+    if (!intersection) {
+      normalized.push(candidate);
+      continue;
+    }
+    const { index, compared, point } = intersection;
+    const first = closeRing([point, ...candidate.slice(index + 1, compared + 1), point]);
+    const second = closeRing([
+      point,
+      ...candidate.slice(compared + 1, -1),
+      ...candidate.slice(0, index + 1),
+      point
+    ]);
+    const parts = [first, second].filter((part) => part.length >= 4 && Math.abs(getRingArea(part)) > 1e-12);
+    if (parts.length < 2) {
+      normalized.push(candidate);
+      continue;
+    }
+    pending.push(...parts);
+    splits += 1;
+  }
+  return [...normalized, ...pending];
 }
 
 function normalizeRing(ring) {
@@ -100,6 +134,23 @@ function closeRing(ring) {
   return normalized;
 }
 
+function findRingIntersection(ring) {
+  for (let index = 0; index < ring.length - 1; index += 1) {
+    const limit = ring.length - 2;
+    for (let compared = index + 2; compared <= limit; compared += 1) {
+      if (index === 0 && compared === ring.length - 2) continue;
+      if (segmentsCrossStrictly(ring[index], ring[index + 1], ring[compared], ring[compared + 1])) {
+        return {
+          index,
+          compared,
+          point: getLineIntersection(ring[index], ring[index + 1], ring[compared], ring[compared + 1])
+        };
+      }
+    }
+  }
+  return null;
+}
+
 function findLocalIntersection(ring) {
   for (let index = 0; index < ring.length - 1; index += 1) {
     const limit = Math.min(ring.length - 2, index + 6);
@@ -111,6 +162,17 @@ function findLocalIntersection(ring) {
     }
   }
   return null;
+}
+
+function getLineIntersection(a, b, c, d) {
+  const denominator = (a[0] - b[0]) * (c[1] - d[1]) - (a[1] - b[1]) * (c[0] - d[0]);
+  if (Math.abs(denominator) < Number.EPSILON) return [...a];
+  const left = a[0] * b[1] - a[1] * b[0];
+  const right = c[0] * d[1] - c[1] * d[0];
+  return [
+    (left * (c[0] - d[0]) - (a[0] - b[0]) * right) / denominator,
+    (left * (c[1] - d[1]) - (a[1] - b[1]) * right) / denominator
+  ];
 }
 
 function hasStrictSelfIntersection(ring) {
