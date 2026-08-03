@@ -11,7 +11,10 @@ import {
   MAP_DATA_ENDPOINTS
 } from "../config.js";
 import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
-import { planWarningFeatureStateChanges } from "./warningFeatureState.js";
+import {
+  planWarningFeatureStateChanges,
+  runWarningFeatureStateOperations
+} from "./warningFeatureState.js";
 import { WARNING_GEOMETRY_FIX_CODES } from "./warningGeometryFixCodes.js";
 import { createHypocenter3DLayer } from "./hypocenter3DLayer.js";
 import { createPlateDepth3DLayer } from "./plateDepth3DLayer.js";
@@ -3419,6 +3422,7 @@ function updateWarningMunicipalityPaint(map, mode, data = {}) {
   if (mode !== "warnings" || ["kikikuru", "river"].includes(data?.activeWarningView)) {
     invalidateWarningFeatureStateUpdate(map);
     setWarningOverlayVisibility(map, null);
+    getWarningFeatureStateCache(map).visibleChannel = null;
     setWarningHatchVisibility(map, false);
     return;
   }
@@ -3429,18 +3433,24 @@ function updateWarningMunicipalityPaint(map, mode, data = {}) {
   const displayGeneration = ++cache.displayGeneration;
 
   if (activeAreas.length === 0) {
-    void updateWarningFeatureStates(map, activeAreas, warningView);
-    setWarningOverlayVisibility(map, null);
-    setWarningHatchVisibility(map, false);
+    void updateWarningFeatureStates(map, activeAreas, warningView).then((applied) => {
+      if (!applied || getWarningFeatureStateCache(map).displayGeneration !== displayGeneration) return;
+      setWarningOverlayVisibility(map, null);
+      cache.visibleChannel = null;
+      setWarningHatchVisibility(map, false);
+    });
     return;
   }
 
-  setWarningOverlayVisibility(map, null);
-  setWarningHatchVisibility(map, false);
+  if (!cache.visibleChannel) {
+    setWarningOverlayVisibility(map, warningView);
+    cache.visibleChannel = warningView;
+  }
 
   void updateWarningFeatureStates(map, activeAreas, warningView).then((applied) => {
     if (!applied || getWarningFeatureStateCache(map).displayGeneration !== displayGeneration) return;
     setWarningOverlayVisibility(map, warningView);
+    cache.visibleChannel = warningView;
     setWarningHatchVisibility(
       map,
       warningView === "status" && activeAreas.some((area) => area.level === "emergency")
@@ -3530,6 +3540,7 @@ function getWarningFeatureStateCache(map) {
   if (cached) return cached;
   const next = {
     displayGeneration: 0,
+    visibleChannel: null,
     generations: { status: 0, early: 0 },
     levels: { status: new Map(), early: new Map() }
   };
@@ -3555,12 +3566,12 @@ async function updateWarningFeatureStates(map, activeAreas, warningView = "statu
 
   try {
     const { operations } = planWarningFeatureStateChanges(currentLevels, activeAreas);
-    const chunkSize = 8;
-    for (let offset = 0; offset < operations.length; offset += chunkSize) {
-      await waitForMapUpdateTurn();
-      if (cache.generations[channel] !== generation) return false;
-
-      operations.slice(offset, offset + chunkSize).forEach((operation) => {
+    const result = await runWarningFeatureStateOperations(operations, {
+      budgetMs: 7,
+      maxPerFrame: getWarningFeatureStateBatchLimit(),
+      yieldFrame: waitForMapUpdateTurn,
+      isCurrent: () => cache.generations[channel] === generation,
+      apply: (operation) => {
         const feature = {
           source: warningGeometryFixCodeSet.has(operation.areaCode) ? MUNICIPALITY_FIX_SOURCE_ID : MUNICIPALITY_SOURCE_ID,
           id: operation.areaCode
@@ -3572,15 +3583,22 @@ async function updateWarningFeatureStates(map, activeAreas, warningView = "statu
         }
         map.setFeatureState(feature, { [stateKey]: operation.level });
         currentLevels.set(operation.areaCode, operation.level);
-      });
-    }
-    if (cache.generations[channel] !== generation) return false;
+      }
+    });
+    if (!result.applied || cache.generations[channel] !== generation) return false;
     map.triggerRepaint();
     return true;
   } catch (error) {
     console.warn("[MeteoScope] warning municipality state update failed", error);
     return false;
   }
+}
+
+function getWarningFeatureStateBatchLimit() {
+  const deviceMemory = Number(globalThis.navigator?.deviceMemory);
+  if (Number.isFinite(deviceMemory) && deviceMemory <= 2) return 32;
+  if (Number.isFinite(deviceMemory) && deviceMemory >= 8) return 64;
+  return 48;
 }
 
 function getWarningFeatureStateKey(warningView = "status") {

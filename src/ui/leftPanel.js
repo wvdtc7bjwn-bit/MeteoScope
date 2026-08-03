@@ -3990,12 +3990,15 @@ if (warningView === "river") {
   }
 
   if (warningView === "early") {
-    activeWarningDetailsLoaded = Boolean(state.data?.detailsLoaded);
+    activeWarningDetailsLoaded = Boolean(state.data?.earlyDetailsLoaded);
     renderEarlyWarningDetails(root, state, renderGeneration);
     return;
   }
 
-  activeWarningDetailsLoaded = Boolean(state.data?.detailsLoaded);
+  activeWarningDetailsLoaded = Boolean(
+    selectedWarningAreaCode
+    && state.data?.statusDetailAreaCodes?.some((areaCode) => String(areaCode) === selectedWarningAreaCode)
+  );
   const groups = mergeRiverFloodWarningsIntoGroups(
     state.data?.groups ?? [],
     getRiverFloodReports(state.data?.riverFlood)
@@ -4070,7 +4073,7 @@ function renderEarlyWarningDetails(root, state, renderGeneration) {
   const areas = state.data?.earlyWarnings?.areas ?? [];
   const municipalityAreas = state.data?.earlyWarnings?.municipalityAreas ?? [];
 
-  if (!state.data?.detailsLoaded) {
+  if (!state.data?.earlyDetailsLoaded) {
     root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("取得中..."))}</div>`;
     activeWarningAreasByCode = new Map();
     activeWarningDetailsLoaded = false;
