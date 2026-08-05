@@ -1,18 +1,10 @@
 import { AUTO_REFRESH_INTERVAL_MS, JMA_ENDPOINTS, STATIC_DATA_CACHE_TTL_MS } from "../config.js";
+import { getAmedasObservationField } from "../amedasPrecipitationPeriod.js";
 import { fetchArrayBuffer, fetchJson, fetchText, parseJmaTime } from "./jmaClient.js";
 
 const AMEDAS_POINT_DATA_TTL_MS = 5 * 60 * 1000;
 const AMEDAS_DAILY_RANKING_TTL_MS = AUTO_REFRESH_INTERVAL_MS;
 const AMEDAS_CHUNK_HOURS = [0, 3, 6, 9, 12, 15, 18, 21];
-const DAILY_SERIES_FIELDS = {
-  temperature: "temp",
-  precipitation: "precipitation1h",
-  wind: "wind",
-  humidity: "humidity",
-  pressure: "normalPressure",
-  snow: "snow"
-};
-
 export async function fetchAmedasLatestTime() {
   const latestTimeText = await fetchText(JMA_ENDPOINTS.amedasTimeList);
   const latestTime = latestTimeText.trim();
@@ -232,7 +224,13 @@ function parseCsvRows(text) {
   return rows;
 }
 
-export async function fetchAmedasDailySeries(stationId, referenceTime, metricId, dayOffset = 0) {
+export async function fetchAmedasDailySeries(
+  stationId,
+  referenceTime,
+  metricId,
+  dayOffset = 0,
+  precipitationPeriodId = "1h"
+) {
   const id = String(stationId ?? "").trim();
   const normalizedDayOffset = dayOffset === 1 ? 1 : 0;
   const referenceDate = new Date(referenceTime);
@@ -240,7 +238,7 @@ export async function fetchAmedasDailySeries(stationId, referenceTime, metricId,
     ? referenceTime
     : new Date(referenceDate.getTime() - normalizedDayOffset * 24 * 60 * 60 * 1000);
   const jst = getJstDateParts(targetTime);
-  const field = DAILY_SERIES_FIELDS[metricId];
+  const field = getAmedasObservationField(metricId, precipitationPeriodId);
   if (!id || !jst || !field) throw new Error("AMeDAS station, time, or metric is unavailable");
 
   const chunkHours = normalizedDayOffset === 1
@@ -284,6 +282,7 @@ export async function fetchAmedasDailySeries(stationId, referenceTime, metricId,
   return {
     stationId: id,
     metricId,
+    precipitationPeriod: metricId === "precipitation" ? precipitationPeriodId : null,
     dayOffset: normalizedDayOffset,
     date: jst.date,
     points,
@@ -308,6 +307,10 @@ function buildAmedasPoints(observations, stations) {
       values: {
         temperature: readObservedValue(observation.temp),
         precipitation: readObservedValue(observation.precipitation1h),
+        precipitation10m: readObservedValue(observation.precipitation10m),
+        precipitation1h: readObservedValue(observation.precipitation1h),
+        precipitation3h: readObservedValue(observation.precipitation3h),
+        precipitation24h: readObservedValue(observation.precipitation24h),
         wind: readObservedValue(observation.wind),
         humidity: readObservedValue(observation.humidity),
         pressure: readObservedValue(observation.normalPressure),

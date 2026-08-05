@@ -1,7 +1,8 @@
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, TABS, WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasDailyChartToggle, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasDailyChartToggle, setupAmedasPrecipitationPeriods, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
+import { applyAmedasPrecipitationPeriod, DEFAULT_AMEDAS_PRECIPITATION_PERIOD, normalizeAmedasPrecipitationPeriod } from "./amedasPrecipitationPeriod.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
@@ -178,6 +179,25 @@ const EARTHQUAKE_LAYER_VISIBILITY_STORAGE_KEYS = {
 const EARLY_ACCESS_ACTIVE_FAULT_SOURCE_STORAGE_KEY =
   "meteoscope-early-access-active-fault-source-v1";
 const EARTHQUAKE_DISTRIBUTION_RECENT_XML_STORAGE_KEY = "meteoscope-earthquake-distribution-recent-xml-v1";
+const AMEDAS_PRECIPITATION_PERIOD_STORAGE_KEY = "meteoscope-amedas-precipitation-period-v1";
+
+function loadAmedasPrecipitationPeriod() {
+  try {
+    return normalizeAmedasPrecipitationPeriod(
+      localStorage.getItem(AMEDAS_PRECIPITATION_PERIOD_STORAGE_KEY)
+    );
+  } catch {
+    return DEFAULT_AMEDAS_PRECIPITATION_PERIOD;
+  }
+}
+
+function saveAmedasPrecipitationPeriod(periodId) {
+  try {
+    localStorage.setItem(AMEDAS_PRECIPITATION_PERIOD_STORAGE_KEY, periodId);
+  } catch {
+    // Storage can be unavailable in privacy-restricted environments.
+  }
+}
 
 function loadEarthquakeLayerVisibility(layerId) {
   try {
@@ -256,11 +276,12 @@ export function createWeatherApp() {
   const launchOptions = getLaunchOptions();
   let activeTab = launchOptions.initialTab;
   let activeAmedasMetric = AMEDAS_METRICS[0].id;
+  let activeAmedasPrecipitationPeriod = loadAmedasPrecipitationPeriod();
   let selectedAmedasStationId = "";
   let earlyAccessState = { status: "checking", active: false, message: "認証状態を確認中です。" };
   let earlyAccessEnabled = false;
   let amedasDailyChartDayOffset = 0;
-  let amedasDailyChart = { status: "idle", stationId: "", stationName: "", metricId: "", dayOffset: 0, data: null };
+  let amedasDailyChart = { status: "idle", stationId: "", stationName: "", metricId: "", precipitationPeriod: activeAmedasPrecipitationPeriod, dayOffset: 0, data: null };
   let amedasDailyChartRequestId = 0;
   let activeWarningView = "status";
   let activeKikikuruLayer = KIKIKURU_LAYER_OPTIONS[0]?.id ?? "land";
@@ -495,6 +516,7 @@ export function createWeatherApp() {
       schedulePanelRender(tab, {
         status: "loading",
         amedasMetric: activeAmedasMetric,
+        amedasPrecipitationPeriod: activeAmedasPrecipitationPeriod,
         warningView: activeWarningView,
         activeKikikuruLayer,
         radarPlaying: Boolean(radarPlayTimer),
@@ -545,6 +567,7 @@ export function createWeatherApp() {
         status: "error",
         error,
         amedasMetric: activeAmedasMetric,
+        amedasPrecipitationPeriod: activeAmedasPrecipitationPeriod,
         warningView: activeWarningView,
         activeKikikuruLayer,
         radarPlaying: Boolean(radarPlayTimer),
@@ -569,7 +592,27 @@ export function createWeatherApp() {
     updateCurrentView(tab, latestDataByTab.amedas);
     const selectedPoint = (latestDataByTab.amedas?.points ?? [])
       .find((point) => String(point.id) === selectedAmedasStationId);
-    if (selectedPoint && amedasDailyChart.metricId !== activeAmedasMetric) {
+    if (selectedPoint && (
+      amedasDailyChart.metricId !== activeAmedasMetric
+      || (activeAmedasMetric === "precipitation"
+        && amedasDailyChart.precipitationPeriod !== activeAmedasPrecipitationPeriod)
+    )) {
+      void loadAmedasDailyChart(selectedPoint, activeAmedasMetric, amedasDailyChartDayOffset);
+    }
+  }
+
+  function selectAmedasPrecipitationPeriod(periodId) {
+    const normalizedPeriod = normalizeAmedasPrecipitationPeriod(periodId);
+    if (normalizedPeriod === activeAmedasPrecipitationPeriod) return;
+    activeAmedasPrecipitationPeriod = normalizedPeriod;
+    saveAmedasPrecipitationPeriod(normalizedPeriod);
+    if (activeTab !== "amedas") return;
+
+    const tab = TABS.find((item) => item.id === "amedas");
+    updateCurrentView(tab, latestDataByTab.amedas);
+    const selectedPoint = (latestDataByTab.amedas?.points ?? [])
+      .find((point) => String(point.id) === selectedAmedasStationId);
+    if (selectedPoint && activeAmedasMetric === "precipitation") {
       void loadAmedasDailyChart(selectedPoint, activeAmedasMetric, amedasDailyChartDayOffset);
     }
   }
@@ -1446,26 +1489,39 @@ if (layerId === "river") {
     refreshAmedasPanel();
   }
 
-  async function loadAmedasDailyChart(point, metricId, dayOffset = amedasDailyChartDayOffset) {
+  async function loadAmedasDailyChart(
+    point,
+    metricId,
+    dayOffset = amedasDailyChartDayOffset,
+    precipitationPeriod = activeAmedasPrecipitationPeriod
+  ) {
     const requestId = ++amedasDailyChartRequestId;
     amedasDailyChart = {
       status: "loading",
       stationId: String(point.id),
       stationName: point.name,
       metricId,
+      precipitationPeriod,
       dayOffset,
       data: null
     };
     refreshAmedasPanel();
 
     try {
-      const data = await fetchAmedasDailySeries(point.id, latestDataByTab.amedas?.latestRawTime, metricId, dayOffset);
+      const data = await fetchAmedasDailySeries(
+        point.id,
+        latestDataByTab.amedas?.latestRawTime,
+        metricId,
+        dayOffset,
+        precipitationPeriod
+      );
       if (requestId !== amedasDailyChartRequestId) return;
       amedasDailyChart = {
         status: "ok",
         stationId: String(point.id),
         stationName: point.name,
         metricId,
+        precipitationPeriod,
         dayOffset,
         data
       };
@@ -1477,6 +1533,7 @@ if (layerId === "river") {
         stationId: String(point.id),
         stationName: point.name,
         metricId,
+        precipitationPeriod,
         dayOffset,
         data: null
       };
@@ -1504,6 +1561,7 @@ if (layerId === "river") {
       status: "ok",
       data: displayData,
       amedasMetric: activeAmedasMetric,
+      amedasPrecipitationPeriod: activeAmedasPrecipitationPeriod,
       selectedAmedasStationId,
       amedasDailyChart,
       amedasDailyChartDayOffset,
@@ -1589,7 +1647,12 @@ if (layerId === "river") {
   }
 
   function buildDisplayData(tab, data = {}) {
-    if (tab.id === "amedas") return { ...data, activeMetric: activeAmedasMetric };
+    if (tab.id === "amedas") {
+      return {
+        ...applyAmedasPrecipitationPeriod(data, activeAmedasPrecipitationPeriod),
+        activeMetric: activeAmedasMetric
+      };
+    }
     if (tab.id === "warnings") return { ...data, activeWarningView, activeKikikuruLayer, currentKikikuruStatus };
     if (tab.id === "typhoon") return buildTyphoonDisplayData(data);
     if (tab.id === "earthquake") {
@@ -2694,6 +2757,7 @@ if (layerId === "river") {
     renderLeftPanelState(tab, {
       status: "loading",
       amedasMetric: activeAmedasMetric,
+      amedasPrecipitationPeriod: activeAmedasPrecipitationPeriod,
       warningView: activeWarningView,
       activeKikikuruLayer,
       radarPlaying: Boolean(radarPlayTimer),
@@ -3094,6 +3158,7 @@ if (layerId === "river") {
       }
     });
     setupAmedasSubTabs({ onChange: selectAmedasMetric });
+    setupAmedasPrecipitationPeriods({ onChange: selectAmedasPrecipitationPeriod });
     setupAmedasDailyChartToggle({ onChange: selectAmedasDailyChartDay });
     setupMobileDockSegmentedControls();
     setupMobileEarthquakeSummarySwipe({

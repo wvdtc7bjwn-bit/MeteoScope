@@ -9,6 +9,7 @@ import {
   KIKIKURU_LAYER_OPTIONS,
   KIKIKURU_LEVELS
 } from "../config.js";
+import { AMEDAS_PRECIPITATION_PERIODS, getAmedasPrecipitationPeriod } from "../amedasPrecipitationPeriod.js";
 import {
   classifyEarthquakeTsunamiComment,
   getTsunamiLevelColor,
@@ -141,6 +142,7 @@ export function updateLeftPanel(tab, state = {}) {
   renderRadarOverlayTabs(tab, state.weatherChartEnabled, state.weatherChartStatus, state.weatherChart ?? state.data?.weatherChart);
   renderKikikuruLayerTabs(tab, warningView, activeKikikuruLayer);
   renderAmedasSubTabs(tab, amedasMetric.id);
+  renderAmedasPrecipitationPeriods(tab, amedasMetric.id, state.amedasPrecipitationPeriod ?? state.data?.precipitationPeriod);
   renderRadarControls(tab, state);
   renderWeatherChartControls(tab, state.weatherChartEnabled, state.weatherChartStatus, state.weatherChart ?? state.data?.weatherChart);
   renderLocationInsights(tab, state.locationInsights, state.myAreas);
@@ -155,6 +157,7 @@ export function updateLeftPanel(tab, state = {}) {
 }
 
 export function setupAmedasSubTabs({ onChange }) {
+  setupSegmentedControls(document.getElementById("amedas-sub-tabs"));
   const buttons = [...document.querySelectorAll(".amedas-sub-button")];
   buttons.forEach((button) => {
     button.addEventListener("click", () => {
@@ -492,6 +495,21 @@ function setupSegmentedControls(root) {
 
 export function setupMobileDockSegmentedControls() {
   setupSegmentedControls(document.getElementById("mobile-context-dock"));
+}
+
+export function setupAmedasPrecipitationPeriods({ onChange } = {}) {
+  setupSegmentedControls(document.getElementById("amedas-precipitation-periods"));
+  const handlePeriodClick = (event) => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest("[data-amedas-precipitation-period]");
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onChange?.(button.dataset.amedasPrecipitationPeriod);
+  };
+
+  document.getElementById("amedas-precipitation-periods")?.addEventListener("click", handlePeriodClick);
+  document.getElementById("mobile-context-dock")?.addEventListener("click", handlePeriodClick);
 }
 
 export function setupMobileEarthquakeSummarySwipe({ onChange } = {}) {
@@ -1745,6 +1763,31 @@ function renderAmedasSubTabs(tab, activeMetricId) {
   [...root.querySelectorAll(".amedas-sub-button")].forEach((button) => {
     button.classList.toggle("active", button.dataset.amedasMetric === activeMetricId);
   });
+  window.requestAnimationFrame(() => syncMobileDockSegmentIndicator(root));
+}
+
+function renderAmedasPrecipitationPeriods(tab, activeMetricId, activePeriodId) {
+  const root = document.getElementById("amedas-precipitation-periods");
+  if (!root) return;
+
+  const shouldShow = tab.id === "amedas" && activeMetricId === "precipitation";
+  root.hidden = !shouldShow;
+  if (!shouldShow) {
+    root.innerHTML = "";
+    return;
+  }
+
+  const activePeriod = getAmedasPrecipitationPeriod(activePeriodId);
+  const isEnglish = getCurrentLanguage() === "en";
+  root.innerHTML = AMEDAS_PRECIPITATION_PERIODS.map((period) => `
+    <button
+      type="button"
+      class="amedas-precipitation-period-button${period.id === activePeriod.id ? " active" : ""}"
+      data-amedas-precipitation-period="${escapeHtml(period.id)}"
+      aria-pressed="${period.id === activePeriod.id ? "true" : "false"}"
+    >${escapeHtml(isEnglish ? period.primary : period.label)}</button>
+  `).join("");
+  window.requestAnimationFrame(() => syncMobileDockSegmentIndicator(root));
 }
 
 function renderRadarControls(tab, state) {
@@ -2080,15 +2123,37 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
   }
   if (tab.id === "amedas") {
     const metric = amedasMetric ?? getAmedasMetric(state.amedasMetric ?? state.data?.activeMetric);
+    const precipitationPeriod = getAmedasPrecipitationPeriod(
+      state.amedasPrecipitationPeriod ?? state.data?.precipitationPeriod
+    );
+    const precipitationPeriodIndex = AMEDAS_PRECIPITATION_PERIODS.findIndex(
+      (period) => period.id === precipitationPeriod.id
+    );
+    const nextPrecipitationPeriod = AMEDAS_PRECIPITATION_PERIODS[
+      (precipitationPeriodIndex + 1) % AMEDAS_PRECIPITATION_PERIODS.length
+    ];
+    const isPrecipitation = metric.id === "precipitation";
+    const isEnglish = getCurrentLanguage() === "en";
     const nearest = findNearestAmedasPoint(state.data, state.currentLocation, metric.id);
     const nearestText = nearest
       ? `${nearest.name} ${formatAmedasRankingValue(nearest.value, metric)}`
       : getAmedasNearestFallbackText(state.currentLocation);
     return `
-      <div class="mobile-dock-content mobile-dock-amedas">
+      <div class="mobile-dock-content mobile-dock-amedas${isPrecipitation ? " has-precipitation-period" : ""}">
         <div class="mobile-dock-amedas-head">
           <span class="mobile-dock-kicker">アメダス</span>
-          <span class="mobile-dock-amedas-nearest${nearest ? "" : " is-muted"}" title="${escapeHtml(nearestText)}">${escapeHtml(nearestText)}</span>
+          ${isPrecipitation ? `
+            <button
+              type="button"
+              class="mobile-dock-amedas-period-cycle"
+              data-mobile-dock-control
+              data-amedas-precipitation-period="${escapeHtml(nextPrecipitationPeriod.id)}"
+              aria-label="${escapeHtml(isEnglish
+                ? `Rainfall period: ${precipitationPeriod.primary}. Change to ${nextPrecipitationPeriod.primary}`
+                : `降水量の集計時間は${precipitationPeriod.label}。押すと${nextPrecipitationPeriod.label}に切り替え`)}"
+            >${escapeHtml(isEnglish ? precipitationPeriod.primary : precipitationPeriod.label)}</button>
+            <span class="mobile-dock-amedas-nearest${nearest ? "" : " is-muted"}" title="${escapeHtml(nearestText)}">${escapeHtml(nearestText)}</span>
+          ` : `<span class="mobile-dock-amedas-nearest${nearest ? "" : " is-muted"}" title="${escapeHtml(nearestText)}">${escapeHtml(nearestText)}</span>`}
         </div>
         <div class="mobile-dock-chip-grid mobile-dock-amedas-grid mobile-dock-segmented">
           ${AMEDAS_METRICS.map((item) => `
@@ -4382,6 +4447,12 @@ function renderAmedasRanking(tab, state, metric) {
   }
 
   const rankingView = getAmedasRankingView(metric.id);
+  const precipitationPeriod = getAmedasPrecipitationPeriod(
+    state.amedasPrecipitationPeriod ?? state.data?.precipitationPeriod
+  );
+  const metricDisplayLabel = metric.id === "precipitation"
+    ? `${precipitationPeriod.label}降水量`
+    : metric.label;
   const windKind = metric.id === "wind" ? amedasWindRankingKind : "average";
   const order = getAmedasRankingOrder(metric.id, rankingView);
   const items = assignAmedasCompetitionRanks(
@@ -4391,7 +4462,7 @@ function renderAmedasRanking(tab, state, metric) {
   const rankingUpdatedAt = getAmedasRankingUpdatedAt(state.data, metric.id, rankingView, windKind);
   setSocialSharePayload("amedas", {
     type: "amedas",
-    metricLabel: metric.label,
+    metricLabel: metricDisplayLabel,
     orderLabel,
     totalLocations: items.length,
     updatedAt: rankingUpdatedAt ? formatAmedasRankingClock(rankingUpdatedAt) : "--:--",
@@ -4441,7 +4512,7 @@ function renderAmedasRanking(tab, state, metric) {
 
   root.innerHTML = `
     <div class="amedas-ranking-head">
-      <span data-amedas-ranking-title="${escapeHtml(metric.id)}">${escapeHtml(metric.label)}ランキング</span>
+      <span data-amedas-ranking-title="${escapeHtml(metric.id)}" data-amedas-precipitation-period="${escapeHtml(precipitationPeriod.id)}">${escapeHtml(metricDisplayLabel)}ランキング</span>
       <button type="button" class="social-share-trigger amedas-ranking-share" data-social-share="amedas" aria-label="ランキングを画像で共有" title="ランキングを画像で共有">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0-11 4 4m-4-4L8 7M5 12v7h14v-7"/></svg>
       </button>
@@ -4522,23 +4593,28 @@ function renderAmedasDailyChart(tab, state, metric) {
 
   const chart = state.amedasDailyChart ?? { status: "idle" };
   const dayOffset = chart.dayOffset === 1 || state.amedasDailyChartDayOffset === 1 ? 1 : 0;
+  const precipitationPeriod = getAmedasPrecipitationPeriod(
+    state.amedasPrecipitationPeriod ?? state.data?.precipitationPeriod
+  );
+  const chartDoesNotMatch = chart.metricId !== metric.id
+    || (metric.id === "precipitation" && chart.precipitationPeriod !== precipitationPeriod.id);
   const periodToggle = state.earlyAccessEnabled ? buildAmedasDailyChartPeriodToggle(dayOffset) : "";
-  if (!state.selectedAmedasStationId || chart.status === "idle" || chart.metricId !== metric.id) {
-    root.innerHTML = `<p class="amedas-temperature-chart-empty">地図上の観測点をタップすると、${escapeHtml(getAmedasDailySeriesTitle(metric.id))}を表示します。</p>`;
+  if (!state.selectedAmedasStationId || chart.status === "idle" || chartDoesNotMatch) {
+    root.innerHTML = `<p class="amedas-temperature-chart-empty">地図上の観測点をタップすると、${escapeHtml(getAmedasDailySeriesTitle(metric.id, 0, precipitationPeriod.id))}を表示します。</p>`;
     return;
   }
   if (chart.status === "loading") {
-    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(chart.stationName || "観測点")}の${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset))}を読み込んでいます...</p>`;
+    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(chart.stationName || "観測点")}の${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriod.id))}を読み込んでいます...</p>`;
     return;
   }
   if (chart.status === "error") {
-    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset))}を取得できませんでした。</p>`;
+    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriod.id))}を取得できませんでした。</p>`;
     return;
   }
 
   const points = chart.data?.points ?? [];
   if (!points.length) {
-    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">この観測点では${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset))}を観測していません。</p>`;
+    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">この観測点では${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriod.id))}を観測していません。</p>`;
     return;
   }
 
@@ -4549,7 +4625,7 @@ function renderAmedasDailyChart(tab, state, metric) {
     ${periodToggle}
     <div class="amedas-temperature-chart-head">
       <div>
-        <span>${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset))}</span>
+        <span>${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriod.id))}</span>
         <strong>${escapeHtml(chart.stationName || "観測点")}</strong>
       </div>
       <div class="amedas-temperature-chart-current">
@@ -4563,7 +4639,7 @@ function renderAmedasDailyChart(tab, state, metric) {
         <span class="gust">最大瞬間風速</span>
       </div>
     ` : ""}
-    ${buildAmedasDailyChartSvg(points, chart.data?.min, chart.data?.max, metric, dayOffset)}
+    ${buildAmedasDailyChartSvg(points, chart.data?.min, chart.data?.max, metric, dayOffset, precipitationPeriod.id)}
     <div class="amedas-temperature-chart-range${metric.id === "wind" ? " is-wind" : ""}">
       <span>${escapeHtml(getAmedasDailyMinLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.min, metric)}</span>
       <span>${escapeHtml(getAmedasDailyMaxLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.max, metric)}</span>
@@ -4581,7 +4657,7 @@ function buildAmedasDailyChartPeriodToggle(dayOffset) {
   `;
 }
 
-function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset = 0) {
+function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset = 0, precipitationPeriodId = "1h") {
   const width = 320;
   const height = 142;
   const inset = { top: 10, right: 8, bottom: 23, left: 34 };
@@ -4637,7 +4713,7 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
     : "";
 
   return `
-    <svg class="amedas-temperature-chart-plot" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset))}">
+    <svg class="amedas-temperature-chart-plot" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriodId))}">
       <g class="amedas-temperature-chart-grid">${grids}</g>
       <g class="amedas-temperature-chart-axis">${times}</g>
       <g class="amedas-temperature-chart-line${isPrecipitation ? " is-bar" : ""}">${shapes}</g>
@@ -4668,14 +4744,18 @@ function formatAmedasDailyColoredValue(value, metric) {
   return `<b class="amedas-temperature-chart-value" style="--amedas-value-color:${escapeHtml(color)}">${escapeHtml(formatAmedasDailyValue(value, metric))}</b>`;
 }
 
-function getAmedasDailySeriesTitle(metricId, dayOffset = 0) {
-  const dayLabel = dayOffset === 1 ? "昨日" : "今日";
-  if (metricId === "precipitation") return `${dayLabel}の1時間降水量`;
-  if (metricId === "wind") return `${dayLabel}の風速`;
-  if (metricId === "humidity") return `${dayLabel}の湿度`;
-  if (metricId === "pressure") return `${dayLabel}の海面気圧`;
-  if (metricId === "snow") return `${dayLabel}の積雪深`;
-  return `${dayLabel}の気温`;
+function getAmedasDailySeriesTitle(metricId, dayOffset = 0, precipitationPeriodId = "1h") {
+  const isEnglish = getCurrentLanguage() === "en";
+  const dayLabel = dayOffset === 1 ? (isEnglish ? "Yesterday's" : "昨日の") : (isEnglish ? "Today's" : "今日の");
+  if (metricId === "precipitation") {
+    const period = getAmedasPrecipitationPeriod(precipitationPeriodId);
+    return isEnglish ? `${dayLabel} ${period.primary} rain` : `${dayLabel}${period.label}降水量`;
+  }
+  if (metricId === "wind") return `${dayLabel}${isEnglish ? " wind speed" : "風速"}`;
+  if (metricId === "humidity") return `${dayLabel}${isEnglish ? " humidity" : "湿度"}`;
+  if (metricId === "pressure") return `${dayLabel}${isEnglish ? " sea-level pressure" : "海面気圧"}`;
+  if (metricId === "snow") return `${dayLabel}${isEnglish ? " snow depth" : "積雪深"}`;
+  return `${dayLabel}${isEnglish ? " temperature" : "気温"}`;
 }
 
 function getAmedasDailyMinLabel(metricId) {

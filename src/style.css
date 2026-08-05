@@ -879,14 +879,59 @@ h2 {
 .amedas-sub-tabs,
 .kikikuru-layer-tabs {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
   margin: 0 0 18px;
 }
 
+.amedas-sub-tabs.mobile-dock-segmented {
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--segmented-track-border);
+  border-radius: 999px;
+  background: var(--segmented-track-background);
+  box-shadow: var(--segmented-track-shadow);
+  overflow: hidden;
+}
+
 .amedas-sub-tabs[hidden],
+.amedas-precipitation-period-tabs[hidden],
 .kikikuru-layer-tabs[hidden] {
   display: none;
+}
+
+.amedas-precipitation-period-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+  margin: -10px 0 18px;
+  padding: 3px;
+  border: 1px solid var(--segmented-track-border);
+  border-radius: 999px;
+  background: var(--segmented-track-background);
+  box-shadow: var(--segmented-track-shadow);
+}
+
+.amedas-precipitation-period-button {
+  min-width: 0;
+  min-height: 32px;
+  padding: 6px 5px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--type-bottom-nav-color);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.amedas-precipitation-period-button.active {
+  border-color: var(--segmented-thumb-border);
+  background: var(--segmented-thumb-background);
+  color: var(--type-bottom-nav-active-color);
+  box-shadow: var(--segmented-thumb-shadow);
 }
 
 .amedas-sub-button,
@@ -5134,6 +5179,22 @@ html[data-theme="light"] .weekly-weather-issued strong {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+.amedas-sub-tabs.mobile-dock-segmented .amedas-sub-button,
+.amedas-sub-tabs.mobile-dock-segmented .amedas-sub-button.active,
+.amedas-precipitation-period-tabs.mobile-dock-segmented .amedas-precipitation-period-button,
+.amedas-precipitation-period-tabs.mobile-dock-segmented .amedas-precipitation-period-button.active {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.amedas-sub-tabs.mobile-dock-segmented .amedas-sub-button {
+  min-height: 34px;
+  padding: 6px 4px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .mobile-dock-segmented::before {
@@ -10043,9 +10104,16 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   .mobile-dock-amedas-head {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
-    align-items: baseline;
+    align-items: center;
     gap: 10px;
+    height: 24px;
     min-width: 0;
+  }
+
+  .mobile-dock-amedas.has-precipitation-period .mobile-dock-amedas-head {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    align-items: center;
+    gap: 7px;
   }
 
   .mobile-dock-amedas-head > .mobile-dock-kicker {
@@ -10077,6 +10145,25 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-amedas-grid {
     grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .mobile-dock-amedas-period-cycle {
+    min-width: 58px;
+    min-height: 24px;
+    padding: 3px 10px;
+    border: 1px solid var(--segmented-track-border);
+    border-radius: 999px;
+    background: var(--segmented-thumb-background);
+    color: var(--type-bottom-nav-active-color);
+    font: inherit;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: var(--segmented-thumb-shadow);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
   }
 
   html[data-language="en"] .mobile-dock-amedas-grid .mobile-dock-chip {
@@ -15795,6 +15882,18 @@ html[data-theme="light"] .river-affected-cities span {
 
   html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title="precipitation"]::after {
     content: "Rain ranking";
+  }
+
+  html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title="precipitation"][data-amedas-precipitation-period="10m"]::after {
+    content: "10-min rain";
+  }
+
+  html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title="precipitation"][data-amedas-precipitation-period="3h"]::after {
+    content: "3-hour rain";
+  }
+
+  html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title="precipitation"][data-amedas-precipitation-period="24h"]::after {
+    content: "24-hour rain";
   }
 
   html[data-language="en"] .amedas-ranking-head > [data-amedas-ranking-title="wind"]::after {
