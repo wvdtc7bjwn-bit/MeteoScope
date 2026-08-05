@@ -1371,7 +1371,13 @@ function buildDescription(tab, state) {
     if (state.status === "loading") return `${metric.label}データを取得中です。`;
     if (state.status === "error") return `${metric.label}データを取得できませんでした。`;
     const count = countAmedasPoints(state.data, metric.id);
-    return `アメダス観測地点の${metric.label}を表示しています。${count > 0 ? `\n表示地点: ${count}地点` : ""}`;
+    const metricLabel = metric.id === "precipitation"
+      ? getAmedasPrecipitationDisplayLabel(state.amedasPrecipitationPeriod ?? state.data?.precipitationPeriod)
+      : (getCurrentLanguage() === "en" ? metric.primary : metric.label);
+    if (getCurrentLanguage() === "en") {
+      return `Showing ${metricLabel} at AMeDAS stations.${count > 0 ? `\nStations shown: ${count}` : ""}`;
+    }
+    return `アメダス観測地点の${metricLabel}を表示しています。${count > 0 ? `\n表示地点: ${count}地点` : ""}`;
   }
   if (tab.id === "warnings") {
     if (state.status === "loading") return localizeText("市区町村ごとの警報・注意報を取得中です。");
@@ -4451,7 +4457,7 @@ function renderAmedasRanking(tab, state, metric) {
     state.amedasPrecipitationPeriod ?? state.data?.precipitationPeriod
   );
   const metricDisplayLabel = metric.id === "precipitation"
-    ? `${precipitationPeriod.label}降水量`
+    ? getAmedasPrecipitationDisplayLabel(precipitationPeriod.id)
     : metric.label;
   const windKind = metric.id === "wind" ? amedasWindRankingKind : "average";
   const order = getAmedasRankingOrder(metric.id, rankingView);
@@ -4619,6 +4625,7 @@ function renderAmedasDailyChart(tab, state, metric) {
   }
 
   const latest = chart.data?.latest;
+  const isRollingPrecipitation = metric.id === "precipitation" && precipitationPeriod.id === "24h";
   root.style.setProperty("--amedas-series-color", metric.color);
   root.style.setProperty("--amedas-gust-color", metric.color);
   root.innerHTML = `
@@ -4640,6 +4647,9 @@ function renderAmedasDailyChart(tab, state, metric) {
       </div>
     ` : ""}
     ${buildAmedasDailyChartSvg(points, chart.data?.min, chart.data?.max, metric, dayOffset, precipitationPeriod.id)}
+    ${isRollingPrecipitation ? `
+      <p class="amedas-temperature-chart-note">${escapeHtml(getAmedasRollingPrecipitationNote())}</p>
+    ` : ""}
     <div class="amedas-temperature-chart-range${metric.id === "wind" ? " is-wind" : ""}">
       <span>${escapeHtml(getAmedasDailyMinLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.min, metric)}</span>
       <span>${escapeHtml(getAmedasDailyMaxLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.max, metric)}</span>
@@ -4664,6 +4674,7 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
   const plotWidth = width - inset.left - inset.right;
   const plotHeight = height - inset.top - inset.bottom;
   const isPrecipitation = metric.id === "precipitation";
+  const isRollingPrecipitation = isPrecipitation && precipitationPeriodId === "24h";
   const min = isPrecipitation ? 0 : (Number.isFinite(minValue) ? Math.floor(minValue - 1) : 0);
   const gustMax = metric.id === "wind"
     ? Math.max(...points.map((point) => point.gust).filter(Number.isFinite), Number.NEGATIVE_INFINITY)
@@ -4701,7 +4712,7 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
     const label = minute === 1440 ? "24" : String(minute / 60).padStart(2, "0");
     return `<text x="${x}" y="${height - 5}" text-anchor="middle">${label}</text>`;
   }).join("");
-  const shapes = isPrecipitation
+  const shapes = isPrecipitation && !isRollingPrecipitation
     ? points.map((point) => {
       const x = xFor(point.minute) - 1.1;
       const y = yFor(point.value);
@@ -4716,7 +4727,7 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
     <svg class="amedas-temperature-chart-plot" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriodId))}">
       <g class="amedas-temperature-chart-grid">${grids}</g>
       <g class="amedas-temperature-chart-axis">${times}</g>
-      <g class="amedas-temperature-chart-line${isPrecipitation ? " is-bar" : ""}">${shapes}</g>
+      <g class="amedas-temperature-chart-line${isPrecipitation && !isRollingPrecipitation ? " is-bar" : ""}${isRollingPrecipitation ? " is-rolling-precipitation" : ""}">${shapes}</g>
       ${gustPaths ? `<g class="amedas-temperature-chart-line-gust">${gustPaths}</g>` : ""}
     </svg>
   `;
@@ -4749,6 +4760,11 @@ function getAmedasDailySeriesTitle(metricId, dayOffset = 0, precipitationPeriodI
   const dayLabel = dayOffset === 1 ? (isEnglish ? "Yesterday's" : "昨日の") : (isEnglish ? "Today's" : "今日の");
   if (metricId === "precipitation") {
     const period = getAmedasPrecipitationPeriod(precipitationPeriodId);
+    if (period.id === "24h") {
+      return isEnglish
+        ? `${dayLabel} previous 24-hour rainfall trend`
+        : `${dayLabel}前24時間降水量の推移`;
+    }
     return isEnglish ? `${dayLabel} ${period.primary} rain` : `${dayLabel}${period.label}降水量`;
   }
   if (metricId === "wind") return `${dayLabel}${isEnglish ? " wind speed" : "風速"}`;
@@ -4756,6 +4772,20 @@ function getAmedasDailySeriesTitle(metricId, dayOffset = 0, precipitationPeriodI
   if (metricId === "pressure") return `${dayLabel}${isEnglish ? " sea-level pressure" : "海面気圧"}`;
   if (metricId === "snow") return `${dayLabel}${isEnglish ? " snow depth" : "積雪深"}`;
   return `${dayLabel}${isEnglish ? " temperature" : "気温"}`;
+}
+
+function getAmedasPrecipitationDisplayLabel(precipitationPeriodId = "1h") {
+  const period = getAmedasPrecipitationPeriod(precipitationPeriodId);
+  if (period.id === "24h") {
+    return getCurrentLanguage() === "en" ? "Previous 24-hour rainfall" : "前24時間降水量（移動合計）";
+  }
+  return getCurrentLanguage() === "en" ? `${period.primary} rainfall` : `${period.label}降水量`;
+}
+
+function getAmedasRollingPrecipitationNote() {
+  return getCurrentLanguage() === "en"
+    ? "This is the total for the preceding 24 hours at each time. It decreases when older rainfall leaves the window."
+    : "各時刻から遡った24時間の合計です。古い雨が集計範囲から外れると値が下がります。";
 }
 
 function getAmedasDailyMinLabel(metricId) {

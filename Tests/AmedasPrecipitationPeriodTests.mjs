@@ -50,6 +50,9 @@ assert.match(appSource, /applyAmedasPrecipitationPeriod/);
 assert.match(appSource, /AMEDAS_PRECIPITATION_PERIOD_STORAGE_KEY/);
 assert.match(panelSource, /setupAmedasPrecipitationPeriods/);
 assert.match(panelSource, /mobile-dock-amedas-period-cycle/);
+assert.match(panelSource, /前24時間降水量（移動合計）/);
+assert.match(panelSource, /古い雨が集計範囲から外れると値が下がります/);
+assert.match(panelSource, /isRollingPrecipitation/);
 assert.match(indexSource, /id="amedas-precipitation-periods"/);
 
 console.log("AMeDAS precipitation period tests passed");
