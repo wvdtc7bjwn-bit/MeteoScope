@@ -613,6 +613,7 @@ assert.match(modal, /getThreeHourlyWindArrow/u);
 assert.match(modal, /weekly-weather-hourly-main/u);
 assert.match(modal, /weekly-weather-hourly-wind-row/u);
 assert.doesNotMatch(modal, /renderThreeHourlyPanels/u);
+assert.doesNotMatch(modal, /hourlyToggle\s*&&\s*!event\.target\.closest\("\.weekly-weather-hourly-list"\)/u);
 assert.match(styles, /\.weekly-weather-hourly-list\s*\{[\s\S]*?overflow-x:\s*auto;/u);
 assert.match(styles, /\.weekly-weather-hourly-wind-row\s*\{/u);
 assert.match(styles, /\.weekly-weather-day\.has-hourly/u);

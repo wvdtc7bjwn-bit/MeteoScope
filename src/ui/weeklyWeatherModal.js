@@ -38,7 +38,7 @@ export function setupWeeklyWeatherModal(options = {}) {
     if (event.target.closest("[data-weekly-weather-close]")) closeWeeklyWeatherModal();
     if (event.target.closest("[data-weekly-weather-retry]")) void loadWeeklyWeather();
     const hourlyToggle = event.target.closest("[data-weekly-weather-hourly-toggle]");
-    if (hourlyToggle && !event.target.closest(".weekly-weather-hourly-list")) {
+    if (hourlyToggle) {
       toggleThreeHourlyForecast(modal, hourlyToggle);
     }
   });
