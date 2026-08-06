@@ -183,6 +183,12 @@ async function loadWeeklyWeather() {
 function renderForecast(body, forecast) {
   const days = forecast.days ?? [];
   const threeHourlyByDate = groupThreeHourlyForecastsByDate(forecast.threeHourlyForecasts);
+  const daysWithThreeHourlyForecasts = days
+    .map((day) => ({
+      day,
+      forecasts: threeHourlyByDate.get(forecastDateKey(day.date)) ?? []
+    }))
+    .filter(({ forecasts }) => forecasts.length);
   const officeName = forecast.officeName || forecast.publishingOffice;
   const summaryLabel = officeName && officeName !== forecast.areaName
     ? officeName
@@ -206,6 +212,14 @@ function renderForecast(body, forecast) {
         index,
         language,
         threeHourlyByDate.get(forecastDateKey(day.date)) ?? []
+      )).join("")}
+    </div>
+    <div class="weekly-weather-wide-hourly-stage" data-weekly-weather-wide-hourly-stage hidden>
+      ${daysWithThreeHourlyForecasts.map(({ day, forecasts }) => renderThreeHourlyPanel(
+        day,
+        forecasts,
+        language,
+        "wide"
       )).join("")}
     </div>
     <footer class="weekly-weather-source">
@@ -248,7 +262,7 @@ function renderDay(day, index, language = getCurrentLanguage(), threeHourlyForec
     : "";
   const dateKey = forecastDateKey(day.date);
   const hourlyAttributes = threeHourlyForecasts.length
-    ? ` data-weekly-weather-hourly-toggle="${escapeHtml(dateKey)}" tabindex="0" aria-controls="weekly-weather-hourly-${escapeHtml(dateKey)}" aria-expanded="false"`
+    ? ` data-weekly-weather-hourly-toggle="${escapeHtml(dateKey)}" tabindex="0" aria-controls="weekly-weather-hourly-${escapeHtml(dateKey)} weekly-weather-hourly-${escapeHtml(dateKey)}-wide" aria-expanded="false"`
     : "";
 
   return `
@@ -283,13 +297,15 @@ function groupThreeHourlyForecastsByDate(forecasts = []) {
   return grouped;
 }
 
-function renderThreeHourlyPanel(day, forecasts, language) {
+function renderThreeHourlyPanel(day, forecasts, language, layout = "inline") {
   const dateKey = forecastDateKey(day.date);
+  const isWide = layout === "wide";
   return `
     <section
-      id="weekly-weather-hourly-${escapeHtml(dateKey)}"
-      class="weekly-weather-hourly-panel"
+      id="weekly-weather-hourly-${escapeHtml(dateKey)}${isWide ? "-wide" : ""}"
+      class="weekly-weather-hourly-panel${isWide ? " is-wide" : " is-inline"}"
       data-weekly-weather-hourly-panel="${escapeHtml(dateKey)}"
+      data-weekly-weather-hourly-layout="${layout}"
       aria-label="${escapeHtml(localizeText("3時間ごとの予報", language))}"
       hidden
     >
@@ -326,20 +342,34 @@ function renderThreeHourlyForecast(forecast, language) {
 
 function toggleThreeHourlyForecast(modal, toggle) {
   const dateKey = toggle.getAttribute("data-weekly-weather-hourly-toggle") ?? "";
-  const selectedPanel = document.getElementById(`weekly-weather-hourly-${dateKey}`);
-  if (!selectedPanel || !modal.contains(selectedPanel)) return;
+  const selectedPanels = [...modal.querySelectorAll("[data-weekly-weather-hourly-panel]")]
+    .filter((panel) => panel.getAttribute("data-weekly-weather-hourly-panel") === dateKey);
+  if (!selectedPanels.length) return;
   const shouldOpen = toggle.getAttribute("aria-expanded") !== "true";
+  const useWideLayout = window.matchMedia(
+    "(min-width: 801px), (orientation: landscape) and (max-height: 600px)"
+  ).matches;
+  const selectedLayout = useWideLayout ? "wide" : "inline";
+  const wideStage = modal.querySelector("[data-weekly-weather-wide-hourly-stage]");
   modal.querySelectorAll("[data-weekly-weather-hourly-toggle]").forEach((button) => {
     button.setAttribute("aria-expanded", "false");
     button.classList.remove("is-hourly-expanded");
+    button.classList.remove("is-hourly-selected");
   });
   modal.querySelectorAll("[data-weekly-weather-hourly-panel]").forEach((panel) => {
     panel.hidden = true;
   });
+  if (wideStage) wideStage.hidden = true;
   if (!shouldOpen) return;
   toggle.setAttribute("aria-expanded", "true");
-  toggle.classList.add("is-hourly-expanded");
+  toggle.classList.add("is-hourly-selected");
+  if (!useWideLayout) toggle.classList.add("is-hourly-expanded");
+  const selectedPanel = selectedPanels.find(
+    (panel) => panel.getAttribute("data-weekly-weather-hourly-layout") === selectedLayout
+  );
+  if (!selectedPanel) return;
   selectedPanel.hidden = false;
+  if (useWideLayout && wideStage) wideStage.hidden = false;
 }
 
 function formatThreeHourlyTime(value, language) {

@@ -607,6 +607,9 @@ assert.match(styles, /@media\s*\(max-width:\s*430px\)[\s\S]*?grid-template:[\s\S
 assert.match(modal, /weekly-weather-precipitation/u);
 assert.match(modal, /data-weekly-weather-hourly-toggle/u);
 assert.match(modal, /data-weekly-weather-hourly-panel/u);
+assert.match(modal, /data-weekly-weather-wide-hourly-stage/u);
+assert.match(modal, /data-weekly-weather-hourly-layout/u);
+assert.match(modal, /\(min-width:\s*801px\),\s*\(orientation:\s*landscape\)\s*and\s*\(max-height:\s*600px\)/u);
 assert.match(modal, /weekly-weather-day-summary/u);
 assert.match(modal, /renderThreeHourlyForecast/u);
 assert.match(modal, /getThreeHourlyWindArrow/u);
@@ -618,6 +621,11 @@ assert.match(styles, /\.weekly-weather-hourly-list\s*\{[\s\S]*?overflow-x:\s*aut
 assert.match(styles, /\.weekly-weather-hourly-wind-row\s*\{/u);
 assert.match(styles, /\.weekly-weather-day\.has-hourly/u);
 assert.match(styles, /\.weekly-weather-day\.is-hourly-expanded/u);
+assert.match(styles, /\.weekly-weather-wide-hourly-stage:not\(\[hidden\]\)/u);
+assert.match(styles, /\.weekly-weather-day\.is-hourly-selected/u);
+assert.match(styles, /@media\s*\(min-width:\s*801px\)[\s\S]*?\.weekly-weather-hourly-list\s*\{[\s\S]*?grid-auto-columns:\s*clamp\(96px,\s*10vw,\s*112px\);[\s\S]*?justify-content:\s*center;/u);
+assert.match(styles, /@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-height:\s*600px\)[\s\S]*?\.weekly-weather-panel\s*\{[\s\S]*?max-height:\s*calc\(100dvh\s*-\s*16px\);/u);
+assert.match(styles, /@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-height:\s*600px\)[\s\S]*?\.weekly-weather-hourly-list\s*\{[\s\S]*?height:\s*76px;/u);
 assert.match(modal, /language === "en" \? "N\/A"/u);
 assert.match(modal, /language === "en" \? "Rain"/u);
 assert.match(styles, /\.weekly-weather-temperature-empty\s*\{[\s\S]*?white-space:\s*nowrap;/u);

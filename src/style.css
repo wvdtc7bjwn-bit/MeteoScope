@@ -2069,6 +2069,10 @@ html[data-language="en"] .warning-area-row > strong {
   background: transparent;
 }
 
+.weekly-weather-wide-hourly-stage {
+  display: none;
+}
+
 .weekly-weather-hourly-heading {
   display: flex;
   align-items: baseline;
@@ -2698,6 +2702,213 @@ html[data-theme="light"] .weekly-weather-issued strong {
 
   .weekly-weather-temperature-item b {
     font-size: 15px;
+  }
+}
+
+/* Wide and landscape layouts keep the weekly row in place and reveal the
+   selected three-hourly forecast in a shared stage beneath it. */
+@media (min-width: 801px), (orientation: landscape) and (max-height: 600px) {
+  .weekly-weather-day.is-hourly-selected {
+    background: var(--weekly-panel-card-strong);
+    box-shadow: inset 0 0 0 1px rgba(80, 189, 233, 0.32);
+  }
+
+  .weekly-weather-wide-hourly-stage:not([hidden]) {
+    display: block;
+    overflow: hidden;
+    border: 1px solid rgba(80, 189, 233, 0.26);
+    background: var(--weekly-panel-card-strong);
+  }
+}
+
+/* Keep the three-hourly view dense on wide screens instead of stretching a
+   small number of forecast cells across the full modal width. */
+@media (min-width: 801px) {
+  .weekly-weather-wide-hourly-stage:not([hidden]) {
+    margin-top: 10px;
+    border-radius: 14px;
+  }
+
+  .weekly-weather-hourly-list {
+    grid-auto-columns: clamp(96px, 10vw, 112px);
+    justify-content: center;
+  }
+
+  .weekly-weather-hourly-item {
+    grid-template-rows: 14px 40px 0 24px;
+    min-height: 86px;
+    padding: 4px 6px 5px;
+  }
+
+  .weekly-weather-hourly-icon {
+    height: 38px;
+  }
+
+  .weekly-weather-hourly-icon .weekly-weather-glyph {
+    width: 54px;
+    height: 36px;
+  }
+}
+
+/* Landscape phones and short desktop windows need the forecast controls and
+   the hourly row to remain visible together. */
+@media (orientation: landscape) and (max-height: 600px) {
+  .weekly-weather-modal {
+    align-items: center;
+    padding: 8px 10px;
+  }
+
+  .weekly-weather-panel {
+    width: min(920px, calc(100vw - 20px));
+    max-height: calc(100dvh - 16px);
+    border-radius: 18px;
+  }
+
+  .weekly-weather-panel .settings-modal-header {
+    min-height: 48px;
+    padding: 7px 10px 7px 15px;
+  }
+
+  .weekly-weather-panel .settings-modal-header h2 {
+    font-size: 17px;
+  }
+
+  .weekly-weather-panel .settings-modal-kicker {
+    margin-bottom: 1px;
+    font-size: 8px;
+  }
+
+  .weekly-weather-region-control {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 10px;
+    padding: 6px 15px;
+  }
+
+  .weekly-weather-region-control label {
+    font-size: 10px;
+  }
+
+  .weekly-weather-region-control label small {
+    font-size: 8px;
+  }
+
+  .weekly-weather-region-control select {
+    min-height: 34px;
+    font-size: 12px;
+  }
+
+  .weekly-weather-body {
+    min-height: 0;
+    padding: 8px 15px 10px;
+  }
+
+  .weekly-weather-summary {
+    min-height: 39px;
+    margin-bottom: 5px;
+  }
+
+  .weekly-weather-summary-heading > span {
+    margin-bottom: 1px;
+    font-size: 8px;
+  }
+
+  .weekly-weather-summary h3 {
+    font-size: 18px;
+  }
+
+  .weekly-weather-issued {
+    font-size: 8px;
+  }
+
+  .weekly-weather-issued small {
+    margin-bottom: 0;
+    font-size: 7px;
+  }
+
+  .weekly-weather-issued strong {
+    font-size: 9px;
+  }
+
+  .weekly-weather-hourly-heading {
+    padding: 4px 8px 3px;
+  }
+
+  .weekly-weather-hourly-heading strong {
+    font-size: 10px;
+  }
+
+  .weekly-weather-hourly-heading span {
+    font-size: 8px;
+  }
+
+  .weekly-weather-hourly-list {
+    grid-auto-columns: clamp(90px, 11vw, 104px);
+    justify-content: center;
+    height: 76px;
+    padding: 0 3px;
+  }
+
+  .weekly-weather-hourly-item {
+    grid-template:
+      "time" 11px
+      "main" 32px
+      "condition" 0
+      "wind" 22px
+      / minmax(0, 1fr);
+    align-content: center;
+    height: 76px;
+    min-height: 0;
+    padding: 3px 4px 4px;
+  }
+
+  .weekly-weather-hourly-item > time {
+    grid-area: time;
+    align-self: center;
+    color: #8edcff;
+    font-size: 9px;
+    line-height: 1;
+  }
+
+  .weekly-weather-hourly-main {
+    grid-area: main;
+    gap: 2px;
+  }
+
+  .weekly-weather-hourly-icon {
+    height: 17px;
+  }
+
+  .weekly-weather-hourly-icon .weekly-weather-glyph,
+  .weekly-weather-day.is-first .weekly-weather-hourly-icon .weekly-weather-glyph {
+    width: 29px;
+    height: 17px;
+  }
+
+  .weekly-weather-hourly-temperature b {
+    font-size: 12px !important;
+  }
+
+  .weekly-weather-hourly-wind-row {
+    grid-area: wind;
+    gap: 0;
+  }
+
+  .weekly-weather-hourly-wind-arrow {
+    font-size: 12px;
+  }
+
+  .weekly-weather-hourly-wind b {
+    font-size: 8px !important;
+  }
+
+  .weekly-weather-source {
+    margin-top: 7px;
+    padding-top: 6px;
+  }
+
+  .weekly-weather-wide-hourly-stage:not([hidden]) {
+    margin-top: 6px;
+    border-radius: 12px;
   }
 }
 

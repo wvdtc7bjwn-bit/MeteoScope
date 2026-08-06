@@ -77,8 +77,23 @@ assert.match(tabs, /dragTargetTabId = getTabFromPoint\(point, dragAxis\) \?\? dr
 assert.match(tabs, /const completedTabId = type === "pointerup" && point[\s\S]*?getTabFromPoint\(point, dragAxis\) \?\? dragTargetTabId/);
 assert.match(
   tabs,
-  /if \(pointerPreviewChanged\) setActiveButton\(pointerPreviewTabId\);[\s\S]*?dragStartIndicatorOffset = getActiveIndicatorOffset\(dragAxis\);/,
+  /if \(pointerPreviewChanged\) renderActiveButton\(pointerPreviewTabId\);[\s\S]*?dragStartIndicatorOffset = getActiveIndicatorOffset\(dragAxis\);/,
   "tab dragging must measure its origin after previewing the tab under the pointer"
+);
+assert.match(
+  tabs,
+  /let committedTabId = null;[\s\S]*?function getActiveTabId\(\) \{[\s\S]*?return committedTabId \?\? getRenderedTabId\(\);/,
+  "tab navigation must keep the application-owned tab separate from pointer preview state"
+);
+assert.match(
+  tabs,
+  /function activateTab\(tabId,[\s\S]*?const changed = setActiveButton\(tabId\);[\s\S]*?const result = onChange\?\.\(tabId\);/,
+  "a committed visual tab and the application tab must switch in the same input event"
+);
+assert.match(
+  tabs,
+  /if \(type === "pointerup" && dragMoved && completedTabId\)[\s\S]*?else if \(type === "pointerup" && !dragMoved && pointerPreviewTabId\)[\s\S]*?else \{[\s\S]*?renderActiveButton\(committedTabId\);/,
+  "cancelled tab gestures must restore the committed tab instead of committing a stale drag target"
 );
 assert.match(
   styles,
@@ -381,7 +396,7 @@ assert.match(
 );
 assert.match(
   tabs,
-  /if \(dragMoved && completedTabId\) \{[\s\S]*?suppressNextClick = true;[\s\S]*?activateTab\(completedTabId, \{ force: true \}\);/
+  /if \(type === "pointerup" && dragMoved && completedTabId\) \{[\s\S]*?suppressNextClick = true;[\s\S]*?activateTab\(completedTabId, \{ force: true \}\);/
 );
 assert.doesNotMatch(tabs, /suppressClickUntil/);
 assert.match(
