@@ -36,18 +36,35 @@
   --type-bottom-nav-weight: 500;
   --type-bottom-nav-color: #999999;
   --type-bottom-nav-active-color: #55b7d8;
-  --modal-shell-bg: rgba(10, 20, 36, 0.94);
-  --modal-shell-border: rgba(137, 184, 232, 0.26);
-  --modal-shell-divider: rgba(146, 178, 228, 0.18);
-  --modal-shell-shadow: 0 24px 64px rgba(0, 0, 0, 0.44);
+  --glass-shell-background: rgba(7, 16, 34, 0.46);
+  --glass-panel-background: rgba(9, 21, 40, 0.58);
+  --glass-panel-strong-background: rgba(8, 19, 36, 0.72);
+  --glass-card-background: rgba(19, 37, 61, 0.38);
+  --glass-compact-background: rgba(8, 19, 36, 0.58);
+  --glass-border: rgba(196, 224, 250, 0.24);
+  --glass-border-soft: rgba(190, 219, 246, 0.16);
+  --glass-divider: rgba(200, 226, 250, 0.13);
+  --glass-filter: blur(24px) saturate(1.42) contrast(1.03);
+  --glass-filter-compact: blur(18px) saturate(1.34);
+  --glass-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025),
+    0 18px 48px rgba(0, 7, 20, 0.3);
+  --glass-shadow-soft:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 10px 28px rgba(0, 7, 20, 0.18);
+  --modal-shell-bg: var(--glass-panel-strong-background);
+  --modal-shell-border: var(--glass-border);
+  --modal-shell-divider: var(--glass-divider);
+  --modal-shell-shadow: var(--glass-shadow);
   --modal-shell-radius: 22px;
   --modal-backdrop-bg: rgba(2, 7, 16, 0.66);
   --modal-backdrop-blur: 4px;
   --modal-header-height: 62px;
   --modal-header-padding: 12px 18px;
   --modal-close-size: 42px;
-  --shared-shell-glass-background: rgba(7, 16, 34, 0.34);
-  --shared-shell-glass-filter: blur(26px) saturate(1.5);
+  --shared-shell-glass-background: var(--glass-shell-background);
+  --shared-shell-glass-filter: var(--glass-filter);
   --segmented-track-border: rgba(207, 232, 255, 0.2);
   --segmented-track-background: rgba(7, 16, 34, 0.12);
   --segmented-track-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
@@ -55,29 +72,45 @@
   --segmented-indicator-background: rgba(151, 174, 199, 0.14);
   --segmented-indicator-shadow: none;
   --segmented-indicator-filter: none;
-  --segmented-drag-border: rgba(211, 239, 255, 0.3);
-  --segmented-drag-background:
-    radial-gradient(circle at 24% 16%, rgba(255, 255, 255, 0.13), transparent 44%),
-    linear-gradient(135deg, rgba(72, 184, 236, 0.1), rgba(185, 126, 236, 0.065) 52%, rgba(93, 215, 192, 0.08)),
-    rgba(151, 174, 199, 0.18);
-  --segmented-drag-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 4px 12px rgba(20, 64, 150, 0.07);
+  --segmented-drag-border: rgba(211, 239, 255, 0.22);
+  --segmented-drag-background: rgba(151, 174, 199, 0.1);
+  --segmented-drag-shadow: none;
   --segmented-drag-filter: blur(10px) saturate(1.16);
 }
 
 html[data-theme="light"] {
-  --shared-shell-glass-background: rgba(246, 250, 255, 0.34);
+  --glass-shell-background: rgba(242, 248, 253, 0.5);
+  --glass-panel-background: rgba(244, 249, 253, 0.58);
+  --glass-panel-strong-background: rgba(244, 249, 253, 0.72);
+  --glass-card-background: rgba(246, 250, 253, 0.48);
+  --glass-compact-background: rgba(246, 250, 253, 0.62);
+  --glass-border: rgba(58, 88, 119, 0.25);
+  --glass-border-soft: rgba(63, 93, 124, 0.16);
+  --glass-divider: rgba(63, 93, 124, 0.13);
+  --glass-filter: blur(24px) saturate(1.28) contrast(1.02);
+  --glass-filter-compact: blur(18px) saturate(1.22);
+  --glass-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.26),
+    0 18px 46px rgba(40, 65, 91, 0.2);
+  --glass-shadow-soft:
+    inset 0 1px 0 rgba(255, 255, 255, 0.72),
+    0 10px 26px rgba(47, 72, 98, 0.13);
+  --modal-shell-bg: var(--glass-panel-strong-background);
+  --modal-shell-border: var(--glass-border);
+  --modal-shell-divider: var(--glass-divider);
+  --modal-shell-shadow: var(--glass-shadow);
+  --shared-shell-glass-background: var(--glass-shell-background);
+  --shared-shell-glass-filter: var(--glass-filter);
   --segmented-track-border: rgba(71, 99, 130, 0.2);
   --segmented-track-background: rgba(233, 240, 248, 0.56);
   --segmented-track-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.52);
   --segmented-indicator-border: rgba(72, 98, 124, 0.16);
   --segmented-indicator-background: rgba(96, 112, 130, 0.1);
   --segmented-indicator-shadow: none;
-  --segmented-drag-border: rgba(72, 98, 124, 0.22);
-  --segmented-drag-background:
-    radial-gradient(circle at 24% 16%, rgba(255, 255, 255, 0.38), transparent 44%),
-    linear-gradient(135deg, rgba(69, 175, 223, 0.12), rgba(197, 137, 229, 0.08) 52%, rgba(91, 204, 181, 0.1)),
-    rgba(151, 174, 199, 0.12);
-  --segmented-drag-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48), 0 4px 12px rgba(36, 101, 145, 0.08);
+  --segmented-drag-border: rgba(72, 98, 124, 0.16);
+  --segmented-drag-background: rgba(151, 174, 199, 0.07);
+  --segmented-drag-shadow: none;
   --segmented-drag-filter: blur(8px) saturate(1.1);
 }
 
@@ -810,22 +843,49 @@ h2 {
 }
 
 .radar-time-controls .location-insight-radar {
-  gap: 8px;
-  margin: 0 0 6px;
-  padding: 0 0 5px;
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  margin: 0;
+  padding: 0;
   border: 0;
-  border-bottom: 1px solid rgba(146, 178, 228, 0.14);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  pointer-events: none;
 }
 
-.radar-time-controls .location-insight-radar .location-insight-head span {
-  font-size: 10px;
+.radar-time-controls .location-insight-radar .location-radar-timeline {
+  position: absolute;
+  top: 22px;
+  bottom: 2px;
+  left: 50%;
+  width: max-content;
+  min-height: 0;
+  overflow: visible;
+  transform: translateX(var(--weather-time-shift));
+  transition: transform 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.radar-time-controls .location-insight-radar p {
-  font-size: 11px;
+.radar-time-controls .location-radar-point {
+  position: absolute;
+  bottom: 2px;
+  left: calc(var(--weather-time-index) * var(--weather-time-step));
+  width: 14px;
+  height: 8px;
+  min-height: 0;
+  transform: translateX(-50%);
+  opacity: 0.24;
+}
+
+.radar-time-controls .location-radar-point.rainy {
+  height: 20px;
+  min-height: 0;
+  opacity: 0.42;
+}
+
+.radar-time-controls .weather-time-timeline.is-dragging .location-radar-timeline {
+  transition: none;
 }
 
 .location-my-area-list {
@@ -880,7 +940,7 @@ h2 {
 .kikikuru-layer-tabs {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
+  gap: 12px;
   margin: 0 0 18px;
 }
 
@@ -1407,6 +1467,21 @@ html[data-language="en"] .warning-area-row > strong {
   white-space: nowrap;
 }
 
+.settings-modal-heading {
+  min-width: 0;
+}
+
+.settings-modal-heading p {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: #91a7c2;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .settings-modal-header .warning-modal-close {
   position: relative;
   top: auto;
@@ -1416,7 +1491,7 @@ html[data-language="en"] .warning-area-row > strong {
 
 .settings-modal-body {
   display: grid;
-  gap: 12px;
+  gap: 8px;
   padding: 14px 16px 16px;
   overflow-y: auto;
   scrollbar-width: none;
@@ -1427,6 +1502,176 @@ html[data-language="en"] .warning-area-row > strong {
 
 .settings-modal-body::-webkit-scrollbar {
   display: none;
+}
+
+.settings-modal-tools {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(146, 178, 228, 0.16);
+  border-radius: 16px;
+  background: rgba(12, 25, 43, 0.48);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.settings-filter,
+.settings-quick-access {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-filter > span,
+.settings-quick-access > span,
+.settings-section-label {
+  color: #91a8c2;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.25;
+  letter-spacing: 0.04em;
+}
+
+.settings-filter > div {
+  position: relative;
+}
+
+.settings-filter input {
+  width: 100%;
+  height: 44px;
+  padding: 0 42px 0 14px;
+  border: 1px solid rgba(146, 178, 228, 0.22);
+  border-radius: 12px;
+  outline: 0;
+  color: #eff6ff;
+  background: rgba(7, 17, 31, 0.62);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.settings-filter input:focus {
+  border-color: rgba(86, 183, 242, 0.72);
+  background: rgba(10, 27, 46, 0.78);
+}
+
+.settings-filter input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.settings-filter button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  color: #b8c9dc;
+  background: rgba(137, 164, 197, 0.12);
+  font-size: 19px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.settings-quick-access > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.settings-quick-access button {
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 8px;
+  overflow: hidden;
+  border: 1px solid rgba(111, 151, 196, 0.2);
+  border-radius: 11px;
+  color: #d7e4f4;
+  background: rgba(29, 50, 76, 0.56);
+  font-size: 12px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.settings-quick-access button:hover,
+.settings-quick-access button:focus-visible {
+  border-color: rgba(86, 183, 242, 0.58);
+  color: #ffffff;
+  background: rgba(41, 76, 110, 0.68);
+}
+
+.settings-section-label {
+  margin: 10px 4px 1px;
+}
+
+.settings-filter-empty {
+  margin: 0;
+  padding: 12px 8px 4px;
+  color: #aebed1;
+  font-weight: 750;
+  text-align: center;
+}
+
+.settings-modal-body [hidden] {
+  display: none !important;
+}
+
+html[data-theme="light"] .settings-modal-heading p,
+html[data-theme="light"] :is(.settings-filter > span, .settings-quick-access > span, .settings-section-label),
+html[data-theme="light"] .settings-group-title-copy small {
+  color: #637a91;
+}
+
+html[data-theme="light"] .settings-modal-tools {
+  border-color: rgba(66, 91, 120, 0.16);
+  background: rgba(232, 240, 248, 0.52);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+html[data-theme="light"] .settings-filter input {
+  border-color: rgba(66, 94, 124, 0.22);
+  color: #183149;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+html[data-theme="light"] .settings-filter input:focus {
+  border-color: rgba(30, 135, 190, 0.5);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+html[data-theme="light"] .settings-filter button {
+  color: #536c84;
+  background: rgba(76, 103, 133, 0.1);
+}
+
+html[data-theme="light"] .settings-quick-access button {
+  border-color: rgba(66, 94, 124, 0.18);
+  color: #35516c;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+html[data-theme="light"] .settings-quick-access button:hover,
+html[data-theme="light"] .settings-quick-access button:focus-visible {
+  border-color: rgba(30, 135, 190, 0.42);
+  color: #075f8a;
+  background: rgba(217, 239, 251, 0.86);
+}
+
+html[data-theme="light"] .settings-filter-empty {
+  color: #61788f;
+}
+
+@media (max-width: 440px) {
+  .settings-quick-access > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-modal-heading p {
+    max-width: calc(100vw - 126px);
+  }
 }
 
 .weekly-weather-panel {
@@ -2077,7 +2322,7 @@ html[data-language="en"] .warning-area-row > strong {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   padding: 7px 10px 6px;
   border-bottom: 1px solid var(--weekly-panel-line);
 }
@@ -2731,22 +2976,79 @@ html[data-theme="light"] .weekly-weather-issued strong {
 
   .weekly-weather-hourly-list {
     grid-auto-columns: clamp(96px, 10vw, 112px);
+    align-items: stretch;
     justify-content: center;
   }
 
   .weekly-weather-hourly-item {
-    grid-template-rows: 14px 40px 0 24px;
-    min-height: 86px;
+    grid-template:
+      "time" 14px
+      "main" 46px
+      "condition" 0
+      "wind" 25px
+      / minmax(0, 1fr);
+    align-content: center;
+    height: 94px;
+    min-height: 94px;
+    box-sizing: border-box;
     padding: 4px 6px 5px;
   }
 
+  .weekly-weather-hourly-item > time {
+    grid-area: time;
+    align-self: center;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .weekly-weather-hourly-main {
+    grid-area: main;
+    display: grid;
+    grid-template-rows: 28px 18px;
+    align-items: center;
+    justify-items: center;
+    gap: 0;
+    min-height: 0;
+  }
+
   .weekly-weather-hourly-icon {
-    height: 38px;
+    width: 58px;
+    height: 28px;
+    overflow: visible;
   }
 
   .weekly-weather-hourly-icon .weekly-weather-glyph {
-    width: 54px;
-    height: 36px;
+    width: 50px;
+    height: 28px;
+  }
+
+  .weekly-weather-hourly-temperature {
+    align-self: center;
+    line-height: 18px;
+  }
+
+  .weekly-weather-hourly-temperature b {
+    line-height: inherit;
+  }
+
+  .weekly-weather-hourly-wind-row {
+    grid-area: wind;
+    display: grid;
+    grid-template-rows: 15px 10px;
+    align-content: center;
+    justify-items: center;
+    gap: 0;
+    min-height: 0;
+  }
+
+  .weekly-weather-hourly-wind-arrow {
+    font-size: 15px;
+    line-height: 15px;
+  }
+
+  .weekly-weather-hourly-wind,
+  .weekly-weather-hourly-wind b {
+    line-height: 10px;
   }
 }
 
@@ -2871,7 +3173,12 @@ html[data-theme="light"] .weekly-weather-issued strong {
 
   .weekly-weather-hourly-main {
     grid-area: main;
-    gap: 2px;
+    display: grid;
+    grid-template-rows: 18px 14px;
+    align-items: center;
+    justify-items: center;
+    gap: 0;
+    min-height: 0;
   }
 
   .weekly-weather-hourly-icon {
@@ -2890,15 +3197,23 @@ html[data-theme="light"] .weekly-weather-issued strong {
 
   .weekly-weather-hourly-wind-row {
     grid-area: wind;
+    display: grid;
+    grid-template-rows: 12px 10px;
+    align-content: center;
+    justify-items: center;
     gap: 0;
+    min-height: 0;
   }
 
   .weekly-weather-hourly-wind-arrow {
     font-size: 12px;
+    line-height: 12px;
   }
 
+  .weekly-weather-hourly-wind,
   .weekly-weather-hourly-wind b {
     font-size: 8px !important;
+    line-height: 10px;
   }
 
   .weekly-weather-source {
@@ -2914,19 +3229,20 @@ html[data-theme="light"] .weekly-weather-issued strong {
 
 .settings-group {
   display: grid;
-  gap: 10px;
-  padding: 13px;
+  gap: 0;
+  padding: 0 12px;
   border: 1px solid rgba(146, 178, 228, 0.18);
-  border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(35, 50, 74, 0.82) 0%, rgba(18, 28, 44, 0.78) 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 12px 28px rgba(0, 0, 0, 0.22);
+  border-radius: 14px;
+  background: rgba(18, 32, 51, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  transition: border-color 160ms ease, background-color 160ms ease;
 }
 
-.settings-group:not(.is-expanded) {
-  gap: 0;
+.settings-group.is-expanded {
+  gap: 10px;
+  padding-bottom: 12px;
+  border-color: rgba(86, 183, 242, 0.34);
+  background: rgba(24, 43, 66, 0.72);
 }
 
 .settings-group-title {
@@ -2934,14 +3250,12 @@ html[data-theme="light"] .weekly-weather-issued strong {
   align-items: center;
   gap: 8px;
   color: #ffffff;
-  font-size: 15px;
-  font-weight: 900;
   line-height: 1.35;
 }
 
 .settings-group-toggle {
   width: 100%;
-  min-height: 28px;
+  min-height: 54px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -2954,10 +3268,36 @@ html[data-theme="light"] .weekly-weather-issued strong {
 .settings-group-title::before {
   content: "";
   width: 5px;
-  height: 15px;
+  height: 18px;
   border-radius: 999px;
   background: linear-gradient(180deg, #7bd7ff 0%, #7ed36f 100%);
-  box-shadow: 0 0 14px rgba(86, 183, 242, 0.3);
+  box-shadow: none;
+}
+
+.settings-group-title-copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.settings-group-title-copy strong {
+  overflow: hidden;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-group-title-copy small {
+  overflow: hidden;
+  color: #91a7c2;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-group-toggle::after {
@@ -2988,6 +3328,8 @@ html[data-theme="light"] .weekly-weather-issued strong {
 .settings-group-content {
   display: grid;
   gap: 10px;
+  padding-top: 11px;
+  border-top: 1px solid rgba(142, 173, 211, 0.14);
 }
 
 .settings-group-content[hidden] {
@@ -3348,8 +3690,7 @@ html[data-theme="light"] .weekly-weather-issued strong {
   line-height: 1.4;
 }
 
-.settings-account-row button,
-.settings-account-open {
+.settings-account-row button {
   min-height: 32px;
   padding: 7px 12px;
   border: 1px solid rgba(86, 183, 242, 0.3);
@@ -3372,17 +3713,152 @@ html[data-theme="light"] .weekly-weather-issued strong {
   cursor: wait;
 }
 
-.settings-account-open {
-  width: 100%;
-  font-size: 12px;
-}
-
 .settings-account-row button:hover:not(:disabled),
-.settings-account-row button:focus-visible,
-.settings-account-open:hover,
-.settings-account-open:focus-visible {
+.settings-account-row button:focus-visible {
   border-color: rgba(86, 183, 242, 0.62);
   background: rgba(86, 183, 242, 0.22);
+}
+
+.settings-account-auth,
+.settings-account-actions,
+.settings-account-form {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-account-auth-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(135, 169, 210, 0.18);
+  border-radius: 12px;
+  background: rgba(7, 18, 33, 0.5);
+}
+
+.settings-account-auth-tabs button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 9px;
+  color: #9eb2ca;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.settings-account-auth-tabs button.active {
+  color: #f4fbff;
+  background: rgba(74, 157, 207, 0.24);
+}
+
+.settings-account-form label {
+  display: grid;
+  gap: 5px;
+  color: #b7c6d8;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.settings-account-form label small {
+  color: #869bb4;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.settings-account-form input:not([type="checkbox"]) {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid rgba(137, 169, 207, 0.22);
+  border-radius: 11px;
+  color: #eff7ff;
+  background: rgba(7, 18, 33, 0.58);
+  font: inherit;
+  font-size: 13px;
+}
+
+.settings-account-consent {
+  display: flex !important;
+  grid-template-columns: none;
+  align-items: flex-start;
+  gap: 8px !important;
+}
+
+.settings-account-consent input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #56b7f2;
+}
+
+.settings-account-consent a {
+  color: #7cd2ff;
+}
+
+.settings-account-submit,
+.settings-account-actions > button,
+.settings-account-delete {
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid rgba(86, 183, 242, 0.36);
+  border-radius: 11px;
+  color: #f2faff;
+  background: rgba(43, 128, 180, 0.32);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.settings-account-actions > button {
+  background: rgba(93, 117, 145, 0.18);
+}
+
+.settings-account-actions details {
+  color: #aebed1;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.settings-account-actions summary {
+  min-height: 36px;
+  cursor: pointer;
+}
+
+.settings-account-delete {
+  border-color: rgba(246, 113, 113, 0.36);
+  color: #ffe7e7;
+  background: rgba(178, 54, 54, 0.2);
+}
+
+.settings-account-auth button:disabled,
+.settings-account-actions button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.settings-account-message {
+  min-height: 0;
+  margin: 0;
+  color: #aebed1;
+  font-size: 11.5px;
+  font-weight: 750;
+}
+
+.settings-account-message:empty {
+  display: none;
+}
+
+.settings-account-message[data-state="success"] {
+  color: #7ee0a0;
+}
+
+.settings-account-message[data-state="error"] {
+  color: #ff9b9b;
 }
 
 .settings-push-row {
@@ -9114,10 +9590,10 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     align-items: center;
     justify-content: center;
     width: 100%;
-    height: 22px;
-    min-height: 22px;
-    flex: 0 0 22px;
-    margin: 0 0 2px;
+    height: 34px;
+    min-height: 34px;
+    flex: 0 0 34px;
+    margin: 0 0 -10px;
     border: 0;
     box-sizing: border-box;
     cursor: ns-resize;
@@ -9328,8 +9804,12 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     pointer-events: none;
   }
 
-  .mobile-drawer-open .mobile-context-dock:not(.is-vertical-dragging) {
+  .mobile-drawer-open .mobile-context-dock:not(.is-vertical-dragging):not(.is-drawer-grab-active) {
     pointer-events: none;
+  }
+
+  .mobile-context-dock.is-drawer-grab-active {
+    pointer-events: auto;
   }
 
   .mobile-context-dock.is-vertical-dragging {
@@ -12078,11 +12558,56 @@ html[data-theme="light"] .settings-account-info span {
   color: #60758c;
 }
 
-html[data-theme="light"] .settings-account-row button,
-html[data-theme="light"] .settings-account-open {
+html[data-theme="light"] .settings-account-row button {
   border-color: rgba(30, 135, 190, 0.28);
   background: rgba(86, 183, 242, 0.14);
   color: #075f8a;
+}
+
+html[data-theme="light"] .settings-account-auth-tabs {
+  border-color: rgba(66, 94, 124, 0.18);
+  background: rgba(221, 231, 242, 0.58);
+}
+
+html[data-theme="light"] .settings-account-auth-tabs button {
+  color: #53677d;
+}
+
+html[data-theme="light"] .settings-account-auth-tabs button.active {
+  color: #075f8a;
+  background: rgba(86, 183, 242, 0.2);
+}
+
+html[data-theme="light"] .settings-account-form label,
+html[data-theme="light"] .settings-account-actions details,
+html[data-theme="light"] .settings-account-message {
+  color: #526a82;
+}
+
+html[data-theme="light"] .settings-account-form label small {
+  color: #6b8095;
+}
+
+html[data-theme="light"] .settings-account-form input:not([type="checkbox"]) {
+  border-color: rgba(61, 88, 118, 0.22);
+  color: #1b3048;
+  background: rgba(255, 255, 255, 0.84);
+}
+
+html[data-theme="light"] .settings-account-consent a {
+  color: #0874a5;
+}
+
+html[data-theme="light"] :is(.settings-account-submit, .settings-account-actions > button) {
+  border-color: rgba(30, 135, 190, 0.3);
+  color: #075f8a;
+  background: rgba(86, 183, 242, 0.14);
+}
+
+html[data-theme="light"] .settings-account-delete {
+  border-color: rgba(190, 65, 65, 0.26);
+  color: #a32828;
+  background: rgba(220, 82, 82, 0.1);
 }
 
 html[data-theme="light"] :is(input, textarea, select) {
@@ -13578,10 +14103,17 @@ html[data-theme="light"] .disaster-dashboard-open-button::before {
 
 html[data-theme="light"] .settings-group {
   border-color: rgba(66, 96, 129, 0.22);
-  background: rgba(255, 255, 255, 0.64);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.92),
-    0 10px 24px rgba(50, 74, 101, 0.12);
+  background: rgba(255, 255, 255, 0.56);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+html[data-theme="light"] .settings-group.is-expanded {
+  border-color: rgba(30, 135, 190, 0.32);
+  background: rgba(245, 250, 254, 0.74);
+}
+
+html[data-theme="light"] .settings-group-content {
+  border-top-color: rgba(66, 96, 129, 0.14);
 }
 
 html[data-theme="light"] .settings-group-title { color: #1e3852; }
@@ -16891,5 +17423,167 @@ html[data-theme="light"] .social-share-preview-shell {
   html[data-theme="light"] #sidebar .current-panel {
     background: transparent;
     box-shadow: none;
+  }
+}
+
+/* Unified translucent glass system. Keep semantic colors (warnings, observed
+   intensities, radar scales) on their own elements; this layer only defines
+   the material used by app chrome, sheets, controls, and neutral cards. */
+:is(
+  #sidebar,
+  #sidebar.drawer-open,
+  #main-tabs,
+  .mobile-context-dock,
+  .warning-modal-panel,
+  .hypocenter-date-wheel-sheet,
+  .map-legend,
+  .map-utility-actions,
+  .maplibregl-popup-content,
+  .map-info-popup,
+  .earthquake-long-press-hint,
+  .remote-notice-ticker
+),
+html[data-theme="light"] :is(
+  #sidebar,
+  #sidebar.drawer-open,
+  #main-tabs,
+  .mobile-context-dock,
+  .warning-modal-panel,
+  .hypocenter-date-wheel-sheet,
+  .map-legend,
+  .map-utility-actions,
+  .maplibregl-popup-content,
+  .map-info-popup,
+  .earthquake-long-press-hint,
+  .remote-notice-ticker
+) {
+  border-color: var(--glass-border);
+  background: var(--glass-panel-background);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+}
+
+:is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock),
+html[data-theme="light"] :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock) {
+  background: var(--glass-shell-background);
+}
+
+:is(.warning-modal-panel, .hypocenter-date-wheel-sheet),
+html[data-theme="light"] :is(.warning-modal-panel, .hypocenter-date-wheel-sheet) {
+  background: var(--glass-panel-strong-background);
+}
+
+:is(
+  .map-utility-menu-toggle,
+  .map-locate-button,
+  .map-community-report-button,
+  .map-world-typhoon-target-button,
+  .map-settings-open-button,
+  .disaster-map-open-button,
+  .warning-modal-close,
+  #clock,
+  #map-attribution
+),
+html[data-theme="light"] :is(
+  .map-utility-menu-toggle,
+  .map-locate-button,
+  .map-community-report-button,
+  .map-world-typhoon-target-button,
+  .map-settings-open-button,
+  .disaster-map-open-button,
+  .warning-modal-close,
+  #clock,
+  #map-attribution
+) {
+  border-color: var(--glass-border-soft);
+  background: var(--glass-compact-background);
+  box-shadow: var(--glass-shadow-soft);
+  backdrop-filter: var(--glass-filter-compact);
+  -webkit-backdrop-filter: var(--glass-filter-compact);
+}
+
+/* Repeated cards deliberately avoid per-card backdrop filters so large lists
+   keep their existing scroll performance while sharing the same material. */
+:is(
+  .radar-time-controls,
+  .current-location-card,
+  .location-insight-panel,
+  .warning-detail-prefecture,
+  .warning-detail-area,
+  .warning-modal-warning,
+  .typhoon-select-button,
+  .typhoon-detail-item,
+  .typhoon-empty,
+  .earthquake-history-item,
+  .earthquake-observation-list,
+  .earthquake-distribution-control-card,
+  .amedas-temperature-chart,
+  .amedas-ranking,
+  .weekly-weather-day,
+  .weekly-weather-hourly-panel,
+  .settings-group,
+  .quiz-account-card,
+  .river-station-card,
+  .volcano-report-card,
+  .volcano-history-item,
+  .social-share-preview-shell,
+  .disaster-dashboard-list,
+  .disaster-dashboard-risk-list,
+  .disaster-map-annotation-panel
+),
+html[data-theme="light"] :is(
+  .radar-time-controls,
+  .current-location-card,
+  .location-insight-panel,
+  .warning-detail-prefecture,
+  .warning-detail-area,
+  .warning-modal-warning,
+  .typhoon-select-button,
+  .typhoon-detail-item,
+  .typhoon-empty,
+  .earthquake-history-item,
+  .earthquake-observation-list,
+  .earthquake-distribution-control-card,
+  .amedas-temperature-chart,
+  .amedas-ranking,
+  .weekly-weather-day,
+  .weekly-weather-hourly-panel,
+  .settings-group,
+  .quiz-account-card,
+  .river-station-card,
+  .volcano-report-card,
+  .volcano-history-item,
+  .social-share-preview-shell,
+  .disaster-dashboard-list,
+  .disaster-dashboard-risk-list,
+  .disaster-map-annotation-panel
+) {
+  border-color: var(--glass-border-soft);
+  background: var(--glass-card-background);
+  box-shadow: var(--glass-shadow-soft);
+}
+
+.remote-notice-card,
+html[data-theme="light"] .remote-notice-card {
+  background: var(--glass-panel-background);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-filter-compact);
+  -webkit-backdrop-filter: var(--glass-filter-compact);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass-shell-background: rgba(7, 16, 34, 0.94);
+    --glass-panel-background: rgba(9, 21, 40, 0.96);
+    --glass-panel-strong-background: rgba(8, 19, 36, 0.98);
+    --glass-compact-background: rgba(8, 19, 36, 0.94);
+  }
+
+  html[data-theme="light"] {
+    --glass-shell-background: rgba(243, 248, 253, 0.96);
+    --glass-panel-background: rgba(244, 249, 253, 0.97);
+    --glass-panel-strong-background: rgba(244, 249, 253, 0.98);
+    --glass-compact-background: rgba(246, 250, 253, 0.96);
   }
 }

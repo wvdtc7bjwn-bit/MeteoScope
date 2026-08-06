@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [styles, index, panel, app, weatherMap, panelToggle, tabs, time, mapUtilityMenu, legendToggle, remoteConfig] = await Promise.all([
+const [styles, index, panel, app, weatherMap, panelToggle, tabs, time, mapUtilityMenu, legendToggle, remoteConfig, settingsModal] = await Promise.all([
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
@@ -12,7 +12,8 @@ const [styles, index, panel, app, weatherMap, panelToggle, tabs, time, mapUtilit
   readFile(new URL("../src/ui/time.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/mapUtilityMenu.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/legendToggle.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/remoteConfig.js", import.meta.url), "utf8")
+  readFile(new URL("../src/remoteConfig.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/ui/settingsModal.js", import.meta.url), "utf8")
 ]);
 
 assert.match(styles, /--sidebar-width:\s*clamp\(300px,\s*24vw,\s*380px\)/);
@@ -105,7 +106,7 @@ assert.match(
 );
 assert.match(
   styles,
-  /@media screen\s*\{[\s\S]*?#sidebar-drawer-handle\s*\{[\s\S]*?height:\s*22px;[\s\S]*?touch-action:\s*none;[\s\S]*?#sidebar-drawer-handle::before\s*\{[\s\S]*?content:\s*"";[\s\S]*?width:\s*48px;[\s\S]*?height:\s*5px;[\s\S]*?border-radius:\s*999px;/
+  /@media screen\s*\{[\s\S]*?#sidebar-drawer-handle\s*\{[\s\S]*?height:\s*34px;[\s\S]*?touch-action:\s*none;[\s\S]*?#sidebar-drawer-handle::before\s*\{[\s\S]*?content:\s*"";[\s\S]*?width:\s*48px;[\s\S]*?height:\s*5px;[\s\S]*?border-radius:\s*999px;/
 );
 assert.match(
   styles,
@@ -125,15 +126,23 @@ assert.match(
 );
 assert.match(
   styles,
-  /:root\s*\{[\s\S]*?--shared-shell-glass-background:\s*rgba\(7, 16, 34, 0\.34\);[\s\S]*?--shared-shell-glass-filter:\s*blur\(26px\) saturate\(1\.5\);/
+  /:root\s*\{[\s\S]*?--glass-shell-background:[\s\S]*?rgba\(7, 16, 34, 0\.46\);[\s\S]*?--glass-filter:\s*blur\(24px\) saturate\(1\.42\) contrast\(1\.03\);[\s\S]*?--shared-shell-glass-background:\s*var\(--glass-shell-background\);[\s\S]*?--shared-shell-glass-filter:\s*var\(--glass-filter\);/
 );
 assert.match(
   styles,
-  /html\[data-theme="light"\]\s*\{[\s\S]*?--shared-shell-glass-background:\s*rgba\(246, 250, 255, 0\.34\);/
+  /html\[data-theme="light"\]\s*\{[\s\S]*?--glass-shell-background:[\s\S]*?rgba\(242, 248, 253, 0\.5\);[\s\S]*?--shared-shell-glass-background:\s*var\(--glass-shell-background\);/
 );
 assert.match(
   styles,
   /The sheet, summary bar, and bottom tab slider share the same glass density\.[\s\S]*?:is\(#sidebar, #sidebar\.drawer-open, \.mobile-context-dock, #main-tabs\)[\s\S]*?background:\s*var\(--shared-shell-glass-background\);[\s\S]*?backdrop-filter:\s*var\(--shared-shell-glass-filter\);[\s\S]*?#sidebar \.current-panel,[\s\S]*?background:\s*transparent;[\s\S]*?box-shadow:\s*none;/
+);
+assert.match(
+  styles,
+  /Unified translucent glass system\.[\s\S]*?:is\([\s\S]*?#sidebar,[\s\S]*?#main-tabs,[\s\S]*?\.warning-modal-panel,[\s\S]*?\.map-legend,[\s\S]*?\.remote-notice-ticker[\s\S]*?\)\s*\{[\s\S]*?border-color:\s*var\(--glass-border\);[\s\S]*?backdrop-filter:\s*var\(--glass-filter\);/
+);
+assert.match(
+  styles,
+  /Repeated cards deliberately avoid per-card backdrop filters[\s\S]*?background:\s*var\(--glass-card-background\);[\s\S]*?box-shadow:\s*var\(--glass-shadow-soft\);/
 );
 assert.match(
   panelToggle,
@@ -161,6 +170,11 @@ assert.match(
 assert.match(panelToggle, /setDrawerTransition\(nextOffset, offsets\);/);
 assert.match(panelToggle, /classList\.toggle\("is-vertical-dragging", initialAxis === "y"\)/);
 assert.match(panelToggle, /classList\.remove\("is-vertical-dragging"\)/);
+assert.match(
+  panelToggle,
+  /function isSidebarGrabEvent\(event\)[\s\S]*?sidebarRect\.top \+ 64[\s\S]*?button, a, input, select, textarea[\s\S]*?sidebar\.addEventListener\("pointerdown"[\s\S]*?beginDrag\(event, sidebar, "y"\)/
+);
+assert.match(panelToggle, /classList\.toggle\("is-drawer-grab-active", absorptionProgress < 0\.86\)/);
 assert.match(panelToggle, /setDrawerState\(drawerState === "peek" \? "full" : "peek"\);/);
 assert.match(
   panelToggle,
@@ -172,11 +186,19 @@ assert.match(
 );
 assert.match(
   panelToggle,
+  /window\.addEventListener\("pointermove", moveDrag\);[\s\S]*?window\.addEventListener\("pointerup", finishDrag\);[\s\S]*?window\.addEventListener\("pointercancel", finishDrag\);/
+);
+assert.match(
+  panelToggle,
   /mobileContextDock\?\.addEventListener\("click", \(event\) => \{[\s\S]*?event\.stopImmediatePropagation\(\);[\s\S]*?\}, \{ capture: true \}\);/
 );
 assert.match(
   styles,
-  /\.mobile-context-dock\s*\{[\s\S]*?opacity:\s*var\(--mobile-summary-absorb-opacity, 1\);[\s\S]*?translateX\(-50%\) translateY\(var\(--mobile-summary-retreat-y, 0px\)\) scale\(var\(--mobile-summary-absorb-scale, 1\)\)[\s\S]*?transform-origin:\s*50% 100%;[\s\S]*?transition:\s*opacity 180ms cubic-bezier\(0\.16, 1, 0\.3, 1\), transform 210ms cubic-bezier\(0\.16, 1, 0\.3, 1\);[\s\S]*?\.mobile-drawer-open \.mobile-context-dock:not\(\.is-vertical-dragging\)\s*\{[\s\S]*?pointer-events:\s*none;[\s\S]*?\.mobile-context-dock\.is-vertical-dragging\s*\{[\s\S]*?transition:\s*none;/
+  /\.mobile-context-dock\s*\{[\s\S]*?opacity:\s*var\(--mobile-summary-absorb-opacity, 1\);[\s\S]*?translateX\(-50%\) translateY\(var\(--mobile-summary-retreat-y, 0px\)\) scale\(var\(--mobile-summary-absorb-scale, 1\)\)[\s\S]*?transform-origin:\s*50% 100%;[\s\S]*?transition:\s*opacity 180ms cubic-bezier\(0\.16, 1, 0\.3, 1\), transform 210ms cubic-bezier\(0\.16, 1, 0\.3, 1\);[\s\S]*?\.mobile-drawer-open \.mobile-context-dock:not\(\.is-vertical-dragging\):not\(\.is-drawer-grab-active\)\s*\{[\s\S]*?pointer-events:\s*none;[\s\S]*?\.mobile-context-dock\.is-drawer-grab-active\s*\{[\s\S]*?pointer-events:\s*auto;[\s\S]*?\.mobile-context-dock\.is-vertical-dragging\s*\{[\s\S]*?transition:\s*none;/
+);
+assert.match(
+  styles,
+  /#sidebar-drawer-handle\s*\{[\s\S]*?height:\s*34px;[\s\S]*?min-height:\s*34px;[\s\S]*?flex:\s*0 0 34px;[\s\S]*?margin:\s*0 0 -10px;/
 );
 assert.doesNotMatch(styles, /\.mobile-drawer-open \.mobile-context-dock\s*\{[\s\S]{0,160}?opacity:\s*0;/);
 assert.match(
@@ -281,6 +303,17 @@ assert.match(styles, /html,\s*body\s*\{\s*touch-action:\s*pan-x pan-y;/);
 assert.match(index, /id="map-utility-menu-toggle"[\s\S]*?aria-controls="map-utility-actions"/u);
 assert.match(index, /id="map-utility-actions"[\s\S]*?id="disaster-quiz-button"[\s\S]*?id="weekly-weather-button"[\s\S]*?id="disaster-map-button"[\s\S]*?id="social-share-map-button"[\s\S]*?id="settings-button"/u);
 assert.equal((index.match(/id="settings-button"/gu) ?? []).length, 1, "設定ボタンを機能メニュー内だけに置く");
+assert.match(index, /data-settings-filter[^>]*>[\s\S]*?data-settings-filter-clear/u);
+assert.match(index, /data-settings-open-group="settings-theme-group"[\s\S]*?data-settings-open-group="settings-push-group"/u);
+for (const section of ["account", "area", "display", "support"]) {
+  assert.match(index, new RegExp(`data-settings-section-label="${section}"`, "u"));
+  assert.match(index, new RegExp(`data-settings-section="${section}"`, "u"));
+}
+assert.match(settingsModal, /function filterSettingsGroups\(value\)/u);
+assert.match(settingsModal, /function openSettingsGroup\(groupClass\)/u);
+assert.match(settingsModal, /\.settings-group\.is-expanded[\s\S]*?otherGroup !== group[\s\S]*?setSettingsGroupExpanded\(otherGroup, false\)/u);
+assert.match(styles, /\.settings-filter input\s*\{[\s\S]*?height:\s*44px;/u);
+assert.match(styles, /\.settings-group-toggle\s*\{[\s\S]*?min-height:\s*54px;/u);
 assert.match(styles, /\.map-settings-open-button::before\s*\{[\s\S]*?mask:/u);
 assert.match(styles, /\.map-utility-actions\s*\{[\s\S]*?display:\s*flex;[\s\S]*?gap:\s*8px;/u);
 assert.match(styles, /\.map-utility-actions\[hidden\]\s*\{[\s\S]*?display:\s*none;/u);
@@ -312,6 +345,10 @@ for (const modalId of ["settings", "feedback", "weekly-weather", "disaster-map",
 assert.match(index, /<header class="settings-modal-header legal-consent-header">\s*<h2 id="legal-consent-title">/u);
 assert.match(index, /<header class="settings-modal-header onboarding-header">\s*<h2 id="onboarding-title">/u);
 assert.match(index, /id="radar-time-timeline"\s+class="weather-time-timeline"/);
+assert.match(index, /id="radar-time-timeline"[\s\S]*?id="radar-location-insight-panel"[\s\S]*?class="weather-time-labels"/);
+assert.match(panel, /timeline\.points\.map\(\(point,\s*pointIndex\)[\s\S]*?--weather-time-index:\s*\$\{pointIndex\}/);
+assert.match(styles, /\.radar-time-controls \.location-insight-radar\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?inset:\s*0;/);
+assert.match(styles, /\.radar-time-controls \.location-insight-radar \.location-radar-timeline\s*\{[\s\S]*?translateX\(var\(--weather-time-shift\)\)/);
 assert.match(index, /id="community-report-map-open"\s+class="map-community-report-button"/);
 assert.match(index, /id="community-report-open"[^>]*aria-label="投稿"[^>]*><\/button>/);
 for (const [id, label] of [["radar-prev", "5分前"], ["radar-play", "再生"], ["radar-now", "現在"], ["radar-next", "5分後"]]) {
@@ -724,12 +761,29 @@ assert.match(
 );
 assert.match(
   styles,
-  /--segmented-track-border:\s*rgba\(207, 232, 255, 0\.2\);[\s\S]*?--segmented-indicator-background:\s*rgba\(151, 174, 199, 0\.14\);[\s\S]*?--segmented-indicator-shadow:\s*none;[\s\S]*?--segmented-indicator-filter:\s*none;[\s\S]*?--segmented-drag-filter:\s*blur\(10px\) saturate\(1\.16\);/
+  /--segmented-track-border:\s*rgba\(207, 232, 255, 0\.2\);[\s\S]*?--segmented-indicator-background:\s*rgba\(151, 174, 199, 0\.14\);[\s\S]*?--segmented-indicator-shadow:\s*none;[\s\S]*?--segmented-indicator-filter:\s*none;[\s\S]*?--segmented-drag-background:\s*rgba\(151, 174, 199, 0\.1\);[\s\S]*?--segmented-drag-shadow:\s*none;[\s\S]*?--segmented-drag-filter:\s*blur\(10px\) saturate\(1\.16\);/
 );
 assert.match(
   styles,
   /\.mobile-dock-segmented::before\s*\{[\s\S]*?border:\s*1px solid var\(--segmented-indicator-border\);[\s\S]*?background:\s*var\(--segmented-indicator-background\);[\s\S]*?box-shadow:\s*var\(--segmented-indicator-shadow\);/
 );
+assert.match(
+  panel,
+  /function setupSegmentedControls[\s\S]*?previewButton[\s\S]*?Math\.abs\(delta\) > 6[\s\S]*?pointerType !== "touch"[\s\S]*?event\.type === "pointerup"[\s\S]*?restoreCommittedButton/,
+  "all dock segmented controls must preview, drag and restore like the bottom tab slider"
+);
+assert.match(
+  panel,
+  /setupAmedasDailyChartToggle[\s\S]*?renderSliderButton[\s\S]*?committedButton[\s\S]*?previewButton[\s\S]*?Math\.abs\(delta\) > 6[\s\S]*?event\.type === "pointerup"/,
+  "AMeDAS chart period control must share the bottom slider gesture semantics"
+);
+assert.match(
+  panel,
+  /setupAmedasRankingToggle[\s\S]*?renderRankingSliderButton[\s\S]*?committedButton[\s\S]*?previewButton[\s\S]*?Math\.abs\(delta\) > 6[\s\S]*?event\.type === "pointerup"/,
+  "AMeDAS ranking controls must share the bottom slider gesture semantics"
+);
+assert.match(panel, /root\.addEventListener\("pointercancel", finishDrag\);[\s\S]*?root\.addEventListener\("lostpointercapture", finishDrag\);/);
+assert.match(panel, /root\.addEventListener\("pointercancel", finishRankingSliderDrag\);[\s\S]*?root\.addEventListener\("lostpointercapture", finishRankingSliderDrag\);/);
 assert.match(
   styles,
   /#main-tabs::after\s*\{[\s\S]*?border:\s*1px solid var\(--tab-lens-border\);[\s\S]*?background:\s*var\(--tab-lens-bg\);[\s\S]*?box-shadow:\s*var\(--tab-lens-shadow\);/

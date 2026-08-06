@@ -3307,7 +3307,6 @@ if (layerId === "river") {
       onDeactivateEarlyAccess: releaseEarlyAccess,
       onEarlyAccessActiveFaultSourceChange: setEarlyAccessActiveFaultSource,
       onOpenGuide: onboarding.open,
-      onOpenAccount: openDisasterQuizModal,
       tabs: TABS,
       getTabOrder: () => tabControls?.getOrder?.() ?? TABS.map((tab) => tab.id),
       onTabOrderChange: (order) => tabControls?.setOrder?.(order) ?? order

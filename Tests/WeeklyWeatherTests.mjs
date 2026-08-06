@@ -30,9 +30,14 @@ const {
   renderWeeklyWeatherGlyph
 } = await import("../src/ui/weeklyWeatherGlyph.js");
 const {
+  formatThreeHourlyWindSpeedRange,
   formatWeeklyWeatherDateLabel,
   getWeeklyWeatherRelativeDayLabel
 } = await import("../src/ui/weeklyWeatherModal.js");
+
+assert.equal(formatThreeHourlyWindSpeedRange("3 5", "ja"), "3–5m/s");
+assert.equal(formatThreeHourlyWindSpeedRange("20 INF", "ja"), "20～m/s");
+assert.equal(formatThreeHourlyWindSpeedRange("20 INF", "en"), "20+ m/s");
 
 const areaData = {
   offices: {
@@ -624,6 +629,10 @@ assert.match(styles, /\.weekly-weather-day\.is-hourly-expanded/u);
 assert.match(styles, /\.weekly-weather-wide-hourly-stage:not\(\[hidden\]\)/u);
 assert.match(styles, /\.weekly-weather-day\.is-hourly-selected/u);
 assert.match(styles, /@media\s*\(min-width:\s*801px\)[\s\S]*?\.weekly-weather-hourly-list\s*\{[\s\S]*?grid-auto-columns:\s*clamp\(96px,\s*10vw,\s*112px\);[\s\S]*?justify-content:\s*center;/u);
+assert.match(styles, /@media\s*\(min-width:\s*801px\)[\s\S]*?\.weekly-weather-hourly-item\s*\{[\s\S]*?"time"\s*14px[\s\S]*?"main"\s*46px[\s\S]*?"wind"\s*25px[\s\S]*?height:\s*94px;/u);
+assert.match(styles, /@media\s*\(min-width:\s*801px\)[\s\S]*?\.weekly-weather-hourly-wind-arrow\s*\{[\s\S]*?font-size:\s*15px;[\s\S]*?line-height:\s*15px;/u);
+assert.match(styles, /@media\s*\(min-width:\s*801px\)[\s\S]*?\.weekly-weather-hourly-main\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-rows:\s*28px\s*18px;[\s\S]*?justify-items:\s*center;/u);
+assert.match(styles, /@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-height:\s*600px\)[\s\S]*?\.weekly-weather-hourly-main\s*\{[\s\S]*?grid-template-rows:\s*18px\s*14px;/u);
 assert.match(styles, /@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-height:\s*600px\)[\s\S]*?\.weekly-weather-panel\s*\{[\s\S]*?max-height:\s*calc\(100dvh\s*-\s*16px\);/u);
 assert.match(styles, /@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-height:\s*600px\)[\s\S]*?\.weekly-weather-hourly-list\s*\{[\s\S]*?height:\s*76px;/u);
 assert.match(modal, /language === "en" \? "N\/A"/u);

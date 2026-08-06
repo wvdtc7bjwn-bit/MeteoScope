@@ -187,6 +187,12 @@ export function setupAmedasDailyChartToggle({ onChange } = {}) {
     slider.classList.remove("is-dragging");
     slider.style.setProperty("--amedas-chart-period-drag-x", "0px");
   };
+  const renderSliderButton = (slider, button) => {
+    const buttons = [...slider.querySelectorAll("button")];
+    const index = Math.max(0, buttons.indexOf(button));
+    buttons.forEach((item) => item.classList.toggle("active", item === button));
+    slider.style.setProperty("--amedas-chart-period-index", String(index));
+  };
 
   root?.addEventListener("click", (event) => {
     if (Date.now() < suppressClickUntil) return;
@@ -199,28 +205,41 @@ export function setupAmedasDailyChartToggle({ onChange } = {}) {
   });
 
   root.addEventListener("pointerdown", (event) => {
+    if (event.isPrimary === false || (event.pointerType === "mouse" && event.button !== 0)) return;
     if (!(event.target instanceof Element)) return;
     const slider = event.target.closest(".amedas-chart-period-toggle");
     if (!slider || !root.contains(slider)) return;
-    const activeButton = slider.querySelector("button.active");
+    const buttons = [...slider.querySelectorAll("button")];
+    const activeButton = buttons.find((button) => button.classList.contains("active")) ?? buttons[0];
+    const pointerButton = event.target.closest("button");
+    const previewButton = pointerButton && slider.contains(pointerButton) ? pointerButton : activeButton;
+    if (!activeButton || !previewButton) return;
     dragState = {
       pointerId: event.pointerId,
+      pointerType: event.pointerType,
       slider,
       startX: event.clientX,
       lastX: event.clientX,
-      activeLeft: activeButton?.offsetLeft ?? 0,
+      committedButton: activeButton,
+      previewButton,
+      activeLeft: previewButton.offsetLeft,
       moved: false
     };
+    if (previewButton !== activeButton) renderSliderButton(slider, previewButton);
     event.stopPropagation();
-    slider.classList.add("is-dragging");
-    slider.setPointerCapture?.(event.pointerId);
   });
 
   root.addEventListener("pointermove", (event) => {
     if (!dragState || dragState.pointerId !== event.pointerId) return;
     dragState.lastX = event.clientX;
     const delta = event.clientX - dragState.startX;
-    if (Math.abs(delta) > 5) dragState.moved = true;
+    if (!dragState.moved && Math.abs(delta) > 6) {
+      dragState.moved = true;
+      dragState.slider.classList.add("is-dragging");
+      if (dragState.pointerType !== "touch") {
+        dragState.slider.setPointerCapture?.(event.pointerId);
+      }
+    }
     if (!dragState.moved) return;
     event.preventDefault();
     event.stopPropagation();
@@ -238,23 +257,43 @@ export function setupAmedasDailyChartToggle({ onChange } = {}) {
 
   const finishDrag = (event) => {
     if (!dragState || dragState.pointerId !== event.pointerId) return;
-    const { slider, moved, lastX } = dragState;
-    slider.releasePointerCapture?.(event.pointerId);
+    const state = dragState;
+    const { slider, moved, lastX } = state;
     dragState = null;
-    if (moved) {
+    const isCommit = event.type === "pointerup";
+    let targetButton = isCommit ? state.previewButton : null;
+    if (isCommit && moved) {
       const rect = slider.getBoundingClientRect();
-      const releaseX = event.type === "pointercancel" ? lastX : event.clientX;
-      const dayOffset = releaseX < rect.left + rect.width / 2 ? 0 : 1;
-      resetSlider(slider);
-      suppressClickUntil = Date.now() + 250;
-      onChange?.(dayOffset);
-      return;
+      const releaseX = Number.isFinite(event.clientX) ? event.clientX : lastX;
+      const buttons = [...slider.querySelectorAll("button")];
+      targetButton = releaseX < rect.left + rect.width / 2 ? buttons[0] : buttons[1];
+    }
+    if (slider.hasPointerCapture?.(event.pointerId)) {
+      slider.releasePointerCapture(event.pointerId);
     }
     resetSlider(slider);
+    if (isCommit && targetButton && !targetButton.disabled) {
+      targetButton.click();
+      suppressClickUntil = Date.now() + 250;
+    } else {
+      renderSliderButton(slider, state.committedButton);
+    }
   };
 
   root.addEventListener("pointerup", finishDrag);
   root.addEventListener("pointercancel", finishDrag);
+  root.addEventListener("lostpointercapture", finishDrag);
+  const cancelActiveDrag = () => {
+    if (!dragState) return;
+    const state = dragState;
+    dragState = null;
+    resetSlider(state.slider);
+    renderSliderButton(state.slider, state.committedButton);
+  };
+  window.addEventListener("blur", cancelActiveDrag);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) cancelActiveDrag();
+  });
 }
 
 export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
@@ -275,6 +314,13 @@ export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
   const resetRankingSlider = (slider) => {
     slider.classList.remove("is-dragging");
     slider.style.setProperty("--ranking-drag-x", "0px");
+  };
+  const renderRankingSliderButton = (slider, button) => {
+    const buttons = getSliderButtons(slider);
+    const index = Math.max(0, buttons.indexOf(button));
+    buttons.forEach((item) => item.classList.toggle("active", item === button));
+    slider.style.setProperty("--ranking-index-offset", `${index * 100}%`);
+    slider.style.setProperty("--ranking-gap-offset", `${index * 3}px`);
   };
 
   root.addEventListener("click", (event) => {
@@ -340,25 +386,38 @@ export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
   });
 
   root.addEventListener("pointerdown", (event) => {
+    if (event.isPrimary === false || (event.pointerType === "mouse" && event.button !== 0)) return;
     if (!(event.target instanceof Element)) return;
     const slider = event.target.closest(".amedas-ranking-slider");
     if (!slider || !root.contains(slider)) return;
-    const activeButton = getSliderButtons(slider).find((button) => button.classList.contains("active"));
+    const buttons = getSliderButtons(slider);
+    const activeButton = buttons.find((button) => button.classList.contains("active")) ?? buttons[0];
+    const pointerButton = event.target.closest("button");
+    const previewButton = pointerButton && slider.contains(pointerButton) ? pointerButton : activeButton;
+    if (!activeButton || !previewButton || previewButton.disabled) return;
     dragState = {
       pointerId: event.pointerId,
+      pointerType: event.pointerType,
       slider,
       startX: event.clientX,
       moved: false,
-      activeLeft: activeButton?.offsetLeft ?? 0
+      committedButton: activeButton,
+      previewButton,
+      activeLeft: previewButton.offsetLeft
     };
-    slider.classList.add("is-dragging");
-    slider.setPointerCapture?.(event.pointerId);
+    if (previewButton !== activeButton) renderRankingSliderButton(slider, previewButton);
   });
 
   root.addEventListener("pointermove", (event) => {
     if (!dragState || dragState.pointerId !== event.pointerId) return;
     const delta = event.clientX - dragState.startX;
-    if (Math.abs(delta) > 6) dragState.moved = true;
+    if (!dragState.moved && Math.abs(delta) > 6) {
+      dragState.moved = true;
+      dragState.slider.classList.add("is-dragging");
+      if (dragState.pointerType !== "touch") {
+        dragState.slider.setPointerCapture?.(event.pointerId);
+      }
+    }
     if (!dragState.moved) return;
     event.preventDefault();
     const buttons = getSliderButtons(dragState.slider);
@@ -375,21 +434,38 @@ export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
 
   const finishRankingSliderDrag = (event) => {
     if (!dragState || dragState.pointerId !== event.pointerId) return;
-    const { slider, moved } = dragState;
-    slider.releasePointerCapture?.(event.pointerId);
+    const state = dragState;
+    const { slider, moved } = state;
     dragState = null;
-    if (moved) {
-      const targetButton = getSliderButtonAtPoint(slider, event.clientX);
-      resetRankingSlider(slider);
-      if (targetButton && !targetButton.disabled) targetButton.click();
-      suppressClickUntil = Date.now() + 250;
-      return;
+    const targetButton = event.type === "pointerup"
+      ? (moved ? getSliderButtonAtPoint(slider, event.clientX) : state.previewButton)
+      : null;
+    if (slider.hasPointerCapture?.(event.pointerId)) {
+      slider.releasePointerCapture(event.pointerId);
     }
     resetRankingSlider(slider);
+    if (targetButton && !targetButton.disabled) {
+      targetButton.click();
+      suppressClickUntil = Date.now() + 250;
+    } else {
+      renderRankingSliderButton(slider, state.committedButton);
+    }
   };
 
   root.addEventListener("pointerup", finishRankingSliderDrag);
   root.addEventListener("pointercancel", finishRankingSliderDrag);
+  root.addEventListener("lostpointercapture", finishRankingSliderDrag);
+  const cancelActiveDrag = () => {
+    if (!dragState) return;
+    const state = dragState;
+    dragState = null;
+    resetRankingSlider(state.slider);
+    renderRankingSliderButton(state.slider, state.committedButton);
+  };
+  window.addEventListener("blur", cancelActiveDrag);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) cancelActiveDrag();
+  });
 }
 
 function setupSegmentedControls(root) {
@@ -412,6 +488,20 @@ function setupSegmentedControls(root) {
       return !nearest || distance < nearest.distance ? { button, distance } : nearest;
     }, null)?.button ?? null;
   };
+  const renderPreview = (segment, button) => {
+    if (!button) return;
+    getButtons(segment).forEach((item) => item.classList.toggle("active", item === button));
+    syncMobileDockSegmentIndicator(segment);
+  };
+  const restoreCommittedButton = (state) => {
+    if (!state?.committedButton) return;
+    renderPreview(state.segment, state.committedButton);
+  };
+  const clearDragPresentation = (segment) => {
+    if (!segment) return;
+    segment.classList.remove("is-dragging");
+    setDragOffset(segment, 0);
+  };
 
   root.addEventListener("click", (event) => {
     if (Date.now() >= suppressClickUntil) return;
@@ -421,6 +511,7 @@ function setupSegmentedControls(root) {
   }, true);
 
   root.addEventListener("pointerdown", (event) => {
+    if (event.isPrimary === false || (event.pointerType === "mouse" && event.button !== 0)) return;
     if (!(event.target instanceof Element)) return;
     const segment = event.target.closest(".mobile-dock-segmented");
     if (!segment || !root.contains(segment)) return;
@@ -428,22 +519,32 @@ function setupSegmentedControls(root) {
     const activeButton = buttons.find((button) => button.classList.contains("active")) ?? buttons[0];
     if (!activeButton) return;
     syncMobileDockSegmentIndicator(segment);
+    const pointerButton = event.target.closest("button");
+    const previewButton = pointerButton && segment.contains(pointerButton) ? pointerButton : activeButton;
     dragState = {
       pointerId: event.pointerId,
+      pointerType: event.pointerType,
       segment,
       startX: event.clientX,
-      activeLeft: activeButton.offsetLeft,
-      activeWidth: activeButton.offsetWidth,
+      committedButton: activeButton,
+      previewButton,
+      activeLeft: previewButton.offsetLeft,
+      activeWidth: previewButton.offsetWidth,
       moved: false
     };
-    segment.classList.add("is-dragging");
-    segment.setPointerCapture?.(event.pointerId);
+    if (previewButton !== activeButton) renderPreview(segment, previewButton);
   });
 
   root.addEventListener("pointermove", (event) => {
     if (!dragState || dragState.pointerId !== event.pointerId) return;
     const delta = event.clientX - dragState.startX;
-    if (Math.abs(delta) > 6) dragState.moved = true;
+    if (!dragState.moved && Math.abs(delta) > 6) {
+      dragState.moved = true;
+      dragState.segment.classList.add("is-dragging");
+      if (dragState.pointerType !== "touch") {
+        dragState.segment.setPointerCapture?.(event.pointerId);
+      }
+    }
     if (!dragState.moved) return;
     event.preventDefault();
     event.stopPropagation();
@@ -468,27 +569,51 @@ function setupSegmentedControls(root) {
 
   const finishDrag = (event) => {
     if (!dragState || dragState.pointerId !== event.pointerId) return;
-    const { segment, moved } = dragState;
+    const state = dragState;
+    const { segment, moved } = state;
     if (pendingFrame) {
       window.cancelAnimationFrame(pendingFrame);
       pendingFrame = 0;
       setDragOffset(segment, pendingOffset);
     }
-    segment.releasePointerCapture?.(event.pointerId);
-    segment.classList.remove("is-dragging");
     dragState = null;
-    if (moved) {
+    const isCommit = event.type === "pointerup";
+    const targetButton = isCommit
+      ? (moved ? getButtonAtPoint(segment, event.clientX) : state.previewButton)
+      : null;
+    if (segment.hasPointerCapture?.(event.pointerId)) {
+      segment.releasePointerCapture(event.pointerId);
+    }
+    if (isCommit && targetButton && !targetButton.disabled) {
       event.preventDefault();
       event.stopPropagation();
-      const targetButton = getButtonAtPoint(segment, event.clientX);
-      if (targetButton && !targetButton.disabled) targetButton.click();
+      clearDragPresentation(segment);
+      targetButton.click();
       suppressClickUntil = Date.now() + 250;
+    } else {
+      restoreCommittedButton(state);
+      clearDragPresentation(segment);
     }
     window.requestAnimationFrame(() => syncMobileDockSegmentIndicators(root));
   };
 
   root.addEventListener("pointerup", finishDrag);
   root.addEventListener("pointercancel", finishDrag);
+  root.addEventListener("lostpointercapture", finishDrag);
+  window.addEventListener("blur", () => {
+    if (!dragState) return;
+    const state = dragState;
+    dragState = null;
+    restoreCommittedButton(state);
+    clearDragPresentation(state.segment);
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden || !dragState) return;
+    const state = dragState;
+    dragState = null;
+    restoreCommittedButton(state);
+    clearDragPresentation(state.segment);
+  });
   window.addEventListener("resize", () => window.requestAnimationFrame(() => syncMobileDockSegmentIndicators(root)));
   syncMobileDockSegmentIndicators(root);
 }
@@ -1523,39 +1648,29 @@ function renderRadarLocationInsight(root, insights) {
   root.className = "location-insight-panel location-insight-radar";
 
   if (timeline.status === "loading") {
-    root.innerHTML = `
-      <div class="location-insight-head">
-        <span>現在地の雨雲</span>
-        <strong>読み取り中</strong>
-      </div>
-      <p>${escapeHtml(timeline.message ?? "現在地直下の雨雲を読み取っています。")}</p>
-    `;
+    root.hidden = true;
+    root.innerHTML = "";
     return;
   }
 
   if (timeline.status !== "ready" || !timeline.points?.length) {
-    root.innerHTML = `
-      <div class="location-insight-head">
-        <span>現在地の雨雲</span>
-        <strong>未取得</strong>
-      </div>
-      <p>${escapeHtml(timeline.message ?? "現在地の雨雲時系列を表示できません。")}</p>
-    `;
+    root.hidden = true;
+    root.innerHTML = "";
     return;
   }
 
-  const message = timeline.message ? `<p>${escapeHtml(timeline.message)}</p>` : "";
+  root.setAttribute("aria-label", timeline.message || "現在地の雨雲時系列");
+  root.setAttribute("title", timeline.message || "現在地の雨雲時系列");
   root.innerHTML = `
-    <div class="location-radar-timeline" aria-label="現在地の雨雲時系列">
-      ${timeline.points.map((point) => `
+    <div class="location-radar-timeline" aria-hidden="true">
+      ${timeline.points.map((point, pointIndex) => `
         <span
           class="location-radar-point${point.isForecast ? " forecast" : ""}${point.intensity > 0 ? " rainy" : ""}"
           title="${escapeHtml([point.label, point.levelLabel || "降水なし"].filter(Boolean).join(" "))}"
-          style="--point-color: ${escapeHtml(point.color || "rgba(255,255,255,0.18)")};"
+          style="--weather-time-index: ${pointIndex}; --point-color: ${escapeHtml(point.color || "rgba(255,255,255,0.18)")};"
         ></span>
       `).join("")}
     </div>
-    ${message}
   `;
 }
 

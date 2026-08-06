@@ -53,6 +53,18 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     ));
   }
 
+  function isSidebarGrabEvent(event) {
+    const path = typeof event.composedPath === "function" ? event.composedPath() : [event.target];
+    if (path.some((node) => node instanceof Element && node.closest("#sidebar-drawer-handle"))) {
+      return false;
+    }
+    const sidebarRect = sidebar.getBoundingClientRect();
+    if (event.clientY > sidebarRect.top + 64) return false;
+    return !path.some((node) => node instanceof Element && node.matches(
+      "button, a, input, select, textarea, [role='button'], [role='tab'], [data-mobile-dock-control]"
+    ));
+  }
+
   function getSheetHeight() {
     const viewportHeight = window.innerHeight || 0;
     if (isCompactLandscape()) {
@@ -141,6 +153,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
       const summaryHeight = mobileContextDock.offsetHeight || 126;
       const retreatDistance = Math.max(72, (summaryHeight + tabBarHeight) / 2 - 1);
       const absorptionProgress = Math.min(1, Math.max(0, (expansionProgress - 0.16) / 0.56));
+      mobileContextDock.classList.toggle("is-drawer-grab-active", absorptionProgress < 0.86);
       mobileContextDock.style.setProperty("--mobile-drawer-progress", expansionProgress.toFixed(4));
       mobileContextDock.style.setProperty(
         "--mobile-summary-retreat-y",
@@ -303,7 +316,6 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   }
 
   handle.addEventListener("pointerdown", (event) => beginDrag(event, handle));
-  handle.addEventListener("pointermove", moveDrag);
 
   function finishDrag(event) {
     if (!dragging) return;
@@ -348,8 +360,6 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     setDrawerOffset(moved ? currentOffset : startOffset);
   }
 
-  handle.addEventListener("pointerup", finishDrag);
-  handle.addEventListener("pointercancel", finishDrag);
   handle.addEventListener("click", () => {
     if (Date.now() < suppressClickUntil) return;
     setDrawerState(drawerState === "peek" ? "full" : "peek");
@@ -370,12 +380,14 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     setDrawerState(drawerState === "peek" ? "full" : "peek");
   });
 
+  sidebar.addEventListener("pointerdown", (event) => {
+    if (!isSidebarGrabEvent(event)) return;
+    beginDrag(event, sidebar, "y");
+  });
+
   mobileContextDock?.addEventListener("pointerdown", (event) => {
     beginDrag(event, mobileContextDock, null);
   });
-  mobileContextDock?.addEventListener("pointermove", moveDrag);
-  mobileContextDock?.addEventListener("pointerup", finishDrag);
-  mobileContextDock?.addEventListener("pointercancel", finishDrag);
   mobileContextDock?.setAttribute("aria-expanded", "false");
   mobileContextDock?.addEventListener("click", (event) => {
     if (Date.now() >= suppressClickUntil) return;
@@ -414,6 +426,9 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
       notifyLayoutChange();
     }, 250);
   }, { passive: true });
+  window.addEventListener("pointermove", moveDrag);
+  window.addEventListener("pointerup", finishDrag);
+  window.addEventListener("pointercancel", finishDrag);
 
   applyTransform();
 }

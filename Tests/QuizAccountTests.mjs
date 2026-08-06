@@ -106,11 +106,17 @@ assert.doesNotMatch(quizCatalogSource, /\bwith\s*\{\s*type:\s*["']json["']\s*\}/
 assert.doesNotMatch(routeSource, /function bestScoresCTE/u);
 assert.match(privacyPage, /MeteoScopeアカウント/u);
 assert.match(supportPage, /MeteoScopeアカウント/u);
-assert.match(indexPage, /<div class="settings-modal-body">\s*<section class="settings-group settings-account-group">/u);
-assert.match(indexPage, /data-settings-open-account/u);
+assert.match(indexPage, /<div class="settings-modal-body">[\s\S]*?<section class="settings-group settings-account-group"/u);
+assert.match(indexPage, /data-settings-account-form="login"[\s\S]*?data-settings-account-form="register"/u);
+assert.match(indexPage, /data-settings-account-logout/u);
+assert.match(indexPage, /data-settings-account-delete/u);
+assert.doesNotMatch(indexPage, /data-settings-open-account/u);
 assert.match(settingsScript, /QuizRankingClient\.configuration\(\)/u);
 assert.match(settingsScript, /QuizRankingClient\.account\(\)/u);
-assert.match(appSource, /onOpenAccount: openDisasterQuizModal/u);
+for (const action of ["register", "login", "logout", "deleteAccount"]) {
+  assert.match(settingsScript, new RegExp(`QuizRankingClient\\.${action}`, "u"));
+}
+assert.doesNotMatch(appSource, /setupSettingsModal\([\s\S]{0,900}onOpenAccount: openDisasterQuizModal/u);
 assert.doesNotMatch([privacyPage, supportPage, indexPage].join("\n"), /クイズアカウント/u);
 
 console.log("Quiz account and leaderboard tests passed.");

@@ -125,8 +125,8 @@
             </div>
             <button id="community-report-open" class="community-report-open" type="button" data-community-report-open aria-label="投稿" title="投稿" aria-haspopup="dialog" aria-controls="community-report-modal"></button>
           </div>
-          <div id="radar-location-insight-panel" class="location-insight-panel" hidden></div>
           <div id="radar-time-timeline" class="weather-time-timeline">
+            <div id="radar-location-insight-panel" class="location-insight-panel" hidden></div>
             <div class="weather-time-labels" aria-hidden="true"></div>
             <div class="weather-time-ticks" aria-hidden="true"></div>
             <span class="weather-time-active-marker" aria-hidden="true"></span>
@@ -185,12 +185,35 @@
       <div class="warning-modal-backdrop settings-modal-overlay" data-settings-modal-close></div>
       <section class="warning-modal-panel settings-modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
         <header class="settings-modal-header">
-          <h2 id="settings-modal-title">設定</h2>
+          <div class="settings-modal-heading">
+            <h2 id="settings-modal-title">設定</h2>
+            <p>表示や通知、地域の設定をまとめて変更できます</p>
+          </div>
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-settings-modal-close>×</button>
         </header>
         <div class="settings-modal-body">
-          <section class="settings-group settings-account-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>MeteoScopeアカウント</button>
+          <div class="settings-modal-tools">
+            <label class="settings-filter" for="settings-filter-input">
+              <span>設定を検索</span>
+              <div>
+                <input id="settings-filter-input" type="search" placeholder="項目名や機能で絞り込めます" autocomplete="off" data-settings-filter />
+                <button type="button" aria-label="検索をクリア" title="検索をクリア" data-settings-filter-clear hidden>×</button>
+              </div>
+            </label>
+            <div class="settings-quick-access" aria-label="よく使う設定">
+              <span>よく使う設定</span>
+              <div>
+                <button type="button" data-settings-open-group="settings-theme-group">外観</button>
+                <button type="button" data-settings-open-group="settings-language-group">言語</button>
+                <button type="button" data-settings-open-group="settings-my-area-group">マイエリア</button>
+                <button type="button" data-settings-open-group="settings-push-group">通知</button>
+              </div>
+            </div>
+            <p class="settings-filter-empty" role="status" data-settings-filter-empty hidden>一致する設定がありません</p>
+          </div>
+          <h3 class="settings-section-label" data-settings-section-label="account">アカウントと表示</h3>
+          <section class="settings-group settings-account-group" data-settings-section="account">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>MeteoScopeアカウント</strong><small>ログイン状態と登録情報</small></span></button>
             <div class="settings-group-content" hidden>
               <div class="settings-account-row">
                 <div class="settings-account-info">
@@ -199,12 +222,40 @@
                 </div>
                 <button id="settings-account-refresh" type="button" data-settings-account-refresh>更新</button>
               </div>
-              <button class="settings-account-open" type="button" data-settings-open-account>防災クイズで確認・管理</button>
-              <p class="settings-theme-help">MeteoScopeアカウントのログイン状態と登録情報を確認できます。対応機能は今後順次追加します。</p>
+              <div id="settings-account-auth" class="settings-account-auth" hidden>
+                <div class="settings-account-auth-tabs" role="tablist" aria-label="アカウント操作">
+                  <button type="button" role="tab" aria-selected="true" data-settings-account-mode="login">ログイン</button>
+                  <button type="button" role="tab" aria-selected="false" data-settings-account-mode="register">新規作成</button>
+                </div>
+                <form id="settings-account-login-form" class="settings-account-form" data-settings-account-form="login">
+                  <label>アカウントID<input name="username" autocomplete="username" minlength="4" maxlength="24" pattern="[A-Za-z0-9_]+" required></label>
+                  <label>パスワード<input name="password" type="password" autocomplete="current-password" minlength="10" maxlength="128" required></label>
+                  <button class="settings-account-submit" type="submit">ログイン</button>
+                </form>
+                <form id="settings-account-register-form" class="settings-account-form" data-settings-account-form="register" hidden>
+                  <label>アカウントID<input name="username" autocomplete="username" minlength="4" maxlength="24" pattern="[A-Za-z0-9_]+" required><small>半角英数字と_、4〜24文字。公開されません。</small></label>
+                  <label>ランキング表示名<input name="displayName" autocomplete="nickname" minlength="2" maxlength="20" required><small>表示名と当日の合計得点・達成日はランキングで公開されます。</small></label>
+                  <label>パスワード<input name="password" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label>
+                  <label class="settings-account-consent"><input name="consent" type="checkbox" required><span><a href="/privacy.html" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>に同意する</span></label>
+                  <button class="settings-account-submit" type="submit">アカウントを作成</button>
+                </form>
+              </div>
+              <div id="settings-account-actions" class="settings-account-actions" hidden>
+                <button type="button" data-settings-account-logout>ログアウト</button>
+                <details>
+                  <summary>アカウントと記録を削除</summary>
+                  <form class="settings-account-form" data-settings-account-delete>
+                    <label>確認用パスワード<input name="password" type="password" autocomplete="current-password" minlength="10" maxlength="128" required></label>
+                    <button class="settings-account-delete" type="submit">完全に削除</button>
+                  </form>
+                </details>
+              </div>
+              <p id="settings-account-message" class="settings-account-message" role="status"></p>
+              <p class="settings-theme-help">アカウントの作成、ログイン、管理をこの画面で行えます。</p>
             </div>
           </section>
-          <section class="settings-group settings-theme-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>外観</button>
+          <section class="settings-group settings-theme-group" data-settings-section="account">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>外観</strong><small>アプリと地図の配色</small></span></button>
             <div class="settings-group-content" hidden>
               <p class="settings-theme-help">アプリと地図の配色を選択します。</p>
               <div id="settings-theme-options" class="settings-theme-options" role="radiogroup" aria-label="外観">
@@ -214,8 +265,8 @@
               </div>
             </div>
           </section>
-          <section class="settings-group settings-language-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>言語</button>
+          <section class="settings-group settings-language-group" data-settings-section="account">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>言語</strong><small>アプリの表示言語</small></span></button>
             <div class="settings-group-content" hidden>
               <p class="settings-theme-help">アプリの表示言語を選択します。Discordの地震通知文は日本語で送信します。</p>
               <div id="settings-language-options" class="settings-theme-options" role="radiogroup" aria-label="言語">
@@ -224,8 +275,8 @@
               </div>
             </div>
           </section>
-          <section class="settings-group settings-early-access-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>アーリーアクセス</button>
+          <section class="settings-group settings-early-access-group" data-settings-section="account">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>アーリーアクセス</strong><small>開発中の機能</small></span></button>
             <div class="settings-group-content" hidden>
               <p class="settings-theme-help">開発中の機能を先行して利用できます。動作や表示は今後変更される場合があります。</p>
               <div id="settings-early-access-form" class="settings-early-access-form">
@@ -252,8 +303,9 @@
               <p id="settings-early-access-status" class="settings-early-access-status" role="status"></p>
             </div>
           </section>
-          <section class="settings-group settings-my-area-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>マイエリア</button>
+          <h3 class="settings-section-label" data-settings-section-label="area">地域と通知</h3>
+          <section class="settings-group settings-my-area-group" data-settings-section="area">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>マイエリア</strong><small>よく見る地域を保存</small></span></button>
             <div class="settings-group-content" hidden>
               <div class="settings-my-area-head">
                 <p>保存した市区町村を、現在地と同じように警報・雨雲・台風情報の補助表示に使います。</p>
@@ -266,8 +318,8 @@
               <div id="settings-my-area-list" class="settings-my-area-list"></div>
             </div>
           </section>
-          <section class="settings-group settings-push-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>お知らせ通知</button>
+          <section class="settings-group settings-push-group" data-settings-section="area">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>お知らせ通知</strong><small>管理者からの重要なお知らせ</small></span></button>
             <div class="settings-group-content" hidden>
               <div class="settings-push-row">
                 <div class="settings-push-info">
@@ -279,8 +331,9 @@
               <p class="settings-push-note">Web版では気象警報・注意報をプッシュ通知しません。気象情報はアプリ画面と気象庁などの公式情報で確認してください。</p>
             </div>
           </section>
-          <section class="settings-group settings-disaster-map-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>防災マップ</button>
+          <h3 class="settings-section-label" data-settings-section-label="display">地図と表示</h3>
+          <section class="settings-group settings-disaster-map-group" data-settings-section="display">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>防災マップ</strong><small>保存ファイルの管理</small></span></button>
             <div class="settings-group-content" hidden>
               <div class="settings-disaster-map-row">
                 <div class="settings-disaster-map-info">
@@ -291,16 +344,16 @@
               </div>
             </div>
           </section>
-          <section class="settings-group settings-tab-order-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>表示切替ボタン</button>
+          <section class="settings-group settings-tab-order-group" data-settings-section="display">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>表示切替ボタン</strong><small>ボタンの並び順</small></span></button>
             <div class="settings-group-content" hidden>
               <p class="settings-tab-order-help">ボタンを選んでから移動先を押すと、横並びのまま順番を入れ替えます。</p>
               <div id="settings-tab-order-list" class="settings-tab-order-list" aria-live="polite"></div>
               <button class="settings-tab-order-reset" type="button" data-settings-tab-order-reset>標準に戻す</button>
             </div>
           </section>
-          <section class="settings-group settings-earthquake-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>地震情報</button>
+          <section class="settings-group settings-earthquake-group" data-settings-section="display">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>地震情報</strong><small>震央分布の表示</small></span></button>
             <div class="settings-group-content" hidden>
               <div class="settings-switch-row">
                 <div class="settings-switch-copy">
@@ -313,8 +366,9 @@
               </div>
             </div>
           </section>
-          <section class="settings-group settings-feedback-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>利用者意見</button>
+          <h3 class="settings-section-label" data-settings-section-label="support">サポート・情報</h3>
+          <section class="settings-group settings-feedback-group" data-settings-section="support">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>利用者意見</strong><small>改善要望・不具合を送信</small></span></button>
             <div class="settings-group-content" hidden>
               <div class="settings-feedback-row">
                 <p>改善要望や気づいた不具合を送信できます。個人情報は入力しないでください。</p>
@@ -322,8 +376,8 @@
               </div>
             </div>
           </section>
-          <section class="settings-group settings-guide-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>使い方</button>
+          <section class="settings-group settings-guide-group" data-settings-section="support">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>使い方</strong><small>基本操作を確認</small></span></button>
             <div class="settings-group-content" hidden>
               <div class="settings-feedback-row">
                 <p>地図、表示切替、要約バー、現在地と通知の基本操作を確認できます。</p>
@@ -331,8 +385,8 @@
               </div>
             </div>
           </section>
-          <section class="settings-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>情報出典・加工</button>
+          <section class="settings-group" data-settings-section="support">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>情報出典・加工</strong><small>データの出典と表示上の注意</small></span></button>
             <div class="settings-group-content" hidden>
               <div class="settings-policy-copy settings-source-copy">
                 <p><strong>主な情報出典</strong><br><a href="https://www.jma.go.jp/" target="_blank" rel="noopener noreferrer">気象庁ホームページ</a>および<a href="https://www.data.jma.go.jp/developer/index.html" target="_blank" rel="noopener noreferrer">気象データ高度利用ポータルサイト</a></p>
@@ -352,8 +406,8 @@
               </div>
             </div>
           </section>
-          <section class="settings-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>利用規約</button>
+          <section class="settings-group" data-settings-section="support">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>利用規約</strong><small>サービスの利用条件</small></span></button>
             <div class="settings-group-content" hidden>
               <div class="settings-policy-copy">
                 <p><strong>1. 本アプリの位置づけ</strong><br>本アプリは、気象庁などが公開する防災・気象情報を閲覧しやすく表示するための補助ツールです。行政機関による公式な防災情報ではありません。</p>
@@ -367,8 +421,8 @@
               </div>
             </div>
           </section>
-          <section class="settings-group">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle>プライバシーポリシー</button>
+          <section class="settings-group" data-settings-section="support">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>プライバシーポリシー</strong><small>保存・通信する情報</small></span></button>
             <div class="settings-group-content" hidden>
               <div class="settings-policy-copy">
                 <p><strong>1. 取得・利用する情報</strong><br>本アプリは、選択した外観、表示切替ボタンの順序、マイエリア、使い方ガイドの確認状態、通知設定、アーリーアクセス認証情報などを、機能提供と設定保持のために利用します。</p>

@@ -386,9 +386,18 @@ function formatThreeHourlyTime(value, language) {
 
 function formatThreeHourlyWind(forecast, language) {
   const direction = localizeWindDirection(forecast.windDirection, language);
-  const range = String(forecast.windSpeedRange ?? "").trim().replace(/\s+/gu, "–");
-  const speed = range ? `${range}m/s` : localizeText(forecast.windSpeedDescription, language);
+  const speed = formatThreeHourlyWindSpeedRange(forecast.windSpeedRange, language)
+    || localizeText(forecast.windSpeedDescription, language);
   return [direction, speed].filter(Boolean).join(" ") || "－";
+}
+
+export function formatThreeHourlyWindSpeedRange(value, language = "ja") {
+  const parts = String(value ?? "").trim().split(/\s+/u).filter(Boolean);
+  if (!parts.length) return "";
+  if (parts.length === 2 && /^INF$/iu.test(parts[1])) {
+    return language === "en" ? `${parts[0]}+ m/s` : `${parts[0]}～m/s`;
+  }
+  return `${parts.join("–")}m/s`;
 }
 
 function getThreeHourlyWindArrow(value) {

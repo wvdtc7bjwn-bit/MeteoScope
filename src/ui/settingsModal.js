@@ -9,6 +9,10 @@ let settingsPdfStatusRequestId = 0;
 let selectedTabOrderId = null;
 let earlyAccessBusy = false;
 let settingsAccountRequestId = 0;
+let settingsAccount = null;
+let settingsAccountAvailable = false;
+let settingsAccountBusy = false;
+let settingsAccountMode = "login";
 
 export function setupSettingsModal(options = {}) {
   settingsOptions = options;
@@ -24,6 +28,17 @@ export function setupSettingsModal(options = {}) {
     if (!(event.target instanceof Element)) return;
     if (event.target.closest("[data-settings-modal-close]")) {
       closeSettingsModal();
+      return;
+    }
+
+    if (event.target.closest("[data-settings-filter-clear]")) {
+      resetSettingsFilter({ focus: true });
+      return;
+    }
+
+    const quickAccessButton = event.target.closest("[data-settings-open-group]");
+    if (quickAccessButton) {
+      openSettingsGroup(quickAccessButton.dataset.settingsOpenGroup);
       return;
     }
 
@@ -92,9 +107,16 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
-    if (event.target.closest("[data-settings-open-account]")) {
-      closeSettingsModal();
-      settingsOptions.onOpenAccount?.();
+    const accountModeButton = event.target.closest("[data-settings-account-mode]");
+    if (accountModeButton) {
+      settingsAccountMode = accountModeButton.dataset.settingsAccountMode === "register" ? "register" : "login";
+      setSettingsAccountMessage("");
+      renderSettingsAccountControls();
+      return;
+    }
+
+    if (event.target.closest("[data-settings-account-logout]")) {
+      void logoutSettingsAccount();
       return;
     }
 
@@ -139,6 +161,25 @@ export function setupSettingsModal(options = {}) {
     renderSettingsAreaSearch(event.currentTarget.value);
   });
 
+  document.getElementById("settings-filter-input")?.addEventListener("input", (event) => {
+    filterSettingsGroups(event.currentTarget.value);
+  });
+
+  modal.addEventListener("submit", (event) => {
+    if (!(event.target instanceof HTMLFormElement)) return;
+    const accountForm = event.target.closest("[data-settings-account-form]");
+    if (accountForm instanceof HTMLFormElement) {
+      event.preventDefault();
+      void authenticateSettingsAccount(accountForm, accountForm.dataset.settingsAccountForm);
+      return;
+    }
+    const deleteForm = event.target.closest("[data-settings-account-delete]");
+    if (deleteForm instanceof HTMLFormElement) {
+      event.preventDefault();
+      void deleteSettingsAccount(deleteForm);
+    }
+  });
+
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     const feedbackModal = document.getElementById("feedback-modal");
@@ -173,6 +214,8 @@ export function openSettingsModal() {
   button?.setAttribute("aria-expanded", "true");
   document.body.classList.add("modal-open");
   resetSettingsGroups();
+  resetSettingsFilter();
+  setSettingsAccountMessage("");
   renderSettingsMyAreas();
   renderSettingsTabOrder();
   renderSettingsPushNotifications();
@@ -192,6 +235,7 @@ function closeSettingsModal() {
   button?.setAttribute("aria-expanded", "false");
   document.body.classList.remove("modal-open");
   selectedTabOrderId = null;
+  resetSettingsFilter();
 }
 
 function resetSettingsGroups() {
@@ -216,7 +260,14 @@ function renderSettingsEarthquake() {
 function toggleSettingsGroup(toggle) {
   const group = toggle.closest(".settings-group");
   if (!group) return;
-  setSettingsGroupExpanded(group, toggle.getAttribute("aria-expanded") !== "true");
+  const expanded = toggle.getAttribute("aria-expanded") !== "true";
+  if (expanded) {
+    document.querySelectorAll("#settings-modal .settings-group.is-expanded").forEach((otherGroup) => {
+      if (otherGroup !== group) setSettingsGroupExpanded(otherGroup, false);
+    });
+  }
+  setSettingsGroupExpanded(group, expanded);
+  if (expanded) scrollSettingsGroupIntoView(group);
 }
 
 function setSettingsGroupExpanded(group, expanded) {
@@ -225,6 +276,67 @@ function setSettingsGroupExpanded(group, expanded) {
   group.classList.toggle("is-expanded", expanded);
   toggle?.setAttribute("aria-expanded", expanded ? "true" : "false");
   if (content) content.hidden = !expanded;
+}
+
+function normalizeSettingsFilter(value) {
+  return String(value ?? "").trim().toLocaleLowerCase(getCurrentLanguage() === "en" ? "en" : "ja");
+}
+
+function filterSettingsGroups(value) {
+  const modal = document.getElementById("settings-modal");
+  if (!modal) return;
+  const query = normalizeSettingsFilter(value);
+  let visibleCount = 0;
+
+  modal.querySelectorAll(".settings-group").forEach((group) => {
+    const searchableText = group.querySelector(".settings-group-title-copy")?.textContent ?? "";
+    const matches = !query || normalizeSettingsFilter(searchableText).includes(query);
+    group.hidden = !matches;
+    if (!matches) setSettingsGroupExpanded(group, false);
+    if (matches) visibleCount += 1;
+  });
+
+  modal.querySelectorAll("[data-settings-section-label]").forEach((label) => {
+    const section = label.dataset.settingsSectionLabel;
+    label.hidden = !Array.from(
+      modal.querySelectorAll(`.settings-group[data-settings-section="${section}"]`)
+    ).some((group) => !group.hidden);
+  });
+
+  const clearButton = modal.querySelector("[data-settings-filter-clear]");
+  const quickAccess = modal.querySelector(".settings-quick-access");
+  const emptyMessage = modal.querySelector("[data-settings-filter-empty]");
+  if (clearButton) clearButton.hidden = !query;
+  if (quickAccess) quickAccess.hidden = Boolean(query);
+  if (emptyMessage) emptyMessage.hidden = visibleCount > 0;
+}
+
+function resetSettingsFilter({ focus = false } = {}) {
+  const input = document.getElementById("settings-filter-input");
+  if (input) input.value = "";
+  filterSettingsGroups("");
+  if (focus) input?.focus({ preventScroll: true });
+}
+
+function openSettingsGroup(groupClass) {
+  if (!groupClass) return;
+  resetSettingsFilter();
+  const group = document.querySelector(`#settings-modal .${groupClass}`);
+  if (!group) return;
+  document.querySelectorAll("#settings-modal .settings-group.is-expanded").forEach((otherGroup) => {
+    if (otherGroup !== group) setSettingsGroupExpanded(otherGroup, false);
+  });
+  setSettingsGroupExpanded(group, true);
+  scrollSettingsGroupIntoView(group);
+}
+
+function scrollSettingsGroupIntoView(group) {
+  requestAnimationFrame(() => {
+    group.scrollIntoView({
+      block: "nearest",
+      behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
+    });
+  });
 }
 
 function renderSettingsMyAreas() {
@@ -368,7 +480,6 @@ async function renderSettingsAccount() {
   const name = document.getElementById("settings-account-name");
   const status = document.getElementById("settings-account-status");
   const refreshButton = document.getElementById("settings-account-refresh");
-  const openButton = document.querySelector("[data-settings-open-account]");
   if (!name || !status || !(refreshButton instanceof HTMLButtonElement)) return;
 
   const requestId = ++settingsAccountRequestId;
@@ -377,6 +488,9 @@ async function renderSettingsAccount() {
   status.dataset.state = "loading";
   refreshButton.disabled = true;
   refreshButton.textContent = "確認中";
+  settingsAccountAvailable = false;
+  settingsAccount = null;
+  renderSettingsAccountControls();
 
   try {
     const configuration = await QuizRankingClient.configuration();
@@ -385,35 +499,117 @@ async function renderSettingsAccount() {
       name.textContent = "ランキング基盤は準備中です";
       status.textContent = "アカウント機能は現在準備中です。";
       status.dataset.state = "unavailable";
-      if (openButton instanceof HTMLButtonElement) openButton.textContent = "防災クイズを開く";
       return;
     }
 
+    settingsAccountAvailable = true;
     const result = await QuizRankingClient.account();
     if (requestId !== settingsAccountRequestId) return;
     if (result.authenticated && result.account?.displayName) {
+      settingsAccount = result.account;
       name.textContent = result.account.displayName;
       status.textContent = "MeteoScopeアカウントでログイン中";
       status.dataset.state = "authenticated";
-      if (openButton instanceof HTMLButtonElement) openButton.textContent = "アカウントを確認・管理";
     } else {
+      settingsAccount = null;
       name.textContent = "未ログイン";
       status.textContent = "ログインまたは新規作成してアカウント機能を利用できます。";
       status.dataset.state = "signed-out";
-      if (openButton instanceof HTMLButtonElement) openButton.textContent = "ログイン・新規作成";
     }
   } catch (error) {
     if (requestId !== settingsAccountRequestId) return;
     name.textContent = "状態を確認できません";
     status.textContent = error instanceof Error ? error.message : "アカウントサーバーへ接続できませんでした。";
     status.dataset.state = "error";
-    if (openButton instanceof HTMLButtonElement) openButton.textContent = "防災クイズで確認";
   } finally {
     if (requestId === settingsAccountRequestId) {
       refreshButton.disabled = false;
       refreshButton.textContent = "更新";
+      renderSettingsAccountControls();
     }
   }
+}
+
+function renderSettingsAccountControls() {
+  const authPanel = document.getElementById("settings-account-auth");
+  const actions = document.getElementById("settings-account-actions");
+  if (authPanel) authPanel.hidden = !settingsAccountAvailable || Boolean(settingsAccount);
+  if (actions) actions.hidden = !settingsAccountAvailable || !settingsAccount;
+
+  document.querySelectorAll("[data-settings-account-mode]").forEach((button) => {
+    const active = button.dataset.settingsAccountMode === settingsAccountMode;
+    button.setAttribute("aria-selected", String(active));
+    button.classList.toggle("active", active);
+  });
+  document.querySelectorAll("[data-settings-account-form]").forEach((form) => {
+    form.hidden = form.dataset.settingsAccountForm !== settingsAccountMode;
+  });
+  document.querySelectorAll("#settings-modal .settings-account-auth button, #settings-modal .settings-account-actions button").forEach((button) => {
+    button.disabled = settingsAccountBusy;
+  });
+}
+
+async function authenticateSettingsAccount(form, action) {
+  if (settingsAccountBusy) return;
+  settingsAccountBusy = true;
+  setSettingsAccountMessage("");
+  renderSettingsAccountControls();
+  const values = Object.fromEntries(new FormData(form));
+  try {
+    await (action === "register" ? QuizRankingClient.register(values) : QuizRankingClient.login(values));
+    form.reset();
+    setSettingsAccountMessage(action === "register" ? "アカウントを作成しました。" : "ログインしました。", "success");
+    await renderSettingsAccount();
+  } catch (error) {
+    setSettingsAccountMessage(error instanceof Error ? error.message : "アカウントを処理できませんでした。", "error");
+  } finally {
+    settingsAccountBusy = false;
+    renderSettingsAccountControls();
+  }
+}
+
+async function logoutSettingsAccount() {
+  if (settingsAccountBusy) return;
+  settingsAccountBusy = true;
+  setSettingsAccountMessage("");
+  renderSettingsAccountControls();
+  try {
+    await QuizRankingClient.logout();
+    setSettingsAccountMessage("ログアウトしました。", "success");
+    await renderSettingsAccount();
+  } catch (error) {
+    setSettingsAccountMessage(error instanceof Error ? error.message : "ログアウトできませんでした。", "error");
+  } finally {
+    settingsAccountBusy = false;
+    renderSettingsAccountControls();
+  }
+}
+
+async function deleteSettingsAccount(form) {
+  if (settingsAccountBusy) return;
+  if (!window.confirm("アカウントとすべてのクイズ記録を完全に削除しますか？")) return;
+  settingsAccountBusy = true;
+  setSettingsAccountMessage("");
+  renderSettingsAccountControls();
+  try {
+    const password = String(new FormData(form).get("password") ?? "");
+    await QuizRankingClient.deleteAccount(password);
+    form.reset();
+    setSettingsAccountMessage("アカウントと記録を削除しました。", "success");
+    await renderSettingsAccount();
+  } catch (error) {
+    setSettingsAccountMessage(error instanceof Error ? error.message : "アカウントを削除できませんでした。", "error");
+  } finally {
+    settingsAccountBusy = false;
+    renderSettingsAccountControls();
+  }
+}
+
+function setSettingsAccountMessage(message, state = "") {
+  const output = document.getElementById("settings-account-message");
+  if (!output) return;
+  output.textContent = message;
+  output.dataset.state = state;
 }
 
 async function submitEarlyAccessCode() {
