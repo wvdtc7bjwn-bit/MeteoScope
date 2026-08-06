@@ -17426,6 +17426,17 @@ html[data-theme="light"] .social-share-preview-shell {
   }
 }
 
+/* The standard radar detail is intentionally compact: unlike the other
+   detail views it has no long list below the timeline, so allowing the shared
+   drawer to grow to its full height leaves a large empty light band. Keep the
+   weather-chart variant uncapped because it has additional content. */
+@media (max-width: 800px) and (orientation: portrait) {
+  #sidebar:has(#radar-time-controls:not([hidden]):not(.weather-chart-active)) {
+    height: min(var(--mobile-sidebar-visible-height, 520px), 520px);
+    max-height: min(72dvh, 520px);
+  }
+}
+
 /* Unified translucent glass system. Keep semantic colors (warnings, observed
    intensities, radar scales) on their own elements; this layer only defines
    the material used by app chrome, sheets, controls, and neutral cards. */

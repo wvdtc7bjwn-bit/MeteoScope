@@ -349,6 +349,8 @@ assert.match(index, /id="radar-time-timeline"[\s\S]*?id="radar-location-insight-
 assert.match(panel, /timeline\.points\.map\(\(point,\s*pointIndex\)[\s\S]*?--weather-time-index:\s*\$\{pointIndex\}/);
 assert.match(styles, /\.radar-time-controls \.location-insight-radar\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?inset:\s*0;/);
 assert.match(styles, /\.radar-time-controls \.location-insight-radar \.location-radar-timeline\s*\{[\s\S]*?translateX\(var\(--weather-time-shift\)\)/);
+assert.match(styles, /#sidebar:has\(#radar-time-controls:not\(\[hidden\]\):not\(\.weather-chart-active\)\)/);
+assert.match(styles, /height:\s*min\(var\(--mobile-sidebar-visible-height, 520px\), 520px\)/);
 assert.match(index, /id="community-report-map-open"\s+class="map-community-report-button"/);
 assert.match(index, /id="community-report-open"[^>]*aria-label="投稿"[^>]*><\/button>/);
 for (const [id, label] of [["radar-prev", "5分前"], ["radar-play", "再生"], ["radar-now", "現在"], ["radar-next", "5分後"]]) {
