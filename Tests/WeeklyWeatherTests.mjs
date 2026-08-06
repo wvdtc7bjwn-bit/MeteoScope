@@ -281,6 +281,27 @@ const shortTermTemperatureXml = `<?xml version="1.0" encoding="UTF-8"?>
         <jmx_eb:Weather refID="1">晴れ後くもり</jmx_eb:Weather>
         <jmx_eb:Weather refID="2">晴れ時々くもり</jmx_eb:Weather>
       </WeatherPart></Property></Kind><Area><Name>千葉県</Name><Code>120000</Code></Area></Item>
+    </TimeSeriesInfo><TimeSeriesInfo>
+      <TimeDefines>
+        <TimeDefine timeId="1"><DateTime>2026-07-29T12:00:00+09:00</DateTime><Duration>PT6H</Duration></TimeDefine>
+      </TimeDefines>
+      <Item><Kind><Property><Type>降水確率</Type><ProbabilityOfPrecipitationPart>
+        <jmx_eb:ProbabilityOfPrecipitation refID="1">30</jmx_eb:ProbabilityOfPrecipitation>
+      </ProbabilityOfPrecipitationPart></Property></Kind><Area><Name>千葉県</Name><Code>120000</Code></Area></Item>
+    </TimeSeriesInfo><TimeSeriesInfo>
+      <TimeDefines>
+        <TimeDefine timeId="1"><DateTime>2026-07-29T12:00:00+09:00</DateTime><Duration>PT3H</Duration></TimeDefine>
+        <TimeDefine timeId="2"><DateTime>2026-07-29T15:00:00+09:00</DateTime><Duration>PT3H</Duration></TimeDefine>
+      </TimeDefines>
+      <Item><Kind><Property><Type>３時間内卓越天気</Type><WeatherPart>
+        <jmx_eb:Weather refID="1">晴れ</jmx_eb:Weather>
+        <jmx_eb:Weather refID="2">くもり</jmx_eb:Weather>
+      </WeatherPart></Property><Property><Type>３時間内代表風</Type><WindPart>
+        <jmx_eb:WindDirection refID="1">南西</jmx_eb:WindDirection>
+        <jmx_eb:WindDirection refID="2">西</jmx_eb:WindDirection>
+        <jmx_eb:WindSpeedLevel refID="1" range="3 5" description="風向・風速 ３メートルから５メートル">4</jmx_eb:WindSpeedLevel>
+        <jmx_eb:WindSpeedLevel refID="2" range="5 9" description="風向・風速 ５メートルから９メートル">7</jmx_eb:WindSpeedLevel>
+      </WindPart></Property></Kind><Area><Name>千葉県</Name><Code>120000</Code></Area></Item>
     </TimeSeriesInfo></MeteorologicalInfos>
     <MeteorologicalInfos type="地点予報"><TimeSeriesInfo>
       <TimeDefines>
@@ -294,6 +315,15 @@ const shortTermTemperatureXml = `<?xml version="1.0" encoding="UTF-8"?>
         <jmx_eb:Temperature type="最高気温" refID="2">31</jmx_eb:Temperature>
         <jmx_eb:Temperature type="朝の最低気温" refID="3">24</jmx_eb:Temperature>
         <jmx_eb:Temperature type="日中の最高気温" refID="4">32</jmx_eb:Temperature>
+      </TemperaturePart></Property></Kind><Station><Name>銚子</Name><Code>45148</Code></Station></Item>
+    </TimeSeriesInfo><TimeSeriesInfo>
+      <TimeDefines>
+        <TimeDefine timeId="1"><DateTime>2026-07-29T12:00:00+09:00</DateTime><Duration>PT3H</Duration></TimeDefine>
+        <TimeDefine timeId="2"><DateTime>2026-07-29T15:00:00+09:00</DateTime><Duration>PT3H</Duration></TimeDefine>
+      </TimeDefines>
+      <Item><Kind><Property><Type>３時間毎気温</Type><TemperaturePart>
+        <jmx_eb:Temperature type="気温" refID="1">29</jmx_eb:Temperature>
+        <jmx_eb:Temperature type="気温" refID="2">28</jmx_eb:Temperature>
       </TemperaturePart></Property></Kind><Station><Name>銚子</Name><Code>45148</Code></Station></Item>
     </TimeSeriesInfo></MeteorologicalInfos>
   </Body>
@@ -314,6 +344,20 @@ assert.deepEqual(
     ["2026-07-30", 24, 32]
   ]
 );
+assert.deepEqual(
+  shortTermTemperatureForecast.threeHourlyForecasts.map((slot) => [
+    slot.dateTime,
+    slot.weather,
+    slot.temperature,
+    slot.windDirection,
+    slot.windSpeedRange,
+    slot.precipitationProbability
+  ]),
+  [
+    ["2026-07-29T12:00:00+09:00", "晴れ", 29, "南西", "3 5", 30],
+    ["2026-07-29T15:00:00+09:00", "くもり", 28, "西", "5 9", 30]
+  ]
+);
 
 const mergedForecast = mergeWeeklyForecastWithShortTerm(forecast, {
   ...forecast,
@@ -322,6 +366,7 @@ const mergedForecast = mergeWeeklyForecastWithShortTerm(forecast, {
   reportTimeLabel: "2026/07/29 05:00",
   areaCode: "050010",
   areaName: "沿岸",
+  threeHourlyForecasts: shortTermTemperatureForecast.threeHourlyForecasts,
   days: [{
     ...forecast.days[0],
     weather: "雨",
@@ -335,6 +380,7 @@ assert.equal(mergedForecast.reportTimeLabel, "2026/07/29 05:00");
 assert.equal(mergedForecast.bulletinCode, "VPFD51+VPFW50");
 assert.equal(mergedForecast.areaCode, "050010");
 assert.equal(mergedForecast.areaName, "沿岸");
+assert.equal(mergedForecast.threeHourlyForecasts.length, 2);
 assert.equal(mergedForecast.days.length, 2);
 assert.deepEqual(
   mergedForecast.days.map((day) => [
@@ -559,6 +605,18 @@ assert.match(styles, /\.weekly-weather-today\s*\{[\s\S]*?white-space:\s*nowrap;/
 assert.match(styles, /@media\s*\(max-width:\s*430px\)[\s\S]*?\.weekly-weather-region-control\s*\{[\s\S]*?grid-template-columns:\s*108px\s+minmax\(0,\s*1fr\)/u);
 assert.match(styles, /@media\s*\(max-width:\s*430px\)[\s\S]*?grid-template:[\s\S]*?\/\s*64px\s+52px/u);
 assert.match(modal, /weekly-weather-precipitation/u);
+assert.match(modal, /data-weekly-weather-hourly-toggle/u);
+assert.match(modal, /data-weekly-weather-hourly-panel/u);
+assert.match(modal, /weekly-weather-day-summary/u);
+assert.match(modal, /renderThreeHourlyForecast/u);
+assert.match(modal, /getThreeHourlyWindArrow/u);
+assert.match(modal, /weekly-weather-hourly-main/u);
+assert.match(modal, /weekly-weather-hourly-wind-row/u);
+assert.doesNotMatch(modal, /renderThreeHourlyPanels/u);
+assert.match(styles, /\.weekly-weather-hourly-list\s*\{[\s\S]*?overflow-x:\s*auto;/u);
+assert.match(styles, /\.weekly-weather-hourly-wind-row\s*\{/u);
+assert.match(styles, /\.weekly-weather-day\.has-hourly/u);
+assert.match(styles, /\.weekly-weather-day\.is-hourly-expanded/u);
 assert.match(modal, /language === "en" \? "N\/A"/u);
 assert.match(modal, /language === "en" \? "Rain"/u);
 assert.match(styles, /\.weekly-weather-temperature-empty\s*\{[\s\S]*?white-space:\s*nowrap;/u);

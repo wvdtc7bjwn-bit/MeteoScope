@@ -37,6 +37,18 @@ export function setupWeeklyWeatherModal(options = {}) {
     if (!(event.target instanceof Element)) return;
     if (event.target.closest("[data-weekly-weather-close]")) closeWeeklyWeatherModal();
     if (event.target.closest("[data-weekly-weather-retry]")) void loadWeeklyWeather();
+    const hourlyToggle = event.target.closest("[data-weekly-weather-hourly-toggle]");
+    if (hourlyToggle && !event.target.closest(".weekly-weather-hourly-list")) {
+      toggleThreeHourlyForecast(modal, hourlyToggle);
+    }
+  });
+  modal.addEventListener("keydown", (event) => {
+    if (!(event.target instanceof Element)) return;
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const hourlyToggle = event.target.closest("[data-weekly-weather-hourly-toggle]");
+    if (!hourlyToggle) return;
+    event.preventDefault();
+    toggleThreeHourlyForecast(modal, hourlyToggle);
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closeWeeklyWeatherModal();
@@ -170,6 +182,7 @@ async function loadWeeklyWeather() {
 
 function renderForecast(body, forecast) {
   const days = forecast.days ?? [];
+  const threeHourlyByDate = groupThreeHourlyForecastsByDate(forecast.threeHourlyForecasts);
   const officeName = forecast.officeName || forecast.publishingOffice;
   const summaryLabel = officeName && officeName !== forecast.areaName
     ? officeName
@@ -188,7 +201,12 @@ function renderForecast(body, forecast) {
       </p>
     </div>
     <div class="weekly-weather-days" role="list" aria-label="${escapeHtml(localizeText("週間天気予報", language))}">
-      ${days.map((day, index) => renderDay(day, index, language)).join("")}
+      ${days.map((day, index) => renderDay(
+        day,
+        index,
+        language,
+        threeHourlyByDate.get(forecastDateKey(day.date)) ?? []
+      )).join("")}
     </div>
     <footer class="weekly-weather-source">
       <span>気象庁 防災情報XML「府県天気予報・府県週間天気予報」</span>
@@ -197,7 +215,7 @@ function renderForecast(body, forecast) {
   `;
 }
 
-function renderDay(day, index, language = getCurrentLanguage()) {
+function renderDay(day, index, language = getCurrentLanguage(), threeHourlyForecasts = []) {
   const date = new Date(day.date);
   const sourceWeatherLabel = day.weather || getJmaWeeklyWeatherLabel(day.weatherCode) || "天気未取得";
   const weatherLabel = localizeText(sourceWeatherLabel, language);
@@ -228,21 +246,151 @@ function renderDay(day, index, language = getCurrentLanguage()) {
   const dayLabel = relativeDayLabel
     ? `<span class="weekly-weather-today">${relativeDayLabel}</span>`
     : "";
+  const dateKey = forecastDateKey(day.date);
+  const hourlyAttributes = threeHourlyForecasts.length
+    ? ` data-weekly-weather-hourly-toggle="${escapeHtml(dateKey)}" tabindex="0" aria-controls="weekly-weather-hourly-${escapeHtml(dateKey)}" aria-expanded="false"`
+    : "";
 
   return `
-    <article class="weekly-weather-day${index === 0 ? " is-first" : ""}" role="listitem">
-      <header class="weekly-weather-day-heading">
-        <div>${dayLabel}<time datetime="${escapeHtml(day.date)}">${escapeHtml(dateLabel)}</time></div>
-        ${reliability}
-      </header>
-      <div class="weekly-weather-icon">
-        ${renderWeeklyWeatherGlyph(day.weatherCode, sourceWeatherLabel)}
+    <article class="weekly-weather-day${index === 0 ? " is-first" : ""}${threeHourlyForecasts.length ? " has-hourly" : ""}" role="listitem"${hourlyAttributes}>
+      <div class="weekly-weather-day-summary">
+        <header class="weekly-weather-day-heading">
+          <div>${dayLabel}<time datetime="${escapeHtml(day.date)}">${escapeHtml(dateLabel)}</time></div>
+          ${reliability}
+        </header>
+        <div class="weekly-weather-icon">
+          ${renderWeeklyWeatherGlyph(day.weatherCode, sourceWeatherLabel)}
+        </div>
+        <strong class="weekly-weather-label">${escapeHtml(weatherLabel)}</strong>
+        <div class="weekly-weather-temperature">${temperature}</div>
+        <p class="weekly-weather-precipitation"><span aria-label="${escapeHtml(precipitationLabel)}">${escapeHtml(precipitationText)}</span><b>${escapeHtml(precipitation)}</b></p>
       </div>
-      <strong class="weekly-weather-label">${escapeHtml(weatherLabel)}</strong>
-      <div class="weekly-weather-temperature">${temperature}</div>
-      <p class="weekly-weather-precipitation"><span aria-label="${escapeHtml(precipitationLabel)}">${escapeHtml(precipitationText)}</span><b>${escapeHtml(precipitation)}</b></p>
+      ${threeHourlyForecasts.length ? renderThreeHourlyPanel(day, threeHourlyForecasts, language) : ""}
     </article>
   `;
+}
+
+function groupThreeHourlyForecastsByDate(forecasts = []) {
+  const grouped = new Map();
+  forecasts.forEach((forecast) => {
+    const dateKey = forecastDateKey(forecast.dateTime);
+    if (!dateKey) return;
+    const group = grouped.get(dateKey) ?? [];
+    group.push(forecast);
+    grouped.set(dateKey, group);
+  });
+  grouped.forEach((group) => group.sort((left, right) => left.dateTime.localeCompare(right.dateTime)));
+  return grouped;
+}
+
+function renderThreeHourlyPanel(day, forecasts, language) {
+  const dateKey = forecastDateKey(day.date);
+  return `
+    <section
+      id="weekly-weather-hourly-${escapeHtml(dateKey)}"
+      class="weekly-weather-hourly-panel"
+      data-weekly-weather-hourly-panel="${escapeHtml(dateKey)}"
+      aria-label="${escapeHtml(localizeText("3時間ごとの予報", language))}"
+      hidden
+    >
+      <header class="weekly-weather-hourly-heading">
+        <strong>${escapeHtml(formatWeeklyWeatherDateLabel(day.date, language))}</strong>
+        <span>${escapeHtml(localizeText("日別予報", language))}</span>
+      </header>
+      <div class="weekly-weather-hourly-list" role="list">
+        ${forecasts.map((forecast) => renderThreeHourlyForecast(forecast, language)).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderThreeHourlyForecast(forecast, language) {
+  const sourceWeatherLabel = forecast.weather || getJmaWeeklyWeatherLabel(forecast.weatherCode) || "天気未取得";
+  const wind = formatThreeHourlyWind(forecast, language);
+  const windArrow = getThreeHourlyWindArrow(forecast.windDirection);
+  return `
+    <article class="weekly-weather-hourly-item" role="listitem">
+      <time datetime="${escapeHtml(forecast.dateTime)}">${escapeHtml(formatThreeHourlyTime(forecast.dateTime, language))}</time>
+      <div class="weekly-weather-hourly-main">
+        <div class="weekly-weather-hourly-icon">${renderWeeklyWeatherGlyph(forecast.weatherCode, sourceWeatherLabel)}</div>
+        <p class="weekly-weather-hourly-temperature"><b>${escapeHtml(formatTemperature(forecast.temperature))}</b></p>
+      </div>
+      <strong class="weekly-weather-hourly-condition" title="${escapeHtml(localizeText(sourceWeatherLabel, language))}">${escapeHtml(localizeText(sourceWeatherLabel, language))}</strong>
+      <div class="weekly-weather-hourly-wind-row">
+        <span class="weekly-weather-hourly-wind-arrow" aria-hidden="true">${escapeHtml(windArrow)}</span>
+        <p class="weekly-weather-hourly-wind"><b>${escapeHtml(wind)}</b></p>
+      </div>
+    </article>
+  `;
+}
+
+function toggleThreeHourlyForecast(modal, toggle) {
+  const dateKey = toggle.getAttribute("data-weekly-weather-hourly-toggle") ?? "";
+  const selectedPanel = document.getElementById(`weekly-weather-hourly-${dateKey}`);
+  if (!selectedPanel || !modal.contains(selectedPanel)) return;
+  const shouldOpen = toggle.getAttribute("aria-expanded") !== "true";
+  modal.querySelectorAll("[data-weekly-weather-hourly-toggle]").forEach((button) => {
+    button.setAttribute("aria-expanded", "false");
+    button.classList.remove("is-hourly-expanded");
+  });
+  modal.querySelectorAll("[data-weekly-weather-hourly-panel]").forEach((panel) => {
+    panel.hidden = true;
+  });
+  if (!shouldOpen) return;
+  toggle.setAttribute("aria-expanded", "true");
+  toggle.classList.add("is-hourly-expanded");
+  selectedPanel.hidden = false;
+}
+
+function formatThreeHourlyTime(value, language) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value ?? "");
+  const hour = new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+    timeZone: "Asia/Tokyo"
+  }).format(date);
+  return language === "en" ? `${hour}:00` : `${Number(hour)}時`;
+}
+
+function formatThreeHourlyWind(forecast, language) {
+  const direction = localizeWindDirection(forecast.windDirection, language);
+  const range = String(forecast.windSpeedRange ?? "").trim().replace(/\s+/gu, "–");
+  const speed = range ? `${range}m/s` : localizeText(forecast.windSpeedDescription, language);
+  return [direction, speed].filter(Boolean).join(" ") || "－";
+}
+
+function getThreeHourlyWindArrow(value) {
+  return {
+    北: "↓",
+    北東: "↙",
+    東: "←",
+    南東: "↖",
+    南: "↑",
+    南西: "↗",
+    西: "→",
+    北西: "↘"
+  }[String(value ?? "").trim()] ?? "・";
+}
+
+function localizeWindDirection(value, language) {
+  const direction = String(value ?? "").trim();
+  if (language !== "en") return direction;
+  return {
+    北: "N",
+    北東: "NE",
+    東: "E",
+    南東: "SE",
+    南: "S",
+    南西: "SW",
+    西: "W",
+    北西: "NW"
+  }[direction] ?? localizeText(direction, language);
+}
+
+function forecastDateKey(value) {
+  return String(value ?? "").slice(0, 10);
 }
 
 export function getWeeklyWeatherRelativeDayLabel(

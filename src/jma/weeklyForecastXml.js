@@ -272,6 +272,11 @@ function parseForecastXml(xml, context = {}, bulletinCode = "VPFW50") {
   const area = areaSelection.target;
   const station = pointSelection?.target ?? null;
   const days = [...daysByRef.values()].sort((left, right) => left.date.localeCompare(right.date));
+  const threeHourlyForecasts = buildThreeHourlyForecasts(
+    areaInfos,
+    pointInfos,
+    context
+  );
 
   return {
     source: "気象庁 防災情報XML",
@@ -286,7 +291,8 @@ function parseForecastXml(xml, context = {}, bulletinCode = "VPFW50") {
     areaName: area?.name ?? context.officeName ?? "",
     stationCode: station?.code ?? "",
     stationName: station?.name ?? "",
-    days
+    days,
+    threeHourlyForecasts
   };
 }
 
@@ -324,8 +330,172 @@ export function mergeWeeklyForecastWithShortTerm(weeklyForecast, shortTermForeca
     publishingOffice: latest.publishingOffice,
     bulletinCode: "VPFD51+VPFW50",
     bulletinCodes: ["VPFD51", "VPFW50"],
-    days: mergedDays
+    days: mergedDays,
+    threeHourlyForecasts: shortTermForecast.threeHourlyForecasts ?? []
   };
+}
+
+function buildThreeHourlyForecasts(areaInfos, pointInfos, context) {
+  const weatherSelection = chooseAreaSelectionByProperty(
+    areaInfos,
+    context.areaPath,
+    context.targetAreaName,
+    "３時間内卓越天気"
+  );
+  if (!weatherSelection) return [];
+
+  const slots = buildForecastSlots(weatherSelection.series);
+  if (!slots.length) return [];
+  const slotsByDateTime = new Map(slots.map((slot) => [slot.dateTime, slot]));
+  applyTimedTextValues(weatherSelection.series, weatherSelection.item, slotsByDateTime, "Weather", "weather");
+  applyTimedTextValues(weatherSelection.series, weatherSelection.item, slotsByDateTime, "WeatherCode", "weatherCode");
+  applyTimedTextValues(weatherSelection.series, weatherSelection.item, slotsByDateTime, "WindDirection", "windDirection");
+  applyTimedWindSpeedValues(weatherSelection.series, weatherSelection.item, slotsByDateTime);
+
+  const temperatureSelection = choosePointSelectionByProperty(
+    pointInfos,
+    context.stationCode,
+    "３時間毎気温"
+  );
+  if (temperatureSelection) {
+    applyTimedNumberValues(
+      temperatureSelection.series,
+      temperatureSelection.item,
+      slotsByDateTime,
+      "Temperature",
+      "temperature"
+    );
+  }
+
+  const precipitationSelection = chooseAreaSelectionByProperty(
+    areaInfos,
+    context.areaPath,
+    context.targetAreaName,
+    "降水確率"
+  );
+  if (precipitationSelection) {
+    applyPrecipitationIntervals(
+      precipitationSelection.series,
+      precipitationSelection.item,
+      slots
+    );
+  }
+
+  return slots.map((slot) => ({
+    ...slot,
+    areaCode: weatherSelection.target?.code ?? "",
+    areaName: weatherSelection.target?.name ?? "",
+    stationCode: temperatureSelection?.target?.code ?? "",
+    stationName: temperatureSelection?.target?.name ?? ""
+  }));
+}
+
+function buildForecastSlots(series) {
+  return elementsByLocalName(series, "TimeDefine")
+    .map((definition) => ({
+      refId: definition.getAttribute("timeId") ?? "",
+      dateTime: textOfFirst(definition, "DateTime"),
+      duration: textOfFirst(definition, "Duration"),
+      weather: "",
+      weatherCode: "",
+      temperature: null,
+      windDirection: "",
+      windSpeedRange: "",
+      windSpeedDescription: "",
+      precipitationProbability: null
+    }))
+    .filter((slot) => slot.refId && slot.dateTime)
+    .sort((left, right) => left.dateTime.localeCompare(right.dateTime));
+}
+
+function chooseAreaSelectionByProperty(infos, areaPath, targetAreaName, propertyType) {
+  const selections = buildSeriesItemSelections(infos, "Area")
+    .filter((selection) => itemHasPropertyType(selection.item, propertyType));
+  return chooseSelectionByArea(selections, areaPath, targetAreaName);
+}
+
+function choosePointSelectionByProperty(infos, stationCode, propertyType) {
+  const selections = buildSeriesItemSelections(infos, "Station")
+    .filter((selection) => itemHasPropertyType(selection.item, propertyType));
+  if (stationCode) {
+    const exact = selections.find(
+      (selection) => selection.target?.code === String(stationCode)
+    );
+    if (exact) return exact;
+  }
+  return selections[0] ?? null;
+}
+
+function itemHasPropertyType(item, propertyType) {
+  return elementsByLocalName(item, "Property").some(
+    (property) => textOfFirst(property, "Type") === propertyType
+  );
+}
+
+function applyTimedTextValues(series, item, slotsByDateTime, tagName, key) {
+  const dateTimeByRef = buildDateTimeByRef(series);
+  elementsByLocalName(item, tagName).forEach((node) => {
+    const slot = slotsByDateTime.get(dateTimeByRef.get(node.getAttribute("refID") ?? ""));
+    if (slot) slot[key] = node.textContent?.trim() ?? "";
+  });
+}
+
+function applyTimedNumberValues(series, item, slotsByDateTime, tagName, key) {
+  const dateTimeByRef = buildDateTimeByRef(series);
+  elementsByLocalName(item, tagName).forEach((node) => {
+    const slot = slotsByDateTime.get(dateTimeByRef.get(node.getAttribute("refID") ?? ""));
+    if (slot) slot[key] = numberOrNull(node.textContent);
+  });
+}
+
+function applyTimedWindSpeedValues(series, item, slotsByDateTime) {
+  const dateTimeByRef = buildDateTimeByRef(series);
+  elementsByLocalName(item, "WindSpeedLevel").forEach((node) => {
+    const slot = slotsByDateTime.get(dateTimeByRef.get(node.getAttribute("refID") ?? ""));
+    if (!slot) return;
+    slot.windSpeedRange = node.getAttribute("range") ?? "";
+    slot.windSpeedDescription = node.getAttribute("description") ?? "";
+  });
+}
+
+function applyPrecipitationIntervals(series, item, slots) {
+  const definitions = new Map(
+    elementsByLocalName(series, "TimeDefine").map((definition) => [
+      definition.getAttribute("timeId") ?? "",
+      {
+        dateTime: textOfFirst(definition, "DateTime"),
+        duration: textOfFirst(definition, "Duration")
+      }
+    ])
+  );
+  elementsByLocalName(item, "ProbabilityOfPrecipitation").forEach((node) => {
+    const definition = definitions.get(node.getAttribute("refID") ?? "");
+    const start = Date.parse(definition?.dateTime ?? "");
+    const durationMs = parseIsoDurationMs(definition?.duration);
+    const value = numberOrNull(node.textContent);
+    if (!Number.isFinite(start) || !durationMs || value === null) return;
+    slots.forEach((slot) => {
+      const slotTime = Date.parse(slot.dateTime);
+      if (slotTime >= start && slotTime < start + durationMs) {
+        slot.precipitationProbability = value;
+      }
+    });
+  });
+}
+
+function buildDateTimeByRef(series) {
+  return new Map(
+    elementsByLocalName(series, "TimeDefine").map((definition) => [
+      definition.getAttribute("timeId") ?? "",
+      textOfFirst(definition, "DateTime")
+    ])
+  );
+}
+
+function parseIsoDurationMs(value) {
+  const match = String(value ?? "").match(/^PT(?:(\d+)H)?(?:(\d+)M)?$/u);
+  if (!match) return 0;
+  return ((Number(match[1]) || 0) * 60 + (Number(match[2]) || 0)) * 60 * 1000;
 }
 
 function forecastDateKey(value) {
@@ -346,6 +516,10 @@ function findAreaEntry(areaData, areaCode) {
 
 function chooseAreaSelection(infos, areaPath = [], targetAreaName = "") {
   const selections = buildSeriesItemSelections(infos, "Area");
+  return chooseSelectionByArea(selections, areaPath, targetAreaName);
+}
+
+function chooseSelectionByArea(selections, areaPath = [], targetAreaName = "") {
   for (const areaCode of areaPath) {
     const match = selections.find((selection) => selection.target?.code === String(areaCode));
     if (match) return match;
