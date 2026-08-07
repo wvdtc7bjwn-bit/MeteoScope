@@ -1,10 +1,16 @@
 self.__meteoscopePendingNotificationTask = null;
-const APP_SHELL_CACHE = "meteoscope-shell-v2";
+const APP_SHELL_CACHE = "meteoscope-shell-v3";
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
   "/site.webmanifest",
-  "/icons/icon-192.png"
+  "/icons/icon-32.png",
+  "/icons/icon-dark-32.png",
+  "/icons/icon-180.png",
+  "/icons/icon-dark-180.png",
+  "/icons/icon-192.png",
+  "/icons/icon-dark-192.png",
+  "/icons/icon-maskable-512.png"
 ];
 
 self.addEventListener("install", (event) => {
