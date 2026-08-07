@@ -13,6 +13,11 @@ const [html, app, weatherMap, main, serviceWorker, headers] = await Promise.all(
 assert.match(html, /<html lang="ja" class="app-initializing">/);
 assert.match(html, /html\.app-initializing #app\s*{\s*visibility: hidden;/);
 assert.match(html, /id="app-startup-loader"[^>]*role="status"/);
+
+const appleTouchIcon = html.match(/<link rel="apple-touch-icon"[^>]*>/)?.[0] ?? "";
+assert.match(appleTouchIcon, /href="%BASE_URL%icons\/icon-180\.png"/);
+assert.doesNotMatch(appleTouchIcon, /data-theme-icon|data-light-icon|data-dark-icon/);
+assert.match(html, /document\.querySelectorAll\('link\[rel="icon"\]\[data-theme-icon\]'/);
 assert.match(html, /地図を読み込み中/);
 
 assert.match(weatherMap, /function whenReady\(\)/);

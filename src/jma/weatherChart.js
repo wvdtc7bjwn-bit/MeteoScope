@@ -398,7 +398,7 @@ function parsePressureCenter(property, type, index) {
   if (!point) return null;
 
   const pressure = getText(getFirst(property, "Pressure"));
-  const kind = type.includes("高気圧") ? "high" : type.includes("台風") ? "typhoon" : "low";
+  const descriptor = getPressureCenterDescriptor(type);
   return {
     type: "Feature",
     geometry: {
@@ -406,9 +406,10 @@ function parsePressureCenter(property, type, index) {
       coordinates: point
     },
     properties: {
-      id: `pressure-${kind}-${index}`,
-      kind,
-      label: getPressureCenterLabel(kind),
+      id: `pressure-${descriptor.centerType}-${index}`,
+      kind: descriptor.kind,
+      pressureCenterType: descriptor.centerType,
+      label: descriptor.label,
       pressure,
       pressureLabel: pressure ? `${pressure}hPa` : ""
     }
@@ -424,10 +425,21 @@ function getPressureCenterPoint(property) {
     .find(Boolean);
 }
 
-function getPressureCenterLabel(kind) {
-  if (kind === "high") return "高";
-  if (kind === "typhoon") return "台";
-  return "低";
+export function getPressureCenterDescriptor(type) {
+  const normalizedType = String(type ?? "");
+  if (normalizedType.includes("高気圧")) {
+    return { kind: "high", centerType: "high", label: "高" };
+  }
+  if (normalizedType.includes("台風")) {
+    return { kind: "typhoon", centerType: "typhoon", label: "台" };
+  }
+  if (normalizedType.includes("熱帯低気圧")) {
+    return { kind: "low", centerType: "tropical-depression", label: "熱低" };
+  }
+  if (normalizedType.includes("温帯低気圧")) {
+    return { kind: "low", centerType: "extratropical-low", label: "温低" };
+  }
+  return { kind: "low", centerType: "low", label: "低" };
 }
 
 function parseLineCoordinates(root) {

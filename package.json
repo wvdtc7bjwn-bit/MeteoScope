@@ -30,6 +30,7 @@
     "test:social-share": "node Tests/SocialShareTests.mjs",
     "test:location": "node Tests/CurrentLocationMarkerTests.mjs",
     "test:lightning": "node Tests/LightningTests.mjs",
+    "test:weather-chart": "node Tests/WeatherChartTests.mjs",
     "test:weekly-weather": "node Tests/WeeklyWeatherTests.mjs",
     "test:dashboard": "node Tests/DisasterDashboardTests.mjs",
     "test:location-nowcast": "node Tests/LocationNowcastStatusTests.mjs",
