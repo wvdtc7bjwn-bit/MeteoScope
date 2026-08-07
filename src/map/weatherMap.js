@@ -3658,16 +3658,20 @@ function setWarningHatchVisibility(map, visible) {
 }
 
 function updateRadarLayer(map, mode, data = {}) {
-  const shouldShow = mode === "radar"
+  const radarTabVisible = mode === "radar"
     && !data?.weatherChartEnabled
-    && !data?.lightningEnabled
+    && !data?.lightningEnabled;
+  const typhoonBulletinRadarVisible = mode === "typhoon"
+    && data?.forecastMode !== "world"
+    && data?.typhoonRadarOverlay?.visible === true;
+  const shouldShow = (radarTabVisible || typhoonBulletinRadarVisible)
     && Boolean(data?.radarTileUrl);
   updateNowcastRasterLayer(map, {
     shouldShow,
     tileUrl: data?.radarTileUrl,
     sourcePrefix: RADAR_SOURCE_PREFIX,
     layerPrefix: RADAR_LAYER_PREFIX,
-    opacity: 0.9
+    opacity: typhoonBulletinRadarVisible ? 0.78 : 0.9
   });
 }
 

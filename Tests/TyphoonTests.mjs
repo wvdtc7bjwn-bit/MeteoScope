@@ -16,6 +16,10 @@ import {
 } from "../src/worldTyphoon.js";
 import { splitLineAtAntimeridian } from "../src/map/geoLine.js";
 import {
+  parseTyphoonRadarTime,
+  selectTyphoonRadarFrame
+} from "../src/typhoonRadarOverlay.js";
+import {
   buildStormWarningAreaLineSegments,
   destinationPoint
 } from "../src/typhoonGeometry.js";
@@ -33,6 +37,36 @@ assert.ok(warningAreaSegments[0].every((point) => (
 const eastOfCenter = destinationPoint([130, 20], 100, 90);
 assert.ok(eastOfCenter[0] > 130);
 assert.ok(Math.abs(eastOfCenter[1] - 20) < 0.1);
+
+assert.equal(
+  parseTyphoonRadarTime("2026/08/07 09:00"),
+  Date.parse("2026-08-07T00:00:00.000Z")
+);
+const bulletinRadarSelection = selectTyphoonRadarFrame([
+  {
+    validtime: "20260807000000",
+    label: "2026/08/07 09:00",
+    radarTileUrl: "https://example.test/observation.png",
+    isForecast: false
+  },
+  {
+    validtime: "20260807000000",
+    label: "2026/08/07 09:00",
+    radarTileUrl: "https://example.test/forecast.png",
+    isForecast: true
+  }
+], "2026/08/07 09:00");
+assert.equal(bulletinRadarSelection?.frame?.radarTileUrl, "https://example.test/observation.png");
+assert.equal(
+  selectTyphoonRadarFrame([
+    {
+      validtime: "20260806230000",
+      radarTileUrl: "https://example.test/old.png",
+      isForecast: false
+    }
+  ], "2026/08/07 09:00"),
+  null
+);
 
 const worldTyphoonModelColors = [
   "ecmwf",
@@ -297,8 +331,10 @@ assert.match(worldSource, /cache:\s*"no-store"/);
 assert.doesNotMatch(worldSource, /import\.meta\.env\?\.DEV\s*\?\s*"\/data\/world-typhoon-forecast/);
 assert.match(
   appSource,
-  /function focusSelectedTyphoon\(\)\s*\{\s*if \(activeTyphoonForecastMode === "world"\) return;/
+  /function focusSelectedTyphoon\(\{ includeWorldForecast = false \} = \{\}\)[\s\S]*?if \(!includeWorldForecast\) return;[\s\S]*?buildWorldTyphoonFocusCoordinates\(displayData\)/
 );
+assert.match(appSource, /function buildWorldTyphoonFocusCoordinates\(displayData = \{\}\)/);
+assert.match(appSource, /hasSelectedTargets[\s\S]*?primarySystemId[\s\S]*?layer\.forecastPositions/);
 assert.doesNotMatch(appSource, /getWorldTyphoonFocusCoordinates/);
 assert.match(appSource, /updateWorldTyphoonForecastPositions/);
 assert.match(appSource, /interpolateWorldTime:\s*true/);
@@ -316,8 +352,13 @@ assert.match(targetModalSource, /\"各国予想\"/);
 assert.match(targetModalSource, /\"すべての対象を表示\"/);
 assert.doesNotMatch(targetModalSource, /縺|繧|蜷|蟇|雎|譛|鬚|莠|逋|蜿/);
 assert.match(indexSource, /id="world-typhoon-target-button"/);
+assert.match(indexSource, /id="typhoon-radar-overlay-button"/);
 assert.match(indexSource, /id="world-typhoon-target-modal"/);
 assert.match(styleSource, /\.map-world-typhoon-target-button/);
+assert.match(styleSource, /\.map-typhoon-radar-overlay-button/);
+assert.match(appSource, /function toggleTyphoonRadarOverlay\(\)/);
+assert.match(appSource, /typhoonRadarOverlayStatus/);
+assert.match(mapSource, /typhoonBulletinRadarVisible/);
 assert.match(mapSource, /worldForecastLayers/);
 assert.match(mapSource, /WORLD_TYPHOON_MODELS/);
 assert.match(mapSource, /renderWorldCopies:\s*true/);

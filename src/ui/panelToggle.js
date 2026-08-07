@@ -22,6 +22,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   let drawerState = "peek";
   let drawerOffset = null;
   let dragging = false;
+  let dragPointerId = null;
   let dragTarget = null;
   let dragAxis = "y";
   let startX = 0;
@@ -255,6 +256,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   function beginDrag(event, target = handle, initialAxis = "y") {
     if (initialAxis === "y") event.preventDefault();
     dragging = true;
+    dragPointerId = event.pointerId;
     dragTarget = target;
     dragAxis = initialAxis;
     startX = event.clientX;
@@ -275,7 +277,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   }
 
   function moveDrag(event) {
-    if (!dragging) return;
+    if (!dragging || event.pointerId !== dragPointerId) return;
     const deltaX = event.clientX - startX;
     const deltaY = event.clientY - startY;
     currentX = event.clientX;
@@ -284,6 +286,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
       const prefersHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 1.12;
       if (dragStartedOnControl && prefersHorizontal) {
         dragging = false;
+        dragPointerId = null;
         dragTarget = null;
         dragAxis = "y";
         dragStartedOnControl = false;
@@ -318,7 +321,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   handle.addEventListener("pointerdown", (event) => beginDrag(event, handle));
 
   function finishDrag(event) {
-    if (!dragging) return;
+    if (!dragging || event.pointerId !== dragPointerId) return;
     const horizontalDistance = (event.clientX ?? currentX) - startX;
     if (dragAxis === "x") {
       const moved = Math.abs(horizontalDistance) > 6;
@@ -330,6 +333,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
       mobileContextDock?.style.setProperty("--mobile-summary-drag-x", `${visualDistance}px`);
       if (mobileContextDock) void mobileContextDock.offsetWidth;
       dragging = false;
+      dragPointerId = null;
       suppressClickUntil = moved ? Date.now() + 250 : 0;
       mobileContextDock?.classList.remove("is-vertical-dragging");
       mobileContextDock?.classList.remove("is-horizontal-swiping");
@@ -349,6 +353,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     }
     const moved = Math.abs(currentOffset - startOffset) > 6 || Math.abs(event.clientY - startY) > 6;
     dragging = false;
+    dragPointerId = null;
     cancelPendingDragTransform();
     suppressClickUntil = moved ? Date.now() + 250 : 0;
     mobileContextDock?.classList.remove("is-vertical-dragging");
@@ -426,9 +431,11 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
       notifyLayoutChange();
     }, 250);
   }, { passive: true });
-  window.addEventListener("pointermove", moveDrag);
-  window.addEventListener("pointerup", finishDrag);
-  window.addEventListener("pointercancel", finishDrag);
+  // Dock controls stop propagation while sliding. Capture the gesture first so
+  // their release always clears the drawer drag state before another map touch.
+  window.addEventListener("pointermove", moveDrag, { capture: true });
+  window.addEventListener("pointerup", finishDrag, { capture: true });
+  window.addEventListener("pointercancel", finishDrag, { capture: true });
 
   applyTransform();
 }

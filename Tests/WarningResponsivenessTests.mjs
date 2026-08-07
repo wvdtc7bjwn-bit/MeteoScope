@@ -25,9 +25,13 @@ const [appSource, warningsSource, leftPanelSource, weatherMapSource, warningGeom
 
 const warningGeometryFixCollection = JSON.parse(warningGeometryFixes);
 const misakiGeometryFix = warningGeometryFixCollection.features.find((feature) => feature?.properties?.code === "2736600");
+const joetsuGeometryFix = warningGeometryFixCollection.features.find((feature) => feature?.properties?.code === "1522200");
 assert.ok(WARNING_GEOMETRY_FIX_CODES.includes("2736600"));
 assert.ok(misakiGeometryFix, "岬町の警報境界補正が必要です");
 assert.equal(countStrictGeometryIntersections(misakiGeometryFix.geometry), 0);
+assert.ok(WARNING_GEOMETRY_FIX_CODES.includes("1522200"));
+assert.ok(joetsuGeometryFix, "上越市の警報境界補正が必要です");
+assert.equal(countStrictGeometryIntersections(joetsuGeometryFix.geometry), 0);
 
 assert.equal(
   normalizeRiverWarningText("【警戒レベル３相当情報】袋川では、今後、氾濫危険水位に到達する見込み"),

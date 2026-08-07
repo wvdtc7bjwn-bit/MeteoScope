@@ -97,6 +97,21 @@ assert.match(
   "cancelled tab gestures must restore the committed tab instead of committing a stale drag target"
 );
 assert.match(
+  app,
+  /const tabChanged = activeTab !== tab\.id;[\s\S]*?if \(tabChanged\) tabAutoFocusGeneration \+= 1;[\s\S]*?if \(cachedViewUpdated\) \{\s*if \(tabChanged\) scheduleTabAutoFocus\(tab\.id, autoFocusGeneration\);/,
+  "cached typhoon and earthquake tabs must auto-focus only after a committed tab change"
+);
+assert.match(
+  app,
+  /updateCurrentView\(tab, data, \{ deferPanel: true \}\);\s*if \(tabChanged\) scheduleTabAutoFocus\(tab\.id, autoFocusGeneration\);/,
+  "newly loaded typhoon and earthquake tabs must auto-focus after their first render"
+);
+assert.match(
+  app,
+  /function scheduleTabAutoFocus\(tabId, generation\)[\s\S]*?generation !== tabAutoFocusGeneration \|\| activeTab !== tabId[\s\S]*?focusSelectedTyphoon\(\{ includeWorldForecast: true \}\)[\s\S]*?earthquakeContentMode === "earthquake"\) focusSelectedEarthquake\(\);/,
+  "stale tab focus callbacks must not move the map after another tab is selected"
+);
+assert.match(
   styles,
   /@media screen\s*\{[\s\S]*?#sidebar\s*\{[\s\S]*?html:not\(\.mobile-drawer-open\) #sidebar\s*\{[\s\S]*?opacity:\s*0;[\s\S]*?\.mobile-context-dock\s*\{[\s\S]*?display:\s*block;/
 );
@@ -186,7 +201,14 @@ assert.match(
 );
 assert.match(
   panelToggle,
-  /window\.addEventListener\("pointermove", moveDrag\);[\s\S]*?window\.addEventListener\("pointerup", finishDrag\);[\s\S]*?window\.addEventListener\("pointercancel", finishDrag\);/
+  /window\.addEventListener\("pointermove", moveDrag, \{ capture: true \}\);[\s\S]*?window\.addEventListener\("pointerup", finishDrag, \{ capture: true \}\);[\s\S]*?window\.addEventListener\("pointercancel", finishDrag, \{ capture: true \}\);/
+);
+assert.match(panelToggle, /let dragPointerId = null;/);
+assert.match(panelToggle, /dragPointerId = event\.pointerId;[\s\S]*?function moveDrag\(event\) \{\s*if \(!dragging \|\| event\.pointerId !== dragPointerId\) return;/);
+assert.match(panelToggle, /function finishDrag\(event\) \{\s*if \(!dragging \|\| event\.pointerId !== dragPointerId\) return;/);
+assert.ok(
+  (panelToggle.match(/dragPointerId = null;/g) ?? []).length >= 4,
+  "drawer gestures must clear their pointer identity on every completion path"
 );
 assert.match(
   panelToggle,

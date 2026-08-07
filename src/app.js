@@ -13,6 +13,7 @@ import { setupLegalConsentModal } from "./ui/legalConsentModal.js";
 import { openSettingsModal, refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
 import { startClock } from "./ui/time.js";
 import { fetchRadarTimes, findLatestRadarObservationIndex } from "./jma/radar.js";
+import { selectTyphoonRadarFrame } from "./typhoonRadarOverlay.js";
 import { fetchLightningTimes, findLatestLightningObservationIndex } from "./jma/lightning.js";
 import { fetchAmedasDailySeries, fetchAmedasLatestTime } from "./jma/amedas.js";
 import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
@@ -410,6 +411,8 @@ export function createWeatherApp() {
   let lightningLoadedAt = 0;
   let lightningRequest = null;
   let lightningRequestId = 0;
+  let typhoonRadarOverlayEnabled = false;
+  let typhoonRadarOverlayStatus = "idle";
   const adminNoticePush = createAdminNoticePush({
     onChange: () => refreshSettingsModalView()
   });
@@ -428,6 +431,7 @@ export function createWeatherApp() {
   let scheduledPanelRenderFrame = 0;
   let scheduledPanelRenderNextFrame = 0;
   let panelRenderGeneration = 0;
+  let tabAutoFocusGeneration = 0;
 
   function syncSocialShareMapButton(tabId = activeTab) {
     const button = document.getElementById("social-share-map-button");
@@ -460,10 +464,14 @@ export function createWeatherApp() {
   async function selectTab(tabId) {
     const switchStartedAt = performance.now();
     const tab = TABS.find((item) => item.id === tabId) ?? TABS[0];
+    const tabChanged = activeTab !== tab.id;
+    if (tabChanged) tabAutoFocusGeneration += 1;
+    const autoFocusGeneration = tabAutoFocusGeneration;
     if (activeTab === "warnings" && tab.id !== "warnings" && warningDetailsRequest?.abortOnTabChange) {
       warningDetailsRequest.controller.abort();
     }
     activeTab = tab.id;
+    syncTyphoonRadarOverlayButton();
     syncEarlyWarningRefreshTimer();
     syncSocialShareMapButton(tab.id);
     invalidateScheduledMapRender();
@@ -495,6 +503,7 @@ export function createWeatherApp() {
         console.warn("[MeteoScope] cached tab view update failed", error);
       }
       if (cachedViewUpdated) {
+        if (tabChanged) scheduleTabAutoFocus(tab.id, autoFocusGeneration);
         if (tab.id === "earthquake") {
           if (earthquakeContentMode === "volcano") void refreshVolcanoData();
           else void refreshEarthquakeData();
@@ -553,6 +562,7 @@ export function createWeatherApp() {
         tabDataLoadedAt[tab.id] = Date.now();
       }
       updateCurrentView(tab, data, { deferPanel: true });
+      if (tabChanged) scheduleTabAutoFocus(tab.id, autoFocusGeneration);
       if (tab.id === "warnings" && activeWarningView === "river") void refreshRiverFloodData();
       scheduleBackgroundPrefetch(tab.id);
       recordDiagnostic("tab-switch", {
@@ -819,6 +829,110 @@ if (layerId === "river") {
     focusSelectedTyphoon();
   }
 
+  function getTyphoonRadarOverlaySelection(selectedTyphoon) {
+    if (!typhoonRadarOverlayEnabled || !selectedTyphoon?.updatedAt) return null;
+    return selectTyphoonRadarFrame(
+      latestDataByTab.radar?.frames ?? [],
+      selectedTyphoon.updatedAt
+    );
+  }
+
+  function buildTyphoonRadarOverlayState(selectedTyphoon) {
+    const selection = getTyphoonRadarOverlaySelection(selectedTyphoon);
+    const status = typhoonRadarOverlayEnabled
+      ? (typhoonRadarOverlayStatus === "loading"
+          ? "loading"
+          : (selection ? "ready" : "unavailable"))
+      : "idle";
+    return {
+      enabled: typhoonRadarOverlayEnabled,
+      status,
+      available: Boolean(selection),
+      visible: activeTyphoonForecastMode === "jma"
+        && typhoonRadarOverlayEnabled
+        && Boolean(selection),
+      targetTime: selectedTyphoon?.updatedAt ?? "",
+      frameTime: selection?.frame?.label ?? "",
+      radarTileUrl: selection?.frame?.radarTileUrl ?? null
+    };
+  }
+
+  function syncTyphoonRadarOverlayButton(displayData = null) {
+    const button = document.getElementById("typhoon-radar-overlay-button");
+    if (!button) return;
+    const selectedTyphoon = displayData?.selectedTyphoon
+      ?? (latestDataByTab.typhoon?.typhoons ?? []).find((typhoon) =>
+        String(typhoon.id) === String(activeTyphoonId)
+      )
+      ?? latestDataByTab.typhoon?.typhoons?.[0]
+      ?? null;
+    const overlay = displayData?.typhoonRadarOverlay
+      ?? buildTyphoonRadarOverlayState(selectedTyphoon);
+    const isEnglish = getCurrentLanguage() === "en";
+    const visible = activeTab === "typhoon"
+      && activeTyphoonForecastMode === "jma"
+      && Boolean(selectedTyphoon);
+    const label = overlay.status === "loading"
+      ? (isEnglish ? "Loading radar for the bulletin time" : "発表時刻の雨雲レーダを読み込み中")
+      : overlay.status === "unavailable"
+        ? (isEnglish
+            ? "Radar for this bulletin time is unavailable"
+            : "この発表時刻の雨雲レーダは利用できません")
+        : overlay.visible
+          ? (isEnglish
+              ? `Hide radar at ${overlay.frameTime}`
+              : `${overlay.frameTime}の雨雲レーダを隠す`)
+          : (isEnglish
+              ? "Overlay radar from the typhoon bulletin time"
+              : "台風情報の発表時刻の雨雲レーダを重ねる");
+
+    button.hidden = !visible;
+    button.disabled = overlay.status === "loading";
+    button.classList.toggle("is-active", overlay.visible);
+    button.classList.toggle("is-loading", overlay.status === "loading");
+    button.classList.toggle("is-unavailable", overlay.status === "unavailable");
+    button.setAttribute("aria-pressed", String(Boolean(overlay.enabled)));
+    button.setAttribute("aria-label", label);
+    button.title = label;
+    button.dataset.radarTime = overlay.frameTime;
+  }
+
+  async function refreshTyphoonRadarOverlayData() {
+    try {
+      const radarData = await loadTabData("radar");
+      latestDataByTab.radar = mergeRefreshedData("radar", latestDataByTab.radar, radarData);
+      tabDataLoadedAt.radar = Date.now();
+      const selectedTyphoon = (latestDataByTab.typhoon?.typhoons ?? []).find((typhoon) =>
+        String(typhoon.id) === String(activeTyphoonId)
+      ) ?? latestDataByTab.typhoon?.typhoons?.[0];
+      typhoonRadarOverlayStatus = getTyphoonRadarOverlaySelection(selectedTyphoon)
+        ? "ready"
+        : "unavailable";
+    } catch (error) {
+      typhoonRadarOverlayStatus = "unavailable";
+      console.warn("[MeteoScope] typhoon bulletin radar overlay failed", error);
+    }
+  }
+
+  async function toggleTyphoonRadarOverlay() {
+    if (activeTab !== "typhoon" || activeTyphoonForecastMode !== "jma") return;
+    const tab = TABS.find((item) => item.id === "typhoon");
+    if (typhoonRadarOverlayEnabled) {
+      typhoonRadarOverlayEnabled = false;
+      typhoonRadarOverlayStatus = "idle";
+      updateCurrentView(tab, latestDataByTab.typhoon ?? {});
+      return;
+    }
+
+    typhoonRadarOverlayEnabled = true;
+    typhoonRadarOverlayStatus = "loading";
+    updateCurrentView(tab, latestDataByTab.typhoon ?? {});
+    await refreshTyphoonRadarOverlayData();
+    if (activeTab === "typhoon") {
+      updateCurrentView(tab, latestDataByTab.typhoon ?? {});
+    }
+  }
+
   function isTabDataFresh(tabId) {
     const loadedAt = Number(tabDataLoadedAt[tabId]) || 0;
     const ttlMs = TAB_DATA_TTL_MS[tabId] ?? 60 * 1000;
@@ -831,6 +945,9 @@ if (layerId === "river") {
       const nextData = await loadTabData(tab.id);
       latestDataByTab[tab.id] = mergeRefreshedData(tab.id, latestDataByTab[tab.id], nextData);
       tabDataLoadedAt[tab.id] = Date.now();
+      if (tab.id === "typhoon" && typhoonRadarOverlayEnabled) {
+        await refreshTyphoonRadarOverlayData();
+      }
       if (activeTab === tab.id) updateCurrentView(tab, latestDataByTab[tab.id], { deferPanel: true });
     } catch (error) {
       console.warn(`[MeteoScope] ${tab.id} background refresh failed`, error);
@@ -1438,8 +1555,19 @@ if (layerId === "river") {
     updateCurrentView(tab, latestDataByTab.earthquake ?? {});
   }
 
-  function focusSelectedTyphoon() {
-    if (activeTyphoonForecastMode === "world") return;
+  function focusSelectedTyphoon({ includeWorldForecast = false } = {}) {
+    if (activeTyphoonForecastMode === "world") {
+      if (!includeWorldForecast) return;
+      const displayData = buildTyphoonDisplayData(latestDataByTab.typhoon ?? {});
+      const worldCoordinates = buildWorldTyphoonFocusCoordinates(displayData);
+      if (worldCoordinates.length) {
+        weatherMap?.fitToCoordinates(worldCoordinates, {
+          maxZoom: 6.2,
+          duration: 900
+        });
+        return;
+      }
+    }
     const typhoons = latestDataByTab.typhoon?.typhoons ?? [];
     const selected = typhoons.find((typhoon) => String(typhoon.id) === String(activeTyphoonId)) ?? typhoons[0];
     const coordinates = buildTyphoonFocusCoordinates(selected);
@@ -1465,6 +1593,18 @@ if (layerId === "river") {
     weatherMap?.flyToLocation(coordinates[0], {
       minZoom: 7,
       duration: 850
+    });
+  }
+
+  function scheduleTabAutoFocus(tabId, generation) {
+    if (tabId !== "typhoon" && tabId !== "earthquake") return;
+    window.requestAnimationFrame(() => {
+      if (generation !== tabAutoFocusGeneration || activeTab !== tabId) return;
+      if (tabId === "typhoon") {
+        focusSelectedTyphoon({ includeWorldForecast: true });
+        return;
+      }
+      if (earthquakeContentMode === "earthquake") focusSelectedEarthquake();
     });
   }
 
@@ -1548,6 +1688,7 @@ if (layerId === "river") {
       options: displayData.worldForecastTargets,
       selectedKeys: displayData.selectedWorldForecastTargetKeys
     });
+    syncTyphoonRadarOverlayButton(tab.id === "typhoon" ? displayData : null);
     if (tab.id === "radar") {
       displayData.weatherChartEnabled = weatherChartEnabled;
       displayData.weatherChartStatus = weatherChartStatus;
@@ -1707,6 +1848,7 @@ if (layerId === "river") {
       activeTyphoonId = String(selected.id ?? "");
     }
 
+    const typhoonRadarOverlay = buildTyphoonRadarOverlayState(selected);
     const base = {
       ...data,
       typhoons,
@@ -1715,7 +1857,11 @@ if (layerId === "river") {
       selectedTyphoon: selected,
       details: selected?.details ?? data.details,
       latestTime: selected?.updatedAt ?? data.latestTime,
-      updatedAt: selected?.updatedAt ?? data.updatedAt
+      updatedAt: selected?.updatedAt ?? data.updatedAt,
+      typhoonRadarOverlay,
+      radarTileUrl: typhoonRadarOverlay.visible
+        ? typhoonRadarOverlay.radarTileUrl
+        : null
     };
     if (activeTyphoonForecastMode !== "world") return base;
     const worldForecastModelStates = worldTyphoonModelIds.map((modelId) => {
@@ -2510,6 +2656,9 @@ if (layerId === "river") {
       if (activeTab !== tab.id) return;
       latestDataByTab[tab.id] = mergeRefreshedData(tab.id, latestDataByTab[tab.id], nextData);
       tabDataLoadedAt[tab.id] = Date.now();
+      if (tab.id === "typhoon" && typhoonRadarOverlayEnabled) {
+        await refreshTyphoonRadarOverlayData();
+      }
       if (tab.id === "radar" && lightningEnabled) {
         try {
           if (force) lightningLoadedAt = 0;
@@ -3204,6 +3353,8 @@ if (layerId === "river") {
       onTimeChange: selectWorldTyphoonForecastTime
     });
     setupWorldTyphoonTargetModal({ onSelect: selectWorldTyphoonTarget });
+    document.getElementById("typhoon-radar-overlay-button")
+      ?.addEventListener("click", () => void toggleTyphoonRadarOverlay());
     setupEarthquakeSelector({
       onChange: selectEarthquake,
       onHistoryLoadMore: loadMoreEarthquakeHistory,
@@ -3393,6 +3544,25 @@ function buildTyphoonFocusCoordinates(typhoon) {
     && point.length === 2
     && point.every((value) => Number.isFinite(value))
   );
+}
+
+function buildWorldTyphoonFocusCoordinates(displayData = {}) {
+  const hasSelectedTargets = (displayData.selectedWorldForecastTargetKeys ?? []).length > 0;
+  return (displayData.worldForecastLayers ?? []).flatMap((layer) => {
+    const primarySystemId = String(layer.system?.id ?? "");
+    const positions = hasSelectedTargets || !primarySystemId
+      ? (layer.forecastPositions ?? [])
+      : (layer.forecastPositions ?? []).filter(({ system }) => (
+        String(system?.id ?? "") === primarySystemId
+      ));
+    return positions
+      .map(({ position }) => position?.coordinates)
+      .filter((point) => (
+        Array.isArray(point)
+        && point.length === 2
+        && point.every((value) => Number.isFinite(value))
+      ));
+  });
 }
 
 function buildEarthquakeFocusCoordinates(earthquake) {
