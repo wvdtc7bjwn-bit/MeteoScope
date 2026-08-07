@@ -14,6 +14,16 @@ import {
   isWarningMapPayload,
   isWarningMapTimePayload
 } from "../src/jma/warnings.js";
+import {
+  buildMyAreaEarlyWarningSummaries,
+  buildMyAreaWarningSummaries,
+  findEarlyWarningAreaForMunicipality
+} from "../src/warningLocationInsights.js";
+import {
+  formatWarningOutlookTime,
+  getWarningOutlookTimeDisplay,
+  parseWarningOutlookDurationHours
+} from "../src/warningOutlookTime.js";
 
 const [appSource, warningsSource, leftPanelSource, weatherMapSource, warningGeometryFixes, indexSource, styleSource] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
@@ -28,6 +38,86 @@ const [appSource, warningsSource, leftPanelSource, weatherMapSource, warningGeom
 const warningGeometryFixCollection = JSON.parse(warningGeometryFixes);
 const misakiGeometryFix = warningGeometryFixCollection.features.find((feature) => feature?.properties?.code === "2736600");
 const joetsuGeometryFix = warningGeometryFixCollection.features.find((feature) => feature?.properties?.code === "1522200");
+
+const myAreaFixture = [{ areaCode: "2921000", areaName: "香芝市", prefecture: "奈良県" }];
+const currentWarningInsights = buildMyAreaWarningSummaries(myAreaFixture, {
+  updatedAt: "2026/08/08 04:00",
+  activeAreas: [{
+    areaCode: "2921000",
+    warnings: [{ label: "乾燥注意報", level: "advisory" }]
+  }]
+});
+assert.equal(currentWarningInsights[0].warnings[0].label, "乾燥注意報");
+assert.equal(currentWarningInsights[0].hasWarnings, true);
+
+const earlyWarningFixture = {
+  earlyDetailsLoaded: true,
+  earlyWarnings: {
+    updatedAt: "2026/08/08 05:00",
+    municipalityAreas: [{
+      areaCode: "2921000",
+      displayAreaCode: "290010",
+      displayAreaName: "奈良県北部",
+      probabilities: [
+        { type: "大雨", label: "高", level: "high" },
+        { type: "波浪", label: "", level: "none" }
+      ]
+    }]
+  }
+};
+assert.equal(findEarlyWarningAreaForMunicipality("2921000", earlyWarningFixture)?.displayAreaName, "奈良県北部");
+const earlyWarningInsights = buildMyAreaEarlyWarningSummaries(myAreaFixture, earlyWarningFixture);
+assert.equal(earlyWarningInsights[0].probabilities.length, 1);
+assert.equal(earlyWarningInsights[0].probabilities[0].type, "大雨");
+assert.equal(earlyWarningInsights[0].hasEarlyWarnings, true);
+assert.equal(earlyWarningInsights[0].warnings, undefined, "早期タブに発表中の注意報を混在させない");
+const noEarlyWarningInsights = buildMyAreaEarlyWarningSummaries(myAreaFixture, {
+  earlyDetailsLoaded: true,
+  earlyWarnings: { municipalityAreas: [] }
+});
+assert.equal(noEarlyWarningInsights.length, 1);
+assert.equal(noEarlyWarningInsights[0].hasEarlyWarnings, false);
+assert.equal(parseWarningOutlookDurationHours("PT3H"), 3);
+assert.equal(parseWarningOutlookDurationHours("P1D"), 24);
+assert.equal(parseWarningOutlookDurationHours("P1DT6H"), 30);
+assert.equal(parseWarningOutlookDurationHours("PT18H"), 18);
+assert.equal(parseWarningOutlookDurationHours("invalid"), 0);
+assert.match(leftPanelSource, /warning-outlook-block-\$\{isDaily \? "daily" : "hourly"\}/);
+assert.match(leftPanelSource, /parseWarningOutlookDurationHours\(slot\?\.duration\) >= 18/);
+assert.doesNotMatch(leftPanelSource, /formatDailyOutlookCellLabel/);
+assert.match(leftPanelSource, /buildWarningOutlookTable\(area\.rows \?\? \[\], \{ splitLongPeriods: false \}\)/);
+assert.match(leftPanelSource, /options\.kind === "combined"/);
+assert.match(styleSource, /\.warning-outlook-level-middle\s*\{\s*background:\s*#ffc8b8;/);
+const dailyOutlookLabel = formatWarningOutlookTime({
+  time: "2026-08-08T00:00:00+09:00",
+  duration: "P1D"
+});
+assert.match(dailyOutlookLabel, /^8\/8\s/);
+assert.match(dailyOutlookLabel, /翌日/);
+assert.notEqual(dailyOutlookLabel, "00時–00時");
+assert.deepEqual(getWarningOutlookTimeDisplay({
+  time: "2026-08-08T00:00:00+09:00",
+  duration: "P1D"
+}), {
+  dateLabel: "8/8",
+  timeLabel: "00時–翌日00時"
+});
+assert.match(formatWarningOutlookTime({
+  time: "2026-08-08T00:00:00+09:00",
+  duration: "PT3H"
+}), /00時–03時/);
+assert.equal(formatWarningOutlookTime({
+  time: "2026-08-08T00:00:00+09:00",
+  duration: ""
+}), "00時");
+assert.match(appSource, /if \(!\["status", "early"\]\.includes\(activeWarningView\)\) return null;/);
+assert.match(leftPanelSource, /warningView === "early"[\s\S]*?buildMyAreaEarlyWarningBadges/);
+assert.match(leftPanelSource, /const isLayerRefresh = Boolean\(root\.querySelector\("\.warning-kikikuru-panel"\)\);/);
+assert.match(leftPanelSource, /if \(!isLayerRefresh\) animateWarningDetailContent\(root\);/);
+assert.match(leftPanelSource, /const canReuseButtons = currentButtons\.length === options\.length/);
+assert.match(leftPanelSource, /if \(canReuseButtons\)[\s\S]*?syncMobileDockSegmentIndicator\(root\);[\s\S]*?return;/);
+assert.match(styleSource, /\.mobile-dock-segmented button\s*\{[\s\S]*?transition-property: border-color, background-color;/);
+assert.match(styleSource, /\.mobile-dock-segmented \.mobile-dock-action:not\(:disabled\):active,[\s\S]*?transform: none;/);
 assert.ok(WARNING_GEOMETRY_FIX_CODES.includes("2736600"));
 assert.ok(misakiGeometryFix, "岬町の警報境界補正が必要です");
 assert.equal(countStrictGeometryIntersections(misakiGeometryFix.geometry), 0);

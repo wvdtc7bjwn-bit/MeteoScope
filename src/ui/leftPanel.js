@@ -51,6 +51,11 @@ import { findLatestRadarObservationIndex } from "../jma/radar.js";
 import { assignAmedasCompetitionRanks } from "../amedasRanking.js";
 import { setSocialSharePayload } from "../socialShareState.js";
 import { mergeRiverFloodWarningsIntoGroups } from "../warningRiverMerge.js";
+import {
+  formatWarningOutlookTime,
+  getWarningOutlookTimeDisplay,
+  parseWarningOutlookDurationHours
+} from "../warningOutlookTime.js";
 import { getCurrentLanguage, localizeText, localizeVolcanoText } from "./locale.js";
 
 let selectedWarningAreaCode = "";
@@ -531,11 +536,10 @@ function setupSegmentedControls(root) {
       startX: event.clientX,
       committedButton: activeButton,
       previewButton,
-      activeLeft: previewButton.offsetLeft,
-      activeWidth: previewButton.offsetWidth,
+      activeLeft: activeButton.offsetLeft,
+      activeWidth: activeButton.offsetWidth,
       moved: false
     };
-    if (previewButton !== activeButton) renderPreview(segment, previewButton);
   });
 
   root.addEventListener("pointermove", (event) => {
@@ -624,7 +628,6 @@ function setupSegmentedControls(root) {
 export function setupMobileDockSegmentedControls() {
   setupSegmentedControls(document.getElementById("mobile-context-dock"));
 }
-
 export function setupAmedasPrecipitationPeriods({ onChange } = {}) {
   setupSegmentedControls(document.getElementById("amedas-precipitation-periods"));
   const handlePeriodClick = (event) => {
@@ -1685,34 +1688,57 @@ function renderRadarLocationInsight(root, insights) {
 
 function renderMyAreaWarningInsight(root, insights, myAreas = []) {
   const areas = insights.areas ?? [];
-  const activeAreas = areas.filter((area) => area.hasWarnings);
-  if (!myAreas.length || !activeAreas.length) {
+  const warningView = insights.warningView ?? "status";
+  if (!myAreas.length || !["status", "early"].includes(warningView)) {
+    root.hidden = true;
+    root.innerHTML = "";
+    return;
+  }
+  const visibleAreas = warningView === "early"
+    ? areas
+    : areas.filter((area) => area.hasWarnings);
+  if (!visibleAreas.length) {
     root.hidden = true;
     root.innerHTML = "";
     return;
   }
 
   root.hidden = false;
-  root.className = "location-insight-panel location-insight-my-areas";
+  root.className = `location-insight-panel location-insight-my-areas${warningView === "early" ? " is-early" : ""}`;
   root.innerHTML = `
     <div class="location-insight-head">
-      <span>マイエリア</span>
-      <strong>${activeAreas.length}件</strong>
+      <span>${escapeHtml(localizeText("マイエリア"))}</span>
+      <strong>${visibleAreas.length}${escapeHtml(localizeText("件"))}</strong>
     </div>
     <div class="location-my-area-list">
-      ${activeAreas.map((area) => `
+      ${visibleAreas.map((area) => `
         <article class="location-my-area-item">
           <div>
-            <strong>${escapeHtml(area.areaName)}</strong>
-            <span>${escapeHtml(area.prefecture ?? "")}</span>
+            <strong>${escapeHtml(localizeWarningDisplayText(area.areaName))}</strong>
+            <span>${escapeHtml(localizeWarningDisplayText(area.prefecture ?? ""))}</span>
           </div>
           <div class="location-my-area-badges">
-            ${buildWarningBadgesMarkup((area.warnings ?? []).slice(0, 4))}
+            ${warningView === "early"
+              ? buildMyAreaEarlyWarningBadges(area, insights.loading)
+              : buildWarningBadgesMarkup((area.warnings ?? []).slice(0, 4))}
           </div>
         </article>
       `).join("")}
     </div>
   `;
+}
+
+function buildMyAreaEarlyWarningBadges(area, loading = false) {
+  if (loading) {
+    return `<span class="warning-badge early-warning-badge early-warning-badge-none">${escapeHtml(localizeText("取得中..."))}</span>`;
+  }
+  const probabilities = area.probabilities ?? [];
+  if (!probabilities.length) {
+    return `<span class="warning-badge early-warning-badge early-warning-badge-none">${escapeHtml(localizeText("発表なし"))}</span>`;
+  }
+  return probabilities.slice(0, 4).map((probability) => `
+    <span class="warning-badge early-warning-badge early-warning-badge-${escapeHtml(probability.level)}">${escapeHtml(localizeWarningDisplayText(formatEarlyProbabilityBadge(probability)))}</span>
+  `).join("");
 }
 
 function renderLegend(tabId, amedasMetricId, warningView = "status", data = null) {
@@ -1906,10 +1932,29 @@ function renderWarningViewTabs(tab, warningView) {
     return;
   }
 
-  root.innerHTML = getWarningViewOptions(warningView).map((option) => `
+  const options = getWarningViewOptions(warningView);
+  const currentButtons = [...root.querySelectorAll("[data-kikikuru-layer]")];
+  const canReuseButtons = currentButtons.length === options.length
+    && currentButtons.every((button, index) => button.dataset.kikikuruLayer === options[index]?.id);
+
+  if (canReuseButtons) {
+    currentButtons.forEach((button, index) => {
+      const option = options[index];
+      button.classList.toggle("active", option.active);
+      button.setAttribute("aria-selected", option.active ? "true" : "false");
+      button.disabled = option.active;
+      button.textContent = localizeWarningDisplayText(option.label);
+    });
+    syncMobileDockSegmentIndicator(root);
+    return;
+  }
+
+  root.innerHTML = options.map((option) => `
     <button type="button" role="tab" class="mobile-dock-action${option.active ? " active" : ""}" data-kikikuru-layer="${escapeHtml(option.id)}" aria-selected="${option.active ? "true" : "false"}"${option.active ? " disabled" : ""}>${escapeHtml(localizeWarningDisplayText(option.label))}</button>
   `).join("");
-  window.requestAnimationFrame(() => syncMobileDockSegmentIndicator(root));
+  root.classList.add("is-initializing");
+  syncMobileDockSegmentIndicator(root);
+  window.requestAnimationFrame(() => root.classList.remove("is-initializing"));
 }
 
 function renderAmedasPrecipitationPeriods(tab, activeMetricId, activePeriodId) {
@@ -4309,6 +4354,7 @@ function renderWarningGroupAccordions(root, groups, warningView) {
 }
 
 function renderKikikuruWarningDetails(root, state, activeKikikuruLayer) {
+  const isLayerRefresh = Boolean(root.querySelector(".warning-kikikuru-panel"));
   const kikikuru = state.data?.kikikuru ?? {};
   const options = KIKIKURU_LAYER_OPTIONS.map((option) => ({
     ...option,
@@ -4340,10 +4386,13 @@ function renderKikikuruWarningDetails(root, state, activeKikikuruLayer) {
       <p>${escapeHtml(statusText)}</p>
     </section>
   `;
+  const layerSwitch = root.querySelector(".warning-kikikuru-layer-switch.mobile-dock-segmented");
+  layerSwitch?.classList.add("is-initializing");
+  if (layerSwitch) syncMobileDockSegmentIndicator(layerSwitch);
   window.requestAnimationFrame(() => {
-    root.querySelectorAll(".mobile-dock-segmented").forEach(syncMobileDockSegmentIndicator);
+    layerSwitch?.classList.remove("is-initializing");
   });
-  animateWarningDetailContent(root);
+  if (!isLayerRefresh) animateWarningDetailContent(root);
 }
 
 function renderWarningDetails(tab, state, warningView = "status") {
@@ -4678,7 +4727,7 @@ function openEarlyWarningModal(area, modal, content) {
     </section>
     <section class="warning-modal-section">
       <h3>${escapeHtml(localizeText("期間別の可能性"))}</h3>
-      ${buildWarningOutlookTable(area.rows ?? [])}
+      ${buildWarningOutlookTable(area.rows ?? [], { splitLongPeriods: false })}
     </section>
   `;
   modal.hidden = false;
@@ -4687,36 +4736,98 @@ function openEarlyWarningModal(area, modal, content) {
 
 function buildWarningOutlookTable(rows, options = {}) {
   if (!Array.isArray(rows) || rows.length === 0) {
+    return buildWarningOutlookTableSection(rows, options);
+  }
+  if (options.splitLongPeriods === false) {
+    return buildWarningOutlookTableSection(rows, { ...options, kind: "combined" });
+  }
+  const hourlyRows = selectWarningOutlookRows(rows, (slot) => !isDailyWarningOutlookSlot(slot));
+  const dailyRows = selectWarningOutlookRows(rows, isDailyWarningOutlookSlot);
+  return [
+    buildWarningOutlookTableSection(hourlyRows, { ...options, kind: "hourly" }),
+    buildWarningOutlookTableSection(dailyRows, { ...options, kind: "daily" })
+  ].filter(Boolean).join("");
+}
+
+function buildWarningOutlookTableSection(rows, options = {}) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    if (options.kind) return "";
     return `<p class="warning-modal-empty">${escapeHtml(localizeText(options.loading ? "今後の見通しを取得中です。" : "今後の見通しはありません。"))}</p>`;
   }
 
+  const isDaily = options.kind === "daily";
+  const isEnglish = getCurrentLanguage() === "en";
+  const sectionTitle = options.kind === "combined"
+    ? (isEnglish ? "Outlook by period" : "期間ごとの見通し")
+    : (isDaily
+      ? (isEnglish ? "Daily outlook" : "日ごとの見通し")
+      : (isEnglish ? "Outlook by time" : "時間帯ごとの見通し"));
+  const sectionNote = isDaily
+    ? (isEnglish ? "Full-day and long-range periods" : "1日・長時間の見通し")
+    : "";
   const times = collectOutlookTableSlots(rows);
   return `
-    <div class="warning-outlook-scroll">
-      <table class="warning-outlook-table">
-        <thead>
-          <tr>
-            <th>${escapeHtml(localizeText("種別"))}</th>
-            ${times.map((slot) => `<th>${escapeHtml(formatOutlookTime(slot))}</th>`).join("")}
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map((row) => `
+    <div class="warning-outlook-block warning-outlook-block-${isDaily ? "daily" : "hourly"}">
+      <div class="warning-outlook-block-heading">
+        <strong>${escapeHtml(sectionTitle)}</strong>
+        ${sectionNote ? `<span>${escapeHtml(sectionNote)}</span>` : ""}
+      </div>
+      <div class="warning-outlook-scroll">
+        <table class="warning-outlook-table warning-outlook-table-${isDaily ? "daily" : "hourly"}">
+          <thead>
             <tr>
-              <th>${escapeHtml(localizeText(formatOutlookTypeLabel(row.type)))}${row.localName ? `<span>${escapeHtml(localizeText(row.localName))}</span>` : ""}</th>
-              ${times.map((timeSlot) => findMatchingOutlookSlot(row.slots, timeSlot)).map((slot) => `
-                <td class="warning-outlook-level-${escapeHtml(slot.level ?? 0)}">${escapeHtml(localizeWarningDisplayText(formatOutlookCellLabel(slot)))}</td>
-              `).join("")}
+              <th>${escapeHtml(localizeText("種別"))}</th>
+              ${times.map(isDaily ? buildDailyWarningOutlookTimeHeading : buildWarningOutlookTimeHeading).join("")}
             </tr>
-          `).join("")}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            ${rows.map((row) => `
+              <tr>
+                <th>${escapeHtml(localizeText(formatOutlookTypeLabel(row.type)))}${row.localName ? `<span>${escapeHtml(localizeText(row.localName))}</span>` : ""}</th>
+                ${times.map((timeSlot) => findMatchingOutlookSlot(row.slots, timeSlot)).map((slot) => `
+                  <td class="warning-outlook-level-${escapeHtml(slot.level ?? 0)}">${escapeHtml(localizeWarningDisplayText(formatOutlookCellLabel(slot)))}</td>
+                `).join("")}
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
     </div>
   `;
 }
 
+function selectWarningOutlookRows(rows, predicate) {
+  return rows
+    .map((row) => ({
+      ...row,
+      slots: (row.slots ?? []).filter(predicate)
+    }))
+    .filter((row) => row.slots.length > 0);
+}
+
+function isDailyWarningOutlookSlot(slot) {
+  return parseWarningOutlookDurationHours(slot?.duration) >= 18;
+}
+
 function formatOutlookTypeLabel(type) {
   return type === "暴風" ? "強風" : type;
+}
+
+function buildWarningOutlookTimeHeading(slot) {
+  const language = getCurrentLanguage();
+  const label = formatWarningOutlookTime(slot, { language });
+  const { dateLabel, timeLabel } = getWarningOutlookTimeDisplay(slot, { language });
+  if (!dateLabel) return `<th>${escapeHtml(timeLabel)}</th>`;
+  return `
+    <th class="warning-outlook-time-multiline" aria-label="${escapeHtml(label)}">
+      <span class="warning-outlook-date">${escapeHtml(dateLabel)}</span>
+      <span class="warning-outlook-period">${escapeHtml(timeLabel)}</span>
+    </th>
+  `;
+}
+
+function buildDailyWarningOutlookTimeHeading(slot) {
+  return buildWarningOutlookTimeHeading(slot);
 }
 
 function collectOutlookTableSlots(rows) {
@@ -6933,27 +7044,4 @@ function formatWarningTime(value) {
   }).formatToParts(date);
   const getPart = (type) => parts.find((part) => part.type === type)?.value ?? "00";
   return `${getPart("month")}/${getPart("day")} ${getPart("hour")}:${getPart("minute")}`;
-}
-
-function formatOutlookTime(slot) {
-  if (slot?.displayLabel) return slot.displayLabel;
-  const start = new Date(slot?.time ?? "");
-  if (Number.isNaN(start.getTime())) return "--";
-  const end = new Date(start.getTime() + parseDurationHours(slot?.duration) * 60 * 60 * 1000);
-  const startHour = formatHour(start);
-  const endHour = Number.isNaN(end.getTime()) ? "" : formatHour(end);
-  return endHour ? `${startHour}-${endHour}` : startHour;
-}
-
-function parseDurationHours(value) {
-  const match = String(value ?? "").match(/PT(\d+)H/);
-  return match ? Number(match[1]) : 0;
-}
-
-function formatHour(date) {
-  return new Intl.DateTimeFormat("ja-JP", {
-    hour: "2-digit",
-    hourCycle: "h23",
-    timeZone: "Asia/Tokyo"
-  }).format(date);
 }

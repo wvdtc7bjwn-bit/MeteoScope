@@ -53,6 +53,7 @@ import { addMyArea, getMyAreaLimit, loadMyAreas, removeMyArea } from "./location
 import { buildLocationRadarTimeline, sampleRadarAtLocation } from "./location/radarTimeline.js";
 import { sampleLightningAtLocation } from "./location/lightningStatus.js";
 import { sampleCurrentKikikuruStatus } from "./location/kikikuruStatus.js";
+import { buildMyAreaEarlyWarningSummaries, buildMyAreaWarningSummaries } from "./warningLocationInsights.js";
 import { createAdminNoticePush } from "./push/adminNoticePush.js";
 import { setupRemoteConfig } from "./remoteConfig.js";
 import { setupTheme } from "./ui/theme.js";
@@ -2065,9 +2066,15 @@ if (layerId === "river") {
     }
 
     if (tabId === "warnings") {
+      if (!["status", "early"].includes(activeWarningView)) return null;
+      const warningData = data ?? latestDataByTab.warnings ?? {};
       return {
         type: "myAreas",
-        areas: buildMyAreaWarningSummaries(data ?? latestDataByTab.warnings)
+        warningView: activeWarningView,
+        loading: activeWarningView === "early" && !warningData.earlyDetailsLoaded,
+        areas: activeWarningView === "early"
+          ? buildMyAreaEarlyWarningSummaries(myAreas, warningData)
+          : buildMyAreaWarningSummaries(myAreas, warningData)
       };
     }
 
@@ -2085,20 +2092,6 @@ if (layerId === "river") {
       prefecture: currentLocationInfo.prefecture,
       coordinates: currentLocationInfo.coordinates
     };
-  }
-
-  function buildMyAreaWarningSummaries(data = {}) {
-    if (!myAreas.length) return [];
-    const activeAreaByCode = new Map((data?.activeAreas ?? []).map((area) => [String(area.areaCode), area]));
-    return myAreas.map((area) => {
-      const activeArea = activeAreaByCode.get(String(area.areaCode));
-      return {
-        ...area,
-        warnings: activeArea?.warnings ?? [],
-        updatedAt: activeArea?.updatedAt ?? data?.updatedAt ?? data?.latestTime ?? "",
-        hasWarnings: Boolean(activeArea?.warnings?.length)
-      };
-    });
   }
 
   function ensureLocationRadarTimeline(radarData) {

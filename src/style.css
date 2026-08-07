@@ -850,10 +850,10 @@ h2 {
   inset: 0;
   margin: 0;
   padding: 0;
-  border: 0;
+  border: 0 !important;
   border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  background: transparent !important;
+  box-shadow: none !important;
   pointer-events: none;
 }
 
@@ -930,6 +930,18 @@ h2 {
 .location-my-area-item .warning-badge-danger,
 .location-my-area-item .warning-badge-emergency {
   color: #fff;
+}
+
+.location-my-area-item .early-warning-badge-middle {
+  color: #24110e;
+}
+
+.location-my-area-item .early-warning-badge-high {
+  color: #fff;
+}
+
+.location-my-area-item .early-warning-badge-none {
+  color: #152033;
 }
 
 .location-my-area-badges {
@@ -4791,6 +4803,31 @@ html[data-theme="light"] .weekly-weather-issued strong {
   display: none;
 }
 
+.warning-outlook-block + .warning-outlook-block {
+  margin-top: 16px;
+}
+
+.warning-outlook-block-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 4px 7px;
+  color: var(--text-color, #10243c);
+}
+
+.warning-outlook-block-heading strong {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.warning-outlook-block-heading span {
+  color: var(--muted-color, #61748c);
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .warning-outlook-table {
   width: max-content;
   min-width: 100%;
@@ -4814,6 +4851,28 @@ html[data-theme="light"] .weekly-weather-issued strong {
 .warning-outlook-table thead th {
   background: rgba(255, 255, 255, 0.075);
   color: #aebbd0;
+}
+
+.warning-outlook-table thead th.warning-outlook-time-multiline {
+  min-width: 112px;
+  line-height: 1.25;
+}
+
+.warning-outlook-table-daily th,
+.warning-outlook-table-daily td {
+  min-width: 72px;
+}
+
+.warning-outlook-time-multiline .warning-outlook-date,
+.warning-outlook-time-multiline .warning-outlook-period {
+  display: block;
+  white-space: nowrap;
+}
+
+.warning-outlook-time-multiline .warning-outlook-date {
+  margin-bottom: 3px;
+  font-size: 0.78em;
+  opacity: 0.78;
 }
 
 .warning-outlook-table tbody th {
@@ -4861,8 +4920,8 @@ html[data-theme="light"] .weekly-weather-issued strong {
 }
 
 .warning-outlook-level-middle {
-  background: #f2d12e;
-  color: #08111d;
+  background: #ffc8b8;
+  color: #24110e;
 }
 
 .warning-outlook-level-high {
@@ -6404,6 +6463,14 @@ html[data-theme="light"] .weekly-weather-issued strong {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+  transition-property: border-color, background-color;
+  transition-duration: 180ms;
+  transition-timing-function: ease;
+}
+
+.mobile-dock-segmented .mobile-dock-action:not(:disabled):active,
+.mobile-dock-segmented .mobile-dock-chip:active {
+  transform: none;
 }
 
 .mobile-dock-segmented button:is(.active, [aria-selected="true"], [aria-pressed="true"]) {
@@ -10377,10 +10444,10 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   }
 
   .mobile-dock-typhoon-main {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(148px, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
+    gap: 10px;
     min-width: 0;
   }
 
@@ -10430,31 +10497,31 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   }
 
   .mobile-dock-typhoon-title-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 52px;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     min-width: 0;
   }
 
   .mobile-dock-typhoon-title-row > strong {
-    flex: 0 0 auto;
-    overflow: visible;
-    text-overflow: clip;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .mobile-dock-typhoon-classifications {
     display: inline-flex;
     flex-direction: column;
-    flex: 0 0 auto;
+    width: 52px;
     align-items: stretch;
-    gap: 4px;
+    gap: 3px;
   }
 
   .mobile-dock-typhoon-classification {
     display: inline-grid;
     place-items: center;
-    min-width: 52px;
-    min-height: 19px;
+    min-width: 0;
+    min-height: 18px;
     padding: 2px 4px;
     border: 1px solid rgba(255, 151, 139, 0.34);
     border-radius: 7px;
@@ -10502,9 +10569,8 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-typhoon-values {
     display: grid;
-    grid-template-columns: repeat(2, minmax(58px, auto));
-    flex: 0 0 auto;
-    gap: 4px;
+    grid-template-columns: repeat(2, 60px);
+    gap: 5px;
   }
 
   .mobile-dock-typhoon-values .mobile-dock-typhoon-switch {
@@ -10513,21 +10579,22 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   }
 
   .mobile-dock-typhoon-values.has-switch {
-    grid-template-columns: minmax(54px, auto) minmax(58px, auto) 44px;
+    grid-template-columns: 60px 60px 42px;
   }
 
   .mobile-dock-typhoon-values span {
     display: grid;
     gap: 2px;
     min-width: 0;
-    padding: 6px 5px;
+    padding: 6px 4px;
     border: 1px solid rgba(199, 224, 248, 0.16);
     border-radius: 12px;
     color: #f4fbff;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 950;
     line-height: 1.1;
-    text-align: right;
+    text-align: center;
+    white-space: nowrap;
     background: rgba(255, 255, 255, 0.045);
   }
 
@@ -14898,14 +14965,12 @@ html[data-theme="light"] :is(.weather-chart-controls, .weather-chart-status, .we
 }
 
 html[data-theme="light"] .weather-chart-controls {
-  border-color: rgba(57, 86, 116, 0.2);
-  border-radius: 12px;
-  background: rgba(244, 249, 253, 0.4);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.72),
-    0 9px 22px rgba(45, 70, 96, 0.11);
-  backdrop-filter: blur(20px) saturate(1.45);
-  -webkit-backdrop-filter: blur(20px) saturate(1.45);
+  border-color: transparent;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 html[data-theme="light"] :is(.weather-chart-head strong, .weather-chart-status strong) {

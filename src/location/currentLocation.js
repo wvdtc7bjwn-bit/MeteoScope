@@ -1,5 +1,6 @@
 import { JMA_ENDPOINTS } from "../config.js";
 import { getPrefectureNameByCode } from "../jma/warnings.js";
+import { findEarlyWarningAreaForMunicipality } from "../warningLocationInsights.js";
 
 let municipalityLookupPromise = null;
 
@@ -45,16 +46,6 @@ export async function resolveCurrentLocationInfo(coordinates, warningData = {}) 
       ? "現在地に発表中の警報・注意報があります。"
       : "現在地に発表中の警報・注意報はありません。"
   };
-}
-
-function findEarlyWarningAreaForMunicipality(areaCode, warningData = {}) {
-  const code = String(areaCode ?? "");
-  if (!code) return null;
-  const candidates = [
-    ...(warningData.earlyWarnings?.municipalityAreas ?? []),
-    ...(warningData.earlyMunicipalityAreas ?? [])
-  ];
-  return candidates.find((area) => String(area.areaCode) === code) ?? null;
 }
 
 function buildCurrentLocationEarlyWarnings(area) {
