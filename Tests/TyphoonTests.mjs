@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
+  formatTyphoonSummaryName,
   formatTyphoonTransitionStatus,
   getTyphoonTransitionStatus,
   normalizeTyphoon
@@ -23,6 +24,10 @@ import {
   buildStormWarningAreaLineSegments,
   destinationPoint
 } from "../src/typhoonGeometry.js";
+
+assert.equal(formatTyphoonSummaryName("台風第15号 (チャンホン)"), "台風第15号");
+assert.equal(formatTyphoonSummaryName("台風第15号（チャンホン）"), "台風第15号");
+assert.equal(formatTyphoonSummaryName("熱帯低気圧b"), "熱帯低気圧b");
 
 const warningAreaSegments = buildStormWarningAreaLineSegments({
   arc: [{ center: [130, 20], radius: 100, start: 350, end: 10 }],
@@ -136,11 +141,17 @@ const jmaNamedTyphoon = normalizeTyphoon({
       validtime: { JST: "2026-07-31T06:00:00+09:00" }
     }
   ],
-  specifications: []
+  specifications: [
+    {
+      advancedHours: 0,
+      location: "日本のはるか東"
+    }
+  ]
 });
 assert.equal(jmaNamedTyphoon.name, "台風第9号 (ドルフィン)");
 assert.equal(jmaNamedTyphoon.nameEn, "Typhoon No. 9 (DOLPHIN)");
 assert.equal(jmaNamedTyphoon.details.nameEn, "Typhoon No. 9 (DOLPHIN)");
+assert.equal(jmaNamedTyphoon.details.position, "日本のはるか東");
 
 const selectedWorldSystem = selectWorldTyphoonSystem({
   systems: [
@@ -369,6 +380,35 @@ assert.match(panelSource, /mobile-dock-horizontal-swipe/);
 assert.match(panelSource, /地図に表示/);
 assert.match(panelSource, /<dl class="typhoon-world-summary">/);
 assert.match(panelSource, /<table class="typhoon-world-candidate-list">/);
+assert.match(panelSource, /<section class="typhoon-analysis-panel" aria-label="台風の解析値">/);
+assert.match(panelSource, /class="typhoon-analysis-primary"/);
+assert.match(panelSource, /class="typhoon-analysis-classification" aria-label="台風の大きさと強さ"/);
+assert.match(panelSource, /class="typhoon-analysis-classification-item is-\$\{kind\}\$\{toneClass\}"/);
+assert.match(panelSource, /function getTyphoonClassificationItems\(details = \{\}\)/);
+assert.match(panelSource, /\.filter\(\(\[, value\]\) => value && value !== "-"\)/);
+assert.match(panelSource, /\$\{classificationMarkup\}\s*<dl class="typhoon-analysis-primary">/);
+assert.match(panelSource, /const classificationItems = getTyphoonClassificationItems\(details\)/);
+assert.match(panelSource, /const summaryClassificationItems = getTyphoonClassificationItems\(activeTyphoon\?\.details\)/);
+assert.match(panelSource, /class="mobile-dock-typhoon-title-row"/);
+assert.match(panelSource, /class="mobile-dock-typhoon-classification is-\$\{kind\}\$\{toneClass\}"/);
+assert.match(panelSource, /sizeText\.includes\("超大型"\)/);
+assert.match(panelSource, /sizeText\.includes\("大型"\)/);
+assert.match(panelSource, /strengthText\.includes\("猛烈"\)/);
+assert.match(panelSource, /strengthText\.includes\("非常に強"\)/);
+assert.match(styleSource, /\.typhoon-analysis-classification-item\.is-size\.is-super-large/);
+assert.match(styleSource, /\.typhoon-analysis-classification-item\.is-strength\.is-violent/);
+assert.match(styleSource, /\.typhoon-analysis-classification-item\.is-strength\.is-strong/);
+assert.match(styleSource, /\.mobile-dock-typhoon-classification\.is-size\.is-super-large/);
+assert.match(styleSource, /\.mobile-dock-typhoon-classification\.is-strength\.is-strong/);
+assert.match(styleSource, /\.mobile-dock-typhoon-classifications\s*\{[\s\S]*flex-direction:\s*column/);
+assert.match(panelSource, /class="typhoon-analysis-movement"/);
+assert.match(panelSource, /class="typhoon-select-count"/);
+assert.match(panelSource, /class="typhoon-analysis-position"/);
+assert.match(panelSource, /const positionMarkup = details\.position !== "-"/);
+assert.match(panelSource, /\$\{positionMarkup\}\s*<dl class="typhoon-analysis-movement">/);
+assert.match(styleSource, /\.typhoon-analysis-position\s*,\s*\.typhoon-analysis-movement/);
+assert.match(styleSource, /\.typhoon-analysis-primary[\s\S]*grid-template-columns:\s*repeat\(3/);
+assert.match(styleSource, /\.typhoon-analysis-classification\s*\{[\s\S]*display:\s*flex/);
 assert.match(panelSource, /Development candidates/);
 assert.match(panelSource, /Forecast range/);
 assert.match(panelSource, /Development probability/);

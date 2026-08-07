@@ -21,7 +21,7 @@ import {
   buildEarthquakeObservationRows,
   groupEarthquakeObservationRowsByMunicipality
 } from "../earthquakeDetails.js";
-import { NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
+import { formatTyphoonSummaryName, NO_TYPHOON_MESSAGE } from "../jma/typhoon.js";
 import {
   HYPOCENTER_DISTRIBUTION_DAY_COUNT,
   HYPOCENTER_DISTRIBUTION_DEPTH_OPTIONS,
@@ -75,17 +75,16 @@ let mobileEarthquakeSummarySwipeInitialized = false;
 let mobileEarthquakeSummaryCommitTimer = 0;
 let mobileTsunamiTickerGroupTimer = 0;
 let mobileTsunamiTickerTransitionTimer = 0;
-let warningDetailsRenderFrame = 0;
-let warningDetailsRenderGeneration = 0;
 let lastWarningDetailsData = null;
 let lastWarningDetailsView = "";
 let lastWarningDetailsStatus = "";
 let lastWarningDetailsAreaCode = "";
-let warningVisibleAreaCount = 80;
-let warningListExpansionRequested = false;
+let lastWarningDetailsLayer = "";
+let activeWarningGroupsByKey = new Map();
+let warningGroupKeyByAreaCode = new Map();
+let expandedWarningGroupKey = "";
 
 const AMEDAS_RANKING_LIMIT = 100;
-const WARNING_AREA_PAGE_SIZE = 80;
 const MOBILE_WEATHER_TIMELINE_TAP_DELAY_MS = 360;
 const MOBILE_WEATHER_TIMELINE_TAP_MAX_DURATION_MS = 500;
 const MOBILE_WEATHER_TIMELINE_TAP_MOVE_THRESHOLD_PX = 8;
@@ -124,14 +123,17 @@ export function updateLeftPanel(tab, state = {}) {
   const amedasMetric = getAmedasMetric(state.amedasMetric ?? state.data?.activeMetric);
   const warningView = state.warningView ?? state.data?.activeWarningView ?? "status";
   const activeKikikuruLayer = state.activeKikikuruLayer ?? state.data?.activeKikikuruLayer ?? KIKIKURU_LAYER_OPTIONS[0]?.id;
-  const modeLabel = tab.id === "earthquake" && state.earthquakeContentMode === "volcano"
-    ? "火山情報"
-    : (tab.id === "radar" && state.weatherChartEnabled
-      ? "天気図"
-      : (tab.id === "radar" && state.lightningEnabled
-        ? "雷"
-        : (tab.id === "typhoon" && state.data?.worldForecastMode ? "各国予想" : tab.label)));
+  const modeLabel = tab.id === "warnings"
+    ? localizeWarningDisplayText(getWarningViewTitle(warningView))
+    : (tab.id === "earthquake" && state.earthquakeContentMode === "volcano"
+      ? "火山情報"
+      : (tab.id === "radar" && state.weatherChartEnabled
+        ? "天気図"
+        : (tab.id === "radar" && state.lightningEnabled
+          ? "雷"
+          : (tab.id === "typhoon" && state.data?.worldForecastMode ? "各国予想" : tab.label))));
   setText("mode-label", modeLabel);
+  document.getElementById("mode-label")?.classList.toggle("mode-label-warning", tab.id === "warnings");
   setText("panel-title", buildPanelTitle(tab, state));
   setPanelTitleVisible(false);
   setText("panel-description", buildDescription(tab, state));
@@ -141,6 +143,7 @@ export function updateLeftPanel(tab, state = {}) {
   setWarningSocialSharePayload(tab, state, warningView);
   renderRadarOverlayTabs(tab, state.weatherChartEnabled, state.weatherChartStatus, state.weatherChart ?? state.data?.weatherChart);
   renderKikikuruLayerTabs(tab, warningView, activeKikikuruLayer);
+  renderWarningViewTabs(tab, warningView);
   renderAmedasSubTabs(tab, amedasMetric.id);
   renderAmedasPrecipitationPeriods(tab, amedasMetric.id, state.amedasPrecipitationPeriod ?? state.data?.precipitationPeriod);
   renderRadarControls(tab, state);
@@ -516,7 +519,7 @@ function setupSegmentedControls(root) {
     const segment = event.target.closest(".mobile-dock-segmented");
     if (!segment || !root.contains(segment)) return;
     const buttons = getButtons(segment);
-    const activeButton = buttons.find((button) => button.classList.contains("active")) ?? buttons[0];
+    const activeButton = buttons.find(isSegmentButtonActive) ?? buttons[0];
     if (!activeButton) return;
     syncMobileDockSegmentIndicator(segment);
     const pointerButton = event.target.closest("button");
@@ -733,7 +736,13 @@ export function setupKikikuruLayerToggles({ onChange }) {
     onChange?.(button.dataset.kikikuruLayer);
   };
 
+  const warningViewTabs = document.getElementById("warning-view-tabs");
+  const warningDetailList = document.getElementById("warning-detail-list");
+  setupSegmentedControls(warningViewTabs);
+  setupSegmentedControls(warningDetailList);
   document.getElementById("kikikuru-layer-tabs")?.addEventListener("click", handleClick);
+  warningViewTabs?.addEventListener("click", handleClick);
+  warningDetailList?.addEventListener("click", handleClick);
   document.getElementById("mobile-context-dock")?.addEventListener("click", handleClick);
 }
 export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest }) {
@@ -1887,6 +1896,22 @@ function renderAmedasSubTabs(tab, activeMetricId) {
   window.requestAnimationFrame(() => syncMobileDockSegmentIndicator(root));
 }
 
+function renderWarningViewTabs(tab, warningView) {
+  const root = document.getElementById("warning-view-tabs");
+  if (!root) return;
+  const isWarnings = tab.id === "warnings";
+  root.hidden = !isWarnings;
+  if (!isWarnings) {
+    root.innerHTML = "";
+    return;
+  }
+
+  root.innerHTML = getWarningViewOptions(warningView).map((option) => `
+    <button type="button" role="tab" class="mobile-dock-action${option.active ? " active" : ""}" data-kikikuru-layer="${escapeHtml(option.id)}" aria-selected="${option.active ? "true" : "false"}"${option.active ? " disabled" : ""}>${escapeHtml(localizeWarningDisplayText(option.label))}</button>
+  `).join("");
+  window.requestAnimationFrame(() => syncMobileDockSegmentIndicator(root));
+}
+
 function renderAmedasPrecipitationPeriods(tab, activeMetricId, activePeriodId) {
   const root = document.getElementById("amedas-precipitation-periods");
   if (!root) return;
@@ -2078,8 +2103,12 @@ function renderTyphoonSelector(tab, state) {
   const nextTyphoon = typhoons[nextIndex] ?? activeTyphoon;
   const nextId = String(nextTyphoon?.id ?? `typhoon-${nextIndex}`);
   const name = activeTyphoon.details?.name ?? activeTyphoon.name ?? `台風 ${activeIndex + 1}`;
-  const time = activeTyphoon.updatedAt ? `<span>${escapeHtml(activeTyphoon.updatedAt)}</span>` : "";
-  const count = typhoons.length > 1 ? `<em>${activeIndex + 1}/${typhoons.length}</em>` : "";
+  const time = activeTyphoon.updatedAt
+    ? `<span class="typhoon-select-updated">発表 ${escapeHtml(activeTyphoon.updatedAt)}</span>`
+    : "";
+  const count = typhoons.length > 1
+    ? `<em class="typhoon-select-count" aria-hidden="true">${activeIndex + 1}/${typhoons.length}</em>`
+    : "";
   const nextName = nextTyphoon?.details?.name ?? nextTyphoon?.name ?? `台風 ${nextIndex + 1}`;
   root.innerHTML = `
     <button
@@ -2111,11 +2140,9 @@ export function setupWarningAreaSelection(options = {}) {
 
   root.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
-    const loadMoreButton = event.target.closest("[data-warning-load-more]");
-    if (loadMoreButton) {
-      warningVisibleAreaCount += WARNING_AREA_PAGE_SIZE;
-      warningListExpansionRequested = true;
-      warningAreaSelectionOptions.onListExpansion?.();
+    const groupToggle = event.target.closest("[data-warning-group-toggle]");
+    if (groupToggle?.dataset.warningGroupToggle) {
+      toggleWarningGroup(root, groupToggle.dataset.warningGroupToggle);
       return;
     }
     const riverRow = event.target.closest("[data-river-flood-id]");
@@ -2147,6 +2174,47 @@ window.addEventListener("weather-warning-area-select", (event) => {
   });
 }
 
+function setWarningGroupExpanded(root, groupKey, expanded, { focus = false } = {}) {
+  const group = root.querySelector(`[data-warning-group="${cssEscape(groupKey)}"]`);
+  const button = group?.querySelector("[data-warning-group-toggle]");
+  const body = group?.querySelector(".warning-prefecture-body");
+  if (!group || !button || !body) return;
+
+  if (expanded && !body.firstElementChild) {
+    const entry = activeWarningGroupsByKey.get(groupKey);
+    if (entry) body.innerHTML = `<div class="warning-prefecture-body-inner">${buildWarningAreaRowsMarkup(entry.group, entry.warningView)}</div>`;
+  }
+
+  group.classList.toggle("is-open", expanded);
+  button.setAttribute("aria-expanded", expanded ? "true" : "false");
+  body.setAttribute("aria-hidden", expanded ? "false" : "true");
+  if (expanded) expandedWarningGroupKey = groupKey;
+  if (focus) button.focus({ preventScroll: true });
+}
+
+function toggleWarningGroup(root, groupKey) {
+  const group = root.querySelector(`[data-warning-group="${cssEscape(groupKey)}"]`);
+  const shouldOpen = !group?.classList.contains("is-open");
+  root.querySelectorAll(".warning-prefecture-group.is-open").forEach((openGroup) => {
+    if (openGroup.dataset.warningGroup !== groupKey) {
+      setWarningGroupExpanded(root, openGroup.dataset.warningGroup, false);
+    }
+  });
+  setWarningGroupExpanded(root, groupKey, shouldOpen);
+  if (!shouldOpen && expandedWarningGroupKey === groupKey) expandedWarningGroupKey = "";
+}
+
+function ensureWarningAreaGroupOpen(root, areaCode) {
+  const groupKey = warningGroupKeyByAreaCode.get(String(areaCode));
+  if (!groupKey) return;
+  root.querySelectorAll(".warning-prefecture-group.is-open").forEach((openGroup) => {
+    if (openGroup.dataset.warningGroup !== groupKey) {
+      setWarningGroupExpanded(root, openGroup.dataset.warningGroup, false);
+    }
+  });
+  setWarningGroupExpanded(root, groupKey, true);
+}
+
 function selectWarningArea(areaCode, { scroll, openModal } = {}) {
   selectedWarningAreaCode = String(areaCode);
   const root = document.getElementById("warning-detail-list");
@@ -2156,6 +2224,7 @@ function selectWarningArea(areaCode, { scroll, openModal } = {}) {
     row.classList.remove("selected");
   });
 
+  ensureWarningAreaGroupOpen(root, selectedWarningAreaCode);
   const row = root.querySelector(`[data-warning-area-code="${cssEscape(selectedWarningAreaCode)}"]`);
   if (!row) {
     if (openModal && activeWarningAreasByCode.has(selectedWarningAreaCode)) {
@@ -2228,7 +2297,7 @@ function syncMobileDockSegmentIndicators(root) {
 
 function syncMobileDockSegmentIndicator(segment) {
   const buttons = [...segment.querySelectorAll("button")];
-  const activeButton = buttons.find((button) => button.classList.contains("active")) ?? buttons[0];
+  const activeButton = buttons.find(isSegmentButtonActive) ?? buttons[0];
   if (!activeButton) return;
   segment.style.setProperty("--mobile-dock-indicator-x", `${activeButton.offsetLeft}px`);
   segment.style.setProperty("--mobile-dock-indicator-width", `${activeButton.offsetWidth}px`);
@@ -2259,8 +2328,14 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     const nearestText = nearest
       ? `${nearest.name} ${formatAmedasRankingValue(nearest.value, metric)}`
       : getAmedasNearestFallbackText(state.currentLocation);
+    const amedasLoadingLabel = state.status === "loading"
+      ? "AMeDAS観測値を読み込み中"
+      : (!nearest && state.currentLocation?.status === "loading" ? "現在地を読み込み中" : "");
+    const nearestMarkup = amedasLoadingLabel
+      ? buildMobileDockLoadingStatus(amedasLoadingLabel)
+      : `<span class="mobile-dock-amedas-nearest${nearest ? "" : " is-muted"}" title="${escapeHtml(nearestText)}">${escapeHtml(nearestText)}</span>`;
     return `
-      <div class="mobile-dock-content mobile-dock-amedas${isPrecipitation ? " has-precipitation-period" : ""}">
+      <div class="mobile-dock-content mobile-dock-amedas${isPrecipitation ? " has-precipitation-period" : ""}" aria-busy="${Boolean(amedasLoadingLabel)}">
         <div class="mobile-dock-amedas-head">
           <span class="mobile-dock-kicker">アメダス</span>
           ${isPrecipitation ? `
@@ -2273,8 +2348,8 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
                 ? `Rainfall period: ${precipitationPeriod.primary}. Change to ${nextPrecipitationPeriod.primary}`
                 : `降水量の集計時間は${precipitationPeriod.label}。押すと${nextPrecipitationPeriod.label}に切り替え`)}"
             >${escapeHtml(isEnglish ? precipitationPeriod.primary : precipitationPeriod.label)}</button>
-            <span class="mobile-dock-amedas-nearest${nearest ? "" : " is-muted"}" title="${escapeHtml(nearestText)}">${escapeHtml(nearestText)}</span>
-          ` : `<span class="mobile-dock-amedas-nearest${nearest ? "" : " is-muted"}" title="${escapeHtml(nearestText)}">${escapeHtml(nearestText)}</span>`}
+            ${nearestMarkup}
+          ` : nearestMarkup}
         </div>
         <div class="mobile-dock-chip-grid mobile-dock-amedas-grid mobile-dock-segmented">
           ${AMEDAS_METRICS.map((item) => `
@@ -2288,11 +2363,23 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     const info = state.currentLocation;
     const warnings = warningView === "early" ? (info?.earlyWarnings ?? []) : (info?.warnings ?? []);
     const area = [info?.prefecture, info?.areaName].filter(Boolean).join(" ") || "現在地の発表状況";
+    const warningLoading = state.status === "loading"
+      || info?.status === "loading"
+      || (warningView === "kikikuru" && Boolean(state.data?.kikikuru?.deferred))
+      || (warningView === "river" && (!state.data?.riverFlood?.status || state.data.riverFlood.status === "loading"));
+    const warningLoadingLabel = warningLoading
+      ? ({
+          early: "早期注意情報を読み込み中",
+          kikikuru: "キキクルを読み込み中",
+          river: "指定河川洪水予報を読み込み中",
+          status: "警報・注意報を読み込み中"
+        }[warningView] ?? "警報・注意報を読み込み中")
+      : "";
     return buildWarningMobileContextMarkup({
       activeKikikuruLayer: state.data?.activeKikikuruLayer,
       area,
       currentLocation: info,
-      isLoading: info?.status === "loading",
+      loadingLabel: warningLoadingLabel,
       warningView,
       warnings,
       riverFlood: state.data?.riverFlood
@@ -2329,6 +2416,12 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     );
   }
   return buildMobileContextMarkup(tab.label ?? "情報", "詳細情報", "開く");
+}
+
+function isSegmentButtonActive(button) {
+  return button?.classList.contains("active")
+    || button?.getAttribute("aria-selected") === "true"
+    || button?.getAttribute("aria-pressed") === "true";
 }
 
 function buildTideObservationMobileContextMarkup(tideObservation = {}) {
@@ -2719,12 +2812,13 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
   `;
   if (forecastMode === "world") {
     const worldStatus = data.worldForecastStatus ?? "idle";
+    const worldLoading = ["idle", "loading"].includes(worldStatus);
     const modelStates = data.worldForecastModelStates ?? [];
     const enabledModels = modelStates.filter((model) => model.enabled);
     const candidateCount = enabledModels.reduce((total, model) => total + (model.candidates?.length ?? 0), 0);
     const title = enabledModels.length === 0
       ? "表示モデルを選択"
-      : (["idle", "loading"].includes(worldStatus)
+      : (worldLoading
       ? "各国予想を取得中"
       : (worldStatus === "error" ? "各国予想を取得できません" : "各国予想"));
     const modelToggles = modelStates.map((model) => {
@@ -2788,12 +2882,14 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
         ${timelineMarkup}
       </div>
     ` : `
-      <div class="mobile-dock-world-time-control is-empty" aria-live="polite">
-        <span>予報時刻を取得中</span>
+      <div class="mobile-dock-world-time-control is-empty" aria-busy="${worldLoading}">
+        ${worldLoading
+          ? buildMobileDockLoadingStatus("各国予想を読み込み中")
+          : `<span>${escapeHtml(localizeText(worldStatus === "error" ? "各国予想を取得できません" : "予報時刻はありません"))}</span>`}
       </div>
     `;
     return `
-      <div class="mobile-dock-content mobile-dock-typhoon mobile-dock-typhoon-world">
+      <div class="mobile-dock-content mobile-dock-typhoon mobile-dock-typhoon-world" aria-busy="${worldLoading}">
         ${modeSwitch}
         <div class="mobile-dock-world-model-toggles" role="group" aria-label="${escapeHtml(`${title}・${enabledModels.length}モデル・発達候補${candidateCount}件`)}">
           ${modelToggles}
@@ -2805,7 +2901,7 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
 
   const typhoons = data.typhoons ?? [];
   if (status === "loading") {
-    return `<div class="mobile-dock-content mobile-dock-typhoon">${modeSwitch}<div class="mobile-dock-typhoon-empty">台風情報を取得中</div></div>`;
+    return `<div class="mobile-dock-content mobile-dock-typhoon" aria-busy="true">${modeSwitch}${buildMobileDockLoadingStatus("台風情報を読み込み中")}</div>`;
   }
   if (!typhoons.length || data.hasTyphoon === false) {
     return `<div class="mobile-dock-content mobile-dock-typhoon">${modeSwitch}<div class="mobile-dock-typhoon-empty">${escapeHtml(NO_TYPHOON_MESSAGE)}</div></div>`;
@@ -2815,10 +2911,19 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
   const nextIndex = typhoons.length > 1 ? (activeIndex + 1) % typhoons.length : activeIndex;
   const nextTyphoon = typhoons[nextIndex] ?? activeTyphoon;
   const name = activeTyphoon?.details?.name ?? activeTyphoon?.name ?? `台風 ${activeIndex + 1}`;
+  const summaryName = formatTyphoonSummaryName(name);
   const nextName = nextTyphoon?.details?.name ?? nextTyphoon?.name ?? `台風 ${nextIndex + 1}`;
   const nextId = String(nextTyphoon?.id ?? `typhoon-${nextIndex}`);
   const pressure = normalizeSummaryValue(activeTyphoon?.details?.pressure);
   const maxGust = normalizeSummaryValue(activeTyphoon?.details?.maxGust);
+  const summaryClassificationItems = getTyphoonClassificationItems(activeTyphoon?.details);
+  const summaryClassificationMarkup = summaryClassificationItems.length ? `
+    <span class="mobile-dock-typhoon-classifications" aria-label="台風の大きさと強さ">
+      ${summaryClassificationItems.map(([label, value, kind, toneClass]) => `
+        <span class="mobile-dock-typhoon-classification is-${kind}${toneClass}" aria-label="${escapeHtml(label)}: ${escapeHtml(value)}">${escapeHtml(value)}</span>
+      `).join("")}
+    </span>
+  ` : "";
   const count = typhoons.length > 1 ? `${activeIndex + 1}/${typhoons.length}` : "選択中";
   const transitionStatus = activeTyphoon?.transitionStatus ?? activeTyphoon?.details?.transitionStatus ?? "";
   const switchButton = typhoons.length > 1
@@ -2830,7 +2935,10 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
       ${modeSwitch}
       <div class="mobile-dock-typhoon-main">
         <div class="mobile-dock-typhoon-text">
-          <strong>${escapeHtml(name)}</strong>
+          <div class="mobile-dock-typhoon-title-row">
+            <strong>${escapeHtml(summaryName)}</strong>
+            ${summaryClassificationMarkup}
+          </div>
           ${transitionStatus ? `<span class="mobile-dock-typhoon-status">${escapeHtml(transitionStatus)}</span>` : ""}
         </div>
         <div class="mobile-dock-typhoon-values${typhoons.length > 1 ? " has-switch" : ""}" aria-label="台風の解析値">
@@ -2895,15 +3003,14 @@ function buildEarthquakeMobileContextMarkup(
   status = "ok"
 ) {
   if (!earthquake) {
-    const statusText = status === "loading"
-      ? localizeText("地震情報を読み込み中")
-      : (status === "error"
+    const isLoading = status === "loading";
+    const statusText = status === "error"
         ? localizeText("地震情報を取得できませんでした。")
-        : localizeText("直近の地震情報はありません。"));
+        : localizeText("直近の地震情報はありません。");
     const primaryMarkup = `
       ${buildEarthquakeMobileViewSwitch("recent")}
-      <div class="mobile-dock-earthquake-empty-state" role="${status === "error" ? "alert" : "status"}" aria-live="polite">
-        ${escapeHtml(statusText)}
+      <div class="mobile-dock-earthquake-empty-state${isLoading ? " is-loading" : ""}" role="${status === "error" ? "alert" : "status"}" aria-live="polite" aria-busy="${isLoading}">
+        ${isLoading ? buildMobileDockLoadingStatus("地震情報を読み込み中") : escapeHtml(statusText)}
       </div>
     `;
     return buildMobileEarthquakeSummaryCarousel({
@@ -2965,6 +3072,28 @@ function buildEarthquakeMobileContextMarkup(
     tsunamiStatus,
     tideObservation
   });
+}
+
+function getTyphoonClassificationItems(details = {}) {
+  const sizeText = String(details?.size ?? "");
+  const sizeTone = sizeText.includes("超大型")
+    ? "super-large"
+    : sizeText.includes("大型")
+      ? "large"
+      : "neutral";
+  const strengthText = String(details?.strength ?? "");
+  const strengthTone = strengthText.includes("猛烈")
+    ? "violent"
+    : strengthText.includes("非常に強")
+      ? "very-strong"
+      : strengthText.includes("強")
+        ? "strong"
+        : "neutral";
+
+  return [
+    ["大きさ", details?.size, "size", ` is-${sizeTone}`],
+    ["強さ", details?.strength, "strength", ` is-${strengthTone}`]
+  ].filter(([, value]) => value && value !== "-");
 }
 
 function buildMobileEarthquakeSummaryCarousel({
@@ -3269,25 +3398,27 @@ function formatMobileEarthquakeTime(value) {
   const match = text.match(/(?:\d{4}\/)?(\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})/u);
   return match ? `${match[1]} ${match[2]}` : text;
 }
-function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLocation, isLoading, riverFlood, warningView, warnings }) {
-  if (warningView === "river") return buildRiverFloodMobileContextMarkup(riverFlood, currentLocation);
+function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLocation, loadingLabel, riverFlood, warningView, warnings }) {
+  if (warningView === "river") return buildRiverFloodMobileContextMarkup(riverFlood, currentLocation, loadingLabel);
   const topWarning = getPrimaryMobileWarning(warnings);
-  const warningBadges = warningView === "status" && !isLoading
+  const warningBadges = warningView === "status" && !loadingLabel
     ? buildWarningBadgesMarkup(warnings)
     : "";
-  const statusText = localizeWarningDisplayText(isLoading ? "取得中" : (topWarning?.label ?? "発表なし"));
+  const statusText = localizeWarningDisplayText(topWarning?.label ?? "発表なし");
   const level = topWarning?.level ?? "none";
   const badgeColorClass = getMobileWarningBadgeColorClass(warningView, level);
   return `
-    <div class="mobile-dock-content mobile-dock-warning">
+    <div class="mobile-dock-content mobile-dock-warning" aria-busy="${Boolean(loadingLabel)}">
       <div class="mobile-dock-warning-head">
         ${buildWarningMobileActionRow(warningView)}
       </div>
-      ${warningView === "kikikuru"
+      ${loadingLabel
+        ? `<div class="mobile-dock-warning-main is-loading">${buildMobileDockLoadingStatus(loadingLabel)}</div>`
+        : warningView === "kikikuru"
         ? buildKikikuruMobileLayerRow(activeKikikuruLayer)
         : `<div class="mobile-dock-warning-main">
             <div class="mobile-dock-warning-text">
-              <strong>${escapeHtml(localizeWarningDisplayText(isLoading ? "現在地を確認中" : area))}</strong>
+              <strong>${escapeHtml(localizeWarningDisplayText(area))}</strong>
             </div>
             ${warningBadges
               ? `<div class="mobile-dock-warning-badges warning-badges">${warningBadges}</div>`
@@ -3297,22 +3428,23 @@ function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLoc
   `;
 }
 
-function buildRiverFloodMobileContextMarkup(riverFlood = {}, currentLocation = {}) {
+function buildRiverFloodMobileContextMarkup(riverFlood = {}, currentLocation = {}, loadingLabel = "") {
   const reports = Array.isArray(riverFlood?.reports) ? riverFlood.reports : [];
   const report = selectRiverFloodSummaryReport(riverFlood, currentLocation);
-  const loading = riverFlood?.status === "loading" || !riverFlood?.status;
   const failed = riverFlood?.status === "error";
-  const label = localizeWarningDisplayText(loading ? "取得中" : (failed ? "取得失敗" : (report?.levelLabel ?? "発表なし")));
+  const label = localizeWarningDisplayText(failed ? "取得失敗" : (report?.levelLabel ?? "発表なし"));
   const forecastAreaName = getRiverForecastDisplayName(report);
   return `
-    <div class="mobile-dock-content mobile-dock-warning mobile-dock-river">
+    <div class="mobile-dock-content mobile-dock-warning mobile-dock-river" aria-busy="${Boolean(loadingLabel)}">
       <div class="mobile-dock-warning-head">${buildWarningMobileActionRow("river")}</div>
-      <div class="mobile-dock-warning-main">
-        <div class="mobile-dock-warning-text">
-          <strong>${escapeHtml(forecastAreaName)}</strong>
-        </div>
-        <span class="river-flood-level river-flood-level-${escapeHtml(report?.level ?? 0)}">${escapeHtml(label)}</span>
-      </div>
+      ${loadingLabel
+        ? `<div class="mobile-dock-warning-main is-loading">${buildMobileDockLoadingStatus(loadingLabel)}</div>`
+        : `<div class="mobile-dock-warning-main">
+            <div class="mobile-dock-warning-text">
+              <strong>${escapeHtml(forecastAreaName)}</strong>
+            </div>
+            <span class="river-flood-level river-flood-level-${escapeHtml(report?.level ?? 0)}">${escapeHtml(label)}</span>
+          </div>`}
     </div>
   `;
 }
@@ -3428,13 +3560,28 @@ function getPrimaryMobileWarning(warnings = []) {
   const rank = { emergency: 4, danger: 3, high: 3, warning: 2, middle: 2, advisory: 1 };
   return [...warnings].sort((a, b) => (rank[b?.level] ?? 0) - (rank[a?.level] ?? 0))[0] ?? null;
 }
-function buildWarningMobileActionRow(warningView) {
-  const options = [
+
+function getWarningViewOptions(warningView) {
+  return [
     { id: "status", label: "発表", active: warningView === "status" },
     { id: "early", label: "早期", active: warningView === "early" },
     { id: "kikikuru", label: "キキクル", active: warningView === "kikikuru" },
     { id: "river", label: "河川", active: warningView === "river" }
   ];
+}
+
+function getWarningViewTitle(warningView) {
+  const labels = {
+    status: "発表中の警報・注意報",
+    early: "早期注意情報",
+    kikikuru: "キキクル",
+    river: "指定河川洪水予報"
+  };
+  return labels[warningView] ?? labels.status;
+}
+
+function buildWarningMobileActionRow(warningView) {
+  const options = getWarningViewOptions(warningView);
   return `
     <div class="mobile-dock-action-row mobile-dock-warning-actions mobile-dock-segmented">
       ${options.map((option) => `
@@ -3466,6 +3613,10 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   const lightningEnabled = Boolean(state.lightningEnabled);
   const weatherChartLoading = weatherChartEnabled && state.weatherChartStatus === "loading";
   const lightningLoading = lightningEnabled && state.lightningStatus === "loading";
+  const radarLoading = !weatherChartEnabled && !lightningEnabled && status === "loading";
+  const loadingLabel = weatherChartLoading
+    ? "天気図を読み込み中"
+    : (lightningLoading ? "雷情報を読み込み中" : (radarLoading ? "雨雲レーダーを読み込み中" : ""));
   const weatherChart = state.weatherChart ?? state.data?.weatherChart;
   const chartFrames = Array.isArray(weatherChart?.frames)
     ? weatherChart.frames
@@ -3534,14 +3685,16 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
     );
 
   return `
-    <div class="mobile-dock-content mobile-dock-radar">
+    <div class="mobile-dock-content mobile-dock-radar" aria-busy="${Boolean(loadingLabel)}">
       <div class="mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented">
         <button type="button" class="mobile-dock-action${!weatherChartEnabled && !lightningEnabled ? " active" : ""}" data-mobile-dock-control data-radar-overlay="radar" aria-pressed="${!weatherChartEnabled && !lightningEnabled ? "true" : "false"}"${!weatherChartEnabled && !lightningEnabled ? " disabled" : ""}>雨雲レーダー</button>
-        <button type="button" class="mobile-dock-action${weatherChartEnabled ? " active" : ""}${weatherChartLoading ? " loading" : ""}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "true" : "false"}"${weatherChartEnabled ? " disabled" : ""}>${escapeHtml(weatherChartLoading ? "取得中" : "天気図")}</button>
-        <button type="button" class="mobile-dock-action${lightningEnabled ? " active" : ""}${lightningLoading ? " loading" : ""}" data-mobile-dock-control data-radar-overlay="lightning" aria-pressed="${lightningEnabled ? "true" : "false"}"${lightningEnabled ? " disabled" : ""}>${escapeHtml(lightningLoading ? "取得中" : "雷")}</button>
+        <button type="button" class="mobile-dock-action${weatherChartEnabled ? " active" : ""}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "true" : "false"}"${weatherChartEnabled ? " disabled" : ""}>天気図</button>
+        <button type="button" class="mobile-dock-action${lightningEnabled ? " active" : ""}" data-mobile-dock-control data-radar-overlay="lightning" aria-pressed="${lightningEnabled ? "true" : "false"}"${lightningEnabled ? " disabled" : ""}>雷</button>
       </div>
-      <div class="mobile-dock-weather-timeline" data-mobile-weather-tap-controls>
-        <time class="mobile-dock-date" data-mobile-weather-date>${escapeHtml(activeDate)}</time>
+      <div class="mobile-dock-weather-timeline${loadingLabel ? " is-loading" : ""}" data-mobile-weather-tap-controls aria-busy="${loadingLabel ? "true" : "false"}">
+        ${loadingLabel
+          ? buildMobileDockLoadingStatus(loadingLabel)
+          : `<time class="mobile-dock-date" data-mobile-weather-date>${escapeHtml(activeDate)}</time>`}
         ${range}
       </div>
     </div>
@@ -3574,6 +3727,15 @@ function buildMobileContextMarkup(kicker, title, meta = "", progress = "") {
         <span>${escapeHtml(meta)}</span>
       </div>
       ${progress ? `<div class="mobile-dock-range" style="--mobile-dock-progress:${escapeHtml(progress)}"><span></span></div>` : ""}
+    </div>
+  `;
+}
+
+function buildMobileDockLoadingStatus(label) {
+  return `
+    <div class="mobile-dock-loading-status" role="status" aria-live="polite">
+      <span aria-hidden="true"></span>
+      <strong>${escapeHtml(localizeText(label))}</strong>
     </div>
   `;
 }
@@ -4026,15 +4188,6 @@ function buildCurrentLocationCardContent(info, { warningView = "status", activeK
   };
 }
 
-function beginWarningDetailsRender() {
-  warningDetailsRenderGeneration += 1;
-  if (warningDetailsRenderFrame) {
-    window.cancelAnimationFrame(warningDetailsRenderFrame);
-    warningDetailsRenderFrame = 0;
-  }
-  return warningDetailsRenderGeneration;
-}
-
 function buildMobileEarthquakeLayerButton(layerId, label, visible) {
   return `<button type="button" class="mobile-dock-earthquake-layer${visible ? " active" : ""}" data-mobile-dock-control data-earthquake-map-layer="${escapeHtml(layerId)}" data-earthquake-layer-visible="${visible ? "off" : "on"}" aria-pressed="${visible ? "true" : "false"}">${escapeHtml(label)}</button>`;
 }
@@ -4045,139 +4198,218 @@ function getMobileWarningBadgeColorClass(warningView, level) {
   return "mobile-dock-warning-badge-none";
 }
 
-function renderWarningGroupsProgressively(root, groups, renderGeneration, buildGroupMarkup) {
-  const visibleGroups = takeWarningAreas(groups, warningVisibleAreaCount);
-  const renderChunks = buildWarningRenderChunks(visibleGroups);
-  let chunkIndex = 0;
-  root.setAttribute("aria-busy", "true");
-  root.innerHTML = `<div class="warning-empty">一覧を表示中...</div>`;
-
-  const renderNextChunk = () => {
-    warningDetailsRenderFrame = 0;
-    if (warningDetailsRenderGeneration !== renderGeneration || root.hidden) return;
-
-    if (chunkIndex === 0) root.innerHTML = "";
-    const chunk = renderChunks[chunkIndex];
-    root.insertAdjacentHTML("beforeend", buildGroupMarkup(chunk.group, {
-      includeHeader: chunk.includeHeader
-    }));
-    chunkIndex += 1;
-
-    if (chunkIndex < renderChunks.length) {
-      warningDetailsRenderFrame = window.requestAnimationFrame(renderNextChunk);
-      return;
-    }
-
-    const renderedCount = visibleGroups.reduce((count, group) => count + Number(group?.areas?.length ?? 0), 0);
-    const totalCount = groups.reduce((count, group) => count + Number(group?.areas?.length ?? 0), 0);
-    if (renderedCount < totalCount) {
-      root.insertAdjacentHTML("beforeend", `
-        <button type="button" class="warning-load-more" data-warning-load-more>
-          続きを表示
-          <span>${renderedCount}/${totalCount}件</span>
-        </button>
-      `);
-    }
-    root.removeAttribute("aria-busy");
-    refreshOpenWarningModal();
-  };
-
-  if (renderChunks.length === 0) {
-    root.innerHTML = "";
-    root.removeAttribute("aria-busy");
-    return;
-  }
-  renderNextChunk();
+function getWarningSeverityRank(level) {
+  return {
+    emergency: 6,
+    danger: 5,
+    high: 5,
+    warning: 4,
+    middle: 3,
+    advisory: 2,
+    low: 1
+  }[String(level ?? "")] ?? 0;
 }
 
-function takeWarningAreas(groups, limit) {
-  const visible = [];
-  let remaining = Math.max(0, Number(limit) || 0);
-  for (const group of groups) {
-    if (remaining <= 0) break;
-    const areas = Array.isArray(group?.areas) ? group.areas : [];
-    const selectedAreas = areas.slice(0, remaining);
-    if (selectedAreas.length > 0) visible.push({ ...group, areas: selectedAreas });
-    remaining -= selectedAreas.length;
+function getWarningGroupItems(group, warningView) {
+  if (warningView === "early") {
+    return (group?.areas ?? []).flatMap((area) => (area.probabilities ?? []).map((probability) => ({
+      label: formatEarlyProbabilityBadge(probability),
+      level: probability.level
+    })));
   }
-  return visible;
+  return (group?.areas ?? []).flatMap((area) => area.warnings ?? []);
 }
 
-function buildWarningRenderChunks(groups, chunkSize = 12) {
-  const chunks = [];
-  const safeChunkSize = Math.max(1, Number(chunkSize) || 1);
-  groups.forEach((group) => {
-    const areas = Array.isArray(group?.areas) ? group.areas : [];
-    for (let offset = 0; offset < areas.length; offset += safeChunkSize) {
-      chunks.push({
-        group: { ...group, areas: areas.slice(offset, offset + safeChunkSize) },
-        includeHeader: offset === 0
-      });
-    }
+function getWarningGroupTone(group, warningView) {
+  const primary = [...getWarningGroupItems(group, warningView)]
+    .sort((left, right) => getWarningSeverityRank(right.level) - getWarningSeverityRank(left.level))[0];
+  const level = String(primary?.level ?? "none");
+  if (["emergency", "danger", "high", "warning", "middle", "advisory"].includes(level)) return level;
+  return "none";
+}
+
+function getWarningGroupSummary(group, warningView) {
+  const labels = [...new Set(getWarningGroupItems(group, warningView)
+    .map((item) => localizeWarningDisplayText(item.label))
+    .filter(Boolean))];
+  if (!labels.length) return localizeText("発表なし");
+  const suffix = labels.length > 2
+    ? localizeText(` ほか${labels.length - 2}種類`, getCurrentLanguage())
+    : "";
+  return `${labels.slice(0, 2).join("・")}${suffix}`;
+}
+
+function buildWarningAreaRowsMarkup(group, warningView) {
+  return (group?.areas ?? []).map((area) => `
+    <article class="warning-area-row${warningView === "early" ? " early-warning-row" : ""}${String(area.areaCode) === selectedWarningAreaCode ? " selected" : ""}" data-warning-area-code="${escapeHtml(area.areaCode)}">
+      <strong>${escapeHtml(localizeWarningDisplayText(area.areaName))}</strong>
+      <div class="warning-badges">
+        ${warningView === "early"
+          ? (area.probabilities ?? []).map((probability) => `
+            <span class="warning-badge early-warning-badge early-warning-badge-${escapeHtml(probability.level)}">${escapeHtml(localizeWarningDisplayText(formatEarlyProbabilityBadge(probability)))}</span>
+          `).join("")
+          : buildWarningBadgesMarkup(area.warnings)}
+      </div>
+    </article>
+  `).join("");
+}
+
+function buildWarningGroupAccordionMarkup(group, warningView, groupKey, expanded) {
+  const count = Number(group?.count ?? group?.areas?.length ?? 0);
+  const groupName = localizeWarningDisplayText(group?.prefecture ?? "");
+  const summary = getWarningGroupSummary(group, warningView);
+  return `
+    <section class="warning-prefecture-group warning-prefecture-group-${escapeHtml(getWarningGroupTone(group, warningView))}${expanded ? " is-open" : ""}" data-warning-group="${escapeHtml(groupKey)}">
+      <button type="button" class="warning-prefecture-toggle" data-warning-group-toggle="${escapeHtml(groupKey)}" aria-expanded="${expanded ? "true" : "false"}">
+        <span class="warning-prefecture-marker" aria-hidden="true"></span>
+        <span class="warning-prefecture-copy">
+          <strong>${escapeHtml(groupName)}</strong>
+          <small>${escapeHtml(summary)}</small>
+        </span>
+        <span class="warning-prefecture-count">${escapeHtml(localizeText(`${count}地域`, getCurrentLanguage()))}</span>
+        <span class="warning-prefecture-chevron" aria-hidden="true"></span>
+      </button>
+      <div class="warning-prefecture-body" aria-hidden="${expanded ? "false" : "true"}">
+        ${expanded ? `<div class="warning-prefecture-body-inner">${buildWarningAreaRowsMarkup(group, warningView)}</div>` : ""}
+      </div>
+    </section>
+  `;
+}
+
+function animateWarningDetailContent(root) {
+  root.classList.remove("is-entering");
+  void root.offsetWidth;
+  root.classList.add("is-entering");
+  window.setTimeout(() => root.classList.remove("is-entering"), 260);
+}
+
+function renderWarningGroupAccordions(root, groups, warningView) {
+  activeWarningGroupsByKey = new Map();
+  warningGroupKeyByAreaCode = new Map();
+
+  const entries = groups.map((group, index) => {
+    const key = `${warningView}-${index}-${group?.prefecture ?? "group"}`;
+    const entry = { group, warningView };
+    activeWarningGroupsByKey.set(key, entry);
+    (group?.areas ?? []).forEach((area) => warningGroupKeyByAreaCode.set(String(area.areaCode), key));
+    return { ...entry, key };
   });
-  return chunks;
+
+  const selectedGroupKey = warningGroupKeyByAreaCode.get(selectedWarningAreaCode);
+  const openGroupKey = selectedGroupKey
+    ?? (activeWarningGroupsByKey.has(expandedWarningGroupKey) ? expandedWarningGroupKey : "")
+    ?? "";
+  expandedWarningGroupKey = openGroupKey;
+  root.innerHTML = `<div class="warning-prefecture-groups">${entries.map(({ group, key }) => (
+    buildWarningGroupAccordionMarkup(group, warningView, key, key === openGroupKey)
+  )).join("")}</div>`;
+  root.removeAttribute("aria-busy");
+  animateWarningDetailContent(root);
+  refreshOpenWarningModal();
+}
+
+function renderKikikuruWarningDetails(root, state, activeKikikuruLayer) {
+  const kikikuru = state.data?.kikikuru ?? {};
+  const options = KIKIKURU_LAYER_OPTIONS.map((option) => ({
+    ...option,
+    active: option.id === activeKikikuruLayer
+  }));
+  const activeOption = options.find((option) => option.active) ?? options[0];
+  const latestTime = kikikuru.latestTime && kikikuru.latestTime !== "未取得"
+    ? kikikuru.latestTime
+    : "";
+  const statusText = kikikuru.deferred
+    ? localizeText("キキクルのタイルを取得中です。")
+    : (kikikuru.unavailable
+      ? localizeText("キキクルのタイルを取得できませんでした。")
+      : (getCurrentLanguage() === "en"
+        ? `Showing ${localizeWarningDisplayText(activeOption?.label ?? "キキクル")} on the map.`
+        : `${activeOption?.label ?? "キキクル"}を地図上に重ねて表示しています。`));
+
+  root.innerHTML = `
+    <section class="warning-kikikuru-panel">
+      <div class="warning-kikikuru-layer-head">
+        <strong>${escapeHtml(localizeWarningDisplayText("表示レイヤー"))}</strong>
+        ${latestTime ? `<small>${escapeHtml(latestTime)}</small>` : ""}
+      </div>
+      <div class="warning-kikikuru-layer-switch mobile-dock-segmented" role="group" aria-label="${escapeHtml(localizeWarningDisplayText("表示レイヤー"))}">
+        ${options.map((option) => `
+          <button type="button" class="mobile-dock-action${option.active ? " active" : ""}" data-kikikuru-layer="${escapeHtml(option.id)}" aria-pressed="${option.active ? "true" : "false"}"${option.active ? " disabled" : ""}>${escapeHtml(localizeWarningDisplayText(option.label))}</button>
+        `).join("")}
+      </div>
+      <p>${escapeHtml(statusText)}</p>
+    </section>
+  `;
+  window.requestAnimationFrame(() => {
+    root.querySelectorAll(".mobile-dock-segmented").forEach(syncMobileDockSegmentIndicator);
+  });
+  animateWarningDetailContent(root);
 }
 
 function renderWarningDetails(tab, state, warningView = "status") {
   const root = document.getElementById("warning-detail-list");
   if (!root) return;
-  const wasRenderingProgressively = root.hasAttribute("aria-busy");
-  const renderGeneration = beginWarningDetailsRender();
   root.removeAttribute("aria-busy");
 
-  const isWarnings = tab.id === "warnings" && (warningView === "status" || warningView === "early" || warningView === "river");
+  const activeKikikuruLayer = state.activeKikikuruLayer
+    ?? state.data?.activeKikikuruLayer
+    ?? KIKIKURU_LAYER_OPTIONS[0]?.id;
+  const isWarnings = tab.id === "warnings" && ["status", "early", "kikikuru", "river"].includes(warningView);
   root.hidden = !isWarnings;
   if (!isWarnings) {
     closeWarningModal();
     return;
   }
 
-  const renderContextChanged =
-    lastWarningDetailsData !== state.data
-    || lastWarningDetailsView !== warningView
-    || lastWarningDetailsStatus !== state.status;
-  if (renderContextChanged && !warningListExpansionRequested) {
-    warningVisibleAreaCount = WARNING_AREA_PAGE_SIZE;
-  }
   const canReuseRenderedDetails =
     state.status === "ok"
-    && !warningListExpansionRequested
-    && !wasRenderingProgressively
     && root.childElementCount > 0
     && lastWarningDetailsData === state.data
     && lastWarningDetailsView === warningView
     && lastWarningDetailsStatus === state.status
-    && lastWarningDetailsAreaCode === selectedWarningAreaCode;
+    && lastWarningDetailsAreaCode === selectedWarningAreaCode
+    && lastWarningDetailsLayer === activeKikikuruLayer;
   if (canReuseRenderedDetails) return;
-  warningListExpansionRequested = false;
 
   lastWarningDetailsData = state.data ?? null;
   lastWarningDetailsView = warningView;
   lastWarningDetailsStatus = state.status ?? "";
   lastWarningDetailsAreaCode = selectedWarningAreaCode;
+  lastWarningDetailsLayer = activeKikikuruLayer;
 
   if (state.status === "loading") {
-    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("取得中..."))}</div>`;
+    root.innerHTML = `
+      <div class="warning-empty">${escapeHtml(localizeText("取得中..."))}</div>
+    `;
     activeWarningAreasByCode = new Map();
     activeWarningDetailsLoaded = false;
     return;
   }
 
   if (state.status === "error") {
-    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("取得失敗"))}</div>`;
+    root.innerHTML = `
+      <div class="warning-empty">${escapeHtml(localizeText("取得失敗"))}</div>
+    `;
     activeWarningAreasByCode = new Map();
     activeWarningDetailsLoaded = false;
     return;
   }
 
-if (warningView === "river") {
+  if (warningView === "kikikuru") {
+    activeWarningAreasByCode = new Map();
+    activeWarningDetailsLoaded = false;
+    renderKikikuruWarningDetails(root, state, activeKikikuruLayer);
+    return;
+  }
+
+  if (warningView === "river") {
     renderRiverFloodDetails(root, state.data?.riverFlood);
     return;
   }
 
   if (warningView === "early") {
     activeWarningDetailsLoaded = Boolean(state.data?.earlyDetailsLoaded);
-    renderEarlyWarningDetails(root, state, renderGeneration);
+    renderEarlyWarningDetails(root, state);
     return;
   }
 
@@ -4197,22 +4429,14 @@ if (warningView === "river") {
   ]);
 
   if (groups.length === 0) {
-    root.innerHTML = `<div class="warning-empty">発表中の警報・注意報はありません</div>`;
+    root.innerHTML = `
+      <div class="warning-empty">${escapeHtml(localizeText("発表中の警報・注意報はありません"))}</div>
+    `;
     refreshOpenWarningModal();
     return;
   }
 
-  renderWarningGroupsProgressively(root, groups, renderGeneration, (group, { includeHeader } = {}) => `
-      ${includeHeader ? `<div class="warning-prefecture-label">${escapeHtml(localizeWarningDisplayText(group.prefecture))}<span>${escapeHtml(localizeText(`${group.count ?? group.areas.length}件`, getCurrentLanguage()))}</span></div>` : ""}
-      ${group.areas.map((area) => `
-        <article class="warning-area-row${String(area.areaCode) === selectedWarningAreaCode ? " selected" : ""}" data-warning-area-code="${escapeHtml(area.areaCode)}">
-          <strong>${escapeHtml(localizeWarningDisplayText(area.areaName))}</strong>
-          <div class="warning-badges">
-            ${buildWarningBadgesMarkup(area.warnings)}
-          </div>
-        </article>
-      `).join("")}
-    `);
+  renderWarningGroupAccordions(root, groups, "status");
 }
 
 function renderRiverFloodDetails(root, riverFlood = {}) {
@@ -4220,18 +4444,25 @@ function renderRiverFloodDetails(root, riverFlood = {}) {
   activeRiverFloodReportsById = new Map(reports.map((report) => [String(report.id), report]));
   activeWarningAreasByCode = new Map();
   if (!riverFlood?.status || riverFlood.status === "loading") {
-    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("指定河川洪水予報を取得中..."))}</div>`;
+    root.innerHTML = `
+      <div class="warning-empty">${escapeHtml(localizeText("指定河川洪水予報を取得中..."))}</div>
+    `;
     return;
   }
   if (riverFlood.status === "error") {
-    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("指定河川洪水予報を取得できませんでした"))}</div>`;
+    root.innerHTML = `
+      <div class="warning-empty">${escapeHtml(localizeText("指定河川洪水予報を取得できませんでした"))}</div>
+    `;
     return;
   }
   if (!reports.length) {
-    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("現在、指定河川洪水予報は発表されていません"))}</div>`;
+    root.innerHTML = `
+      <div class="warning-empty">${escapeHtml(localizeText("現在、指定河川洪水予報は発表されていません"))}</div>
+    `;
     return;
   }
   root.innerHTML = buildRiverFloodListMarkup(reports);
+  animateWarningDetailContent(root);
 }
 
 function getRiverFloodReports(riverFlood = {}) {
@@ -4254,20 +4485,24 @@ function buildRiverFloodListMarkup(reports = []) {
       </span>
     </button>`).join("")}</div>`;
 }
-function renderEarlyWarningDetails(root, state, renderGeneration) {
+function renderEarlyWarningDetails(root, state) {
   const groups = state.data?.earlyWarnings?.groups ?? [];
   const areas = state.data?.earlyWarnings?.areas ?? [];
   const municipalityAreas = state.data?.earlyWarnings?.municipalityAreas ?? [];
 
   if (!state.data?.earlyDetailsLoaded) {
-    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("取得中..."))}</div>`;
+    root.innerHTML = `
+      <div class="warning-empty">${escapeHtml(localizeText("取得中..."))}</div>
+    `;
     activeWarningAreasByCode = new Map();
     activeWarningDetailsLoaded = false;
     return;
   }
 
   if (groups.length === 0) {
-    root.innerHTML = `<div class="warning-empty">${escapeHtml(localizeText("早期注意情報は発表されていません"))}</div>`;
+    root.innerHTML = `
+      <div class="warning-empty">${escapeHtml(localizeText("早期注意情報は発表されていません"))}</div>
+    `;
     activeWarningAreasByCode = new Map();
     refreshOpenWarningModal();
     return;
@@ -4278,19 +4513,7 @@ function renderEarlyWarningDetails(root, state, renderGeneration) {
     ...municipalityAreas.map((area) => [String(area.areaCode), area])
   ]);
 
-  renderWarningGroupsProgressively(root, groups, renderGeneration, (group, { includeHeader } = {}) => `
-      ${includeHeader ? `<div class="warning-prefecture-label">${escapeHtml(localizeWarningDisplayText(group.prefecture))}<span>${escapeHtml(localizeText(`${group.count ?? group.areas.length}件`, getCurrentLanguage()))}</span></div>` : ""}
-      ${group.areas.map((area) => `
-        <article class="warning-area-row early-warning-row${String(area.areaCode) === selectedWarningAreaCode ? " selected" : ""}" data-warning-area-code="${escapeHtml(area.areaCode)}">
-          <strong>${escapeHtml(localizeWarningDisplayText(area.areaName))}</strong>
-          <div class="warning-badges">
-            ${area.probabilities.map((probability) => `
-              <span class="warning-badge early-warning-badge early-warning-badge-${escapeHtml(probability.level)}">${escapeHtml(localizeWarningDisplayText(formatEarlyProbabilityBadge(probability)))}</span>
-            `).join("")}
-          </div>
-        </article>
-      `).join("")}
-    `);
+  renderWarningGroupAccordions(root, groups, "early");
 }
 
 function buildRiverBulletinTextMarkup(report = {}) {
@@ -5201,31 +5424,63 @@ function renderTyphoonDetails(tab, state) {
   } else {
     setSocialSharePayload("typhoon", null);
   }
+  const movement = formatTyphoonMovement(details.direction, details.speed);
   const statusMarkup = transitionStatus ? `
     <div class="typhoon-transition-status" role="status">
       <span>現在の状態</span>
       <strong>${escapeHtml(transitionStatus)}</strong>
     </div>
   ` : "";
-  root.innerHTML = statusMarkup + [
-    ["大きさ", details.size],
-    ["強さ", details.strength],
-    ["中心気圧", details.pressure],
-    ["最大瞬間風速", details.maxGust],
-    ["最大風速", details.maxWind],
-    ["移動", formatTyphoonMovement(details.direction, details.speed)]
-  ].map(([label, value]) => `
-    <div class="typhoon-detail-item">
-      <span>${escapeHtml(label)}</span>
-      <strong>${escapeHtml(value)}</strong>
+  const shareMarkup = selectedTyphoon ? `
+    <button type="button" class="social-share-trigger typhoon-share-button" data-social-share="typhoon" aria-label="台風情報を画像で共有" title="台風情報を画像で共有">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0-11 4 4m-4-4L8 7M5 12v7h14v-7"/></svg>
+    </button>
+  ` : "";
+  const classificationItems = getTyphoonClassificationItems(details);
+  const classificationMarkup = classificationItems.length ? `
+    <div class="typhoon-analysis-classification" aria-label="台風の大きさと強さ">
+      ${classificationItems.map(([label, value, kind, toneClass]) => `
+        <strong class="typhoon-analysis-classification-item is-${kind}${toneClass}" aria-label="${escapeHtml(label)}: ${escapeHtml(value)}">${escapeHtml(value)}</strong>
+      `).join("")}
     </div>
-  `).join("") + (selectedTyphoon ? `
-    <div class="typhoon-share-row">
-      <button type="button" class="social-share-trigger typhoon-share-button" data-social-share="typhoon" aria-label="台風情報を画像で共有" title="台風情報を画像で共有">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0-11 4 4m-4-4L8 7M5 12v7h14v-7"/></svg>
-      </button>
-    </div>
-  ` : "");
+  ` : "";
+  const positionMarkup = details.position !== "-" ? `
+    <dl class="typhoon-analysis-position">
+      <div>
+        <dt>中心位置</dt>
+        <dd>${escapeHtml(details.position)}</dd>
+      </div>
+    </dl>
+  ` : "";
+  root.innerHTML = `
+    <section class="typhoon-analysis-panel" aria-label="台風の解析値">
+      <header class="typhoon-analysis-head">
+        <strong>台風の解析値</strong>
+        ${shareMarkup}
+      </header>
+      ${statusMarkup}
+      ${classificationMarkup}
+      <dl class="typhoon-analysis-primary">
+        ${[
+          ["中心気圧", details.pressure, "pressure"],
+          ["最大風速", details.maxWind, "wind"],
+          ["最大瞬間", details.maxGust, "gust"]
+        ].map(([label, value, kind]) => `
+          <div class="typhoon-analysis-metric is-${kind}">
+            <dt>${escapeHtml(label)}</dt>
+            <dd>${escapeHtml(value)}</dd>
+          </div>
+        `).join("")}
+      </dl>
+      ${positionMarkup}
+      <dl class="typhoon-analysis-movement">
+        <div>
+          <dt>移動</dt>
+          <dd>${escapeHtml(movement)}</dd>
+        </div>
+      </dl>
+    </section>
+  `;
 }
 
 function renderEarthquakeList(tab, state) {
@@ -5420,11 +5675,7 @@ function buildVolcanoMobileContextMarkup(state) {
   const report = reports.find((item) => String(item.volcanoCode ?? item.code ?? "") === selectedCode)
     ?? getHighestPriorityVolcanoReport(reports);
   if (state.status === "loading") {
-    return buildMobileContextMarkup(
-      localizeText("火山情報"),
-      localizeText("取得中"),
-      getCurrentLanguage() === "en" ? "JMA XML" : "気象庁XML"
-    );
+    return `<div class="mobile-dock-content mobile-dock-volcano" aria-busy="true">${buildMobileDockLoadingStatus("火山情報を読み込み中")}</div>`;
   }
   if (!report) {
     return buildMobileContextMarkup(

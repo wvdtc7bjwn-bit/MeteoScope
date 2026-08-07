@@ -1,6 +1,12 @@
 import { JMA_ENDPOINTS } from "../config.js";
 import { fetchJson, parseJmaTime } from "./jmaClient.js";
 
+export function formatTyphoonSummaryName(value) {
+  const name = String(value ?? "").trim();
+  const numberedTyphoon = name.match(/^(台風第[0-9０-９]+号)\s*[（(][^）)]*[）)]$/u);
+  return numberedTyphoon?.[1] ?? name;
+}
+
 export const NO_TYPHOON_MESSAGE = "現在、台風情報は発表されていません";
 
 export async function fetchTyphoonList() {
@@ -238,7 +244,10 @@ function normalizeJmaTyphoon(item, index) {
       maxGust: formatWindWithUnit(specNow.maximumWind?.gust?.["m/s"] ?? specNow.maximumWind?.gust?.mps ?? null),
       direction: formatPlain(specNow.course ?? current.course ?? null),
       speed: formatWithUnit(specNow.speed?.["km/h"] ?? current.speed?.["km/h"] ?? null, "km/h"),
-      position: formatPosition(center, current.locationName ?? null)
+      position: formatPosition(
+        center,
+        specNow.location ?? specNow.locationName ?? current.location ?? current.locationName ?? null
+      )
     },
     updatedAt: formatTime(
       title.issue?.JST

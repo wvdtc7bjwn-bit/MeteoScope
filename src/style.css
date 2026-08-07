@@ -76,6 +76,7 @@
   --segmented-drag-background: rgba(151, 174, 199, 0.1);
   --segmented-drag-shadow: none;
   --segmented-drag-filter: blur(10px) saturate(1.16);
+  --segmented-active-label: #67d4ff;
 }
 
 html[data-theme="light"] {
@@ -112,6 +113,7 @@ html[data-theme="light"] {
   --segmented-drag-background: rgba(151, 174, 199, 0.07);
   --segmented-drag-shadow: none;
   --segmented-drag-filter: blur(8px) saturate(1.1);
+  --segmented-active-label: #075f8a;
 }
 
 html {
@@ -990,7 +992,7 @@ h2 {
 .amedas-precipitation-period-button.active {
   border-color: var(--segmented-thumb-border);
   background: var(--segmented-thumb-background);
-  color: var(--type-bottom-nav-active-color);
+  color: var(--segmented-active-label);
   box-shadow: var(--segmented-thumb-shadow);
 }
 
@@ -1012,7 +1014,7 @@ h2 {
 .kikikuru-layer-button.active {
   border-color: rgba(135, 237, 167, 0.38);
   background: rgba(72, 196, 107, 0.16);
-  color: var(--type-bottom-nav-active-color);
+  color: var(--segmented-active-label);
   box-shadow: inset 0 0 0 1px rgba(135, 237, 167, 0.1), 0 8px 18px rgba(0, 0, 0, 0.18);
 }
 
@@ -5092,6 +5094,162 @@ html[data-theme="light"] .weekly-weather-issued strong {
   line-height: 1.3;
 }
 
+.typhoon-analysis-panel {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(207, 232, 255, 0.16);
+  border-radius: 16px;
+  background: rgba(8, 18, 34, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.typhoon-analysis-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.typhoon-analysis-head > strong,
+.typhoon-analysis-primary dt,
+.typhoon-analysis-position dt,
+.typhoon-analysis-movement dt {
+  color: var(--type-date-color);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.typhoon-analysis-head > strong {
+  color: var(--type-emphasis-title-color);
+  font-size: 13px;
+}
+
+.typhoon-analysis-primary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid rgba(207, 232, 255, 0.13);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.typhoon-analysis-primary > div {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px;
+  border-inline-end: 1px solid rgba(207, 232, 255, 0.12);
+}
+
+.typhoon-analysis-primary > div:last-child {
+  border-inline-end: 0;
+}
+
+.typhoon-analysis-primary dd,
+.typhoon-analysis-position dd,
+.typhoon-analysis-movement dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--type-emphasis-title-color);
+  font-weight: 900;
+  line-height: 1.22;
+  overflow-wrap: anywhere;
+}
+
+.typhoon-analysis-primary dd {
+  font-size: clamp(14px, 4.35vw, 18px);
+  font-variant-numeric: tabular-nums;
+}
+
+.typhoon-analysis-classification {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.typhoon-analysis-classification-item {
+  display: grid;
+  place-items: center;
+  min-width: min(34%, 124px);
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid rgba(255, 151, 139, 0.34);
+  border-radius: 10px;
+  background: #ad2b25;
+  color: #fff;
+  font-size: clamp(14px, 3.85vw, 17px);
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.015em;
+  text-align: center;
+  text-shadow: 0 1px 1px rgba(25, 5, 3, 0.42);
+  overflow-wrap: anywhere;
+  box-shadow: none;
+}
+
+.typhoon-analysis-classification-item.is-strength {
+  background: #9f251f;
+}
+
+.typhoon-analysis-classification-item.is-size.is-super-large {
+  border-color: rgba(226, 162, 255, 0.42);
+  background: #7b2697;
+}
+
+.typhoon-analysis-classification-item.is-size.is-neutral {
+  border-color: rgba(207, 232, 255, 0.18);
+  background: rgba(104, 124, 145, 0.72);
+}
+
+.typhoon-analysis-classification-item.is-strength.is-violent {
+  border-color: rgba(226, 162, 255, 0.42);
+  background: #7b2697;
+}
+
+.typhoon-analysis-classification-item.is-strength.is-strong {
+  border-color: rgba(255, 241, 143, 0.66);
+  background: #f0c91b;
+  color: #322900;
+  text-shadow: none;
+}
+
+.typhoon-analysis-classification-item.is-strength.is-neutral {
+  border-color: rgba(207, 232, 255, 0.18);
+  background: rgba(104, 124, 145, 0.72);
+}
+
+.typhoon-analysis-position,
+.typhoon-analysis-movement {
+  min-width: 0;
+  margin: 0;
+  border-block-start: 1px solid rgba(207, 232, 255, 0.13);
+}
+
+.typhoon-analysis-position > div,
+.typhoon-analysis-movement > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 10px 2px 0;
+}
+
+.typhoon-analysis-position dd,
+.typhoon-analysis-movement dd {
+  font-size: 13px;
+  text-align: end;
+}
+
 .typhoon-selector {
   display: grid;
   gap: 8px;
@@ -5957,7 +6115,7 @@ html[data-theme="light"] .weekly-weather-issued strong {
 .earthquake-distribution-range-mode .mobile-dock-action.active {
   border-color: transparent;
   background: transparent;
-  color: #eaf9ff;
+  color: var(--segmented-active-label);
   box-shadow: none;
 }
 
@@ -6173,6 +6331,32 @@ html[data-theme="light"] .weekly-weather-issued strong {
   white-space: nowrap;
 }
 
+.typhoon-select-button .typhoon-select-updated {
+  font-variant-numeric: tabular-nums;
+}
+
+.typhoon-select-button .typhoon-select-count {
+  position: relative;
+  min-width: 46px;
+  min-height: 30px;
+  padding: 0 20px 0 9px;
+  border: 1px solid rgba(111, 190, 239, 0.3);
+  background: rgba(70, 164, 221, 0.12);
+  color: #dff4ff;
+}
+
+.typhoon-select-button .typhoon-select-count::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: translateY(-65%) rotate(45deg);
+}
+
 .mobile-dock-segmented::before {
   content: "";
   position: absolute;
@@ -6220,6 +6404,10 @@ html[data-theme="light"] .weekly-weather-issued strong {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+.mobile-dock-segmented button:is(.active, [aria-selected="true"], [aria-pressed="true"]) {
+  color: var(--segmented-active-label);
 }
 
 .hypocenter-presentation {
@@ -6279,7 +6467,7 @@ html[data-theme="light"] .weekly-weather-issued strong {
 
 .hypocenter-presentation-switch button.active {
   background: transparent;
-  color: #eefaff;
+  color: var(--segmented-active-label);
   box-shadow: none;
 }
 
@@ -7179,7 +7367,7 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 }
 
 .amedas-chart-period-toggle button.active {
-  color: #f8fbff;
+  color: var(--segmented-active-label);
   background: transparent;
   box-shadow: none;
 }
@@ -7433,7 +7621,7 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 }
 
 .amedas-ranking-toggle button.active {
-  color: #f8fbff;
+  color: var(--segmented-active-label);
   box-shadow: none;
 }
 
@@ -9948,6 +10136,72 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     min-height: 52px;
   }
 
+  .mobile-dock-loading-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: 100%;
+    min-height: 18px;
+    padding: 2px 8px 2px 5px;
+    box-sizing: border-box;
+    border: 1px solid rgba(106, 210, 255, 0.28);
+    border-radius: 999px;
+    color: #9ce3ff;
+    background: rgba(11, 42, 72, 0.58);
+    box-shadow: none;
+    pointer-events: none;
+  }
+
+  .mobile-dock-weather-timeline > .mobile-dock-loading-status {
+    position: absolute;
+    top: -2px;
+    left: 1px;
+    z-index: 3;
+    max-width: calc(100% - 4px);
+  }
+
+  .mobile-dock-loading-status > span {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    border: 2px solid rgba(156, 227, 255, 0.32);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: mobile-dock-loading-spin 800ms linear infinite;
+  }
+
+  .mobile-dock-loading-status strong {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 10px;
+    font-weight: 850;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-dock-amedas-head > .mobile-dock-loading-status {
+    justify-self: end;
+  }
+
+  .mobile-dock-warning-main.is-loading,
+  .mobile-dock-earthquake-empty-state.is-loading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    place-items: center;
+  }
+
+  .mobile-dock-typhoon > .mobile-dock-loading-status,
+  .mobile-dock-volcano > .mobile-dock-loading-status,
+  .mobile-dock-world-time-control.is-empty > .mobile-dock-loading-status {
+    place-self: center;
+  }
+
+  .mobile-dock-weather-timeline.is-loading .weather-time-timeline {
+    opacity: 0.42;
+  }
+
   .mobile-dock-action {
     flex: 1 1 0;
     min-width: 0;
@@ -9979,7 +10233,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-action.active {
     border-color: transparent;
-    color: #eaf9ff;
+    color: var(--segmented-active-label);
     background: transparent;
     box-shadow: none;
     backdrop-filter: none;
@@ -9992,9 +10246,6 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     transform: scale(0.97);
   }
 
-  .mobile-dock-action.loading {
-    opacity: 0.82;
-  }
   .mobile-dock-action:disabled {
     cursor: default;
     opacity: 1;
@@ -10129,7 +10380,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 10px;
+    gap: 8px;
     min-width: 0;
   }
 
@@ -10173,8 +10424,70 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-typhoon-text {
     display: grid;
+    flex: 1 1 auto;
     gap: 3px;
     min-width: 0;
+  }
+
+  .mobile-dock-typhoon-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .mobile-dock-typhoon-title-row > strong {
+    flex: 0 0 auto;
+    overflow: visible;
+    text-overflow: clip;
+  }
+
+  .mobile-dock-typhoon-classifications {
+    display: inline-flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .mobile-dock-typhoon-classification {
+    display: inline-grid;
+    place-items: center;
+    min-width: 52px;
+    min-height: 19px;
+    padding: 2px 4px;
+    border: 1px solid rgba(255, 151, 139, 0.34);
+    border-radius: 7px;
+    color: #fff;
+    font-size: 8.5px;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+    background: #ad2b25;
+    text-shadow: 0 1px 1px rgba(25, 5, 3, 0.42);
+  }
+
+  .mobile-dock-typhoon-classification.is-strength {
+    background: #9f251f;
+  }
+
+  .mobile-dock-typhoon-classification.is-size.is-super-large,
+  .mobile-dock-typhoon-classification.is-strength.is-violent {
+    border-color: rgba(226, 162, 255, 0.42);
+    background: #7b2697;
+  }
+
+  .mobile-dock-typhoon-classification.is-strength.is-strong {
+    border-color: rgba(255, 241, 143, 0.66);
+    color: #322900;
+    background: #f0c91b;
+    text-shadow: none;
+  }
+
+  .mobile-dock-typhoon-classification.is-size.is-neutral,
+  .mobile-dock-typhoon-classification.is-strength.is-neutral {
+    border-color: rgba(207, 232, 255, 0.18);
+    background: rgba(104, 124, 145, 0.72);
   }
 
   .mobile-dock-typhoon-status {
@@ -10191,23 +10504,23 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     display: grid;
     grid-template-columns: repeat(2, minmax(58px, auto));
     flex: 0 0 auto;
-    gap: 7px;
+    gap: 4px;
   }
 
   .mobile-dock-typhoon-values .mobile-dock-typhoon-switch {
     min-width: 0;
-    padding-inline: 8px;
+    padding-inline: 5px;
   }
 
   .mobile-dock-typhoon-values.has-switch {
-    grid-template-columns: repeat(3, minmax(44px, auto));
+    grid-template-columns: minmax(54px, auto) minmax(58px, auto) 44px;
   }
 
   .mobile-dock-typhoon-values span {
     display: grid;
     gap: 2px;
     min-width: 0;
-    padding: 6px 8px;
+    padding: 6px 5px;
     border: 1px solid rgba(199, 224, 248, 0.16);
     border-radius: 12px;
     color: #f4fbff;
@@ -11260,7 +11573,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-chip.active {
     border-color: transparent;
-    color: #eaf9ff;
+    color: var(--segmented-active-label);
     background: transparent;
     box-shadow: none;
     backdrop-filter: none;
@@ -12239,6 +12552,15 @@ html[data-theme="light"] :is(.amedas-sub-button, .kikikuru-layer-button, .radar-
   background: rgba(227, 235, 245, 0.9);
 }
 
+html[data-theme="light"] .amedas-ranking-toggle button {
+  color: #415d78;
+  text-shadow: none;
+}
+
+html[data-theme="light"] .amedas-ranking-toggle button.active {
+  color: var(--segmented-active-label);
+}
+
 html[data-theme="light"] .amedas-chart-period-toggle {
   border-color: var(--segmented-track-border);
   background: var(--segmented-track-background);
@@ -12249,7 +12571,7 @@ html[data-theme="light"] .amedas-chart-period-toggle button {
 }
 
 html[data-theme="light"] .amedas-chart-period-toggle button.active {
-  color: #0b638e;
+  color: var(--segmented-active-label);
   background: transparent;
   box-shadow: none;
 }
@@ -12284,7 +12606,7 @@ html[data-theme="light"] .radar-action-button:is(:hover, :focus-visible, .playin
 
 html[data-theme="light"] :is(.amedas-sub-button, .kikikuru-layer-button).active {
   border-color: rgba(37, 143, 199, 0.44);
-  color: #0b638e;
+  color: var(--segmented-active-label);
   background: rgba(86, 183, 242, 0.18);
 }
 
@@ -12555,7 +12877,7 @@ html[data-theme="light"] :is(.mobile-dock-action, .mobile-dock-chip) {
 }
 
 html[data-theme="light"] :is(.mobile-dock-action, .mobile-dock-chip).active {
-  color: #075f8a;
+  color: var(--segmented-active-label);
 }
 
 html[data-theme="light"] .mobile-dock-segmented::before {
@@ -12765,7 +13087,7 @@ html[data-theme="light"] :is(.earthquake-view-toggle, .earthquake-distribution-r
 html[data-theme="light"] :is(.earthquake-view-toggle, .earthquake-distribution-range-mode) button { color: #60758a; }
 html[data-theme="light"] :is(.earthquake-view-toggle, .earthquake-distribution-range-mode) button.active {
   background: transparent;
-  color: #163b58;
+  color: var(--segmented-active-label);
   box-shadow: none;
 }
 html[data-theme="light"] .earthquake-map-layer-button { color: #60758a; }
@@ -12922,7 +13244,7 @@ html[data-theme="light"] .hypocenter-presentation-switch {
 html[data-theme="light"] .hypocenter-presentation-switch button { color: #61768a; }
 html[data-theme="light"] .hypocenter-presentation-switch button.active {
   background: transparent;
-  color: #143c57;
+  color: var(--segmented-active-label);
   box-shadow: none;
 }
 html[data-theme="light"] .earthquake-distribution-note a { color: #087cb8; }
@@ -14353,6 +14675,24 @@ html[data-theme="light"] .mobile-dock-date {
   color: #405a73;
 }
 
+html[data-theme="light"] .mobile-dock-loading-status {
+  border-color: rgba(22, 126, 178, 0.24);
+  color: #075f8a;
+  background: rgba(230, 244, 253, 0.82);
+}
+
+@keyframes mobile-dock-loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mobile-dock-loading-status > span {
+    animation: none;
+    border-color: currentColor;
+    opacity: 0.72;
+  }
+}
+
 html[data-theme="light"] .weather-time-labels span {
   color: #405a73;
 }
@@ -14402,6 +14742,31 @@ html[data-theme="light"] .typhoon-transition-status span {
 
 html[data-theme="light"] .typhoon-transition-status strong,
 html[data-theme="light"] .mobile-dock-typhoon-status {
+  color: #174f73;
+}
+
+html[data-theme="light"] .typhoon-analysis-panel {
+  border-color: rgba(48, 91, 128, 0.2);
+  background: rgba(241, 248, 253, 0.34);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+html[data-theme="light"] .typhoon-analysis-primary {
+  border-color: rgba(48, 91, 128, 0.18);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+html[data-theme="light"] .typhoon-analysis-primary > div {
+  border-inline-end-color: rgba(48, 91, 128, 0.16);
+}
+
+html[data-theme="light"] :is(.typhoon-analysis-position, .typhoon-analysis-movement) {
+  border-block-start-color: rgba(48, 91, 128, 0.16);
+}
+
+html[data-theme="light"] .typhoon-select-button .typhoon-select-count {
+  border-color: rgba(48, 112, 157, 0.26);
+  background: rgba(190, 226, 247, 0.48);
   color: #174f73;
 }
 
@@ -14597,9 +14962,14 @@ html[data-theme="light"] :is(.settings-early-access-form > label, .settings-earl
   color: #586e85;
 }
 
-html[data-theme="light"] :is(.radar-action-button, .mobile-dock-action, .mobile-dock-chip):disabled {
+html[data-theme="light"] :is(.radar-action-button, .mobile-dock-action, .mobile-dock-chip):disabled:not(.active):not([aria-selected="true"]):not([aria-pressed="true"]) {
   color: #526a82;
   opacity: 0.82;
+}
+
+html[data-theme="light"] .mobile-dock-segmented button:is(.active, [aria-selected="true"], [aria-pressed="true"]):disabled {
+  color: var(--segmented-active-label);
+  opacity: 1;
 }
 
 html[data-theme="light"] :is(.earthquake-card-intensity small, .earthquake-card-info > small, .earthquake-card-info time, .earthquake-detail-heading time, .earthquake-observation-prefecture, .typhoon-detail-item span, .typhoon-select-button span) {
@@ -17052,14 +17422,8 @@ html[data-theme="light"] .river-affected-cities span {
   height: 17px;
 }
 
-.typhoon-share-row {
-  display: flex;
-  grid-column: 1 / -1;
-  justify-content: flex-end;
-  padding-top: 4px;
-}
-
 .typhoon-share-button {
+  flex: 0 0 36px;
   width: 36px;
   height: 36px;
   min-height: 36px;
@@ -17134,7 +17498,7 @@ html[data-theme="light"] .river-affected-cities span {
 
 .social-share-segmented button.active {
   border-color: rgba(135, 215, 255, 0.42);
-  color: #f2fbff;
+  color: var(--segmented-active-label);
   background: rgba(37, 135, 190, 0.42);
   box-shadow: none;
 }
@@ -17205,7 +17569,7 @@ html[data-theme="light"] .social-share-segmented {
 
 html[data-theme="light"] .social-share-segmented button.active {
   border-color: rgba(72, 148, 198, 0.38);
-  color: #0d5078;
+  color: var(--segmented-active-label);
   background: rgba(116, 198, 236, 0.42);
   box-shadow: none;
 }
@@ -17651,5 +18015,427 @@ html[data-theme="light"] .remote-notice-card {
     --glass-panel-background: rgba(244, 249, 253, 0.97);
     --glass-panel-strong-background: rgba(244, 249, 253, 0.98);
     --glass-compact-background: rgba(246, 250, 253, 0.96);
+  }
+}
+
+/* Warning detail views */
+.mode-label.mode-label-warning {
+  margin-bottom: 10px;
+  overflow: hidden;
+  font-size: clamp(13px, 1.25vw, 16px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warning-view-tabs.mobile-dock-segmented {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  min-height: 42px;
+  margin: 0 0 12px;
+  padding: 3px;
+  border: 1px solid var(--glass-border-soft);
+  border-radius: 999px;
+  background: var(--glass-compact-background);
+  box-shadow: none;
+  backdrop-filter: var(--glass-filter-compact);
+  -webkit-backdrop-filter: var(--glass-filter-compact);
+}
+
+.warning-view-tabs[hidden] {
+  display: none;
+}
+
+.warning-view-tabs .mobile-dock-action {
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.warning-view-tabs .mobile-dock-action.active {
+  color: var(--segmented-active-label);
+}
+
+.warning-detail-list {
+  display: block;
+  gap: 0;
+  padding: 0;
+  overflow: hidden auto;
+  border: 1px solid var(--glass-border-soft);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--glass-panel-background) 54%, transparent);
+  box-shadow: none;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.warning-detail-list::-webkit-scrollbar {
+  display: none;
+}
+
+.warning-detail-list.is-entering > * {
+  animation: warning-detail-enter 0.22s cubic-bezier(0.22, 0.8, 0.24, 1) both;
+}
+
+@keyframes warning-detail-enter {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.warning-prefecture-groups {
+  display: block;
+}
+
+.warning-prefecture-group {
+  --warning-group-color: #718399;
+  border-bottom: 1px solid var(--glass-border-soft);
+  background: transparent;
+}
+
+.warning-prefecture-group:last-child {
+  border-bottom: 0;
+}
+
+.warning-prefecture-group-emergency,
+.warning-prefecture-group-danger { --warning-group-color: #b400ff; }
+.warning-prefecture-group-warning { --warning-group-color: #ff2b12; }
+.warning-prefecture-group-advisory { --warning-group-color: #fff000; }
+.warning-prefecture-group-high { --warning-group-color: #ff6b73; }
+.warning-prefecture-group-middle { --warning-group-color: #ffc8b8; }
+
+.warning-prefecture-toggle {
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) auto 12px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 60px;
+  padding: 9px 13px 9px 11px;
+  border: 0;
+  border-radius: 0;
+  color: var(--text-main);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.16s ease;
+}
+
+@media (hover: hover) {
+  .warning-prefecture-toggle:hover {
+    background: color-mix(in srgb, var(--glass-compact-background) 58%, transparent);
+  }
+}
+
+.warning-prefecture-toggle:focus-visible {
+  outline: 2px solid #56b7f2;
+  outline-offset: -3px;
+}
+
+.warning-prefecture-marker {
+  width: 4px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--warning-group-color);
+}
+
+.warning-prefecture-group-emergency .warning-prefecture-marker {
+  background:
+    repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.92) 0 4px, transparent 4px 8px),
+    #b400ff;
+}
+
+.warning-prefecture-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.warning-prefecture-copy > strong {
+  overflow: hidden;
+  color: var(--type-info-title-color);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warning-prefecture-copy > small {
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warning-prefecture-count {
+  color: var(--text-soft);
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.warning-prefecture-chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  color: var(--text-soft);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 0.22s cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+.warning-prefecture-group.is-open .warning-prefecture-toggle {
+  background: color-mix(in srgb, var(--glass-compact-background) 78%, transparent);
+}
+
+.warning-prefecture-group.is-open .warning-prefecture-chevron {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.warning-prefecture-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.25s cubic-bezier(0.22, 0.8, 0.24, 1),
+    opacity 0.16s ease;
+}
+
+.warning-prefecture-body-inner {
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid transparent;
+}
+
+.warning-prefecture-group.is-open .warning-prefecture-body {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.warning-prefecture-group.is-open .warning-prefecture-body-inner {
+  border-top-color: var(--glass-border-soft);
+}
+
+.warning-detail-list .warning-area-row {
+  grid-template-columns: minmax(82px, 0.66fr) minmax(0, 1.34fr);
+  gap: 10px;
+  margin: 0;
+  padding: 10px 13px 10px 15px;
+  border: 0;
+  border-bottom: 1px solid var(--glass-border-soft);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--glass-panel-strong-background) 38%, transparent);
+  transition: background 0.14s ease, box-shadow 0.14s ease;
+}
+
+.warning-detail-list .warning-area-row:last-child {
+  border-bottom: 0;
+}
+
+.warning-detail-list .warning-area-row.selected {
+  background: rgba(86, 183, 242, 0.12);
+  box-shadow: inset 3px 0 0 #56b7f2;
+}
+
+.warning-detail-list .warning-area-row > strong {
+  padding-top: 2px;
+  font-size: 12px;
+}
+
+.warning-detail-list .warning-badges {
+  gap: 4px;
+}
+
+.warning-detail-list .warning-badge {
+  min-height: 18px;
+  padding: 2px 6px 3px;
+  border-radius: 6px;
+  box-shadow: none;
+  font-size: 9px;
+  letter-spacing: 0;
+}
+
+.warning-detail-list .warning-empty {
+  min-height: 92px;
+  margin: 0;
+  border: 1px solid var(--glass-border-soft);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.warning-detail-list .river-flood-list {
+  gap: 0;
+}
+
+.warning-detail-list .river-flood-row {
+  min-height: 64px;
+  padding: 11px 13px;
+  border: 0;
+  border-bottom: 1px solid var(--glass-border-soft);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transition: background 0.15s ease;
+}
+
+@media (hover: hover) {
+  .warning-detail-list .river-flood-row:hover {
+    background: color-mix(in srgb, var(--glass-compact-background) 64%, transparent);
+  }
+}
+
+.warning-kikikuru-panel {
+  display: grid;
+  gap: 10px;
+  padding: 10px 3px;
+  border: 0;
+  border-bottom: 1px solid var(--glass-border-soft);
+  border-radius: 0;
+  background: transparent;
+}
+
+.warning-kikikuru-layer-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.warning-kikikuru-layer-head strong {
+  color: var(--type-info-title-color);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.warning-kikikuru-layer-head small,
+.warning-kikikuru-panel p {
+  color: var(--text-soft);
+  font-size: 10px;
+}
+
+.warning-kikikuru-panel p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.warning-kikikuru-layer-switch.mobile-dock-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 40px;
+  padding: 3px;
+  border: 1px solid var(--glass-border-soft);
+  border-radius: 999px;
+  background: var(--glass-compact-background);
+}
+
+.warning-kikikuru-layer-switch .mobile-dock-action {
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.warning-kikikuru-layer-switch .mobile-dock-action.active {
+  color: var(--segmented-active-label);
+}
+
+html[data-theme="light"] .warning-detail-list .warning-empty {
+  background: rgba(255, 255, 255, 0.42);
+}
+
+html[data-theme="light"] .warning-detail-list {
+  border-color: rgba(68, 94, 123, 0.18);
+  background: rgba(248, 251, 254, 0.52);
+}
+
+html[data-theme="light"] .warning-prefecture-group {
+  border-bottom-color: rgba(68, 94, 123, 0.14);
+}
+
+html[data-theme="light"] .warning-prefecture-group.is-open .warning-prefecture-toggle {
+  background: rgba(222, 232, 242, 0.52);
+}
+
+html[data-theme="light"] .warning-detail-list .warning-area-row {
+  border-bottom-color: rgba(68, 94, 123, 0.12);
+  background: rgba(255, 255, 255, 0.46);
+}
+
+html[data-theme="light"] .warning-detail-list .warning-area-row:nth-child(odd) {
+  background: rgba(244, 248, 252, 0.56);
+}
+
+@media (max-width: 600px) {
+  .mode-label.mode-label-warning {
+    font-size: clamp(12px, 3.5vw, 15px);
+  }
+
+  .warning-view-tabs.mobile-dock-segmented {
+    min-height: 40px;
+  }
+
+  .warning-view-tabs .mobile-dock-action {
+    min-height: 32px;
+    font-size: 10px;
+  }
+
+  .warning-detail-list {
+    max-height: min(360px, calc(100dvh - 330px));
+    margin-bottom: 10px;
+  }
+
+  .warning-prefecture-toggle {
+    min-height: 58px;
+    padding-inline: 10px;
+  }
+
+  .warning-prefecture-copy > strong {
+    font-size: 12px;
+  }
+
+  .warning-prefecture-copy > small {
+    font-size: 9px;
+  }
+
+  .warning-detail-list .warning-area-row {
+    grid-template-columns: minmax(76px, 0.64fr) minmax(0, 1.36fr);
+    padding-inline: 12px;
+  }
+}
+
+@media (max-height: 570px) and (orientation: landscape) {
+  .warning-view-tabs.mobile-dock-segmented {
+    margin-bottom: 8px;
+  }
+
+  .warning-detail-list {
+    max-height: calc(100dvh - 214px);
   }
 }

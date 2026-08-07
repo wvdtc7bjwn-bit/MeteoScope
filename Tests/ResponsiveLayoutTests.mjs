@@ -403,7 +403,7 @@ assert.match(
 );
 assert.match(
   panel,
-  /localizeText\("地震情報を読み込み中"\)/
+  /buildMobileDockLoadingStatus\("地震情報を読み込み中"\)/
 );
 assert.match(
   panel,
@@ -593,7 +593,30 @@ assert.match(
 );
 assert.match(panel, /data-mobile-weather-date/);
 assert.match(panel, /data-mobile-weather-dates=/);
-assert.match(panel, /class="mobile-dock-weather-timeline"/);
+assert.match(panel, /class="mobile-dock-weather-timeline\$\{loadingLabel \? " is-loading" : ""\}"/);
+assert.match(panel, /const loadingLabel = weatherChartLoading[\s\S]*?"天気図を読み込み中"[\s\S]*?"雷情報を読み込み中"[\s\S]*?"雨雲レーダーを読み込み中"/);
+assert.match(panel, />天気図<\/button>[\s\S]*?>雷<\/button>/);
+assert.match(panel, /function buildMobileDockLoadingStatus\(label\)[\s\S]*?class="mobile-dock-loading-status" role="status" aria-live="polite"/);
+for (const loadingLabel of [
+  "AMeDAS観測値を読み込み中",
+  "警報・注意報を読み込み中",
+  "早期注意情報を読み込み中",
+  "キキクルを読み込み中",
+  "指定河川洪水予報を読み込み中",
+  "台風情報を読み込み中",
+  "各国予想を読み込み中",
+  "地震情報を読み込み中",
+  "火山情報を読み込み中"
+]) {
+  assert.match(panel, new RegExp(`"${loadingLabel}"`));
+}
+assert.match(panel, /const nearestMarkup = amedasLoadingLabel[\s\S]*?buildMobileDockLoadingStatus\(amedasLoadingLabel\)/);
+assert.match(panel, /mobile-dock-warning-main is-loading[\s\S]*?buildMobileDockLoadingStatus\(loadingLabel\)/);
+assert.match(panel, /status === "loading"[\s\S]*?buildMobileDockLoadingStatus\("台風情報を読み込み中"\)/);
+assert.match(panel, /mobile-dock-earthquake-empty-state\$\{isLoading[\s\S]*?buildMobileDockLoadingStatus\("地震情報を読み込み中"\)/);
+assert.doesNotMatch(panel, /weatherChartLoading \? "取得中" : "天気図"/);
+assert.doesNotMatch(panel, /lightningLoading \? "取得中" : "雷"/);
+assert.doesNotMatch(panel, /mobile-dock-typhoon-empty">台風情報を取得中/);
 assert.match(panel, /function compactWeatherDateLabel/);
 assert.match(panel, /updateMobileWeatherDate\(slider/);
 assert.match(
@@ -609,6 +632,10 @@ assert.match(
   /\.mobile-dock-world-time-control \.mobile-dock-date\s*\{[\s\S]*?left:\s*0;[\s\S]*?width:\s*30px;/
 );
 assert.match(styles, /\.mobile-dock-weather-timeline\s*\{[\s\S]*?height:\s*52px;/);
+assert.match(styles, /\.mobile-dock-loading-status\s*\{[\s\S]*?display:\s*inline-flex;[\s\S]*?border-radius:\s*999px;/);
+assert.match(styles, /\.mobile-dock-weather-timeline\s*>\s*\.mobile-dock-loading-status\s*\{[\s\S]*?position:\s*absolute;/);
+assert.match(styles, /\.mobile-dock-warning-main\.is-loading[\s\S]*?place-items:\s*center;/);
+assert.match(styles, /\.mobile-dock-weather-timeline\.is-loading \.weather-time-timeline\s*\{[\s\S]*?opacity:\s*0\.42;/);
 assert.match(styles, /\.mobile-dock-radar \.weather-time-timeline\s*\{[\s\S]*?height:\s*42px;[\s\S]*?margin:\s*10px 0 0;/);
 assert.match(
   panel,
@@ -736,6 +763,14 @@ for (const metric of ["temperature", "precipitation", "wind", "humidity", "press
 }
 assert.match(
   styles,
+  /html\[data-theme="light"\] \.amedas-ranking-toggle button\s*\{[\s\S]*?color:\s*#415d78;[\s\S]*?text-shadow:\s*none;/
+);
+assert.match(
+  styles,
+  /html\[data-theme="light"\] \.amedas-ranking-toggle button\.active\s*\{[\s\S]*?color:\s*var\(--segmented-active-label\);/
+);
+assert.match(
+  styles,
   /html\[data-language="en"\] \.mobile-dock-amedas-grid \.mobile-dock-chip\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center;[\s\S]*?height:\s*30px;[\s\S]*?padding:\s*0;/
 );
 assert.match(
@@ -745,6 +780,22 @@ assert.match(
 assert.match(
   styles,
   /\.mobile-dock-segmented button\s*\{[\s\S]*?-webkit-tap-highlight-color:\s*transparent;[\s\S]*?-webkit-touch-callout:\s*none;[\s\S]*?-webkit-user-select:\s*none;[\s\S]*?user-select:\s*none;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-segmented button:is\(\.active, \[aria-selected="true"\], \[aria-pressed="true"\]\)\s*\{[\s\S]*?color:\s*var\(--segmented-active-label\);/
+);
+assert.match(
+  styles,
+  /html\[data-theme="light"\] :is\(\.radar-action-button, \.mobile-dock-action, \.mobile-dock-chip\):disabled:not\(\.active\):not\(\[aria-selected="true"\]\):not\(\[aria-pressed="true"\]\)\s*\{/
+);
+assert.match(
+  styles,
+  /html\[data-theme="light"\] \.mobile-dock-segmented button:is\(\.active, \[aria-selected="true"\], \[aria-pressed="true"\]\):disabled\s*\{[\s\S]*?color:\s*var\(--segmented-active-label\);[\s\S]*?opacity:\s*1;/
+);
+assert.match(
+  panel,
+  /function isSegmentButtonActive\(button\)[\s\S]*?classList\.contains\("active"\)[\s\S]*?aria-selected[\s\S]*?aria-pressed/
 );
 assert.match(
   styles,

@@ -15,12 +15,14 @@ import {
   isWarningMapTimePayload
 } from "../src/jma/warnings.js";
 
-const [appSource, warningsSource, leftPanelSource, weatherMapSource, warningGeometryFixes] = await Promise.all([
+const [appSource, warningsSource, leftPanelSource, weatherMapSource, warningGeometryFixes, indexSource, styleSource] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/jma/warnings.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
-  readFile(new URL("../public/data/jma-weather-warning-municipality-fixes.geojson", import.meta.url), "utf8")
+  readFile(new URL("../public/data/jma-weather-warning-municipality-fixes.geojson", import.meta.url), "utf8"),
+  readFile(new URL("../index.html", import.meta.url), "utf8"),
+  readFile(new URL("../src/style.css", import.meta.url), "utf8")
 ]);
 
 const warningGeometryFixCollection = JSON.parse(warningGeometryFixes);
@@ -288,7 +290,19 @@ assert.match(
 );
 assert.match(
   leftPanelSource,
-  /const WARNING_AREA_PAGE_SIZE = 80;[\s\S]*?data-warning-load-more[\s\S]*?warningVisibleAreaCount \+= WARNING_AREA_PAGE_SIZE/
+  /function renderWarningGroupAccordions\(root, groups, warningView\)[\s\S]*?activeWarningGroupsByKey = new Map\(\);[\s\S]*?warningGroupKeyByAreaCode = new Map\(\);[\s\S]*?buildWarningGroupAccordionMarkup/
+);
+assert.match(
+  leftPanelSource,
+  /const openGroupKey = selectedGroupKey[\s\S]*?activeWarningGroupsByKey\.has\(expandedWarningGroupKey\)[\s\S]*?: ""/
+);
+assert.match(
+  styleSource,
+  /\.warning-prefecture-group-warning\s*\{\s*--warning-group-color:\s*#ff2b12;\s*\}[\s\S]*?\.warning-prefecture-group-advisory\s*\{\s*--warning-group-color:\s*#fff000;\s*\}/
+);
+assert.match(
+  styleSource,
+  /\.warning-prefecture-group-high\s*\{\s*--warning-group-color:\s*#ff6b73;\s*\}[\s\S]*?\.warning-prefecture-group-middle\s*\{\s*--warning-group-color:\s*#ffc8b8;\s*\}/
 );
 assert.match(
   appSource,
@@ -328,25 +342,33 @@ assert.match(
 );
 assert.match(
   leftPanelSource,
-  /if \(groups\.length === 0\) \{[\s\S]*?発表中の警報・注意報はありません[\s\S]*?renderWarningGroupsProgressively\(root, groups/
+  /if \(groups\.length === 0\) \{[\s\S]*?発表中の警報・注意報はありません[\s\S]*?renderWarningGroupAccordions\(root, groups, "status"\)/
 );
 assert.doesNotMatch(
   leftPanelSource,
   /河川の警報・注意報/
 );
 const nonWarningBranch = leftPanelSource.match(
-  /if \(!isWarnings\) \{([\s\S]*?)\n  \}/
+  /function renderWarningDetails\(tab, state, warningView = "status"\)[\s\S]*?if \(!isWarnings\) \{([\s\S]*?)\n  \}/
 )?.[1] ?? "";
 assert.doesNotMatch(nonWarningBranch, /root\.innerHTML\s*=\s*""/);
 assert.doesNotMatch(nonWarningBranch, /activeWarningAreasByCode = new Map\(\)/);
 assert.match(
   leftPanelSource,
-  /function buildWarningRenderChunks\(groups, chunkSize = 12\)[\s\S]*?areas\.slice\(offset, offset \+ safeChunkSize\)/
+  /function setWarningGroupExpanded\(root, groupKey, expanded[\s\S]*?buildWarningAreaRowsMarkup\(entry\.group, entry\.warningView\)[\s\S]*?aria-expanded/
 );
 assert.match(
   leftPanelSource,
-  /if \(renderChunks\.length === 0\)[\s\S]*?renderNextChunk\(\);\s*\n\}/
+  /function toggleWarningGroup\(root, groupKey\)[\s\S]*?warning-prefecture-group\.is-open[\s\S]*?setWarningGroupExpanded/
 );
+assert.match(indexSource, /id="warning-view-tabs"[^>]*role="tablist"/);
+assert.match(leftPanelSource, /function getWarningViewOptions\(warningView\)[\s\S]*?status[\s\S]*?early[\s\S]*?kikikuru[\s\S]*?river/);
+assert.match(leftPanelSource, /function renderWarningViewTabs\(tab, warningView\)[\s\S]*?getWarningViewOptions\(warningView\)/);
+assert.match(leftPanelSource, /function renderKikikuruWarningDetails\(root, state, activeKikikuruLayer\)/);
+assert.match(leftPanelSource, /function animateWarningDetailContent\(root\)[\s\S]*?is-entering/);
+assert.match(styleSource, /\.warning-prefecture-body\s*\{[\s\S]*?grid-template-rows:\s*0fr;[\s\S]*?transition:/);
+assert.match(styleSource, /\.warning-prefecture-group\.is-open \.warning-prefecture-body\s*\{[\s\S]*?grid-template-rows:\s*1fr;/);
+assert.doesNotMatch(leftPanelSource, /data-warning-load-more|WARNING_AREA_PAGE_SIZE/);
 assert.match(
   weatherMapSource,
   /function prepareWarningData\(data\)[\s\S]*?updateWarningFeatureStates\(map, statusAreas, "status"\)[\s\S]*?updateWarningFeatureStates\(map, earlyAreas, "early"\)/
