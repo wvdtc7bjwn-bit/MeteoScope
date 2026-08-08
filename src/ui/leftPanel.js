@@ -11,7 +11,6 @@ import {
 } from "../config.js";
 import {
   AMEDAS_PRECIPITATION_PERIODS,
-  getAmedasPrecipitationLegendTicks,
   getAmedasPrecipitationLevels,
   getAmedasPrecipitationPeriod
 } from "../amedasPrecipitationPeriod.js";
@@ -69,6 +68,7 @@ import {
   splitWarningOutlookRows
 } from "../warningOutlookTime.js";
 import { getCurrentLanguage, localizeText, localizeVolcanoText } from "./locale.js";
+import { buildModalLoadingState } from "./modalLoadingState.js";
 
 let selectedWarningAreaCode = "";
 const amedasRankingOrderByMetric = {
@@ -1766,15 +1766,40 @@ function renderLegend(tabId, amedasMetricId, warningView = "status", data = null
     return;
   }
 
+  const unit = getMapLegendUnit(tabId, amedasMetricId, data);
+
   root.innerHTML = `${isCountryForecast
     ? '<p class="legend-world-typhoon-note">線と点の色は各モデルボタンの色に対応します</p>'
     : ""}${items
     .map(([label, className, color]) => {
       const swatchStyle = color ? ` style="background:${escapeHtml(color)}"` : "";
-      return `<div class="legend-item"><span class="legend-swatch ${className}"${swatchStyle}></span>${escapeHtml(localizeText(label))}</div>`;
+      const visibleLabel = formatLegendLabelWithUnit(localizeText(label), unit);
+      return `<div class="legend-item"><span class="legend-swatch ${className}"${swatchStyle}></span>${escapeHtml(visibleLabel)}</div>`;
     })
     .join("")}`;
 
+}
+
+export function getMapLegendUnit(tabId, amedasMetricId, data = null) {
+  if (tabId === "radar" && !data?.lightningEnabled && !data?.weatherChartEnabled) {
+    return "mm/h";
+  }
+  if (tabId !== "amedas" || amedasMetricId === "precipitation") return "";
+  return AMEDAS_METRICS.find((item) => item.id === amedasMetricId)?.unit ?? "";
+}
+
+export function formatLegendLabelWithUnit(label, unit) {
+  const text = String(label ?? "");
+  if (!unit) return text;
+  if (unit === "mm/h") {
+    return text.includes("mm/h") ? text : text.replace(/mm(?!\/h)/gu, "mm/h");
+  }
+  if (text.includes(unit)) return text;
+  const matches = [...text.matchAll(/-?\d+(?:\.\d+)?/gu)];
+  const lastMatch = matches.at(-1);
+  if (!lastMatch || lastMatch.index === undefined) return `${text} ${unit}`.trim();
+  const insertAt = lastMatch.index + lastMatch[0].length;
+  return `${text.slice(0, insertAt)}${unit}${text.slice(insertAt)}`;
 }
 
 function buildLegendItems(tabId, amedasMetricId, warningView = "status", data = null) {
@@ -1941,30 +1966,17 @@ function renderAmedasSubTabs(tab, activeMetricId) {
 
 function buildAmedasPrecipitationLegend(periodId) {
   const period = getAmedasPrecipitationPeriod(periodId);
-  const levels = getAmedasPrecipitationLevels(period.id).slice().reverse();
-  const ticks = getAmedasPrecipitationLegendTicks(period.id);
-  const tickStops = ticks.map((tick, index) => ({
-    tick,
-    position: ((index + 1) / levels.length) * 100
-  }));
+  const levels = getAmedasPrecipitationLevels(period.id);
   const isEnglish = getCurrentLanguage() === "en";
   const periodLabel = isEnglish ? period.primary : period.label;
   const title = isEnglish ? `${periodLabel} precipitation` : `${periodLabel}降水量`;
 
-  return `
-    <section class="amedas-precipitation-legend" aria-label="${escapeHtml(title)}">
-      <header>
-        <strong>${escapeHtml(title)}</strong>
-        <span>mm</span>
-      </header>
-      <div class="amedas-precipitation-gradient" aria-hidden="true">
-        ${levels.map((level) => `<span class="amedas-precipitation-segment" style="background-color:${escapeHtml(level.color)}"></span>`).join("")}
-      </div>
-      <div class="amedas-precipitation-ticks">
-        ${tickStops.map(({ tick, position }) => `<span style="left:${position}%">${tick}</span>`).join("")}
-      </div>
-    </section>
-  `;
+  return `<section class="amedas-precipitation-legend" aria-label="${escapeHtml(title)}">${levels.map((level) => `
+    <div class="legend-item">
+      <span class="legend-swatch" style="background:${escapeHtml(level.color)}"></span>
+      ${escapeHtml(formatLegendLabelWithUnit(localizeText(level.label), "mm"))}
+    </div>
+  `).join("")}</section>`;
 }
 
 function renderWarningViewTabs(tab, warningView) {
@@ -4801,7 +4813,14 @@ function buildWarningOutlookTable(rows, options = {}) {
 function buildWarningOutlookTableSection(rows, options = {}) {
   if (!Array.isArray(rows) || rows.length === 0) {
     if (options.kind) return "";
-    return `<p class="warning-modal-empty">${escapeHtml(localizeText(options.loading ? "今後の見通しを取得中です。" : "今後の見通しはありません。"))}</p>`;
+    if (options.loading) {
+      return buildModalLoadingState({
+        title: localizeText("今後の見通しを取得中です。"),
+        compact: true,
+        inline: true
+      });
+    }
+    return `<p class="warning-modal-empty">${escapeHtml(localizeText("今後の見通しはありません。"))}</p>`;
   }
 
   const isDaily = options.kind === "daily";

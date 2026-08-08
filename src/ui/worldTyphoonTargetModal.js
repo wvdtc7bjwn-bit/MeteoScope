@@ -1,4 +1,5 @@
 import { getCurrentLanguage } from "./locale.js";
+import { buildModalLoadingState } from "./modalLoadingState.js";
 
 let initialized = false;
 let handleSelect = () => {};
@@ -90,12 +91,12 @@ function renderPicker() {
   }
   const groups = groupOptionsByModel(pickerState.options);
   if (!groups.length) {
-    body.innerHTML = `
-      <div class="world-typhoon-target-empty">
-        <strong>${isEnglish ? "Forecast targets are loading" : "予想対象を読み込んでいます"}</strong>
-        <span>${isEnglish ? "Available systems will appear here." : "取得できた台風・熱帯低気圧をここに表示します。"}</span>
-      </div>
-    `;
+    body.innerHTML = buildModalLoadingState({
+      title: isEnglish ? "Loading forecast targets" : "予想対象を読み込んでいます",
+      detail: isEnglish
+        ? "Available systems will appear here."
+        : "取得できた台風・熱帯低気圧をここに表示します。"
+    });
     return;
   }
 

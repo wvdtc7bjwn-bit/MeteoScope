@@ -11,6 +11,7 @@ import {
   getCurrentLanguage,
   localizeText
 } from "./locale.js";
+import { buildModalLoadingState } from "./modalLoadingState.js";
 
 let initialized = false;
 let getCurrentLocation = () => ({ status: "idle" });
@@ -471,11 +472,20 @@ function formatJapanDateKey(value) {
 
 function renderState(body, title, message, loading = false, retry = false) {
   const language = getCurrentLanguage();
+  const localizedTitle = localizeText(title, language);
+  const localizedMessage = localizeText(message, language);
+  if (loading) {
+    body.innerHTML = buildModalLoadingState({
+      title: localizedTitle,
+      detail: localizedMessage
+    });
+    return;
+  }
   body.innerHTML = `
-    <div class="weekly-weather-state${loading ? " is-loading" : ""}">
+    <div class="weekly-weather-state">
       <span class="weekly-weather-state-icon" aria-hidden="true"></span>
-      <strong>${escapeHtml(localizeText(title, language))}</strong>
-      <p>${escapeHtml(localizeText(message, language))}</p>
+      <strong>${escapeHtml(localizedTitle)}</strong>
+      <p>${escapeHtml(localizedMessage)}</p>
       ${retry ? `<button type="button" data-weekly-weather-retry>${escapeHtml(localizeText("再読み込み", language))}</button>` : ""}
     </div>
   `;

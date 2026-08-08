@@ -41,6 +41,7 @@ import {
   buildStormWarningAreaLineSegments,
   destinationPoint
 } from "../typhoonGeometry.js";
+import { getEarlyWarningColor, getWarningColor } from "../warningMapColors.js";
 
 const MODE_CLASS = {
   radar: "mode-radar",
@@ -4159,19 +4160,6 @@ function getKikikuruLayerId(id, zoomId) {
 
 function getKikikuruTileUrl(tileUrl, level) {
   return tileUrl.replace("{z}", String(level.z));
-}
-
-function getWarningColor(level) {
-  if (level === "emergency") return "#b400ff";
-  if (level === "danger") return "#b400ff";
-  if (level === "warning") return "#ff2b12";
-  return "#fff000";
-}
-
-function getEarlyWarningColor(level) {
-  if (level === "high") return "#ff6b73";
-  if (level === "middle") return "#ffc8b8";
-  return "rgba(0, 0, 0, 0)";
 }
 
 function createEmptyFeatureCollection() {

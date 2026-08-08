@@ -6,6 +6,13 @@ import {
   formatEarthquakeMagnitude,
   getEarthquakeUnknownText
 } from "../earthquakeFormat.js";
+import {
+  getEarlyWarningColor,
+  getEarlyWarningRiskRank,
+  getWarningColor,
+  getWarningRiskRank
+} from "../warningMapColors.js";
+import { buildModalLoadingState } from "./modalLoadingState.js";
 
 let initialized = false;
 let loadDashboardData = async () => ({});
@@ -33,6 +40,7 @@ const COPY = {
     observations: "雨雲・雷",
     details: "詳細を見る",
     noWarnings: "発表中の警報・注意報はありません",
+    noEarlyWarnings: "発表中の早期注意情報はありません",
     noRiver: "現在地に関連する発表はありません",
     noEarthquake: "現在地で震度を観測した直近の地震はありません",
     noVolcano: "現在地に関連する発表はありません",
@@ -94,6 +102,7 @@ const COPY = {
     observations: "Radar and lightning",
     details: "View details",
     noWarnings: "No warnings or advisories are in effect",
+    noEarlyWarnings: "No early warning information is in effect",
     noRiver: "No bulletin is related to this location",
     noEarthquake: "No recent earthquake intensity was observed here",
     noVolcano: "No bulletin is related to this location",
@@ -243,13 +252,10 @@ function renderLoading() {
   const body = document.getElementById("disaster-dashboard-body");
   if (!body) return;
   const copy = COPY[getCurrentLanguage()] ?? COPY.ja;
-  body.innerHTML = `
-    <div class="disaster-dashboard-state is-loading">
-      <span class="disaster-dashboard-state-mark" aria-hidden="true"></span>
-      <strong>${escapeHtml(copy.loading)}</strong>
-      <p>${escapeHtml(copy.loadingDetail)}</p>
-    </div>
-  `;
+  body.innerHTML = buildModalLoadingState({
+    title: copy.loading,
+    detail: copy.loadingDetail
+  });
 }
 
 function renderError(body, error) {
@@ -259,8 +265,20 @@ function renderError(body, error) {
       <span class="disaster-dashboard-state-mark" aria-hidden="true">!</span>
       <strong>${escapeHtml(copy.unavailable)}</strong>
       <p>${escapeHtml(error?.message || copy.refreshFailed)}</p>
-      <button type="button" data-disaster-dashboard-retry>${escapeHtml(copy.retry)}</button>
+      ${renderRefreshButton(copy, "is-state")}
     </div>
+  `;
+}
+
+function renderRefreshButton(copy, className = "") {
+  return `
+    <button
+      type="button"
+      class="disaster-dashboard-refresh-button ${escapeHtml(className)}"
+      data-disaster-dashboard-retry
+      aria-label="${escapeHtml(copy.retry)}"
+      title="${escapeHtml(copy.retry)}"
+    ><svg class="disaster-dashboard-refresh-icon" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><path d="M20 12a8 8 0 1 1-2.34-5.66L20 8" /><path d="M20 3v5h-5" /></svg></button>
   `;
 }
 
@@ -268,7 +286,8 @@ export function buildDisasterDashboardViewModel(snapshot = {}, language = "ja") 
   const copy = COPY[language] ?? COPY.ja;
   const location = snapshot.currentLocation ?? {};
   const areaCode = String(location.areaCode ?? "");
-  const warnings = [...(location.warnings ?? []), ...(location.earlyWarnings ?? [])];
+  const warnings = location.warnings ?? [];
+  const earlyWarnings = location.earlyWarnings ?? [];
   const riverReports = (snapshot.riverFlood?.reports ?? []).filter((report) =>
     reportMatchesArea(report, areaCode)
   );
@@ -290,12 +309,15 @@ export function buildDisasterDashboardViewModel(snapshot = {}, language = "ja") 
     language
   );
   const activeRiskCount = warnings.length
+    + earlyWarnings.length
     + riverReports.length
     + volcanoReports.length
     + ["land", "inund"].filter((id) => Number(snapshot.kikikuruStatuses?.[id]?.rank) > 0).length;
   const highestRiskRank = Math.max(
     0,
     ...["land", "inund"].map((id) => Number(snapshot.kikikuruStatuses?.[id]?.rank) || 0),
+    ...warnings.map((warning) => getWarningRiskRank(warning.level)),
+    ...earlyWarnings.map((warning) => getEarlyWarningRiskRank(warning.level)),
     ...riverReports.map((report) => Number(report.level) || 0),
     ...volcanoReports.map((report) => Number(report.level) || 0)
   );
@@ -317,6 +339,13 @@ export function buildDisasterDashboardViewModel(snapshot = {}, language = "ja") 
     warnings: warnings.map((warning) => ({
       label: localizeText(warning.label ?? warning.type ?? copy.active, language),
       level: warning.level ?? "advisory",
+      color: getWarningColor(warning.level ?? "advisory"),
+      updatedAt: warning.updatedAt ?? location.updatedAt ?? ""
+    })),
+    earlyWarnings: earlyWarnings.map((warning) => ({
+      label: localizeText(warning.label ?? warning.type ?? copy.early, language),
+      level: warning.level ?? "middle",
+      color: getEarlyWarningColor(warning.level ?? "middle"),
       updatedAt: warning.updatedAt ?? location.updatedAt ?? ""
     })),
     riverReports: riverReports.map((report) => ({
@@ -365,9 +394,13 @@ export function buildDisasterDashboardViewModel(snapshot = {}, language = "ja") 
 }
 
 function renderDashboard(body, model) {
+  body.innerHTML = buildDisasterDashboardMarkup(model);
+}
+
+export function buildDisasterDashboardMarkup(model) {
   const { copy } = model;
   if (model.status !== "ready") {
-    body.innerHTML = `
+    return `
       <div class="disaster-dashboard-state is-location-required">
         <span class="disaster-dashboard-location-mark" aria-hidden="true"></span>
         <strong>${escapeHtml(copy.notLocated)}</strong>
@@ -376,10 +409,9 @@ function renderDashboard(body, model) {
         <small>${escapeHtml(copy.locationPrivacy)}</small>
       </div>
     `;
-    return;
   }
 
-  body.innerHTML = `
+  return `
     <div class="disaster-dashboard-location-bar">
       <div>
         <span>${escapeHtml(copy.currentLocation)}</span>
@@ -389,7 +421,7 @@ function renderDashboard(body, model) {
         <span>${escapeHtml(copy.updated)}</span>
         <time>${escapeHtml(formatTime(model.checkedAt, model.language))}</time>
       </div>
-      <button type="button" data-disaster-dashboard-retry>${escapeHtml(copy.retry)}</button>
+      ${renderRefreshButton(copy)}
     </div>
     ${model.partialFailure ? `<p class="disaster-dashboard-notice">${escapeHtml(copy.refreshFailed)}</p>` : ""}
     ${renderOverview(model)}
@@ -399,6 +431,7 @@ function renderDashboard(body, model) {
         className: "is-weather",
         body: [
           renderSection({ title: copy.warnings, tab: "warnings", body: renderWarnings(model) }),
+          renderSection({ title: copy.early, tab: "warnings", body: renderEarlyWarnings(model) }),
           renderSection({ title: copy.risk, tab: "warnings", body: renderKikikuru(model) }),
           renderSection({ title: copy.river, tab: "warnings", body: renderRiver(model) })
         ].join("")
@@ -468,8 +501,17 @@ function renderSection({ title, tab, body }) {
 
 function renderWarnings(model) {
   if (!model.warnings.length) return `<p class="disaster-dashboard-empty">${escapeHtml(model.copy.noWarnings)}</p>`;
-  return `<ul class="disaster-dashboard-list">${model.warnings.slice(0, 6).map((warning) => `
-    <li><span class="disaster-dashboard-level level-${safeClassToken(warning.level)}"></span><strong>${escapeHtml(warning.label)}</strong><time>${escapeHtml(formatShortTime(warning.updatedAt))}</time></li>
+  return renderAlertList(model.warnings.slice(0, 6));
+}
+
+function renderEarlyWarnings(model) {
+  if (!model.earlyWarnings.length) return `<p class="disaster-dashboard-empty">${escapeHtml(model.copy.noEarlyWarnings)}</p>`;
+  return renderAlertList(model.earlyWarnings.slice(0, 6));
+}
+
+function renderAlertList(items) {
+  return `<ul class="disaster-dashboard-list disaster-dashboard-alert-list">${items.map((item) => `
+    <li style="--dashboard-alert-color:${escapeHtml(item.color)}"><span class="disaster-dashboard-level" aria-hidden="true"></span><strong>${escapeHtml(item.label)}</strong><time>${escapeHtml(formatShortTime(item.updatedAt))}</time></li>
   `).join("")}</ul>`;
 }
 
@@ -650,8 +692,4 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-function safeClassToken(value) {
-  return String(value ?? "advisory").toLowerCase().replace(/[^a-z0-9_-]/g, "-");
 }

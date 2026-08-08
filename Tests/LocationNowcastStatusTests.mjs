@@ -5,11 +5,11 @@ import { formatRadarIntensityBand, lngLatToTilePixel } from "../src/location/rad
 
 assert.equal(formatRadarIntensityBand(0), "0mm/h");
 assert.equal(formatRadarIntensityBand(0.1), "0.1〜1mm/h");
-assert.equal(formatRadarIntensityBand(1), "1〜10mm/h");
+assert.equal(formatRadarIntensityBand(1), "1〜5mm/h");
 assert.equal(formatRadarIntensityBand(50), "50〜80mm/h");
 assert.equal(formatRadarIntensityBand(80), "80mm/h以上");
 assert.equal(formatRadarIntensityBand(80, "en"), "80mm/h or more");
-assert.equal(formatRadarIntensityBand(1, "en"), "1–10mm/h");
+assert.equal(formatRadarIntensityBand(1, "en"), "1–5mm/h");
 
 assert.equal(classifyLightningActivityColor({ r: 200, g: 0, b: 255, a: 191 }), 4);
 assert.equal(classifyLightningActivityColor({ r: 255, g: 40, b: 0, a: 191 }), 3);

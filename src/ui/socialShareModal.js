@@ -5,6 +5,7 @@ import {
 } from "../socialShareCard.js";
 import { loadMunicipalityLookup } from "../location/currentLocation.js";
 import { localizeText } from "./locale.js";
+import { buildModalLoadingState } from "./modalLoadingState.js";
 
 let initialized = false;
 let activePayload = null;
@@ -94,7 +95,7 @@ export async function openSocialShareModal(payload) {
   if (title) title.textContent = localizeText(copy.title);
   if (description) description.textContent = localizeText(copy.description);
   refreshControls();
-  setStatus("画像を作成しています…");
+  setStatus(localizeText("画像を作成しています…"), "loading");
   const loadingTasks = [document.fonts?.ready, loadAppIcon()];
   if (payload.type === "earthquake" || payload.type === "typhoon") loadingTasks.push(loadJapanMap());
   if (payload.type === "typhoon") loadingTasks.push(loadWorldMap());
@@ -275,7 +276,15 @@ function getPngBlob() {
 function setStatus(message, tone = "") {
   const status = document.getElementById("social-share-status");
   if (!status) return;
-  status.textContent = message;
+  if (tone === "loading") {
+    status.innerHTML = buildModalLoadingState({
+      title: message,
+      compact: true,
+      inline: true
+    });
+  } else {
+    status.textContent = message;
+  }
   status.dataset.tone = tone;
 }
 

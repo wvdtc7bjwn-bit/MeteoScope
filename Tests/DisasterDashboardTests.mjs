@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import {
   buildDashboardEarthquakeMetrics,
+  buildDisasterDashboardMarkup,
   buildDisasterDashboardViewModel,
   earthquakeMatchesArea,
   reportMatchesArea,
@@ -11,6 +12,11 @@ import {
   formatEarthquakeDepthText,
   formatEarthquakeMagnitude
 } from "../src/earthquakeFormat.js";
+import {
+  getEarlyWarningColor,
+  getWarningColor
+} from "../src/warningMapColors.js";
+import { buildModalLoadingState } from "../src/ui/modalLoadingState.js";
 
 const areaCode = "4320200";
 
@@ -24,6 +30,10 @@ assert.equal(formatEarthquakeDepthText(0, { compact: true }), "ごく浅い");
 assert.equal(formatEarthquakeDepthText("0km", { compact: true }), "ごく浅い");
 assert.equal(formatEarthquakeDepthText(10, { compact: true }), "10km");
 assert.equal(formatEarthquakeDepthText(null, { compact: true }), "--");
+assert.equal(getWarningColor("warning"), "#ff2b12");
+assert.equal(getWarningColor("danger"), "#b400ff");
+assert.equal(getEarlyWarningColor("middle"), "#ffc8b8");
+assert.equal(getEarlyWarningColor("high"), "#ff6b73");
 assert.deepEqual(
   buildDashboardEarthquakeMetrics(
     { maxIntensity: "1", localIntensity: "2", magnitude: "M2.5", depth: 0 },
@@ -45,7 +55,8 @@ const model = buildDisasterDashboardViewModel({
     prefecture: "熊本県",
     coordinates: [130.6, 32.5],
     updatedAt: "2026/08/01 10:00",
-    warnings: [{ label: "大雨警報", level: "warning", updatedAt: "2026/08/01 09:55" }]
+    warnings: [{ label: "大雨警報", level: "warning", updatedAt: "2026/08/01 09:55" }],
+    earlyWarnings: [{ label: "大雨 中", level: "middle", updatedAt: "2026/08/01 09:45" }]
   },
   riverFlood: {
     reports: [
@@ -114,9 +125,12 @@ const model = buildDisasterDashboardViewModel({
 }, "ja");
 
 assert.equal(model.status, "ready");
-assert.equal(model.overview.activeRiskCount, 4);
+assert.equal(model.overview.activeRiskCount, 5);
 assert.equal(model.overview.tone, "attention");
 assert.equal(model.warnings.length, 1);
+assert.equal(model.warnings[0].color, "#ff2b12");
+assert.equal(model.earlyWarnings.length, 1);
+assert.equal(model.earlyWarnings[0].color, "#ffc8b8");
 assert.equal(model.riverReports.length, 1);
 assert.equal(model.earthquake.local, true);
 assert.equal(model.earthquake.localIntensity, "2");
@@ -134,6 +148,13 @@ assert.deepEqual(
     ["0cm", "水俣"]
   ]
 );
+
+const dashboardMarkup = buildDisasterDashboardMarkup(model);
+assert.match(dashboardMarkup, /disaster-dashboard-refresh-icon/);
+assert.match(dashboardMarkup, /preserveAspectRatio="xMidYMid meet"/);
+assert.match(dashboardMarkup, /--dashboard-alert-color:#ff2b12/);
+assert.match(dashboardMarkup, /--dashboard-alert-color:#ffc8b8/);
+assert.match(dashboardMarkup, /早期注意情報/);
 
 const missingAmedas = buildDisasterDashboardViewModel({
   currentLocation: { status: "found", areaCode, coordinates: [130.6, 32.5] },
@@ -156,5 +177,17 @@ const critical = buildDisasterDashboardViewModel({
   }
 }, "ja");
 assert.equal(critical.overview.tone, "critical");
+
+const loadingMarkup = buildModalLoadingState({
+  title: "情報を読み込み中",
+  detail: "最新情報を確認しています。"
+});
+assert.match(loadingMarkup, /class="modal-loading-indicator"/);
+assert.match(loadingMarkup, /aria-busy="true"/);
+assert.match(loadingMarkup, /情報を読み込み中/);
+assert.doesNotMatch(loadingMarkup, /<svg/);
+
+const escapedLoadingMarkup = buildModalLoadingState({ title: "<読み込み>" });
+assert.match(escapedLoadingMarkup, /&lt;読み込み&gt;/);
 
 console.log("DisasterDashboardTests passed");

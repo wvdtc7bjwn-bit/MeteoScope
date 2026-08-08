@@ -537,10 +537,12 @@
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-disaster-dashboard-close>×</button>
         </header>
         <div id="disaster-dashboard-body" class="disaster-dashboard-body" aria-live="polite">
-          <div class="disaster-dashboard-state is-loading">
-            <span class="disaster-dashboard-state-mark" aria-hidden="true"></span>
-            <strong>現在地の情報を確認しています</strong>
-            <p>利用中の防災情報をまとめています。</p>
+          <div class="modal-loading-state" role="status" aria-live="polite" aria-busy="true">
+            <span class="modal-loading-indicator" aria-hidden="true"></span>
+            <span class="modal-loading-copy">
+              <strong>現在地の情報を確認しています</strong>
+              <small>利用中の防災情報をまとめています。</small>
+            </span>
           </div>
         </div>
       </section>
@@ -828,7 +830,7 @@
           <div class="social-share-preview-shell">
             <canvas id="social-share-preview" aria-label="投稿画像のプレビュー"></canvas>
           </div>
-          <p id="social-share-status" class="social-share-status" role="status"></p>
+          <div id="social-share-status" class="social-share-status" role="status"></div>
           <div class="social-share-actions">
             <button id="social-share-download" class="social-share-download" type="button">PNGを保存</button>
             <button id="social-share-native" class="social-share-native" type="button">共有する</button>
