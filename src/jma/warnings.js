@@ -62,7 +62,11 @@ export async function fetchWarningMap(options = {}) {
         : Promise.resolve({})
     ]);
     if (officeCode) {
-      outlookByAreaCode = buildWarningOutlookMap(warningTimelineReports, municipalityIndex);
+      outlookByAreaCode = buildWarningOutlookMap(
+        warningTimelineReports,
+        municipalityIndex,
+        areaHierarchy
+      );
       statusDetailsLoaded = true;
       await yieldToMainThread();
     }
@@ -294,7 +298,7 @@ function buildWarningOutlookAreas(outlookByAreaCode, municipalityIndex, activeAr
     });
 }
 
-function buildWarningOutlookMap(timelineReports, municipalityIndex) {
+export function buildWarningOutlookMap(timelineReports, municipalityIndex, areaHierarchy = null) {
   const outlookByAreaCode = new Map();
 
   (timelineReports ?? []).forEach((report) => {
@@ -305,7 +309,11 @@ function buildWarningOutlookMap(timelineReports, municipalityIndex) {
           const rows = buildWarningOutlookRows(item.kinds ?? [], timeDefines);
           if (rows.length === 0) return;
 
-          expandToMunicipalityCodes(String(item.areaCode ?? ""), municipalityIndex).forEach((resolvedArea) => {
+          resolveWarningOutlookMunicipalities(
+            String(item.areaCode ?? ""),
+            municipalityIndex,
+            areaHierarchy
+          ).forEach((resolvedArea) => {
             const areaCode = resolvedArea.code;
             const currentRows = outlookByAreaCode.get(areaCode) ?? [];
             outlookByAreaCode.set(areaCode, mergeOutlookRows(currentRows, rows));
@@ -316,6 +324,17 @@ function buildWarningOutlookMap(timelineReports, municipalityIndex) {
   });
 
   return outlookByAreaCode;
+}
+
+function resolveWarningOutlookMunicipalities(areaCode, municipalityIndex, areaHierarchy) {
+  const municipalityCodes = areaHierarchy?.collectMunicipalityCodes?.(areaCode) ?? [];
+  if (municipalityCodes.length > 0) {
+    return municipalityCodes.map((code) => municipalityIndex.byCode.get(code) ?? {
+      code,
+      name: ""
+    });
+  }
+  return expandToMunicipalityCodes(areaCode, municipalityIndex);
 }
 
 function buildWarningOutlookRows(kinds = [], timeDefines = []) {

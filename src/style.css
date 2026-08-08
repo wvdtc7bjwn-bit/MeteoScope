@@ -4809,22 +4809,26 @@ html[data-theme="light"] .weekly-weather-issued strong {
 
 .warning-outlook-block-heading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 0 4px 7px;
-  color: var(--text-color, #10243c);
+  min-height: 22px;
+  padding: 0 5px 8px;
+  color: #eef5ff;
 }
 
 .warning-outlook-block-heading strong {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
 }
 
 .warning-outlook-block-heading span {
-  color: var(--muted-color, #61748c);
+  color: #aebed3;
   font-size: 10px;
   font-weight: 800;
+  line-height: 1.3;
   white-space: nowrap;
 }
 
@@ -4851,6 +4855,29 @@ html[data-theme="light"] .weekly-weather-issued strong {
 .warning-outlook-table thead th {
   background: rgba(255, 255, 255, 0.075);
   color: #aebbd0;
+}
+
+.warning-outlook-table thead .warning-outlook-date-row th {
+  height: 22px;
+  padding-block: 3px;
+  border: 1px solid rgba(123, 192, 244, 0.18);
+  background: rgba(100, 176, 236, 0.16);
+  color: #d8edff;
+  font-size: 9px;
+  letter-spacing: 0.02em;
+}
+
+.warning-outlook-table thead .warning-outlook-date-row th[rowspan] {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.085);
+  color: #e5efff;
+  vertical-align: middle;
+}
+
+.warning-outlook-table thead .warning-outlook-period-row th {
+  min-width: 62px;
+  color: #c7d6e9;
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .warning-outlook-table thead th.warning-outlook-time-multiline {
@@ -12518,8 +12545,28 @@ html[data-theme="light"] .warning-modal-warning dd {
   color: #1b344d;
 }
 
+html[data-theme="light"] .warning-outlook-block-heading {
+  color: #17324d;
+}
+
+html[data-theme="light"] .warning-outlook-block-heading span {
+  color: #58718a;
+}
+
 html[data-theme="light"] .warning-outlook-table thead th {
   color: #425e79;
+  background: rgba(210, 223, 237, 0.72);
+}
+
+html[data-theme="light"] .warning-outlook-table thead .warning-outlook-date-row th {
+  border-color: rgba(54, 112, 164, 0.14);
+  color: #284d70;
+  background: rgba(119, 176, 221, 0.2);
+}
+
+html[data-theme="light"] .warning-outlook-table thead .warning-outlook-date-row th[rowspan],
+html[data-theme="light"] .warning-outlook-table thead .warning-outlook-period-row th {
+  color: #36536f;
   background: rgba(210, 223, 237, 0.72);
 }
 

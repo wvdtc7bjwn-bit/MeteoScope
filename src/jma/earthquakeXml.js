@@ -70,7 +70,7 @@ export async function fetchEarthquakeXmlList({
   if (earthquakeEntries.length > 0 && fulfilledEarthquakeResults.length === 0) {
     throw new Error("Earthquake XML detail unavailable");
   }
-  const baseEarthquakes = dedupeEarthquakes(fulfilledEarthquakeResults)
+  const baseEarthquakes = mergeEarthquakeReportsByPriority(fulfilledEarthquakeResults)
     .slice(0, EARTHQUAKE_HISTORY_DISPLAY_LIMIT);
   let estimatedIntensityCatalogAvailable = true;
   const [areaLookup, tsunamiLookup, tsunamiStationLookup, stationLookup, estimatedIntensityCatalog] = await Promise.all([
@@ -478,7 +478,7 @@ function normalizeTsunamiAreaCode(value) {
   return String(value ?? "").trim();
 }
 
-function dedupeEarthquakes(items) {
+export function mergeEarthquakeReportsByPriority(items) {
   const byEvent = [];
   items.forEach((item) => {
     if (!item?.eventKey) return;

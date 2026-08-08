@@ -10,7 +10,11 @@ import {
   KIKIKURU_ELEMENTS,
   MAP_DATA_ENDPOINTS
 } from "../config.js";
-import { formatEarthquakeDepthText } from "../earthquakeFormat.js";
+import {
+  formatEarthquakeDepthText,
+  formatEarthquakeHypocenterText,
+  getEarthquakeUnknownText
+} from "../earthquakeFormat.js";
 import {
   planWarningFeatureStateChanges,
   runWarningFeatureStateOperations
@@ -4591,12 +4595,16 @@ function formatDistributionOriginTime(value) {
 }
 
 function buildEarthquakePopup(earthquake) {
+  const unknownText = getEarthquakeUnknownText(earthquake);
+  const intensity = String(
+    earthquake.maxIntensityLabel ?? earthquake.maxIntensityShort ?? ""
+  ).trim();
   return `
-    <strong>${escapePopup(earthquake.hypocenterName ?? "地震情報")}</strong><br>
-    <span>${escapePopup(earthquake.maxIntensityLabel ?? "震度不明")}</span><br>
+    <strong>${escapePopup(formatEarthquakeHypocenterText(earthquake, "地震情報"))}</strong><br>
+    <span>${escapePopup(!intensity || intensity === "震度不明" ? unknownText : intensity)}</span><br>
     <span>発生: ${escapePopup(earthquake.eventTime ?? "--")}</span><br>
-    <span>規模: ${escapePopup(earthquake.magnitude ?? "--")}</span><br>
-    <span>深さ: ${escapePopup(formatEarthquakeDepthText(earthquake.depth))}</span>
+    <span>規模: ${escapePopup(earthquake.magnitude && earthquake.magnitude !== "--" ? earthquake.magnitude : unknownText)}</span><br>
+    <span>深さ: ${escapePopup(formatEarthquakeDepthText(earthquake.depth, { unknownText }))}</span>
   `;
 }
 

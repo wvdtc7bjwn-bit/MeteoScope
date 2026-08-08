@@ -16,7 +16,12 @@ import {
   getTsunamiLevelLabel,
   getTsunamiObservationStyle
 } from "../tsunami.js";
-import { formatEarthquakeDepthText, formatEarthquakeMagnitude } from "../earthquakeFormat.js";
+import {
+  formatEarthquakeDepthText,
+  formatEarthquakeHypocenterText,
+  formatEarthquakeMagnitude,
+  getEarthquakeUnknownText
+} from "../earthquakeFormat.js";
 import {
   buildEarthquakeObservationRows,
   groupEarthquakeObservationRowsByMunicipality
@@ -53,6 +58,7 @@ import { setSocialSharePayload } from "../socialShareState.js";
 import { mergeRiverFloodWarningsIntoGroups } from "../warningRiverMerge.js";
 import {
   formatWarningOutlookTime,
+  getWarningOutlookStartDateDisplay,
   getWarningOutlookTimeDisplay,
   parseWarningOutlookDurationHours
 } from "../warningOutlookTime.js";
@@ -2015,14 +2021,13 @@ function renderRadarControls(tab, state) {
     document.getElementById("radar-time-timeline"),
     timelineFrames,
     activeIndex,
-    (frame) => isLightning && frame?.isCurrent
-      ? "現在"
-      : compactWeatherTimeLabel(frame?.label)
+    (frame) => compactWeatherTimeLabel(frame?.label)
   );
 
+  const timeLabelPrefix = isLightning ? "表示時刻" : "更新時刻";
   label.textContent = activeFrame?.label
-    ? `更新時刻: ${activeFrame.label}`
-    : (timelineStatus === "loading" ? "更新時刻: 取得中" : "更新時刻: --");
+    ? `${timeLabelPrefix}: ${activeFrame.label}`
+    : (timelineStatus === "loading" ? `${timeLabelPrefix}: 取得中` : `${timeLabelPrefix}: --`);
   kind.textContent = activeFrame?.isForecast ? "予測" : "観測";
   kind.classList.toggle("forecast", Boolean(activeFrame?.isForecast));
 
@@ -3072,12 +3077,18 @@ function buildEarthquakeMobileContextMarkup(
 
   const intensityColor = getEarthquakeIntensityColor(earthquake?.maxIntensity);
   const intensityTextClass = getEarthquakeIntensityTextClass(earthquake?.maxIntensity);
+  const unknownText = getEarthquakeUnknownText(earthquake);
   const intensity = formatEarthquakeUnknownMetric(
-    earthquake?.maxIntensityShort ?? earthquake?.maxIntensityLabel
+    earthquake?.maxIntensityShort ?? earthquake?.maxIntensityLabel,
+    unknownText
   );
-  const magnitude = formatEarthquakeMagnitude(earthquake?.magnitude, { prefix: true });
+  const magnitude = formatEarthquakeMagnitude(earthquake?.magnitude, {
+    prefix: true,
+    unknownText
+  });
   const depth = formatEarthquakeUnknownMetric(
-    formatEarthquakeDepthText(earthquake?.depth, { compact: true })
+    formatEarthquakeDepthText(earthquake?.depth, { compact: true, unknownText }),
+    unknownText
   );
   const time = formatMobileEarthquakeTime(earthquake?.eventTime ?? earthquake?.reportTime);
   const tsunamiMarkup = buildMobileTsunamiStatusMarkup(earthquake, tsunami, tsunamiStatus);
@@ -3090,7 +3101,7 @@ function buildEarthquakeMobileContextMarkup(
       </em>
       <div class="mobile-dock-earthquake-text">
         <span class="mobile-dock-earthquake-time">最新 ${escapeHtml(time)}</span>
-        <strong>${escapeHtml(earthquake?.hypocenterName ?? "直近の地震情報はありません")}</strong>
+        <strong>${escapeHtml(formatEarthquakeHypocenterText(earthquake))}</strong>
         <div class="mobile-dock-earthquake-facts">
           <span>${escapeHtml([magnitude, `深さ ${depth}`].filter((item) => item && item !== "--").join(" / ") || "詳細確認中")}</span>
           ${tsunamiMarkup}
@@ -3685,9 +3696,7 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
     title: item?.label ?? "--",
     meta: item?.isForecast ? "予測" : "解析",
     isCurrent: frameIndex === currentLightningIndex,
-    timeLabel: frameIndex === currentLightningIndex
-      ? "現在"
-      : compactWeatherTimeLabel(item?.label)
+    timeLabel: compactWeatherTimeLabel(item?.label)
   }));
 
   const currentChartIndex = findLatestWeatherChartAnalysisIndex(chartFrames);
@@ -3724,7 +3733,9 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
     : buildWeatherTimeTimelineMarkup(
       frameMeta,
       activeIndex,
-      (item) => compactWeatherTimeLabel(item?.title),
+      (item) => isLightningMode
+        ? item?.timeLabel
+        : compactWeatherTimeLabel(item?.title),
       '<span class="weather-time-range-placeholder" aria-hidden="true"></span>',
       { compact: true }
     );
@@ -4775,10 +4786,7 @@ function buildWarningOutlookTableSection(rows, options = {}) {
       <div class="warning-outlook-scroll">
         <table class="warning-outlook-table warning-outlook-table-${isDaily ? "daily" : "hourly"}">
           <thead>
-            <tr>
-              <th>${escapeHtml(localizeText("種別"))}</th>
-              ${times.map(isDaily ? buildDailyWarningOutlookTimeHeading : buildWarningOutlookTimeHeading).join("")}
-            </tr>
+            ${buildWarningOutlookTableHead(times, { isDaily })}
           </thead>
           <tbody>
             ${rows.map((row) => `
@@ -4793,6 +4801,41 @@ function buildWarningOutlookTableSection(rows, options = {}) {
         </table>
       </div>
     </div>
+  `;
+}
+
+function buildWarningOutlookTableHead(times, { isDaily = false } = {}) {
+  if (isDaily) {
+    return `
+      <tr>
+        <th>${escapeHtml(localizeText("種別"))}</th>
+        ${times.map(buildDailyWarningOutlookTimeHeading).join("")}
+      </tr>
+    `;
+  }
+
+  const language = getCurrentLanguage();
+  const dateGroups = [];
+  times.forEach((slot) => {
+    const date = getWarningOutlookStartDateDisplay(slot, { language });
+    const current = dateGroups.at(-1);
+    if (current?.key === date.key) {
+      current.count += 1;
+      return;
+    }
+    dateGroups.push({ ...date, count: 1 });
+  });
+
+  return `
+    <tr class="warning-outlook-date-row">
+      <th rowspan="2">${escapeHtml(localizeText("種別"))}</th>
+      ${dateGroups.map((group) => `
+        <th colspan="${group.count}">${escapeHtml(group.label)}</th>
+      `).join("")}
+    </tr>
+    <tr class="warning-outlook-period-row">
+      ${times.map(buildHourlyWarningOutlookTimeHeading).join("")}
+    </tr>
   `;
 }
 
@@ -4824,6 +4867,15 @@ function buildWarningOutlookTimeHeading(slot) {
       <span class="warning-outlook-period">${escapeHtml(timeLabel)}</span>
     </th>
   `;
+}
+
+function buildHourlyWarningOutlookTimeHeading(slot) {
+  const language = getCurrentLanguage();
+  const { timeLabel } = getWarningOutlookTimeDisplay(slot, {
+    language,
+    indicateDayChange: false
+  });
+  return `<th>${escapeHtml(timeLabel)}</th>`;
 }
 
 function buildDailyWarningOutlookTimeHeading(slot) {
@@ -5625,6 +5677,7 @@ function renderEarthquakeList(tab, state) {
   const earthquakes = state.data?.earthquakes ?? [];
   const selectedEarthquake = state.data?.selectedEarthquake ?? earthquakes[0] ?? null;
   if (selectedEarthquake) {
+    const unknownText = getEarthquakeUnknownText(selectedEarthquake);
     const selectedObservationSource = selectedEarthquake.intensityStations?.length
       ? selectedEarthquake.intensityStations
       : (selectedEarthquake.intensityCities ?? []);
@@ -5635,17 +5688,21 @@ function renderEarthquakeList(tab, state) {
     );
     setSocialSharePayload("earthquake", {
       type: "earthquake",
-      intensity: selectedEarthquake.maxIntensityShort
-        ?? selectedEarthquake.maxIntensityLabel
-        ?? "--",
+      intensity: formatEarthquakeUnknownMetric(
+        selectedEarthquake.maxIntensityShort ?? selectedEarthquake.maxIntensityLabel,
+        unknownText
+      ),
       intensityColor: getEarthquakeIntensityColor(selectedEarthquake.maxIntensity),
       eventTime: formatEarthquakeEventTime(
         selectedEarthquake.eventTime ?? selectedEarthquake.reportTime
       ),
       coordinates: selectedEarthquake.coordinates,
-      hypocenter: selectedEarthquake.hypocenterName ?? "震央調査中",
-      magnitude: formatEarthquakeMagnitude(selectedEarthquake.magnitude, { prefix: true }),
-      depth: formatEarthquakeDepthText(selectedEarthquake.depth, { compact: true }),
+      hypocenter: formatEarthquakeHypocenterText(selectedEarthquake, "震央調査中"),
+      magnitude: formatEarthquakeMagnitude(selectedEarthquake.magnitude, {
+        prefix: true,
+        unknownText
+      }),
+      depth: formatEarthquakeDepthText(selectedEarthquake.depth, { compact: true, unknownText }),
       tsunami: getEarthquakeTsunamiMetricText(selectedTsunamiState),
       observations: selectedObservationSource.map((observation) => ({
         name: observation.stationName
@@ -5727,8 +5784,9 @@ function renderEarthquakeList(tab, state) {
     const isExpanded = isActive && String(earthquake.id) !== collapsedId;
     const intensityColor = getEarthquakeIntensityColor(earthquake.maxIntensity);
     const intensityTextClass = getEarthquakeIntensityTextClass(earthquake.maxIntensity);
-    const magnitude = formatEarthquakeMagnitude(earthquake.magnitude, { prefix: true });
-    const depthText = formatEarthquakeDepthText(earthquake.depth, { compact: true });
+    const unknownText = getEarthquakeUnknownText(earthquake);
+    const magnitude = formatEarthquakeMagnitude(earthquake.magnitude, { prefix: true, unknownText });
+    const depthText = formatEarthquakeDepthText(earthquake.depth, { compact: true, unknownText });
     const observations = buildEarthquakeObservationRows(earthquake);
     const observationsId = `earthquake-observations-${index}`;
     const tsunamiState = getEarthquakeTsunamiState(
@@ -6686,13 +6744,19 @@ function renderExpandedEarthquakeSummary({
   depthText,
   tsunamiState
 }) {
+  const unknownText = getEarthquakeUnknownText(earthquake);
   const tsunamiMetricText = getEarthquakeTsunamiMetricText(tsunamiState);
-  const magnitudeMetricText = String(magnitude).replace(/^M\s*/u, "M") || "M--";
+  const magnitudeMetricText = magnitude === unknownText
+    ? unknownText
+    : String(magnitude).replace(/^M\s*/u, "M") || unknownText;
   const intensityMetricText = formatEarthquakeUnknownMetric(
-    earthquake.maxIntensityShort ?? earthquake.maxIntensityLabel
+    earthquake.maxIntensityShort ?? earthquake.maxIntensityLabel,
+    unknownText
   );
-  const depthMetricText = formatEarthquakeUnknownMetric(depthText);
-  const intensityUnknownClass = intensityMetricText === "不明" ? " is-unknown-value" : "";
+  const depthMetricText = formatEarthquakeUnknownMetric(depthText, unknownText);
+  const intensityUnknownClass = ["不明", "調査中"].includes(intensityMetricText)
+    ? " is-unknown-value"
+    : "";
   return `
     <span class="earthquake-card-intensity earthquake-card-intensity-detail">
       <strong class="${intensityTextClass}" style="--earthquake-item-intensity-bg: ${escapeHtml(intensityColor)};">
@@ -6704,7 +6768,7 @@ function renderExpandedEarthquakeSummary({
       <time>${escapeHtml(formatEarthquakeEventTime(earthquake.eventTime ?? earthquake.reportTime))}発生</time>
       <span class="earthquake-detail-epicenter-row">
         <small>震源地</small>
-        <strong>${escapeHtml(earthquake.hypocenterName ?? "震源調査中")}</strong>
+        <strong>${escapeHtml(formatEarthquakeHypocenterText(earthquake))}</strong>
       </span>
     </span>
     <span class="earthquake-detail-metrics">
@@ -6720,20 +6784,25 @@ function getEarthquakeTsunamiMetricText(state) {
     return state?.label === "解除" ? "解除" : "津波の心配なし";
   }
   if (state?.level === "unknown" || state?.level === "unavailable") {
-    return "不明";
+    return state?.label === "調査中" ? "調査中" : "不明";
   }
   if (state?.level === "forecast") return "若干の海面変動";
   return state?.label || "不明";
 }
 
-function formatEarthquakeUnknownMetric(value) {
+function formatEarthquakeUnknownMetric(value, unknownText = "不明") {
   const text = String(value ?? "").trim();
-  return !text || /^(?:--|-|不明|未確認|震度不明)$/u.test(text) ? "不明" : text;
+  return !text || /^(?:--|-|不明|未確認|震度不明)$/u.test(text) ? unknownText : text;
 }
 
 function getEarthquakeTsunamiState(earthquake, tsunami, status) {
+  const unknownText = getEarthquakeUnknownText(earthquake, "津波情報未確認");
   if (status === "unavailable") {
-    return { level: "unavailable", label: "津波情報を確認できません", tsunami: null };
+    return {
+      level: "unavailable",
+      label: unknownText === "調査中" ? unknownText : "津波情報を確認できません",
+      tsunami: null
+    };
   }
   const matchingTsunami = earthquake?.tsunamiReport ?? tsunami;
   const eventId = String(earthquake?.eventId ?? "").trim();
@@ -6759,7 +6828,7 @@ function getEarthquakeTsunamiState(earthquake, tsunami, status) {
   if (commentState) {
     return { ...commentState, tsunami: null };
   }
-  return { level: "unknown", label: "津波情報未確認", tsunami: null };
+  return { level: "unknown", label: unknownText, tsunami: null };
 }
 
 function getCurrentTsunamiState(earthquake, tsunami, status) {

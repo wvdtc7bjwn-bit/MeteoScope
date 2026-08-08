@@ -1,20 +1,15 @@
 self.__meteoscopePendingNotificationTask = null;
-const APP_SHELL_CACHE = "meteoscope-shell-v4";
+const APP_SHELL_CACHE = "meteoscope-shell-v5";
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
   "/site.webmanifest",
-  "/site-dark.webmanifest",
   "/icons/icon-32.png",
   "/icons/icon-dark-32.png",
   "/icons/icon-180.png",
-  "/icons/icon-dark-180.png",
   "/icons/icon-192.png",
   "/icons/icon-dark-192.png",
-  "/icons/icon-512.png",
-  "/icons/icon-dark-512.png",
-  "/icons/icon-maskable-512.png",
-  "/icons/icon-maskable-dark-512.png"
+  "/icons/icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -59,7 +54,6 @@ self.addEventListener("fetch", (event) => {
     url.pathname.startsWith("/assets/")
     || url.pathname.startsWith("/icons/")
     || url.pathname === "/site.webmanifest"
-    || url.pathname === "/site-dark.webmanifest"
   ) {
     event.respondWith(cacheFirstStatic(request));
   }

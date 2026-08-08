@@ -89,8 +89,18 @@ assert.match(lightningSource, /ttlMs: 0/);
 assert.match(lightningSource, /cache: "no-store"/);
 assert.match(panelSource, /data-radar-overlay="lightning"/);
 assert.match(panelSource, /data-mobile-lightning-slider/);
-assert.match(panelSource, /isLightning && frame\?\.isCurrent[\s\S]*\? "現在"/);
-assert.match(panelSource, /timeLabel: frameIndex === currentLightningIndex/);
+assert.match(panelSource, /timeLabel: compactWeatherTimeLabel\(item\?\.label\)/);
+assert.match(panelSource, /const timeLabelPrefix = isLightning \? "表示時刻" : "更新時刻"/);
+const radarControlsSource = panelSource.slice(
+  panelSource.indexOf("function renderRadarControls"),
+  panelSource.indexOf("function renderWeatherChartControls")
+);
+const mobileRadarSource = panelSource.slice(
+  panelSource.indexOf("function buildRadarMobileContextMarkup"),
+  panelSource.indexOf("function updateMobileRadarSliderProgress")
+);
+assert.doesNotMatch(radarControlsSource, /"現在"/);
+assert.doesNotMatch(mobileRadarSource, /"現在"/);
 assert.match(mapSource, /updateLightningLayer/);
 assert.match(mapSource, /jma-nowcast-lightning-z/);
 assert.match(mapSource, /lightning-observation-ground/);

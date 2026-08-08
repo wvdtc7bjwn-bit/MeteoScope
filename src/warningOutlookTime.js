@@ -20,7 +20,10 @@ export function formatWarningOutlookTime(slot, { language = "ja" } = {}) {
     : display.timeLabel;
 }
 
-export function getWarningOutlookTimeDisplay(slot, { language = "ja" } = {}) {
+export function getWarningOutlookTimeDisplay(
+  slot,
+  { language = "ja", indicateDayChange = true } = {}
+) {
   if (slot?.displayLabel) {
     return { dateLabel: "", timeLabel: String(slot.displayLabel) };
   }
@@ -42,6 +45,10 @@ export function getWarningOutlookTimeDisplay(slot, { language = "ja" } = {}) {
     return { dateLabel: "", timeLabel: `${startHour}–${endHour}` };
   }
 
+  if (!indicateDayChange) {
+    return { dateLabel: "", timeLabel: `${startHour}–${endHour}` };
+  }
+
   const startDate = formatOutlookDate(start, language);
   const endDate = formatOutlookDate(end, language);
   if (language !== "en" && getNextTokyoDateKey(start) === endDateKey) {
@@ -50,6 +57,15 @@ export function getWarningOutlookTimeDisplay(slot, { language = "ja" } = {}) {
   return {
     dateLabel: `${startDate}–${endDate}`,
     timeLabel: `${startHour}–${endHour}`
+  };
+}
+
+export function getWarningOutlookStartDateDisplay(slot, { language = "ja" } = {}) {
+  const start = new Date(slot?.time ?? "");
+  if (Number.isNaN(start.getTime())) return { key: "", label: "" };
+  return {
+    key: getTokyoDateKey(start),
+    label: formatOutlookDate(start, language)
   };
 }
 

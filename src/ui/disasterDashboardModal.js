@@ -1,6 +1,11 @@
 import { getCurrentLanguage, localizeText } from "./locale.js";
 import { formatRadarIntensityBand } from "../location/radarTimeline.js";
-import { formatEarthquakeDepthText, formatEarthquakeMagnitude } from "../earthquakeFormat.js";
+import {
+  formatEarthquakeDepthText,
+  formatEarthquakeHypocenterText,
+  formatEarthquakeMagnitude,
+  getEarthquakeUnknownText
+} from "../earthquakeFormat.js";
 
 let initialized = false;
 let loadDashboardData = async () => ({});
@@ -334,12 +339,13 @@ export function buildDisasterDashboardViewModel(snapshot = {}, language = "ja") 
     }),
     earthquake: latestEarthquake ? {
       local: Boolean(localEarthquake),
-      name: localizeText(latestEarthquake.hypocenterName, language),
+      name: localizeText(formatEarthquakeHypocenterText(latestEarthquake), language),
       eventTime: latestEarthquake.eventTime,
       magnitude: latestEarthquake.magnitude,
       depth: latestEarthquake.depth,
       maxIntensity: latestEarthquake.maxIntensityShort || latestEarthquake.maxIntensityLabel,
-      localIntensity: localIntensity?.intensityShort || localIntensity?.intensityLabel || ""
+      localIntensity: localIntensity?.intensityShort || localIntensity?.intensityLabel || "",
+      unknownText: getEarthquakeUnknownText(latestEarthquake)
     } : null,
     volcanoReports: volcanoReports.slice(0, 3).map((report) => ({
       name: localizeText(report.volcanoName, language),
@@ -495,10 +501,20 @@ function renderEarthquake(model) {
 }
 
 export function buildDashboardEarthquakeMetrics(item, copy, language) {
+  const unknownText = item.unknownText || "不明";
   return [
-    { label: copy.intensity, value: item.maxIntensity || "-" },
-    { label: copy.magnitude, value: formatEarthquakeMagnitude(item.magnitude, { prefix: true, compact: true }) },
-    { label: copy.depth, value: localizeText(formatEarthquakeDepthText(item.depth, { compact: true }), language) }
+    {
+      label: copy.intensity,
+      value: !item.maxIntensity || item.maxIntensity === "震度不明" ? unknownText : item.maxIntensity
+    },
+    {
+      label: copy.magnitude,
+      value: formatEarthquakeMagnitude(item.magnitude, { prefix: true, compact: true, unknownText })
+    },
+    {
+      label: copy.depth,
+      value: localizeText(formatEarthquakeDepthText(item.depth, { compact: true, unknownText }), language)
+    }
   ];
 }
 

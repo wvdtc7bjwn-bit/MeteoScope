@@ -1,45 +1,36 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [html, app, weatherMap, main, serviceWorker, headers, lightManifestSource, darkManifestSource] = await Promise.all([
+const [html, app, weatherMap, main, serviceWorker, headers, manifestSource] = await Promise.all([
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
   readFile(new URL("../src/main.js", import.meta.url), "utf8"),
   readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
   readFile(new URL("../public/_headers", import.meta.url), "utf8"),
-  readFile(new URL("../public/site.webmanifest", import.meta.url), "utf8"),
-  readFile(new URL("../public/site-dark.webmanifest", import.meta.url), "utf8")
+  readFile(new URL("../public/site.webmanifest", import.meta.url), "utf8")
 ]);
 
-const lightManifest = JSON.parse(lightManifestSource);
-const darkManifest = JSON.parse(darkManifestSource);
+const manifest = JSON.parse(manifestSource);
 
 assert.match(html, /<html lang="ja" class="app-initializing">/);
 assert.match(html, /html\.app-initializing #app\s*{\s*visibility: hidden;/);
 assert.match(html, /id="app-startup-loader"[^>]*role="status"/);
 
 const appleTouchIcon = html.match(/<link rel="apple-touch-icon"[^>]*>/)?.[0] ?? "";
-assert.match(appleTouchIcon, /href="%BASE_URL%icons\/icon-180\.png\?v=20260808"/);
-assert.match(appleTouchIcon, /data-install-icon/);
-assert.match(appleTouchIcon, /data-light-icon="icon-180\.png\?v=20260808"/);
-assert.match(appleTouchIcon, /data-dark-icon="icon-dark-180\.png\?v=20260808"/);
+assert.match(appleTouchIcon, /href="%BASE_URL%icons\/icon-180\.png\?v=20260808-2"/);
+assert.doesNotMatch(appleTouchIcon, /data-(?:install|light|dark)-icon/);
 assert.match(html, /document\.querySelectorAll\('link\[rel="icon"\]\[data-theme-icon\]'/);
-assert.match(html, /link\[rel="manifest"\]\[data-theme-manifest\]/);
-assert.match(html, /site-dark\.webmanifest\?v=20260808/);
-assert.equal(lightManifest.id, darkManifest.id);
-assert.equal(lightManifest.theme_color, "#eaf1f8");
-assert.equal(darkManifest.theme_color, "#050914");
-assert.deepEqual(lightManifest.icons.map(({ src }) => src), [
+assert.match(html, /<link rel="manifest" href="%BASE_URL%site\.webmanifest\?v=20260808-2" \/>/);
+assert.doesNotMatch(html, /data-theme-manifest|site-dark\.webmanifest|data-install-icon/);
+assert.equal(manifest.theme_color, "#eaf1f8");
+assert.deepEqual(manifest.icons.map(({ src }) => src), [
   "icons/icon-192.png",
-  "icons/icon-512.png",
-  "icons/icon-maskable-512.png"
+  "icons/icon-512.png"
 ]);
-assert.deepEqual(darkManifest.icons.map(({ src }) => src), [
-  "icons/icon-dark-192.png",
-  "icons/icon-dark-512.png",
-  "icons/icon-maskable-dark-512.png"
-]);
+assert.ok(manifest.icons.every(({ purpose }) => purpose === "any maskable"));
+assert.match(serviceWorker, /meteoscope-shell-v5/);
+assert.doesNotMatch(serviceWorker, /site-dark\.webmanifest|icon-dark-180|icon-dark-512|icon-maskable/);
 assert.match(html, /地図を読み込み中/);
 
 assert.match(weatherMap, /function whenReady\(\)/);

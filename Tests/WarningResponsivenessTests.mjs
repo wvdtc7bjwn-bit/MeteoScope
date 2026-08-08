@@ -10,6 +10,7 @@ import { WARNING_GEOMETRY_FIX_CODES } from "../src/map/warningGeometryFixCodes.j
 import { chunkItems } from "../src/scheduling.js";
 import { getRiverFloodWarningStatus, mergeRiverFloodWarningsIntoGroups } from "../src/warningRiverMerge.js";
 import {
+  buildWarningOutlookMap,
   getWarningMapTimestamp,
   isWarningMapPayload,
   isWarningMapTimePayload
@@ -21,6 +22,7 @@ import {
 } from "../src/warningLocationInsights.js";
 import {
   formatWarningOutlookTime,
+  getWarningOutlookStartDateDisplay,
   getWarningOutlookTimeDisplay,
   parseWarningOutlookDurationHours
 } from "../src/warningOutlookTime.js";
@@ -88,6 +90,8 @@ assert.doesNotMatch(leftPanelSource, /formatDailyOutlookCellLabel/);
 assert.match(leftPanelSource, /buildWarningOutlookTable\(area\.rows \?\? \[\], \{ splitLongPeriods: false \}\)/);
 assert.match(leftPanelSource, /options\.kind === "combined"/);
 assert.match(styleSource, /\.warning-outlook-level-middle\s*\{\s*background:\s*#ffc8b8;/);
+assert.match(styleSource, /\.warning-outlook-block-heading\s*\{[^}]*color:\s*#eef5ff;/s);
+assert.match(styleSource, /html\[data-theme="light"\] \.warning-outlook-block-heading\s*\{[^}]*color:\s*#17324d;/s);
 const dailyOutlookLabel = formatWarningOutlookTime({
   time: "2026-08-08T00:00:00+09:00",
   duration: "P1D"
@@ -102,6 +106,48 @@ assert.deepEqual(getWarningOutlookTimeDisplay({
   dateLabel: "8/8",
   timeLabel: "00時–翌日00時"
 });
+assert.deepEqual(getWarningOutlookStartDateDisplay({
+  time: "2026-08-09T00:00:00+09:00"
+}), {
+  key: "2026-08-09",
+  label: "8/9"
+});
+assert.deepEqual(getWarningOutlookTimeDisplay({
+  time: "2026-08-08T21:00:00+09:00",
+  duration: "PT3H"
+}, {
+  indicateDayChange: false
+}), {
+  dateLabel: "",
+  timeLabel: "21時–00時"
+});
+assert.match(leftPanelSource, /warning-outlook-date-row/);
+assert.match(leftPanelSource, /indicateDayChange:\s*false/);
+assert.match(styleSource, /warning-outlook-date-row[\s\S]*?background:\s*rgba\(100, 176, 236, 0\.16\)/);
+assert.match(styleSource, /html\[data-theme="light"\][\s\S]*?warning-outlook-date-row/);
+
+const class10OutlookMap = buildWarningOutlookMap([{
+  timeSeries: [{
+    timeDefines: [{ dateTime: "2026-08-08T06:00:00+09:00", duration: "PT3H" }],
+    class10Items: [{
+      areaCode: "030010",
+      kinds: [{
+        significancyParts: [{
+          type: "雷危険度",
+          locals: [{ codes: ["20"] }]
+        }]
+      }]
+    }]
+  }]
+}], {
+  byCode: new Map([["0352400", { code: "0352400", name: "一戸町" }]]),
+  byParentCode: new Map()
+}, {
+  collectMunicipalityCodes: (areaCode) => areaCode === "030010" ? ["0352400"] : []
+});
+assert.equal(class10OutlookMap.has("0352400"), true);
+assert.equal(class10OutlookMap.get("0352400")?.[0]?.slots?.[0]?.level, 2);
+assert.match(warningsSource, /buildWarningOutlookMap\([\s\S]*?areaHierarchy/);
 assert.match(formatWarningOutlookTime({
   time: "2026-08-08T00:00:00+09:00",
   duration: "PT3H"
