@@ -16650,6 +16650,9 @@ html[data-language="en"] :is(.onboarding-copy h3, .onboarding-copy p) {
 }
 
 .onboarding-footer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: 40px;
   border: 1px solid rgba(129, 168, 214, 0.3);
   border-radius: 9px;
@@ -16658,10 +16661,16 @@ html[data-language="en"] :is(.onboarding-copy h3, .onboarding-copy p) {
   font: inherit;
   font-size: 14px;
   font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  text-wrap: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
 }
 
 .onboarding-skip {
   justify-self: start;
+  min-width: max-content;
   padding: 0 14px;
   background: transparent !important;
 }

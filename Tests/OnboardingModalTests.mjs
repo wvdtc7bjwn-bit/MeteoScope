@@ -16,5 +16,9 @@ const style = await readFile(new URL("../src/style.css", import.meta.url), "utf8
 assert.match(style, /\.onboarding-phrase\s*\{[^}]*white-space:\s*nowrap;/s);
 assert.match(style, /\.onboarding-copy h3\s*\{[^}]*flex-wrap:\s*wrap;/s);
 assert.match(style, /\.onboarding-copy p\s*\{[^}]*flex-wrap:\s*wrap;/s);
+assert.match(style, /\.onboarding-footer button\s*\{[^}]*white-space:\s*nowrap;/s);
+assert.match(style, /\.onboarding-footer button\s*\{[^}]*word-break:\s*keep-all;/s);
+assert.match(style, /\.onboarding-footer button\s*\{[^}]*overflow-wrap:\s*normal;/s);
+assert.match(style, /\.onboarding-skip\s*\{[^}]*min-width:\s*max-content;/s);
 
 console.log("OnboardingModalTests: OK");
