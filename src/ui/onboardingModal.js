@@ -2,52 +2,92 @@ const STORAGE_KEY = "meteoscope-onboarding-v1";
 
 const PAGES = [
   {
-    eyebrow: "Welcome",
-    title: "防災・気象情報をひとつの地図で",
-    body: "雨雲、観測、警報、台風、地震を下部の表示切替から確認できます。",
-    visual: `<div class="onboarding-brand-visual">
-      <img src="/icons/icon-192.png" alt="" width="118" height="118">
-      <div class="onboarding-brand-copy">
-        <small>WEATHER &amp; DISASTER</small>
-        <strong>MeteoScope</strong>
-        <div><span>雨雲</span><span>アメダス</span><span>警報</span><span>台風</span><span>地震</span></div>
+    eyebrow: "全体像",
+    title: ["防災・気象情報を", "ひとつの地図で"],
+    body: ["雨雲・観測・警報・台風・地震を、", "下部の表示切替から確認できます。"],
+    visual: `<div class="onboarding-demo onboarding-overview-demo" aria-hidden="true">
+      <header class="onboarding-demo-heading">
+        <img src="/icons/icon-192.png" alt="" width="62" height="62">
+        <span><small>WEATHER &amp; DISASTER</small><strong>MeteoScope</strong></span>
+      </header>
+      <div class="onboarding-overview-groups">
+        <span><small>観測</small><strong>雨雲・アメダス</strong></span>
+        <span><small>防災</small><strong>警報・台風</strong></span>
+        <span><small>地震・火山</small><strong>最新情報</strong></span>
       </div>
     </div>`
   },
   {
-    eyebrow: "Navigation",
-    title: "表示したい情報を切り替える",
-    body: "下部ボタンをタップするか、ボタン上を横にスライドして表示を切り替えます。",
-    visual: `<div class="onboarding-tab-visual" aria-hidden="true">
-      <span class="is-active" data-tab="radar">雨雲</span>
-      <span data-tab="amedas">アメダス</span>
-      <span data-tab="warnings">警報</span>
-      <span data-tab="typhoon">台風</span>
-      <span data-tab="earthquake">地震</span>
+    eyebrow: "表示切替",
+    title: ["表示したい情報へ", "すばやく切り替える"],
+    body: ["下部ボタンをタップするか、", "ボタン上を横へスライドします。"],
+    visual: `<div class="onboarding-demo onboarding-navigation-demo" aria-hidden="true">
+      <header class="onboarding-demo-heading"><span><small>表示切替</small><strong>タップ / スライド</strong></span></header>
+      <div class="onboarding-tab-visual">
+        <span class="is-active" data-tab="radar">雨雲</span>
+        <span data-tab="amedas">アメダス</span>
+        <span data-tab="warnings">警報</span>
+        <span data-tab="typhoon">台風</span>
+        <span data-tab="earthquake">地震</span>
+      </div>
+      <div class="onboarding-swipe-cue"><i></i><span>左右へスライド</span><b>↔</b></div>
     </div>`
   },
   {
-    eyebrow: "Detail",
-    title: "要約から詳しい情報へ",
-    body: "地図下の要約バーはそのまま操作できます。上へ引き出すと詳細パネルが開きます。",
-    visual: `<div class="onboarding-sheet-visual"><i></i><small>雨雲レーダー</small><strong>2026/07/12 12:00</strong><span></span></div>`
-  },
-  {
-    eyebrow: "Map",
-    title: "現在地と凡例を活用する",
-    body: "現在地ボタンで周辺へ移動し、凡例で地図の色や記号の意味を確認できます。",
-    visual: `<div class="onboarding-map-tools" aria-hidden="true">
-      <div><span class="onboarding-locate-preview"></span><small>現在地</small></div>
-      <div><span class="onboarding-legend-preview"></span><small>凡例</small></div>
+    eyebrow: "詳細パネル",
+    title: ["要約から", "詳しい情報へ"],
+    body: ["要約バーを上へ引き出すと、", "詳しい情報が開きます。", "要約バー内の切替も", "そのまま操作できます。"],
+    visual: `<div class="onboarding-demo onboarding-detail-demo" aria-hidden="true">
+      <header class="onboarding-demo-heading"><span><small>詳細パネル</small><strong>要約から詳しい情報へ</strong></span></header>
+      <div class="onboarding-sheet-visual">
+        <div class="onboarding-summary-preview"><i></i><strong>雨雲レーダー</strong><small>12:00</small></div>
+        <div class="onboarding-detail-preview"><span>詳細情報</span><b>降水ナウキャスト</b><i>↑</i></div>
+      </div>
     </div>`
   },
   {
-    eyebrow: "Safety",
-    title: "自分に合った情報を受け取る",
-    body: "設定から管理者のお知らせ通知、マイエリア、外観を変更できます。Web版は警報・注意報をプッシュ通知しないため、公式情報も確認してください。",
-    visual: `<div class="onboarding-safety-visual"><span>お知らせ通知</span><i></i><span>マイエリア</span><b>2</b><button type="button" data-onboarding-open-settings>設定を開く</button></div>`
+    eyebrow: "地図操作",
+    title: ["現在地と凡例を", "地図で使う"],
+    body: ["現在地ボタンで", "周辺へ移動できます。", "地図の色や記号は", "凡例から確認できます。"],
+    visual: `<div class="onboarding-demo onboarding-map-demo" aria-hidden="true">
+      <header class="onboarding-demo-heading"><span><small>地図ツール</small><strong>位置と表示内容を確認</strong></span></header>
+      <div class="onboarding-map-tools">
+        <div><span class="onboarding-locate-preview"></span><strong>現在地</strong><small>周辺へ移動</small></div>
+        <div><span class="onboarding-legend-preview"></span><strong>凡例</strong><small>色と記号を確認</small></div>
+      </div>
+    </div>`
+  },
+  {
+    eyebrow: "設定",
+    title: ["必要な情報を", "自分向けに整える"],
+    body: ["設定では、お知らせ・", "マイエリア・外観を", "まとめて変更できます。", "災害時は公式情報も", "あわせて確認してください。"],
+    visual: `<div class="onboarding-demo onboarding-settings-demo">
+      <header class="onboarding-demo-heading"><span><small>設定</small><strong>表示と通知</strong></span></header>
+      <div class="onboarding-safety-visual">
+        <div><span><small>通知</small><strong>お知らせ通知</strong></span><i aria-hidden="true"></i></div>
+        <div><span><small>地域</small><strong>マイエリア</strong></span><b aria-label="2件">2</b></div>
+      </div>
+      <button type="button" class="onboarding-settings-button" data-onboarding-open-settings>設定を開く</button>
+    </div>`
   }
 ];
+
+export function buildOnboardingPhraseMarkup(phrases) {
+  const values = Array.isArray(phrases) ? phrases : [phrases];
+  return values
+    .filter((value) => value != null && String(value).trim())
+    .map((value) => `<span class="onboarding-phrase">${escapeMarkup(value)}</span>`)
+    .join("");
+}
+
+function escapeMarkup(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 let initialized = false;
 let currentPage = 0;
@@ -71,7 +111,14 @@ function initialize() {
   track.innerHTML = PAGES.map((page, index) => `
     <article class="onboarding-page" aria-hidden="${index === 0 ? "false" : "true"}">
       <div class="onboarding-visual">${page.visual}</div>
-      <div class="onboarding-copy"><span>${page.eyebrow}</span><h3>${page.title}</h3><p>${page.body}</p></div>
+      <div class="onboarding-copy">
+        <div class="onboarding-copy-meta">
+          <span class="onboarding-section">${page.eyebrow}</span>
+          <span class="onboarding-step">${String(index + 1).padStart(2, "0")} / ${String(PAGES.length).padStart(2, "0")}</span>
+        </div>
+        <h3>${buildOnboardingPhraseMarkup(page.title)}</h3>
+        <p>${buildOnboardingPhraseMarkup(page.body)}</p>
+      </div>
     </article>
   `).join("");
   dots.innerHTML = PAGES.map((_, index) => `<button type="button" data-onboarding-page="${index}" aria-label="${index + 1}ページ目"></button>`).join("");
