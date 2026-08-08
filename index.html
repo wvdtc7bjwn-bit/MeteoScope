@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#050914" />
   <meta name="application-name" content="MeteoScope" />
   <title>MeteoScope</title>
-  <link rel="icon" type="image/png" sizes="32x32" href="%BASE_URL%icons/icon-32.png" data-theme-icon data-light-icon="icon-32.png" data-dark-icon="icon-dark-32.png" />
-  <link rel="icon" type="image/png" sizes="192x192" href="%BASE_URL%icons/icon-192.png" data-theme-icon data-light-icon="icon-192.png" data-dark-icon="icon-dark-192.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="%BASE_URL%icons/icon-180.png?v=20260808-3" data-system-theme-install-icon data-light-icon="icon-180.png?v=20260808-3" data-dark-icon="icon-dark-180.png?v=20260808-3" />
-  <link rel="manifest" href="%BASE_URL%site.webmanifest?v=20260808-3" data-system-theme-manifest data-light-manifest="site.webmanifest?v=20260808-3" data-dark-manifest="site-dark.webmanifest?v=20260808-3" />
+  <link rel="icon" type="image/png" sizes="32x32" href="%BASE_URL%icons/icon-32.png?v=20260808-4" />
+  <link rel="icon" type="image/png" sizes="192x192" href="%BASE_URL%icons/icon-192.png?v=20260808-4" />
+  <link rel="apple-touch-icon" sizes="180x180" href="%BASE_URL%icons/icon-180.png?v=20260808-4" />
+  <link rel="manifest" href="%BASE_URL%site.webmanifest?v=20260808-4" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
@@ -27,37 +27,6 @@
         document.documentElement.dataset.theme = "dark";
         document.documentElement.dataset.themePreference = "system";
       }
-
-      const syncThemeBrowserIcon = () => {
-        const dark = document.documentElement.dataset.theme === "dark";
-        document.querySelectorAll('link[rel="icon"][data-theme-icon]').forEach((link) => {
-          const fileName = dark ? link.dataset.darkIcon : link.dataset.lightIcon;
-          if (fileName) link.href = new URL(`icons/${fileName}`, document.baseURI).href;
-        });
-      };
-
-      const systemTheme = matchMedia("(prefers-color-scheme: dark)");
-      const syncSystemThemeInstallMetadata = () => {
-        const installIcon = document.querySelector('link[rel="apple-touch-icon"][data-system-theme-install-icon]');
-        if (installIcon) {
-          const fileName = systemTheme.matches ? installIcon.dataset.darkIcon : installIcon.dataset.lightIcon;
-          if (fileName) installIcon.href = new URL(`icons/${fileName}`, document.baseURI).href;
-        }
-
-        const manifest = document.querySelector('link[rel="manifest"][data-system-theme-manifest]');
-        if (manifest) {
-          const fileName = systemTheme.matches ? manifest.dataset.darkManifest : manifest.dataset.lightManifest;
-          if (fileName) manifest.href = new URL(fileName, document.baseURI).href;
-        }
-      };
-
-      syncThemeBrowserIcon();
-      syncSystemThemeInstallMetadata();
-      systemTheme.addEventListener?.("change", syncSystemThemeInstallMetadata);
-      new MutationObserver(syncThemeBrowserIcon).observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ["data-theme"]
-      });
     })();
   </script>
   <style>
