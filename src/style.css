@@ -9014,6 +9014,59 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h24l-9 10v8.2l-6 2.8V16L4 6Z'/%3E%3Cpath d='m18.2 10.8 2.2 2.2 4.2-4.2'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
 }
 
+.amedas-precipitation-legend {
+  display: grid;
+  gap: 6px;
+  padding: 7px;
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: #d8e6f7;
+}
+
+.amedas-precipitation-legend header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.amedas-precipitation-legend header strong {
+  font-weight: 900;
+}
+
+.amedas-precipitation-legend header span {
+  color: #a9bed8;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.amedas-precipitation-gradient {
+  height: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px rgba(8, 18, 34, 0.18);
+}
+
+.amedas-precipitation-ticks {
+  position: relative;
+  height: 10px;
+  color: #b8cae0;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.amedas-precipitation-ticks span {
+  position: absolute;
+  top: 0;
+  width: max-content;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
 .map-typhoon-radar-overlay-button::before {
   content: "";
   width: 23px;
@@ -13051,6 +13104,20 @@ html[data-theme="light"] .settings-account-row button {
   border-color: rgba(30, 135, 190, 0.28);
   background: rgba(86, 183, 242, 0.14);
   color: #075f8a;
+}
+
+html[data-theme="light"] .amedas-precipitation-legend {
+  color: #2c4056;
+  background: rgba(226, 235, 244, 0.74);
+}
+
+html[data-theme="light"] .amedas-precipitation-legend header span,
+html[data-theme="light"] .amedas-precipitation-ticks {
+  color: #536b84;
+}
+
+html[data-theme="light"] .amedas-precipitation-gradient {
+  border-color: rgba(65, 89, 116, 0.28);
 }
 
 html[data-theme="light"] .settings-account-auth-tabs {

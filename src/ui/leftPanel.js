@@ -9,7 +9,12 @@ import {
   KIKIKURU_LAYER_OPTIONS,
   KIKIKURU_LEVELS
 } from "../config.js";
-import { AMEDAS_PRECIPITATION_PERIODS, getAmedasPrecipitationPeriod } from "../amedasPrecipitationPeriod.js";
+import {
+  AMEDAS_PRECIPITATION_PERIODS,
+  getAmedasPrecipitationLegendTicks,
+  getAmedasPrecipitationLevels,
+  getAmedasPrecipitationPeriod
+} from "../amedasPrecipitationPeriod.js";
 import {
   classifyEarthquakeTsunamiComment,
   getTsunamiLevelColor,
@@ -1755,6 +1760,11 @@ function renderLegend(tabId, amedasMetricId, warningView = "status", data = null
   const title = document.querySelector("#legend-toggle span");
   if (title) title.textContent = isCountryForecast ? "各国予想の凡例" : "凡例";
 
+  if (tabId === "amedas" && amedasMetricId === "precipitation") {
+    root.innerHTML = buildAmedasPrecipitationLegend(data?.precipitationPeriod);
+    return;
+  }
+
   root.innerHTML = `${isCountryForecast
     ? '<p class="legend-world-typhoon-note">線と点の色は各モデルボタンの色に対応します</p>'
     : ""}${items
@@ -1926,6 +1936,37 @@ function renderAmedasSubTabs(tab, activeMetricId) {
     button.classList.toggle("active", button.dataset.amedasMetric === activeMetricId);
   });
   window.requestAnimationFrame(() => syncMobileDockSegmentIndicator(root));
+}
+
+function buildAmedasPrecipitationLegend(periodId) {
+  const period = getAmedasPrecipitationPeriod(periodId);
+  const levels = getAmedasPrecipitationLevels(period.id).slice().reverse();
+  const ticks = getAmedasPrecipitationLegendTicks(period.id);
+  const colorStops = levels.flatMap((level, index) => {
+    const start = (index / levels.length) * 100;
+    const end = ((index + 1) / levels.length) * 100;
+    return [`${level.color} ${start}%`, `${level.color} ${end}%`];
+  }).join(", ");
+  const tickStops = ticks.map((tick, index) => ({
+    tick,
+    position: ((index + 1) / levels.length) * 100
+  }));
+  const isEnglish = getCurrentLanguage() === "en";
+  const periodLabel = isEnglish ? period.primary : period.label;
+  const title = isEnglish ? `${periodLabel} precipitation` : `${periodLabel}降水量`;
+
+  return `
+    <section class="amedas-precipitation-legend" aria-label="${escapeHtml(title)}">
+      <header>
+        <strong>${escapeHtml(title)}</strong>
+        <span>mm</span>
+      </header>
+      <div class="amedas-precipitation-gradient" style="background:linear-gradient(90deg, ${escapeHtml(colorStops)})" aria-hidden="true"></div>
+      <div class="amedas-precipitation-ticks">
+        ${tickStops.map(({ tick, position }) => `<span style="left:${position}%">${tick}</span>`).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function renderWarningViewTabs(tab, warningView) {
@@ -5137,7 +5178,7 @@ function renderAmedasDailyChart(tab, state, metric) {
         <strong>${escapeHtml(chart.stationName || "観測点")}</strong>
       </div>
       <div class="amedas-temperature-chart-current">
-        ${formatAmedasDailyColoredValue(latest?.value, metric)}
+        ${formatAmedasDailyColoredValue(latest?.value, metric, precipitationPeriod.id)}
         <span>${escapeHtml(latest?.label ?? "--:--")}</span>
       </div>
     </div>
@@ -5152,9 +5193,9 @@ function renderAmedasDailyChart(tab, state, metric) {
       <p class="amedas-temperature-chart-note">${escapeHtml(getAmedasRollingPrecipitationNote())}</p>
     ` : ""}
     <div class="amedas-temperature-chart-range${metric.id === "wind" ? " is-wind" : ""}">
-      <span>${escapeHtml(getAmedasDailyMinLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.min, metric)}</span>
-      <span>${escapeHtml(getAmedasDailyMaxLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.max, metric)}</span>
-      ${metric.id === "wind" && Number.isFinite(chart.data?.maxGust) ? `<span>最大瞬間 ${formatAmedasDailyColoredValue(chart.data.maxGust, metric)}${chart.data.maxGustLabel ? ` (${escapeHtml(chart.data.maxGustLabel)})` : ""}</span>` : ""}
+      <span>${escapeHtml(getAmedasDailyMinLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.min, metric, precipitationPeriod.id)}</span>
+      <span>${escapeHtml(getAmedasDailyMaxLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.max, metric, precipitationPeriod.id)}</span>
+      ${metric.id === "wind" && Number.isFinite(chart.data?.maxGust) ? `<span>最大瞬間 ${formatAmedasDailyColoredValue(chart.data.maxGust, metric, precipitationPeriod.id)}${chart.data.maxGustLabel ? ` (${escapeHtml(chart.data.maxGustLabel)})` : ""}</span>` : ""}
     </div>
   `;
 }
@@ -5251,8 +5292,8 @@ function formatAmedasDailyValue(value, metric) {
   return `${value.toFixed(digits)}${metric.unit}`;
 }
 
-function formatAmedasDailyColoredValue(value, metric) {
-  const color = getAmedasObservationColor(metric.id, value);
+function formatAmedasDailyColoredValue(value, metric, precipitationPeriodId = "1h") {
+  const color = getAmedasObservationColor(metric.id, value, precipitationPeriodId);
   return `<b class="amedas-temperature-chart-value" style="--amedas-value-color:${escapeHtml(color)}">${escapeHtml(formatAmedasDailyValue(value, metric))}</b>`;
 }
 

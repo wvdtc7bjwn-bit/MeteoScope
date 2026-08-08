@@ -1,3 +1,5 @@
+import { getAmedasPrecipitationLevels } from "./amedasPrecipitationPeriod.js";
+
 export { JMA_WARNING_OFFICE_CODES } from "./jma/warningOfficeCodes.js";
 export {
   EARTHQUAKE_INTENSITY_LEVELS,
@@ -143,15 +145,7 @@ export const AMEDAS_METRICS = [
   { id: "snow", label: "積雪量", primary: "Snow", unit: "cm", color: "#d8e6f7" }
 ];
 
-export const AMEDAS_PRECIPITATION_LEVELS = [
-  { min: 80, label: "80以上（猛烈な雨）", color: "#d4148e" },
-  { min: 50, label: "50〜80（非常に激しい）", color: "#ff2b12" },
-  { min: 30, label: "30〜50（激しい雨）", color: "#ff9900" },
-  { min: 20, label: "20〜30（強い雨）", color: "#fff000" },
-  { min: 10, label: "10〜20（やや強い）", color: "#0b22ff" },
-  { min: 1, label: "1〜10", color: "#17a9f5" },
-  { min: 0.1, label: "0.1〜1", color: "#a8d8ff" }
-];
+export const AMEDAS_PRECIPITATION_LEVELS = getAmedasPrecipitationLevels("1h");
 
 export const AMEDAS_TEMPERATURE_LEVELS = [
   { min: 40, label: "40以上（酷暑日）", color: "#d4148e" },
@@ -218,13 +212,20 @@ export const AMEDAS_LEVELS_BY_METRIC = {
   snow: AMEDAS_SNOW_LEVELS
 };
 
-export function getAmedasObservationColor(metricId, value) {
-  const levels = AMEDAS_LEVELS_BY_METRIC[metricId];
+export function getAmedasObservationColor(metricId, value, precipitationPeriodId = "1h") {
+  const levels = metricId === "precipitation"
+    ? getAmedasPrecipitationLevels(precipitationPeriodId)
+    : AMEDAS_LEVELS_BY_METRIC[metricId];
   if (!levels) return "#d8e6f7";
-  if (metricId === "precipitation") {
-    return levels.find((level) => value >= level.min)?.color ?? "#a8d8ff";
-  }
+  if (metricId === "precipitation") return getDiscreteAmedasLevelColor(levels, value);
   return interpolateAmedasLevelColor(levels, value);
+}
+
+function getDiscreteAmedasLevelColor(levels, value) {
+  if (!Number.isFinite(value)) return "#d8e6f7";
+  return levels.find((level) => value >= level.min)?.color
+    ?? levels.at(-1)?.color
+    ?? "#d8e6f7";
 }
 
 function interpolateAmedasLevelColor(levels, value) {

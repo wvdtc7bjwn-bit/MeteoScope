@@ -54,7 +54,7 @@ const SAMPLE_SOURCE_ID = "weather-samples";
 const HYPOCENTER_AREA_SOURCE_ID = "hypocenter-area-selection";
 const HYPOCENTER_AREA_FILL_LAYER_ID = "hypocenter-area-selection-fill";
 const HYPOCENTER_AREA_LINE_LAYER_ID = "hypocenter-area-selection-line";
-const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-circle", "earthquake-station-intensity-label", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
+const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-circle", "earthquake-station-intensity-label", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
 const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "earthquake-station-intensity-circle", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-line"];
 const EARTHQUAKE_STATION_RADIUS = 7.5;
@@ -62,11 +62,12 @@ const EARTHQUAKE_STATION_STROKE_WIDTH = 1;
 const SAMPLE_CIRCLE_BASE_RADIUS = ["coalesce", ["get", "radius"], 8];
 const SAMPLE_CIRCLE_RADIUS_EXPRESSION = buildCircleZoomExpression({
   zoomStops: [
-    [3, 0.55, 0.3],
-    [5, 0.72, 0.42],
-    [7, 0.92, 0.65],
-    [9, 1.12, 0.85],
-    [10, 1.22, 1]
+    [3, 0.34, 0.3],
+    [5, 0.5, 0.42],
+    [7, 0.78, 0.65],
+    [9, 1.2, 0.85],
+    [10, 1.38, 1],
+    [12, 1.55, 1]
   ],
   fallbackValue: SAMPLE_CIRCLE_BASE_RADIUS,
   createValue: (scale) => ["*", SAMPLE_CIRCLE_BASE_RADIUS, scale]
@@ -1127,6 +1128,42 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           "#f8fbff"
         ],
         "circle-stroke-width": SAMPLE_CIRCLE_STROKE_WIDTH_EXPRESSION
+      }
+    });
+
+    map.addLayer({
+      id: "sample-amedas-value",
+      type: "symbol",
+      source: SAMPLE_SOURCE_ID,
+      minzoom: 8.5,
+      filter: ["all",
+        ["==", ["geometry-type"], "Point"],
+        ["==", ["get", "markerType"], "amedas"],
+        ["has", "amedasValueLabel"]
+      ],
+      layout: {
+        "text-field": ["get", "amedasValueLabel"],
+        "text-font": ["Noto Sans JP"],
+        "text-size": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          8.5,
+          7.5,
+          10,
+          8.5,
+          12,
+          9.5
+        ],
+        "text-letter-spacing": -0.04,
+        "text-anchor": "center",
+        "text-allow-overlap": true,
+        "text-ignore-placement": true,
+        "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
+      },
+      paint: {
+        "text-color": ["get", "amedasTextColor"],
+        "text-halo-width": 0
       }
     });
 
@@ -4173,19 +4210,26 @@ function createAmedasFeatures(data) {
     if (metric.id === "precipitation" && value < 0.1) return [];
     if (metric.id === "snow" && value < 1) return [];
     if (metric.id === "wind" && !Number.isFinite(point.windDirection)) return [];
+    const color = getAmedasColor(metric.id, value, data?.precipitationPeriod);
+    const isWind = metric.id === "wind";
 
     return [{
       type: "Feature",
       geometry: { type: "Point", coordinates: point.coordinates },
       properties: {
-        color: getAmedasColor(metric.id, value),
-        markerType: metric.id === "wind" ? "wind" : "circle",
-        markerScaleMode: metric.id === "wind" ? "fixed" : "amedas-zoom",
-        rotation: metric.id === "wind" ? getWindArrowRotation(point.windDirection) : 0,
+        color,
+        markerType: isWind ? "wind" : "amedas",
+        markerScaleMode: isWind ? "fixed" : "amedas-zoom",
+        rotation: isWind ? getWindArrowRotation(point.windDirection) : 0,
         radius: getAmedasRadius(metric.id, value),
+        strokeWidth: 0,
         sortKey: getAmedasSortKey(metric.id, value),
         stationId: point.id,
-        label: `${point.name} ${formatAmedasValue(value)}${metric.unit}`,
+        label: isWind
+          ? `${point.name} ${formatAmedasValue(value)}${metric.unit}`
+          : point.name,
+        amedasValueLabel: isWind ? "" : formatAmedasValue(value),
+        amedasTextColor: getAmedasTextColor(color),
         popup: buildAmedasPopup(point, metric, value, data?.latestTime)
       }
     }];
@@ -5973,15 +6017,28 @@ function buildAmedasPopup(point, metric, value, latestTime) {
   return `${escapePopup(point.name)}<br>${metricLabel}: ${formatAmedasValue(value)} ${metric.unit}${windDirection}<br>アメダス最新時刻: ${latestTime ?? "未取得"}`;
 }
 
-function getAmedasColor(metricId, value) {
-  return getAmedasObservationColor(metricId, value);
+function getAmedasColor(metricId, value, precipitationPeriodId) {
+  return getAmedasObservationColor(metricId, value, precipitationPeriodId);
 }
 
 function getAmedasRadius(metricId, value) {
-  if (metricId === "precipitation") return Math.min(14, 5 + value / 6);
+  if (metricId === "precipitation") return 8.5;
   if (metricId === "wind") return Math.min(13, 5 + value / 4);
   if (metricId === "snow") return Math.min(13, 5 + value / 30);
-  return 7;
+  return 8.5;
+}
+
+function getAmedasTextColor(backgroundColor) {
+  const hex = String(backgroundColor ?? "").replace(/^#/, "");
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return "#071426";
+  const channels = [0, 2, 4].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16) / 255);
+  const luminance = channels.reduce((sum, channel, index) => {
+    const linear = channel <= 0.04045
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4;
+    return sum + linear * [0.2126, 0.7152, 0.0722][index];
+  }, 0);
+  return luminance > 0.42 ? "#071426" : "#ffffff";
 }
 
 function getWindDirectionLabel(value) {
