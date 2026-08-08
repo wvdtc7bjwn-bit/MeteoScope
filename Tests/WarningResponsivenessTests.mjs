@@ -24,7 +24,8 @@ import {
   formatWarningOutlookTime,
   getWarningOutlookStartDateDisplay,
   getWarningOutlookTimeDisplay,
-  parseWarningOutlookDurationHours
+  parseWarningOutlookDurationHours,
+  splitWarningOutlookRows
 } from "../src/warningOutlookTime.js";
 
 const [appSource, warningsSource, leftPanelSource, weatherMapSource, warningGeometryFixes, indexSource, styleSource] = await Promise.all([
@@ -85,7 +86,7 @@ assert.equal(parseWarningOutlookDurationHours("P1DT6H"), 30);
 assert.equal(parseWarningOutlookDurationHours("PT18H"), 18);
 assert.equal(parseWarningOutlookDurationHours("invalid"), 0);
 assert.match(leftPanelSource, /warning-outlook-block-\$\{isDaily \? "daily" : "hourly"\}/);
-assert.match(leftPanelSource, /parseWarningOutlookDurationHours\(slot\?\.duration\) >= 18/);
+assert.match(leftPanelSource, /splitWarningOutlookRows\(rows\)/);
 assert.doesNotMatch(leftPanelSource, /formatDailyOutlookCellLabel/);
 assert.match(leftPanelSource, /buildWarningOutlookTable\(area\.rows \?\? \[\], \{ splitLongPeriods: false \}\)/);
 assert.match(leftPanelSource, /options\.kind === "combined"/);
@@ -112,6 +113,90 @@ assert.deepEqual(getWarningOutlookStartDateDisplay({
   key: "2026-08-09",
   label: "8/9"
 });
+const splitOutlookRows = splitWarningOutlookRows([{
+  type: "dry",
+  localName: "hourly-area",
+  slots: [
+    { time: "2026-08-08T06:00:00+09:00", duration: "PT3H", level: 2 },
+    { time: "2026-08-08T09:00:00+09:00", duration: "PT3H", level: 2 },
+    { time: "2026-08-09T00:00:00+09:00", duration: "PT3H", level: 2 }
+  ]
+}, {
+  type: "dry",
+  localName: "daily-area",
+  slots: [
+    { time: "2026-08-08T06:00:00+09:00", duration: "PT18H", level: 0 }
+  ]
+}, {
+  type: "thunder",
+  localName: "",
+  slots: [
+    { time: "2026-08-08T06:00:00+09:00", duration: "PT3H", level: 2 }
+  ]
+}]);
+assert.deepEqual(
+  splitOutlookRows.dailyRows[0].slots.map((slot) => slot.duration),
+  ["PT18H"]
+);
+assert.deepEqual(
+  splitOutlookRows.hourlyRows.find((row) => row.type === "dry"),
+  undefined,
+  "日ごとの見通しがある種別は時間帯表へ重複表示しない"
+);
+assert.equal(
+  splitOutlookRows.hourlyRows.find((row) => row.type === "thunder")?.slots.length,
+  1,
+  "別種別の時間帯見通しは保持する"
+);
+const dailyOnlyWarningTypes = ["乾燥", "なだれ", "低温", "霜"];
+const splitDailyOnlyOutlookRows = splitWarningOutlookRows([
+  {
+    type: "乾燥",
+    localName: "",
+    slots: [
+      { time: "2026-08-08T12:00:00+09:00", duration: "PT12H", level: 2 },
+      { time: "2026-08-09T00:00:00+09:00", duration: "PT24H", level: 0 }
+    ]
+  },
+  ...dailyOnlyWarningTypes.slice(1).map((type) => ({
+    type,
+    localName: "",
+    slots: [{
+      time: "2026-08-08T12:00:00+09:00",
+      duration: "PT3H",
+      level: 2
+    }]
+  })),
+  {
+    type: "雷",
+    localName: "",
+    slots: [{
+      time: "2026-08-08T12:00:00+09:00",
+      duration: "PT3H",
+      level: 2
+    }]
+  }
+]);
+assert.deepEqual(
+  splitDailyOnlyOutlookRows.dailyRows.map((row) => row.type),
+  dailyOnlyWarningTypes,
+  "乾燥・なだれ・低温・霜は期間の長さに関係なく日ごとの見通しへ分類する"
+);
+assert.deepEqual(
+  splitDailyOnlyOutlookRows.dailyRows.find((row) => row.type === "乾燥")?.slots.map((slot) => slot.time),
+  ["2026-08-08T12:00:00+09:00", "2026-08-09T00:00:00+09:00"],
+  "日ごとの見通しに本日開始の枠も残す"
+);
+assert.equal(
+  splitDailyOnlyOutlookRows.hourlyRows.some((row) => dailyOnlyWarningTypes.includes(row.type)),
+  false,
+  "日ごと扱いの4種は時間帯ごとの見通しへ重複表示しない"
+);
+assert.equal(
+  splitDailyOnlyOutlookRows.hourlyRows.find((row) => row.type === "雷")?.slots.length,
+  1,
+  "通常の短時間枠は時間帯ごとの見通しに残す"
+);
 assert.deepEqual(getWarningOutlookTimeDisplay({
   time: "2026-08-08T21:00:00+09:00",
   duration: "PT3H"

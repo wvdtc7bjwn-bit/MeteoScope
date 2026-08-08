@@ -65,7 +65,7 @@ import {
   formatWarningOutlookTime,
   getWarningOutlookStartDateDisplay,
   getWarningOutlookTimeDisplay,
-  parseWarningOutlookDurationHours
+  splitWarningOutlookRows
 } from "../warningOutlookTime.js";
 import { getCurrentLanguage, localizeText, localizeVolcanoText } from "./locale.js";
 
@@ -4793,8 +4793,7 @@ function buildWarningOutlookTable(rows, options = {}) {
   if (options.splitLongPeriods === false) {
     return buildWarningOutlookTableSection(rows, { ...options, kind: "combined" });
   }
-  const hourlyRows = selectWarningOutlookRows(rows, (slot) => !isDailyWarningOutlookSlot(slot));
-  const dailyRows = selectWarningOutlookRows(rows, isDailyWarningOutlookSlot);
+  const { hourlyRows, dailyRows } = splitWarningOutlookRows(rows);
   return [
     buildWarningOutlookTableSection(hourlyRows, { ...options, kind: "hourly" }),
     buildWarningOutlookTableSection(dailyRows, { ...options, kind: "daily" })
@@ -4878,19 +4877,6 @@ function buildWarningOutlookTableHead(times, { isDaily = false } = {}) {
       ${times.map(buildHourlyWarningOutlookTimeHeading).join("")}
     </tr>
   `;
-}
-
-function selectWarningOutlookRows(rows, predicate) {
-  return rows
-    .map((row) => ({
-      ...row,
-      slots: (row.slots ?? []).filter(predicate)
-    }))
-    .filter((row) => row.slots.length > 0);
-}
-
-function isDailyWarningOutlookSlot(slot) {
-  return parseWarningOutlookDurationHours(slot?.duration) >= 18;
 }
 
 function formatOutlookTypeLabel(type) {

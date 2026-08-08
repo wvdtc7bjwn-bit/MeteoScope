@@ -1,4 +1,5 @@
 const WARNING_OUTLOOK_TIME_ZONE = "Asia/Tokyo";
+const DAILY_WARNING_OUTLOOK_TYPES = new Set(["乾燥", "なだれ", "低温", "霜"]);
 
 export function parseWarningOutlookDurationHours(value) {
   const match = String(value ?? "").trim().match(
@@ -67,6 +68,42 @@ export function getWarningOutlookStartDateDisplay(slot, { language = "ja" } = {}
     key: getTokyoDateKey(start),
     label: formatOutlookDate(start, language)
   };
+}
+
+export function splitWarningOutlookRows(rows = [], { dailyThresholdHours = 18 } = {}) {
+  const sourceRows = Array.isArray(rows) ? rows : [];
+  const isDailySlot = (slot, row) => (
+    isDailyWarningOutlookType(row?.type)
+    || parseWarningOutlookDurationHours(slot?.duration) >= dailyThresholdHours
+  );
+  const dailyRows = selectWarningOutlookRows(sourceRows, isDailySlot);
+  const typesWithDailyOutlook = new Set(dailyRows.map(warningOutlookTypeKey));
+  const hourlyRows = selectWarningOutlookRows(sourceRows, (slot, row) => (
+    !isDailySlot(slot, row)
+    && !typesWithDailyOutlook.has(warningOutlookTypeKey(row))
+  ));
+
+  return { hourlyRows, dailyRows };
+}
+
+function selectWarningOutlookRows(rows, predicate) {
+  return rows
+    .map((row) => ({
+      ...row,
+      slots: (row?.slots ?? []).filter((slot) => predicate(slot, row))
+    }))
+    .filter((row) => row.slots.length > 0);
+}
+
+function warningOutlookTypeKey(row) {
+  return String(row?.type ?? "").trim();
+}
+
+function isDailyWarningOutlookType(type) {
+  const normalizedType = String(type ?? "")
+    .trim()
+    .replace(/(?:警報|注意報)$/u, "");
+  return DAILY_WARNING_OUTLOOK_TYPES.has(normalizedType);
 }
 
 function formatOutlookHour(date, language) {
