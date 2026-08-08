@@ -42,7 +42,8 @@ import {
 } from "../jma/hypocenterDistribution.js";
 import {
   HYPOCENTER_DEPTH_STOPS,
-  HYPOCENTER_UNKNOWN_DEPTH_COLOR
+  HYPOCENTER_UNKNOWN_DEPTH_COLOR,
+  getHypocenterDepthStopPercentage
 } from "../map/hypocenterDepthStyle.js";
 import { createHypocenterDateWheel } from "./hypocenterDateWheel.js";
 import { getVolcanoLevelColor } from "../volcanoLevels.js";
@@ -1942,11 +1943,6 @@ function buildAmedasPrecipitationLegend(periodId) {
   const period = getAmedasPrecipitationPeriod(periodId);
   const levels = getAmedasPrecipitationLevels(period.id).slice().reverse();
   const ticks = getAmedasPrecipitationLegendTicks(period.id);
-  const colorStops = levels.flatMap((level, index) => {
-    const start = (index / levels.length) * 100;
-    const end = ((index + 1) / levels.length) * 100;
-    return [`${level.color} ${start}%`, `${level.color} ${end}%`];
-  }).join(", ");
   const tickStops = ticks.map((tick, index) => ({
     tick,
     position: ((index + 1) / levels.length) * 100
@@ -1961,7 +1957,9 @@ function buildAmedasPrecipitationLegend(periodId) {
         <strong>${escapeHtml(title)}</strong>
         <span>mm</span>
       </header>
-      <div class="amedas-precipitation-gradient" style="background:linear-gradient(90deg, ${escapeHtml(colorStops)})" aria-hidden="true"></div>
+      <div class="amedas-precipitation-gradient" aria-hidden="true">
+        ${levels.map((level) => `<span class="amedas-precipitation-segment" style="background-color:${escapeHtml(level.color)}"></span>`).join("")}
+      </div>
       <div class="amedas-precipitation-ticks">
         ${tickStops.map(({ tick, position }) => `<span style="left:${position}%">${tick}</span>`).join("")}
       </div>
@@ -6385,6 +6383,27 @@ function buildEarthquakeViewToggle(activeView) {
   `;
 }
 
+function buildEarthquakeDepthLegend() {
+  const gradientStops = HYPOCENTER_DEPTH_STOPS
+    .map((stop) => `${stop.color} ${getHypocenterDepthStopPercentage(stop.depthKm)}%`)
+    .join(", ");
+  const labels = HYPOCENTER_DEPTH_STOPS.map((stop, index) => {
+    const isFirst = index === 0;
+    const isLast = index === HYPOCENTER_DEPTH_STOPS.length - 1;
+    const edgeClass = isFirst ? " is-start" : isLast ? " is-end" : "";
+    const label = isLast ? `${stop.depthKm}km` : String(stop.depthKm);
+    return `<span class="earthquake-depth-gradient-label${edgeClass}" style="left:${getHypocenterDepthStopPercentage(stop.depthKm)}%">${label}</span>`;
+  }).join("");
+
+  return `
+    <div class="earthquake-depth-legend" aria-label="深さの色分け">
+      <div class="earthquake-depth-legend-title"><span>震源の深さ（km）</span><span>浅い → 深い</span></div>
+      <div class="earthquake-depth-gradient" style="background:linear-gradient(90deg, ${escapeHtml(gradientStops)})" aria-hidden="true"></div>
+      <div class="earthquake-depth-gradient-labels">${labels}</div>
+    </div>
+  `;
+}
+
 function buildEarthquakeDistributionMarkup(data) {
   const filters = data.distributionFilters ?? { dayOffset: 0, minMagnitude: "0", maxDepth: "all" };
   const rangeEnabled = filters.rangeEnabled === true;
@@ -6484,13 +6503,7 @@ function buildEarthquakeDistributionMarkup(data) {
         ${buildHypocenterPresentationToggle(data.distribution3DEnabled === true)}
       </div>
       ${statusMarkup}
-      <div class="earthquake-depth-legend" aria-label="深さの色分け">
-        <div class="earthquake-depth-legend-title"><span>震源の深さ</span><span>浅い → 深い</span></div>
-        <div class="earthquake-depth-gradient" aria-hidden="true"></div>
-        <div class="earthquake-depth-gradient-labels">
-          <span>浅い・0km</span><span>30</span><span>100</span><span>300</span><span>700km・深い</span>
-        </div>
-      </div>
+      ${buildEarthquakeDepthLegend()}
       ${buildEarthquakeDistributionTrend(snapshot)}
       ${syncStatusMarkup}
       ${buildEarthquakeDistributionSourceNote(snapshot)}

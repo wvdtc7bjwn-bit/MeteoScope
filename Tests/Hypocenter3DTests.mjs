@@ -9,7 +9,8 @@ import {
 import {
   HYPOCENTER_DEPTH_STOPS,
   HYPOCENTER_UNKNOWN_DEPTH_COLOR,
-  getHypocenterDepthColor
+  getHypocenterDepthColor,
+  getHypocenterDepthStopPercentage
 } from "../src/map/hypocenterDepthStyle.js";
 
 const normalized = normalizeHypocenter3DItems([
@@ -25,6 +26,11 @@ assert.equal(normalized[1].depthKm, 700);
 assert.equal(normalized[1].pointSize, 20);
 assert.equal(HYPOCENTER_3D_VERTICAL_EXAGGERATION, 3);
 assert.deepEqual(HYPOCENTER_DEPTH_STOPS.map((stop) => stop.depthKm), [0, 30, 100, 300, 700]);
+assert.equal(getHypocenterDepthStopPercentage(0), 0);
+assert.ok(Math.abs(getHypocenterDepthStopPercentage(30) - (30 / 7)) < Number.EPSILON * 10);
+assert.ok(Math.abs(getHypocenterDepthStopPercentage(100) - (100 / 7)) < Number.EPSILON * 10);
+assert.ok(Math.abs(getHypocenterDepthStopPercentage(300) - (300 / 7)) < Number.EPSILON * 100);
+assert.equal(getHypocenterDepthStopPercentage(700), 100);
 assert.equal(getHypocenterDepthColor(0), "#ef362b");
 assert.equal(getHypocenterDepthColor(700), "#1c44d2");
 assert.equal(getHypocenterDepthColor(null), HYPOCENTER_UNKNOWN_DEPTH_COLOR);

@@ -79,6 +79,8 @@ assert.match(panelSource, /古い雨が集計範囲から外れると値が下�
 assert.match(panelSource, /isRollingPrecipitation/);
 assert.match(panelSource, /buildAmedasPrecipitationLegend/);
 assert.match(panelSource, /amedas-precipitation-gradient/);
+assert.match(panelSource, /amedas-precipitation-segment/);
+assert.doesNotMatch(panelSource, /amedas-precipitation-gradient[^>]*linear-gradient/);
 assert.match(mapSource, /getAmedasColor\(metric\.id, value, data\?\.precipitationPeriod\)/);
 assert.match(mapSource, /id:\s*"sample-amedas-value"[\s\S]*?minzoom:\s*8\.5/);
 assert.match(mapSource, /zoomStops:\s*\[\s*\[3,\s*0\.34,\s*0\.3\],\s*\[5,\s*0\.5,\s*0\.42\],\s*\[7,\s*0\.78,\s*0\.65\]/);
@@ -88,6 +90,9 @@ assert.match(mapSource, /strokeWidth:\s*0/);
 assert.match(mapSource, /if \(metricId === "precipitation"\) return 8\.5/);
 assert.match(mapSource, /amedasValueLabel:\s*isWind\s*\?\s*""\s*:\s*formatAmedasValue\(value\)/);
 assert.match(styleSource, /\.amedas-precipitation-gradient\s*\{[\s\S]*?height:\s*14px/);
+assert.match(styleSource, /\.amedas-precipitation-gradient\s*\{[\s\S]*?overflow:\s*hidden/);
+assert.match(styleSource, /grid-template-columns:\s*repeat\(8,\s*minmax\(0,\s*1fr\)\)/);
+assert.match(styleSource, /\.amedas-precipitation-gradient\s*\{[\s\S]*?border:\s*0/);
 assert.match(indexSource, /id="amedas-precipitation-periods"/);
 
 console.log("AMeDAS precipitation period tests passed");

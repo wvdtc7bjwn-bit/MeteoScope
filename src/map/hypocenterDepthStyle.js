@@ -8,6 +8,12 @@ export const HYPOCENTER_DEPTH_STOPS = Object.freeze([
   Object.freeze({ depthKm: 700, color: "#1c44d2" })
 ]);
 
+export function getHypocenterDepthStopPercentage(depthKm) {
+  const maximumDepth = HYPOCENTER_DEPTH_STOPS[HYPOCENTER_DEPTH_STOPS.length - 1].depthKm;
+  const depth = Math.max(0, Math.min(maximumDepth, Number(depthKm) || 0));
+  return (depth / maximumDepth) * 100;
+}
+
 export function getHypocenterDepthColor(depthKm) {
   if (depthKm == null || depthKm === "") return HYPOCENTER_UNKNOWN_DEPTH_COLOR;
   const numericDepth = Number(depthKm);
