@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import {
   formatTyphoonSummaryName,
   formatTyphoonTransitionStatus,
+  getTyphoonSystemType,
   getTyphoonTransitionStatus,
   normalizeTyphoon
 } from "../src/jma/typhoon.js";
@@ -93,6 +94,10 @@ assert.equal(
   "台風12号は熱帯低気圧に変わりました"
 );
 
+assert.equal(getTyphoonSystemType({ jp: "温帯低気圧" }), "温帯低気圧");
+assert.equal(getTyphoonSystemType("TD"), "熱帯低気圧");
+assert.equal(getTyphoonSystemType("台風"), null);
+
 assert.equal(
   formatTyphoonTransitionStatus(getTyphoonTransitionStatus("TD"), "b"),
   null
@@ -152,6 +157,30 @@ assert.equal(jmaNamedTyphoon.name, "台風第9号 (ドルフィン)");
 assert.equal(jmaNamedTyphoon.nameEn, "Typhoon No. 9 (DOLPHIN)");
 assert.equal(jmaNamedTyphoon.details.nameEn, "Typhoon No. 9 (DOLPHIN)");
 assert.equal(jmaNamedTyphoon.details.position, "日本のはるか東");
+
+const jmaLowPressureForecast = normalizeTyphoon({
+  tropicalCyclone: "TD-b",
+  typhoonNumber: "b",
+  forecast: [
+    { part: "title", category: "TD" },
+    {
+      advancedHours: 0,
+      center: { lat: 20, lon: 130 },
+      validtime: { JST: "2026-08-09T00:00:00+09:00" }
+    },
+    {
+      advancedHours: 24,
+      category: { jp: "熱帯低気圧" },
+      center: { lat: 22, lon: 132 },
+      probabilityCircle: { radius: 150 },
+      validtime: { JST: "2026-08-10T00:00:00+09:00" }
+    }
+  ],
+  specifications: []
+});
+assert.equal(jmaLowPressureForecast.forecastCircles[0].details.maxWind, "-");
+assert.equal(jmaLowPressureForecast.forecastCircles[0].details.maxGust, "-");
+assert.equal(jmaLowPressureForecast.forecastCircles[0].details.systemType, "熱帯低気圧");
 
 const selectedWorldSystem = selectWorldTyphoonSystem({
   systems: [
@@ -345,6 +374,9 @@ assert.match(
   /function focusSelectedTyphoon\(\{ includeWorldForecast = false \} = \{\}\)[\s\S]*?if \(!includeWorldForecast\) return;[\s\S]*?buildWorldTyphoonFocusCoordinates\(displayData\)/
 );
 assert.match(appSource, /function buildWorldTyphoonFocusCoordinates\(displayData = \{\}\)/);
+assert.match(appSource, /function buildTyphoonFocusCoordinates\(typhoon\)[\s\S]*?typhoon\.strongWindRadius[\s\S]*?typhoon\.stormRadius[\s\S]*?stormWarningGroups[\s\S]*?collectTyphoonStormWarningShapeCoordinates/);
+assert.match(appSource, /function collectTyphoonFocusCircleCoordinates\(circles = \[\]\)/);
+assert.match(appSource, /function collectTyphoonStormWarningShapeCoordinates\(shape\)/);
 assert.match(appSource, /hasSelectedTargets[\s\S]*?primarySystemId[\s\S]*?layer\.forecastPositions/);
 assert.doesNotMatch(appSource, /getWorldTyphoonFocusCoordinates/);
 assert.match(appSource, /updateWorldTyphoonForecastPositions/);
@@ -376,6 +408,10 @@ assert.match(mapSource, /renderWorldCopies:\s*true/);
 assert.match(mapSource, /systems\.flatMap\(\(system\)\s*=>\s*createWorldTyphoonFeatures/);
 assert.doesNotMatch(mapSource, /candidate\.members\s*\?\?\s*\[\]\)\.slice\(0,\s*3\)/);
 assert.match(mapSource, /type:\s*"MultiLineString"/);
+assert.match(mapSource, /forecastCenter:\s*formatTyphoonForecastCenter\(circle\.center\)/);
+assert.match(mapSource, /function parseTyphoonForecastCenter\(value\)/);
+assert.match(mapSource, /function positionMapInfoConnector\(cardRect\)/);
+assert.match(styleSource, /\.map-info-connector\s*\{/);
 assert.match(panelSource, /mobile-dock-horizontal-swipe/);
 assert.match(panelSource, /地図に表示/);
 assert.match(panelSource, /<dl class="typhoon-world-summary">/);

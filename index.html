@@ -449,27 +449,33 @@
       <section class="warning-modal-panel legal-consent-panel" role="dialog" aria-modal="true" aria-labelledby="legal-consent-title" aria-describedby="legal-consent-description">
         <header class="settings-modal-header legal-consent-header">
           <h2 id="legal-consent-title">利用規約とプライバシー</h2>
+          <button class="legal-consent-document-back" type="button" data-legal-consent-document-back hidden>同意画面に戻る</button>
         </header>
         <div class="legal-consent-body">
-          <p id="legal-consent-description" class="legal-consent-description">
-            ご利用前に、利用規約とプライバシーポリシーをご確認ください。本アプリは気象庁などの行政機関が提供する公式アプリではありません。
-          </p>
-          <div class="legal-consent-links">
-            <a href="%BASE_URL%terms.html" target="_blank" rel="noopener noreferrer"><span>利用規約</span><span aria-hidden="true">›</span></a>
-            <a href="%BASE_URL%privacy.html" target="_blank" rel="noopener noreferrer"><span>プライバシーポリシー</span><span aria-hidden="true">›</span></a>
+          <div class="legal-consent-consent-view" data-legal-consent-consent-view>
+            <p id="legal-consent-description" class="legal-consent-description">
+              ご利用前に、利用規約とプライバシーポリシーをご確認ください。本アプリは気象庁などの行政機関が提供する公式アプリではありません。
+            </p>
+            <div class="legal-consent-links">
+              <button class="legal-consent-document-trigger" type="button" data-legal-consent-document="terms"><span>利用規約</span><span aria-hidden="true">›</span></button>
+              <button class="legal-consent-document-trigger" type="button" data-legal-consent-document="privacy"><span>プライバシーポリシー</span><span aria-hidden="true">›</span></button>
+            </div>
+            <div class="legal-consent-checks">
+              <label>
+                <input id="legal-consent-terms" type="checkbox">
+                <span>利用規約を確認し、同意します</span>
+              </label>
+              <label>
+                <input id="legal-consent-privacy" type="checkbox">
+                <span>プライバシーポリシーを確認し、同意します</span>
+              </label>
+            </div>
+            <p class="legal-consent-note">同意しない場合はMeteoScopeを利用できません。同意状態はこの端末に保存されます。</p>
+            <button class="legal-consent-accept" type="button" data-legal-consent-accept disabled>同意して利用を開始</button>
           </div>
-          <div class="legal-consent-checks">
-            <label>
-              <input id="legal-consent-terms" type="checkbox">
-              <span>利用規約を確認し、同意します</span>
-            </label>
-            <label>
-              <input id="legal-consent-privacy" type="checkbox">
-              <span>プライバシーポリシーを確認し、同意します</span>
-            </label>
-          </div>
-          <p class="legal-consent-note">同意しない場合はMeteoScopeを利用できません。同意状態はこの端末に保存されます。</p>
-          <button class="legal-consent-accept" type="button" data-legal-consent-accept disabled>同意して利用を開始</button>
+          <section class="legal-consent-document-view" data-legal-consent-document-view hidden aria-live="polite">
+            <div id="legal-consent-document-content" class="legal-consent-document-content" tabindex="-1"></div>
+          </section>
         </div>
       </section>
     </div>

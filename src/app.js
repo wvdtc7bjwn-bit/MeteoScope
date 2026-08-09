@@ -3523,13 +3523,24 @@ if (layerId === "river") {
 
 function buildTyphoonFocusCoordinates(typhoon) {
   if (!typhoon) return [];
+  const focusCircles = [
+    ...(typhoon.forecastCircles ?? []),
+    {
+      center: typhoon.strongWindCenter ?? typhoon.center,
+      radius: typhoon.strongWindRadius
+    },
+    {
+      center: typhoon.stormCenter ?? typhoon.center,
+      radius: typhoon.stormRadius
+    },
+    ...(Array.isArray(typhoon.stormWarningGroups) ? typhoon.stormWarningGroups.flat() : []),
+    ...(Array.isArray(typhoon.stormWarningArea) ? typhoon.stormWarningArea : [])
+  ];
   const coordinates = [
     typhoon.center,
     ...(typhoon.forecastTrack ?? []),
-    ...(typhoon.forecastCircles ?? []).flatMap((circle) => [
-      circle.center,
-      ...expandCircleBounds(circle.center, circle.radius)
-    ])
+    ...collectTyphoonFocusCircleCoordinates(focusCircles),
+    ...collectTyphoonStormWarningShapeCoordinates(typhoon.stormWarningAreaShape)
   ];
 
   return coordinates.filter((point) =>
@@ -3537,6 +3548,21 @@ function buildTyphoonFocusCoordinates(typhoon) {
     && point.length === 2
     && point.every((value) => Number.isFinite(value))
   );
+}
+
+function collectTyphoonFocusCircleCoordinates(circles = []) {
+  return circles.flatMap((circle) => [
+    circle?.center,
+    ...expandCircleBounds(circle?.center, Number(circle?.radius))
+  ]);
+}
+
+function collectTyphoonStormWarningShapeCoordinates(shape) {
+  if (!shape || typeof shape !== "object") return [];
+  return [
+    ...collectTyphoonFocusCircleCoordinates(Array.isArray(shape.arc) ? shape.arc : []),
+    ...(Array.isArray(shape.line) ? shape.line.flat() : [])
+  ];
 }
 
 function buildWorldTyphoonFocusCoordinates(displayData = {}) {

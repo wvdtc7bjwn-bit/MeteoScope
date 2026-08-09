@@ -136,6 +136,7 @@ export function normalizeTyphoon(item, index = 0) {
       name,
       nameEn,
       transitionStatus,
+      systemType: getTyphoonSystemTypeForEntries(item),
       size: formatClassification(pickValue(item, ["size", "scale", "typhoonSize", "stormSize", "classificationSize", "大きさ"])),
       strength: formatClassification(pickValue(item, ["strength", "intensity", "typhoonStrength", "stormIntensity", "classificationIntensity", "強さ"])),
       pressure: formatWithUnit(pickValue(item, ["pressure", "centralPressure", "centerPressure", "pres", "中心気圧"]), "hPa"),
@@ -176,6 +177,7 @@ function normalizeJmaTyphoon(item, index) {
     ),
     title.typhoonNumber ?? item.typhoonNumber
   );
+  const systemType = getTyphoonSystemTypeForEntries(specNow, current, title, item);
   const forecastTrack = points.map((entry) => normalizePoint(entry.center)).filter(Boolean);
   const pastTrack = [
     ...(current.track?.preTyphoon ?? []),
@@ -200,7 +202,7 @@ function normalizeJmaTyphoon(item, index) {
         center: circleCenter,
         radius,
         label,
-        details: buildJmaForecastCircleDetails(entry, specification)
+        details: buildJmaForecastCircleDetails(entry, specification, title, item)
       };
     })
     .filter(Boolean);
@@ -237,6 +239,7 @@ function normalizeJmaTyphoon(item, index) {
       name,
       nameEn,
       transitionStatus,
+      systemType,
       size: formatClassification(specNow.scale ?? current.scale ?? null),
       strength: formatClassification(specNow.intensity ?? current.intensity ?? null),
       pressure: formatWithUnit(specNow.pressure ?? current.pressure ?? null, "hPa"),
@@ -303,8 +306,9 @@ function pickSpecificationForPoint(specifications, point) {
   ) ?? {};
 }
 
-function buildJmaForecastCircleDetails(point = {}, specification = {}) {
+function buildJmaForecastCircleDetails(point = {}, specification = {}, title = {}, item = {}) {
   return {
+    systemType: getTyphoonSystemTypeForEntries(specification, point, title, item),
     size: formatClassification(specification.scale ?? point.scale ?? null),
     strength: formatClassification(specification.intensity ?? point.intensity ?? null),
     pressure: formatWithUnit(specification.pressure ?? point.pressure ?? null, "hPa"),
@@ -323,8 +327,9 @@ function buildJmaForecastCircleDetails(point = {}, specification = {}) {
   };
 }
 
-function buildGenericForecastCircleDetails(entry = {}) {
+function buildGenericForecastCircleDetails(entry = {}, item = {}) {
   return {
+    systemType: getTyphoonSystemTypeForEntries(entry, item),
     size: formatClassification(pickValue(entry, ["size", "scale", "typhoonSize", "stormSize", "classificationSize", "大きさ"])),
     strength: formatClassification(pickValue(entry, ["strength", "intensity", "typhoonStrength", "stormIntensity", "classificationIntensity", "強さ"])),
     pressure: formatWithUnit(pickValue(entry, ["pressure", "centralPressure", "centerPressure", "pres", "中心気圧"]), "hPa"),
@@ -493,17 +498,28 @@ function formatTropicalDepressionEnglishName(number) {
 }
 
 function isTropicalDepression(item) {
-  const category = String(item?.category ?? item?.class ?? item?.type ?? "").toUpperCase();
-  return category === "TD" || category.includes("TROPICAL DEPRESSION") || category.includes("熱帯低気圧");
+  return getTyphoonSystemTypeForEntries(item) === "熱帯低気圧";
+}
+
+function getTyphoonSystemTypeForEntries(...entries) {
+  const typeFields = ["category", "class", "type", "status"];
+  return getTyphoonSystemType(...entries.flatMap((entry) => typeFields.map((field) => entry?.[field])));
+}
+
+export function getTyphoonSystemType(...sources) {
+  const text = sources.map(extractCycloneStatusText).filter(Boolean).join(" ").toUpperCase();
+  if (!text) return null;
+  if (/温帯低気圧|EXTRATROPICAL|(?:^|\W)(?:EX|ET)(?:\W|$)/.test(text)) return "温帯低気圧";
+  if (/熱帯低気圧|TROPICAL DEPRESSION|(?:^|\W)TD(?:\W|$)/.test(text)) return "熱帯低気圧";
+  return null;
 }
 
 export function getTyphoonTransitionStatus(...sources) {
-  const text = sources.map(extractCycloneStatusText).filter(Boolean).join(" ").toUpperCase();
-  if (!text) return null;
-  if (/温帯低気圧|EXTRATROPICAL|(?:^|\W)(?:EX|ET)(?:\W|$)/.test(text)) {
+  const systemType = getTyphoonSystemType(...sources);
+  if (systemType === "温帯低気圧") {
     return "温帯低気圧に変わりました";
   }
-  if (/熱帯低気圧|TROPICAL DEPRESSION|(?:^|\W)TD(?:\W|$)/.test(text)) {
+  if (systemType === "熱帯低気圧") {
     return "熱帯低気圧に変わりました";
   }
   return null;
@@ -616,7 +632,7 @@ function pickForecastCircles(item) {
         center,
         radius,
         label: label ? String(label) : "",
-        details: buildGenericForecastCircleDetails(entry)
+        details: buildGenericForecastCircleDetails(entry, item)
       };
     })
     .filter(Boolean);

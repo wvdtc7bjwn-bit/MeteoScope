@@ -34,6 +34,8 @@ assert.match(app, /targetVisibleCount\s*=\s*previousVisibleCount\s*\+\s*EARTHQUA
 assert.match(app, /earthquakes\?\.length\s*\?\?\s*0\)\s*<\s*targetVisibleCount/u);
 assert.match(app, /older earthquake history load failed/u);
 assert.match(leftPanel, /data-earthquake-history-load-more/u);
+assert.match(leftPanel, /earthquake-history-load-more-label/u);
+assert.match(leftPanel, /earthquake-history-load-more-icon/u);
 assert.match(leftPanel, /earthquakes\.slice\(0,\s*visibleCount\)/u);
 assert.match(leftPanel, /isCancellation\s*\?\s*"解除"/u);
 

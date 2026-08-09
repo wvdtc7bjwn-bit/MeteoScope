@@ -1758,8 +1758,13 @@ function renderLegend(tabId, amedasMetricId, warningView = "status", data = null
   if (!root) return;
   const items = buildLegendItems(tabId, amedasMetricId, warningView, data);
   const isCountryForecast = tabId === "typhoon" && data?.worldForecastMode;
+  const isWeatherChart = tabId === "radar" && data?.weatherChartEnabled;
   const title = document.querySelector("#legend-toggle span");
-  if (title) title.textContent = isCountryForecast ? "各国予想の凡例" : "凡例";
+  if (title) {
+    title.textContent = isCountryForecast
+      ? localizeText("各国予想の凡例")
+      : (isWeatherChart ? localizeText("天気図の凡例") : localizeText("凡例"));
+  }
 
   if (tabId === "amedas" && amedasMetricId === "precipitation") {
     root.innerHTML = buildAmedasPrecipitationLegend(data?.precipitationPeriod);
@@ -1802,8 +1807,24 @@ export function formatLegendLabelWithUnit(label, unit) {
   return `${text.slice(0, insertAt)}${unit}${text.slice(insertAt)}`;
 }
 
+export function getWeatherChartLegendItems() {
+  return [
+    ["等圧線", "legend-weather-chart-isobar"],
+    ["高気圧", "legend-weather-chart-high"],
+    ["低気圧・熱帯低気圧・温帯低気圧", "legend-weather-chart-low"],
+    ["台風", "legend-weather-chart-typhoon"],
+    ["寒冷前線", "legend-weather-chart-cold-front"],
+    ["温暖前線", "legend-weather-chart-warm-front"],
+    ["停滞前線", "legend-weather-chart-stationary-front"],
+    ["閉塞前線", "legend-weather-chart-occluded-front"]
+  ];
+}
+
 function buildLegendItems(tabId, amedasMetricId, warningView = "status", data = null) {
   if (tabId === "radar") {
+    if (data?.weatherChartEnabled) {
+      return getWeatherChartLegendItems();
+    }
     if (data?.lightningEnabled) {
       return [
         ["× 対地放電（落雷）", "", "#faf500"],
@@ -5007,7 +5028,7 @@ function renderAmedasRanking(tab, state, metric) {
   const windKind = metric.id === "wind" ? amedasWindRankingKind : "average";
   const order = getAmedasRankingOrder(metric.id, rankingView);
   const items = assignAmedasCompetitionRanks(
-    buildAmedasRankingItems(state.data, metric, order, rankingView, windKind)
+    buildAmedasRankingItems(state.data, metric, order, rankingView, windKind, precipitationPeriod.id)
   ).slice(0, AMEDAS_RANKING_LIMIT);
   const orderLabel = getAmedasRankingLabel(metric.id, rankingView, windKind, order);
   const rankingUpdatedAt = getAmedasRankingUpdatedAt(state.data, metric.id, rankingView, windKind);
@@ -5351,7 +5372,14 @@ function getAmedasDailyMaxLabel(metricId) {
   return "最高";
 }
 
-function buildAmedasRankingItems(data = {}, metric, order = "top", rankingView = "current", windKind = "average") {
+function buildAmedasRankingItems(
+  data = {},
+  metric,
+  order = "top",
+  rankingView = "current",
+  windKind = "average",
+  precipitationPeriodId = "1h"
+) {
   const pointsById = new Map((data.points ?? []).map((point) => [String(point.id), point]));
   const usesDailyTemperature = metric.id === "temperature" && rankingView !== "current";
   const usesDailyWind = metric.id === "wind" && rankingView === "daily";
@@ -5371,7 +5399,10 @@ function buildAmedasRankingItems(data = {}, metric, order = "top", rankingView =
         : point.values?.[metric.id === "wind" && windKind === "gust" ? "gust" : metric.id],
       observationTime: point.observationTime ?? (usesDailyTemperature || usesDailyWind || usesDailyPressure ? null : data.latestTime)
     }))
-    .map((item) => ({ ...item, color: getAmedasLevelColor(metric.id, item.value) }))
+    .map((item) => ({
+      ...item,
+      color: getAmedasObservationColor(metric.id, item.value, precipitationPeriodId)
+    }))
     .filter((item) => shouldIncludeAmedasValue(metric.id, item.value))
     .sort((a, b) => order === "bottom" ? a.value - b.value : b.value - a.value);
 }
@@ -5386,11 +5417,6 @@ function shouldIncludeAmedasValue(metricId, value) {
 function formatAmedasRankingValue(value, metric) {
   const fractionDigits = Number.isInteger(value) ? 0 : 1;
   return `${value.toFixed(fractionDigits)}${metric.unit}`;
-}
-
-function getAmedasLevelColor(metricId, value) {
-  const levels = getAmedasLevels(metricId);
-  return levels.find((level) => value >= level.min)?.color ?? "#d8e6f7";
 }
 
 function getAmedasRankingUpdatedAt(data = {}, metricId, rankingView, windKind) {
@@ -5876,7 +5902,12 @@ function renderEarthquakeList(tab, state) {
         ? escapeHtml(localizeText("過去の地震履歴を読み込み中"))
         : escapeHtml(localizeText("地震履歴をさらに読み込む"))}"
     >
-      <span>${escapeHtml(localizeText(isLoadingMore ? "読み込み中…" : "さらに読み込む"))}</span>
+      <span class="earthquake-history-load-more-rule" aria-hidden="true"></span>
+      <span class="earthquake-history-load-more-label">
+        <span class="earthquake-history-load-more-icon" aria-hidden="true"></span>
+        <span>${escapeHtml(localizeText(isLoadingMore ? "読み込み中…" : "さらに読み込む"))}</span>
+      </span>
+      <span class="earthquake-history-load-more-rule" aria-hidden="true"></span>
     </button>
   ` : "";
   renderRecent(historyMarkup + loadMoreMarkup);

@@ -28,5 +28,14 @@ assert.deepEqual(
   [1, 2, 2, 4]
 );
 assert.match(leftPanelSource, /const AMEDAS_RANKING_LIMIT = 100;/);
+assert.match(
+  leftPanelSource,
+  /buildAmedasRankingItems\(state\.data, metric, order, rankingView, windKind, precipitationPeriod\.id\)/
+);
+assert.match(
+  leftPanelSource,
+  /getAmedasObservationColor\(metric\.id, item\.value, precipitationPeriodId\)/
+);
+assert.doesNotMatch(leftPanelSource, /function getAmedasLevelColor\(/);
 
 console.log("AMeDAS ranking tests passed");

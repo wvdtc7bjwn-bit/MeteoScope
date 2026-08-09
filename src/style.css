@@ -6979,25 +6979,62 @@ html[data-theme="light"] .weekly-weather-issued strong {
 .earthquake-history-load-more {
   appearance: none;
   -webkit-appearance: none;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(18px, 1fr) auto minmax(18px, 1fr);
   align-items: center;
-  justify-content: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  min-height: 46px;
-  margin-top: 10px;
-  border: 1px solid rgba(116, 198, 236, 0.32);
-  border-radius: 14px;
-  background: rgba(30, 66, 105, 0.54);
-  color: #dbe8fb;
+  min-height: 42px;
+  margin: 12px 0 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: rgba(217, 234, 249, 0.9);
   font: inherit;
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
 .earthquake-history-load-more:is(:hover, :active) {
-  background: rgba(40, 84, 130, 0.68);
+  color: #ffffff;
+}
+
+.earthquake-history-load-more-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(138, 183, 218, 0.32));
+}
+
+.earthquake-history-load-more-rule:last-child {
+  background: linear-gradient(90deg, rgba(138, 183, 218, 0.32), transparent);
+}
+
+.earthquake-history-load-more-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid rgba(126, 185, 222, 0.28);
+  border-radius: 999px;
+  background: rgba(32, 58, 85, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.earthquake-history-load-more-icon {
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.earthquake-history-load-more:is(:hover, :active) .earthquake-history-load-more-label {
+  border-color: rgba(101, 204, 252, 0.65);
+  background: rgba(45, 82, 116, 0.54);
 }
 
 .earthquake-history-load-more:focus-visible {
@@ -7008,6 +7045,17 @@ html[data-theme="light"] .weekly-weather-issued strong {
 .earthquake-history-load-more:disabled {
   cursor: wait;
   opacity: 0.68;
+}
+
+.earthquake-history-load-more:disabled .earthquake-history-load-more-icon {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  border: 2px solid rgba(176, 218, 244, 0.35);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: modal-loading-spin 700ms linear infinite;
+  transform: none;
 }
 
 .earthquake-history-load-more-error {
@@ -8142,7 +8190,13 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  scrollbar-width: thin;
+  scrollbar-width: none;
+}
+
+.legend-list::-webkit-scrollbar,
+.disaster-dashboard-body::-webkit-scrollbar,
+.legal-consent-document-content::-webkit-scrollbar {
+  display: none;
 }
 
 .legend-item {
@@ -8216,6 +8270,77 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   border: 0;
   border-radius: 50%;
   opacity: 0.68;
+}
+
+.legend-swatch:is(
+  .legend-weather-chart-isobar,
+  .legend-weather-chart-cold-front,
+  .legend-weather-chart-warm-front,
+  .legend-weather-chart-stationary-front,
+  .legend-weather-chart-occluded-front
+) {
+  width: 24px;
+  height: 4px;
+  border: 0;
+  border-radius: 999px;
+  position: relative;
+  overflow: visible;
+}
+
+.legend-weather-chart-isobar {
+  background: rgba(226, 236, 248, 0.84);
+}
+
+.legend-weather-chart-high,
+.legend-weather-chart-low,
+.legend-weather-chart-typhoon {
+  border-radius: 50%;
+}
+
+.legend-weather-chart-high { background: #1b7dff; }
+.legend-weather-chart-low { background: #ff3b30; }
+.legend-weather-chart-typhoon { background: #ff5a36; }
+.legend-weather-chart-cold-front { background: #416eff; }
+.legend-weather-chart-warm-front { background: #c76a61; }
+.legend-weather-chart-stationary-front {
+  background: linear-gradient(90deg, #416eff 0 50%, #c76a61 50%);
+}
+.legend-weather-chart-occluded-front { background: #b579ff; }
+
+.legend-weather-chart-cold-front::before,
+.legend-weather-chart-stationary-front::before,
+.legend-weather-chart-occluded-front::before {
+  position: absolute;
+  top: -6px;
+  left: 5px;
+  width: 0;
+  height: 0;
+  content: "";
+  border-right: 5px solid transparent;
+  border-bottom: 7px solid #416eff;
+  border-left: 5px solid transparent;
+}
+
+.legend-weather-chart-warm-front::before,
+.legend-weather-chart-stationary-front::after,
+.legend-weather-chart-occluded-front::after {
+  position: absolute;
+  top: -5px;
+  right: 3px;
+  box-sizing: border-box;
+  width: 10px;
+  height: 6px;
+  content: "";
+  background: #c76a61;
+  border-radius: 10px 10px 0 0;
+}
+
+.legend-weather-chart-occluded-front::before {
+  border-bottom-color: #b579ff;
+}
+
+.legend-weather-chart-occluded-front::after {
+  background: #b579ff;
 }
 
 .legend-amedas { background: var(--green); }
@@ -8444,6 +8569,30 @@ html[data-theme="light"] .legend-typhoon-center::after {
   max-width: calc(100% - 24px);
   pointer-events: none;
   transform: translate3d(12px, 12px, 0);
+}
+
+.map-info-connector {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 719;
+  display: block;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  background: rgba(231, 242, 252, 0.76);
+  box-shadow: 0 0 0 1px rgba(7, 17, 31, 0.48);
+  pointer-events: none;
+  transform-origin: 0 50%;
+}
+
+.map-info-connector[hidden] {
+  display: none;
+}
+
+html[data-theme="light"] .map-info-connector {
+  background: rgba(26, 72, 105, 0.7);
+  box-shadow: 0 0 0 1px rgba(246, 251, 255, 0.8);
 }
 
 /* 火山選択時の地図カードは、地図上には残しつつ詳細パネルの背面へ置く。 */
@@ -10617,10 +10766,13 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   }
 
   .mobile-dock-typhoon-values span {
-    display: grid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: 2px;
     min-width: 0;
-    padding: 6px 4px;
+    padding: 6px 0;
     border: 1px solid rgba(199, 224, 248, 0.16);
     border-radius: 12px;
     color: #f4fbff;
@@ -13378,13 +13530,26 @@ html[data-theme="light"] .earthquake-tsunami-details {
 }
 
 html[data-theme="light"] .earthquake-history-load-more {
-  border-color: rgba(63, 125, 172, 0.3);
-  background: rgba(226, 239, 250, 0.92);
-  color: #173653;
+  color: #365a7a;
 }
 
-html[data-theme="light"] .earthquake-history-load-more:is(:hover, :active) {
-  background: rgba(210, 231, 247, 0.98);
+html[data-theme="light"] .earthquake-history-load-more-rule {
+  background: linear-gradient(90deg, transparent, rgba(91, 132, 163, 0.26));
+}
+
+html[data-theme="light"] .earthquake-history-load-more-rule:last-child {
+  background: linear-gradient(90deg, rgba(91, 132, 163, 0.26), transparent);
+}
+
+html[data-theme="light"] .earthquake-history-load-more-label {
+  border-color: rgba(77, 124, 156, 0.24);
+  background: rgba(238, 246, 252, 0.74);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86);
+}
+
+html[data-theme="light"] .earthquake-history-load-more:is(:hover, :active) .earthquake-history-load-more-label {
+  border-color: rgba(30, 139, 197, 0.54);
+  background: rgba(224, 240, 249, 0.92);
 }
 
 html[data-theme="light"] .earthquake-history-load-more-error {
@@ -13903,8 +14068,7 @@ html[data-theme="light"] .settings-modal-header h2 { color: #132b43; }
   padding: 18px;
   overflow-y: auto;
   color: var(--dashboard-text);
-  scrollbar-width: thin;
-  scrollbar-color: #41566e transparent;
+  scrollbar-width: none;
 }
 
 .disaster-dashboard-location-bar {
@@ -16378,6 +16542,10 @@ html[data-theme="light"] .connection-status {
 }
 
 .legal-consent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   flex: 0 0 auto;
 }
 
@@ -16398,6 +16566,27 @@ html[data-theme="light"] .connection-status {
   line-height: 1.65;
 }
 
+.legal-consent-document-back {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #3d536e;
+  border-radius: 999px;
+  background: #142238;
+  color: #dce7f4;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.legal-consent-document-back:hover,
+.legal-consent-document-back:focus-visible {
+  border-color: #4aa9d6;
+  background: #1a2c46;
+  outline: none;
+}
+
 .legal-consent-links {
   display: grid;
   gap: 0;
@@ -16406,36 +16595,131 @@ html[data-theme="light"] .connection-status {
   border-radius: 10px;
 }
 
-.legal-consent-links a {
+.legal-consent-document-trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   min-height: 48px;
   padding: 0 14px;
   border: 0;
   background: #142238;
   color: #e4ebf4;
+  font: inherit;
   font-size: 14px;
   font-weight: 650;
-  text-decoration: none;
+  text-align: left;
+  cursor: pointer;
 }
 
-.legal-consent-links a + a {
+.legal-consent-document-trigger + .legal-consent-document-trigger {
   border-top: 1px solid #33445c;
 }
 
-.legal-consent-links a span:last-child {
+.legal-consent-document-trigger span:last-child {
   color: #8192aa;
   font-size: 24px;
   font-weight: 400;
   line-height: 1;
 }
 
-.legal-consent-links a:hover,
-.legal-consent-links a:focus-visible {
+.legal-consent-document-trigger:hover,
+.legal-consent-document-trigger:focus-visible {
   outline: 2px solid #4aa9d6;
   outline-offset: -2px;
   background: #1a2c46;
+}
+
+.legal-consent-panel[data-legal-consent-view="document"] .legal-consent-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.legal-consent-document-view {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.legal-consent-document-view[hidden],
+.legal-consent-panel:not([data-legal-consent-view="document"]) .legal-consent-document-view {
+  display: none !important;
+}
+
+.legal-consent-document-content {
+  width: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  color: #c7d3e2;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.legal-consent-document-content h1 {
+  margin: 0 0 4px;
+  color: #f5f7fa;
+  font-size: 22px;
+  line-height: 1.35;
+}
+
+.legal-consent-document-content h2 {
+  margin: 24px 0 8px;
+  color: #e8eef6;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.legal-consent-document-content p,
+.legal-consent-document-content ul {
+  margin: 0 0 14px;
+}
+
+.legal-consent-document-content ul {
+  padding-left: 1.35em;
+}
+
+.legal-consent-document-content li + li {
+  margin-top: 6px;
+}
+
+.legal-consent-document-content .meta {
+  color: #8fa0b6;
+  font-size: 12px;
+}
+
+.legal-consent-document-content .notice {
+  padding: 12px 14px;
+  border: 1px solid #3b5069;
+  border-radius: 10px;
+  background: #142238;
+  color: #dbe6f2;
+}
+
+.legal-consent-document-content a {
+  color: #65c5ef;
+  text-underline-offset: 0.18em;
+}
+
+.legal-consent-document-message {
+  display: flex;
+  align-items: center;
+  min-height: 88px;
+  margin: 0;
+  color: #afbecf;
+}
+
+.legal-consent-document-message.is-loading::before {
+  width: 16px;
+  height: 16px;
+  margin-right: 10px;
+  border: 2px solid rgba(120, 177, 213, 0.32);
+  border-top-color: #67c7f1;
+  border-radius: 50%;
+  content: "";
+  animation: modal-loading-spin 760ms linear infinite;
 }
 
 .legal-consent-checks {
@@ -16500,15 +16784,25 @@ html[data-theme="light"] .connection-status {
 
 html[data-theme="light"] .legal-consent-header h2 { color: #162337; }
 html[data-theme="light"] .legal-consent-description { color: #45566d; }
+html[data-theme="light"] .legal-consent-document-back { border-color: #ccd7e2; background: #f7f9fb; color: #31445b; }
+html[data-theme="light"] .legal-consent-document-back:hover,
+html[data-theme="light"] .legal-consent-document-back:focus-visible { border-color: #2589bd; background: #eef5f9; }
 html[data-theme="light"] .legal-consent-links { border-color: #d6dde6; }
-html[data-theme="light"] .legal-consent-links a { background: #f7f9fb; color: #1f3148; }
-html[data-theme="light"] .legal-consent-links a + a { border-color: #d6dde6; }
-html[data-theme="light"] .legal-consent-links a:hover,
-html[data-theme="light"] .legal-consent-links a:focus-visible { background: #eef3f7; }
+html[data-theme="light"] .legal-consent-document-trigger { background: #f7f9fb; color: #1f3148; }
+html[data-theme="light"] .legal-consent-document-trigger + .legal-consent-document-trigger { border-color: #d6dde6; }
+html[data-theme="light"] .legal-consent-document-trigger:hover,
+html[data-theme="light"] .legal-consent-document-trigger:focus-visible { background: #eef3f7; }
 html[data-theme="light"] .legal-consent-checks { border-color: #d9e0e7; }
 html[data-theme="light"] .legal-consent-checks label { color: #1d2c40; }
 html[data-theme="light"] .legal-consent-checks label + label { border-color: #d9e0e7; }
 html[data-theme="light"] .legal-consent-note { color: #617187; }
+html[data-theme="light"] .legal-consent-document-content { color: #40536a; }
+html[data-theme="light"] .legal-consent-document-content h1,
+html[data-theme="light"] .legal-consent-document-content h2 { color: #1c3048; }
+html[data-theme="light"] .legal-consent-document-content .meta { color: #6b7d92; }
+html[data-theme="light"] .legal-consent-document-content .notice { border-color: #d3dee8; background: #f3f7fa; color: #324861; }
+html[data-theme="light"] .legal-consent-document-content a { color: #087aac; }
+html[data-theme="light"] .legal-consent-document-message { color: #62768d; }
 
 @media (max-width: 520px) {
   .legal-consent-modal { align-items: end; padding: 0; }

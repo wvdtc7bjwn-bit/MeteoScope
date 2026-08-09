@@ -387,7 +387,9 @@ export function createWeatherMap(elementId) {
   let plateDepthContoursVisible = true;
   let warningAreasByCode = new Map();
   let mapInfoElement = null;
+  let mapInfoConnectorElement = null;
   let mapInfoLngLat = null;
+  let mapInfoAnchorLngLat = null;
   let mapInfoOwner = null;
   let communityReports = [];
   let currentLocationVisible = true;
@@ -2133,6 +2135,11 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   }
 
   function setupMapInfo() {
+    mapInfoConnectorElement = document.createElement("div");
+    mapInfoConnectorElement.className = "map-info-connector";
+    mapInfoConnectorElement.hidden = true;
+    map.getContainer().appendChild(mapInfoConnectorElement);
+
     mapInfoElement = document.createElement("div");
     mapInfoElement.className = "map-info-popup";
     mapInfoElement.hidden = true;
@@ -2158,7 +2165,13 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         hideMapInfo("typhoon");
         return;
       }
-      showMapInfo("typhoon", event.lngLat, feature.properties.forecastPopup);
+      showMapInfo(
+        "typhoon",
+        event.lngLat,
+        feature.properties.forecastPopup,
+        "",
+        parseTyphoonForecastCenter(feature.properties?.forecastCenter)
+      );
     });
 
     TYPHOON_FORECAST_INFO_LAYERS.forEach((layerId) => {
@@ -2197,10 +2210,11 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     map.on("zoomend", () => hideMapInfo("active-fault"));
   }
 
-  function showMapInfo(owner, lngLat, html, variant = "") {
+  function showMapInfo(owner, lngLat, html, variant = "", anchorLngLat = null) {
     if (!mapInfoElement) return;
     mapInfoOwner = owner;
     mapInfoLngLat = lngLat;
+    mapInfoAnchorLngLat = anchorLngLat;
     mapInfoElement.dataset.variant = variant;
     mapInfoElement.innerHTML = html;
     mapInfoElement.hidden = false;
@@ -2211,6 +2225,8 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     if (owner && mapInfoOwner !== owner) return;
     mapInfoOwner = null;
     mapInfoLngLat = null;
+    mapInfoAnchorLngLat = null;
+    if (mapInfoConnectorElement) mapInfoConnectorElement.hidden = true;
     if (mapInfoElement) {
       mapInfoElement.hidden = true;
       delete mapInfoElement.dataset.variant;
@@ -2233,6 +2249,31 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     x = clampNumber(x, margin, container.clientWidth - width - margin);
     y = clampNumber(y, margin, container.clientHeight - height - margin);
     mapInfoElement.style.transform = `translate3d(${Math.round(x)}px, ${Math.round(y)}px, 0)`;
+    positionMapInfoConnector({ x, y, width, height });
+  }
+
+  function positionMapInfoConnector(cardRect) {
+    if (!mapInfoConnectorElement) return;
+    const connectorPoint = mapInfoOwner === "typhoon" && mapInfoAnchorLngLat
+      ? map.project(mapInfoAnchorLngLat)
+      : null;
+    if (!connectorPoint) {
+      mapInfoConnectorElement.hidden = true;
+      return;
+    }
+
+    const end = getClosestPointOnRect(connectorPoint, cardRect);
+    const dx = end.x - connectorPoint.x;
+    const dy = end.y - connectorPoint.y;
+    const length = Math.hypot(dx, dy);
+    if (length < 2) {
+      mapInfoConnectorElement.hidden = true;
+      return;
+    }
+
+    mapInfoConnectorElement.hidden = false;
+    mapInfoConnectorElement.style.width = `${Math.round(length)}px`;
+    mapInfoConnectorElement.style.transform = `translate3d(${Math.round(connectorPoint.x)}px, ${Math.round(connectorPoint.y)}px, 0) rotate(${Math.atan2(dy, dx)}rad)`;
   }
 
   function updateWarningAreaLookup(mode, data = {}) {
@@ -4708,6 +4749,7 @@ function createTyphoonFeatures(data) {
         typhoonShape: "forecastCircle",
         fillOpacity: 0.1,
         lineWidth: 1.4,
+        forecastCenter: formatTyphoonForecastCenter(circle.center),
         popup: buildTyphoonPopup(typhoon, circle.label ? `予報円 ${circle.label}` : "予報円"),
         forecastPopup: buildTyphoonForecastCirclePopup(typhoon, circle)
       });
@@ -4931,14 +4973,41 @@ function buildWorldGenesisPopup(system, modelInfo = {}, source = {}) {
   `;
 }
 
+function formatTyphoonForecastCenter(center) {
+  const [longitude, latitude] = Array.isArray(center) ? center : [];
+  if (!Number.isFinite(Number(longitude)) || !Number.isFinite(Number(latitude))) return "";
+  return `${Number(longitude)},${Number(latitude)}`;
+}
+
+function parseTyphoonForecastCenter(value) {
+  const [longitude, latitude] = String(value ?? "").split(",").map(Number);
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
+  return [longitude, latitude];
+}
+
+function getClosestPointOnRect(point, { x, y, width, height }) {
+  return {
+    x: clampNumber(point.x, x, x + width),
+    y: clampNumber(point.y, y, y + height)
+  };
+}
+
 function buildTyphoonPopup(typhoon, label) {
   const details = typhoon.details ?? {};
+  const isLowPressureSystem = details.maxWind === "-"
+    && details.maxGust === "-"
+    && Boolean(details.systemType);
+  const windRows = isLowPressureSystem
+    ? `<span>種別: ${escapePopup(details.systemType)}</span><br>`
+    : `
+      <span>最大風速: ${escapePopup(details.maxWind ?? "未取得")}</span><br>
+      <span>最大瞬間風速: ${escapePopup(details.maxGust ?? "未取得")}</span><br>
+    `;
   return `
     <strong>${escapePopup(typhoon.name ?? "台風情報")}</strong><br>
     <span>${escapePopup(label)}</span><br>
     <span>中心気圧: ${escapePopup(details.pressure ?? "未取得")}</span><br>
-    <span>最大風速: ${escapePopup(details.maxWind ?? "未取得")}</span><br>
-    <span>最大瞬間風速: ${escapePopup(details.maxGust ?? "未取得")}</span><br>
+    ${windRows}
     <span>移動: ${escapePopup(details.direction ?? "未取得")} ${escapePopup(details.speed ?? "")}</span><br>
     <span>更新: ${escapePopup(typhoon.updatedAt ?? "未取得")}</span>
   `;
@@ -4946,11 +5015,15 @@ function buildTyphoonPopup(typhoon, label) {
 
 function buildTyphoonForecastCirclePopup(typhoon, circle) {
   const details = resolveTyphoonForecastDetails(circle.details ?? {});
+  const isLowPressureSystem = details.maxWind === "-"
+    && details.maxGust === "-"
+    && Boolean(details.systemType);
   const rows = [
     ["強さ", details.strength],
     ["中心気圧", details.pressure],
-    ["最大風速", details.maxWind],
-    ["最大瞬間風速", details.maxGust]
+    ...(isLowPressureSystem
+      ? [["種別", details.systemType]]
+      : [["最大風速", details.maxWind], ["最大瞬間風速", details.maxGust]])
   ].filter(([label, value]) => isKnownTyphoonDetail(value) || isZeroWindTyphoonRow(label, value));
   const body = rows.length > 0
     ? rows.map(([label, value]) => `
@@ -4973,6 +5046,7 @@ function buildTyphoonForecastCirclePopup(typhoon, circle) {
 
 function resolveTyphoonForecastDetails(forecastDetails) {
   return {
+    systemType: String(forecastDetails.systemType ?? "").trim(),
     strength: pickKnownTyphoonDetail(forecastDetails.strength),
     pressure: pickKnownTyphoonDetail(forecastDetails.pressure),
     maxWind: pickWindTyphoonForecastDetail(forecastDetails.maxWind),
@@ -5850,6 +5924,7 @@ function createTyphoonForecastLabelFeature(circle, typhoon) {
     properties: {
       label: circle.label,
       typhoonShape: "forecastLabel",
+      forecastCenter: formatTyphoonForecastCenter(circle.center),
       popup: buildTyphoonPopup(typhoon, `予報円 ${circle.label}`),
       forecastPopup: buildTyphoonForecastCirclePopup(typhoon, circle)
     }
