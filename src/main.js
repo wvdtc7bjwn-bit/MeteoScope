@@ -9,10 +9,20 @@ app.start();
 
 function registerAppServiceWorker() {
   if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
+  let reloadingForServiceWorkerUpdate = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloadingForServiceWorkerUpdate) return;
+    reloadingForServiceWorkerUpdate = true;
+    window.location.reload();
+  });
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((error) => {
-      console.warn("[MeteoScope] service worker registration failed", error);
-    });
+    navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" })
+      .then((registration) => registration.update().catch((error) => {
+        console.warn("[MeteoScope] service worker update failed", error);
+      }))
+      .catch((error) => {
+        console.warn("[MeteoScope] service worker registration failed", error);
+      });
   }, { once: true });
 }
 

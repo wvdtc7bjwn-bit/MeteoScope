@@ -64,10 +64,14 @@ assert.match(weatherMap, /localIdeographFontFamily:/);
 assert.match(weatherMap, /data: JMA_ENDPOINTS\.warningMunicipalitiesMap/);
 assert.match(weatherMap, /data: JMA_ENDPOINTS\.prefecturesMap/);
 
-assert.match(main, /navigator\.serviceWorker\.register\("\/sw\.js"\)/);
+assert.match(main, /navigator\.serviceWorker\.register\("\/sw\.js", \{ updateViaCache: "none" \}\)/);
+assert.match(main, /navigator\.serviceWorker\.addEventListener\("controllerchange"[\s\S]*?window\.location\.reload\(\)/);
+assert.match(main, /registration\.update\(\)\.catch/);
 assert.match(serviceWorker, /request\.mode === "navigate"[\s\S]*?url\.pathname === "\/" \|\| url\.pathname === "\/index\.html"/);
 assert.match(serviceWorker, /url\.pathname\.startsWith\("\/assets\/"\)/);
 assert.match(headers, /Content-Security-Policy:/);
+assert.match(headers, /\/sw\.js[\s\S]*?Cache-Control: no-cache, no-store, must-revalidate[\s\S]*?Service-Worker-Allowed: \//);
+assert.match(headers, /\/site\.webmanifest[\s\S]*?Cache-Control: max-age=0, must-revalidate/);
 assert.match(headers, /\/data\/\*[\s\S]*?max-age=0, must-revalidate/);
 
 console.log("Initial map loading gates: OK");

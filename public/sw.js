@@ -1,5 +1,5 @@
 self.__meteoscopePendingNotificationTask = null;
-const APP_SHELL_CACHE = "meteoscope-shell-v8";
+const APP_SHELL_CACHE = "meteoscope-shell-v9";
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
