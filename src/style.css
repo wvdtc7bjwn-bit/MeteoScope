@@ -1257,7 +1257,8 @@ html[data-language="en"] .warning-area-row > strong {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.16) inset;
 }
 
-.early-warning-badge-none {
+.early-warning-badge-none,
+.mobile-dock-warning-badge-none {
   background: rgba(244, 247, 255, 0.9);
   color: #152033;
 }
@@ -8366,75 +8367,118 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   opacity: 0.68;
 }
 
-.legend-swatch:is(
-  .legend-weather-chart-isobar,
-  .legend-weather-chart-cold-front,
-  .legend-weather-chart-warm-front,
-  .legend-weather-chart-stationary-front,
-  .legend-weather-chart-occluded-front
-) {
-  width: 24px;
-  height: 4px;
+.legend-weather-chart-isobar {
+  width: 34px;
+  height: 2px;
   border: 0;
   border-radius: 999px;
-  position: relative;
-  overflow: visible;
-}
-
-.legend-weather-chart-isobar {
   background: rgba(226, 236, 248, 0.84);
 }
 
-.legend-weather-chart-high,
-.legend-weather-chart-low,
-.legend-weather-chart-typhoon {
+html[data-theme="light"] .legend-weather-chart-isobar {
+  /* Match the light-map isobar stroke instead of blending into the panel. */
+  background: rgba(48, 66, 85, 0.82);
+}
+
+.legend-swatch:is(
+  .legend-weather-chart-high,
+  .legend-weather-chart-low,
+  .legend-weather-chart-typhoon
+) {
+  display: inline-grid;
+  width: 20px;
+  height: 20px;
+  box-sizing: border-box;
+  place-items: center;
   border-radius: 50%;
+  border: 1px solid #f8fbff;
+  color: #f8fbff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 1px rgba(5, 9, 20, 0.46);
 }
 
 .legend-weather-chart-high { background: #1b7dff; }
 .legend-weather-chart-low { background: #ff3b30; }
 .legend-weather-chart-typhoon { background: #ff5a36; }
-.legend-weather-chart-cold-front { background: #416eff; }
-.legend-weather-chart-warm-front { background: #c76a61; }
-.legend-weather-chart-stationary-front {
-  background: linear-gradient(90deg, #416eff 0 50%, #c76a61 50%);
+.legend-weather-chart-high::before { content: "高"; }
+.legend-weather-chart-low::before { content: "低"; }
+.legend-weather-chart-typhoon::before { content: "台"; }
+
+.legend-swatch:is(
+  .legend-weather-chart-cold-front,
+  .legend-weather-chart-warm-front,
+  .legend-weather-chart-stationary-front,
+  .legend-weather-chart-occluded-front
+) {
+  position: relative;
+  width: 36px;
+  height: 18px;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
 }
-.legend-weather-chart-occluded-front { background: #b579ff; }
+
+.legend-weather-chart-cold-front {
+  background: linear-gradient(#416eff, #416eff) center 9px / 100% 3px no-repeat;
+}
+
+.legend-weather-chart-warm-front {
+  background: linear-gradient(#c76a61, #c76a61) center 9px / 100% 3px no-repeat;
+}
+
+.legend-weather-chart-stationary-front {
+  background: linear-gradient(90deg, #416eff 0 50%, #c76a61 50%) center 9px / 100% 3px no-repeat;
+}
+
+.legend-weather-chart-occluded-front {
+  background: linear-gradient(#b579ff, #b579ff) center 9px / 100% 3px no-repeat;
+}
 
 .legend-weather-chart-cold-front::before,
-.legend-weather-chart-stationary-front::before,
-.legend-weather-chart-occluded-front::before {
+.legend-weather-chart-stationary-front::before {
   position: absolute;
-  top: -6px;
-  left: 5px;
-  width: 0;
-  height: 0;
+  top: 9px;
+  left: 7px;
+  width: 12px;
+  height: 8px;
   content: "";
-  border-right: 5px solid transparent;
-  border-bottom: 7px solid #416eff;
-  border-left: 5px solid transparent;
+  background: #3f6dff;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 
 .legend-weather-chart-warm-front::before,
 .legend-weather-chart-stationary-front::after,
-.legend-weather-chart-occluded-front::after {
+.legend-weather-chart-occluded-front::before {
   position: absolute;
-  top: -5px;
-  right: 3px;
-  box-sizing: border-box;
-  width: 10px;
-  height: 6px;
+  top: 2px;
+  left: 16px;
+  width: 12px;
+  height: 7px;
   content: "";
-  background: #c76a61;
-  border-radius: 10px 10px 0 0;
+  background: #d86c5f;
+  border-radius: 8px 8px 0 0;
+}
+
+.legend-weather-chart-warm-front::before {
+  left: 12px;
 }
 
 .legend-weather-chart-occluded-front::before {
-  border-bottom-color: #b579ff;
+  background: #b579ff;
+  left: 8px;
 }
 
 .legend-weather-chart-occluded-front::after {
+  position: absolute;
+  top: 2px;
+  left: 20px;
+  width: 10px;
+  height: 7px;
+  content: "";
   background: #b579ff;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
 }
 
 .legend-amedas { background: var(--green); }
@@ -10719,10 +10763,6 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     white-space: nowrap;
   }
 
-  .mobile-dock-warning-badge-none {
-    color: rgba(224, 236, 249, 0.78);
-    background: rgba(255, 255, 255, 0.055);
-  }
   .mobile-dock-typhoon {
     display: grid;
     grid-template-rows: 34px minmax(0, 1fr);
@@ -13810,11 +13850,6 @@ html[data-theme="light"] .tsunami-area-row.level-advisory .tsunami-level-badge {
     background: rgba(69, 87, 108, 0.48);
   }
 
-  html[data-theme="light"] .mobile-dock-warning-badge-none {
-    border-color: rgba(66, 92, 122, 0.2);
-    color: #435a72;
-    background: rgba(223, 232, 242, 0.58);
-  }
 }
 .settings-early-access-form { display: grid; gap: 7px; }
 .settings-early-access-form > label { color: var(--muted-text, #9aa8bd); font-size: 13px; font-weight: 700; }
