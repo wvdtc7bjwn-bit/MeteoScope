@@ -88,6 +88,11 @@ assert.match(
 );
 assert.match(
   panel,
+  /targetButton: previewButton,[\s\S]*?event\.preventDefault\(\);[\s\S]*?dragState\.targetButton = getButtonAtPoint\(dragState\.segment, event\.clientX\) \?\? dragState\.targetButton;[\s\S]*?getButtonAtPoint\(segment, event\.clientX\) \?\? state\.targetButton/,
+  "segmented controls must commit the final crossed segment instead of the segment where a drag began"
+);
+assert.match(
+  panel,
   /targetButton\.click\(\);[\s\S]*?suppressCompatibilityClick = true;/,
   "segmented controls must commit their action before suppressing only the compatibility click"
 );

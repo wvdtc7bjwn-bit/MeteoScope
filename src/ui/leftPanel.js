@@ -617,11 +617,15 @@ function setupSegmentedControls(root) {
       startX: event.clientX,
       committedButton: activeButton,
       previewButton,
+      targetButton: previewButton,
       buttonPresentation: captureButtonPresentation(segment),
       activeLeft: previewButton.offsetLeft,
       activeWidth: previewButton.offsetWidth,
       moved: false
     };
+    // The control commits its own click on pointerup. Prevent the browser's
+    // compatibility click from reapplying the segment where the gesture began.
+    event.preventDefault();
     if (previewButton !== activeButton) renderPreview(segment, previewButton);
   });
 
@@ -638,6 +642,7 @@ function setupSegmentedControls(root) {
     if (!dragState.moved) return;
     event.preventDefault();
     event.stopPropagation();
+    dragState.targetButton = getButtonAtPoint(dragState.segment, event.clientX) ?? dragState.targetButton;
     const buttons = getButtons(dragState.segment);
     const firstButton = buttons[0];
     const lastButton = buttons.at(-1);
@@ -669,7 +674,7 @@ function setupSegmentedControls(root) {
     dragState = null;
     const isCommit = event.type === "pointerup";
     const targetButton = isCommit
-      ? (moved ? getButtonAtPoint(segment, event.clientX) : state.previewButton)
+      ? (moved ? getButtonAtPoint(segment, event.clientX) ?? state.targetButton : state.previewButton)
       : null;
     if (segment.hasPointerCapture?.(event.pointerId)) {
       segment.releasePointerCapture(event.pointerId);
