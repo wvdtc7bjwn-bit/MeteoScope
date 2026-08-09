@@ -98,12 +98,12 @@ assert.match(
 );
 assert.match(
   panel,
-  /suppressedCompatibilitySource = null;[\s\S]*?sourceButton: pointerButton && segment\.contains\(pointerButton\) \? pointerButton : null,[\s\S]*?suppressedCompatibilitySource = state\.sourceButton;[\s\S]*?targetButton\.click\(\);/,
+  /suppressedCompatibilitySource = null;[\s\S]*?sourceButton: pointerButton && segment\.contains\(pointerButton\) \? pointerButton : null,[\s\S]*?suppressedCompatibilitySource = state\.sourceButton;[\s\S]*?if \(!targetButton\.disabled\) targetButton\.click\(\);/,
   "segmented controls must clear stale suppression at gesture start and scope it to the pressed source button"
 );
 assert.match(
   panel,
-  /if \(targetButton !== state\.previewButton\) renderPreview\(segment, targetButton, \{ sync: false \}\);[\s\S]*?targetButton\.click\(\);[\s\S]*?clearDragPresentation\(segment, \{ resetOffset: false \}\);[\s\S]*?window\.requestAnimationFrame\(\(\) => syncMobileDockSegmentIndicators\(root\)\);/,
+  /if \(targetButton !== state\.previewButton\) renderPreview\(segment, targetButton, \{ sync: false \}\);[\s\S]*?suppressedCompatibilitySource = state\.sourceButton;[\s\S]*?if \(!targetButton\.disabled\) targetButton\.click\(\);[\s\S]*?clearDragPresentation\(segment, \{ resetOffset: false \}\);[\s\S]*?window\.requestAnimationFrame\(\(\) => syncMobileDockSegmentIndicators\(root\)\);/,
   "segmented controls must preserve the glass indicator through release before settling it"
 );
 assert.match(
@@ -258,11 +258,7 @@ assert.match(panelToggle, /classList\.toggle\("is-drawer-grab-active", absorptio
 assert.match(panelToggle, /setDrawerState\(drawerState === "peek" \? "full" : "peek"\);/);
 assert.match(
   panelToggle,
-  /dragStartedOnControl = target === mobileContextDock && isDockControlEvent\(event\);[\s\S]*?if \(dragStartedOnControl && prefersHorizontal\)[\s\S]*?dragAxis = horizontalSummarySwipeEnabled && prefersHorizontal \? "x" : "y";/
-);
-assert.match(
-  panelToggle,
-  /mobileContextDock\?\.addEventListener\("pointerdown", \(event\) => \{\s*beginDrag\(event, mobileContextDock, null\);/
+  /mobileContextDock\?\.addEventListener\("pointerdown", \(event\) => \{[\s\S]*?if \(isDockControlEvent\(event\)\) return;[\s\S]*?beginDrag\(event, mobileContextDock, null\);/
 );
 assert.match(
   panelToggle,
@@ -272,7 +268,7 @@ assert.match(panelToggle, /let dragPointerId = null;/);
 assert.match(panelToggle, /dragPointerId = event\.pointerId;[\s\S]*?function moveDrag\(event\) \{\s*if \(!dragging \|\| event\.pointerId !== dragPointerId\) return;/);
 assert.match(panelToggle, /function finishDrag\(event\) \{\s*if \(!dragging \|\| event\.pointerId !== dragPointerId\) return;/);
 assert.ok(
-  (panelToggle.match(/dragPointerId = null;/g) ?? []).length >= 4,
+  (panelToggle.match(/dragPointerId = null;/g) ?? []).length >= 3,
   "drawer gestures must clear their pointer identity on every completion path"
 );
 assert.match(

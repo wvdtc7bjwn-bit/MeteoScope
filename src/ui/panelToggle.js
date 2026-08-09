@@ -39,7 +39,6 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   let lastHorizontalX = 0;
   let lastHorizontalTime = 0;
   let horizontalVelocityX = 0;
-  let dragStartedOnControl = false;
   let horizontalSummarySwipeEnabled = false;
 
   function isCompactLandscape() {
@@ -265,9 +264,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     lastHorizontalX = startX;
     lastHorizontalTime = event.timeStamp || performance.now();
     horizontalVelocityX = 0;
-    dragStartedOnControl = target === mobileContextDock && isDockControlEvent(event);
     horizontalSummarySwipeEnabled = target === mobileContextDock
-      && !dragStartedOnControl
       && Boolean(mobileContextDock?.querySelector(".mobile-dock-earthquake-summary-track"));
     startOffset = getCurrentOffset();
     currentOffset = startOffset;
@@ -284,15 +281,6 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     if (dragAxis === null) {
       if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) <= 6) return;
       const prefersHorizontal = Math.abs(deltaX) > Math.abs(deltaY) * 1.12;
-      if (dragStartedOnControl && prefersHorizontal) {
-        dragging = false;
-        dragPointerId = null;
-        dragTarget = null;
-        dragAxis = "y";
-        dragStartedOnControl = false;
-        horizontalSummarySwipeEnabled = false;
-        return;
-      }
       dragAxis = horizontalSummarySwipeEnabled && prefersHorizontal ? "x" : "y";
       mobileContextDock?.classList.toggle("is-vertical-dragging", dragAxis === "y");
       dragTarget?.setPointerCapture?.(event.pointerId);
@@ -347,7 +335,6 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
       dragTarget?.releasePointerCapture?.(event.pointerId);
       dragTarget = null;
       dragAxis = "y";
-      dragStartedOnControl = false;
       horizontalSummarySwipeEnabled = false;
       return;
     }
@@ -360,7 +347,6 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     dragTarget?.releasePointerCapture?.(event.pointerId);
     dragTarget = null;
     dragAxis = "y";
-    dragStartedOnControl = false;
     horizontalSummarySwipeEnabled = false;
     setDrawerOffset(moved ? currentOffset : startOffset);
   }
@@ -391,6 +377,11 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   });
 
   mobileContextDock?.addEventListener("pointerdown", (event) => {
+    // Segmented controls own their pointer gesture from press through release.
+    // Starting the drawer gesture as well makes the window-level drag handler
+    // race the control's indicator on iOS standalone/PWA, where touch events
+    // are dispatched with a different capture order than in a browser tab.
+    if (isDockControlEvent(event)) return;
     beginDrag(event, mobileContextDock, null);
   });
   mobileContextDock?.setAttribute("aria-expanded", "false");

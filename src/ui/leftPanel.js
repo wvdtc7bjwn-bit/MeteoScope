@@ -682,15 +682,19 @@ function setupSegmentedControls(root) {
     if (segment.hasPointerCapture?.(event.pointerId)) {
       segment.releasePointerCapture(event.pointerId);
     }
-    if (isCommit && targetButton && !targetButton.disabled) {
+    if (isCommit && targetButton) {
       // Like the bottom tab slider, keep the in-flight glass position through
       // this frame, then settle the base indicator on the committed button.
       if (targetButton !== state.previewButton) renderPreview(segment, targetButton, { sync: false });
-      // targetButton.click() is needed by the existing per-panel handlers.
-      // Ignore only the browser click generated for the button initially
-      // pressed by this gesture; a rebuild drops that old button entirely.
+      // Ignore the browser click generated for the button initially pressed by
+      // this gesture, even if release lands on the active disabled button.
+      // Otherwise a slide back to the committed segment is followed by a
+      // compatibility click on the first unselected button and jumps back.
       suppressedCompatibilitySource = state.sourceButton;
-      targetButton.click();
+      // Existing per-panel handlers own application state. The currently
+      // active segment is disabled, so there is nothing to commit when the
+      // gesture returns to it; still keep the compatibility-click guard above.
+      if (!targetButton.disabled) targetButton.click();
       clearDragPresentation(segment, { resetOffset: false });
     } else {
       restoreCommittedButton(state, { sync: false });
