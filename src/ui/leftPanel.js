@@ -88,6 +88,14 @@ let mobileRadarDockSliding = false;
 let mobileVolcanoAshSliderDragging = false;
 let mobileEarthquakeSummaryPage = "earthquake";
 let lastMobileTideStationCode = "";
+
+function consumeCompatibilityClick(event, isSuppressed, clearSuppression, selector) {
+  if (!isSuppressed || !(event.target instanceof Element) || !event.target.closest(selector)) return false;
+  clearSuppression();
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  return true;
+}
 let mobileEarthquakeSummarySwipeInitialized = false;
 let mobileEarthquakeSummaryCommitTimer = 0;
 let mobileTsunamiTickerGroupTimer = 0;
@@ -201,21 +209,27 @@ export function setupAmedasDailyChartToggle({ onChange } = {}) {
   const root = document.getElementById("amedas-daily-chart");
   if (!root) return;
   let dragState = null;
-  let suppressClickUntil = 0;
+  let suppressCompatibilityClick = false;
 
   const resetSlider = (slider) => {
     slider.classList.remove("is-dragging");
     slider.style.setProperty("--amedas-chart-period-drag-x", "0px");
   };
-  const renderSliderButton = (slider, button) => {
+  const renderSliderButton = (slider, button, { sync = true } = {}) => {
     const buttons = [...slider.querySelectorAll("button")];
     const index = Math.max(0, buttons.indexOf(button));
     buttons.forEach((item) => item.classList.toggle("active", item === button));
+    if (!sync) return;
     slider.style.setProperty("--amedas-chart-period-index", String(index));
   };
 
   root?.addEventListener("click", (event) => {
-    if (Date.now() < suppressClickUntil) return;
+    if (consumeCompatibilityClick(
+      event,
+      suppressCompatibilityClick,
+      () => { suppressCompatibilityClick = false; },
+      ".amedas-chart-period-toggle"
+    )) return;
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest("[data-amedas-chart-day]");
     if (!button) return;
@@ -227,6 +241,7 @@ export function setupAmedasDailyChartToggle({ onChange } = {}) {
   root.addEventListener("pointerdown", (event) => {
     if (event.isPrimary === false || (event.pointerType === "mouse" && event.button !== 0)) return;
     if (!(event.target instanceof Element)) return;
+    suppressCompatibilityClick = false;
     const slider = event.target.closest(".amedas-chart-period-toggle");
     if (!slider || !root.contains(slider)) return;
     const buttons = [...slider.querySelectorAll("button")];
@@ -291,12 +306,25 @@ export function setupAmedasDailyChartToggle({ onChange } = {}) {
     if (slider.hasPointerCapture?.(event.pointerId)) {
       slider.releasePointerCapture(event.pointerId);
     }
-    resetSlider(slider);
     if (isCommit && targetButton && !targetButton.disabled) {
+      // Keep the in-flight glass position until the next frame. Resetting the
+      // offset in this event makes a reverse slide flash before it settles.
+      if (targetButton !== state.previewButton) renderSliderButton(slider, targetButton, { sync: false });
       targetButton.click();
-      suppressClickUntil = Date.now() + 250;
+      slider.classList.remove("is-dragging");
+      window.requestAnimationFrame(() => {
+        renderSliderButton(slider, targetButton);
+        resetSlider(slider);
+      });
+      // Suppress only the browser's compatibility click, never a later tap.
+      suppressCompatibilityClick = true;
     } else {
-      renderSliderButton(slider, state.committedButton);
+      renderSliderButton(slider, state.committedButton, { sync: false });
+      slider.classList.remove("is-dragging");
+      window.requestAnimationFrame(() => {
+        renderSliderButton(slider, state.committedButton);
+        resetSlider(slider);
+      });
     }
   };
 
@@ -320,7 +348,7 @@ export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
   const root = document.getElementById("amedas-ranking");
   if (!root) return;
   let dragState = null;
-  let suppressClickUntil = 0;
+  let suppressCompatibilityClick = false;
 
   const getSliderButtons = (slider) => [...slider.querySelectorAll("button")];
   const getSliderButtonAtPoint = (slider, clientX) => {
@@ -335,16 +363,22 @@ export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
     slider.classList.remove("is-dragging");
     slider.style.setProperty("--ranking-drag-x", "0px");
   };
-  const renderRankingSliderButton = (slider, button) => {
+  const renderRankingSliderButton = (slider, button, { sync = true } = {}) => {
     const buttons = getSliderButtons(slider);
     const index = Math.max(0, buttons.indexOf(button));
     buttons.forEach((item) => item.classList.toggle("active", item === button));
+    if (!sync) return;
     slider.style.setProperty("--ranking-index-offset", `${index * 100}%`);
     slider.style.setProperty("--ranking-gap-offset", `${index * 3}px`);
   };
 
   root.addEventListener("click", (event) => {
-    if (Date.now() < suppressClickUntil) return;
+    if (consumeCompatibilityClick(
+      event,
+      suppressCompatibilityClick,
+      () => { suppressCompatibilityClick = false; },
+      ".amedas-ranking-slider"
+    )) return;
     if (!(event.target instanceof Element)) return;
     const temperaturePeriodButton = event.target.closest("[data-amedas-temperature-ranking-period]");
     if (temperaturePeriodButton) {
@@ -408,6 +442,7 @@ export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
   root.addEventListener("pointerdown", (event) => {
     if (event.isPrimary === false || (event.pointerType === "mouse" && event.button !== 0)) return;
     if (!(event.target instanceof Element)) return;
+    suppressCompatibilityClick = false;
     const slider = event.target.closest(".amedas-ranking-slider");
     if (!slider || !root.contains(slider)) return;
     const buttons = getSliderButtons(slider);
@@ -463,12 +498,25 @@ export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
     if (slider.hasPointerCapture?.(event.pointerId)) {
       slider.releasePointerCapture(event.pointerId);
     }
-    resetRankingSlider(slider);
     if (targetButton && !targetButton.disabled) {
+      // Keep the in-flight glass position through this frame so reverse
+      // slides settle exactly like the persistent bottom tab slider.
+      if (targetButton !== state.previewButton) renderRankingSliderButton(slider, targetButton, { sync: false });
       targetButton.click();
-      suppressClickUntil = Date.now() + 250;
+      slider.classList.remove("is-dragging");
+      window.requestAnimationFrame(() => {
+        renderRankingSliderButton(slider, targetButton);
+        resetRankingSlider(slider);
+      });
+      // Suppress only the browser's compatibility click, never a later tap.
+      suppressCompatibilityClick = true;
     } else {
-      renderRankingSliderButton(slider, state.committedButton);
+      renderRankingSliderButton(slider, state.committedButton, { sync: false });
+      slider.classList.remove("is-dragging");
+      window.requestAnimationFrame(() => {
+        renderRankingSliderButton(slider, state.committedButton);
+        resetRankingSlider(slider);
+      });
     }
   };
 
@@ -492,11 +540,17 @@ function setupSegmentedControls(root) {
   if (!root || root.dataset.segmentedControlsReady === "true") return;
   root.dataset.segmentedControlsReady = "true";
   let dragState = null;
-  let suppressClickUntil = 0;
+  let suppressCompatibilityClick = false;
   let pendingFrame = 0;
   let pendingOffset = 0;
 
   const getButtons = (segment) => [...segment.querySelectorAll("button")];
+  const captureButtonPresentation = (segment) => getButtons(segment).map((button) => ({
+    button,
+    active: button.classList.contains("active"),
+    ariaPressed: button.getAttribute("aria-pressed"),
+    ariaSelected: button.getAttribute("aria-selected")
+  }));
   const setDragOffset = (segment, offset) => {
     segment.style.setProperty("--mobile-dock-drag-x", `${offset}px`);
   };
@@ -508,26 +562,40 @@ function setupSegmentedControls(root) {
       return !nearest || distance < nearest.distance ? { button, distance } : nearest;
     }, null)?.button ?? null;
   };
-  const renderPreview = (segment, button) => {
+  const renderPreview = (segment, button, { sync = true } = {}) => {
     if (!button) return;
-    getButtons(segment).forEach((item) => item.classList.toggle("active", item === button));
-    syncMobileDockSegmentIndicator(segment);
+    getButtons(segment).forEach((item) => {
+      const isActive = item === button;
+      item.classList.toggle("active", isActive);
+      if (item.hasAttribute("aria-pressed")) item.setAttribute("aria-pressed", String(isActive));
+      if (item.hasAttribute("aria-selected")) item.setAttribute("aria-selected", String(isActive));
+    });
+    if (sync) syncMobileDockSegmentIndicator(segment);
   };
-  const restoreCommittedButton = (state) => {
-    if (!state?.committedButton) return;
-    renderPreview(state.segment, state.committedButton);
+  const restoreCommittedButton = (state, { sync = true } = {}) => {
+    if (!state?.buttonPresentation) return;
+    state.buttonPresentation.forEach(({ button, active, ariaPressed, ariaSelected }) => {
+      button.classList.toggle("active", active);
+      if (ariaPressed === null) button.removeAttribute("aria-pressed");
+      else button.setAttribute("aria-pressed", ariaPressed);
+      if (ariaSelected === null) button.removeAttribute("aria-selected");
+      else button.setAttribute("aria-selected", ariaSelected);
+    });
+    if (sync) syncMobileDockSegmentIndicator(state.segment);
   };
-  const clearDragPresentation = (segment) => {
+  const clearDragPresentation = (segment, { resetOffset = true } = {}) => {
     if (!segment) return;
     segment.classList.remove("is-dragging");
-    setDragOffset(segment, 0);
+    if (resetOffset) setDragOffset(segment, 0);
   };
 
   root.addEventListener("click", (event) => {
-    if (Date.now() >= suppressClickUntil) return;
-    if (!(event.target instanceof Element) || !event.target.closest(".mobile-dock-segmented")) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
+    consumeCompatibilityClick(
+      event,
+      suppressCompatibilityClick,
+      () => { suppressCompatibilityClick = false; },
+      ".mobile-dock-segmented"
+    );
   }, true);
 
   root.addEventListener("pointerdown", (event) => {
@@ -541,6 +609,7 @@ function setupSegmentedControls(root) {
     syncMobileDockSegmentIndicator(segment);
     const pointerButton = event.target.closest("button");
     const previewButton = pointerButton && segment.contains(pointerButton) ? pointerButton : activeButton;
+    suppressCompatibilityClick = false;
     dragState = {
       pointerId: event.pointerId,
       pointerType: event.pointerType,
@@ -548,10 +617,12 @@ function setupSegmentedControls(root) {
       startX: event.clientX,
       committedButton: activeButton,
       previewButton,
-      activeLeft: activeButton.offsetLeft,
-      activeWidth: activeButton.offsetWidth,
+      buttonPresentation: captureButtonPresentation(segment),
+      activeLeft: previewButton.offsetLeft,
+      activeWidth: previewButton.offsetWidth,
       moved: false
     };
+    if (previewButton !== activeButton) renderPreview(segment, previewButton);
   });
 
   root.addEventListener("pointermove", (event) => {
@@ -606,12 +677,18 @@ function setupSegmentedControls(root) {
     if (isCommit && targetButton && !targetButton.disabled) {
       event.preventDefault();
       event.stopPropagation();
-      clearDragPresentation(segment);
+      // Like the bottom tab slider, keep the in-flight glass position through
+      // this frame, then settle the base indicator on the committed button.
+      if (targetButton !== state.previewButton) renderPreview(segment, targetButton, { sync: false });
       targetButton.click();
-      suppressClickUntil = Date.now() + 250;
+      clearDragPresentation(segment, { resetOffset: false });
+      // The programmatic click above delivers the selected action immediately.
+      // Suppress only the compatibility click generated for this same gesture;
+      // a timed suppression can swallow the user's next, separate tap.
+      suppressCompatibilityClick = true;
     } else {
-      restoreCommittedButton(state);
-      clearDragPresentation(segment);
+      restoreCommittedButton(state, { sync: false });
+      clearDragPresentation(segment, { resetOffset: false });
     }
     window.requestAnimationFrame(() => syncMobileDockSegmentIndicators(root));
   };
@@ -2405,7 +2482,7 @@ function renderMobileContextDock(tab, state, context = {}) {
 }
 
 function initializeMobileDockSegmentIndicators(root) {
-  const segments = [...root.querySelectorAll(".mobile-dock-segmented")];
+  const segments = getMobileDockSegmentedControls(root);
   segments.forEach((segment) => segment.classList.add("is-initializing"));
   syncMobileDockSegmentIndicators(root);
   window.requestAnimationFrame(() => {
@@ -2414,7 +2491,13 @@ function initializeMobileDockSegmentIndicators(root) {
 }
 
 function syncMobileDockSegmentIndicators(root) {
-  root.querySelectorAll(".mobile-dock-segmented").forEach(syncMobileDockSegmentIndicator);
+  getMobileDockSegmentedControls(root).forEach(syncMobileDockSegmentIndicator);
+}
+
+function getMobileDockSegmentedControls(root) {
+  if (!root) return [];
+  const controls = [...root.querySelectorAll(".mobile-dock-segmented")];
+  return root.matches(".mobile-dock-segmented") ? [root, ...controls] : controls;
 }
 
 function syncMobileDockSegmentIndicator(segment) {

@@ -6887,8 +6887,13 @@ html[data-theme="light"] .weekly-weather-issued strong {
 }
 
 .hypocenter-presentation.compact .hypocenter-presentation-switch {
-  width: 72px;
-  padding: 1px;
+  /* Keep the compact buttons on the same 3px indicator inset as every
+     mobile segmented control.  The old 1px inset made the glass indicator
+     2px shorter and vertically offset from the buttons. */
+  box-sizing: border-box;
+  width: 76px;
+  height: 28px;
+  padding: 2px;
 }
 
 .hypocenter-presentation.compact .hypocenter-presentation-switch::before {
@@ -10447,9 +10452,13 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     margin-top: -2px;
   }
   .mobile-dock-mode-switch {
+    width: 100%;
+    max-width: none;
+    align-self: start;
     align-items: center;
     height: 34px;
     min-height: 34px;
+    margin: 0;
     box-sizing: border-box;
   }
 
@@ -10463,8 +10472,14 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     padding-block: 0;
   }
 
-  .mobile-dock-radar {
+  .mobile-dock-radar,
+  .mobile-dock-typhoon,
+  .mobile-dock-earthquake,
+  .mobile-dock-earthquake-distribution {
     align-content: start;
+  }
+
+  .mobile-dock-radar {
     gap: 5px;
     padding-top: 5px;
   }
@@ -11221,16 +11236,6 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     gap: 2px;
     padding-top: 5px;
     box-sizing: border-box;
-  }
-
-  .mobile-dock-typhoon-world .mobile-dock-mode-switch {
-    height: 34px;
-    min-height: 34px;
-  }
-
-  .mobile-dock-typhoon-world .mobile-dock-mode-switch .mobile-dock-action {
-    height: 26px;
-    min-height: 26px;
   }
 
   .mobile-dock-world-model-toggles {

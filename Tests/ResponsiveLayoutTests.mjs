@@ -82,6 +82,61 @@ assert.match(
   "tab dragging must measure its origin after previewing the tab under the pointer"
 );
 assert.match(
+  panel,
+  /function setupSegmentedControls\(root\)[\s\S]*?let suppressCompatibilityClick = false;[\s\S]*?buttonPresentation: captureButtonPresentation\(segment\),[\s\S]*?activeLeft: previewButton\.offsetLeft,[\s\S]*?if \(previewButton !== activeButton\) renderPreview\(segment, previewButton\);/,
+  "all segmented controls must preview the released selection from the button under the pointer"
+);
+assert.match(
+  panel,
+  /targetButton\.click\(\);[\s\S]*?suppressCompatibilityClick = true;/,
+  "segmented controls must commit their action before suppressing only the compatibility click"
+);
+assert.match(
+  panel,
+  /if \(targetButton !== state\.previewButton\) renderPreview\(segment, targetButton, \{ sync: false \}\);[\s\S]*?targetButton\.click\(\);[\s\S]*?clearDragPresentation\(segment, \{ resetOffset: false \}\);[\s\S]*?window\.requestAnimationFrame\(\(\) => syncMobileDockSegmentIndicators\(root\)\);/,
+  "segmented controls must preserve the glass indicator through release before settling it"
+);
+assert.match(
+  panel,
+  /function getMobileDockSegmentedControls\(root\)[\s\S]*?return root\.matches\("\.mobile-dock-segmented"\) \? \[root, \.\.\.controls\] : controls;/,
+  "a standalone segmented control must initialize and synchronize its own indicator"
+);
+assert.match(
+  styles,
+  /\.mobile-dock-mode-switch\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*none;[\s\S]*?align-self:\s*start;[\s\S]*?height:\s*34px;[\s\S]*?margin:\s*0;/,
+  "mobile forecast switches must share a fixed full-width track"
+);
+assert.match(
+  styles,
+  /\.mobile-dock-radar,[\s\S]*?\.mobile-dock-typhoon,[\s\S]*?\.mobile-dock-earthquake,[\s\S]*?\.mobile-dock-earthquake-distribution\s*\{[\s\S]*?align-content:\s*start;/,
+  "radar, typhoon, and earthquake forecast switches must share one vertical alignment baseline"
+);
+assert.match(
+  panel,
+  /function consumeCompatibilityClick\(event, isSuppressed, clearSuppression, selector\)[\s\S]*?event\.stopImmediatePropagation\(\);/,
+  "segmented controls must share one compatibility-click guard instead of time-based dead zones"
+);
+assert.match(
+  panel,
+  /function setupAmedasDailyChartToggle[\s\S]*?let suppressCompatibilityClick = false;[\s\S]*?targetButton\.click\(\);[\s\S]*?suppressCompatibilityClick = true;/,
+  "the AMeDAS chart day slider must use the same compatibility-click behavior as the bottom dock"
+);
+assert.match(
+  panel,
+  /function setupAmedasDailyChartToggle[\s\S]*?if \(targetButton !== state\.previewButton\) renderSliderButton\(slider, targetButton, \{ sync: false \}\);[\s\S]*?targetButton\.click\(\);[\s\S]*?slider\.classList\.remove\("is-dragging"\);[\s\S]*?window\.requestAnimationFrame\(\(\) => \{[\s\S]*?renderSliderButton\(slider, targetButton\);[\s\S]*?resetSlider\(slider\);/,
+  "the AMeDAS chart day slider must preserve its indicator through release"
+);
+assert.match(
+  panel,
+  /function setupAmedasRankingToggle[\s\S]*?let suppressCompatibilityClick = false;[\s\S]*?targetButton\.click\(\);[\s\S]*?suppressCompatibilityClick = true;/,
+  "the AMeDAS ranking sliders must use the same compatibility-click behavior as the bottom dock"
+);
+assert.match(
+  panel,
+  /function setupAmedasRankingToggle[\s\S]*?if \(targetButton !== state\.previewButton\) renderRankingSliderButton\(slider, targetButton, \{ sync: false \}\);[\s\S]*?targetButton\.click\(\);[\s\S]*?slider\.classList\.remove\("is-dragging"\);[\s\S]*?window\.requestAnimationFrame\(\(\) => \{[\s\S]*?renderRankingSliderButton\(slider, targetButton\);[\s\S]*?resetRankingSlider\(slider\);/,
+  "the AMeDAS ranking sliders must preserve their indicator through release"
+);
+assert.match(
   tabs,
   /let committedTabId = null;[\s\S]*?function getActiveTabId\(\) \{[\s\S]*?return committedTabId \?\? getRenderedTabId\(\);/,
   "tab navigation must keep the application-owned tab separate from pointer preview state"

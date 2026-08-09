@@ -147,6 +147,11 @@ assert.match(
   /html\[data-theme="light"\] \.earthquake-distribution-presentation-card \.hypocenter-presentation-switch::before\s*\{[^}]*box-shadow:\s*none/u,
 );
 assert.match(style, /\.hypocenter-presentation\.compact \.hypocenter-presentation-switch::before\s*\{[^}]*box-shadow:\s*none/u);
+assert.match(
+  style,
+  /\.hypocenter-presentation\.compact \.hypocenter-presentation-switch\s*\{[^}]*box-sizing:\s*border-box;[^}]*width:\s*76px;[^}]*height:\s*28px;[^}]*padding:\s*2px;/u,
+  "the compact hypocenter presentation slider must align its buttons with the shared 3px glass indicator inset"
+);
 assert.match(style, /html\[data-theme="light"\] \.hypocenter-presentation\.compact\s*\{[^}]*background:\s*transparent/u);
 assert.match(depthRenderer, /uniform float u_depth_scale/u);
 assert.match(depthRenderer, /a_position\.z \* u_depth_scale/u);
