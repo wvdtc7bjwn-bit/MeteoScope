@@ -62,6 +62,9 @@ export async function onRequest({ request, env }) {
     if (feedbackRoute && method === "PUT") {
       return await updateFeedback(request, env, decodeURIComponent(feedbackRoute[1]));
     }
+    if (feedbackRoute && method === "DELETE") {
+      return await deleteFeedback(env, decodeURIComponent(feedbackRoute[1]));
+    }
     if (route === "early-access/codes" && method === "GET") return await getEarlyAccessCodes(env);
     if (route === "early-access/codes" && method === "POST") return await createEarlyAccessCode(request, env);
     const earlyAccessActivationsRoute = route.match(/^early-access\/codes\/([^/]+)\/activations$/u);
@@ -285,6 +288,19 @@ async function updateFeedback(request, env, id) {
   next[index] = updateFeedbackRecord(next[index], payload, new Date().toISOString());
   await writeJson(env.NOTIFICATIONS_DB, FEEDBACK_KEY, next);
   return json({ feedback: normalizeFeedbackRecord(next[index]) });
+}
+
+async function deleteFeedback(env, id) {
+  if (!isFeedbackId(id)) return json({ error: "Invalid feedback ticket." }, { status: 400 });
+  const feedback = await readJson(env.NOTIFICATIONS_DB, FEEDBACK_KEY, []);
+  const entries = Array.isArray(feedback) ? feedback : [];
+  const next = entries.filter((item) => String(item?.id || "") !== id);
+  if (next.length === entries.length) {
+    return json({ error: "Feedback ticket was not found." }, { status: 404 });
+  }
+
+  await writeJson(env.NOTIFICATIONS_DB, FEEDBACK_KEY, next);
+  return json({ ok: true, id });
 }
 
 async function getEarlyAccessCodes(env) {

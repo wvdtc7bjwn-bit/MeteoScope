@@ -4,6 +4,8 @@ const FEEDBACK_ENDPOINT = "/api/public/feedback";
 const MIN_MESSAGE_LENGTH = 2;
 const MAX_MESSAGE_LENGTH = 1000;
 const MAX_RECENT_TICKETS = 8;
+const RECENT_TICKET_RETENTION_DAYS = 30;
+const RECENT_TICKET_MAX_AGE_MS = RECENT_TICKET_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 const RECENT_TICKETS_STORAGE_KEY = "meteoscope-support-tickets-v1";
 const FEATURE_BY_TAB = {
   radar: "radar",
@@ -30,13 +32,13 @@ const FEEDBACK_COPY = {
   ja: {
     moreDetail: "内容をもう少し入力してください。",
     sending: "送信しています…",
-    sent: "送信しました。受付状況はこの端末で確認できます。",
+    sent: "送信しました。受付状況はこの端末で30日間確認できます。",
     failed: "送信できませんでした。時間をおいてもう一度お試しください。"
   },
   en: {
     moreDetail: "Please enter more detail.",
     sending: "Sending…",
-    sent: "Sent. You can check the ticket status on this device.",
+    sent: "Sent. You can check the ticket status on this device for 30 days.",
     failed: "Could not send your report. Please try again shortly."
   }
 };
@@ -210,7 +212,9 @@ async function refreshRecentFeedback() {
     const result = await response.json().catch(() => ({}));
     if (!response.ok || result?.ok === false || !Array.isArray(result.feedback)) return;
     const updates = new Map(result.feedback.map((ticket) => [ticket.id, ticket]));
-    const next = tickets.map((ticket) => ({ ...ticket, ...(updates.get(ticket.id) || {}) }));
+    const next = tickets
+      .filter((ticket) => updates.has(ticket.id))
+      .map((ticket) => ({ ...ticket, ...updates.get(ticket.id) }));
     writeRecentTickets(next);
     renderRecentFeedback(next);
   } catch (error) {
@@ -266,9 +270,8 @@ function readRecentTickets() {
   try {
     const parsed = JSON.parse(localStorage.getItem(RECENT_TICKETS_STORAGE_KEY) || "[]");
     if (!Array.isArray(parsed)) return [];
-    return parsed
+    const tickets = parsed
       .filter((ticket) => /^[0-9a-f-]{36}$/iu.test(String(ticket?.id || "")))
-      .slice(0, MAX_RECENT_TICKETS)
       .map((ticket) => ({
         id: String(ticket.id),
         category: String(ticket.category || "other"),
@@ -278,6 +281,9 @@ function readRecentTickets() {
         updatedAt: String(ticket.updatedAt || ticket.createdAt || ""),
         response: String(ticket.response || "").slice(0, 600)
       }));
+    const retained = retainRecentTickets(tickets);
+    if (retained.length !== parsed.length) writeRecentTickets(retained);
+    return retained;
   } catch {
     return [];
   }
@@ -290,10 +296,19 @@ function storeRecentTicket(ticket) {
 
 function writeRecentTickets(tickets) {
   try {
-    localStorage.setItem(RECENT_TICKETS_STORAGE_KEY, JSON.stringify(tickets.slice(0, MAX_RECENT_TICKETS)));
+    localStorage.setItem(RECENT_TICKETS_STORAGE_KEY, JSON.stringify(retainRecentTickets(tickets)));
   } catch {
     // The support form remains usable when private browsing blocks local storage.
   }
+}
+
+function retainRecentTickets(tickets, now = Date.now()) {
+  return tickets
+    .filter((ticket) => {
+      const createdAt = Date.parse(String(ticket?.createdAt || ""));
+      return Number.isFinite(createdAt) && createdAt > 0 && now - createdAt < RECENT_TICKET_MAX_AGE_MS;
+    })
+    .slice(0, MAX_RECENT_TICKETS);
 }
 
 function formatTicketDate(value) {

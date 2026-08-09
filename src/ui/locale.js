@@ -938,9 +938,9 @@ const STATIC_UI_TRANSLATIONS = new Map(Object.entries({
   "回答を希望する場合のみ入力": "Enter only if you would like a reply",
   "送信時に付ける情報": "Information included with your report",
   "表示中のタブ、配色、言語、表示サイズ。位置情報・氏名・端末識別情報は送信しません。メールアドレスは回答を希望して入力した場合のみ送信します。": "Current tab, appearance, language, and display size. Location, name, and device identifiers are not sent. Email is sent only when you enter it to request a reply.",
-  "メールアドレスは回答を希望する場合だけ送信し、サポート対応以外には使いません。対応状況はこの端末でも確認できます。個人情報や緊急連絡は入力しないでください。": "Email is sent only when you request a reply and is used only for support. You can also check the ticket status on this device. Do not enter personal information or emergency reports.",
+  "メールアドレスは回答を希望する場合だけ送信し、サポート対応以外には使いません。対応状況はこの端末で30日間確認できます。個人情報や緊急連絡は入力しないでください。": "Email is sent only when you request a reply and is used only for support. You can check the ticket status on this device for 30 days. Do not enter personal information or emergency reports.",
   "受付番号": "Ticket number",
-  "この端末で対応状況を確認できます。": "You can check the ticket status on this device.",
+  "この端末で30日間、対応状況を確認できます。": "You can check the ticket status on this device for 30 days.",
   "この端末から送信した内容": "Reports sent from this device",
   "送信状況を更新": "Refresh ticket status",
   "内容をもう一度入力してください。": "Please enter more detail.",
@@ -951,7 +951,7 @@ const STATIC_UI_TRANSLATIONS = new Map(Object.entries({
   "対応済み": "Resolved",
   "対応を終了": "Closed",
   "利用者意見を送信した場合、入力本文、分類、閲覧ページおよび送信時刻を、改善内容の確認に使用してサーバーへ保存します。氏名、住所、連絡先などの個人情報や緊急情報は入力しないでください。": "When feedback is sent, its text, category, current page, and submission time are stored to review improvements. Location, name, address, and device identifiers are not sent. An email address is stored only when you choose to enter it for a support reply, and it is not included in the public ticket-status API. Do not enter emergency reports.",
-  "サポート・ご意見を送信した場合、入力本文、分類、対象機能、期待する結果、表示中のタブ、配色、表示言語、表示サイズ、送信時刻および対応状況を、サポート対応と改善内容の確認に使用してサーバーへ保存します。位置情報、氏名、住所、端末識別情報は送信しません。回答を希望して任意入力されたメールアドレスは、サポート回答の連絡先としてのみ保存・使用します。氏名、住所、連絡先などの個人情報や緊急情報は入力しないでください。受付番号と対応状況はこの端末に最大8件保存され、ブラウザのサイトデータ削除で消去できます。": "When you send support feedback, the message, category, feature, expected result, current tab, appearance, language, display size, submission time, and support status are stored for support and improvement. Location, name, address, and device identifiers are not sent. An email address is stored and used only when you optionally enter it for a reply. Do not enter personal information or emergency reports. This device stores up to eight ticket numbers and status updates, which are removed when you clear browser site data."
+  "サポート・ご意見を送信した場合、入力本文、分類、対象機能、期待する結果、表示中のタブ、配色、表示言語、表示サイズ、送信時刻および対応状況を、サポート対応と改善内容の確認に使用してサーバーへ保存します。位置情報、氏名、住所、端末識別情報は送信しません。回答を希望して任意入力されたメールアドレスは、サポート回答の連絡先としてのみ保存・使用します。氏名、住所、連絡先などの個人情報や緊急情報は入力しないでください。受付番号と対応状況はこの端末に最大8件、送信から30日間保存され、期限後の次回表示または状況更新時に消去できます。": "When you send support feedback, the message, category, feature, expected result, current tab, appearance, language, display size, submission time, and support status are stored for support and improvement. Location, name, address, and device identifiers are not sent. An email address is stored and used only when you optionally enter it for a reply. Do not enter emergency reports. This device stores up to eight ticket numbers and status updates for 30 days, then removes them when the support view is next opened or refreshed."
 }));
 
 const DYNAMIC_UI_TRANSLATIONS = new Map(Object.entries({

@@ -129,8 +129,13 @@ function bindEvents() {
     void refreshFeedback();
   });
   elements.feedbackList?.addEventListener("click", (event) => {
-    const button = event.target.closest("[data-save-feedback]");
-    if (button instanceof HTMLButtonElement) void updateFeedbackFromControl(button);
+    const deleteButton = event.target.closest("[data-delete-feedback]");
+    if (deleteButton instanceof HTMLButtonElement) {
+      void deleteFeedbackFromControl(deleteButton);
+      return;
+    }
+    const saveButton = event.target.closest("[data-save-feedback]");
+    if (saveButton instanceof HTMLButtonElement) void updateFeedbackFromControl(saveButton);
   });
 
   elements.purgeCacheButton.addEventListener("click", () => {
@@ -863,6 +868,25 @@ async function updateFeedbackFromControl(button) {
   }
 }
 
+async function deleteFeedbackFromControl(button) {
+  const card = button.closest(".admin-feedback-item");
+  const id = card?.dataset.feedbackId;
+  if (!id) return;
+  if (!confirm("このサポート履歴をD1から完全に削除します。元に戻すことはできません。")) return;
+
+  button.disabled = true;
+  setMessage(elements.dashboardMessage, "サポート履歴をD1から削除中...");
+  try {
+    await requestJson("/feedback/" + encodeURIComponent(id), { method: "DELETE" });
+    currentFeedback = currentFeedback.filter((item) => item.id !== id);
+    renderFeedback();
+    setMessage(elements.dashboardMessage, "サポート履歴をD1から完全に削除しました。", "success");
+  } catch (error) {
+    button.disabled = false;
+    setMessage(elements.dashboardMessage, error.message || "サポート履歴を削除できませんでした。", "error");
+  }
+}
+
 function createFeedbackEmptyState() {
   const empty = document.createElement("p");
   empty.className = "admin-muted";
@@ -939,7 +963,13 @@ function createFeedbackCard(item) {
   save.className = "admin-small-button";
   save.dataset.saveFeedback = "";
   save.textContent = "対応状況を保存";
-  controls.append(statusLabel, responseLabel, save);
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "admin-small-button admin-feedback-delete";
+  remove.dataset.deleteFeedback = "";
+  remove.textContent = "D1から削除";
+  remove.setAttribute("aria-label", "このサポート履歴をD1から完全に削除");
+  controls.append(statusLabel, responseLabel, save, remove);
   card.append(controls);
   return card;
 }
