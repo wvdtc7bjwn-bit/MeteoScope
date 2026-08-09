@@ -19,7 +19,7 @@ assert.match(html, /id="legal-consent-privacy" type="checkbox"/);
 assert.match(html, /data-legal-consent-accept disabled/);
 assert.doesNotMatch(html, /legal-consent-modal[\s\S]{0,500}data-legal-consent-close/);
 
-assert.match(consentModule, /LEGAL_CONSENT_VERSION = "2026-07-16"/);
+assert.match(consentModule, /LEGAL_CONSENT_VERSION = "2026-08-09"/);
 assert.match(consentModule, /termsConsent\.checked && privacyConsent\.checked/);
 assert.match(consentModule, /localStorage\.setItem\(STORAGE_KEY, LEGAL_CONSENT_VERSION\)/);
 assert.match(consentModule, /#app > :not\(#legal-consent-modal\)/);

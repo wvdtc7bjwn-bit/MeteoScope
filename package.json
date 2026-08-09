@@ -22,6 +22,7 @@
     "test:community": "node Tests/CommunityReportTests.mjs",
     "test:early-access": "node Tests/EarlyAccessReleaseTests.mjs && node Tests/EarlyAccessActiveFaultTests.mjs",
     "test:admin": "node Tests/AdminManagementTests.mjs && node Tests/CloudflareFreeTierAnalyticsTests.mjs",
+    "test:feedback": "node Tests/FeedbackSupportTests.mjs",
     "test:tsunami": "node Tests/TsunamiXmlTests.mjs && node Tests/TsunamiTestScenarioTests.mjs",
     "test:tide": "node Tests/TideLevelTests.mjs",
     "test:typhoon": "node Tests/TyphoonTests.mjs",

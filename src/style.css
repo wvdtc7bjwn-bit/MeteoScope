@@ -4099,6 +4099,26 @@ html[data-theme="light"] .weekly-weather-issued strong {
   display: grid;
   gap: 12px;
   padding: 14px 16px 16px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.feedback-form::-webkit-scrollbar { display: none; }
+
+.feedback-intro {
+  margin: 0;
+  color: #d8e6f6;
+  font-size: 12.5px;
+  font-weight: 750;
+  line-height: 1.6;
+}
+
+.feedback-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .feedback-field {
@@ -4113,7 +4133,8 @@ html[data-theme="light"] .weekly-weather-issued strong {
 }
 
 .feedback-field select,
-.feedback-field textarea {
+.feedback-field textarea,
+.feedback-field input {
   width: 100%;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 12px;
@@ -4130,6 +4151,11 @@ html[data-theme="light"] .weekly-weather-issued strong {
   padding: 8px 10px;
 }
 
+.feedback-field input {
+  min-height: 40px;
+  padding: 8px 10px;
+}
+
 .feedback-field textarea {
   min-height: 156px;
   resize: vertical;
@@ -4138,7 +4164,8 @@ html[data-theme="light"] .weekly-weather-issued strong {
 }
 
 .feedback-field select:focus,
-.feedback-field textarea:focus {
+.feedback-field textarea:focus,
+.feedback-field input:focus {
   border-color: rgba(86, 183, 242, 0.64);
   box-shadow: 0 0 0 3px rgba(86, 183, 242, 0.12);
 }
@@ -4151,6 +4178,64 @@ html[data-theme="light"] .weekly-weather-issued strong {
   font-weight: 700;
   line-height: 1.55;
 }
+
+.feedback-context,
+.feedback-ticket,
+.feedback-recent {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 11px 12px;
+  border: 1px solid rgba(126, 162, 203, 0.24);
+  border-radius: 12px;
+  background: rgba(16, 35, 61, 0.58);
+}
+
+.feedback-context strong,
+.feedback-ticket > span,
+.feedback-recent-head strong {
+  color: #dcecff;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.feedback-context span,
+.feedback-ticket p,
+.feedback-recent time {
+  margin: 0;
+  color: #aebfd5;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.feedback-ticket strong { color: #7bd3ff; font-size: 14px; letter-spacing: .04em; }
+.feedback-ticket[hidden], .feedback-recent[hidden] { display: none; }
+
+.feedback-recent { gap: 9px; }
+.feedback-recent-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.feedback-recent-head button {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(126, 162, 203, 0.3);
+  border-radius: 50%;
+  background: rgba(86, 183, 242, 0.1);
+  color: #cceeff;
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.feedback-recent ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.feedback-recent-item { display: grid; gap: 5px; padding-top: 8px; border-top: 1px solid rgba(126, 162, 203, 0.17); }
+.feedback-recent-item:first-child { padding-top: 0; border-top: 0; }
+.feedback-recent-item > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.feedback-recent-item strong { color: #eff7ff; font-size: 12px; }
+.feedback-recent-item p { margin: 0; color: #cee4f7; font-size: 12px; font-weight: 700; line-height: 1.55; white-space: pre-wrap; }
 
 .feedback-actions {
   display: flex;
@@ -4218,6 +4303,10 @@ html[data-theme="light"] .weekly-weather-issued strong {
   .feedback-actions {
     display: grid;
     grid-template-columns: 1fr 1fr;
+  }
+
+  .feedback-field-grid {
+    grid-template-columns: 1fr;
   }
 
   .feedback-secondary,
@@ -10628,7 +10717,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-typhoon-main {
     display: grid;
-    grid-template-columns: minmax(148px, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 10px;
     min-width: 0;
@@ -10752,7 +10841,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-typhoon-values {
     display: grid;
-    grid-template-columns: repeat(2, 60px);
+    grid-template-columns: repeat(2, 62px);
     gap: 5px;
   }
 
@@ -10762,7 +10851,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   }
 
   .mobile-dock-typhoon-values.has-switch {
-    grid-template-columns: 60px 60px 42px;
+    grid-template-columns: 62px 62px 40px;
   }
 
   .mobile-dock-typhoon-values span {
@@ -10776,8 +10865,11 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     border: 1px solid rgba(199, 224, 248, 0.16);
     border-radius: 12px;
     color: #f4fbff;
-    font-size: 12.5px;
+    overflow: hidden;
+    font-size: clamp(10.5px, 3.1vw, 11.5px);
     font-weight: 950;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.025em;
     line-height: 1.1;
     text-align: center;
     white-space: nowrap;
@@ -19246,6 +19338,26 @@ html[data-theme="light"] .modal-loading-state {
 
 html[data-theme="light"] .modal-loading-copy small {
   color: #5a6f85;
+}
+
+html[data-theme="light"] .feedback-intro { color: #2f4b66; }
+html[data-theme="light"] .feedback-field span { color: #506b84; }
+html[data-theme="light"] :is(.feedback-field select, .feedback-field textarea, .feedback-field input) {
+  border-color: rgba(68, 101, 134, 0.24);
+  background: rgba(255, 255, 255, 0.82);
+  color: #19344d;
+}
+html[data-theme="light"] :is(.feedback-context, .feedback-ticket, .feedback-recent) {
+  border-color: rgba(68, 101, 134, 0.2);
+  background: rgba(244, 249, 253, 0.84);
+}
+html[data-theme="light"] :is(.feedback-context strong, .feedback-ticket > span, .feedback-recent-head strong, .feedback-recent-item strong) { color: #17334d; }
+html[data-theme="light"] :is(.feedback-context span, .feedback-ticket p, .feedback-recent time, .feedback-note, .feedback-status, .feedback-recent-item p) { color: #4c6680; }
+html[data-theme="light"] .feedback-ticket strong { color: #0d6c9a; }
+html[data-theme="light"] .feedback-recent-head button {
+  border-color: rgba(48, 126, 173, 0.28);
+  background: rgba(79, 168, 207, 0.12);
+  color: #176387;
 }
 
 @keyframes modal-loading-spin {

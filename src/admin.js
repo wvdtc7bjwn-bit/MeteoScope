@@ -128,6 +128,10 @@ function bindEvents() {
   elements.refreshFeedbackButton.addEventListener("click", () => {
     void refreshFeedback();
   });
+  elements.feedbackList?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-save-feedback]");
+    if (button instanceof HTMLButtonElement) void updateFeedbackFromControl(button);
+  });
 
   elements.purgeCacheButton.addEventListener("click", () => {
     void purgeCache();
@@ -829,20 +833,115 @@ async function refreshFeedback() {
 function renderFeedback() {
   if (!elements.feedbackList) return;
   if (!currentFeedback.length) {
-    elements.feedbackList.innerHTML = `<p class="admin-muted">利用者意見はまだありません。</p>`;
+    elements.feedbackList.replaceChildren(createFeedbackEmptyState());
     return;
   }
+  elements.feedbackList.replaceChildren(...currentFeedback.map(createFeedbackCard));
+}
 
-  elements.feedbackList.innerHTML = currentFeedback.map((item) => `
-    <article class="admin-feedback-item">
-      <div class="admin-feedback-meta">
-        <span>${escapeHtml(feedbackCategoryLabel(item.category))}</span>
-        <time>${escapeHtml(formatDateTime(item.createdAt))}</time>
-      </div>
-      <p>${escapeHtml(item.message || "")}</p>
-      <small>${escapeHtml(item.page || "/")}</small>
-    </article>
-  `).join("");
+async function updateFeedbackFromControl(button) {
+  const card = button.closest(".admin-feedback-item");
+  const id = card?.dataset.feedbackId;
+  const status = card?.querySelector("[data-feedback-status]");
+  const response = card?.querySelector("[data-feedback-response]");
+  if (!id || !(status instanceof HTMLSelectElement) || !(response instanceof HTMLTextAreaElement)) return;
+
+  button.disabled = true;
+  setMessage(elements.dashboardMessage, "サポート対応状況を保存中...");
+  try {
+    const result = await requestJson("/feedback/" + encodeURIComponent(id), {
+      method: "PUT",
+      body: { status: status.value, response: response.value }
+    });
+    const index = currentFeedback.findIndex((item) => item.id === id);
+    if (index >= 0 && result.feedback) currentFeedback[index] = result.feedback;
+    renderFeedback();
+    setMessage(elements.dashboardMessage, "サポート対応状況を保存しました。", "success");
+  } catch (error) {
+    button.disabled = false;
+    setMessage(elements.dashboardMessage, error.message || "サポート対応状況を保存できませんでした。", "error");
+  }
+}
+
+function createFeedbackEmptyState() {
+  const empty = document.createElement("p");
+  empty.className = "admin-muted";
+  empty.textContent = "利用者意見はまだありません。";
+  return empty;
+}
+
+function createFeedbackCard(item) {
+  const card = document.createElement("article");
+  card.className = "admin-feedback-item";
+  card.dataset.feedbackId = item.id || "";
+
+  const meta = document.createElement("div");
+  meta.className = "admin-feedback-meta";
+  const category = document.createElement("span");
+  category.textContent = feedbackCategoryLabel(item.category);
+  const topic = document.createElement("span");
+  topic.textContent = feedbackTopicLabel(item.topic);
+  const state = document.createElement("span");
+  state.className = "admin-feedback-state";
+  state.textContent = feedbackStatusLabel(item.status);
+  const time = document.createElement("time");
+  time.textContent = formatDateTime(item.createdAt);
+  meta.append(category, topic, state, time);
+  card.append(meta);
+
+  const message = document.createElement("p");
+  message.textContent = item.message || "";
+  card.append(message);
+  if (item.expected) {
+    const expected = document.createElement("p");
+    expected.className = "admin-feedback-expected";
+    expected.textContent = "期待する結果: " + item.expected;
+    card.append(expected);
+  }
+
+  const details = document.createElement("small");
+  details.textContent = [item.page || "/", feedbackContextLabel(item.context)].filter(Boolean).join(" · ");
+  card.append(details);
+  if (item.email) {
+    const email = document.createElement("a");
+    email.className = "admin-feedback-email";
+    email.href = "mailto:" + encodeURIComponent(item.email);
+    email.textContent = item.email;
+    card.append(email);
+  }
+
+  const controls = document.createElement("div");
+  controls.className = "admin-feedback-controls";
+  const statusLabel = document.createElement("label");
+  statusLabel.textContent = "対応状況";
+  const status = document.createElement("select");
+  status.dataset.feedbackStatus = "";
+  for (const value of ["received", "reviewing", "planned", "resolved", "closed"]) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = feedbackStatusLabel(value);
+    option.selected = value === (item.status || "received");
+    status.append(option);
+  }
+  statusLabel.append(status);
+
+  const responseLabel = document.createElement("label");
+  responseLabel.textContent = "端末へ表示する案内";
+  const response = document.createElement("textarea");
+  response.rows = 3;
+  response.maxLength = 600;
+  response.value = item.response || "";
+  response.dataset.feedbackResponse = "";
+  responseLabel.append(response);
+
+  const save = document.createElement("button");
+  save.type = "button";
+  save.className = "admin-small-button";
+  save.dataset.saveFeedback = "";
+  save.textContent = "対応状況を保存";
+  controls.append(statusLabel, responseLabel, save);
+  card.append(controls);
+  return card;
 }
 
 async function purgeCache() {
@@ -914,11 +1013,46 @@ function buildNoticePreviewText(notice) {
 
 function feedbackCategoryLabel(category) {
   return {
+    support: "使い方・サポート",
     request: "改善要望",
     bug: "不具合",
     design: "デザイン",
     other: "その他"
   }[category] || "その他";
+}
+
+function feedbackTopicLabel(topic) {
+  return {
+    general: "全般",
+    radar: "雨雲・雷",
+    amedas: "アメダス",
+    warnings: "警報・注意報",
+    typhoon: "台風",
+    earthquake: "地震・火山",
+    settings: "設定・表示",
+    account: "アカウント",
+    notification: "お知らせ通知",
+    accessibility: "操作・見やすさ",
+    other: "その他"
+  }[topic] || "全般";
+}
+
+function feedbackStatusLabel(status) {
+  return {
+    received: "受付済み",
+    reviewing: "確認中",
+    planned: "対応予定",
+    resolved: "対応済み",
+    closed: "対応を終了"
+  }[status] || "受付済み";
+}
+
+function feedbackContextLabel(context) {
+  if (!context || typeof context !== "object") return "";
+  const tab = feedbackTopicLabel(context.tab);
+  const theme = context.theme === "light" ? "ライト" : context.theme === "dark" ? "ダーク" : "システム";
+  const language = context.language === "en" ? "英語" : "日本語";
+  return [tab, theme, language, context.viewport].filter(Boolean).join(" / ");
 }
 
 function formatDateTime(value) {

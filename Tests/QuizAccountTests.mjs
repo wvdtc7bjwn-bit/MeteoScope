@@ -105,7 +105,7 @@ assert.match(leaderboardCacheSource, /QUIZ_DIFFICULTIES\.map\(\(difficulty\) => 
 assert.doesNotMatch(quizCatalogSource, /\bwith\s*\{\s*type:\s*["']json["']\s*\}/u);
 assert.doesNotMatch(routeSource, /function bestScoresCTE/u);
 assert.match(privacyPage, /MeteoScopeアカウント/u);
-assert.match(supportPage, /MeteoScopeアカウント/u);
+assert.match(supportPage, /MeteoScopeのサポート画面/u);
 assert.match(indexPage, /<div class="settings-modal-body">[\s\S]*?<section class="settings-group settings-account-group"/u);
 assert.match(indexPage, /data-settings-account-form="login"[\s\S]*?data-settings-account-form="register"/u);
 assert.match(indexPage, /data-settings-account-logout/u);

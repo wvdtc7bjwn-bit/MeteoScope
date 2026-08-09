@@ -370,11 +370,11 @@
           </section>
           <h3 class="settings-section-label" data-settings-section-label="support">サポート・情報</h3>
           <section class="settings-group settings-feedback-group" data-settings-section="support">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>利用者意見</strong><small>改善要望・不具合を送信</small></span></button>
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>サポート・ご意見</strong><small>使い方・不具合・改善要望を送信</small></span></button>
             <div class="settings-group-content" hidden>
               <div class="settings-feedback-row">
-                <p>改善要望や気づいた不具合を送信できます。個人情報は入力しないでください。</p>
-                <button id="feedback-open" class="settings-feedback-open" type="button" aria-haspopup="dialog" aria-controls="feedback-modal">意見を書く</button>
+                <p>操作の相談、不具合、改善要望を受け付けます。緊急時は気象庁・自治体へ連絡してください。</p>
+                <button id="feedback-open" class="settings-feedback-open" type="button" aria-haspopup="dialog" aria-controls="feedback-modal">サポートを開く</button>
               </div>
             </div>
           </section>
@@ -430,12 +430,12 @@
                 <p><strong>1. 取得・利用する情報</strong><br>本アプリは、選択した外観、表示切替ボタンの順序、マイエリア、使い方ガイドの確認状態、通知設定、アーリーアクセス認証情報などを、機能提供と設定保持のために利用します。</p>
                 <p><strong>2. 位置情報</strong><br>端末の位置情報は、現在地の表示、現在地に対応する市区町村・予報区域・防災情報の照合、周辺情報の表示に使用します。緯度・経度そのものは本アプリのサーバーへ保存しません。Web版のお知らせ通知では、現在地や通知対象区域をサーバーへ送信しません。</p>
                 <p><strong>3. プッシュ通知</strong><br>Web版のお知らせ通知を有効にした場合、ブラウザのPush購読情報を管理者からのお知らせ配信のために保存します。Web版では気象警報・注意報をプッシュ通知せず、通知対象区域、通知設定、警報状態を保存しません。通知解除または購読が無効になった場合に削除し、配信にはブラウザやOSが利用するPush配信サービスを経由します。</p>
-                <p><strong>4. 利用者意見</strong><br>利用者意見を送信した場合、入力本文、分類、閲覧ページおよび送信時刻を、改善内容の確認に使用してサーバーへ保存します。氏名、住所、連絡先などの個人情報や緊急情報は入力しないでください。</p>
+                <p><strong>4. サポート・ご意見</strong><br>サポート・ご意見を送信した場合、入力本文、分類、対象機能、期待する結果、表示中のタブ、配色、表示言語、表示サイズ、送信時刻および対応状況を、サポート対応と改善内容の確認に使用してサーバーへ保存します。位置情報、氏名、住所、端末識別情報は送信しません。回答を希望して任意入力されたメールアドレスは、サポート回答の連絡先としてのみ保存・使用します。氏名、住所、連絡先などの個人情報や緊急情報は入力しないでください。受付番号と対応状況はこの端末に最大8件保存され、ブラウザのサイトデータ削除で消去できます。</p>
                 <p><strong>5. アーリーアクセス</strong><br>シリアルコードの認証時には、コードを一方向変換した値、利用回数、認証日時、有効期限および発行された認証トークンに関する情報を保存します。入力したシリアルコードそのものを平文では保存しません。</p>
                 <p><strong>6. 端末内に保存する情報</strong><br>防災マップとして選択したPDF・画像、防災メモ、目印、マイエリア、外観や表示順などの設定は、原則としてブラウザのLocal StorageまたはIndexedDBへ保存されます。防災マップと防災メモは本アプリのサーバーへ送信しません。設定画面またはブラウザのサイトデータ削除により消去できます。</p>
                 <p><strong>7. 外部サービスへの通信</strong><br>気象・地震・地図などのデータ取得時には、気象庁、地図配信元その他の情報提供元へ通信します。また、アプリ配信、API、データ保存および通知処理にはCloudflareのサービスを利用します。通信時には、各提供元にIPアドレス、ブラウザ情報、アクセス日時などが送信される場合があります。</p>
                 <p><strong>8. 管理と変更</strong><br>保存情報は、機能提供、セキュリティ確保、不具合調査および不正利用防止に必要な範囲で取り扱います。本ポリシーは、機能や法令の変更に応じて更新する場合があります。</p>
-                <p><small>最終更新日: 2026年7月15日</small></p>
+                <p><small>最終更新日: 2026年8月9日</small></p>
               </div>
             </div>
           </section>
@@ -505,29 +505,73 @@
       <div class="warning-modal-backdrop feedback-modal-overlay" data-feedback-modal-close></div>
       <section class="warning-modal-panel feedback-modal-panel" role="dialog" aria-modal="true" aria-labelledby="feedback-modal-title">
         <header class="settings-modal-header feedback-modal-header">
-          <h2 id="feedback-modal-title">利用者意見</h2>
+          <h2 id="feedback-modal-title">サポート・ご意見</h2>
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-feedback-modal-close>×</button>
         </header>
         <form id="feedback-form" class="feedback-form">
-          <label class="feedback-field" for="feedback-category">
-            <span>種類</span>
-            <select id="feedback-category" name="category">
-              <option value="request">改善要望</option>
-              <option value="bug">不具合</option>
-              <option value="design">デザイン</option>
-              <option value="other">その他</option>
-            </select>
-          </label>
+          <p class="feedback-intro">操作の相談、不具合、改善要望を受け付けます。緊急時の連絡窓口ではありません。</p>
+          <div class="feedback-field-grid">
+            <label class="feedback-field" for="feedback-category">
+              <span>種類</span>
+              <select id="feedback-category" name="category">
+                <option value="support">使い方・サポート</option>
+                <option value="request">改善要望</option>
+                <option value="bug">不具合</option>
+                <option value="design">デザイン</option>
+                <option value="other">その他</option>
+              </select>
+            </label>
+            <label class="feedback-field" for="feedback-topic">
+              <span>対象の機能</span>
+              <select id="feedback-topic" name="topic">
+                <option value="general">全般</option>
+                <option value="radar">雨雲・雷</option>
+                <option value="amedas">アメダス</option>
+                <option value="warnings">警報・注意報</option>
+                <option value="typhoon">台風</option>
+                <option value="earthquake">地震・火山</option>
+                <option value="settings">設定・表示</option>
+                <option value="account">アカウント</option>
+                <option value="notification">お知らせ通知</option>
+                <option value="accessibility">操作・見やすさ</option>
+                <option value="other">その他</option>
+              </select>
+            </label>
+          </div>
           <label class="feedback-field" for="feedback-message">
-            <span>内容</span>
-            <textarea id="feedback-message" name="message" rows="7" maxlength="1000" required placeholder="例: スマホで警報タブを開いた時、表示をもう少し軽くしてほしい"></textarea>
+            <span>困っていること・起きたこと</span>
+            <textarea id="feedback-message" name="message" rows="5" maxlength="1000" required placeholder="例: スマホで警報タブを開いた時、表示をもう少し軽くしてほしい"></textarea>
           </label>
-          <p class="feedback-note">送信内容はアプリ改善の確認にのみ使用します。個人情報や緊急連絡は入力しないでください。</p>
+          <label class="feedback-field feedback-field-expected" for="feedback-expected">
+            <span>期待する結果（任意）</span>
+            <textarea id="feedback-expected" name="expected" rows="3" maxlength="500" placeholder="例: 地図を動かしても一覧がすぐに読める状態を期待します"></textarea>
+          </label>
+          <label class="feedback-field feedback-field-email" for="feedback-email">
+            <span>回答を希望するメールアドレス（任意）</span>
+            <input id="feedback-email" name="email" type="email" inputmode="email" autocomplete="email" maxlength="254" placeholder="回答を希望する場合のみ入力">
+          </label>
+          <aside class="feedback-context" aria-label="送信時に付ける情報">
+            <strong>送信時に付ける情報</strong>
+            <span>表示中のタブ、配色、言語、表示サイズ。位置情報・氏名・端末識別情報は送信しません。メールアドレスは回答を希望して入力した場合のみ送信します。</span>
+          </aside>
+          <p class="feedback-note">メールアドレスは回答を希望する場合だけ送信し、サポート対応以外には使いません。対応状況はこの端末でも確認できます。個人情報や緊急連絡は入力しないでください。</p>
           <div class="feedback-actions">
             <button class="feedback-secondary" type="button" data-feedback-modal-close>閉じる</button>
             <button id="feedback-submit" class="feedback-submit" type="submit">送信</button>
           </div>
           <p id="feedback-status" class="feedback-status" aria-live="polite"></p>
+          <section id="feedback-ticket" class="feedback-ticket" hidden aria-live="polite">
+            <span>受付番号</span>
+            <strong id="feedback-ticket-id"></strong>
+            <p>この端末で対応状況を確認できます。</p>
+          </section>
+          <section id="feedback-recent" class="feedback-recent" hidden>
+            <div class="feedback-recent-head">
+              <strong>この端末から送信した内容</strong>
+              <button id="feedback-recent-refresh" type="button" aria-label="送信状況を更新">↻</button>
+            </div>
+            <ul id="feedback-recent-list"></ul>
+          </section>
         </form>
       </section>
     </div>

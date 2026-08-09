@@ -8,6 +8,9 @@ import { invalidateAllQuizLeaderboardCaches } from "../../_shared/quizLeaderboar
 import {
   deleteAdminPushBroadcast, listAdminPushBroadcasts, queueAdminPushBroadcast
 } from "../push/[[path]].js";
+import {
+  isFeedbackId, normalizeFeedbackRecord, updateFeedbackRecord
+} from "../../_shared/feedbackSupport.js";
 
 const CONFIG_KEY = "app-config";
 const NOTICES_KEY = "app-notices";
@@ -55,6 +58,10 @@ export async function onRequest({ request, env }) {
       return await deletePushBroadcast(route.slice("push/broadcasts/".length), env);
     }
     if (route === "feedback" && method === "GET") return await getFeedback(env);
+    const feedbackRoute = route.match(/^feedback\/([^/]+)$/u);
+    if (feedbackRoute && method === "PUT") {
+      return await updateFeedback(request, env, decodeURIComponent(feedbackRoute[1]));
+    }
     if (route === "early-access/codes" && method === "GET") return await getEarlyAccessCodes(env);
     if (route === "early-access/codes" && method === "POST") return await createEarlyAccessCode(request, env);
     const earlyAccessActivationsRoute = route.match(/^early-access\/codes\/([^/]+)\/activations$/u);
@@ -261,9 +268,23 @@ async function getFeedback(env) {
   const feedback = await readJson(env.NOTIFICATIONS_DB, FEEDBACK_KEY, []);
   return json({
     feedback: Array.isArray(feedback)
-      ? feedback.slice(0, 100).map(normalizeFeedback)
+      ? feedback.slice(0, 250).map(normalizeFeedbackRecord)
       : []
   });
+}
+
+async function updateFeedback(request, env, id) {
+  if (!isFeedbackId(id)) return json({ error: "Invalid feedback ticket." }, { status: 400 });
+  const payload = await request.json().catch(() => ({}));
+  const feedback = await readJson(env.NOTIFICATIONS_DB, FEEDBACK_KEY, []);
+  const entries = Array.isArray(feedback) ? feedback : [];
+  const index = entries.findIndex((item) => String(item?.id || "") === id);
+  if (index < 0) return json({ error: "Feedback ticket was not found." }, { status: 404 });
+
+  const next = [...entries];
+  next[index] = updateFeedbackRecord(next[index], payload, new Date().toISOString());
+  await writeJson(env.NOTIFICATIONS_DB, FEEDBACK_KEY, next);
+  return json({ feedback: normalizeFeedbackRecord(next[index]) });
 }
 
 async function getEarlyAccessCodes(env) {
@@ -480,16 +501,6 @@ function normalizeNotice(notice) {
   };
 }
 
-function normalizeFeedback(item) {
-  return {
-    id: String(item.id || ""),
-    category: ["request", "bug", "design", "other"].includes(item.category) ? item.category : "other",
-    message: String(item.message || "").slice(0, 1000),
-    page: String(item.page || "").slice(0, 200),
-    createdAt: item.createdAt || ""
-  };
-}
-
 function requireDb(env) {
   try { return requireD1(env.NOTIFICATIONS_DB); }
   catch { throw json({ error: "NOTIFICATIONS_DB が未設定です。" }, { status: 503 }); }
@@ -609,6 +620,8 @@ function json(payload, init = {}) {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Cache-Control": "no-store",
+      "Cross-Origin-Resource-Policy": "same-origin",
+      "X-Content-Type-Options": "nosniff",
       ...(init.headers || {})
     }
   });

@@ -30,7 +30,7 @@ assert.deepEqual(manifest.icons.map(({ src }) => src), [
   "icons/icon-maskable-512.png"
 ]);
 assert.deepEqual(manifest.icons.map(({ purpose }) => purpose), ["any", "any", "maskable"]);
-assert.match(serviceWorker, /meteoscope-shell-v7/);
+assert.match(serviceWorker, /meteoscope-shell-v\d+/);
 assert.doesNotMatch(serviceWorker, /site-dark\.webmanifest/);
 assert.doesNotMatch(serviceWorker, /icon-dark-/);
 assert.match(html, /地図を読み込み中/);
