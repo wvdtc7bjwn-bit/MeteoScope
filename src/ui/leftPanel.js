@@ -540,9 +540,12 @@ function setupSegmentedControls(root) {
   if (!root || root.dataset.segmentedControlsReady === "true") return;
   root.dataset.segmentedControlsReady = "true";
   let dragState = null;
-  let suppressCompatibilityClick = false;
   let pendingFrame = 0;
   let pendingOffset = 0;
+  // The dock can be synchronously rebuilt by a segment's click handler. Keep
+  // the compatibility-click guard tied to the original pressed button rather
+  // than a boolean, so a detached old dock can never swallow the next gesture.
+  let suppressedCompatibilitySource = null;
 
   const getButtons = (segment) => [...segment.querySelectorAll("button")];
   const captureButtonPresentation = (segment) => getButtons(segment).map((button) => ({
@@ -590,17 +593,21 @@ function setupSegmentedControls(root) {
   };
 
   root.addEventListener("click", (event) => {
-    consumeCompatibilityClick(
-      event,
-      suppressCompatibilityClick,
-      () => { suppressCompatibilityClick = false; },
-      ".mobile-dock-segmented"
-    );
+    if (!suppressedCompatibilitySource || event.isTrusted === false) return;
+    if (!(event.target instanceof Element)) return;
+    const sourceButton = event.target.closest(".mobile-dock-segmented button");
+    if (sourceButton !== suppressedCompatibilitySource) return;
+    suppressedCompatibilitySource = null;
+    event.preventDefault();
+    event.stopImmediatePropagation();
   }, true);
 
   root.addEventListener("pointerdown", (event) => {
     if (event.isPrimary === false || (event.pointerType === "mouse" && event.button !== 0)) return;
     if (!(event.target instanceof Element)) return;
+    // Mirror the bottom tab slider: a new gesture clears only the previous
+    // gesture's compatibility click, never a later intentional tap.
+    suppressedCompatibilitySource = null;
     const segment = event.target.closest(".mobile-dock-segmented");
     if (!segment || !root.contains(segment)) return;
     const buttons = getButtons(segment);
@@ -609,7 +616,6 @@ function setupSegmentedControls(root) {
     syncMobileDockSegmentIndicator(segment);
     const pointerButton = event.target.closest("button");
     const previewButton = pointerButton && segment.contains(pointerButton) ? pointerButton : activeButton;
-    suppressCompatibilityClick = false;
     dragState = {
       pointerId: event.pointerId,
       pointerType: event.pointerType,
@@ -618,14 +624,12 @@ function setupSegmentedControls(root) {
       committedButton: activeButton,
       previewButton,
       targetButton: previewButton,
+      sourceButton: pointerButton && segment.contains(pointerButton) ? pointerButton : null,
       buttonPresentation: captureButtonPresentation(segment),
       activeLeft: previewButton.offsetLeft,
       activeWidth: previewButton.offsetWidth,
       moved: false
     };
-    // The control commits its own click on pointerup. Prevent the browser's
-    // compatibility click from reapplying the segment where the gesture began.
-    event.preventDefault();
     if (previewButton !== activeButton) renderPreview(segment, previewButton);
   });
 
@@ -641,7 +645,6 @@ function setupSegmentedControls(root) {
     }
     if (!dragState.moved) return;
     event.preventDefault();
-    event.stopPropagation();
     dragState.targetButton = getButtonAtPoint(dragState.segment, event.clientX) ?? dragState.targetButton;
     const buttons = getButtons(dragState.segment);
     const firstButton = buttons[0];
@@ -680,17 +683,15 @@ function setupSegmentedControls(root) {
       segment.releasePointerCapture(event.pointerId);
     }
     if (isCommit && targetButton && !targetButton.disabled) {
-      event.preventDefault();
-      event.stopPropagation();
       // Like the bottom tab slider, keep the in-flight glass position through
       // this frame, then settle the base indicator on the committed button.
       if (targetButton !== state.previewButton) renderPreview(segment, targetButton, { sync: false });
+      // targetButton.click() is needed by the existing per-panel handlers.
+      // Ignore only the browser click generated for the button initially
+      // pressed by this gesture; a rebuild drops that old button entirely.
+      suppressedCompatibilitySource = state.sourceButton;
       targetButton.click();
       clearDragPresentation(segment, { resetOffset: false });
-      // The programmatic click above delivers the selected action immediately.
-      // Suppress only the compatibility click generated for this same gesture;
-      // a timed suppression can swallow the user's next, separate tap.
-      suppressCompatibilityClick = true;
     } else {
       restoreCommittedButton(state, { sync: false });
       clearDragPresentation(segment, { resetOffset: false });

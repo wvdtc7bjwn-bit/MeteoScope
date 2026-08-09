@@ -83,18 +83,23 @@ assert.match(
 );
 assert.match(
   panel,
-  /function setupSegmentedControls\(root\)[\s\S]*?let suppressCompatibilityClick = false;[\s\S]*?buttonPresentation: captureButtonPresentation\(segment\),[\s\S]*?activeLeft: previewButton\.offsetLeft,[\s\S]*?if \(previewButton !== activeButton\) renderPreview\(segment, previewButton\);/,
+  /function setupSegmentedControls\(root\)[\s\S]*?let pendingFrame = 0;[\s\S]*?let suppressedCompatibilitySource = null;[\s\S]*?buttonPresentation: captureButtonPresentation\(segment\),[\s\S]*?activeLeft: previewButton\.offsetLeft,[\s\S]*?if \(previewButton !== activeButton\) renderPreview\(segment, previewButton\);/,
   "all segmented controls must preview the released selection from the button under the pointer"
 );
 assert.match(
   panel,
-  /targetButton: previewButton,[\s\S]*?event\.preventDefault\(\);[\s\S]*?dragState\.targetButton = getButtonAtPoint\(dragState\.segment, event\.clientX\) \?\? dragState\.targetButton;[\s\S]*?getButtonAtPoint\(segment, event\.clientX\) \?\? state\.targetButton/,
+  /targetButton: previewButton,[\s\S]*?sourceButton: pointerButton && segment\.contains\(pointerButton\) \? pointerButton : null,[\s\S]*?dragState\.targetButton = getButtonAtPoint\(dragState\.segment, event\.clientX\) \?\? dragState\.targetButton;[\s\S]*?getButtonAtPoint\(segment, event\.clientX\) \?\? state\.targetButton/,
   "segmented controls must commit the final crossed segment instead of the segment where a drag began"
 );
 assert.match(
   panel,
-  /targetButton\.click\(\);[\s\S]*?suppressCompatibilityClick = true;/,
-  "segmented controls must commit their action before suppressing only the compatibility click"
+  /event\.isTrusted === false[\s\S]*?sourceButton !== suppressedCompatibilitySource[\s\S]*?suppressedCompatibilitySource = null;[\s\S]*?event\.stopImmediatePropagation\(\);/,
+  "segmented controls must suppress only their own browser compatibility click"
+);
+assert.match(
+  panel,
+  /suppressedCompatibilitySource = null;[\s\S]*?sourceButton: pointerButton && segment\.contains\(pointerButton\) \? pointerButton : null,[\s\S]*?suppressedCompatibilitySource = state\.sourceButton;[\s\S]*?targetButton\.click\(\);/,
+  "segmented controls must clear stale suppression at gesture start and scope it to the pressed source button"
 );
 assert.match(
   panel,
