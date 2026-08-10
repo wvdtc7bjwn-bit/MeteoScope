@@ -14,6 +14,7 @@ import {
   getAmedasPrecipitationLevels,
   getAmedasPrecipitationPeriod
 } from "../amedasPrecipitationPeriod.js";
+import { getDistanceKm } from "../location/distance.js";
 import {
   classifyEarthquakeTsunamiComment,
   getTsunamiLevelColor,
@@ -4016,19 +4017,6 @@ function normalizeCoordinatePair(value) {
   const latitude = Number(value[1]);
   if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null;
   return [longitude, latitude];
-}
-
-function getDistanceKm(from, to) {
-  const toRadians = (value) => value * Math.PI / 180;
-  const [fromLng, fromLat] = from;
-  const [toLng, toLat] = to;
-  const dLat = toRadians(toLat - fromLat);
-  const dLng = toRadians(toLng - fromLng);
-  const lat1 = toRadians(fromLat);
-  const lat2 = toRadians(toLat);
-  const a = Math.sin(dLat / 2) ** 2
-    + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function findLatestWeatherChartAnalysisIndex(frames) {

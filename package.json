@@ -29,6 +29,7 @@
     "test:warnings": "node Tests/WarningResponsivenessTests.mjs",
     "test:amedas": "node Tests/AmedasRankingTests.mjs && node Tests/AmedasPrecipitationPeriodTests.mjs",
     "test:social-share": "node Tests/SocialShareTests.mjs",
+    "test:lens": "node Tests/MeteoScopeLensTests.mjs",
     "test:location": "node Tests/CurrentLocationMarkerTests.mjs",
     "test:lightning": "node Tests/LightningTests.mjs",
     "test:weather-chart": "node Tests/WeatherChartTests.mjs",

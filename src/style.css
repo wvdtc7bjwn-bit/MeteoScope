@@ -9200,6 +9200,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 .map-legend,
 .map-locate-button,
 .map-community-report-button,
+.map-meteoscope-lens-button,
 .map-typhoon-radar-overlay-button,
 .map-world-typhoon-target-button {
   position: absolute;
@@ -9285,6 +9286,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 }
 
 .map-community-report-button[hidden],
+.map-meteoscope-lens-button[hidden],
 .map-typhoon-radar-overlay-button[hidden],
 .map-world-typhoon-target-button[hidden] {
   display: none !important;
@@ -9306,6 +9308,49 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   background: #f8fbff;
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h24l-9 10v8.2l-6 2.8V16L4 6Z'/%3E%3Cpath d='m18.2 10.8 2.2 2.2 4.2-4.2'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h24l-9 10v8.2l-6 2.8V16L4 6Z'/%3E%3Cpath d='m18.2 10.8 2.2 2.2 4.2-4.2'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.map-meteoscope-lens-button::before {
+  content: "";
+  width: 23px;
+  height: 23px;
+  background: #f8fbff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.5' y='8' width='23' height='17' rx='3.5'/%3E%3Cpath d='M11 8 13 5h6l2 3'/%3E%3Ccircle cx='16' cy='16.5' r='4.2'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='4.5' y='8' width='23' height='17' rx='3.5'/%3E%3Cpath d='M11 8 13 5h6l2 3'/%3E%3Ccircle cx='16' cy='16.5' r='4.2'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.map-meteoscope-lens-button {
+  right: 9px;
+  bottom: 82px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(7, 14, 27, 0.78);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
+.map-meteoscope-lens-button.is-early-access-locked::after {
+  content: "EA";
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  min-width: 17px;
+  padding: 2px 3px;
+  border: 1px solid rgba(124, 211, 245, 0.8);
+  border-radius: 999px;
+  color: #dff5ff;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  background: #17668b;
 }
 
 .map-typhoon-radar-overlay-button::before {
@@ -9346,6 +9391,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 }
 
 .map-community-report-button:is(:hover, :focus-visible),
+.map-meteoscope-lens-button:is(:hover, :focus-visible),
 .map-typhoon-radar-overlay-button:is(:hover, :focus-visible),
 .map-world-typhoon-target-button:is(:hover, :focus-visible) {
   border-color: rgba(86, 183, 242, 0.46);
@@ -9353,6 +9399,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 }
 
 .map-community-report-button:focus-visible,
+.map-meteoscope-lens-button:focus-visible,
 .map-typhoon-radar-overlay-button:focus-visible,
 .map-world-typhoon-target-button:focus-visible {
   outline: 2px solid #56b7f2;
@@ -9994,7 +10041,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     bottom: calc(var(--mobile-sidebar-visible-height, 34dvh) + 70px);
   }
 
-  :is(.map-world-typhoon-target-button, .map-typhoon-radar-overlay-button) {
+  :is(.map-meteoscope-lens-button, .map-world-typhoon-target-button, .map-typhoon-radar-overlay-button) {
     right: 17px;
     bottom: calc(var(--mobile-sidebar-visible-height, 34dvh) + 70px);
   }
@@ -12105,7 +12152,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     );
   }
 
-  :is(.map-world-typhoon-target-button, .map-typhoon-radar-overlay-button) {
+  :is(.map-meteoscope-lens-button, .map-world-typhoon-target-button, .map-typhoon-radar-overlay-button) {
     right: 17px;
     bottom: max(
       calc(var(--mobile-sidebar-visible-height, 48dvh) + 70px),
@@ -12122,7 +12169,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     display: grid;
   }
 
-  .mobile-drawer-open :is(.map-community-report-button, .map-world-typhoon-target-button, .map-typhoon-radar-overlay-button) {
+  .mobile-drawer-open :is(.map-community-report-button, .map-meteoscope-lens-button, .map-world-typhoon-target-button, .map-typhoon-radar-overlay-button) {
     opacity: 0;
     pointer-events: none;
   }
@@ -13194,7 +13241,7 @@ html[data-theme="light"] #map-attribution {
   background: rgba(247, 251, 255, 0.78);
 }
 
-html[data-theme="light"] :is(.map-legend, .map-locate-button, .map-community-report-button, .map-world-typhoon-target-button, .map-typhoon-radar-overlay-button, .map-kikikuru-tabs) {
+html[data-theme="light"] :is(.map-legend, .map-locate-button, .map-community-report-button, .map-meteoscope-lens-button, .map-world-typhoon-target-button, .map-typhoon-radar-overlay-button, .map-kikikuru-tabs) {
   border-color: rgba(67, 91, 118, 0.2);
   color: #1b2d43;
   background: rgba(250, 253, 255, 0.8);
@@ -13205,7 +13252,7 @@ html[data-theme="light"] .map-locate-button::before {
   background: #243d58;
 }
 
-html[data-theme="light"] :is(.map-community-report-button, .map-world-typhoon-target-button, .map-typhoon-radar-overlay-button)::before {
+html[data-theme="light"] :is(.map-community-report-button, .map-meteoscope-lens-button, .map-world-typhoon-target-button, .map-typhoon-radar-overlay-button)::before {
   background: #243d58;
 }
 
@@ -18046,7 +18093,7 @@ html[data-theme="light"] .river-affected-cities span {
     bottom: max(76px, calc(env(safe-area-inset-bottom) + 76px));
   }
 
-  :is(.map-world-typhoon-target-button, .map-typhoon-radar-overlay-button) {
+  :is(.map-meteoscope-lens-button, .map-world-typhoon-target-button, .map-typhoon-radar-overlay-button) {
     right: 12px;
     bottom: max(76px, calc(env(safe-area-inset-bottom) + 76px));
   }
@@ -18528,7 +18575,7 @@ html[data-theme="light"] .social-share-preview-shell {
     bottom: var(--shared-map-controls-bottom);
   }
 
-  :is(.map-world-typhoon-target-button, .map-typhoon-radar-overlay-button) {
+  :is(.map-meteoscope-lens-button, .map-world-typhoon-target-button, .map-typhoon-radar-overlay-button) {
     right: max(12px, env(safe-area-inset-right));
     bottom: var(--shared-map-controls-bottom);
   }
@@ -18557,7 +18604,7 @@ html[data-theme="light"] .social-share-preview-shell {
     white-space: nowrap;
   }
 
-  .mobile-drawer-open :is(.map-locate-button, .map-world-typhoon-target-button, .map-typhoon-radar-overlay-button, .map-legend) {
+  .mobile-drawer-open :is(.map-locate-button, .map-meteoscope-lens-button, .map-world-typhoon-target-button, .map-typhoon-radar-overlay-button, .map-legend) {
     opacity: 0;
     pointer-events: none;
   }
@@ -18714,6 +18761,7 @@ html[data-theme="light"] :is(.warning-modal-panel, .hypocenter-date-wheel-sheet)
   .map-utility-menu-toggle,
   .map-locate-button,
   .map-community-report-button,
+  .map-meteoscope-lens-button,
   .map-typhoon-radar-overlay-button,
   .map-world-typhoon-target-button,
   .map-settings-open-button,
@@ -18726,6 +18774,7 @@ html[data-theme="light"] :is(
   .map-utility-menu-toggle,
   .map-locate-button,
   .map-community-report-button,
+  .map-meteoscope-lens-button,
   .map-typhoon-radar-overlay-button,
   .map-world-typhoon-target-button,
   .map-settings-open-button,
@@ -19398,6 +19447,183 @@ html[data-theme="light"] .feedback-recent-head button {
   border-color: rgba(48, 126, 173, 0.28);
   background: rgba(79, 168, 207, 0.12);
   color: #176387;
+}
+
+.meteoscope-lens-panel {
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(92dvh, 820px);
+  padding: 0;
+  overflow: auto;
+}
+
+.meteoscope-lens-header {
+  align-items: center;
+}
+
+.meteoscope-lens-kicker {
+  margin: 0 0 4px;
+  color: var(--accent, #4bbce9);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.meteoscope-lens-body {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+}
+
+.meteoscope-lens-intro,
+.meteoscope-lens-note,
+.meteoscope-lens-status {
+  margin: 0;
+  color: var(--muted-text, #a9b9cb);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.meteoscope-lens-early-access {
+  margin: -4px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--accent, #4bbce9);
+  border-radius: 8px;
+  color: var(--muted-text, #a9b9cb);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.55;
+  background: rgba(74, 139, 178, 0.12);
+}
+
+.meteoscope-lens-panel.is-early-access-locked .meteoscope-lens-preview-shell {
+  opacity: 0.56;
+}
+
+.meteoscope-lens-source-actions,
+.meteoscope-lens-actions,
+.meteoscope-lens-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.meteoscope-lens-primary-action,
+.meteoscope-lens-secondary-action {
+  min-height: 46px;
+  border: 1px solid rgba(87, 178, 224, 0.42);
+  border-radius: 12px;
+  color: #eef8ff;
+  font: inherit;
+  font-weight: 800;
+  background: #173c59;
+  cursor: pointer;
+}
+
+.meteoscope-lens-secondary-action {
+  border-color: rgba(158, 184, 209, 0.28);
+  color: #d6e3f0;
+  background: rgba(110, 137, 163, 0.14);
+}
+
+:is(.meteoscope-lens-primary-action, .meteoscope-lens-secondary-action):disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.meteoscope-lens-option {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted-text, #a9b9cb);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.meteoscope-lens-option select {
+  min-width: 0;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid rgba(148, 179, 207, 0.28);
+  border-radius: 10px;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  background: rgba(3, 15, 30, 0.42);
+}
+
+.meteoscope-lens-location-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted-text, #a9b9cb);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.meteoscope-lens-location-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #36a7d9;
+}
+
+.meteoscope-lens-preview-shell {
+  display: grid;
+  place-items: center;
+  min-height: 270px;
+  overflow: hidden;
+  border: 1px solid rgba(143, 177, 205, 0.22);
+  border-radius: 14px;
+  background: #08121f;
+}
+
+#meteoscope-lens-preview {
+  display: block;
+  width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.meteoscope-lens-empty {
+  max-width: 240px;
+  margin: 0;
+  color: rgba(225, 237, 248, 0.66);
+  font-size: 14px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.meteoscope-lens-status[data-tone="error"] { color: #ff9d98; }
+.meteoscope-lens-status[data-tone="success"] { color: #87d8b3; }
+.meteoscope-lens-status[data-tone="info"] { color: var(--accent, #5dcdf5); }
+
+html[data-theme="light"] .meteoscope-lens-preview-shell { background: #263746; }
+html[data-theme="light"] .meteoscope-lens-option select {
+  color: #203950;
+  background: rgba(255, 255, 255, 0.66);
+}
+html[data-theme="light"] .meteoscope-lens-primary-action {
+  color: #fff;
+  background: #166d96;
+}
+html[data-theme="light"] .meteoscope-lens-secondary-action {
+  color: #29435a;
+  background: rgba(220, 233, 245, 0.88);
+}
+html[data-theme="light"] .meteoscope-lens-early-access {
+  color: #31546e;
+  background: rgba(99, 181, 221, 0.12);
+}
+
+@media (max-width: 600px) {
+  .meteoscope-lens-panel {
+    width: 100%;
+    max-height: min(92dvh, 760px);
+    border-bottom-right-radius: 24px;
+    border-bottom-left-radius: 24px;
+  }
+
+  .meteoscope-lens-body { padding: 16px; }
+  .meteoscope-lens-preview-shell { min-height: 220px; }
 }
 
 @keyframes modal-loading-spin {

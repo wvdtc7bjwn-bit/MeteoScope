@@ -161,6 +161,7 @@
         <button id="settings-button" class="disaster-map-open-button map-settings-open-button" type="button" aria-label="設定を開く" title="設定" aria-haspopup="dialog" aria-controls="settings-modal" aria-expanded="false"></button>
       </div>
       <button id="locate-button" class="map-locate-button" type="button" aria-label="現在地へ移動。長押しで現在地マーカーを非表示" title="現在地へ移動。長押しで現在地マーカーを非表示" aria-keyshortcuts="Shift+Enter"></button>
+      <button id="meteoscope-lens-button" class="map-meteoscope-lens-button" type="button" aria-label="MeteoScope Lensを開く" title="MeteoScope Lens" aria-haspopup="dialog" aria-controls="meteoscope-lens-modal" hidden></button>
       <button id="world-typhoon-target-button" class="map-world-typhoon-target-button" type="button" aria-label="各国予想の対象を選択" title="対象選択" aria-haspopup="dialog" aria-controls="world-typhoon-target-modal" aria-expanded="false" hidden></button>
       <button id="community-report-map-open" class="map-community-report-button" type="button" data-community-report-open aria-label="現在地の様子を投稿" title="現在地の様子を投稿" aria-haspopup="dialog" aria-controls="community-report-modal" hidden></button>
       <button id="typhoon-radar-overlay-button" class="map-typhoon-radar-overlay-button" type="button" aria-label="台風情報の発表時刻の雨雲レーダを重ねる" title="台風情報の発表時刻の雨雲レーダを重ねる" aria-pressed="false" hidden></button>
@@ -287,7 +288,7 @@
                   <button id="settings-early-access-activate" type="button" data-settings-early-access-activate>認証</button></div>
               </div>
               <div id="settings-early-access-active" class="settings-early-access-active" hidden>
-                <div><strong>昨日グラフ・天気図7日履歴・活断層データ選択</strong><small id="settings-early-access-label">認証済み</small></div>
+              <div><strong>MeteoScope Lens・昨日グラフ・天気図7日履歴・活断層データ選択</strong><small id="settings-early-access-label">認証済み</small></div>
                 <button type="button" data-settings-early-access-deactivate>解除</button>
               </div>
               <div id="settings-early-access-features" class="settings-early-access-features" hidden>
@@ -884,6 +885,57 @@
           <div class="social-share-actions">
             <button id="social-share-download" class="social-share-download" type="button">PNGを保存</button>
             <button id="social-share-native" class="social-share-native" type="button">共有する</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div id="meteoscope-lens-modal" class="warning-modal meteoscope-lens-modal" hidden>
+      <div class="warning-modal-backdrop" data-meteoscope-lens-close></div>
+      <section class="warning-modal-panel meteoscope-lens-panel" role="dialog" aria-modal="true" aria-labelledby="meteoscope-lens-title">
+        <header class="settings-modal-header meteoscope-lens-header">
+          <div>
+            <p class="meteoscope-lens-kicker">AMeDAS PHOTO</p>
+            <h2 id="meteoscope-lens-title">MeteoScope Lens</h2>
+          </div>
+          <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-meteoscope-lens-close>×</button>
+        </header>
+        <div class="meteoscope-lens-body">
+          <p class="meteoscope-lens-intro">旅先の写真に、最寄りのAMeDAS観測値を重ねて共有できます。</p>
+          <p id="meteoscope-lens-early-access" class="meteoscope-lens-early-access" hidden>アーリーアクセス機能です。設定の「アーリーアクセス」から認証すると利用できます。</p>
+          <div class="meteoscope-lens-source-actions">
+            <button id="meteoscope-lens-capture" class="meteoscope-lens-primary-action" type="button">写真を撮る</button>
+            <button id="meteoscope-lens-library" class="meteoscope-lens-secondary-action" type="button">写真を選ぶ</button>
+            <input id="meteoscope-lens-camera-input" type="file" accept="image/*" capture="environment" hidden />
+            <input id="meteoscope-lens-library-input" type="file" accept="image/*" hidden />
+          </div>
+          <div class="meteoscope-lens-options">
+            <label class="meteoscope-lens-option">
+              <span>表示する観測値</span>
+              <select id="meteoscope-lens-metric"></select>
+            </label>
+            <label class="meteoscope-lens-option">
+              <span>画像サイズ</span>
+              <select id="meteoscope-lens-format">
+                <option value="portrait">縦長（SNS投稿）</option>
+                <option value="square">正方形</option>
+                <option value="landscape">横長</option>
+              </select>
+            </label>
+          </div>
+          <label class="meteoscope-lens-location-toggle">
+            <input id="meteoscope-lens-show-location" type="checkbox" />
+            <span>撮影地名を画像に表示する</span>
+          </label>
+          <div class="meteoscope-lens-preview-shell">
+            <canvas id="meteoscope-lens-preview" aria-label="MeteoScope Lensの投稿画像プレビュー"></canvas>
+            <p id="meteoscope-lens-empty" class="meteoscope-lens-empty">写真を選ぶと投稿画像を作成できます。</p>
+          </div>
+          <p id="meteoscope-lens-status" class="meteoscope-lens-status" role="status"></p>
+          <p class="meteoscope-lens-note">写真と位置情報はMeteoScopeのサーバーに送信されません。値は最寄りのAMeDAS観測所の観測値であり、撮影地点の実測値ではありません。</p>
+          <div class="meteoscope-lens-actions">
+            <button id="meteoscope-lens-download" class="meteoscope-lens-secondary-action" type="button" disabled>PNGを保存</button>
+            <button id="meteoscope-lens-share" class="meteoscope-lens-primary-action" type="button" disabled>共有する</button>
           </div>
         </div>
       </section>
