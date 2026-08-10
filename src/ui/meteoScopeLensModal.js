@@ -22,6 +22,10 @@ let activeContext = null;
 let image = null;
 let imageObjectUrl = "";
 let activeFormat = "portrait";
+let activeImageVerticalPosition = 0.5;
+let activeImageScale = 1;
+const imagePositionPointers = new Map();
+let imagePositionGesture = null;
 
 export function setupMeteoScopeLensModal({ getContext } = {}) {
   if (typeof getContext === "function") getLensContext = getContext;
@@ -40,12 +44,23 @@ export function setupMeteoScopeLensModal({ getContext } = {}) {
   document.querySelectorAll("#meteoscope-lens-camera-input, #meteoscope-lens-library-input").forEach((input) => {
     input.addEventListener("change", () => void selectPhoto(input));
   });
-  document.getElementById("meteoscope-lens-metric")?.addEventListener("change", () => void renderPreview());
+  document.getElementById("meteoscope-lens-metric")?.addEventListener("change", () => {
+    syncCustomMeasurementControls();
+    void renderPreview();
+  });
   document.getElementById("meteoscope-lens-format")?.addEventListener("change", (event) => {
     activeFormat = event.target.value in LENS_FORMATS ? event.target.value : "portrait";
     void renderPreview();
   });
+  setupImagePositionGesture();
   document.getElementById("meteoscope-lens-show-location")?.addEventListener("change", () => void renderPreview());
+  document.getElementById("meteoscope-lens-text-color")?.addEventListener("input", () => void renderPreview());
+  document.getElementById("meteoscope-lens-use-custom-value")?.addEventListener("change", () => {
+    syncCustomMeasurementControls();
+    void renderPreview();
+  });
+  document.getElementById("meteoscope-lens-custom-value")?.addEventListener("input", () => void renderPreview());
+  document.getElementById("meteoscope-lens-custom-place")?.addEventListener("input", () => void renderPreview());
   document.getElementById("meteoscope-lens-download")?.addEventListener("click", downloadPng);
   document.getElementById("meteoscope-lens-share")?.addEventListener("click", sharePng);
   document.addEventListener("keydown", (event) => {
@@ -59,10 +74,13 @@ export function openMeteoScopeLensModal() {
   setupMeteoScopeLensModal();
   activeContext = normalizeContext(getLensContext());
   activeFormat = "portrait";
+  activeImageVerticalPosition = 0.5;
+  activeImageScale = 1;
   const format = document.getElementById("meteoscope-lens-format");
   if (format) format.value = activeFormat;
   populateMetricOptions();
   applyEarlyAccessState();
+  syncCustomMeasurementControls();
   const locationToggle = document.getElementById("meteoscope-lens-show-location");
   if (locationToggle) locationToggle.checked = false;
   setStatus(activeContext.earlyAccessEnabled
@@ -106,9 +124,10 @@ function applyEarlyAccessState() {
   const notice = document.getElementById("meteoscope-lens-early-access");
   panel?.classList.toggle("is-early-access-locked", locked);
   if (notice) notice.hidden = !locked;
-  document.querySelectorAll("#meteoscope-lens-capture, #meteoscope-lens-library, #meteoscope-lens-metric, #meteoscope-lens-format, #meteoscope-lens-show-location, #meteoscope-lens-download, #meteoscope-lens-share").forEach((element) => {
+  document.querySelectorAll("#meteoscope-lens-capture, #meteoscope-lens-library, #meteoscope-lens-metric, #meteoscope-lens-format, #meteoscope-lens-show-location, #meteoscope-lens-text-color, #meteoscope-lens-use-custom-value, #meteoscope-lens-download, #meteoscope-lens-share").forEach((element) => {
     element.disabled = locked;
   });
+  syncCustomMeasurementControls();
 }
 
 function populateMetricOptions() {
@@ -155,6 +174,9 @@ async function selectPhoto(input) {
 
 function clearSelectedPhoto() {
   image = null;
+  activeImageScale = 1;
+  imagePositionPointers.clear();
+  imagePositionGesture = null;
   if (imageObjectUrl) URL.revokeObjectURL(imageObjectUrl);
   imageObjectUrl = "";
   updatePreviewState();
@@ -162,11 +184,77 @@ function clearSelectedPhoto() {
 
 function updatePreviewState() {
   const empty = document.getElementById("meteoscope-lens-empty");
+  const hint = document.getElementById("meteoscope-lens-image-position-hint");
+  const canvas = document.getElementById("meteoscope-lens-preview");
   const download = document.getElementById("meteoscope-lens-download");
   const share = document.getElementById("meteoscope-lens-share");
   if (empty) empty.hidden = Boolean(image);
+  if (hint) hint.hidden = !image || !activeContext?.earlyAccessEnabled;
+  canvas?.classList.toggle("is-image-adjustable", Boolean(image) && Boolean(activeContext?.earlyAccessEnabled));
   if (download) download.disabled = !image || !activeContext?.earlyAccessEnabled;
   if (share) share.disabled = !image || !activeContext?.earlyAccessEnabled;
+}
+
+function setupImagePositionGesture() {
+  const canvas = document.getElementById("meteoscope-lens-preview");
+  if (!(canvas instanceof HTMLCanvasElement)) return;
+  canvas.addEventListener("pointerdown", (event) => {
+    if (!image || !activeContext?.earlyAccessEnabled || event.button > 0) return;
+    const bounds = canvas.getBoundingClientRect();
+    if (!bounds.height) return;
+    imagePositionPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    imagePositionGesture = createImagePositionGesture(bounds);
+    canvas.setPointerCapture?.(event.pointerId);
+    canvas.classList.add("is-adjusting-image");
+    event.preventDefault();
+  });
+  canvas.addEventListener("pointermove", (event) => {
+    if (!imagePositionPointers.has(event.pointerId) || !imagePositionGesture) return;
+    imagePositionPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (imagePositionGesture.type === "pinch" && imagePositionPointers.size >= 2) {
+      const [first, second] = [...imagePositionPointers.values()];
+      const distance = Math.hypot(second.x - first.x, second.y - first.y);
+      activeImageScale = normalizeImageScale(imagePositionGesture.startScale * distance / imagePositionGesture.startDistance);
+    } else if (imagePositionGesture.type === "drag") {
+      const offset = (event.clientY - imagePositionGesture.startY) / imagePositionGesture.height;
+      activeImageVerticalPosition = normalizeImageVerticalPosition(imagePositionGesture.startPosition - offset);
+    }
+    void renderPreview();
+    event.preventDefault();
+  });
+  const finishGesture = (event) => {
+    if (!imagePositionPointers.has(event.pointerId)) return;
+    imagePositionPointers.delete(event.pointerId);
+    imagePositionGesture = null;
+    if (!imagePositionPointers.size) canvas.classList.remove("is-adjusting-image");
+    if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+  };
+  canvas.addEventListener("pointerup", finishGesture);
+  canvas.addEventListener("pointercancel", finishGesture);
+  canvas.addEventListener("wheel", (event) => {
+    if (!image || !activeContext?.earlyAccessEnabled) return;
+    activeImageScale = normalizeImageScale(activeImageScale * (event.deltaY < 0 ? 1.08 : 0.92));
+    void renderPreview();
+    event.preventDefault();
+  }, { passive: false });
+}
+
+function createImagePositionGesture(bounds) {
+  if (imagePositionPointers.size >= 2) {
+    const [first, second] = [...imagePositionPointers.values()];
+    return {
+      type: "pinch",
+      startDistance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
+      startScale: activeImageScale
+    };
+  }
+  const pointer = imagePositionPointers.values().next().value;
+  return {
+    type: "drag",
+    startY: pointer?.y ?? 0,
+    startPosition: activeImageVerticalPosition,
+    height: bounds.height
+  };
 }
 
 async function renderPreview() {
@@ -180,7 +268,7 @@ async function renderPreview() {
   canvas.height = format.height;
   const context = canvas.getContext("2d");
   if (!context) return;
-  drawImageCover(context, image, format.width, format.height);
+  drawImageCover(context, image, format.width, format.height, activeImageVerticalPosition, activeImageScale);
   drawLensWatermark(context, format.width, format.height, buildObservation());
   updatePreviewState();
 }
@@ -194,12 +282,17 @@ function buildObservation() {
   const metricLabel = metric.id === "precipitation"
     ? `${getAmedasPrecipitationPeriod(activeContext?.precipitationPeriod).label}降水量`
     : metric.label;
+  const customValue = getCustomMeasurementValue();
+  const customPlace = getCustomMeasurementPlace();
+  const available = Number.isFinite(customValue) || Number.isFinite(value);
   return {
-    metricLabel,
-    available: Number.isFinite(value),
-    valueText: Number.isFinite(value) ? formatValue(value, metric.digits) : "--",
+    metricLabel: Number.isFinite(customValue) ? `${metricLabel} · 実測値` : metricLabel,
+    available,
+    valueText: available ? formatValue(Number.isFinite(customValue) ? customValue : value, metric.digits) : "--",
     unitText: metric.id === "temperature" ? "°" : metric.unit,
-    stationLine: Number.isFinite(station?.distanceKm)
+    stationLine: Number.isFinite(customValue)
+      ? customPlace ? `${customPlace} · 実測値` : "利用者入力の実測値"
+      : Number.isFinite(station?.distanceKm)
       ? `${station.name} AMeDAS · ${formatDistance(station.distanceKm)}`
       : "観測所を確認中",
     observationTime: formatObservationTime(activeContext?.data?.latestTime),
@@ -213,7 +306,9 @@ function findNearestStation(metricId) {
     ? getAmedasPrecipitationPeriod(activeContext.precipitationPeriod).field
     : metricId;
   const points = (activeContext.data?.points ?? []).flatMap((point) => {
-    const value = Number(point?.values?.[field]);
+    const rawValue = point?.values?.[field];
+    if (rawValue === null || rawValue === undefined || rawValue === "") return [];
+    const value = Number(rawValue);
     const coordinates = normalizeCoordinates(point?.coordinates);
     return Number.isFinite(value) && coordinates ? [{ ...point, value, coordinates }] : [];
   });
@@ -224,23 +319,31 @@ function findNearestStation(metricId) {
   }, null);
 }
 
-function drawImageCover(context, imageElement, width, height) {
-  const scale = Math.max(width / imageElement.naturalWidth, height / imageElement.naturalHeight);
+function drawImageCover(context, imageElement, width, height, verticalPosition = 0.5, imageScale = 1) {
+  const scale = Math.max(width / imageElement.naturalWidth, height / imageElement.naturalHeight) * normalizeImageScale(imageScale);
   const drawWidth = imageElement.naturalWidth * scale;
   const drawHeight = imageElement.naturalHeight * scale;
-  context.drawImage(imageElement, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+  const verticalOverflow = Math.max(0, drawHeight - height);
+  context.drawImage(
+    imageElement,
+    (width - drawWidth) / 2,
+    -verticalOverflow * normalizeImageVerticalPosition(verticalPosition),
+    drawWidth,
+    drawHeight
+  );
 }
 
 function drawLensWatermark(context, width, height, observation) {
   const pad = Math.round(width * 0.06);
   const isPortrait = height >= width;
   const overlayTop = Math.round(height * (isPortrait ? 0.58 : 0.56));
-  const locationFontSize = Math.round(width * 0.034);
+  const locationFontSize = Math.round(width * 0.042);
   const valueFontSize = Math.round(Math.min(width * (observation.available ? 0.17 : 0.12), height * (observation.available ? 0.18 : 0.13)));
   const labelFontSize = Math.round(width * 0.034);
-  const stationFontSize = Math.round(width * 0.031);
+  const stationFontSize = Math.round(width * 0.037);
   const footerFontSize = Math.round(width * 0.027);
   const fontFamily = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Yu Gothic", "Hiragino Sans", sans-serif';
+  const textColor = getLensTextColor();
   context.save();
   const gradient = context.createLinearGradient(0, overlayTop, 0, height);
   gradient.addColorStop(0, "rgba(2, 8, 16, 0)");
@@ -253,23 +356,23 @@ function drawLensWatermark(context, width, height, observation) {
   context.shadowOffsetY = 1;
   let informationTop = overlayTop + Math.round(height * 0.075);
   if (observation.placeName) {
-    context.fillStyle = "rgba(255, 255, 255, 0.9)";
+    context.fillStyle = colorWithAlpha(textColor, 0.9);
     drawTextFitted(context, observation.placeName, pad, informationTop, width - pad * 2, `600 ${locationFontSize}px ${fontFamily}`);
     informationTop += Math.round(valueFontSize * 0.9);
   } else {
     informationTop += Math.round(valueFontSize * 0.7);
   }
-  context.fillStyle = "#ffffff";
+  context.fillStyle = textColor;
   const valueSize = setFittedCanvasFont(context, observation.valueText, width * 0.72, `600 ${valueFontSize}px ${fontFamily}`);
   context.fillText(observation.valueText, pad, informationTop);
   const valueWidth = context.measureText(observation.valueText).width;
   const unitSize = Math.max(Math.round(valueSize * 0.34), 18);
   context.font = `500 ${unitSize}px ${fontFamily}`;
-  context.fillStyle = "rgba(255, 255, 255, 0.9)";
+  context.fillStyle = colorWithAlpha(textColor, 0.9);
   context.fillText(observation.unitText, pad + valueWidth + Math.max(7, Math.round(width * 0.008)), informationTop - Math.round(valueSize * 0.42));
-  context.fillStyle = "rgba(255, 255, 255, 0.82)";
+  context.fillStyle = colorWithAlpha(textColor, 0.82);
   drawTextFitted(context, observation.metricLabel, pad, informationTop + Math.round(valueSize * 0.25), width - pad * 2, `600 ${labelFontSize}px ${fontFamily}`);
-  context.fillStyle = "rgba(249, 252, 255, 0.78)";
+  context.fillStyle = colorWithAlpha(textColor, 0.78);
   drawTextFitted(
     context,
     observation.available ? observation.stationLine : "現在地を取得すると最寄りの観測値を表示できます",
@@ -279,15 +382,15 @@ function drawLensWatermark(context, width, height, observation) {
     `500 ${stationFontSize}px ${fontFamily}`
   );
   context.shadowBlur = 0;
-  context.strokeStyle = "rgba(255, 255, 255, 0.3)";
+  context.strokeStyle = colorWithAlpha(textColor, 0.3);
   context.lineWidth = Math.max(1, Math.round(width * 0.0012));
   context.beginPath();
   context.moveTo(pad, height - Math.round(height * 0.067));
   context.lineTo(width - pad, height - Math.round(height * 0.067));
   context.stroke();
-  context.fillStyle = "rgba(255, 255, 255, 0.78)";
+  context.fillStyle = colorWithAlpha(textColor, 0.78);
   drawTextFitted(context, "MeteoScope", pad, height - Math.round(height * 0.03), width * 0.38, `600 ${footerFontSize}px ${fontFamily}`);
-  context.fillStyle = "rgba(255, 255, 255, 0.72)";
+  context.fillStyle = colorWithAlpha(textColor, 0.72);
   drawTextFitted(context, `JMA · ${observation.observationTime}`, width - pad, height - Math.round(height * 0.03), width * 0.4, `500 ${footerFontSize}px ${fontFamily}`, "right");
   context.restore();
 }
@@ -311,6 +414,56 @@ function setFittedCanvasFont(context, text, maxWidth, font) {
     size -= 1;
   }
   return size;
+}
+
+function normalizeImageVerticalPosition(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.min(1, Math.max(0, numeric > 1 ? numeric / 100 : numeric)) : 0.5;
+}
+
+function normalizeImageScale(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.min(3, Math.max(1, numeric)) : 1;
+}
+
+function syncCustomMeasurementControls() {
+  const toggle = document.getElementById("meteoscope-lens-use-custom-value");
+  const input = document.getElementById("meteoscope-lens-custom-value");
+  const place = document.getElementById("meteoscope-lens-custom-place");
+  const unit = document.getElementById("meteoscope-lens-custom-unit");
+  const metricSelect = document.getElementById("meteoscope-lens-metric");
+  const metric = METRICS.find((item) => item.id === metricSelect?.value) ?? METRICS[0];
+  if (unit) unit.textContent = metric.unit;
+  if (input) input.disabled = !toggle?.checked || !activeContext?.earlyAccessEnabled;
+  if (place) place.disabled = !toggle?.checked || !activeContext?.earlyAccessEnabled;
+}
+
+function getCustomMeasurementValue() {
+  const enabled = document.getElementById("meteoscope-lens-use-custom-value")?.checked;
+  const input = document.getElementById("meteoscope-lens-custom-value");
+  const rawValue = input instanceof HTMLInputElement ? input.value.trim() : "";
+  if (!enabled || !rawValue) return null;
+  const value = Number(rawValue);
+  return Number.isFinite(value) ? value : null;
+}
+
+function getCustomMeasurementPlace() {
+  const enabled = document.getElementById("meteoscope-lens-use-custom-value")?.checked;
+  const input = document.getElementById("meteoscope-lens-custom-place");
+  return enabled && input instanceof HTMLInputElement ? input.value.trim().slice(0, 40) : "";
+}
+
+function getLensTextColor() {
+  const color = document.getElementById("meteoscope-lens-text-color")?.value;
+  return /^#[0-9a-f]{6}$/iu.test(color ?? "") ? color : "#ffffff";
+}
+
+function colorWithAlpha(hex, alpha) {
+  const normalized = String(hex).replace("#", "");
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 async function downloadPng() {

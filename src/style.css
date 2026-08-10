@@ -19566,7 +19566,103 @@ html[data-theme="light"] .feedback-recent-head button {
   accent-color: #36a7d9;
 }
 
+.meteoscope-lens-customization {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid rgba(143, 177, 205, 0.22);
+  border-radius: 13px;
+  background: rgba(5, 18, 34, 0.28);
+}
+
+.meteoscope-lens-customization-head,
+.meteoscope-lens-customization-controls,
+.meteoscope-lens-custom-value-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.meteoscope-lens-customization-head {
+  justify-content: space-between;
+  color: var(--muted-text, #a9b9cb);
+  font-size: 12px;
+}
+
+.meteoscope-lens-customization-head strong {
+  color: var(--text, #f8fbff);
+  font-size: 13px;
+}
+
+.meteoscope-lens-customization-head span,
+.meteoscope-lens-customization > p {
+  color: var(--muted-text, #a9b9cb);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.meteoscope-lens-customization > p {
+  margin: 0;
+}
+
+.meteoscope-lens-customization-controls {
+  justify-content: space-between;
+}
+
+.meteoscope-lens-color-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted-text, #a9b9cb);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.meteoscope-lens-color-control input {
+  width: 34px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid rgba(148, 179, 207, 0.38);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.meteoscope-lens-custom-value-toggle {
+  font-size: 12px;
+}
+
+.meteoscope-lens-custom-value-control {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid rgba(148, 179, 207, 0.28);
+  border-radius: 10px;
+}
+
+.meteoscope-lens-custom-value-control > span,
+.meteoscope-lens-custom-value-control output {
+  color: var(--muted-text, #a9b9cb);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.meteoscope-lens-custom-value-control input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  color: var(--text, #f8fbff);
+  font: inherit;
+  font-weight: 700;
+  background: transparent;
+}
+
+.meteoscope-lens-custom-value-control input:disabled {
+  opacity: 0.45;
+}
+
 .meteoscope-lens-preview-shell {
+  position: relative;
   display: grid;
   place-items: center;
   min-height: 270px;
@@ -19581,6 +19677,30 @@ html[data-theme="light"] .feedback-recent-head button {
   width: 100%;
   max-height: 420px;
   object-fit: contain;
+}
+
+#meteoscope-lens-preview.is-image-adjustable {
+  cursor: grab;
+  touch-action: none;
+}
+
+#meteoscope-lens-preview.is-adjusting-image { cursor: grabbing; }
+
+.meteoscope-lens-image-position-hint {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  max-width: calc(100% - 24px);
+  margin: 0;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.94);
+  background: rgba(5, 15, 27, 0.54);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  pointer-events: none;
 }
 
 .meteoscope-lens-empty {
@@ -19612,6 +19732,9 @@ html[data-theme="light"] .meteoscope-lens-secondary-action {
 html[data-theme="light"] .meteoscope-lens-early-access {
   color: #31546e;
   background: rgba(99, 181, 221, 0.12);
+}
+html[data-theme="light"] .meteoscope-lens-customization {
+  background: rgba(255, 255, 255, 0.42);
 }
 
 @media (max-width: 600px) {

@@ -927,9 +927,36 @@
             <input id="meteoscope-lens-show-location" type="checkbox" />
             <span>撮影地名を画像に表示する</span>
           </label>
+          <section class="meteoscope-lens-customization" aria-label="透かしのカスタマイズ">
+            <div class="meteoscope-lens-customization-head">
+              <strong>透かしのカスタマイズ</strong>
+              <span>投稿画像にのみ反映</span>
+            </div>
+            <div class="meteoscope-lens-customization-controls">
+              <label class="meteoscope-lens-color-control">
+                <span>文字色</span>
+                <input id="meteoscope-lens-text-color" type="color" value="#ffffff" aria-label="透かしの文字色" />
+              </label>
+              <label class="meteoscope-lens-location-toggle meteoscope-lens-custom-value-toggle">
+                <input id="meteoscope-lens-use-custom-value" type="checkbox" />
+                <span>実測値を入力して表示</span>
+              </label>
+            </div>
+            <label class="meteoscope-lens-custom-value-control">
+              <span>実測値</span>
+              <input id="meteoscope-lens-custom-value" type="number" inputmode="decimal" step="any" placeholder="数値を入力" disabled />
+              <output id="meteoscope-lens-custom-unit" for="meteoscope-lens-custom-value"></output>
+            </label>
+            <label class="meteoscope-lens-custom-value-control">
+              <span>地点名</span>
+              <input id="meteoscope-lens-custom-place" type="text" maxlength="40" placeholder="例：東京" autocomplete="off" disabled />
+            </label>
+            <p>入力した値はAMeDASの観測値を変更せず、この端末で作成する画像だけに「実測値」として表示します。</p>
+          </section>
           <div class="meteoscope-lens-preview-shell">
             <canvas id="meteoscope-lens-preview" aria-label="MeteoScope Lensの投稿画像プレビュー"></canvas>
             <p id="meteoscope-lens-empty" class="meteoscope-lens-empty">写真を選ぶと投稿画像を作成できます。</p>
+            <p id="meteoscope-lens-image-position-hint" class="meteoscope-lens-image-position-hint" hidden>上下にドラッグ・2本指で拡大</p>
           </div>
           <p id="meteoscope-lens-status" class="meteoscope-lens-status" role="status"></p>
           <p class="meteoscope-lens-note">写真と位置情報はMeteoScopeのサーバーに送信されません。値は最寄りのAMeDAS観測所の観測値であり、撮影地点の実測値ではありません。</p>
