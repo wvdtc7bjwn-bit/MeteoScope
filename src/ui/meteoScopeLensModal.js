@@ -197,9 +197,11 @@ function buildObservation() {
   return {
     metricLabel,
     available: Number.isFinite(value),
-    valueText: Number.isFinite(value) ? `${formatValue(value, metric.digits)} ${metric.unit}` : "観測値なし",
-    stationName: station?.name ?? "観測所を確認中",
-    distanceText: Number.isFinite(station?.distanceKm) ? `最寄りの観測所・${formatDistance(station.distanceKm)}` : "選択中の観測所",
+    valueText: Number.isFinite(value) ? formatValue(value, metric.digits) : "--",
+    unitText: metric.id === "temperature" ? "°" : metric.unit,
+    stationLine: Number.isFinite(station?.distanceKm)
+      ? `${station.name} AMeDAS · ${formatDistance(station.distanceKm)}`
+      : "観測所を確認中",
     observationTime: formatObservationTime(activeContext?.data?.latestTime),
     placeName: document.getElementById("meteoscope-lens-show-location")?.checked ? activeContext?.placeName : ""
   };
@@ -230,44 +232,74 @@ function drawImageCover(context, imageElement, width, height) {
 }
 
 function drawLensWatermark(context, width, height, observation) {
-  const pad = Math.round(width * 0.055);
-  const isPortrait = height > width;
-  const cardHeight = Math.max(Math.round(height * (isPortrait ? 0.34 : 0.35)), isPortrait ? 390 : 324);
-  const cardTop = height - cardHeight;
-  const titleFontSize = Math.round(width * 0.046);
-  const valueFontSize = Math.round(width * (observation.available ? 0.108 : 0.079));
-  const subFontSize = Math.round(width * 0.042);
-  const metaFontSize = Math.round(width * 0.031);
+  const pad = Math.round(width * 0.06);
+  const isPortrait = height >= width;
+  const overlayTop = Math.round(height * (isPortrait ? 0.58 : 0.56));
+  const locationFontSize = Math.round(width * 0.034);
+  const valueFontSize = Math.round(Math.min(width * (observation.available ? 0.17 : 0.12), height * (observation.available ? 0.18 : 0.13)));
+  const labelFontSize = Math.round(width * 0.034);
+  const stationFontSize = Math.round(width * 0.031);
+  const footerFontSize = Math.round(width * 0.027);
+  const fontFamily = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Yu Gothic", "Hiragino Sans", sans-serif';
   context.save();
-  const gradient = context.createLinearGradient(0, cardTop - Math.round(height * 0.08), 0, height);
-  gradient.addColorStop(0, "rgba(3, 13, 27, 0)");
-  gradient.addColorStop(0.32, "rgba(3, 13, 27, 0.58)");
-  gradient.addColorStop(1, "rgba(3, 13, 27, 0.92)");
+  const gradient = context.createLinearGradient(0, overlayTop, 0, height);
+  gradient.addColorStop(0, "rgba(2, 8, 16, 0)");
+  gradient.addColorStop(0.44, "rgba(2, 8, 16, 0.06)");
+  gradient.addColorStop(1, "rgba(2, 8, 16, 0.54)");
   context.fillStyle = gradient;
-  context.fillRect(0, cardTop - Math.round(height * 0.1), width, cardHeight + Math.round(height * 0.1));
-  context.fillStyle = "#75d7fa";
-  context.fillRect(pad, cardTop + 24, Math.round(width * 0.09), Math.max(3, Math.round(width * 0.0035)));
-  context.fillStyle = "rgba(179, 230, 247, 0.98)";
-  drawTextFitted(context, "MeteoScope Lens", pad, cardTop + 74, width * 0.54, `700 ${titleFontSize}px system-ui, sans-serif`);
+  context.fillRect(0, overlayTop, width, height - overlayTop);
+  context.shadowColor = "rgba(0, 0, 0, 0.24)";
+  context.shadowBlur = Math.max(8, Math.round(width * 0.011));
+  context.shadowOffsetY = 1;
+  let informationTop = overlayTop + Math.round(height * 0.075);
   if (observation.placeName) {
-    context.fillStyle = "rgba(220, 236, 245, 0.9)";
-    drawTextFitted(context, observation.placeName, width - pad, cardTop + 74, width * 0.36, `600 ${metaFontSize}px system-ui, sans-serif`, "right");
+    context.fillStyle = "rgba(255, 255, 255, 0.9)";
+    drawTextFitted(context, observation.placeName, pad, informationTop, width - pad * 2, `600 ${locationFontSize}px ${fontFamily}`);
+    informationTop += Math.round(valueFontSize * 0.9);
+  } else {
+    informationTop += Math.round(valueFontSize * 0.7);
   }
   context.fillStyle = "#ffffff";
-  drawTextFitted(context, observation.valueText, pad, cardTop + 186, width - pad * 2, `800 ${valueFontSize}px system-ui, sans-serif`);
-  context.fillStyle = "rgba(224, 241, 249, 0.92)";
-  drawTextFitted(context, observation.metricLabel, pad, cardTop + 246, width - pad * 2, `700 ${subFontSize}px system-ui, sans-serif`);
-  context.fillStyle = "rgba(213, 232, 242, 0.86)";
-  drawTextFitted(context, observation.available ? `観測所 ${observation.stationName}` : "現在地を取得すると最寄りの観測値を表示できます", pad, cardTop + 304, width * 0.56, `600 ${metaFontSize}px system-ui, sans-serif`);
-  if (observation.available) {
-    drawTextFitted(context, observation.distanceText, width - pad, cardTop + 304, width * 0.35, `600 ${metaFontSize}px system-ui, sans-serif`, "right");
-  }
-  context.fillStyle = "rgba(169, 199, 216, 0.82)";
-  drawTextFitted(context, `観測 ${observation.observationTime}　 気象庁データをMeteoScopeが加工・表示`, pad, height - 28, width - pad * 2, `600 ${Math.round(width * 0.025)}px system-ui, sans-serif`);
+  const valueSize = setFittedCanvasFont(context, observation.valueText, width * 0.72, `600 ${valueFontSize}px ${fontFamily}`);
+  context.fillText(observation.valueText, pad, informationTop);
+  const valueWidth = context.measureText(observation.valueText).width;
+  const unitSize = Math.max(Math.round(valueSize * 0.34), 18);
+  context.font = `500 ${unitSize}px ${fontFamily}`;
+  context.fillStyle = "rgba(255, 255, 255, 0.9)";
+  context.fillText(observation.unitText, pad + valueWidth + Math.max(7, Math.round(width * 0.008)), informationTop - Math.round(valueSize * 0.42));
+  context.fillStyle = "rgba(255, 255, 255, 0.82)";
+  drawTextFitted(context, observation.metricLabel, pad, informationTop + Math.round(valueSize * 0.25), width - pad * 2, `600 ${labelFontSize}px ${fontFamily}`);
+  context.fillStyle = "rgba(249, 252, 255, 0.78)";
+  drawTextFitted(
+    context,
+    observation.available ? observation.stationLine : "現在地を取得すると最寄りの観測値を表示できます",
+    pad,
+    informationTop + Math.round(valueSize * 0.55),
+    width - pad * 2,
+    `500 ${stationFontSize}px ${fontFamily}`
+  );
+  context.shadowBlur = 0;
+  context.strokeStyle = "rgba(255, 255, 255, 0.3)";
+  context.lineWidth = Math.max(1, Math.round(width * 0.0012));
+  context.beginPath();
+  context.moveTo(pad, height - Math.round(height * 0.067));
+  context.lineTo(width - pad, height - Math.round(height * 0.067));
+  context.stroke();
+  context.fillStyle = "rgba(255, 255, 255, 0.78)";
+  drawTextFitted(context, "MeteoScope", pad, height - Math.round(height * 0.03), width * 0.38, `600 ${footerFontSize}px ${fontFamily}`);
+  context.fillStyle = "rgba(255, 255, 255, 0.72)";
+  drawTextFitted(context, `JMA · ${observation.observationTime}`, width - pad, height - Math.round(height * 0.03), width * 0.4, `500 ${footerFontSize}px ${fontFamily}`, "right");
   context.restore();
 }
 
 function drawTextFitted(context, text, x, y, maxWidth, font, align = "left") {
+  setFittedCanvasFont(context, text, maxWidth, font);
+  context.textAlign = align;
+  context.fillText(String(text ?? ""), x, y);
+  context.textAlign = "left";
+}
+
+function setFittedCanvasFont(context, text, maxWidth, font) {
   const match = /^(?:(\d+)\s+)?(\d+)px\s+(.+)$/u.exec(font);
   const weight = match?.[1] ? `${match[1]} ` : "";
   let size = Number(match?.[2] ?? 16);
@@ -278,9 +310,7 @@ function drawTextFitted(context, text, x, y, maxWidth, font, align = "left") {
     if (context.measureText(content).width <= maxWidth) break;
     size -= 1;
   }
-  context.textAlign = align;
-  context.fillText(content, x, y);
-  context.textAlign = "left";
+  return size;
 }
 
 async function downloadPng() {
