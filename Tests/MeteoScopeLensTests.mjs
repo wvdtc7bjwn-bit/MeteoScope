@@ -26,6 +26,7 @@ assert.match(indexSource, /id="meteoscope-lens-use-custom-value"[^>]*type="check
 assert.match(indexSource, /id="meteoscope-lens-custom-value"[^>]*type="number"/);
 assert.match(indexSource, /id="meteoscope-lens-custom-place"[^>]*type="text"/);
 assert.match(indexSource, /id="meteoscope-lens-image-position-hint"/);
+assert.match(indexSource, /<\/div>\s*<p id="meteoscope-lens-image-position-hint"/);
 assert.match(indexSource, /placeholder="例：東京"/);
 
 assert.match(appSource, /setupMeteoScopeLensModal/);
@@ -41,6 +42,7 @@ assert.match(styleSource, /\.map-locate-button\s*\{[\s\S]*?left:\s*9px;[\s\S]*?b
 assert.match(styleSource, /\.map-meteoscope-lens-button::before/);
 assert.match(styleSource, /\.mobile-drawer-open :is\([^)]*map-meteoscope-lens-button/);
 assert.match(styleSource, /html\[data-theme="light"\] :is\([^)]*map-meteoscope-lens-button/);
+assert.doesNotMatch(styleSource, /\.meteoscope-lens-image-position-hint\s*\{[\s\S]*?position:\s*absolute/);
 
 assert.match(modalSource, /getAmedasPrecipitationPeriod/);
 assert.match(modalSource, /function findNearestStation/);
@@ -72,8 +74,13 @@ assert.match(modalSource, /metricLabel: useCustomValue \? `\$\{metricLabel\} · 
 assert.match(modalSource, /placeName: useCustomValue\s*\? customPlace/u);
 assert.match(modalSource, /stationLine: useCustomValue\s*\? ""/u);
 assert.match(modalSource, /locationFontSize = Math\.round\(width \* 0\.056 \* scale\)/u);
-assert.match(modalSource, /informationTop \+= Math\.round\(locationFontSize \* 1\.25\)/u);
-assert.match(modalSource, /if \(observation\.stationLine \|\| !observation\.available\)/u);
+assert.match(modalSource, /const footerY = isTop \? pad : height - pad/u);
+assert.match(modalSource, /const ruleY = isTop/u);
+assert.match(modalSource, /const primaryLineGap = Math\.max/u);
+assert.match(modalSource, /if \(isTop\) \{/u);
+assert.match(modalSource, /stationY = hasStationLine \|\| !observation\.available \? labelY \+ stationLineGap : null/u);
+assert.match(modalSource, /stationY = hasStationLine \|\| !observation\.available \? informationBottom : null/u);
+assert.match(modalSource, /context\.moveTo\(pad, ruleY\)/u);
 assert.match(modalSource, /drawImageCover\(context, image, format\.width, format\.height, activeImageHorizontalPosition, activeImageVerticalPosition, activeImageScale\)/u);
 assert.match(modalSource, /canvas\.addEventListener\("pointerdown"/u);
 assert.match(modalSource, /canvas\.addEventListener\("wheel"/u);

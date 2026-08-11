@@ -396,7 +396,6 @@ function setImagePositionFromOffsets(layout, offsetX, offsetY) {
 function drawLensWatermark(context, width, height, observation) {
   const settings = getWatermarkSettings();
   const pad = Math.round(width * 0.06);
-  const isPortrait = height >= width;
   const isTop = settings.position.startsWith("top");
   const isRight = settings.position.endsWith("right");
   const align = isRight ? "right" : "left";
@@ -408,10 +407,35 @@ function drawLensWatermark(context, width, height, observation) {
   const stationFontSize = Math.round(width * 0.031 * scale);
   const footerFontSize = Math.round(width * 0.027 * scale);
   const hasStationLine = Boolean(observation.stationLine);
-  const contentHeight = Math.round(valueFontSize * (observation.placeName ? (hasStationLine ? 3.2 : 2.65) : (hasStationLine ? 2.2 : 1.7)));
-  const overlayTop = isTop ? 0 : Math.max(0, height - contentHeight - Math.round(height * 0.09));
-  const contentTop = isTop ? Math.round(height * 0.09) : overlayTop + Math.round(height * 0.075);
-  const footerY = isTop ? Math.round(height * 0.045) : height - Math.round(height * 0.03);
+  const footerY = isTop ? pad : height - pad;
+  const ruleY = isTop
+    ? footerY + Math.max(Math.round(footerFontSize * 1.65), Math.round(height * 0.026))
+    : footerY - Math.max(Math.round(footerFontSize * 1.65), Math.round(height * 0.026));
+  const primaryLineGap = Math.max(Math.round(valueFontSize * 0.36), Math.round(labelFontSize * 1.65));
+  const locationLineGap = Math.max(Math.round(valueFontSize * 0.74), Math.round(locationFontSize * 1.45));
+  const stationLineGap = Math.max(Math.round(stationFontSize * 1.65), Math.round(labelFontSize * 1.45));
+  const informationBottom = isTop
+    ? ruleY + Math.max(Math.round(height * 0.045), Math.round(footerFontSize * 1.7))
+    : ruleY - Math.max(Math.round(height * 0.045), Math.round(footerFontSize * 1.7));
+  let locationY;
+  let valueY;
+  let labelY;
+  let stationY;
+  let informationTop;
+  if (isTop) {
+    locationY = observation.placeName ? informationBottom : null;
+    valueY = (locationY ?? informationBottom) + (locationY === null ? Math.round(valueFontSize * 0.7) : locationLineGap);
+    labelY = valueY + primaryLineGap;
+    stationY = hasStationLine || !observation.available ? labelY + stationLineGap : null;
+    informationTop = ruleY;
+  } else {
+    stationY = hasStationLine || !observation.available ? informationBottom : null;
+    labelY = informationBottom - (stationY === null ? 0 : stationLineGap);
+    valueY = labelY - primaryLineGap;
+    locationY = observation.placeName ? valueY - locationLineGap : null;
+    informationTop = Math.max(0, (locationY ?? valueY) - Math.max(valueFontSize, locationFontSize));
+  }
+  const overlayTop = isTop ? 0 : Math.max(0, informationTop - Math.round(height * 0.04));
   const fontFamily = settings.fontFamily;
   const textColor = settings.textColor;
   context.save();
@@ -419,37 +443,33 @@ function drawLensWatermark(context, width, height, observation) {
   context.shadowColor = "rgba(0, 0, 0, 0.24)";
   context.shadowBlur = Math.max(8, Math.round(width * 0.011));
   context.shadowOffsetY = 1;
-  let informationTop = contentTop;
   if (observation.placeName) {
     context.fillStyle = colorWithAlpha(textColor, 0.9);
-    drawTextFitted(context, observation.placeName, textX, informationTop, width - pad * 2, `${settings.fontWeight} ${locationFontSize}px ${fontFamily}`, align);
-    informationTop += Math.round(locationFontSize * 1.25);
-  } else {
-    informationTop += Math.round(valueFontSize * 0.7);
+    drawTextFitted(context, observation.placeName, textX, locationY, width - pad * 2, `${settings.fontWeight} ${locationFontSize}px ${fontFamily}`, align);
   }
   context.fillStyle = textColor;
   const valueSize = setFittedCanvasFont(context, observation.valueText, width * 0.66, `${settings.fontWeight} ${valueFontSize}px ${fontFamily}`);
   context.textAlign = align;
-  context.fillText(observation.valueText, textX, informationTop);
+  context.fillText(observation.valueText, textX, valueY);
   const valueWidth = context.measureText(observation.valueText).width;
   const unitSize = Math.max(Math.round(valueSize * 0.34), 18);
   context.font = `500 ${unitSize}px ${fontFamily}`;
   context.fillStyle = colorWithAlpha(textColor, 0.9);
   const unitOffset = Math.max(7, Math.round(width * 0.008));
-  context.fillText(observation.unitText, isRight ? textX - valueWidth - unitOffset : textX + valueWidth + unitOffset, informationTop - Math.round(valueSize * 0.42));
+  context.fillText(observation.unitText, isRight ? textX - valueWidth - unitOffset : textX + valueWidth + unitOffset, valueY - Math.round(valueSize * 0.42));
   context.textAlign = "left";
   context.fillStyle = colorWithAlpha(textColor, 0.82);
-  drawTextFitted(context, observation.metricLabel, textX, informationTop + Math.round(valueSize * 0.25), width - pad * 2, `${settings.fontWeight} ${labelFontSize}px ${fontFamily}`, align);
-  if (observation.stationLine || !observation.available) {
+  drawTextFitted(context, observation.metricLabel, textX, labelY, width - pad * 2, `${settings.fontWeight} ${labelFontSize}px ${fontFamily}`, align);
+  if (stationY !== null) {
     context.fillStyle = colorWithAlpha(textColor, 0.78);
-    drawTextFitted(context, observation.available ? observation.stationLine : "現在地を取得すると最寄りの観測値を表示できます", textX, informationTop + Math.round(valueSize * 0.55), width - pad * 2, `500 ${stationFontSize}px ${fontFamily}`, align);
+    drawTextFitted(context, observation.available ? observation.stationLine : "現在地を取得すると最寄りの観測値を表示できます", textX, stationY, width - pad * 2, `500 ${stationFontSize}px ${fontFamily}`, align);
   }
   context.shadowBlur = 0;
   context.strokeStyle = colorWithAlpha(textColor, 0.3);
   context.lineWidth = Math.max(1, Math.round(width * 0.0012));
   context.beginPath();
-  context.moveTo(pad, isTop ? Math.round(height * 0.067) : height - Math.round(height * 0.067));
-  context.lineTo(width - pad, isTop ? Math.round(height * 0.067) : height - Math.round(height * 0.067));
+  context.moveTo(pad, ruleY);
+  context.lineTo(width - pad, ruleY);
   context.stroke();
   context.fillStyle = colorWithAlpha(textColor, 0.78);
   drawTextFitted(context, "MeteoScope", isRight ? width - pad : pad, footerY, width * 0.38, `${settings.fontWeight} ${footerFontSize}px ${fontFamily}`, isRight ? "right" : "left");

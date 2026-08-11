@@ -20007,20 +20007,12 @@ html[data-theme="light"] .feedback-recent-head button {
 #meteoscope-lens-preview.is-adjusting-image { cursor: grabbing; }
 
 .meteoscope-lens-image-position-hint {
-  position: absolute;
-  right: 12px;
-  bottom: 12px;
-  max-width: calc(100% - 24px);
-  margin: 0;
-  padding: 6px 9px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.94);
-  background: rgba(5, 15, 27, 0.54);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.25;
-  pointer-events: none;
+  margin: 8px 0 0;
+  color: var(--muted, #9db0c7);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
 }
 
 .meteoscope-lens-empty {
