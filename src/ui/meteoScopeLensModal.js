@@ -230,11 +230,17 @@ function setupImagePositionGesture() {
       const [first, second] = [...imagePositionPointers.values()];
       const distance = Math.hypot(second.x - first.x, second.y - first.y);
       activeImageScale = normalizeImageScale(imagePositionGesture.startScale * distance / imagePositionGesture.startDistance);
+      const centerX = (first.x + second.x) / 2 - imagePositionGesture.left;
+      const centerY = (first.y + second.y) / 2 - imagePositionGesture.top;
+      const layout = getImageLayout(image, imagePositionGesture.width, imagePositionGesture.height, activeImageScale);
+      setImagePositionFromFocus(layout, { x: centerX, y: centerY }, imagePositionGesture.focus);
     } else if (imagePositionGesture.type === "drag") {
-      const horizontalOffset = (event.clientX - imagePositionGesture.startX) / imagePositionGesture.width;
-      const verticalOffset = (event.clientY - imagePositionGesture.startY) / imagePositionGesture.height;
-      activeImageHorizontalPosition = normalizeImageHorizontalPosition(imagePositionGesture.startHorizontalPosition - horizontalOffset);
-      activeImageVerticalPosition = normalizeImageVerticalPosition(imagePositionGesture.startVerticalPosition - verticalOffset);
+      const layout = getImageLayout(image, imagePositionGesture.width, imagePositionGesture.height, activeImageScale);
+      setImagePositionFromOffsets(
+        layout,
+        imagePositionGesture.startOffsetX + event.clientX - imagePositionGesture.startX,
+        imagePositionGesture.startOffsetY + event.clientY - imagePositionGesture.startY
+      );
     }
     void renderPreview();
     event.preventDefault();
@@ -242,7 +248,7 @@ function setupImagePositionGesture() {
   const finishGesture = (event) => {
     if (!imagePositionPointers.has(event.pointerId)) return;
     imagePositionPointers.delete(event.pointerId);
-    imagePositionGesture = null;
+    imagePositionGesture = imagePositionPointers.size ? createImagePositionGesture(canvas.getBoundingClientRect()) : null;
     if (!imagePositionPointers.size) canvas.classList.remove("is-adjusting-image");
     if (canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
   };
@@ -257,12 +263,20 @@ function setupImagePositionGesture() {
 }
 
 function createImagePositionGesture(bounds) {
+  const layout = getImageLayout(image, bounds.width, bounds.height, activeImageScale);
   if (imagePositionPointers.size >= 2) {
     const [first, second] = [...imagePositionPointers.values()];
+    const centerX = (first.x + second.x) / 2 - bounds.left;
+    const centerY = (first.y + second.y) / 2 - bounds.top;
     return {
       type: "pinch",
       startDistance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
-      startScale: activeImageScale
+      startScale: activeImageScale,
+      left: bounds.left,
+      top: bounds.top,
+      width: bounds.width,
+      height: bounds.height,
+      focus: getImageFocus(layout, centerX, centerY)
     };
   }
   const pointer = imagePositionPointers.values().next().value;
@@ -270,8 +284,8 @@ function createImagePositionGesture(bounds) {
     type: "drag",
     startX: pointer?.x ?? 0,
     startY: pointer?.y ?? 0,
-    startHorizontalPosition: activeImageHorizontalPosition,
-    startVerticalPosition: activeImageVerticalPosition,
+    startOffsetX: layout.offsetX,
+    startOffsetY: layout.offsetY,
     width: bounds.width,
     height: bounds.height
   };
@@ -309,7 +323,7 @@ function buildObservation() {
     metricLabel: Number.isFinite(customValue) ? `${metricLabel} · 実測値` : metricLabel,
     available,
     valueText: available ? formatValue(Number.isFinite(customValue) ? customValue : value, metric.digits) : "--",
-    unitText: metric.id === "temperature" ? "°" : metric.unit,
+    unitText: metric.id === "temperature" ? "°C" : metric.unit,
     stationLine: Number.isFinite(customValue)
       ? customPlace ? `${customPlace} · 実測値` : "利用者入力の実測値"
       : Number.isFinite(station?.distanceKm)
@@ -340,18 +354,54 @@ function findNearestStation(metricId) {
 }
 
 function drawImageCover(context, imageElement, width, height, horizontalPosition = 0.5, verticalPosition = 0.5, imageScale = 1) {
-  const scale = Math.max(width / imageElement.naturalWidth, height / imageElement.naturalHeight) * normalizeImageScale(imageScale);
+  const layout = getImageLayout(imageElement, width, height, imageScale, horizontalPosition, verticalPosition);
+  context.fillStyle = "#08121f";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(
+    imageElement,
+    layout.offsetX,
+    layout.offsetY,
+    layout.drawWidth,
+    layout.drawHeight
+  );
+}
+
+function getImageLayout(imageElement, width, height, imageScale = 1, horizontalPosition = activeImageHorizontalPosition, verticalPosition = activeImageVerticalPosition) {
+  const scale = Math.min(width / imageElement.naturalWidth, height / imageElement.naturalHeight) * normalizeImageScale(imageScale);
   const drawWidth = imageElement.naturalWidth * scale;
   const drawHeight = imageElement.naturalHeight * scale;
   const horizontalOverflow = Math.max(0, drawWidth - width);
   const verticalOverflow = Math.max(0, drawHeight - height);
-  context.drawImage(
-    imageElement,
-    -horizontalOverflow * normalizeImageHorizontalPosition(horizontalPosition),
-    -verticalOverflow * normalizeImageVerticalPosition(verticalPosition),
+  return {
+    width,
+    height,
     drawWidth,
-    drawHeight
+    drawHeight,
+    horizontalOverflow,
+    verticalOverflow,
+    offsetX: horizontalOverflow ? -horizontalOverflow * normalizeImageHorizontalPosition(horizontalPosition) : (width - drawWidth) / 2,
+    offsetY: verticalOverflow ? -verticalOverflow * normalizeImageVerticalPosition(verticalPosition) : (height - drawHeight) / 2
+  };
+}
+
+function getImageFocus(layout, x, y) {
+  return {
+    x: Math.min(1, Math.max(0, (x - layout.offsetX) / layout.drawWidth)),
+    y: Math.min(1, Math.max(0, (y - layout.offsetY) / layout.drawHeight))
+  };
+}
+
+function setImagePositionFromFocus(layout, focusPoint, imageFocus) {
+  setImagePositionFromOffsets(
+    layout,
+    focusPoint.x - imageFocus.x * layout.drawWidth,
+    focusPoint.y - imageFocus.y * layout.drawHeight
   );
+}
+
+function setImagePositionFromOffsets(layout, offsetX, offsetY) {
+  activeImageHorizontalPosition = layout.horizontalOverflow ? normalizeImageHorizontalPosition(-offsetX / layout.horizontalOverflow) : 0.5;
+  activeImageVerticalPosition = layout.verticalOverflow ? normalizeImageVerticalPosition(-offsetY / layout.verticalOverflow) : 0.5;
 }
 
 function drawLensWatermark(context, width, height, observation) {
