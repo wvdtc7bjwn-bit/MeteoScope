@@ -396,6 +396,7 @@ function setImagePositionFromOffsets(layout, offsetX, offsetY) {
 function drawLensWatermark(context, width, height, observation) {
   const settings = getWatermarkSettings();
   const pad = Math.round(width * 0.06);
+  const footerInset = Math.max(16, Math.round(width * 0.035));
   const isTop = settings.position.startsWith("top");
   const isRight = settings.position.endsWith("right");
   const align = isRight ? "right" : "left";
@@ -407,12 +408,14 @@ function drawLensWatermark(context, width, height, observation) {
   const stationFontSize = Math.round(width * 0.031 * scale);
   const footerFontSize = Math.round(width * 0.027 * scale);
   const hasStationLine = Boolean(observation.stationLine);
-  const footerY = isTop ? pad : height - pad;
+  const footerY = isTop ? footerInset : height - footerInset;
   const ruleY = isTop
     ? footerY + Math.max(Math.round(footerFontSize * 1.65), Math.round(height * 0.026))
     : footerY - Math.max(Math.round(footerFontSize * 1.65), Math.round(height * 0.026));
   const primaryLineGap = Math.max(Math.round(valueFontSize * 0.36), Math.round(labelFontSize * 1.65));
-  const locationLineGap = Math.max(Math.round(valueFontSize * 0.74), Math.round(locationFontSize * 1.45));
+  // The place name sits above a much larger value. Reserve the value's full
+  // cap height here so the two glyph runs cannot visually overlap.
+  const locationLineGap = Math.max(Math.round(valueFontSize * 0.96), Math.round(locationFontSize * 1.5));
   const stationLineGap = Math.max(Math.round(stationFontSize * 1.65), Math.round(labelFontSize * 1.45));
   const informationBottom = isTop
     ? ruleY + Math.max(Math.round(height * 0.045), Math.round(footerFontSize * 1.7))

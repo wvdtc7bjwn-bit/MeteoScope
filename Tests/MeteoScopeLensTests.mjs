@@ -74,9 +74,11 @@ assert.match(modalSource, /metricLabel: useCustomValue \? `\$\{metricLabel\} · 
 assert.match(modalSource, /placeName: useCustomValue\s*\? customPlace/u);
 assert.match(modalSource, /stationLine: useCustomValue\s*\? ""/u);
 assert.match(modalSource, /locationFontSize = Math\.round\(width \* 0\.056 \* scale\)/u);
-assert.match(modalSource, /const footerY = isTop \? pad : height - pad/u);
+assert.match(modalSource, /const footerInset = Math\.max\(16, Math\.round\(width \* 0\.035\)\)/u);
+assert.match(modalSource, /const footerY = isTop \? footerInset : height - footerInset/u);
 assert.match(modalSource, /const ruleY = isTop/u);
 assert.match(modalSource, /const primaryLineGap = Math\.max/u);
+assert.match(modalSource, /const locationLineGap = Math\.max\(Math\.round\(valueFontSize \* 0\.96\), Math\.round\(locationFontSize \* 1\.5\)\)/u);
 assert.match(modalSource, /if \(isTop\) \{/u);
 assert.match(modalSource, /stationY = hasStationLine \|\| !observation\.available \? labelY \+ stationLineGap : null/u);
 assert.match(modalSource, /stationY = hasStationLine \|\| !observation\.available \? informationBottom : null/u);
