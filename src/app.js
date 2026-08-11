@@ -7,6 +7,7 @@ import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
 import { setupWeeklyWeatherModal } from "./ui/weeklyWeatherModal.js";
+import { setupNumericWeatherChartModal } from "./ui/numericWeatherChartModal.js";
 import { openDisasterQuizModal, setupDisasterQuizModal } from "./ui/disasterQuizModal.js";
 import { setupOnboardingModal } from "./ui/onboardingModal.js";
 import { setupLegalConsentModal } from "./ui/legalConsentModal.js";
@@ -3476,6 +3477,7 @@ if (layerId === "river") {
       getCurrentLocation: () => currentLocationInfo,
       requestCurrentLocation: () => requestAndFocusCurrentPosition({ announceLoading: true, setBusy: true })
     });
+    setupNumericWeatherChartModal();
     const disasterDashboardButton = document.getElementById("disaster-dashboard-button");
     disasterDashboardButton?.addEventListener("click", () => {
       void loadDisasterDashboardModule().then((dashboardModule) => {
