@@ -23,6 +23,7 @@ let image = null;
 let imageObjectUrl = "";
 let activeFormat = "portrait";
 let activeImageVerticalPosition = 0.5;
+let activeImageHorizontalPosition = 0.5;
 let activeImageScale = 1;
 const imagePositionPointers = new Map();
 let imagePositionGesture = null;
@@ -55,6 +56,16 @@ export function setupMeteoScopeLensModal({ getContext } = {}) {
   setupImagePositionGesture();
   document.getElementById("meteoscope-lens-show-location")?.addEventListener("change", () => void renderPreview());
   document.getElementById("meteoscope-lens-text-color")?.addEventListener("input", () => void renderPreview());
+  [
+    "meteoscope-lens-watermark-position",
+    "meteoscope-lens-font-family",
+    "meteoscope-lens-font-weight",
+    "meteoscope-lens-watermark-backdrop"
+  ].forEach((id) => document.getElementById(id)?.addEventListener("change", () => void renderPreview()));
+  document.getElementById("meteoscope-lens-font-scale")?.addEventListener("input", () => {
+    syncWatermarkSettingsUi();
+    void renderPreview();
+  });
   document.getElementById("meteoscope-lens-use-custom-value")?.addEventListener("change", () => {
     syncCustomMeasurementControls();
     void renderPreview();
@@ -75,7 +86,9 @@ export function openMeteoScopeLensModal() {
   activeContext = normalizeContext(getLensContext());
   activeFormat = "portrait";
   activeImageVerticalPosition = 0.5;
+  activeImageHorizontalPosition = 0.5;
   activeImageScale = 1;
+  syncWatermarkSettingsUi();
   const format = document.getElementById("meteoscope-lens-format");
   if (format) format.value = activeFormat;
   populateMetricOptions();
@@ -124,9 +137,10 @@ function applyEarlyAccessState() {
   const notice = document.getElementById("meteoscope-lens-early-access");
   panel?.classList.toggle("is-early-access-locked", locked);
   if (notice) notice.hidden = !locked;
-  document.querySelectorAll("#meteoscope-lens-capture, #meteoscope-lens-library, #meteoscope-lens-metric, #meteoscope-lens-format, #meteoscope-lens-show-location, #meteoscope-lens-text-color, #meteoscope-lens-use-custom-value, #meteoscope-lens-download, #meteoscope-lens-share").forEach((element) => {
+  document.querySelectorAll("#meteoscope-lens-capture, #meteoscope-lens-library, #meteoscope-lens-metric, #meteoscope-lens-format, #meteoscope-lens-show-location, #meteoscope-lens-text-color, #meteoscope-lens-watermark-position, #meteoscope-lens-font-family, #meteoscope-lens-font-weight, #meteoscope-lens-watermark-backdrop, #meteoscope-lens-font-scale, #meteoscope-lens-use-custom-value, #meteoscope-lens-download, #meteoscope-lens-share").forEach((element) => {
     element.disabled = locked;
   });
+  syncWatermarkSettingsUi();
   syncCustomMeasurementControls();
 }
 
@@ -174,6 +188,7 @@ async function selectPhoto(input) {
 
 function clearSelectedPhoto() {
   image = null;
+  activeImageHorizontalPosition = 0.5;
   activeImageScale = 1;
   imagePositionPointers.clear();
   imagePositionGesture = null;
@@ -216,8 +231,10 @@ function setupImagePositionGesture() {
       const distance = Math.hypot(second.x - first.x, second.y - first.y);
       activeImageScale = normalizeImageScale(imagePositionGesture.startScale * distance / imagePositionGesture.startDistance);
     } else if (imagePositionGesture.type === "drag") {
-      const offset = (event.clientY - imagePositionGesture.startY) / imagePositionGesture.height;
-      activeImageVerticalPosition = normalizeImageVerticalPosition(imagePositionGesture.startPosition - offset);
+      const horizontalOffset = (event.clientX - imagePositionGesture.startX) / imagePositionGesture.width;
+      const verticalOffset = (event.clientY - imagePositionGesture.startY) / imagePositionGesture.height;
+      activeImageHorizontalPosition = normalizeImageHorizontalPosition(imagePositionGesture.startHorizontalPosition - horizontalOffset);
+      activeImageVerticalPosition = normalizeImageVerticalPosition(imagePositionGesture.startVerticalPosition - verticalOffset);
     }
     void renderPreview();
     event.preventDefault();
@@ -251,8 +268,11 @@ function createImagePositionGesture(bounds) {
   const pointer = imagePositionPointers.values().next().value;
   return {
     type: "drag",
+    startX: pointer?.x ?? 0,
     startY: pointer?.y ?? 0,
-    startPosition: activeImageVerticalPosition,
+    startHorizontalPosition: activeImageHorizontalPosition,
+    startVerticalPosition: activeImageVerticalPosition,
+    width: bounds.width,
     height: bounds.height
   };
 }
@@ -268,7 +288,7 @@ async function renderPreview() {
   canvas.height = format.height;
   const context = canvas.getContext("2d");
   if (!context) return;
-  drawImageCover(context, image, format.width, format.height, activeImageVerticalPosition, activeImageScale);
+  drawImageCover(context, image, format.width, format.height, activeImageHorizontalPosition, activeImageVerticalPosition, activeImageScale);
   drawLensWatermark(context, format.width, format.height, buildObservation());
   updatePreviewState();
 }
@@ -319,14 +339,15 @@ function findNearestStation(metricId) {
   }, null);
 }
 
-function drawImageCover(context, imageElement, width, height, verticalPosition = 0.5, imageScale = 1) {
+function drawImageCover(context, imageElement, width, height, horizontalPosition = 0.5, verticalPosition = 0.5, imageScale = 1) {
   const scale = Math.max(width / imageElement.naturalWidth, height / imageElement.naturalHeight) * normalizeImageScale(imageScale);
   const drawWidth = imageElement.naturalWidth * scale;
   const drawHeight = imageElement.naturalHeight * scale;
+  const horizontalOverflow = Math.max(0, drawWidth - width);
   const verticalOverflow = Math.max(0, drawHeight - height);
   context.drawImage(
     imageElement,
-    (width - drawWidth) / 2,
+    -horizontalOverflow * normalizeImageHorizontalPosition(horizontalPosition),
     -verticalOverflow * normalizeImageVerticalPosition(verticalPosition),
     drawWidth,
     drawHeight
@@ -334,65 +355,87 @@ function drawImageCover(context, imageElement, width, height, verticalPosition =
 }
 
 function drawLensWatermark(context, width, height, observation) {
+  const settings = getWatermarkSettings();
   const pad = Math.round(width * 0.06);
   const isPortrait = height >= width;
-  const overlayTop = Math.round(height * (isPortrait ? 0.58 : 0.56));
-  const locationFontSize = Math.round(width * 0.042);
-  const valueFontSize = Math.round(Math.min(width * (observation.available ? 0.17 : 0.12), height * (observation.available ? 0.18 : 0.13)));
-  const labelFontSize = Math.round(width * 0.034);
-  const stationFontSize = Math.round(width * 0.037);
-  const footerFontSize = Math.round(width * 0.027);
-  const fontFamily = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Yu Gothic", "Hiragino Sans", sans-serif';
-  const textColor = getLensTextColor();
+  const isTop = settings.position.startsWith("top");
+  const isRight = settings.position.endsWith("right");
+  const align = isRight ? "right" : "left";
+  const textX = isRight ? width - pad : pad;
+  const scale = settings.fontScale;
+  const locationFontSize = Math.round(width * 0.042 * scale);
+  const valueFontSize = Math.round(Math.min(width * (observation.available ? 0.17 : 0.12) * scale, height * (observation.available ? 0.18 : 0.13) * scale));
+  const labelFontSize = Math.round(width * 0.034 * scale);
+  const stationFontSize = Math.round(width * 0.037 * scale);
+  const footerFontSize = Math.round(width * 0.027 * scale);
+  const contentHeight = Math.round(valueFontSize * (observation.placeName ? 2.9 : 2.2));
+  const overlayTop = isTop ? 0 : Math.max(0, height - contentHeight - Math.round(height * 0.09));
+  const contentTop = isTop ? Math.round(height * 0.09) : overlayTop + Math.round(height * 0.075);
+  const footerY = isTop ? Math.round(height * 0.045) : height - Math.round(height * 0.03);
+  const fontFamily = settings.fontFamily;
+  const textColor = settings.textColor;
   context.save();
-  const gradient = context.createLinearGradient(0, overlayTop, 0, height);
-  gradient.addColorStop(0, "rgba(2, 8, 16, 0)");
-  gradient.addColorStop(0.44, "rgba(2, 8, 16, 0.06)");
-  gradient.addColorStop(1, "rgba(2, 8, 16, 0.54)");
-  context.fillStyle = gradient;
-  context.fillRect(0, overlayTop, width, height - overlayTop);
+  drawWatermarkBackdrop(context, width, height, overlayTop, isTop, settings.backdrop);
   context.shadowColor = "rgba(0, 0, 0, 0.24)";
   context.shadowBlur = Math.max(8, Math.round(width * 0.011));
   context.shadowOffsetY = 1;
-  let informationTop = overlayTop + Math.round(height * 0.075);
+  let informationTop = contentTop;
   if (observation.placeName) {
     context.fillStyle = colorWithAlpha(textColor, 0.9);
-    drawTextFitted(context, observation.placeName, pad, informationTop, width - pad * 2, `600 ${locationFontSize}px ${fontFamily}`);
+    drawTextFitted(context, observation.placeName, textX, informationTop, width - pad * 2, `${settings.fontWeight} ${locationFontSize}px ${fontFamily}`, align);
     informationTop += Math.round(valueFontSize * 0.9);
   } else {
     informationTop += Math.round(valueFontSize * 0.7);
   }
   context.fillStyle = textColor;
-  const valueSize = setFittedCanvasFont(context, observation.valueText, width * 0.72, `600 ${valueFontSize}px ${fontFamily}`);
-  context.fillText(observation.valueText, pad, informationTop);
+  const valueSize = setFittedCanvasFont(context, observation.valueText, width * 0.66, `${settings.fontWeight} ${valueFontSize}px ${fontFamily}`);
+  context.textAlign = align;
+  context.fillText(observation.valueText, textX, informationTop);
   const valueWidth = context.measureText(observation.valueText).width;
   const unitSize = Math.max(Math.round(valueSize * 0.34), 18);
   context.font = `500 ${unitSize}px ${fontFamily}`;
   context.fillStyle = colorWithAlpha(textColor, 0.9);
-  context.fillText(observation.unitText, pad + valueWidth + Math.max(7, Math.round(width * 0.008)), informationTop - Math.round(valueSize * 0.42));
+  const unitOffset = Math.max(7, Math.round(width * 0.008));
+  context.fillText(observation.unitText, isRight ? textX - valueWidth - unitOffset : textX + valueWidth + unitOffset, informationTop - Math.round(valueSize * 0.42));
+  context.textAlign = "left";
   context.fillStyle = colorWithAlpha(textColor, 0.82);
-  drawTextFitted(context, observation.metricLabel, pad, informationTop + Math.round(valueSize * 0.25), width - pad * 2, `600 ${labelFontSize}px ${fontFamily}`);
+  drawTextFitted(context, observation.metricLabel, textX, informationTop + Math.round(valueSize * 0.25), width - pad * 2, `${settings.fontWeight} ${labelFontSize}px ${fontFamily}`, align);
   context.fillStyle = colorWithAlpha(textColor, 0.78);
-  drawTextFitted(
-    context,
-    observation.available ? observation.stationLine : "現在地を取得すると最寄りの観測値を表示できます",
-    pad,
-    informationTop + Math.round(valueSize * 0.55),
-    width - pad * 2,
-    `500 ${stationFontSize}px ${fontFamily}`
-  );
+  drawTextFitted(context, observation.available ? observation.stationLine : "現在地を取得すると最寄りの観測値を表示できます", textX, informationTop + Math.round(valueSize * 0.55), width - pad * 2, `500 ${stationFontSize}px ${fontFamily}`, align);
   context.shadowBlur = 0;
   context.strokeStyle = colorWithAlpha(textColor, 0.3);
   context.lineWidth = Math.max(1, Math.round(width * 0.0012));
   context.beginPath();
-  context.moveTo(pad, height - Math.round(height * 0.067));
-  context.lineTo(width - pad, height - Math.round(height * 0.067));
+  context.moveTo(pad, isTop ? Math.round(height * 0.067) : height - Math.round(height * 0.067));
+  context.lineTo(width - pad, isTop ? Math.round(height * 0.067) : height - Math.round(height * 0.067));
   context.stroke();
   context.fillStyle = colorWithAlpha(textColor, 0.78);
-  drawTextFitted(context, "MeteoScope", pad, height - Math.round(height * 0.03), width * 0.38, `600 ${footerFontSize}px ${fontFamily}`);
+  drawTextFitted(context, "MeteoScope", isRight ? width - pad : pad, footerY, width * 0.38, `${settings.fontWeight} ${footerFontSize}px ${fontFamily}`, isRight ? "right" : "left");
   context.fillStyle = colorWithAlpha(textColor, 0.72);
-  drawTextFitted(context, `JMA · ${observation.observationTime}`, width - pad, height - Math.round(height * 0.03), width * 0.4, `500 ${footerFontSize}px ${fontFamily}`, "right");
+  drawTextFitted(context, `JMA · ${observation.observationTime}`, isRight ? pad : width - pad, footerY, width * 0.4, `500 ${footerFontSize}px ${fontFamily}`, isRight ? "left" : "right");
   context.restore();
+}
+
+function drawWatermarkBackdrop(context, width, height, overlayTop, isTop, backdrop) {
+  if (backdrop === "none") return;
+  const backdropHeight = isTop ? Math.round(height * 0.38) : height - overlayTop;
+  if (backdrop === "matte") {
+    context.fillStyle = "rgba(2, 8, 16, 0.42)";
+    context.fillRect(0, overlayTop, width, backdropHeight);
+    return;
+  }
+  const gradient = context.createLinearGradient(0, overlayTop, 0, overlayTop + backdropHeight);
+  if (isTop) {
+    gradient.addColorStop(0, "rgba(2, 8, 16, 0.54)");
+    gradient.addColorStop(0.6, "rgba(2, 8, 16, 0.08)");
+    gradient.addColorStop(1, "rgba(2, 8, 16, 0)");
+  } else {
+    gradient.addColorStop(0, "rgba(2, 8, 16, 0)");
+    gradient.addColorStop(0.44, "rgba(2, 8, 16, 0.06)");
+    gradient.addColorStop(1, "rgba(2, 8, 16, 0.54)");
+  }
+  context.fillStyle = gradient;
+  context.fillRect(0, overlayTop, width, backdropHeight);
 }
 
 function drawTextFitted(context, text, x, y, maxWidth, font, align = "left") {
@@ -419,6 +462,42 @@ function setFittedCanvasFont(context, text, maxWidth, font) {
 function normalizeImageVerticalPosition(value) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? Math.min(1, Math.max(0, numeric > 1 ? numeric / 100 : numeric)) : 0.5;
+}
+
+function normalizeImageHorizontalPosition(value) {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? Math.min(1, Math.max(0, numeric > 1 ? numeric / 100 : numeric)) : 0.5;
+}
+
+function getWatermarkSettings() {
+  const fontFamilies = {
+    sans: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", "Yu Gothic", "Hiragino Sans", sans-serif',
+    rounded: 'ui-rounded, "Hiragino Maru Gothic ProN", "Yu Gothic", sans-serif',
+    serif: 'Iowan Old Style, "Yu Mincho", "Hiragino Mincho ProN", serif'
+  };
+  const fontScale = Number(document.getElementById("meteoscope-lens-font-scale")?.value);
+  const position = getWatermarkChoice("meteoscope-lens-watermark-position", ["bottom-left", "bottom-right", "top-left", "top-right"], "bottom-left");
+  const family = getWatermarkChoice("meteoscope-lens-font-family", Object.keys(fontFamilies), "sans");
+  const weight = getWatermarkChoice("meteoscope-lens-font-weight", ["regular", "bold"], "regular");
+  return {
+    position,
+    fontFamily: fontFamilies[family],
+    fontWeight: weight === "bold" ? 700 : 600,
+    backdrop: getWatermarkChoice("meteoscope-lens-watermark-backdrop", ["gradient", "matte", "none"], "gradient"),
+    fontScale: Number.isFinite(fontScale) ? Math.min(1.4, Math.max(0.8, fontScale / 100)) : 1,
+    textColor: getLensTextColor()
+  };
+}
+
+function getWatermarkChoice(id, options, fallback) {
+  const value = document.getElementById(id)?.value;
+  return options.includes(value) ? value : fallback;
+}
+
+function syncWatermarkSettingsUi() {
+  const scale = document.getElementById("meteoscope-lens-font-scale")?.value;
+  const output = document.getElementById("meteoscope-lens-font-scale-output");
+  if (output) output.textContent = `${Number(scale) || 100}%`;
 }
 
 function normalizeImageScale(value) {

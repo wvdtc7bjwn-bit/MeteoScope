@@ -932,11 +932,50 @@
               <strong>透かしのカスタマイズ</strong>
               <span>投稿画像にのみ反映</span>
             </div>
-            <div class="meteoscope-lens-customization-controls">
+            <div class="meteoscope-lens-watermark-style" aria-label="透かしの見た目">
               <label class="meteoscope-lens-color-control">
                 <span>文字色</span>
                 <input id="meteoscope-lens-text-color" type="color" value="#ffffff" aria-label="透かしの文字色" />
               </label>
+              <label class="meteoscope-lens-style-select">
+                <span>配置</span>
+                <select id="meteoscope-lens-watermark-position" aria-label="透かしの配置">
+                  <option value="bottom-left">左下</option>
+                  <option value="bottom-right">右下</option>
+                  <option value="top-left">左上</option>
+                  <option value="top-right">右上</option>
+                </select>
+              </label>
+              <label class="meteoscope-lens-style-select">
+                <span>書体</span>
+                <select id="meteoscope-lens-font-family" aria-label="透かしの書体">
+                  <option value="sans">ゴシック</option>
+                  <option value="rounded">丸ゴシック</option>
+                  <option value="serif">明朝</option>
+                </select>
+              </label>
+              <label class="meteoscope-lens-style-select">
+                <span>太さ</span>
+                <select id="meteoscope-lens-font-weight" aria-label="透かしの文字の太さ">
+                  <option value="regular">標準</option>
+                  <option value="bold">太字</option>
+                </select>
+              </label>
+              <label class="meteoscope-lens-style-select">
+                <span>背景</span>
+                <select id="meteoscope-lens-watermark-backdrop" aria-label="透かしの背景">
+                  <option value="gradient">自然な影</option>
+                  <option value="matte">マット</option>
+                  <option value="none">なし</option>
+                </select>
+              </label>
+            </div>
+            <label class="meteoscope-lens-font-size-control">
+              <span>文字サイズ</span>
+              <input id="meteoscope-lens-font-scale" type="range" min="80" max="140" step="5" value="100" aria-label="透かしの文字サイズ" />
+              <output id="meteoscope-lens-font-scale-output" for="meteoscope-lens-font-scale">100%</output>
+            </label>
+            <div class="meteoscope-lens-customization-controls">
               <label class="meteoscope-lens-location-toggle meteoscope-lens-custom-value-toggle">
                 <input id="meteoscope-lens-use-custom-value" type="checkbox" />
                 <span>実測値を入力して表示</span>
@@ -956,7 +995,7 @@
           <div class="meteoscope-lens-preview-shell">
             <canvas id="meteoscope-lens-preview" aria-label="MeteoScope Lensの投稿画像プレビュー"></canvas>
             <p id="meteoscope-lens-empty" class="meteoscope-lens-empty">写真を選ぶと投稿画像を作成できます。</p>
-            <p id="meteoscope-lens-image-position-hint" class="meteoscope-lens-image-position-hint" hidden>上下にドラッグ・2本指で拡大</p>
+            <p id="meteoscope-lens-image-position-hint" class="meteoscope-lens-image-position-hint" hidden>ドラッグで位置調整・2本指で拡大</p>
           </div>
           <p id="meteoscope-lens-status" class="meteoscope-lens-status" role="status"></p>
           <p class="meteoscope-lens-note">写真と位置情報はMeteoScopeのサーバーに送信されません。値は最寄りのAMeDAS観測所の観測値であり、撮影地点の実測値ではありません。</p>

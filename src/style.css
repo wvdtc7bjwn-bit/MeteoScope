@@ -19606,26 +19606,80 @@ html[data-theme="light"] .feedback-recent-head button {
 }
 
 .meteoscope-lens-customization-controls {
-  justify-content: space-between;
+  justify-content: flex-start;
 }
 
-.meteoscope-lens-color-control {
-  display: inline-flex;
-  align-items: center;
+.meteoscope-lens-watermark-style {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.meteoscope-lens-color-control,
+.meteoscope-lens-style-select,
+.meteoscope-lens-font-size-control {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 42px;
+  padding: 7px 9px;
+  border: 1px solid rgba(148, 179, 207, 0.28);
+  border-radius: 10px;
+  background: rgba(3, 15, 30, 0.2);
   color: var(--muted-text, #a9b9cb);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
 }
 
+.meteoscope-lens-color-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.meteoscope-lens-style-select {
+  display: grid;
+  gap: 2px;
+}
+
+.meteoscope-lens-style-select select {
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: var(--text, #f8fbff);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  background: transparent;
+}
+
 .meteoscope-lens-color-control input {
-  width: 34px;
-  height: 28px;
+  width: 30px;
+  height: 26px;
   padding: 2px;
   border: 1px solid rgba(148, 179, 207, 0.38);
   border-radius: 8px;
   background: transparent;
   cursor: pointer;
+}
+
+.meteoscope-lens-font-size-control {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.meteoscope-lens-font-size-control input { min-width: 0; accent-color: var(--accent, #5dcdf5); }
+
+.meteoscope-lens-font-size-control output {
+  min-width: 38px;
+  color: var(--text, #f8fbff);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
 }
 
 .meteoscope-lens-custom-value-toggle {
@@ -19736,6 +19790,13 @@ html[data-theme="light"] .meteoscope-lens-early-access {
 html[data-theme="light"] .meteoscope-lens-customization {
   background: rgba(255, 255, 255, 0.42);
 }
+html[data-theme="light"] .meteoscope-lens-color-control,
+html[data-theme="light"] .meteoscope-lens-style-select,
+html[data-theme="light"] .meteoscope-lens-font-size-control {
+  background: rgba(255, 255, 255, 0.62);
+}
+html[data-theme="light"] .meteoscope-lens-style-select select,
+html[data-theme="light"] .meteoscope-lens-font-size-control output { color: #203950; }
 
 @media (max-width: 600px) {
   .meteoscope-lens-panel {
