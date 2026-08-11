@@ -300,19 +300,26 @@ function buildObservation() {
     : metric.label;
   const customValue = getCustomMeasurementValue();
   const customPlace = getCustomMeasurementPlace();
+  const useCustomValue = Number.isFinite(customValue);
+  const showLocation = document.getElementById("meteoscope-lens-show-location")?.checked;
   const available = Number.isFinite(customValue) || Number.isFinite(value);
+  const stationName = Number.isFinite(station?.distanceKm) ? station.name : "";
   return {
-    metricLabel: Number.isFinite(customValue) ? `${metricLabel} · 実測値` : metricLabel,
+    metricLabel: useCustomValue ? `${metricLabel} · 実測値` : metricLabel,
     available,
-    valueText: available ? formatValue(Number.isFinite(customValue) ? customValue : value, metric.digits) : "--",
+    valueText: available ? formatValue(useCustomValue ? customValue : value, metric.digits) : "--",
     unitText: metric.id === "temperature" ? "°C" : metric.unit,
-    stationLine: Number.isFinite(customValue)
-      ? customPlace ? `${customPlace} · 実測値` : "利用者入力の実測値"
+    placeName: useCustomValue
+      ? customPlace
+      : showLocation
+      ? activeContext?.placeName ?? ""
+      : stationName,
+    stationLine: useCustomValue
+      ? ""
       : Number.isFinite(station?.distanceKm)
-      ? `${station.name} AMeDAS · ${formatDistance(station.distanceKm)}`
+      ? `${showLocation ? stationName : "AMeDAS"} · ${formatDistance(station.distanceKm)}`
       : "観測所を確認中",
-    observationTime: formatObservationTime(activeContext?.data?.latestTime),
-    placeName: document.getElementById("meteoscope-lens-show-location")?.checked ? activeContext?.placeName : ""
+    observationTime: formatObservationTime(activeContext?.data?.latestTime)
   };
 }
 
@@ -395,12 +402,13 @@ function drawLensWatermark(context, width, height, observation) {
   const align = isRight ? "right" : "left";
   const textX = isRight ? width - pad : pad;
   const scale = settings.fontScale;
-  const locationFontSize = Math.round(width * 0.042 * scale);
+  const locationFontSize = Math.round(width * 0.056 * scale);
   const valueFontSize = Math.round(Math.min(width * (observation.available ? 0.17 : 0.12) * scale, height * (observation.available ? 0.18 : 0.13) * scale));
   const labelFontSize = Math.round(width * 0.034 * scale);
-  const stationFontSize = Math.round(width * 0.037 * scale);
+  const stationFontSize = Math.round(width * 0.031 * scale);
   const footerFontSize = Math.round(width * 0.027 * scale);
-  const contentHeight = Math.round(valueFontSize * (observation.placeName ? 2.9 : 2.2));
+  const hasStationLine = Boolean(observation.stationLine);
+  const contentHeight = Math.round(valueFontSize * (observation.placeName ? (hasStationLine ? 3.2 : 2.65) : (hasStationLine ? 2.2 : 1.7)));
   const overlayTop = isTop ? 0 : Math.max(0, height - contentHeight - Math.round(height * 0.09));
   const contentTop = isTop ? Math.round(height * 0.09) : overlayTop + Math.round(height * 0.075);
   const footerY = isTop ? Math.round(height * 0.045) : height - Math.round(height * 0.03);
@@ -415,7 +423,7 @@ function drawLensWatermark(context, width, height, observation) {
   if (observation.placeName) {
     context.fillStyle = colorWithAlpha(textColor, 0.9);
     drawTextFitted(context, observation.placeName, textX, informationTop, width - pad * 2, `${settings.fontWeight} ${locationFontSize}px ${fontFamily}`, align);
-    informationTop += Math.round(valueFontSize * 0.9);
+    informationTop += Math.round(locationFontSize * 1.25);
   } else {
     informationTop += Math.round(valueFontSize * 0.7);
   }
@@ -432,8 +440,10 @@ function drawLensWatermark(context, width, height, observation) {
   context.textAlign = "left";
   context.fillStyle = colorWithAlpha(textColor, 0.82);
   drawTextFitted(context, observation.metricLabel, textX, informationTop + Math.round(valueSize * 0.25), width - pad * 2, `${settings.fontWeight} ${labelFontSize}px ${fontFamily}`, align);
-  context.fillStyle = colorWithAlpha(textColor, 0.78);
-  drawTextFitted(context, observation.available ? observation.stationLine : "現在地を取得すると最寄りの観測値を表示できます", textX, informationTop + Math.round(valueSize * 0.55), width - pad * 2, `500 ${stationFontSize}px ${fontFamily}`, align);
+  if (observation.stationLine || !observation.available) {
+    context.fillStyle = colorWithAlpha(textColor, 0.78);
+    drawTextFitted(context, observation.available ? observation.stationLine : "現在地を取得すると最寄りの観測値を表示できます", textX, informationTop + Math.round(valueSize * 0.55), width - pad * 2, `500 ${stationFontSize}px ${fontFamily}`, align);
+  }
   context.shadowBlur = 0;
   context.strokeStyle = colorWithAlpha(textColor, 0.3);
   context.lineWidth = Math.max(1, Math.round(width * 0.0012));
