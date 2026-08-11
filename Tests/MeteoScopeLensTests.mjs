@@ -67,7 +67,7 @@ assert.match(modalSource, /\^\(\?:\(\\d\+\)\\s\+\)\?\(\\d\+\)px/u);
 assert.doesNotMatch(modalSource, /MeteoScope Lensはアーリーアクセス機能/u);
 assert.match(modalSource, /"AMeDAS"/u);
 assert.match(modalSource, /JMA ·/u);
-assert.match(modalSource, /unitText: metric\.id === "temperature" \? "°C" : metric\.unit/u);
+assert.match(modalSource, /unitText: metric\.id === "temperature" \? "\u2103" : metric\.unit/u);
 assert.doesNotMatch(modalSource, /最寄りの観測所・/u);
 assert.match(modalSource, /rawValue === null \|\| rawValue === undefined \|\| rawValue === ""/u);
 assert.match(modalSource, /metricLabel: useCustomValue \? `\$\{metricLabel\} · 実測値` : metricLabel/u);

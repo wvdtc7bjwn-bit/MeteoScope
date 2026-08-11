@@ -308,7 +308,7 @@ function buildObservation() {
     metricLabel: useCustomValue ? `${metricLabel} · 実測値` : metricLabel,
     available,
     valueText: available ? formatValue(useCustomValue ? customValue : value, metric.digits) : "--",
-    unitText: metric.id === "temperature" ? "°C" : metric.unit,
+    unitText: metric.id === "temperature" ? "℃" : metric.unit,
     placeName: useCustomValue
       ? customPlace
       : showLocation
