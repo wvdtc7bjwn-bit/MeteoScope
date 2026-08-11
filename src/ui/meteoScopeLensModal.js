@@ -458,7 +458,7 @@ function drawLensWatermark(context, width, height, observation) {
   const unitSize = Math.max(Math.round(valueSize * 0.34), 18);
   context.font = `500 ${unitSize}px ${fontFamily}`;
   context.fillStyle = colorWithAlpha(textColor, 0.9);
-  const unitOffset = Math.max(7, Math.round(width * 0.008));
+  const unitOffset = Math.max(3, Math.round(width * 0.003));
   context.fillText(observation.unitText, isRight ? textX - valueWidth - unitOffset : textX + valueWidth + unitOffset, valueY - Math.round(valueSize * 0.42));
   context.textAlign = "left";
   context.fillStyle = colorWithAlpha(textColor, 0.82);
