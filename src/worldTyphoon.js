@@ -137,6 +137,24 @@ export function getWorldTyphoonModel(modelId) {
   return WORLD_TYPHOON_MODELS[normalizeWorldTyphoonModel(modelId)];
 }
 
+export function formatWorldTyphoonSystemLabel(system) {
+  const id = String(system?.id ?? "").trim();
+  const name = String(system?.name ?? "").trim();
+  if (!id) return name;
+  if (!name || name.toLocaleUpperCase() === id.toLocaleUpperCase()) return id;
+  return `${id} · ${name}`;
+}
+
+export function isWorldTyphoonControlMember(system, member) {
+  const controlCoordinates = system?.controlCoordinates?.length
+    ? system.controlCoordinates
+    : (system?.controlPoints ?? []).map((point) => point?.coordinates);
+  if (controlCoordinates.length < 2) return false;
+  if (Number(member?.id) === 0) return true;
+  if (!Array.isArray(member?.coordinates)) return false;
+  return worldTyphoonTracksMatch(member.coordinates, controlCoordinates);
+}
+
 export function selectWorldTyphoonSystem(worldData, jmaTyphoon = null) {
   const systems = worldData?.systems ?? [];
   if (!systems.length) return null;
@@ -261,7 +279,7 @@ export function selectWorldTyphoonForecastPositions(system, validTime) {
     appendPosition(system.deterministicPoints, "deterministic", null);
   }
   (system?.members ?? []).forEach((member, memberIndex) => {
-    if (hasControlTrack && Number(member.id) === 0) return;
+    if (hasControlTrack && isWorldTyphoonControlMember(system, member)) return;
     appendPosition(member.points ?? [], "member", Number(member.id), memberIndex);
   });
 
@@ -346,14 +364,19 @@ function interpolateForecastNumber(from, to, ratio) {
 function normalizeWorldSystem(system) {
   const id = String(system?.id ?? "").trim();
   const isGenesis = system?.kind === "genesis";
+  const memberIds = new Set();
   const members = (system?.members ?? [])
     .map((member) => {
+      const memberId = Number(member?.id);
+      if (!Number.isInteger(memberId) || memberIds.has(memberId)) return null;
       const points = (member?.points ?? []).map(normalizePoint).filter(Boolean);
-      return points.length >= 2 ? {
-        id: Number(member.id),
+      if (points.length < 2) return null;
+      memberIds.add(memberId);
+      return {
+        id: memberId,
         points,
         coordinates: points.map((point) => point.coordinates)
-      } : null;
+      };
     })
     .filter(Boolean);
 
@@ -383,6 +406,18 @@ function normalizeWorldSystem(system) {
     deterministicPoints,
     deterministicCoordinates: deterministicPoints.map((point) => point.coordinates)
   };
+}
+
+function worldTyphoonTracksMatch(first = [], second = []) {
+  if (first.length !== second.length || first.length < 2) return false;
+  return first.every((coordinates, index) => (
+    Array.isArray(coordinates)
+    && Array.isArray(second[index])
+    && coordinates.length >= 2
+    && second[index].length >= 2
+    && Math.abs(Number(coordinates[0]) - Number(second[index][0])) < 0.0001
+    && Math.abs(Number(coordinates[1]) - Number(second[index][1])) < 0.0001
+  ));
 }
 
 export function buildEnsembleMeanSystem(system) {

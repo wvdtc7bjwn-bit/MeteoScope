@@ -22,6 +22,7 @@ import { fetchTyphoonList } from "./jma/typhoon.js";
 import {
   buildWorldTyphoonTimeline,
   fetchWorldTyphoonForecast,
+  formatWorldTyphoonSystemLabel,
   getWorldTyphoonModel,
   selectWorldTyphoonForecastPositions,
   selectWorldTyphoonGenesisSystems,
@@ -1909,7 +1910,7 @@ if (layerId === "river") {
             modelLabel: layer.modelInfo?.label ?? layer.id,
             modelColor: layer.modelInfo?.color ?? "#56b7f2",
             systemId: String(system.id),
-            name: system.name ?? system.id,
+            name: formatWorldTyphoonSystemLabel(system),
             kind: system.kind,
             memberCount: system.memberCount
           }));

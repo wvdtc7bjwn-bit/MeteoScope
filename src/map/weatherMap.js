@@ -36,7 +36,7 @@ import {
   getVolcanoAshfallLevel,
   VOLCANO_SMALL_CINDERS_STYLE
 } from "../volcanoAshfall.js";
-import { WORLD_TYPHOON_MODELS } from "../worldTyphoon.js";
+import { WORLD_TYPHOON_MODELS, isWorldTyphoonControlMember } from "../worldTyphoon.js";
 import {
   buildStormWarningAreaLineSegments,
   destinationPoint
@@ -4806,8 +4806,7 @@ function createWorldTyphoonFeatures(
     : null;
   const memberLineGroups = new Map();
   (system?.members ?? []).forEach((member, index) => {
-    const duplicatesControl = Number(member.id) === 0
-      && system.controlCoordinates?.length >= 2;
+    const duplicatesControl = isWorldTyphoonControlMember(system, member);
     if (duplicatesControl || member.coordinates?.length < 2) return;
     const color = isGenesis ? genesisEnsembleColor : palette[index % palette.length];
     const lineGroup = memberLineGroups.get(color) ?? [];

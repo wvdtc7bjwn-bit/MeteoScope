@@ -10,7 +10,9 @@ import {
 import {
   buildEnsembleMeanSystem,
   buildWorldTyphoonTimeline,
+  formatWorldTyphoonSystemLabel,
   getWorldTyphoonModel,
+  isWorldTyphoonControlMember,
   selectWorldTyphoonForecastPosition,
   selectWorldTyphoonForecastPositions,
   selectWorldTyphoonGenesisSystems,
@@ -225,6 +227,14 @@ assert.equal(getWorldTyphoonModel("ifs-hres").label, "ECMWF IFS HRES");
 assert.equal(getWorldTyphoonModel("aifs-ens").label, "ECMWF AIFS ENS");
 assert.equal(getWorldTyphoonModel("aifs-single").label, "ECMWF AIFS Single");
 assert.equal(getWorldTyphoonModel("gefs-mean").label, "NOAA/NCEP GEFS Ensemble Mean");
+assert.equal(
+  formatWorldTyphoonSystemLabel({ id: "17W", name: "CHAN-HOM" }),
+  "17W · CHAN-HOM"
+);
+assert.equal(
+  formatWorldTyphoonSystemLabel({ id: "70W", name: "70W" }),
+  "70W"
+);
 const meanSystem = buildEnsembleMeanSystem({
   id: "mean-test",
   memberCount: 2,
@@ -313,6 +323,33 @@ assert.deepEqual(
 assert.deepEqual(
   ensemblePositions.map(({ position }) => position.coordinates),
   [[142, 22], [142.5, 22.5], [141.5, 21.5]]
+);
+const nonZeroControlSystem = {
+  forecastBaseTime: "2026-07-25T00:00:00.000Z",
+  controlPoints: timelineSystem.controlPoints,
+  controlCoordinates: timelineSystem.controlPoints.map((point) => point.coordinates),
+  members: [
+    {
+      id: 1,
+      points: timelineSystem.controlPoints,
+      coordinates: timelineSystem.controlPoints.map((point) => point.coordinates)
+    },
+    {
+      id: 2,
+      points: [
+        { coordinates: [140.5, 20.5], stepHours: 0 },
+        { coordinates: [142.5, 22.5], stepHours: 6 }
+      ],
+      coordinates: [[140.5, 20.5], [142.5, 22.5]]
+    }
+  ]
+};
+assert.equal(isWorldTyphoonControlMember(nonZeroControlSystem, nonZeroControlSystem.members[0]), true);
+assert.equal(isWorldTyphoonControlMember(nonZeroControlSystem, nonZeroControlSystem.members[1]), false);
+assert.deepEqual(
+  selectWorldTyphoonForecastPositions(nonZeroControlSystem, "2026-07-25T06:00:00.000Z")
+    .map(({ trackType, memberId }) => [trackType, memberId]),
+  [["control", 0], ["member", 2]]
 );
 assert.deepEqual(
   splitLineAtAntimeridian([[170, 10], [-170, 20]]),
