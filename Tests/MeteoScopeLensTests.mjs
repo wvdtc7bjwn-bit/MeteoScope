@@ -15,7 +15,7 @@ assert.match(indexSource, /id="meteoscope-lens-library-input"/);
 assert.match(indexSource, /id="meteoscope-lens-preview"/);
 assert.match(indexSource, /id="meteoscope-lens-download"/);
 assert.match(indexSource, /id="meteoscope-lens-share"/);
-assert.match(indexSource, /id="meteoscope-lens-early-access"/);
+assert.doesNotMatch(indexSource, /id="meteoscope-lens-early-access"/);
 assert.match(indexSource, /id="meteoscope-lens-text-color"[^>]*type="color"/);
 assert.match(indexSource, /id="meteoscope-lens-watermark-position"/);
 assert.match(indexSource, /id="meteoscope-lens-font-family"/);
@@ -44,7 +44,7 @@ assert.match(styleSource, /html\[data-theme="light"\] :is\([^)]*map-meteoscope-l
 
 assert.match(modalSource, /getAmedasPrecipitationPeriod/);
 assert.match(modalSource, /function findNearestStation/);
-assert.match(modalSource, /function applyEarlyAccessState/);
+assert.doesNotMatch(modalSource, /applyEarlyAccessState/);
 assert.match(modalSource, /function drawTextFitted/);
 assert.match(modalSource, /function setFittedCanvasFont/);
 assert.match(modalSource, /function syncCustomMeasurementControls/);
@@ -62,7 +62,7 @@ assert.match(modalSource, /function setImagePositionFromOffsets/);
 assert.match(modalSource, /function getLensTextColor/);
 assert.match(modalSource, /function colorWithAlpha/);
 assert.match(modalSource, /\^\(\?:\(\\d\+\)\\s\+\)\?\(\\d\+\)px/u);
-assert.match(modalSource, /MeteoScope Lensはアーリーアクセス機能/u);
+assert.doesNotMatch(modalSource, /MeteoScope Lensはアーリーアクセス機能/u);
 assert.match(modalSource, /AMeDAS ·/u);
 assert.match(modalSource, /JMA ·/u);
 assert.match(modalSource, /unitText: metric\.id === "temperature" \? "°C" : metric\.unit/u);

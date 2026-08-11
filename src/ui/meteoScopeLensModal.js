@@ -92,15 +92,12 @@ export function openMeteoScopeLensModal() {
   const format = document.getElementById("meteoscope-lens-format");
   if (format) format.value = activeFormat;
   populateMetricOptions();
-  applyEarlyAccessState();
   syncCustomMeasurementControls();
   const locationToggle = document.getElementById("meteoscope-lens-show-location");
   if (locationToggle) locationToggle.checked = false;
-  setStatus(activeContext.earlyAccessEnabled
-    ? activeContext.location
-      ? "写真を選んで投稿画像を作成します。"
-      : "左側の現在地ボタンで位置情報を取得すると、最寄りの観測値を画像に重ねられます。"
-    : "MeteoScope Lensはアーリーアクセス機能です。設定から認証すると利用できます。", activeContext.earlyAccessEnabled ? "" : "info");
+  setStatus(activeContext.location
+    ? "写真を選んで投稿画像を作成します。"
+    : "左側の現在地ボタンで位置情報を取得すると、最寄りの観測値を画像に重ねられます。");
   modal.hidden = false;
   document.body.classList.add("modal-open");
   updatePreviewState();
@@ -126,22 +123,8 @@ function normalizeContext(context) {
     precipitationPeriod,
     currentMetricId,
     location,
-    placeName: [context?.currentLocation?.prefecture, context?.currentLocation?.areaName].filter(Boolean).join(" "),
-    earlyAccessEnabled: context?.earlyAccessEnabled === true
+    placeName: [context?.currentLocation?.prefecture, context?.currentLocation?.areaName].filter(Boolean).join(" ")
   };
-}
-
-function applyEarlyAccessState() {
-  const locked = !activeContext?.earlyAccessEnabled;
-  const panel = document.querySelector(".meteoscope-lens-panel");
-  const notice = document.getElementById("meteoscope-lens-early-access");
-  panel?.classList.toggle("is-early-access-locked", locked);
-  if (notice) notice.hidden = !locked;
-  document.querySelectorAll("#meteoscope-lens-capture, #meteoscope-lens-library, #meteoscope-lens-metric, #meteoscope-lens-format, #meteoscope-lens-show-location, #meteoscope-lens-text-color, #meteoscope-lens-watermark-position, #meteoscope-lens-font-family, #meteoscope-lens-font-weight, #meteoscope-lens-watermark-backdrop, #meteoscope-lens-font-scale, #meteoscope-lens-use-custom-value, #meteoscope-lens-download, #meteoscope-lens-share").forEach((element) => {
-    element.disabled = locked;
-  });
-  syncWatermarkSettingsUi();
-  syncCustomMeasurementControls();
 }
 
 function populateMetricOptions() {
@@ -161,7 +144,6 @@ function populateMetricOptions() {
 }
 
 async function selectPhoto(input) {
-  if (!activeContext?.earlyAccessEnabled) return;
   const file = input instanceof HTMLInputElement ? input.files?.[0] : null;
   if (!file) return;
   input.value = "";
@@ -204,17 +186,17 @@ function updatePreviewState() {
   const download = document.getElementById("meteoscope-lens-download");
   const share = document.getElementById("meteoscope-lens-share");
   if (empty) empty.hidden = Boolean(image);
-  if (hint) hint.hidden = !image || !activeContext?.earlyAccessEnabled;
-  canvas?.classList.toggle("is-image-adjustable", Boolean(image) && Boolean(activeContext?.earlyAccessEnabled));
-  if (download) download.disabled = !image || !activeContext?.earlyAccessEnabled;
-  if (share) share.disabled = !image || !activeContext?.earlyAccessEnabled;
+  if (hint) hint.hidden = !image;
+  canvas?.classList.toggle("is-image-adjustable", Boolean(image));
+  if (download) download.disabled = !image;
+  if (share) share.disabled = !image;
 }
 
 function setupImagePositionGesture() {
   const canvas = document.getElementById("meteoscope-lens-preview");
   if (!(canvas instanceof HTMLCanvasElement)) return;
   canvas.addEventListener("pointerdown", (event) => {
-    if (!image || !activeContext?.earlyAccessEnabled || event.button > 0) return;
+    if (!image || event.button > 0) return;
     const bounds = canvas.getBoundingClientRect();
     if (!bounds.height) return;
     imagePositionPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -255,7 +237,7 @@ function setupImagePositionGesture() {
   canvas.addEventListener("pointerup", finishGesture);
   canvas.addEventListener("pointercancel", finishGesture);
   canvas.addEventListener("wheel", (event) => {
-    if (!image || !activeContext?.earlyAccessEnabled) return;
+    if (!image) return;
     activeImageScale = normalizeImageScale(activeImageScale * (event.deltaY < 0 ? 1.08 : 0.92));
     void renderPreview();
     event.preventDefault();
@@ -563,8 +545,8 @@ function syncCustomMeasurementControls() {
   const metricSelect = document.getElementById("meteoscope-lens-metric");
   const metric = METRICS.find((item) => item.id === metricSelect?.value) ?? METRICS[0];
   if (unit) unit.textContent = metric.unit;
-  if (input) input.disabled = !toggle?.checked || !activeContext?.earlyAccessEnabled;
-  if (place) place.disabled = !toggle?.checked || !activeContext?.earlyAccessEnabled;
+  if (input) input.disabled = !toggle?.checked;
+  if (place) place.disabled = !toggle?.checked;
 }
 
 function getCustomMeasurementValue() {

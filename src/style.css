@@ -9336,23 +9336,6 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   -webkit-touch-callout: none;
 }
 
-.map-meteoscope-lens-button.is-early-access-locked::after {
-  content: "EA";
-  position: absolute;
-  right: -4px;
-  bottom: -4px;
-  min-width: 17px;
-  padding: 2px 3px;
-  border: 1px solid rgba(124, 211, 245, 0.8);
-  border-radius: 999px;
-  color: #dff5ff;
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 0.02em;
-  line-height: 1;
-  background: #17668b;
-}
-
 .map-typhoon-radar-overlay-button::before {
   content: "";
   width: 23px;
@@ -19483,22 +19466,6 @@ html[data-theme="light"] .feedback-recent-head button {
   line-height: 1.6;
 }
 
-.meteoscope-lens-early-access {
-  margin: -4px 0 0;
-  padding: 10px 12px;
-  border-left: 3px solid var(--accent, #4bbce9);
-  border-radius: 8px;
-  color: var(--muted-text, #a9b9cb);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.55;
-  background: rgba(74, 139, 178, 0.12);
-}
-
-.meteoscope-lens-panel.is-early-access-locked .meteoscope-lens-preview-shell {
-  opacity: 0.56;
-}
-
 .meteoscope-lens-source-actions,
 .meteoscope-lens-actions,
 .meteoscope-lens-options {
@@ -19782,10 +19749,6 @@ html[data-theme="light"] .meteoscope-lens-primary-action {
 html[data-theme="light"] .meteoscope-lens-secondary-action {
   color: #29435a;
   background: rgba(220, 233, 245, 0.88);
-}
-html[data-theme="light"] .meteoscope-lens-early-access {
-  color: #31546e;
-  background: rgba(99, 181, 221, 0.12);
 }
 html[data-theme="light"] .meteoscope-lens-customization {
   background: rgba(255, 255, 255, 0.42);

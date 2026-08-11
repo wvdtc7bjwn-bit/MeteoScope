@@ -464,13 +464,11 @@ export function createWeatherApp() {
     const available = tabId === "amedas" && (latestDataByTab.amedas?.points?.length ?? 0) > 0;
     button.hidden = tabId !== "amedas";
     button.disabled = !available;
-    button.classList.toggle("is-early-access-locked", !earlyAccessEnabled);
+    button.classList.remove("is-early-access-locked");
     button.setAttribute("aria-label", !available
       ? "AMeDAS情報を読み込み中"
-      : earlyAccessEnabled
-        ? "MeteoScope Lensを開く"
-        : "MeteoScope Lensはアーリーアクセスで利用できます");
-    button.title = earlyAccessEnabled ? "MeteoScope Lens" : "MeteoScope Lens（アーリーアクセス）";
+      : "MeteoScope Lensを開く");
+    button.title = "MeteoScope Lens";
   }
 
   function renderLeftPanelState(tab, panelState) {
