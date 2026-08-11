@@ -9,7 +9,10 @@ const ADMIN_BROADCAST_BATCH_SIZE = 4;
 const ADMIN_BROADCAST_IMMEDIATE_BATCHES = 5;
 const ADMIN_BROADCAST_MAX_ATTEMPTS = 3;
 const RETENTION_DAYS = 30;
-const INACTIVE_SUBSCRIPTION_RETENTION_DAYS = 180;
+// A Web Push endpoint has no reliable "PWA uninstalled" callback.  Keep it only
+// while the browser has checked in recently; opening the app refreshes this via
+// /subscribe, while an abandoned installation is removed by daily maintenance.
+const INACTIVE_SUBSCRIPTION_RETENTION_DAYS = 30;
 const RETENTION_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const RETENTION_CLEANUP_KEY = "retention:last-cleanup";
 const DAILY_MAINTENANCE_UTC_HOUR = 15;

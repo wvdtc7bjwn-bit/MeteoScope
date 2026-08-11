@@ -150,12 +150,12 @@ const retentionCycle = await runPushMaintenance(
   { now: new Date("2026-07-31T15:10:00.000Z"), forceMaintenance: true }
 );
 assert.equal(retentionCycle.retention.ran, true);
-assert.equal(retentionCycle.retention.inactiveSubscriptionRetentionDays, 180);
+assert.equal(retentionCycle.retention.inactiveSubscriptionRetentionDays, 30);
 const staleSubscriptionDelete = retentionD1.statements.find(({ sql }) =>
   sql.includes("DELETE FROM push_subscriptions") && sql.includes("updated_at")
 );
 assert.ok(staleSubscriptionDelete, "Inactive push subscription cleanup query was not executed");
-assert.equal(staleSubscriptionDelete.values[0], "2026-02-01T15:10:00.000Z");
+assert.equal(staleSubscriptionDelete.values[0], "2026-07-01T15:10:00.000Z");
 assert.match(staleSubscriptionDelete.sql, /d\.status = 'pending'/);
 
 const heartbeatD1 = new PushRetentionD1();

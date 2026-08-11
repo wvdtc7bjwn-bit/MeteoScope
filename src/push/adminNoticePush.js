@@ -111,14 +111,18 @@ export function createAdminNoticePush(options = {}) {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
       if (subscription) {
+        const endpoint = subscription.endpoint;
+        // Unsubscribe locally first.  If the request below is interrupted (for
+        // example while the PWA is being removed), the endpoint is still made
+        // invalid and the server-side retention job removes its stale record.
+        const unsubscribed = await subscription.unsubscribe();
+        if (!unsubscribed) throw new Error("browser unsubscribe failed");
         const response = await fetch("/api/push/unsubscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ endpoint: subscription.endpoint })
+          body: JSON.stringify({ endpoint })
         });
-        if (!response.ok) throw new Error(`unsubscribe failed: ${response.status}`);
-        const unsubscribed = await subscription.unsubscribe();
-        if (!unsubscribed) throw new Error("browser unsubscribe failed");
+        if (!response.ok) console.warn(`[MeteoScope] server push unsubscribe failed: ${response.status}`);
       }
       clearStoredState();
       updateState({ busy: false, enabled: false, subscribed: false, message: "お知らせ通知を解除しました。" });
