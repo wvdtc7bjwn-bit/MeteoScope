@@ -34,6 +34,7 @@
     "test:lightning": "node Tests/LightningTests.mjs",
     "test:weather-chart": "node Tests/WeatherChartTests.mjs",
     "test:weekly-weather": "node Tests/WeeklyWeatherTests.mjs",
+    "test:upper-air": "node Tests/UpperAirTests.mjs",
     "test:dashboard": "node Tests/DisasterDashboardTests.mjs",
     "test:location-nowcast": "node Tests/LocationNowcastStatusTests.mjs",
     "test:responsive": "node Tests/OnboardingModalTests.mjs && node Tests/ResponsiveLayoutTests.mjs",

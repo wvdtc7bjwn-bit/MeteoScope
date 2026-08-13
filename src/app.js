@@ -8,6 +8,7 @@ import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
 import { setupWeeklyWeatherModal } from "./ui/weeklyWeatherModal.js";
 import { setupNumericWeatherChartModal } from "./ui/numericWeatherChartModal.js";
+import { setupUpperAirModal } from "./ui/upperAirModal.js";
 import { openDisasterQuizModal, setupDisasterQuizModal } from "./ui/disasterQuizModal.js";
 import { setupOnboardingModal } from "./ui/onboardingModal.js";
 import { setupLegalConsentModal } from "./ui/legalConsentModal.js";
@@ -680,6 +681,8 @@ export function createWeatherApp() {
   }
 
   function applyEarlyAccessState() {
+    document.documentElement.dataset.earlyAccess = earlyAccessEnabled ? "active" : "inactive";
+    document.dispatchEvent(new CustomEvent("meteoscope:early-access-change"));
     void applyActiveFaultDataSource();
     refreshWeatherChartAccessMode();
     syncMeteoScopeLensButton();
@@ -3479,6 +3482,10 @@ if (layerId === "river") {
       requestCurrentLocation: () => requestAndFocusCurrentPosition({ announceLoading: true, setBusy: true })
     });
     setupNumericWeatherChartModal();
+    setupUpperAirModal({
+      isEarlyAccessEnabled: () => earlyAccessEnabled,
+      onOpenSettings: openSettingsModal
+    });
     const disasterDashboardButton = document.getElementById("disaster-dashboard-button");
     disasterDashboardButton?.addEventListener("click", () => {
       void loadDisasterDashboardModule().then((dashboardModule) => {

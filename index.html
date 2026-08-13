@@ -157,6 +157,7 @@
         <button id="disaster-dashboard-button" class="disaster-map-open-button disaster-dashboard-open-button" type="button" aria-label="防災情報ダッシュボードを開く" title="防災情報ダッシュボード" aria-haspopup="dialog" aria-controls="disaster-dashboard-modal" aria-expanded="false"></button>
         <button id="weekly-weather-button" class="disaster-map-open-button weekly-weather-open-button" type="button" aria-label="週間天気予報を開く" title="週間天気予報" aria-haspopup="dialog" aria-controls="weekly-weather-modal"></button>
         <button id="numeric-weather-chart-button" class="disaster-map-open-button numeric-weather-chart-open-button" type="button" aria-label="数値予報天気図のリンク集を開く" title="数値予報天気図" aria-haspopup="dialog" aria-controls="numeric-weather-chart-modal" aria-expanded="false"></button>
+        <button id="upper-air-button" class="disaster-map-open-button upper-air-open-button" type="button" aria-label="高層気象観測のエマグラムを開く（アーリーアクセス）" title="高層気象（アーリーアクセス）" aria-haspopup="dialog" aria-controls="upper-air-modal" aria-expanded="false"></button>
         <button id="disaster-map-button" class="disaster-map-open-button" type="button" aria-label="防災マップを開く" title="防災マップ"></button>
         <button id="social-share-map-button" class="disaster-map-open-button social-share-map-button" type="button" data-social-share="" aria-label="現在の情報を画像で共有" title="このタブでは画像共有を利用できません" disabled></button>
         <button id="settings-button" class="disaster-map-open-button map-settings-open-button" type="button" aria-label="設定を開く" title="設定" aria-haspopup="dialog" aria-controls="settings-modal" aria-expanded="false"></button>
@@ -666,6 +667,20 @@
           </section>
           <a class="numeric-weather-chart-all-link" href="https://www.jma.go.jp/bosai/numericmap/" target="_blank" rel="noopener noreferrer">気象庁の数値予報天気図をすべて見る <span aria-hidden="true">↗</span></a>
         </div>
+      </section>
+    </div>
+
+    <div id="upper-air-modal" class="warning-modal upper-air-modal" hidden>
+      <div class="warning-modal-backdrop" data-upper-air-close></div>
+      <section class="warning-modal-panel upper-air-panel" role="dialog" aria-modal="true" aria-labelledby="upper-air-title">
+        <header class="settings-modal-header">
+          <div>
+            <span class="settings-modal-kicker">気象庁 高層気象観測</span>
+            <h2 id="upper-air-title">エマグラム</h2>
+          </div>
+          <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-upper-air-close>×</button>
+        </header>
+        <div id="upper-air-body" class="upper-air-body" aria-live="polite"></div>
       </section>
     </div>
 
