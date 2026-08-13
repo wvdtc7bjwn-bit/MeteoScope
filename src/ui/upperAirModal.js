@@ -9,6 +9,7 @@ import {
   temperatureAlongDryAdiabat,
   temperatureForSaturationMixingRatio
 } from "../jma/upperAir.js";
+import maplibregl from "maplibre-gl";
 import { getEarlyAccessToken } from "./earlyAccess.js";
 import { buildModalLoadingState } from "./modalLoadingState.js";
 
@@ -18,9 +19,10 @@ let options = {};
 let requestId = 0;
 let selectedStationId = "47646";
 let selectedMode = "observation";
-let isModelMapOpen = false;
 let selectedModelCoordinates = { latitude: 35.75, longitude: 139.75 };
-let modelMapGeoJsonPromise = null;
+let modelOutput = null;
+let modelMap = null;
+let modelMarker = null;
 
 function createElement(name, attributes = {}) {
   const element = document.createElementNS(SVG_NS, name);
@@ -285,82 +287,24 @@ function buildModeSwitch(body) {
   return content;
 }
 
-function buildModelPicker(content) {
-  const controls = document.createElement("div");
-  controls.className = "upper-air-model-controls";
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "upper-air-location-picker";
-  button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21s7-5.2 7-12a7 7 0 1 0-14 0c0 6.8 7 12 7 12Z"/><circle cx="12" cy="9" r="2.25"/></svg><span>地図で地点を選択</span>';
-  button.setAttribute("aria-expanded", String(isModelMapOpen));
-  button.addEventListener("click", () => {
-    isModelMapOpen = !isModelMapOpen;
-    void loadModelProfile();
-  });
-  const coordinate = document.createElement("p");
-  coordinate.className = "upper-air-model-coordinate";
-  coordinate.textContent = `選択地点 ${formatCoordinates(selectedModelCoordinates)}`;
-  controls.append(button, coordinate);
-  content.append(controls);
-  if (isModelMapOpen) content.append(buildModelMap());
-}
+const MODEL_MAP_BOUNDS = [[122, 23], [150, 48]];
 
-// The viewbox ratio follows the east-west / north-south ground-distance ratio
-// around Japan, so the independent picker map is not visually stretched.
-const MODEL_MAP_BOUNDS = Object.freeze({ minLongitude: 122, maxLongitude: 150, minLatitude: 23, maxLatitude: 48 });
-const MODEL_MAP_VIEWBOX = Object.freeze({ width: 360, height: 392, left: 18, right: 342, top: 18, bottom: 374 });
-
-function projectMiniMap({ latitude, longitude }) {
-  const bounds = MODEL_MAP_BOUNDS;
-  const viewbox = MODEL_MAP_VIEWBOX;
+function snapToGfsGrid({ lat, lng }) {
   return {
-    x: viewbox.left + ((longitude - bounds.minLongitude) / (bounds.maxLongitude - bounds.minLongitude)) * (viewbox.right - viewbox.left),
-    y: viewbox.bottom - ((latitude - bounds.minLatitude) / (bounds.maxLatitude - bounds.minLatitude)) * (viewbox.bottom - viewbox.top)
+    latitude: Math.round(Math.max(23, Math.min(48, lat)) * 4) / 4,
+    longitude: Math.round(Math.max(122, Math.min(150, lng)) * 4) / 4
   };
 }
 
-function coordinatesToMiniMapPath(coordinates, closePath = true) {
-  const points = coordinates.map(([longitude, latitude]) => {
-    const point = projectMiniMap({ latitude, longitude });
-    return `${point.x.toFixed(2)} ${point.y.toFixed(2)}`;
-  });
-  return points.length ? `M${points.join(" L")}${closePath ? " Z" : ""}` : "";
+function disposeModelMap() {
+  modelMarker?.remove();
+  modelMarker = null;
+  modelMap?.remove();
+  modelMap = null;
 }
 
-function geometryToMiniMapPath(geometry) {
-  if (!geometry) return "";
-  if (geometry.type === "Polygon") return geometry.coordinates.map((ring) => coordinatesToMiniMapPath(ring)).join(" ");
-  if (geometry.type === "MultiPolygon") return geometry.coordinates
-    .flatMap((polygon) => polygon.map((ring) => coordinatesToMiniMapPath(ring)))
-    .join(" ");
-  return "";
-}
-
-async function getModelMapGeoJson() {
-  if (!modelMapGeoJsonPromise) {
-    modelMapGeoJsonPromise = fetch("/data/japan-prefectures-map.geojson", { headers: { Accept: "application/geo+json,application/json" } })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Japan map request failed: ${response.status}`);
-        return response.json();
-      });
-  }
-  return modelMapGeoJsonPromise;
-}
-
-async function populateModelMap(svg) {
-  try {
-    const geoJson = await getModelMapGeoJson();
-    if (!svg.isConnected) return;
-    const land = createElement("g", { class: "upper-air-model-japan" });
-    (geoJson.features ?? []).forEach((feature) => {
-      const path = geometryToMiniMapPath(feature.geometry);
-      if (path) land.append(createElement("path", { d: path }));
-    });
-    const canvas = svg.querySelector(".upper-air-model-map-content");
-    canvas?.insertBefore(land, canvas.querySelector(".upper-air-model-marker-halo"));
-  } catch (error) {
-    console.warn("[MeteoScope] model picker map unavailable", error);
-  }
+function updateModelCoordinateLabel() {
+  document.querySelector(".upper-air-model-coordinate")?.replaceChildren(`選択地点 ${formatCoordinates(selectedModelCoordinates)}`);
 }
 
 function buildModelMap() {
@@ -368,148 +312,70 @@ function buildModelMap() {
   section.className = "upper-air-model-map";
   section.setAttribute("aria-label", "GFS地点選択用の日本周辺地図");
   const hint = document.createElement("p");
-  hint.textContent = "タップで地点を選択します。ドラッグで移動、ピンチまたはボタンで拡大できます。最寄りのGFS 0.25°格子を使用します。";
-  const toolbar = document.createElement("div");
-  toolbar.className = "upper-air-model-map-toolbar";
-  const svg = createElement("svg", { viewBox: "0 0 360 392", role: "img", "aria-label": "日本周辺の地点選択地図" });
-  svg.classList.add("upper-air-model-map-canvas");
-  const mapContent = createElement("g", { class: "upper-air-model-map-content" });
-  const mapView = { zoom: 1, panX: 0, panY: 0 };
-  const mapCenter = { x: MODEL_MAP_VIEWBOX.width / 2, y: MODEL_MAP_VIEWBOX.height / 2 };
-  const applyMapTransform = () => {
-    mapContent.setAttribute("transform", `translate(${mapView.panX.toFixed(2)} ${mapView.panY.toFixed(2)}) translate(${mapCenter.x} ${mapCenter.y}) scale(${mapView.zoom.toFixed(3)}) translate(${-mapCenter.x} ${-mapCenter.y})`);
-  };
-  const clampMapView = () => {
-    const maximumPanX = ((mapView.zoom - 1) * MODEL_MAP_VIEWBOX.width) / 2;
-    const maximumPanY = ((mapView.zoom - 1) * MODEL_MAP_VIEWBOX.height) / 2;
-    mapView.panX = Math.max(-maximumPanX, Math.min(maximumPanX, mapView.panX));
-    mapView.panY = Math.max(-maximumPanY, Math.min(maximumPanY, mapView.panY));
-  };
-  const zoomMap = (nextZoom, anchor = mapCenter) => {
-    const currentZoom = mapView.zoom;
-    const zoom = Math.max(1, Math.min(4, nextZoom));
-    if (zoom === currentZoom) return;
-    const ratio = zoom / currentZoom;
-    mapView.panX = anchor.x - mapCenter.x - ratio * (anchor.x - mapCenter.x - mapView.panX);
-    mapView.panY = anchor.y - mapCenter.y - ratio * (anchor.y - mapCenter.y - mapView.panY);
-    mapView.zoom = zoom;
-    clampMapView();
-    applyMapTransform();
-  };
-  const mapButton = (label, action) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "upper-air-model-map-button";
-    button.textContent = label;
-    button.setAttribute("aria-label", label === "+" ? "地図を拡大" : "地図を縮小");
-    button.addEventListener("click", action);
-    return button;
-  };
-  toolbar.append(mapButton("−", () => zoomMap(mapView.zoom / 1.5)), mapButton("+", () => zoomMap(mapView.zoom * 1.5)));
-  [125, 130, 135, 140, 145].forEach((longitude) => {
-    const { x } = projectMiniMap({ latitude: MODEL_MAP_BOUNDS.minLatitude, longitude });
-    mapContent.append(createElement("line", { x1: x, y1: MODEL_MAP_VIEWBOX.top, x2: x, y2: MODEL_MAP_VIEWBOX.bottom, class: "upper-air-model-grid" }));
-  });
-  [25, 30, 35, 40, 45].forEach((latitude) => {
-    const { y } = projectMiniMap({ latitude, longitude: 122 });
-    mapContent.append(createElement("line", { x1: MODEL_MAP_VIEWBOX.left, y1: y, x2: MODEL_MAP_VIEWBOX.right, y2: y, class: "upper-air-model-grid" }));
-  });
-  const markerPosition = projectMiniMap(selectedModelCoordinates);
-  mapContent.append(createElement("circle", { cx: markerPosition.x, cy: markerPosition.y, r: 7, class: "upper-air-model-marker-halo" }));
-  mapContent.append(createElement("circle", { cx: markerPosition.x, cy: markerPosition.y, r: 3.5, class: "upper-air-model-marker" }));
-  svg.append(mapContent);
-  const getMapPoint = (event) => {
-    const rectangle = svg.getBoundingClientRect();
-    return {
-      x: Math.max(0, Math.min(MODEL_MAP_VIEWBOX.width, ((event.clientX - rectangle.left) / rectangle.width) * MODEL_MAP_VIEWBOX.width)),
-      y: Math.max(0, Math.min(MODEL_MAP_VIEWBOX.height, ((event.clientY - rectangle.top) / rectangle.height) * MODEL_MAP_VIEWBOX.height))
-    };
-  };
-  const selectPoint = (point) => {
-    const basePoint = {
-      x: mapCenter.x + (point.x - mapCenter.x - mapView.panX) / mapView.zoom,
-      y: mapCenter.y + (point.y - mapCenter.y - mapView.panY) / mapView.zoom
-    };
-    selectedModelCoordinates = {
-      longitude: Math.round((MODEL_MAP_BOUNDS.minLongitude + (basePoint.x / MODEL_MAP_VIEWBOX.width) * (MODEL_MAP_BOUNDS.maxLongitude - MODEL_MAP_BOUNDS.minLongitude)) * 4) / 4,
-      latitude: Math.round((MODEL_MAP_BOUNDS.maxLatitude - (basePoint.y / MODEL_MAP_VIEWBOX.height) * (MODEL_MAP_BOUNDS.maxLatitude - MODEL_MAP_BOUNDS.minLatitude)) * 4) / 4
-    };
-    void loadModelProfile();
-  };
-  const pointers = new Map();
-  let gesture = null;
-  const beginGesture = () => {
-    const points = [...pointers.values()];
-    if (points.length === 1) {
-      gesture = { type: "pan", point: points[0], panX: mapView.panX, panY: mapView.panY, moved: false };
-    } else if (points.length >= 2) {
-      const [first, second] = points;
-      gesture = {
-        type: "pinch",
-        distance: Math.hypot(second.x - first.x, second.y - first.y),
-        midpoint: { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 },
-        zoom: mapView.zoom,
-        panX: mapView.panX,
-        panY: mapView.panY,
-        moved: true
-      };
-    }
-  };
-  svg.addEventListener("pointerdown", (event) => {
-    svg.setPointerCapture?.(event.pointerId);
-    pointers.set(event.pointerId, getMapPoint(event));
-    beginGesture();
-  });
-  svg.addEventListener("pointermove", (event) => {
-    if (!pointers.has(event.pointerId) || !gesture) return;
-    pointers.set(event.pointerId, getMapPoint(event));
-    const points = [...pointers.values()];
-    if (points.length === 1 && gesture.type === "pan") {
-      const point = points[0];
-      const deltaX = point.x - gesture.point.x;
-      const deltaY = point.y - gesture.point.y;
-      if (Math.hypot(deltaX, deltaY) > 2) gesture.moved = true;
-      mapView.panX = gesture.panX + deltaX;
-      mapView.panY = gesture.panY + deltaY;
-      clampMapView();
-      applyMapTransform();
-    } else if (points.length >= 2 && gesture.type === "pinch") {
-      const [first, second] = points;
-      const distance = Math.hypot(second.x - first.x, second.y - first.y);
-      const midpoint = { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
-      const nextZoom = Math.max(1, Math.min(4, gesture.zoom * (distance / Math.max(1, gesture.distance))));
-      mapView.zoom = nextZoom;
-      mapView.panX = gesture.panX + midpoint.x - gesture.midpoint.x;
-      mapView.panY = gesture.panY + midpoint.y - gesture.midpoint.y;
-      clampMapView();
-      applyMapTransform();
-    }
-  });
-  const endGesture = (event) => {
-    const point = getMapPoint(event);
-    const wasTap = pointers.size === 1 && gesture?.type === "pan" && !gesture.moved;
-    pointers.delete(event.pointerId);
-    if (wasTap) selectPoint(point);
-    else if (pointers.size) beginGesture();
-    else gesture = null;
-  };
-  svg.addEventListener("pointerup", endGesture);
-  svg.addEventListener("pointercancel", endGesture);
-  svg.addEventListener("wheel", (event) => {
-    event.preventDefault();
-    zoomMap(mapView.zoom * (event.deltaY < 0 ? 1.18 : 1 / 1.18), getMapPoint(event));
-  }, { passive: false });
-  applyMapTransform();
-  section.append(hint, toolbar, svg);
-  void populateModelMap(svg);
+  hint.textContent = "タップで地点を選択します。ドラッグ・ピンチ・ダブルタップで、メイン地図と同じように操作できます。最寄りのGFS 0.25°格子を使用します。";
+  const canvas = document.createElement("div");
+  canvas.className = "upper-air-model-map-canvas";
+  canvas.setAttribute("aria-label", "日本周辺の地点選択地図");
+  section.append(hint, canvas);
+  requestAnimationFrame(() => initializeModelMap(canvas));
   return section;
 }
 
-function renderObservation(body, observation) {
+function initializeModelMap(canvas) {
+  if (!canvas.isConnected) return;
+  disposeModelMap();
+  modelMap = new maplibregl.Map({
+    container: canvas,
+    style: {
+      version: 8,
+      sources: {
+        japan: { type: "geojson", data: "/data/japan-prefectures-map.geojson" }
+      },
+      layers: [
+        { id: "background", type: "background", paint: { "background-color": "#102944" } },
+        { id: "japan-fill", type: "fill", source: "japan", paint: { "fill-color": "#5d7994", "fill-opacity": 0.94 } },
+        { id: "japan-outline", type: "line", source: "japan", paint: { "line-color": "#d8eaf7", "line-width": 1.1 } }
+      ]
+    },
+    bounds: MODEL_MAP_BOUNDS,
+    fitBoundsOptions: { padding: 22 },
+    maxBounds: [[115, 18], [157, 53]],
+    minZoom: 3,
+    maxZoom: 10,
+    dragRotate: true,
+    pitchWithRotate: false,
+    touchPitch: false,
+    attributionControl: false,
+    localIdeographFontFamily: '"Noto Sans JP", sans-serif'
+  });
+  modelMap.touchZoomRotate.enableRotation();
+  modelMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+  modelMap.on("load", () => {
+    modelMap?.fitBounds(MODEL_MAP_BOUNDS, { padding: 22, duration: 0 });
+    modelMarker = new maplibregl.Marker({ color: "#52d2f6" })
+      .setLngLat([selectedModelCoordinates.longitude, selectedModelCoordinates.latitude])
+      .addTo(modelMap);
+  });
+  modelMap.on("click", (event) => {
+    selectedModelCoordinates = snapToGfsGrid(event.lngLat);
+    modelMarker?.setLngLat([selectedModelCoordinates.longitude, selectedModelCoordinates.latitude]);
+    updateModelCoordinateLabel();
+    void loadModelProfile({ preserveMap: true });
+  });
+}
+
+function buildModelPicker(content) {
+  const coordinate = document.createElement("p");
+  coordinate.className = "upper-air-model-coordinate";
+  coordinate.textContent = `選択地点 ${formatCoordinates(selectedModelCoordinates)}`;
+  content.append(coordinate, buildModelMap());
+}
+
+function renderObservation(output, observation) {
   const rows = parseUpperAirTemperatureHumidityHtml(observation.html);
   const profile = buildUpperAirProfile(rows);
   if (profile.length < 8) {
-    renderError(body, "気温・湿度の観測データを十分に取得できませんでした。別の地点または次回の観測をお試しください。");
+    renderError(output, "気温・湿度の観測データを十分に取得できませんでした。別の地点または次回の観測をお試しください。");
     return;
   }
   const station = UPPER_AIR_STATIONS.find((entry) => entry.id === observation.station);
@@ -551,13 +417,13 @@ function renderObservation(body, observation) {
   const note = document.createElement("p");
   note.className = "upper-air-note";
   note.textContent = "気温・相対湿度から露点温度を算出して表示しています。背景の断熱線・飽和混合比線は標準大気の計算値です。図は観測時刻の鉛直構造を読むための補助で、危険度の判定や予報ではありません。";
-  body.replaceChildren(heading, legend, chart, stats, buildObservationInsights(analysis), note);
+  output.replaceChildren(heading, legend, chart, stats, buildObservationInsights(analysis), note);
 }
 
-function renderModelProfile(content, model) {
+function renderModelProfile(output, model) {
   const profile = buildUpperAirProfile(model.rows);
   if (profile.length < 8) {
-    renderModelError(content, "選択地点のGFS気圧面データを十分に取得できませんでした。別の地点または時間をおいて再度お試しください。");
+    renderModelError(output, "選択地点のGFS気圧面データを十分に取得できませんでした。別の地点または時間をおいて再度お試しください。");
     return;
   }
   const summary = summarizeUpperAirProfile(profile);
@@ -601,12 +467,10 @@ function renderModelProfile(content, model) {
   const note = document.createElement("p");
   note.className = "upper-air-note";
   note.textContent = "NOAA GFS 0.25°の最寄り格子点における解析時刻の数値モデルです。気温・相対湿度から露点温度を算出して表示しています。地点の実測値ではありません。";
-  content.replaceChildren();
-  buildModelPicker(content);
-  content.append(heading, legend, chart, stats, buildObservationInsights(analysis, { isModel: true }), note);
+  output.replaceChildren(heading, legend, chart, stats, buildObservationInsights(analysis, { isModel: true }), note);
 }
 
-function renderError(body, message) {
+function renderError(output, message) {
   const state = document.createElement("div");
   state.className = "upper-air-state";
   const title = document.createElement("strong");
@@ -618,10 +482,10 @@ function renderError(body, message) {
   retry.textContent = "再読み込み";
   retry.addEventListener("click", () => void loadObservation());
   state.append(title, detail, retry);
-  body.replaceChildren(state);
+  output.replaceChildren(state);
 }
 
-function renderModelError(content, message) {
+function renderModelError(output, message) {
   const state = document.createElement("div");
   state.className = "upper-air-state";
   const title = document.createElement("strong");
@@ -633,12 +497,12 @@ function renderModelError(content, message) {
   retry.textContent = "再読み込み";
   retry.addEventListener("click", () => void loadModelProfile());
   state.append(title, detail, retry);
-  content.replaceChildren();
-  buildModelPicker(content);
-  content.append(state);
+  output.replaceChildren(state);
 }
 
 function renderLocked(body) {
+  disposeModelMap();
+  modelOutput = null;
   const state = document.createElement("div");
   state.className = "upper-air-state upper-air-state-locked";
   const title = document.createElement("strong");
@@ -684,14 +548,21 @@ function renderControls(body) {
   refresh.innerHTML = '<svg class="disaster-dashboard-refresh-icon" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false"><path d="M20 12a8 8 0 1 1-2.34-5.66L20 8" /><path d="M20 3v5h-5" /></svg>';
   refresh.addEventListener("click", () => void loadObservation());
   controls.append(label, select, refresh);
-  content.append(controls);
-  return content;
+  const output = document.createElement("div");
+  output.className = "upper-air-results";
+  content.append(controls, output);
+  return output;
 }
 
 function renderModelControls(body) {
+  disposeModelMap();
   const content = buildModeSwitch(body);
   buildModelPicker(content);
-  return content;
+  const output = document.createElement("div");
+  output.className = "upper-air-results";
+  content.append(output);
+  modelOutput = output;
+  return output;
 }
 
 async function loadObservation() {
@@ -701,12 +572,14 @@ async function loadObservation() {
     renderLocked(body);
     return;
   }
-  const content = renderControls(body);
+  disposeModelMap();
+  modelOutput = null;
+  const output = renderControls(body);
   const loading = buildModalLoadingState({
     title: "高層観測を読み込んでいます",
     detail: "気象庁の観測データを確認中です"
   });
-  content.innerHTML = loading;
+  output.innerHTML = loading;
   const currentRequest = ++requestId;
   try {
     const token = getEarlyAccessToken();
@@ -716,21 +589,21 @@ async function loadObservation() {
     if (!response.ok) throw new Error(`upper-air request failed: ${response.status}`);
     const observation = await response.json();
     if (currentRequest !== requestId) return;
-    renderObservation(content, observation);
+    renderObservation(output, observation);
   } catch (error) {
     console.warn("[MeteoScope] upper-air observation unavailable", error);
-    if (currentRequest === requestId) renderError(content, "気象庁の高層観測データに接続できませんでした。時間をおいて再度お試しください。");
+    if (currentRequest === requestId) renderError(output, "気象庁の高層観測データに接続できませんでした。時間をおいて再度お試しください。");
   }
 }
 
-async function loadModelProfile() {
+async function loadModelProfile({ preserveMap = false } = {}) {
   const body = document.getElementById("upper-air-body");
   if (!body) return;
   if (!options.isEarlyAccessEnabled?.()) {
     renderLocked(body);
     return;
   }
-  const content = renderModelControls(body);
+  const output = preserveMap && modelOutput?.isConnected ? modelOutput : renderModelControls(body);
   const loading = buildModalLoadingState({
     title: "GFS地点モデルを読み込んでいます",
     detail: "NOAAの気圧面データを確認中です"
@@ -738,7 +611,7 @@ async function loadModelProfile() {
   const state = document.createElement("div");
   state.className = "upper-air-model-loading";
   state.innerHTML = loading;
-  content.append(state);
+  output.replaceChildren(state);
   const currentRequest = ++requestId;
   try {
     const token = getEarlyAccessToken();
@@ -748,10 +621,10 @@ async function loadModelProfile() {
     if (!response.ok) throw new Error(`GFS profile request failed: ${response.status}`);
     const model = await response.json();
     if (currentRequest !== requestId) return;
-    renderModelProfile(content, model);
+    renderModelProfile(output, model);
   } catch (error) {
     console.warn("[MeteoScope] GFS point profile unavailable", error);
-    if (currentRequest === requestId) renderModelError(content, "NOAA GFSの地点モデルデータに接続できませんでした。時間をおいて再度お試しください。");
+    if (currentRequest === requestId) renderModelError(output, "NOAA GFSの地点モデルデータに接続できませんでした。時間をおいて再度お試しください。");
   }
 }
 
@@ -769,6 +642,8 @@ export function closeUpperAirModal() {
   const modal = document.getElementById("upper-air-modal");
   if (!modal || modal.hidden) return;
   modal.hidden = true;
+  disposeModelMap();
+  modelOutput = null;
   document.getElementById("upper-air-button")?.setAttribute("aria-expanded", "false");
   if (!document.querySelector(".warning-modal:not([hidden])")) document.body.classList.remove("modal-open");
 }
