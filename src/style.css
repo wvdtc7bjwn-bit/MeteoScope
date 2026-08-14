@@ -9817,6 +9817,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 .map-legend,
 .map-locate-button,
 .map-community-report-button,
+.map-weather-distribution-toggle,
 .map-meteoscope-lens-button,
 .map-typhoon-radar-overlay-button,
 .map-world-typhoon-target-button {
@@ -9861,6 +9862,129 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   -webkit-touch-callout: none;
 }
 
+.map-weather-distribution-toggle {
+  right: 9px;
+  bottom: 134px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  width: 166px;
+  height: 72px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(7, 14, 27, 0.78);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  backdrop-filter: blur(16px) saturate(1.16);
+  -webkit-backdrop-filter: blur(16px) saturate(1.16);
+  transform-origin: right center;
+  transition:
+    width 220ms cubic-bezier(0.2, 1.08, 0.36, 1),
+    height 180ms cubic-bezier(0.2, 1.08, 0.36, 1),
+    border-radius 180ms ease,
+    background-color 180ms ease,
+    box-shadow 220ms ease;
+}
+
+.weather-distribution-toggle-button {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: #dce8fa;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-touch-callout: none;
+}
+
+.weather-distribution-toggle-button::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 21px;
+  height: 21px;
+  margin: auto;
+  background: #f8fbff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8.5 16 4l11 4.5-11 4L5 8.5Z'/%3E%3Cpath d='m5 14 11 4 11-4'/%3E%3Cpath d='m5 19.5 11 4 11-4'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 8.5 16 4l11 4.5-11 4L5 8.5Z'/%3E%3Cpath d='m5 14 11 4 11-4'/%3E%3Cpath d='m5 19.5 11 4 11-4'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.weather-distribution-toggle-choices {
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
+  flex: none;
+  align-items: stretch;
+  min-width: 0;
+  width: 112px;
+  height: 58px;
+  margin: 0 6px 0 0;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.045);
+  opacity: 1;
+  filter: blur(0);
+  transform: translate3d(0, 0, 0) scale(1);
+  transform-origin: right center;
+  transition:
+    opacity 160ms ease 42ms,
+    filter 200ms ease 28ms,
+    transform 220ms cubic-bezier(0.2, 1.12, 0.36, 1) 24ms;
+}
+
+.weather-distribution-toggle-choices button {
+  min-width: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(216, 230, 247, 0.78);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.weather-distribution-toggle-choices button.active {
+  color: #8ad8ff;
+  background: rgba(71, 148, 197, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(112, 206, 252, 0.16);
+}
+
+.map-weather-distribution-toggle.collapsed {
+  width: 44px;
+  height: 44px;
+}
+
+.map-weather-distribution-toggle.collapsed .weather-distribution-toggle-button {
+  border-left: 0;
+}
+
+.map-weather-distribution-toggle.collapsed .weather-distribution-toggle-choices {
+  opacity: 0;
+  filter: blur(3px);
+  pointer-events: none;
+  transform: translate3d(8px, 0, 0) scale(0.96);
+}
+
+.map-weather-distribution-toggle.is-open {
+  border-color: rgba(117, 198, 244, 0.28);
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
 :is(.map-world-typhoon-target-button, .map-typhoon-radar-overlay-button) {
   right: 9px;
   bottom: 82px;
@@ -9903,6 +10027,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 }
 
 .map-community-report-button[hidden],
+.map-weather-distribution-toggle[hidden],
 .map-meteoscope-lens-button[hidden],
 .map-typhoon-radar-overlay-button[hidden],
 .map-world-typhoon-target-button[hidden] {
@@ -9999,6 +10124,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 }
 
 .map-community-report-button:focus-visible,
+.weather-distribution-toggle-button:focus-visible,
 .map-meteoscope-lens-button:focus-visible,
 .map-typhoon-radar-overlay-button:focus-visible,
 .map-world-typhoon-target-button:focus-visible {
@@ -16820,33 +16946,22 @@ html[data-theme="light"] .typhoon-world-attribution a {
   white-space: nowrap;
 }
 
-.volcano-target-groups {
-  display: grid;
-  gap: 12px;
-}
-
-.volcano-target-group {
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel-soft);
-}
-
-.volcano-target-group strong {
-  font-size: 0.86rem;
-}
-
-.volcano-target-group ul {
+.volcano-target-municipality-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 14px;
-  margin: 8px 0 0;
+  gap: 8px 10px;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.volcano-target-group li {
-  font-size: 0.88rem;
+.volcano-target-municipality-list li {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-soft);
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .volcano-detail-history {
@@ -19413,6 +19528,7 @@ html[data-theme="light"] :is(.warning-modal-panel, .hypocenter-date-wheel-sheet)
   .map-locate-button,
   .map-community-report-button,
   .map-meteoscope-lens-button,
+  .map-weather-distribution-toggle,
   .map-typhoon-radar-overlay-button,
   .map-world-typhoon-target-button,
   .map-settings-open-button,
@@ -19426,6 +19542,7 @@ html[data-theme="light"] :is(
   .map-locate-button,
   .map-community-report-button,
   .map-meteoscope-lens-button,
+  .map-weather-distribution-toggle,
   .map-typhoon-radar-overlay-button,
   .map-world-typhoon-target-button,
   .map-settings-open-button,
@@ -20443,5 +20560,57 @@ html[data-theme="light"] .meteoscope-lens-font-size-control output { color: #203
   .modal-loading-indicator,
   .disaster-map-page-shell.is-loading::before {
     animation-duration: 1.6s;
+  }
+}
+
+/* Radar weather-distribution picker: the collapsed map control expands with
+   the same frosted-glass motion used by the map legend. */
+html[data-theme="light"] .weather-distribution-toggle-button {
+  border-color: rgba(67, 91, 118, 0.14);
+}
+
+html[data-theme="light"] .weather-distribution-toggle-button::before {
+  background: #243d58;
+}
+
+html[data-theme="light"] .weather-distribution-toggle-choices {
+  border-color: rgba(67, 91, 118, 0.14);
+  background: rgba(80, 107, 135, 0.07);
+}
+
+html[data-theme="light"] .weather-distribution-toggle-choices button {
+  color: rgba(39, 64, 88, 0.76);
+}
+
+html[data-theme="light"] .weather-distribution-toggle-choices button.active {
+  color: #0b709d;
+  background: rgba(73, 171, 219, 0.15);
+  box-shadow: inset 0 0 0 1px rgba(34, 146, 200, 0.18);
+}
+
+@media (max-width: 800px) {
+  .map-weather-distribution-toggle {
+    right: 17px;
+    bottom: max(
+      calc(var(--mobile-sidebar-visible-height, 48dvh) + 122px),
+      calc(max(0px, env(safe-area-inset-bottom)) + 272px)
+    );
+  }
+
+  .mobile-drawer-open .map-weather-distribution-toggle {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (orientation: landscape), (min-width: 801px) {
+  .map-weather-distribution-toggle {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: calc(var(--shared-map-controls-bottom) + 54px);
+  }
+
+  .mobile-drawer-open .map-weather-distribution-toggle {
+    opacity: 0;
+    pointer-events: none;
   }
 }

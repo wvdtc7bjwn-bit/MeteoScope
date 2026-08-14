@@ -51,6 +51,7 @@ import {
   getAvailableVolcanoAshForecasts,
   getHighestPriorityVolcanoReport,
   getLatestVolcanoReportsByType,
+  getLatestVolcanoTargetMunicipalities,
   getVolcanoWarningDetailReport,
   parseVolcanoSeismicCountTable
 } from "../jma/volcanoXml.js";
@@ -610,6 +611,10 @@ function setupSegmentedControls(root) {
   root.addEventListener("pointerdown", (event) => {
     if (event.isPrimary === false || (event.pointerType === "mouse" && event.button !== 0)) return;
     if (!(event.target instanceof Element)) return;
+    // The active weather-distribution item opens its separate map picker.
+    // It is not a segmented-state change, so let its native click reach the
+    // dedicated handler instead of starting a dock-slider gesture.
+    if (event.target.closest("[data-weather-distribution-picker]")) return;
     // Mirror the bottom tab slider: a new gesture clears only the previous
     // gesture's compatibility click, never a later intentional tap.
     suppressedCompatibilitySource = null;
@@ -1069,12 +1074,17 @@ export function setupMobileWeatherTimelineTapControls({
   });
 }
 
-export function setupRadarOverlayToggle({ onChange }) {
+export function setupRadarOverlayToggle({ onChange, onWeatherDistributionPicker }) {
   const handleClick = (event) => {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest("[data-radar-overlay]");
-    if (!button) return;
+    const weatherDistributionPicker = event.target.closest("[data-weather-distribution-picker]");
+    if (!button && !weatherDistributionPicker) return;
     event.stopPropagation();
+    if (weatherDistributionPicker) {
+      onWeatherDistributionPicker?.();
+      return;
+    }
     onChange?.(button.dataset.radarOverlay);
   };
 
@@ -2192,20 +2202,32 @@ function renderRadarControls(tab, state) {
   if (state.weatherChartEnabled) return;
 
   const isLightning = Boolean(state.lightningEnabled);
-  const timelineData = isLightning ? (state.lightning ?? state.data?.lightning) : state.data;
+  const weatherDistributionMode = state.weatherDistributionMode ?? state.data?.weatherDistributionMode ?? null;
+  const isWeatherDistribution = Boolean(weatherDistributionMode);
+  const timelineData = isWeatherDistribution
+    ? (state.weatherDistribution ?? state.data?.weatherDistribution)
+    : (isLightning ? (state.lightning ?? state.data?.lightning) : state.data);
   const frames = timelineData?.frames ?? [];
-  const activeIndex = Number(timelineData?.activeFrameIndex ?? 0);
+  const activeIndex = clampIndex(timelineData?.activeFrameIndex ?? 0, frames.length);
   const activeFrame = frames[activeIndex] ?? null;
-  const currentIndex = findLatestRadarObservationIndex(frames);
+  const currentIndex = isWeatherDistribution ? -1 : findLatestRadarObservationIndex(frames);
   const timelineFrames = frames.map((frame, frameIndex) => ({
     ...frame,
     isCurrent: frameIndex === currentIndex
   }));
 
   slider.max = String(Math.max(0, frames.length - 1));
-  slider.value = String(Math.min(activeIndex, Math.max(0, frames.length - 1)));
-  slider.setAttribute("aria-label", isLightning ? "雷の時刻を選択" : "雨雲レーダーの時刻を選択");
-  const timelineStatus = isLightning ? state.lightningStatus : state.status;
+  slider.value = String(activeIndex);
+  const distributionLabel = weatherDistributionMode === "temperature" ? "気温分布" : "天気分布";
+  slider.setAttribute(
+    "aria-label",
+    isWeatherDistribution
+      ? `${distributionLabel}の時刻を選択`
+      : (isLightning ? "雷の時刻を選択" : "雨雲レーダーの時刻を選択")
+  );
+  const timelineStatus = isWeatherDistribution
+    ? state.weatherDistributionStatus
+    : (isLightning ? state.lightningStatus : state.status);
   slider.disabled = frames.length <= 1 || timelineStatus === "loading" || timelineStatus === "error";
   renderWeatherTimeTimeline(
     document.getElementById("radar-time-timeline"),
@@ -2214,14 +2236,35 @@ function renderRadarControls(tab, state) {
     (frame) => compactWeatherTimeLabel(frame?.label)
   );
 
-  const timeLabelPrefix = isLightning ? "表示時刻" : "更新時刻";
+  const timeLabelPrefix = isWeatherDistribution ? "対象時刻" : (isLightning ? "表示時刻" : "更新時刻");
   label.textContent = activeFrame?.label
     ? `${timeLabelPrefix}: ${activeFrame.label}`
     : (timelineStatus === "loading" ? `${timeLabelPrefix}: 取得中` : `${timeLabelPrefix}: --`);
-  kind.textContent = activeFrame?.isForecast ? "予測" : "観測";
-  kind.classList.toggle("forecast", Boolean(activeFrame?.isForecast));
+  kind.textContent = isWeatherDistribution ? "予報" : (activeFrame?.isForecast ? "予測" : "観測");
+  kind.classList.toggle("forecast", isWeatherDistribution || Boolean(activeFrame?.isForecast));
 
-  const radarPlaying = isLightning ? Boolean(state.lightningPlaying) : Boolean(state.radarPlaying);
+  const radarPlaying = isWeatherDistribution
+    ? Boolean(state.weatherDistributionPlaying)
+    : (isLightning ? Boolean(state.lightningPlaying) : Boolean(state.radarPlaying));
+  const stepLabel = isWeatherDistribution ? "予報" : "5分";
+  const previousButton = document.getElementById("radar-prev");
+  const nextButton = document.getElementById("radar-next");
+  const latestButton = document.getElementById("radar-now");
+  if (previousButton) {
+    const text = `前の${stepLabel}`;
+    previousButton.setAttribute("aria-label", text);
+    previousButton.setAttribute("title", text);
+  }
+  if (nextButton) {
+    const text = `次の${stepLabel}`;
+    nextButton.setAttribute("aria-label", text);
+    nextButton.setAttribute("title", text);
+  }
+  if (latestButton) {
+    const text = isWeatherDistribution ? "現在に最も近い予報" : "現在";
+    latestButton.setAttribute("aria-label", text);
+    latestButton.setAttribute("title", text);
+  }
   document.getElementById("radar-play")?.classList.toggle("playing", radarPlaying);
   const playButton = document.getElementById("radar-play");
   if (playButton) {
@@ -3953,8 +3996,7 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
     <div class="mobile-dock-content mobile-dock-radar" aria-busy="${Boolean(loadingLabel)}">
       <div class="mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented">
         <button type="button" class="mobile-dock-action${!weatherChartEnabled && !lightningEnabled && !weatherDistributionEnabled ? " active" : ""}" data-mobile-dock-control data-radar-overlay="radar" aria-pressed="${!weatherChartEnabled && !lightningEnabled && !weatherDistributionEnabled ? "true" : "false"}"${!weatherChartEnabled && !lightningEnabled && !weatherDistributionEnabled ? " disabled" : ""}>雨雲レーダー</button>
-        <button type="button" class="mobile-dock-action${weatherDistributionMode === "weather" ? " active" : ""}" data-mobile-dock-control data-radar-overlay="weather-distribution" aria-pressed="${weatherDistributionMode === "weather" ? "true" : "false"}"${weatherDistributionMode === "weather" ? " disabled" : ""}>天気分布</button>
-        <button type="button" class="mobile-dock-action${weatherDistributionMode === "temperature" ? " active" : ""}" data-mobile-dock-control data-radar-overlay="temperature-distribution" aria-pressed="${weatherDistributionMode === "temperature" ? "true" : "false"}"${weatherDistributionMode === "temperature" ? " disabled" : ""}>気温分布</button>
+        <button type="button" class="mobile-dock-action${weatherDistributionEnabled ? " active" : ""}" data-mobile-dock-control ${weatherDistributionEnabled ? "data-weather-distribution-picker aria-controls=\"weather-distribution-toggle-choices\" aria-expanded=\"false\"" : "data-radar-overlay=\"weather-distribution\""} aria-pressed="${weatherDistributionEnabled ? "true" : "false"}">天気分布予報</button>
         <button type="button" class="mobile-dock-action${weatherChartEnabled ? " active" : ""}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "true" : "false"}"${weatherChartEnabled ? " disabled" : ""}>天気図</button>
         <button type="button" class="mobile-dock-action${lightningEnabled ? " active" : ""}" data-mobile-dock-control data-radar-overlay="lightning" aria-pressed="${lightningEnabled ? "true" : "false"}"${lightningEnabled ? " disabled" : ""}>雷</button>
       </div>
@@ -4162,9 +4204,9 @@ function buildWeatherTimeTimelineMarkup(frames, activeIndex, getLabel, inputMark
   `;
 }
 
-function renderWeatherTimeTimeline(root, frames, activeIndex, getLabel) {
+function renderWeatherTimeTimeline(root, frames, activeIndex, getLabel, options = {}) {
   if (!root) return;
-  const markup = buildWeatherTimeTimelineMarkup(frames, activeIndex, getLabel, "");
+  const markup = buildWeatherTimeTimelineMarkup(frames, activeIndex, getLabel, "", options);
   const template = document.createElement("template");
   template.innerHTML = markup.trim();
   const timeline = template.content.firstElementChild;
@@ -6285,11 +6327,7 @@ function buildSelectedVolcanoDetail(report, selectedBulletinId = "") {
   const warningText = warningDetailReport
     ? warningDetailReport.prevention || warningDetailReport.volcanoHeadline || warningDetailReport.headline
     : "";
-  const targetAreaGroups = relatedReports.flatMap((item) => item.targetAreas ?? []);
-  const uniqueAreaGroups = [...new Map(targetAreaGroups.map((group) => [
-    `${group.kindName}:${group.areas?.map((area) => area.code || area.name).join(",")}`,
-    group
-  ])).values()];
+  const targetMunicipalities = getLatestVolcanoTargetMunicipalities(report);
   const craterName = relatedReports.find((item) => item.craterName)?.craterName ?? "";
   const volcanoName = report.volcanoName ? localizeText(report.volcanoName) : localizeText("火山名不明");
   const localizedCraterName = craterName ? localizeText(craterName) : "";
@@ -6325,12 +6363,10 @@ function buildSelectedVolcanoDetail(report, selectedBulletinId = "") {
             "Detailed volcanic activity is available in the original JMA bulletin."
           )}
         </section>` : ""}
-      ${uniqueAreaGroups.length ? `
+      ${targetMunicipalities.length ? `
         <section class="volcano-detail-section">
-          <h3>${escapeHtml(localizeText("噴火警報・予報の対象市町村"))}</h3>
-          <div class="volcano-target-groups">
-            ${uniqueAreaGroups.map(buildVolcanoTargetAreaGroup).join("")}
-          </div>
+          <h3>${escapeHtml(localizeText("対象市区町村"))}</h3>
+          ${buildVolcanoTargetMunicipalityList(targetMunicipalities)}
         </section>` : ""}
       ${detailReport.nextAdvisory ? `
         <section class="volcano-detail-section volcano-next-advisory">
@@ -6357,7 +6393,7 @@ function buildVolcanoBulletinDetail(volcano, bulletin) {
   const displayName = craterName && !volcanoName.includes(craterName)
     ? `${volcanoName}${localizedCraterName ? ` (${localizedCraterName})` : ""}`
     : volcanoName;
-  const groups = bulletin.targetAreas ?? [];
+  const targetMunicipalities = getLatestVolcanoTargetMunicipalities(bulletin);
   const sections = [
     bulletin.volcanoHeadline || bulletin.headline
       ? `<section class="volcano-detail-section"><h3>${escapeHtml(localizeText("発表内容"))}</h3>${formatVolcanoParagraphs(bulletin.volcanoHeadline || bulletin.headline, "See the original JMA bulletin for the full announcement.")}</section>`
@@ -6368,8 +6404,8 @@ function buildVolcanoBulletinDetail(volcano, bulletin) {
     bulletin.prevention
       ? `<section class="volcano-detail-section"><h3>${escapeHtml(localizeText("警戒事項等"))}</h3>${formatVolcanoParagraphs(bulletin.prevention, "Follow the current restrictions and safety instructions from JMA and local authorities.")}</section>`
       : "",
-    groups.length
-      ? `<section class="volcano-detail-section"><h3>${escapeHtml(localizeText("対象地域"))}</h3><div class="volcano-target-groups">${groups.map(buildVolcanoTargetAreaGroup).join("")}</div></section>`
+    targetMunicipalities.length
+      ? `<section class="volcano-detail-section"><h3>${escapeHtml(localizeText("対象市区町村"))}</h3>${buildVolcanoTargetMunicipalityList(targetMunicipalities)}</section>`
       : "",
     bulletin.nextAdvisory
       ? `<section class="volcano-detail-section volcano-next-advisory"><h3>${escapeHtml(localizeText("次回の情報"))}</h3>${formatVolcanoParagraphs(bulletin.nextAdvisory, "The next bulletin schedule is available in the original JMA bulletin. Updates may be issued sooner if conditions change.")}</section>`
@@ -6471,12 +6507,11 @@ function formatVolcanoParagraph(paragraph) {
     ${after}`;
 }
 
-function buildVolcanoTargetAreaGroup(group) {
+function buildVolcanoTargetMunicipalityList(municipalities) {
   return `
-    <div class="volcano-target-group">
-      <strong>${escapeHtml(localizeVolcanoText(group.kindName, localizeText("対象地域")))}</strong>
-      <ul>${(group.areas ?? []).map((area) => `<li>${escapeHtml(area.name ? localizeText(area.name) : localizeText("対象地域不明"))}</li>`).join("")}</ul>
-    </div>`;
+    <ul class="volcano-target-municipality-list">
+      ${municipalities.map((area) => `<li>${escapeHtml(area.name ? localizeText(area.name) : localizeText("対象地域不明"))}</li>`).join("")}
+    </ul>`;
 }
 
 function buildVolcanoHistoryItem(report, selectedBulletinId = "") {

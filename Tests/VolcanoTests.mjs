@@ -8,6 +8,7 @@ import {
   getAvailableVolcanoAshForecasts,
   getHighestPriorityVolcanoReport,
   getLatestVolcanoReportsByType,
+  getLatestVolcanoTargetMunicipalities,
   getVolcanoWarningDetailReport,
   groupVolcanoPolygonRings,
   normalizeVolcanoAscii,
@@ -260,6 +261,45 @@ assert.equal(reports[0].kindName, "レベル3（入山規制）", "最新の解�
 assert.equal(reports[0].kindCode, "13");
 assert.equal(reports[0].currentStatus, "レベル3（入山規制）");
 assert.equal(reports[0].relatedReports.length, 2);
+
+assert.deepEqual(
+  getLatestVolcanoTargetMunicipalities({
+    relatedReports: [
+      {
+        reportTimeRaw: "2026-08-14T15:00:00+09:00",
+        targetAreas: [
+          {
+            kindName: "火口周辺警報：入山規制等",
+            areas: [
+              { name: "熊本県阿蘇市", code: "43214" },
+              { name: "熊本県南阿蘇村", code: "43433" },
+              { name: "熊本県高森町", code: "43428" }
+            ]
+          },
+          {
+            kindName: "火口周辺警報",
+            areas: [{ name: "熊本県阿蘇市", code: "43214" }]
+          }
+        ]
+      },
+      {
+        reportTimeRaw: "2026-08-14T14:00:00+09:00",
+        targetAreas: [
+          {
+            kindName: "火口周辺警報",
+            areas: [{ name: "旧対象市", code: "99999" }]
+          }
+        ]
+      }
+    ]
+  }),
+  [
+    { name: "熊本県阿蘇市", code: "43214" },
+    { name: "熊本県南阿蘇村", code: "43433" },
+    { name: "熊本県高森町", code: "43428" }
+  ],
+  "対象市区町村は最新電文だけを使い、市区町村コードで重複を除く"
+);
 
 const latestActivityReports = buildVolcanoLatestActivityReports(
   [
@@ -545,7 +585,9 @@ assert.doesNotMatch(panel, /visibleReports\.map\(\(report\) => buildVolcanoRepor
 assert.doesNotMatch(panel, /function buildVolcanoReportCard/);
 assert.doesNotMatch(panel, /function buildVolcanoRelatedReport/);
 assert.match(viteConfig, /return "world-geometry"/);
-assert.match(panel, /噴火警報・予報の対象市町村/);
+assert.match(panel, /対象市区町村/);
+assert.match(panel, /getLatestVolcanoTargetMunicipalities\(report\)/);
+assert.doesNotMatch(panel, /relatedReports\.flatMap\(\(item\) => item\.targetAreas/);
 assert.match(style, /\.volcano-level-guide\s*\{/);
 assert.match(style, /\.volcano-guide-scope-row\s*\{/);
 assert.match(style, /\.volcano-guide-scope-row\.level-1 span\s*\{/);

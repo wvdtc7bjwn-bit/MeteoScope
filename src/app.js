@@ -4,6 +4,7 @@ import { setupTabs } from "./ui/tabs.js";
 import { setupAmedasDailyChartToggle, setupAmedasPrecipitationPeriods, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { applyAmedasPrecipitationPeriod, DEFAULT_AMEDAS_PRECIPITATION_PERIOD, normalizeAmedasPrecipitationPeriod } from "./amedasPrecipitationPeriod.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
+import { setupWeatherDistributionToggle, syncWeatherDistributionToggle, toggleWeatherDistributionPicker } from "./ui/weatherDistributionToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
 import { setupWeeklyWeatherModal } from "./ui/weeklyWeatherModal.js";
@@ -486,6 +487,10 @@ export function createWeatherApp() {
     updateLeftPanel(tab, panelState);
     syncSocialShareMapButton(tab?.id);
     syncMeteoScopeLensButton(tab?.id);
+  syncWeatherDistributionToggle({
+    visible: tab?.id === "radar" && Boolean(weatherDistributionMode),
+    activeMode: tab?.id === "radar" ? weatherDistributionMode : null
+  });
   }
 
   async function selectTab(tabId) {
@@ -1762,6 +1767,7 @@ if (layerId === "river") {
       weatherDistributionMode,
       weatherDistributionStatus,
       weatherDistribution: getActiveWeatherDistribution(),
+      weatherDistributionPlaying: Boolean(weatherDistributionPlayTimer),
       lightningEnabled,
       lightningStatus,
       lightning: lightningData,
@@ -2242,7 +2248,11 @@ if (layerId === "river") {
     const distribution = getActiveWeatherDistribution();
     if (!distribution?.frames?.length) return;
     stopWeatherDistributionPlayback();
-    selectWeatherDistributionFrame(distribution.frames.length - 1);
+    weatherDistributionDataByMode.set(
+      weatherDistributionMode,
+      activateNearestWeatherDistributionFrame(distribution)
+    );
+    refreshRadarPanel();
   }
 
   function stepRadarFrame(delta) {
@@ -3591,7 +3601,13 @@ if (layerId === "river") {
       onTogglePlay: toggleActiveRadarPlayback,
       onGoLatest: goLatestActiveRadarTimeline
     });
-    setupRadarOverlayToggle({ onChange: selectRadarOverlay });
+    setupRadarOverlayToggle({
+      onChange: selectRadarOverlay,
+      onWeatherDistributionPicker: toggleWeatherDistributionPicker
+    });
+    setupWeatherDistributionToggle({
+      onChange: (mode) => selectRadarOverlay(mode === "temperature" ? "temperature-distribution" : "weather-distribution")
+    });
     setupWeatherChartControls({
       onSeek: selectWeatherChartFrame,
       onPreview: previewWeatherChartFrame,

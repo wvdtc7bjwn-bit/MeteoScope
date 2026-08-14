@@ -85,6 +85,28 @@ export function getLatestVolcanoReportsByType(reports) {
   return [...latestByType.values()];
 }
 
+export function getLatestVolcanoTargetMunicipalities(report) {
+  const relatedReports = report?.relatedReports?.length
+    ? report.relatedReports
+    : [report].filter(Boolean);
+  const latestTargetReport = [...relatedReports]
+    .filter((item) => item?.targetAreas?.some((group) => group?.areas?.length))
+    .sort((left, right) =>
+      dateMs(right.reportTimeRaw || right.reportTime) - dateMs(left.reportTimeRaw || left.reportTime)
+    )[0];
+  if (!latestTargetReport) return [];
+
+  const municipalities = new Map();
+  latestTargetReport.targetAreas.flatMap((group) => group?.areas ?? []).forEach((area) => {
+    const name = normalizeVolcanoAscii(area?.name).trim();
+    const code = String(area?.code ?? "").trim();
+    if (!name) return;
+    const key = code || name.replace(/[\s\u3000]+/gu, "");
+    if (!municipalities.has(key)) municipalities.set(key, { name, code });
+  });
+  return [...municipalities.values()];
+}
+
 export function getHighestPriorityVolcanoReport(reports) {
   return [...(reports ?? [])].sort(compareVolcanoReportsByPriority)[0] ?? null;
 }

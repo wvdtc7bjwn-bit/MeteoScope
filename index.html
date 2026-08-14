@@ -166,6 +166,13 @@
       <button id="meteoscope-lens-button" class="map-meteoscope-lens-button" type="button" aria-label="MeteoScope Lensを開く" title="MeteoScope Lens" aria-haspopup="dialog" aria-controls="meteoscope-lens-modal" hidden></button>
       <button id="world-typhoon-target-button" class="map-world-typhoon-target-button" type="button" aria-label="各国予想の対象を選択" title="対象選択" aria-haspopup="dialog" aria-controls="world-typhoon-target-modal" aria-expanded="false" hidden></button>
       <button id="community-report-map-open" class="map-community-report-button" type="button" data-community-report-open aria-label="現在地の様子を投稿" title="現在地の様子を投稿" aria-haspopup="dialog" aria-controls="community-report-modal" hidden></button>
+      <section id="weather-distribution-toggle" class="map-weather-distribution-toggle collapsed" aria-label="天気分布予報の種類" hidden>
+        <div id="weather-distribution-toggle-choices" class="weather-distribution-toggle-choices" aria-hidden="true" hidden>
+          <button type="button" data-weather-distribution-mode="weather" aria-pressed="false">天気</button>
+          <button type="button" data-weather-distribution-mode="temperature" aria-pressed="false">気温</button>
+        </div>
+        <button id="weather-distribution-toggle-button" class="weather-distribution-toggle-button" type="button" aria-expanded="false" aria-controls="weather-distribution-toggle-choices" aria-label="天気分布予報の種類を選択" title="天気分布予報の種類を選択"></button>
+      </section>
       <button id="typhoon-radar-overlay-button" class="map-typhoon-radar-overlay-button" type="button" aria-label="台風情報の発表時刻の雨雲レーダを重ねる" title="台風情報の発表時刻の雨雲レーダを重ねる" aria-pressed="false" hidden></button>
       <div id="radar-overlay-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs radar-overlay-tabs" hidden></div>
       <div id="kikikuru-layer-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs" hidden></div>

@@ -583,7 +583,7 @@ const EXACT_TRANSLATIONS = new Map(Object.entries({
   "現在の噴火警報・予報": "Current volcanic warnings and forecasts",
   "現在の警戒事項等": "Current precautions",
   "火山活動の状況": "Volcanic activity",
-  "噴火警報・予報の対象市町村": "Municipalities covered by the warning or forecast",
+  "対象市区町村": "Affected municipalities",
   "噴火警報・予報（対象火山）": "Volcanic warning or forecast (target volcano)",
   "次回の情報": "Next bulletin",
   "関連する発表": "Related bulletins",
