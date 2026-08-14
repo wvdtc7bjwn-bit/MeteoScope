@@ -11198,6 +11198,14 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     padding-block: 0;
   }
 
+  .mobile-dock-radar .mobile-dock-mode-switch .mobile-dock-action {
+    min-width: 0;
+    padding-inline: 2px;
+    font-size: clamp(10px, 2.7vw, 12px);
+    letter-spacing: -0.04em;
+    white-space: nowrap;
+  }
+
   .mobile-dock-radar,
   .mobile-dock-typhoon,
   .mobile-dock-earthquake,

@@ -17,6 +17,7 @@ import { startClock } from "./ui/time.js";
 import { fetchRadarTimes, findLatestRadarObservationIndex } from "./jma/radar.js";
 import { selectTyphoonRadarFrame } from "./typhoonRadarOverlay.js";
 import { fetchLightningTimes, findLatestLightningObservationIndex } from "./jma/lightning.js";
+import { activateNearestWeatherDistributionFrame, activateWeatherDistributionFrame, fetchWeatherDistribution, getWeatherDistributionLabel, isWeatherDistributionMode } from "./jma/weatherDistribution.js";
 import { fetchAmedasDailySeries, fetchAmedasLatestTime } from "./jma/amedas.js";
 import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
@@ -167,6 +168,7 @@ const WARNING_DETAILS_TTL_MS = 60 * 1000;
 const EARLY_WARNING_REFRESH_INTERVAL_MS = 60 * 1000;
 const RIVER_FLOOD_DATA_TTL_MS = 60 * 1000;
 const WEATHER_CHART_DATA_TTL_MS = 10 * 60 * 1000;
+const WEATHER_DISTRIBUTION_DATA_TTL_MS = 10 * 60 * 1000;
 const LIGHTNING_REFRESH_INTERVAL_MS = 60 * 1000;
 const LIGHTNING_DATA_TTL_MS = LIGHTNING_REFRESH_INTERVAL_MS - 1000;
 const LOCATION_WATCH_OPTIONS = {
@@ -416,6 +418,12 @@ export function createWeatherApp() {
   let lightningLoadedAt = 0;
   let lightningRequest = null;
   let lightningRequestId = 0;
+  let weatherDistributionMode = null;
+  let weatherDistributionStatus = "idle";
+  const weatherDistributionDataByMode = new Map();
+  const weatherDistributionLoadedAtByMode = new Map();
+  const weatherDistributionRequestsByMode = new Map();
+  let weatherDistributionPlayTimer = null;
   let typhoonRadarOverlayEnabled = false;
   let typhoonRadarOverlayStatus = "idle";
   const adminNoticePush = createAdminNoticePush({
@@ -558,6 +566,9 @@ export function createWeatherApp() {
         weatherChartEnabled,
         weatherChartStatus,
         weatherChart: weatherChartData,
+        weatherDistributionMode,
+        weatherDistributionStatus,
+        weatherDistribution: getActiveWeatherDistribution(),
         lightningEnabled,
         lightningStatus,
         lightning: lightningData,
@@ -1715,6 +1726,9 @@ if (layerId === "river") {
       displayData.weatherChartEnabled = weatherChartEnabled;
       displayData.weatherChartStatus = weatherChartStatus;
       displayData.weatherChart = weatherChartData;
+      displayData.weatherDistributionMode = weatherDistributionMode;
+      displayData.weatherDistributionStatus = weatherDistributionStatus;
+      displayData.weatherDistribution = getActiveWeatherDistribution();
       displayData.lightningEnabled = lightningEnabled;
       displayData.lightningStatus = lightningStatus;
       displayData.lightning = lightningData;
@@ -1745,6 +1759,9 @@ if (layerId === "river") {
       weatherChartEnabled,
       weatherChartStatus,
       weatherChart: weatherChartData,
+      weatherDistributionMode,
+      weatherDistributionStatus,
+      weatherDistribution: getActiveWeatherDistribution(),
       lightningEnabled,
       lightningStatus,
       lightning: lightningData,
@@ -1835,6 +1852,10 @@ if (layerId === "river") {
     const frames = data.frames ?? [];
     const activeFrameIndex = clampRadarIndex(data.activeFrameIndex ?? 0, frames);
     const activeFrame = frames[activeFrameIndex] ?? null;
+    const distribution = getActiveWeatherDistribution();
+    const distributionFrames = distribution?.frames ?? [];
+    const distributionFrameIndex = clampRadarIndex(distribution?.activeFrameIndex ?? 0, distributionFrames);
+    const distributionFrame = distributionFrames[distributionFrameIndex] ?? null;
     const lightningFrames = lightningData?.frames ?? [];
     const lightningFrameIndex = clampRadarIndex(lightningData?.activeFrameIndex ?? 0, lightningFrames);
     const lightningFrame = lightningFrames[lightningFrameIndex] ?? null;
@@ -1842,15 +1863,23 @@ if (layerId === "river") {
       ...data,
       activeFrameIndex,
       activeFrame,
-      latestTime: lightningEnabled
+      latestTime: weatherDistributionMode
+        ? (distributionFrame?.label ?? data.latestTime)
+        : (lightningEnabled
         ? (lightningFrame?.label ?? data.latestTime)
-        : (activeFrame?.label ?? data.latestTime),
-      latestRawTime: lightningEnabled
+        : (activeFrame?.label ?? data.latestTime)),
+      latestRawTime: weatherDistributionMode
+        ? (distributionFrame?.validtime ?? data.latestRawTime)
+        : (lightningEnabled
         ? (lightningFrame?.validtime ?? data.latestRawTime)
-        : (activeFrame?.validtime ?? data.latestRawTime),
-      radarTileUrl: weatherChartEnabled || lightningEnabled
+        : (activeFrame?.validtime ?? data.latestRawTime)),
+      radarTileUrl: weatherChartEnabled || lightningEnabled || weatherDistributionMode
         ? null
         : (activeFrame?.radarTileUrl ?? data.radarTileUrl),
+      weatherDistributionMode,
+      weatherDistributionStatus,
+      weatherDistribution: distribution,
+      weatherDistributionTileUrl: weatherDistributionMode ? distributionFrame?.distributionTileUrl ?? null : null,
       lightningEnabled,
       lightningStatus,
       lightning: lightningData,
@@ -2180,6 +2209,42 @@ if (layerId === "river") {
     updateCurrentView(tab, radarData);
   }
 
+  function getActiveWeatherDistribution() {
+    return weatherDistributionMode
+      ? weatherDistributionDataByMode.get(weatherDistributionMode) ?? null
+      : null;
+  }
+
+  function setWeatherDistributionFrame(index, { refreshPanel = true } = {}) {
+    const distribution = getActiveWeatherDistribution();
+    if (activeTab !== "radar" || !distribution?.frames?.length) return;
+    const next = activateWeatherDistributionFrame(distribution, index);
+    weatherDistributionDataByMode.set(weatherDistributionMode, next);
+    weatherDistributionStatus = "ok";
+    if (refreshPanel) {
+      refreshRadarPanel();
+      return;
+    }
+    refreshWeatherDistributionMapLayer();
+  }
+
+  function selectWeatherDistributionFrame(index) {
+    setWeatherDistributionFrame(index, { refreshPanel: true });
+  }
+
+  function stepWeatherDistributionFrame(delta) {
+    const distribution = getActiveWeatherDistribution();
+    if (!distribution?.frames?.length) return;
+    selectWeatherDistributionFrame((distribution.activeFrameIndex ?? 0) + delta);
+  }
+
+  function goLatestWeatherDistributionFrame() {
+    const distribution = getActiveWeatherDistribution();
+    if (!distribution?.frames?.length) return;
+    stopWeatherDistributionPlayback();
+    selectWeatherDistributionFrame(distribution.frames.length - 1);
+  }
+
   function stepRadarFrame(delta) {
     const radarData = latestDataByTab.radar;
     if (!radarData?.frames?.length) return;
@@ -2218,17 +2283,20 @@ if (layerId === "river") {
   }
 
   function selectActiveRadarTimelineFrame(index) {
-    if (lightningEnabled) selectLightningFrame(index);
+    if (weatherDistributionMode) selectWeatherDistributionFrame(index);
+    else if (lightningEnabled) selectLightningFrame(index);
     else selectRadarFrame(index);
   }
 
   function stepActiveRadarTimeline(delta) {
-    if (lightningEnabled) stepLightningFrame(delta);
+    if (weatherDistributionMode) stepWeatherDistributionFrame(delta);
+    else if (lightningEnabled) stepLightningFrame(delta);
     else stepRadarFrame(delta);
   }
 
   function goLatestActiveRadarTimeline() {
-    if (lightningEnabled) goLatestLightningObservation();
+    if (weatherDistributionMode) goLatestWeatherDistributionFrame();
+    else if (lightningEnabled) goLatestLightningObservation();
     else goLatestRadarObservation();
   }
 
@@ -2240,6 +2308,17 @@ if (layerId === "river") {
     displayData.weatherChartEnabled = weatherChartEnabled;
     displayData.weatherChartStatus = weatherChartStatus;
     displayData.weatherChart = weatherChartData;
+    weatherMap?.renderData(tab.id, displayData);
+  }
+
+  function refreshWeatherDistributionMapLayer() {
+    if (activeTab !== "radar" || !latestDataByTab.radar) return;
+    const tab = TABS.find((item) => item.id === "radar");
+    if (!tab) return;
+    const displayData = buildDisplayData(tab, latestDataByTab.radar);
+    displayData.weatherDistributionMode = weatherDistributionMode;
+    displayData.weatherDistributionStatus = weatherDistributionStatus;
+    displayData.weatherDistribution = getActiveWeatherDistribution();
     weatherMap?.renderData(tab.id, displayData);
   }
 
@@ -2275,10 +2354,10 @@ if (layerId === "river") {
   }
 
   function startRadarPlayback() {
-    if (radarPlayTimer || weatherChartEnabled || lightningEnabled || !latestDataByTab.radar?.frames?.length) return;
+    if (radarPlayTimer || weatherChartEnabled || lightningEnabled || weatherDistributionMode || !latestDataByTab.radar?.frames?.length) return;
     radarPlayTimer = window.setInterval(() => {
       const radarData = latestDataByTab.radar;
-      if (!radarData?.frames?.length || activeTab !== "radar" || weatherChartEnabled || lightningEnabled) {
+      if (!radarData?.frames?.length || activeTab !== "radar" || weatherChartEnabled || lightningEnabled || weatherDistributionMode) {
         stopRadarPlayback();
         return;
       }
@@ -2316,6 +2395,15 @@ if (layerId === "river") {
   }
 
   function toggleActiveRadarPlayback() {
+    if (weatherDistributionMode) {
+      if (weatherDistributionPlayTimer) {
+        stopWeatherDistributionPlayback();
+        refreshRadarPanel();
+      } else {
+        startWeatherDistributionPlayback();
+      }
+      return;
+    }
     if (lightningEnabled) {
       if (lightningPlayTimer) {
         stopLightningPlayback();
@@ -2337,6 +2425,26 @@ if (layerId === "river") {
   function stopLightningPlaybackAndRefresh() {
     stopLightningPlayback();
     refreshRadarPanel();
+  }
+
+  function startWeatherDistributionPlayback() {
+    const distribution = getActiveWeatherDistribution();
+    if (weatherDistributionPlayTimer || !weatherDistributionMode || !distribution?.frames?.length) return;
+    weatherDistributionPlayTimer = window.setInterval(() => {
+      const current = getActiveWeatherDistribution();
+      if (!weatherDistributionMode || !current?.frames?.length || activeTab !== "radar") {
+        stopWeatherDistributionPlayback();
+        return;
+      }
+      selectWeatherDistributionFrame(((current.activeFrameIndex ?? 0) + 1) % current.frames.length);
+    }, 850);
+    refreshRadarPanel();
+  }
+
+  function stopWeatherDistributionPlayback() {
+    if (!weatherDistributionPlayTimer) return;
+    window.clearInterval(weatherDistributionPlayTimer);
+    weatherDistributionPlayTimer = null;
   }
 
   function startWeatherChartPlayback() {
@@ -2369,18 +2477,28 @@ if (layerId === "river") {
   }
 
   async function selectRadarOverlay(overlayId) {
-    if (!["radar", "weather-chart", "lightning"].includes(overlayId)) return;
+    if (!["radar", "weather-distribution", "temperature-distribution", "weather-chart", "lightning"].includes(overlayId)) return;
     weatherChartEnabled = overlayId === "weather-chart";
     lightningEnabled = overlayId === "lightning";
+    weatherDistributionMode = overlayId === "weather-distribution"
+      ? "weather"
+      : (overlayId === "temperature-distribution" ? "temperature" : null);
     if (weatherChartEnabled) {
       stopRadarPlayback();
       stopLightningPlayback();
+      stopWeatherDistributionPlayback();
     } else if (lightningEnabled) {
       stopRadarPlayback();
       stopWeatherChartPlayback();
+      stopWeatherDistributionPlayback();
+    } else if (weatherDistributionMode) {
+      stopRadarPlayback();
+      stopWeatherChartPlayback();
+      stopLightningPlayback();
     } else {
       stopWeatherChartPlayback();
       stopLightningPlayback();
+      stopWeatherDistributionPlayback();
     }
 
     if (overlayId === "radar") {
@@ -2402,6 +2520,30 @@ if (layerId === "river") {
       } catch (error) {
         console.warn("[MeteoScope] lightning nowcast load failed", error);
         lightningStatus = "error";
+      }
+      refreshRadarPanel();
+      return;
+    }
+
+    if (weatherDistributionMode) {
+      const mode = weatherDistributionMode;
+      if (hasFreshWeatherDistributionData(mode)) {
+        weatherDistributionDataByMode.set(
+          mode,
+          activateNearestWeatherDistributionFrame(weatherDistributionDataByMode.get(mode))
+        );
+        weatherDistributionStatus = "ok";
+        refreshRadarPanel();
+        return;
+      }
+      weatherDistributionStatus = "loading";
+      refreshRadarPanel();
+      try {
+        await refreshWeatherDistributionData(mode);
+        if (weatherDistributionMode === mode) weatherDistributionStatus = "ok";
+      } catch (error) {
+        console.warn(`[MeteoScope] ${getWeatherDistributionLabel(mode)} load failed`, error);
+        if (weatherDistributionMode === mode) weatherDistributionStatus = "error";
       }
       refreshRadarPanel();
       return;
@@ -2465,6 +2607,35 @@ if (layerId === "river") {
       lightningData?.frames?.length &&
       lightningLoadedAt > 0 &&
       Date.now() - lightningLoadedAt < LIGHTNING_DATA_TTL_MS
+    );
+  }
+
+  async function refreshWeatherDistributionData(mode) {
+    if (!isWeatherDistributionMode(mode)) return null;
+    if (hasFreshWeatherDistributionData(mode)) return weatherDistributionDataByMode.get(mode);
+    const pending = weatherDistributionRequestsByMode.get(mode);
+    if (pending) return pending;
+
+    const request = fetchWeatherDistribution(mode)
+      .then((data) => {
+        weatherDistributionDataByMode.set(mode, data);
+        weatherDistributionLoadedAtByMode.set(mode, Date.now());
+        return data;
+      })
+      .finally(() => {
+        weatherDistributionRequestsByMode.delete(mode);
+      });
+    weatherDistributionRequestsByMode.set(mode, request);
+    return request;
+  }
+
+  function hasFreshWeatherDistributionData(mode) {
+    const data = weatherDistributionDataByMode.get(mode);
+    const loadedAt = weatherDistributionLoadedAtByMode.get(mode) ?? 0;
+    return Boolean(
+      data?.frames?.length
+      && loadedAt > 0
+      && Date.now() - loadedAt < WEATHER_DISTRIBUTION_DATA_TTL_MS
     );
   }
 
@@ -3436,7 +3607,10 @@ if (layerId === "river") {
       onLightningGoLatest: goLatestLightningObservation,
       onWeatherChartPlay: startWeatherChartPlayback,
       onWeatherChartStop: stopWeatherChartPlayback,
-      onWeatherChartGoLatest: goLatestWeatherChartFrame
+      onWeatherChartGoLatest: goLatestWeatherChartFrame,
+      onWeatherDistributionPlay: startWeatherDistributionPlayback,
+      onWeatherDistributionStop: stopWeatherDistributionPlayback,
+      onWeatherDistributionGoLatest: goLatestWeatherDistributionFrame
     });
     setupLegendToggle();
     setupPanelToggle({ onLayoutChange: () => weatherMap?.resize() });

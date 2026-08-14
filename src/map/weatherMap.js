@@ -861,6 +861,7 @@ export function createWeatherMap(elementId) {
     const typhoonCollection = updateTyphoonLayers(mode, data);
     updateWarningAreaLookup(mode, data);
     updateRadarLayer(map, mode, data);
+    updateWeatherDistributionLayer(map, mode, data);
     updateLightningLayer(map, mode, data);
     updateLightningObservationLayer(map, mode, data);
     updateWeatherChartLayer(map, mode, data);
@@ -3743,7 +3744,8 @@ function setWarningHatchVisibility(map, visible) {
 function updateRadarLayer(map, mode, data = {}) {
   const radarTabVisible = mode === "radar"
     && !data?.weatherChartEnabled
-    && !data?.lightningEnabled;
+    && !data?.lightningEnabled
+    && !data?.weatherDistributionMode;
   const typhoonBulletinRadarVisible = mode === "typhoon"
     && data?.forecastMode !== "world"
     && data?.typhoonRadarOverlay?.visible === true;
@@ -3755,6 +3757,19 @@ function updateRadarLayer(map, mode, data = {}) {
     sourcePrefix: RADAR_SOURCE_PREFIX,
     layerPrefix: RADAR_LAYER_PREFIX,
     opacity: typhoonBulletinRadarVisible ? 0.78 : 0.9
+  });
+}
+
+function updateWeatherDistributionLayer(map, mode, data = {}) {
+  const shouldShow = mode === "radar"
+    && Boolean(data?.weatherDistributionMode)
+    && Boolean(data?.weatherDistributionTileUrl);
+  updateNowcastRasterLayer(map, {
+    shouldShow,
+    tileUrl: data?.weatherDistributionTileUrl,
+    sourcePrefix: "weather-distribution-source-",
+    layerPrefix: "weather-distribution-layer-",
+    opacity: 0.88
   });
 }
 
@@ -4068,10 +4083,15 @@ function setRadarOverlayZoomLimit(map, mode, data = {}) {
   const lightningVisible = mode === "radar"
     && data?.lightningEnabled
     && Boolean(data?.lightningTileUrl);
+  const weatherDistributionVisible = mode === "radar"
+    && Boolean(data?.weatherDistributionMode)
+    && Boolean(data?.weatherDistributionTileUrl);
   const maxZoom = weatherChartVisible
     ? WEATHER_CHART_MAX_ZOOM
     : lightningVisible
       ? LIGHTNING_MAX_ZOOM
+      : weatherDistributionVisible
+        ? 10
       : DEFAULT_VIEW.maxZoom;
   if (radarOverlayZoomLimitCache.get(map) === maxZoom) return;
 
