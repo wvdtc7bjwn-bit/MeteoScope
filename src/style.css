@@ -519,6 +519,30 @@ button {
   font: inherit;
 }
 
+/*
+ * Keep the everyday UI copy on the same Japanese sans-serif face as the
+ * AMeDAS segmented controls. Headings keep their own size and weight tokens;
+ * this only normalizes controls and supporting copy across browsers.
+ */
+:where(button, input, select, textarea, option, summary) {
+  font-family: var(--font-jp-gothic);
+  font-synthesis: none;
+  font-kerning: normal;
+  letter-spacing: 0;
+}
+
+:where(
+  .left-panel,
+  .mobile-context-dock,
+  .warning-modal-panel,
+  .settings-modal-panel,
+  #map-legend
+) :is(label, p, span, small, li, dd) {
+  font-family: var(--font-jp-gothic);
+  font-synthesis: none;
+  font-kerning: normal;
+}
+
 .text-info-title {
   color: var(--type-info-title-color);
   font-size: var(--type-info-title-size);
