@@ -2487,12 +2487,14 @@ if (layerId === "river") {
   }
 
   async function selectRadarOverlay(overlayId) {
-    if (!["radar", "weather-distribution", "temperature-distribution", "weather-chart", "lightning"].includes(overlayId)) return;
+    if (!["radar", "weather-distribution", "temperature-distribution", "snowfall-distribution", "weather-chart", "lightning"].includes(overlayId)) return;
     weatherChartEnabled = overlayId === "weather-chart";
     lightningEnabled = overlayId === "lightning";
     weatherDistributionMode = overlayId === "weather-distribution"
       ? "weather"
-      : (overlayId === "temperature-distribution" ? "temperature" : null);
+      : (overlayId === "temperature-distribution"
+        ? "temperature"
+        : (overlayId === "snowfall-distribution" ? "snowfall" : null));
     if (weatherChartEnabled) {
       stopRadarPlayback();
       stopLightningPlayback();
@@ -3606,7 +3608,7 @@ if (layerId === "river") {
       onWeatherDistributionPicker: toggleWeatherDistributionPicker
     });
     setupWeatherDistributionToggle({
-      onChange: (mode) => selectRadarOverlay(mode === "temperature" ? "temperature-distribution" : "weather-distribution")
+      onChange: (mode) => selectRadarOverlay(mode === "weather" ? "weather-distribution" : `${mode}-distribution`)
     });
     setupWeatherChartControls({
       onSeek: selectWeatherChartFrame,

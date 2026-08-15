@@ -60,6 +60,7 @@ import {
   VOLCANO_SMALL_CINDERS_STYLE
 } from "../volcanoAshfall.js";
 import { findLatestRadarObservationIndex } from "../jma/radar.js";
+import { getWeatherDistributionLabel } from "../jma/weatherDistribution.js";
 import { assignAmedasCompetitionRanks } from "../amedasRanking.js";
 import { setSocialSharePayload } from "../socialShareState.js";
 import { mergeRiverFloodWarningsIntoGroups } from "../warningRiverMerge.js";
@@ -156,13 +157,11 @@ export function updateLeftPanel(tab, state = {}) {
       ? "火山情報"
       : (tab.id === "radar" && state.weatherChartEnabled
         ? "天気図"
-        : (tab.id === "radar" && state.weatherDistributionMode === "weather"
-          ? "天気分布"
-        : (tab.id === "radar" && state.weatherDistributionMode === "temperature"
-            ? "気温分布"
-            : (tab.id === "radar" && state.lightningEnabled
+        : (tab.id === "radar" && state.weatherDistributionMode
+          ? getWeatherDistributionLabel(state.weatherDistributionMode)
+          : (tab.id === "radar" && state.lightningEnabled
           ? "雷"
-          : (tab.id === "typhoon" && state.data?.worldForecastMode ? "各国予想" : tab.label))))));
+          : (tab.id === "typhoon" && state.data?.worldForecastMode ? "各国予想" : tab.label)))));
   setText("mode-label", modeLabel);
   document.getElementById("mode-label")?.classList.toggle("mode-label-warning", tab.id === "warnings");
   setText("panel-title", buildPanelTitle(tab, state));
@@ -1707,7 +1706,7 @@ function buildDescription(tab, state) {
     return "気象庁の天気図を地図上に重ねています。";
   }
   if (tab.id === "radar" && state.weatherDistributionMode) {
-    const label = state.weatherDistributionMode === "temperature" ? "気温分布" : "天気分布";
+    const label = getWeatherDistributionLabel(state.weatherDistributionMode);
     if (state.weatherDistributionStatus === "loading") return `${label}を読み込み中です。`;
     if (state.weatherDistributionStatus === "error") return `${label}を表示できません。時間をおいて再度お試しください。`;
     return `気象庁の${label}予報を地図上に表示しています。`;
@@ -1961,6 +1960,14 @@ function buildLegendItems(tabId, amedasMetricId, warningView = "status", data = 
         ["くもり", "", "#8ea3b5"],
         ["雨", "", "#388de3"],
         ["雪", "", "#c9e7ff"]
+      ];
+    }
+    if (data?.weatherDistributionMode === "snowfall") {
+      return [
+        ["降雪なし", "", "#edf5ff"],
+        ["1〜2cm", "", "#abd6ff"],
+        ["3〜5cm", "", "#5d9fe5"],
+        ["6cm以上", "", "#2459a5"]
       ];
     }
     return AMEDAS_PRECIPITATION_LEVELS.map((level) => [level.label, "", level.color]);
@@ -2218,7 +2225,7 @@ function renderRadarControls(tab, state) {
 
   slider.max = String(Math.max(0, frames.length - 1));
   slider.value = String(activeIndex);
-  const distributionLabel = weatherDistributionMode === "temperature" ? "気温分布" : "天気分布";
+  const distributionLabel = getWeatherDistributionLabel(weatherDistributionMode);
   slider.setAttribute(
     "aria-label",
     isWeatherDistribution
@@ -3915,7 +3922,7 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   const loadingLabel = weatherChartLoading
     ? "天気図を読み込み中"
     : (lightningLoading ? "雷情報を読み込み中" : (weatherDistributionLoading
-      ? `${weatherDistributionMode === "temperature" ? "気温分布" : "天気分布"}を読み込み中`
+      ? `${getWeatherDistributionLabel(weatherDistributionMode)}を読み込み中`
       : (radarLoading ? "雨雲レーダーを読み込み中" : "")));
   const weatherChart = state.weatherChart ?? state.data?.weatherChart;
   const chartFrames = Array.isArray(weatherChart?.frames)
@@ -3979,7 +3986,7 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
       (item) => isLightningMode
         ? item?.timeLabel
         : compactWeatherTimeLabel(item?.title),
-      `<input type="range" class="weather-time-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : (isLightningMode ? "data-mobile-lightning-slider" : (isDistributionMode ? "data-mobile-weather-distribution-slider" : "data-mobile-radar-slider"))} ${frameDatesAttribute} aria-label="${isChartMode ? "天気図" : (isLightningMode ? "雷" : (isDistributionMode ? (weatherDistributionMode === "temperature" ? "気温分布" : "天気分布") : "雨雲レーダー"))}時刻">`,
+      `<input type="range" class="weather-time-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : (isLightningMode ? "data-mobile-lightning-slider" : (isDistributionMode ? "data-mobile-weather-distribution-slider" : "data-mobile-radar-slider"))} ${frameDatesAttribute} aria-label="${isChartMode ? "天気図" : (isLightningMode ? "雷" : (isDistributionMode ? getWeatherDistributionLabel(weatherDistributionMode) : "雨雲レーダー"))}時刻">`,
       { compact: true }
     )
     : buildWeatherTimeTimelineMarkup(

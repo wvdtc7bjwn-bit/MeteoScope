@@ -5,11 +5,15 @@ const index = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8")
 const app = fs.readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
 const panel = fs.readFileSync(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8");
 const toggle = fs.readFileSync(new URL("../src/ui/weatherDistributionToggle.js", import.meta.url), "utf8");
+const distribution = fs.readFileSync(new URL("../src/jma/weatherDistribution.js", import.meta.url), "utf8");
 
 assert.match(index, /id="weather-distribution-toggle"/);
 assert.match(index, /data-weather-distribution-mode="weather"/);
 assert.match(index, /data-weather-distribution-mode="temperature"/);
+assert.match(index, /data-weather-distribution-mode="snowfall"/);
 assert.match(app, /setupWeatherDistributionToggle/);
+assert.match(app, /snowfall-distribution/);
+assert.match(distribution, /snowfall:\s*\{\s*element: "s3",\s*label: "降雪量",\s*usesForecastPeriod: true/s);
 assert.match(app, /syncWeatherDistributionToggle/);
 assert.match(app, /toggleWeatherDistributionPicker/);
 assert.match(app, /visible: tab\?\.id === "radar" && Boolean\(weatherDistributionMode\)/);

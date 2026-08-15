@@ -4,11 +4,17 @@ import { fetchJson } from "./jmaClient.js";
 const DISTRIBUTION_MODES = {
   weather: {
     element: "wm",
-    label: "天気分布"
+    label: "天気分布",
+    usesForecastPeriod: true
   },
   temperature: {
     element: "temp",
     label: "気温分布"
+  },
+  snowfall: {
+    element: "s3",
+    label: "降雪量",
+    usesForecastPeriod: true
   }
 };
 const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
@@ -32,9 +38,9 @@ export async function fetchWeatherDistribution(mode) {
   });
   const frames = (Array.isArray(times) ? times : [])
     .filter((item) => supportsElement(item, config.element))
-    .map((item) => buildFrame(item, config.element))
+    .map((item) => buildFrame(item, config))
     .sort((left, right) => String(left.validtime).localeCompare(String(right.validtime)));
-  const activeFrameIndex = mode === "weather"
+  const activeFrameIndex = config.usesForecastPeriod
     ? findCurrentForecastPeriodIndex(frames)
     : findNearestFrameIndex(frames);
 
@@ -64,10 +70,14 @@ export function activateWeatherDistributionFrame(data, index) {
 
 export function activateNearestWeatherDistributionFrame(data, now = Date.now()) {
   const frames = data?.frames ?? [];
-  const index = data?.mode === "weather"
+  const index = usesForecastPeriod(data?.mode)
     ? findCurrentForecastPeriodIndex(frames, now)
     : findNearestFrameIndex(frames, now);
   return activateWeatherDistributionFrame(data, index);
+}
+
+function usesForecastPeriod(mode) {
+  return Boolean(DISTRIBUTION_MODES[mode]?.usesForecastPeriod);
 }
 
 function supportsElement(item, element) {
@@ -75,17 +85,17 @@ function supportsElement(item, element) {
     && (!Array.isArray(item.elements) || item.elements.includes(element));
 }
 
-function buildFrame(item, element) {
+function buildFrame(item, config) {
   const basetime = String(item.basetime);
   const validtime = String(item.validtime ?? item.basetime);
   return {
     basetime,
     validtime,
     member: item.member ?? "none",
-    label: element === "wm"
+    label: config.usesForecastPeriod
       ? formatForecastPeriodStart(validtime)
       : formatJmaTime(validtime),
-    distributionTileUrl: `${JMA_ENDPOINTS.weatherDistributionTileBase}/${basetime}/${item.member ?? "none"}/${validtime}/surf/${element}/{z}/{x}/{y}.png`
+    distributionTileUrl: `${JMA_ENDPOINTS.weatherDistributionTileBase}/${basetime}/${item.member ?? "none"}/${validtime}/surf/${config.element}/{z}/{x}/{y}.png`
   };
 }
 
