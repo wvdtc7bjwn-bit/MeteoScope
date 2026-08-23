@@ -373,6 +373,8 @@ let worldGeometryPromise = null;
 const warningFeatureStateCache = new WeakMap();
 const kikikuruTileUrlCache = new Map();
 const radarOverlayZoomLimitCache = new WeakMap();
+const geoJsonSourceDataCache = new WeakMap();
+const amedasFeatureCollectionCache = new WeakMap();
 
 export function createWeatherMap(elementId) {
   let map = null;
@@ -525,8 +527,8 @@ export function createWeatherMap(elementId) {
     }));
     try {
       const geometry = await worldGeometryPromise;
-      map?.getSource("world-land")?.setData(geometry.worldLand);
-      map?.getSource("world-countries")?.setData(geometry.worldCountries);
+      setGeoJsonSourceData(map?.getSource("world-land"), geometry.worldLand);
+      setGeoJsonSourceData(map?.getSource("world-countries"), geometry.worldCountries);
     } catch (error) {
       worldGeometryPromise = null;
       console.warn("[MeteoScope] world geometry load failed", error);
@@ -856,7 +858,7 @@ export function createWeatherMap(elementId) {
       }
     }
     const collection = createSampleFeatureCollection(mode, data);
-    source.setData(collection);
+    setGeoJsonSourceData(source, collection);
     updateHypocenter3D(mode, data);
     const typhoonCollection = updateTyphoonLayers(mode, data);
     updateWarningAreaLookup(mode, data);
@@ -3493,9 +3495,9 @@ function updateRiverFloodLayer(map, mode, data = {}) {
   const source = map?.getSource(RIVER_FLOOD_SOURCE_ID);
   if (!source?.setData) return;
   const visible = mode === "warnings" && data?.activeWarningView === "river";
-  source.setData(visible && data?.riverFlood?.riverFeatures
+  setGeoJsonSourceData(source, visible && data?.riverFlood?.riverFeatures
     ? data.riverFlood.riverFeatures
-    : createEmptyFeatureCollection());
+    : EMPTY_GEOJSON);
   RIVER_FLOOD_LAYERS.forEach((layerId) => {
     if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
   });
@@ -4061,8 +4063,8 @@ function updateWeatherChartLayer(map, mode, data = {}) {
     return;
   }
 
-  map.getSource(WEATHER_CHART_LINE_SOURCE_ID)?.setData(data.weatherChart.lines ?? createEmptyFeatureCollection());
-  map.getSource(WEATHER_CHART_POINT_SOURCE_ID)?.setData(data.weatherChart.points ?? createEmptyFeatureCollection());
+  setGeoJsonSourceData(map.getSource(WEATHER_CHART_LINE_SOURCE_ID), data.weatherChart.lines ?? EMPTY_GEOJSON);
+  setGeoJsonSourceData(map.getSource(WEATHER_CHART_POINT_SOURCE_ID), data.weatherChart.points ?? EMPTY_GEOJSON);
   setWeatherChartVisible(map, true);
 }
 
@@ -4231,24 +4233,40 @@ function createEmptyFeatureCollection() {
 }
 
 function createSampleFeatureCollection(mode, data = {}) {
-  if (mode === "typhoon") return createEmptyFeatureCollection();
-
-  const builders = {
-    radar: createRadarFeatures,
-    amedas: createAmedasFeatures,
-    warnings: createWarningFeatures,
-    typhoon: createTyphoonFeatures,
-    earthquake: createEarthquakeFeatures
-  };
-
-  return {
-    type: "FeatureCollection",
-    features: builders[mode]?.(data) ?? []
-  };
+  if (mode === "amedas") return createAmedasFeatureCollection(data);
+  if (mode === "earthquake") {
+    return {
+      type: "FeatureCollection",
+      features: createEarthquakeFeatures(data)
+    };
+  }
+  return EMPTY_GEOJSON;
 }
 
-function createRadarFeatures(data) {
-  return [];
+function createAmedasFeatureCollection(data = {}) {
+  const points = data?.points;
+  if (!Array.isArray(points)) return EMPTY_GEOJSON;
+
+  const metricId = data.activeMetric ?? "temperature";
+  const cacheKey = `${metricId}|${data.precipitationPeriod ?? ""}|${data.latestTime ?? ""}`;
+  let collections = amedasFeatureCollectionCache.get(points);
+  const cached = collections?.get(cacheKey);
+  if (cached) return cached;
+
+  const collection = {
+    type: "FeatureCollection",
+    features: createAmedasFeatures(data)
+  };
+  collections ??= new Map();
+  collections.set(cacheKey, collection);
+  amedasFeatureCollectionCache.set(points, collections);
+  return collection;
+}
+
+function setGeoJsonSourceData(source, data) {
+  if (!source?.setData || geoJsonSourceDataCache.get(source) === data) return;
+  source.setData(data);
+  geoJsonSourceDataCache.set(source, data);
 }
 
 function createAmedasFeatures(data) {
@@ -4324,10 +4342,6 @@ function buildCircleZoomExpression({
       ]
     ])
   ];
-}
-
-function createWarningFeatures(data) {
-  return [];
 }
 
 function createEarthquakeFeatures(data) {
