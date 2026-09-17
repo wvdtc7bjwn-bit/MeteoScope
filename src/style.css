@@ -19645,10 +19645,10 @@ html[data-theme="light"] :is(
   }
 }
 
-/* The legend also has expanded/collapsed variants with more specific styles.
-   Its id keeps the static mobile surface intact in either state. */
+/* The legend and utility rail have open/closed variants with more specific
+   styles. Their ids keep the static mobile surface intact in either state. */
 @media (max-width: 800px) and (orientation: portrait) {
-  #map-legend {
+  :is(#map-legend, #map-utility-actions) {
     background: var(--glass-shell-static-background) !important;
     box-shadow: var(--glass-shell-shadow) !important;
     backdrop-filter: none !important;
