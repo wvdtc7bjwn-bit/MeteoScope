@@ -532,6 +532,19 @@ assert.match(panel, /data-volcano-clear-selection/);
 assert.match(panel, /getHighestPriorityVolcanoReport\(reports\)/);
 assert.match(panel, /data-volcano-bulletin-id/);
 assert.match(panel, /data-volcano-bulletin-back/);
+assert.match(panel, /buildVolcanoReferenceLinks\(report\)/);
+assert.match(panel, /function buildVolcanoReferenceLinks\(report\)/);
+assert.match(panel, /activity_info\/\$\{volcanoCode\}\.html/);
+assert.match(panel, /JVDN_VOLCANO_PAGE_NAMES\.has\(volcanoName\)/);
+assert.match(panel, /JVDN_VOLCANO_PAGE_ALIASES\.get\(volcanoName\)/);
+assert.match(panel, /https:\/\/jvdn\.bosai\.go\.jp\/portal\/ja\/\$\{encodeURIComponent\(jvdnPageName\)\}/);
+assert.match(panel, /const hasLongVolcanoName = Array\.from\(displayName\)\.length >= 7;/);
+assert.match(panel, /volcano-selected-header\$\{hasLongVolcanoName \? " is-long-name" : ""\}/);
+assert.match(panel, /label: localizeText\("気象庁"\)/);
+assert.match(panel, /label: "JVDN"/);
+assert.match(panel, /class="volcano-reference-links"/);
+assert.match(style, /\.volcano-selected-header\.is-long-name \.volcano-reference-links\s*\{[\s\S]*?flex-basis:\s*100%/);
+assert.match(style, /\.volcano-reference-link\s*\{[\s\S]*?min-height:\s*32px;/);
 assert.match(
   panel,
   /const alertName = report\.currentStatus \?\? report\.kindName \?\? detailReport\.kindName \?\? statusText;[\s\S]*?extractVolcanoRestriction\(alertName, alertName\)/,

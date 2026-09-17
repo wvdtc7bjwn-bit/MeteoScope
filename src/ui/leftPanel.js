@@ -84,6 +84,23 @@ let amedasWindRankingView = "current";
 let amedasWindRankingKind = "average";
 let amedasPressureRankingView = "current";
 let activeWarningAreasByCode = new Map();
+
+// JVDN publishes individual public pages only for its currently supported
+// volcanoes. Keep the canonical page names here so a selected JMA volcano
+// never produces a dead external link. The JMA catalogue uses \"ヶ\" for
+// Hokkaido-Komagatake while JVDN's page uses \"ケ\".
+const JVDN_VOLCANO_PAGE_NAMES = new Set([
+  "アトサヌプリ", "雌阿寒岳", "大雪山", "十勝岳", "樽前山", "倶多楽", "有珠山",
+  "北海道駒ケ岳", "恵山", "岩木山", "十和田", "秋田焼山", "岩手山", "秋田駒ケ岳",
+  "鳥海山", "栗駒山", "蔵王山", "吾妻山", "安達太良山", "磐梯山", "那須岳",
+  "日光白根山", "草津白根山", "浅間山", "新潟焼山", "弥陀ヶ原", "焼岳", "乗鞍岳",
+  "御嶽山", "白山", "富士山", "箱根山", "伊豆大島", "三宅島", "八丈島",
+  "鶴見岳・伽藍岳", "九重山", "阿蘇山", "雲仙岳", "霧島山", "桜島", "口永良部島", "諏訪之瀬島"
+]);
+const JVDN_VOLCANO_PAGE_ALIASES = new Map([
+  ["北海道駒ヶ岳", "北海道駒ケ岳"],
+  ["秋田駒ヶ岳", "秋田駒ケ岳"]
+]);
 let activeWarningDetailsLoaded = false;
 let activeRiverFloodReportsById = new Map();
 let warningAreaSelectionOptions = {};
@@ -6341,13 +6358,16 @@ function buildSelectedVolcanoDetail(report, selectedBulletinId = "") {
   const displayName = craterName && !volcanoName.includes(craterName)
     ? `${volcanoName}${localizedCraterName ? ` (${localizedCraterName})` : ""}`
     : volcanoName;
+  const referenceLinks = buildVolcanoReferenceLinks(report);
+  const hasLongVolcanoName = Array.from(displayName).length >= 7;
   return `
     <article class="volcano-selected-detail level-${priority}">
-      <header class="volcano-selected-header">
+      <header class="volcano-selected-header${hasLongVolcanoName ? " is-long-name" : ""}">
         <div>
           <h2>${escapeHtml(displayName)}</h2>
           <time>${escapeHtml(detailReport.reportTime ?? report.reportTime ?? localizeText("発表時刻不明"))}</time>
         </div>
+        ${referenceLinks}
       </header>
       ${buildVolcanoSummaryNotice()}
       <section class="volcano-alert-summary" aria-label="${escapeHtml(localizeText("現在の噴火警報・予報"))}">
@@ -6450,6 +6470,34 @@ function buildVolcanoSummaryNotice() {
 function buildVolcanoOriginalSourceLink(sourceUrl) {
   if (!sourceUrl) return "";
   return `<a class="volcano-xml-source-link" href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(localizeText("気象庁発表原文を確認"))}</a>`;
+}
+
+function buildVolcanoReferenceLinks(report) {
+  const volcanoCode = String(report?.volcanoCode ?? report?.code ?? "").trim();
+  const volcanoName = String(report?.volcanoName ?? "").trim();
+  const links = [];
+  if (/^\d{3}$/u.test(volcanoCode)) {
+    links.push({
+      label: localizeText("気象庁"),
+      accessibleLabel: localizeText("気象庁の火山ページを開く"),
+      url: `https://www.data.jma.go.jp/vois/data/report/activity_info/${volcanoCode}.html`
+    });
+  }
+  const jvdnPageName = JVDN_VOLCANO_PAGE_NAMES.has(volcanoName)
+    ? volcanoName
+    : JVDN_VOLCANO_PAGE_ALIASES.get(volcanoName);
+  if (jvdnPageName) {
+    links.push({
+      label: "JVDN",
+      accessibleLabel: localizeText("JVDNの火山ページを開く"),
+      url: `https://jvdn.bosai.go.jp/portal/ja/${encodeURIComponent(jvdnPageName)}`
+    });
+  }
+  if (!links.length) return "";
+  return `
+    <nav class="volcano-reference-links" aria-label="${escapeHtml(localizeText("選択した火山の外部情報"))}">
+      ${links.map(({ label, accessibleLabel, url }) => `<a class="volcano-reference-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(accessibleLabel)}">${escapeHtml(label)} <span aria-hidden="true">↗</span></a>`).join("")}
+    </nav>`;
 }
 
 function extractVolcanoRestriction(statusText, fallback) {
