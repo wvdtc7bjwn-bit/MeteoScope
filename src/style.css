@@ -19656,6 +19656,47 @@ html[data-theme="light"] :is(
   }
 }
 
+/* Modal panels are rendered above several independently composited map and
+   page layers. On mobile, blur and exterior elevation can leave a visible
+   raster seam around those layers, so use the same solid glass treatment as
+   the navigation. The backdrop still keeps its semantic dimming color. */
+@media (max-width: 800px) and (orientation: portrait) {
+  :is(
+    .warning-modal-panel,
+    .hypocenter-date-wheel-sheet,
+    .maplibregl-popup-content,
+    .map-info-popup,
+    .earthquake-long-press-hint,
+    .remote-notice-ticker,
+    .remote-notice-card
+  ) {
+    background: var(--glass-shell-static-background) !important;
+    box-shadow: var(--glass-shell-shadow) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .warning-modal-backdrop {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  :is(.warning-modal-close, .settings-modal-close) {
+    background: var(--glass-shell-static-background) !important;
+    box-shadow: var(--glass-shell-shadow) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Modal content reuses neutral cards from several features. Keep their
+     structure, but remove each card's exterior elevation on mobile. */
+  .warning-modal-panel :is(.settings-group, [class*="-card"], [class*="-sheet"]) {
+    box-shadow: var(--glass-shell-shadow) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
 /* Repeated cards deliberately avoid per-card backdrop filters so large lists
    keep their existing scroll performance while sharing the same material. */
 :is(
