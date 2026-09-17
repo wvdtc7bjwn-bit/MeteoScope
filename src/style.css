@@ -37,6 +37,7 @@
   --type-bottom-nav-color: #999999;
   --type-bottom-nav-active-color: #55b7d8;
   --glass-shell-background: rgba(7, 16, 34, 0.46);
+  --glass-shell-static-background: rgba(7, 16, 34, 0.84);
   --glass-panel-background: rgba(9, 21, 40, 0.58);
   --glass-panel-strong-background: rgba(8, 19, 36, 0.72);
   --glass-card-background: rgba(19, 37, 61, 0.38);
@@ -50,6 +51,11 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     inset 0 0 0 1px rgba(255, 255, 255, 0.025),
     0 18px 48px rgba(0, 7, 20, 0.3);
+  /* Navigation and sheets touch each other on phones, so they need the glass
+     rim without the exterior shadow used by floating cards and modals. */
+  --glass-shell-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.025);
   --glass-shadow-soft:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 10px 28px rgba(0, 7, 20, 0.18);
@@ -81,6 +87,7 @@
 
 html[data-theme="light"] {
   --glass-shell-background: rgba(242, 248, 253, 0.5);
+  --glass-shell-static-background: rgba(242, 248, 253, 0.88);
   --glass-panel-background: rgba(244, 249, 253, 0.58);
   --glass-panel-strong-background: rgba(244, 249, 253, 0.72);
   --glass-card-background: rgba(246, 250, 253, 0.48);
@@ -94,6 +101,9 @@ html[data-theme="light"] {
     inset 0 1px 0 rgba(255, 255, 255, 0.84),
     inset 0 0 0 1px rgba(255, 255, 255, 0.26),
     0 18px 46px rgba(40, 65, 91, 0.2);
+  --glass-shell-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.84),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.26);
   --glass-shadow-soft:
     inset 0 1px 0 rgba(255, 255, 255, 0.72),
     0 10px 26px rgba(47, 72, 98, 0.13);
@@ -19540,6 +19550,19 @@ html[data-theme="light"] :is(
 :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock),
 html[data-theme="light"] :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock) {
   background: var(--glass-shell-background);
+  box-shadow: var(--glass-shell-shadow);
+}
+
+/* Chrome's emulated-device compositor can leave a diffuse halo around fixed,
+   blurred layers. Use an opaque enough static glass surface for the connected
+   mobile controls so every tab renders without the residual shadow. */
+@media (max-width: 800px) and (orientation: portrait) {
+  :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock),
+  html[data-theme="light"] :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock) {
+    background: var(--glass-shell-static-background);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 :is(.warning-modal-panel, .hypocenter-date-wheel-sheet),
@@ -19580,6 +19603,57 @@ html[data-theme="light"] :is(
   box-shadow: var(--glass-shadow-soft);
   backdrop-filter: var(--glass-filter-compact);
   -webkit-backdrop-filter: var(--glass-filter-compact);
+}
+
+/* Apply the same stable composition to the map's fixed controls. Otherwise
+   their individual backdrop layers leave grey halos in device emulation. */
+@media (max-width: 800px) and (orientation: portrait) {
+  :is(
+    .map-legend,
+    .map-utility-actions,
+    .map-utility-menu-toggle,
+    .map-locate-button,
+    .map-community-report-button,
+    .map-meteoscope-lens-button,
+    .map-weather-distribution-toggle,
+    .map-typhoon-radar-overlay-button,
+    .map-world-typhoon-target-button,
+    .map-settings-open-button,
+    .disaster-map-open-button,
+    #clock,
+    #map-attribution
+  ),
+  html[data-theme="light"] :is(
+    .map-legend,
+    .map-utility-actions,
+    .map-utility-menu-toggle,
+    .map-locate-button,
+    .map-community-report-button,
+    .map-meteoscope-lens-button,
+    .map-weather-distribution-toggle,
+    .map-typhoon-radar-overlay-button,
+    .map-world-typhoon-target-button,
+    .map-settings-open-button,
+    .disaster-map-open-button,
+    #clock,
+    #map-attribution
+  ) {
+    background: var(--glass-shell-static-background);
+    box-shadow: var(--glass-shell-shadow);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* The legend also has expanded/collapsed variants with more specific styles.
+   Its id keeps the static mobile surface intact in either state. */
+@media (max-width: 800px) and (orientation: portrait) {
+  #map-legend {
+    background: var(--glass-shell-static-background) !important;
+    box-shadow: var(--glass-shell-shadow) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
 }
 
 /* Repeated cards deliberately avoid per-card backdrop filters so large lists
