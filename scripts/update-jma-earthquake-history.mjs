@@ -10,6 +10,7 @@ const OUTPUT_DIR = path.resolve("public/data/earthquake-history");
 const CACHE_DIR = path.resolve(".cache/jma-earthquake-history");
 const ARCHIVE_LAST_YEAR = 2023;
 const HISTORY_YEARS = 50;
+const RECENT_REFRESH_DAYS = 14;
 const REQUEST_INTERVAL_MS = 2_000;
 const API_RESULT_LIMIT = 1_000;
 const textDecoder = new TextDecoder("shift_jis");
@@ -23,8 +24,20 @@ async function main() {
   const latestYear = Number(latestDate.slice(0, 4));
   const recordsByYear = new Map();
   await pruneExpiredYearFiles(earliestYear, latestYear);
+  const existingYears = new Set();
 
-  if (earliestYear <= 1982) {
+  for (let year = earliestYear; year <= latestYear; year += 1) {
+    const records = await readExistingYear(year);
+    if (!records) continue;
+    addRecords(recordsByYear, records);
+    existingYears.add(year);
+  }
+
+  const hasMissingEarlyArchiveYear = Array.from(
+    { length: Math.max(0, Math.min(1982, latestYear) - earliestYear + 1) },
+    (_, index) => earliestYear + index
+  ).some((year) => !existingYears.has(year));
+  if (earliestYear <= 1982 && hasMissingEarlyArchiveYear) {
     const records = await readArchive("1967");
     addRecords(recordsByYear, records.filter((record) => {
       const year = Number(record.t.slice(0, 4));
@@ -32,6 +45,7 @@ async function main() {
     }));
   }
   for (let year = Math.max(1983, earliestYear); year <= Math.min(ARCHIVE_LAST_YEAR, latestYear); year += 1) {
+    if (existingYears.has(year)) continue;
     if (year === 1997) {
       addRecords(recordsByYear, [
         ...await readArchive("199701"),
@@ -42,11 +56,14 @@ async function main() {
     }
   }
   for (let year = Math.max(ARCHIVE_LAST_YEAR + 1, earliestYear); year <= latestYear; year += 1) {
+    if (existingYears.has(year)) continue;
     addRecords(recordsByYear, await readIntensityRange(
       maxDate(`${year}-01-01`, earliestDate),
       minDate(`${year}-12-31`, latestDate)
     ));
   }
+  const refreshStartDate = maxDate(shiftDate(latestDate, -(RECENT_REFRESH_DAYS - 1)), earliestDate);
+  replaceRecordsInRange(recordsByYear, refreshStartDate, latestDate, await readIntensityRange(refreshStartDate, latestDate));
 
   const years = [];
   let totalCount = 0;
@@ -70,6 +87,27 @@ async function main() {
     years
   })}\n`, "utf8");
   console.log(`Updated ${years.length} yearly files (${totalCount.toLocaleString("ja-JP")} records).`);
+}
+
+async function readExistingYear(year) {
+  try {
+    const records = JSON.parse(await readFile(path.join(OUTPUT_DIR, `${year}.json`), "utf8"));
+    if (!Array.isArray(records)) throw new Error(`${year}年の既存地震データが配列ではありません`);
+    return records;
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function replaceRecordsInRange(recordsByYear, startDate, endDate, refreshedRecords) {
+  for (const [year, records] of recordsByYear) {
+    recordsByYear.set(year, records.filter((record) => {
+      const date = String(record?.t ?? "").slice(0, 10);
+      return date < startDate || date > endDate;
+    }));
+  }
+  addRecords(recordsByYear, refreshedRecords);
 }
 
 async function pruneExpiredYearFiles(earliestYear, latestYear) {
@@ -312,6 +350,11 @@ function shiftYear(date, offset) {
   const shiftedYear = year + offset;
   const lastDay = new Date(Date.UTC(shiftedYear, month, 0)).getUTCDate();
   return `${shiftedYear}-${pad2(month)}-${pad2(Math.min(day, lastDay))}`;
+}
+
+function shiftDate(date, offset) {
+  const timestamp = Date.parse(`${date}T00:00:00Z`);
+  return formatUtcDate(timestamp + offset * 86_400_000);
 }
 
 function pad2(value) {

@@ -76,16 +76,20 @@ assert.equal(formatHistoricalIntensity("5-"), "5弱");
 assert.equal(translateHistoricalEpicenterName("FAR E OFF MIYAGI PREF"), "宮城県東方はるか沖");
 assert.equal(translateHistoricalEpicenterName("E OFF MIYAGI PREF"), "宮城県東方沖");
 
-const [generator, app, panel, map] = await Promise.all([
+const [generator, app, panel, map, updateWorkflow] = await Promise.all([
   readFile(path.join(projectRoot, "scripts", "update-jma-earthquake-history.mjs"), "utf8"),
   readFile(path.join(projectRoot, "src", "app.js"), "utf8"),
   readFile(path.join(projectRoot, "src", "ui", "leftPanel.js"), "utf8"),
-  readFile(path.join(projectRoot, "src", "map", "weatherMap.js"), "utf8")
+  readFile(path.join(projectRoot, "src", "map", "weatherMap.js"), "utf8"),
+  readFile(path.join(projectRoot, ".github", "workflows", "earthquake-history-data.yml"), "utf8")
 ]);
 
 assert.match(generator, /const HISTORY_YEARS = 50;/u);
+assert.match(generator, /const RECENT_REFRESH_DAYS = 14;/u);
 assert.match(generator, /const REQUEST_INTERVAL_MS = 2_000;/u);
 assert.match(generator, /await pruneExpiredYearFiles\(earliestYear, latestYear\);/u);
+assert.match(generator, /await readExistingYear\(year\)/u);
+assert.match(generator, /replaceRecordsInRange\(recordsByYear, refreshStartDate, latestDate, await readIntensityRange\(refreshStartDate, latestDate\)\);/u);
 assert.match(generator, /unlink\(path\.join\(OUTPUT_DIR, entry\.name\)\)/u);
 assert.match(generator, /readCachedUrl/u);
 assert.match(generator, /readCachedIntensityQuery/u);
@@ -108,5 +112,13 @@ assert.match(panel, /一覧は先頭.*のみ表示しています/u);
 assert.match(panel, /地図は先頭.*件/u);
 assert.match(map, /getEarthquakeMapView\(data\) === "history"/u);
 assert.match(map, /formatDistributionOriginTime\(item\?\.originTime, true\)/u);
+assert.match(updateWorkflow, /cron: "30 18 \* \* \*"/u);
+assert.match(updateWorkflow, /npm run data:update:earthquake-history/u);
+assert.match(updateWorkflow, /npm run test:earthquake/u);
+assert.match(updateWorkflow, /git diff --quiet -- public\/data\/earthquake-history/u);
+assert.match(updateWorkflow, /id: data-changes/u);
+assert.match(updateWorkflow, /git add public\/data\/earthquake-history/u);
+assert.match(updateWorkflow, /git push/u);
+assert.doesNotMatch(updateWorkflow, /CLOUDFLARE_API_TOKEN|npm run deploy:cloudflare/u);
 
 console.log(`Earthquake history tests passed: ${totalCount.toLocaleString("ja-JP")} records, ${(totalBytes / 1024 / 1024).toFixed(2)} MiB.`);
