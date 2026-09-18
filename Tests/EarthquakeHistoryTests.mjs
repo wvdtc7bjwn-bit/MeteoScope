@@ -159,7 +159,7 @@ assert.match(panel, /一覧は先頭.*のみ表示しています/u);
 assert.match(panel, /地図は先頭.*件/u);
 assert.match(map, /getEarthquakeMapView\(data\) === "history"/u);
 assert.match(map, /formatDistributionOriginTime\(item\?\.originTime, true\)/u);
-assert.match(updateWorkflow, /cron: "30 18 \* \* \*"/u);
+assert.match(updateWorkflow, /cron: "30 0 \* \* \*"/u);
 assert.match(updateWorkflow, /workflow_dispatch:/u);
 assert.match(updateWorkflow, /permissions:\s*\n\s*contents: write/u);
 assert.match(updateWorkflow, /concurrency:\s*\n\s*group: earthquake-history-data\s*\n\s*cancel-in-progress: false/u);

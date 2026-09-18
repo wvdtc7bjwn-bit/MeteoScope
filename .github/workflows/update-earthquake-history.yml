@@ -2,8 +2,8 @@ name: Update earthquake history data
 
 on:
   schedule:
-    # 03:30 JST. The archive intentionally lags two days to allow JMA publication.
-    - cron: "30 18 * * *"
+    # 09:30 JST. The archive intentionally lags two days to allow JMA publication.
+    - cron: "30 0 * * *"
   workflow_dispatch:
 
 permissions:
