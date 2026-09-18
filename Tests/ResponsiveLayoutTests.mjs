@@ -254,6 +254,10 @@ assert.match(
   panelToggle,
   /function isSidebarGrabEvent\(event\)[\s\S]*?sidebarRect\.top \+ 64[\s\S]*?button, a, input, select, textarea, label, form[\s\S]*?sidebar\.addEventListener\("pointerdown"[\s\S]*?beginDrag\(event, sidebar, "y"\)/
 );
+assert.match(
+  styles,
+  /On phone-width detail sheets[\s\S]*?@media \(max-width: 480px\)[\s\S]*?\.earthquake-archive-date-grid\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/
+);
 assert.match(panelToggle, /classList\.toggle\("is-drawer-grab-active", absorptionProgress < 0\.86\)/);
 assert.match(panelToggle, /setDrawerState\(drawerState === "peek" \? "full" : "peek"\);/);
 assert.match(
