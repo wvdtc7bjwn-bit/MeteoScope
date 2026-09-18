@@ -17116,7 +17116,9 @@ html[data-theme="light"] .typhoon-world-attribution a {
     }
 
     .earthquake-distribution-range-controls input[type="date"]::-webkit-date-and-time-value {
-      min-block-size: 100%;
+      display: flex;
+      align-items: center;
+      block-size: 100%;
       text-align: center;
     }
 
@@ -17126,6 +17128,12 @@ html[data-theme="light"] .typhoon-world-attribution a {
       align-items: center;
       block-size: 100%;
       padding: 0;
+    }
+
+    .earthquake-distribution-range-controls input[type="date"]::-webkit-datetime-edit-year-field,
+    .earthquake-distribution-range-controls input[type="date"]::-webkit-datetime-edit-month-field,
+    .earthquake-distribution-range-controls input[type="date"]::-webkit-datetime-edit-day-field {
+      line-height: 32px;
     }
   }
 }

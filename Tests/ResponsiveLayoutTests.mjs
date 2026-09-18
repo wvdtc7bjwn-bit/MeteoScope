@@ -393,6 +393,14 @@ assert.match(
   styles,
   /\.earthquake-distribution-range-controls input\[type="date"\]::-webkit-datetime-edit,[\s\S]*?::-webkit-datetime-edit-fields-wrapper\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?block-size:\s*100%;/
 );
+assert.match(
+  styles,
+  /\.earthquake-distribution-range-controls input\[type="date"\]::-webkit-date-and-time-value\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?block-size:\s*100%;/
+);
+assert.match(
+  styles,
+  /::-webkit-datetime-edit-year-field,[\s\S]*?::-webkit-datetime-edit-month-field,[\s\S]*?::-webkit-datetime-edit-day-field\s*\{[\s\S]*?line-height:\s*32px;/
+);
 
 assert.match(index, /width=device-width/);
 assert.match(index, /viewport-fit=cover/);
