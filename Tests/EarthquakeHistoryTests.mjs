@@ -79,6 +79,7 @@ for (const yearEntry of manifest.years) {
   }
 }
 assert.equal(totalCount, manifest.totalCount, "全シャード件数と目録件数が一致しない");
+assert.match(manifest.contentHash, /^[a-f0-9]{64}$/u, "年別JSONの内容ハッシュが必要");
 assert.ok(totalBytes < 30 * 1024 * 1024, "静的データが想定した30MiBを超えている");
 assert.equal(legacyEpicenterNameCount, 0, "旧カタログの県境・山脈・山系名が残っている");
 for (const intensity of ["1", "2", "3"]) {
@@ -105,7 +106,7 @@ const [generator, app, panel, map, updateWorkflow, epicenterRegionUpdater, epice
   readFile(path.join(projectRoot, "src", "app.js"), "utf8"),
   readFile(path.join(projectRoot, "src", "ui", "leftPanel.js"), "utf8"),
   readFile(path.join(projectRoot, "src", "map", "weatherMap.js"), "utf8"),
-  readFile(path.join(projectRoot, ".github", "workflows", "earthquake-history-data.yml"), "utf8"),
+  readFile(path.join(projectRoot, ".github", "workflows", "update-earthquake-history.yml"), "utf8"),
   readFile(path.join(projectRoot, "scripts", "update-jma-earthquake-epicenter-regions.mjs"), "utf8"),
   readFile(path.join(projectRoot, "scripts", "apply-jma-earthquake-epicenter-regions.mjs"), "utf8")
 ]);
@@ -113,12 +114,32 @@ const [generator, app, panel, map, updateWorkflow, epicenterRegionUpdater, epice
 assert.match(generator, /const HISTORY_YEARS = 50;/u);
 assert.match(generator, /const RECENT_REFRESH_DAYS = 14;/u);
 assert.match(generator, /const REQUEST_INTERVAL_MS = 2_000;/u);
+assert.match(generator, /const requestedLatestDate = formatJstDate\(Date\.now\(\) - \(2 \* 86_400_000\)\);/u);
+assert.match(generator, /const recentUpdate = await readRecentIntensityWindow\(requestedLatestDate\);/u);
 assert.match(generator, /await pruneExpiredYearFiles\(earliestYear, latestYear\);/u);
+assert.match(generator, /const removedYearFileCount = await pruneExpiredYearFiles\(earliestYear, latestYear\);/u);
 assert.match(generator, /await readExistingYear\(year\)/u);
-assert.match(generator, /replaceRecordsInRange\(recordsByYear, refreshStartDate, latestDate, await readIntensityRange\(refreshStartDate, latestDate\)\);/u);
+assert.match(
+  generator,
+  /if \(recentUpdate\.latestDate >= latestDate\) \{\s*replaceRecordsInRange\(recordsByYear, refreshStartDate, latestDate, recentUpdate\.records\);/u
+);
 assert.match(generator, /unlink\(path\.join\(OUTPUT_DIR, entry\.name\)\)/u);
 assert.match(generator, /readCachedUrl/u);
 assert.match(generator, /readCachedIntensityQuery/u);
+assert.match(generator, /async function readCachedIntensityQuery\(startDate, endDate, \{ bypassCache = false \} = \{\}\)/u);
+assert.match(generator, /if \(!bypassCache\) \{/u);
+assert.match(generator, /class JmaIntensityAvailabilityError extends Error/u);
+assert.match(generator, /retrying the recent window through that date/u);
+assert.match(generator, /retaining existing data through/u);
+assert.match(generator, /JSON\.stringify\(toComparableManifest\(previousManifest\)\) !== JSON\.stringify\(manifestContent\)/u);
+assert.match(generator, /let recordsChanged = false;/u);
+assert.match(generator, /recordsChanged = await writeJsonIfChanged\(path\.join\(OUTPUT_DIR, fileName\), records\) \|\| recordsChanged;/u);
+assert.match(generator, /const contentHash = createHash\("sha256"\);/u);
+assert.match(generator, /contentHash\.update\(JSON\.stringify\(records\)\)\.update\("\\n"\);/u);
+assert.match(generator, /contentHash: contentHash\.digest\("hex"\)/u);
+assert.match(generator, /const manifestChanged = recordsChanged\s*\n\s*\|\| removedYearFileCount > 0/u);
+assert.match(generator, /generatedAt: manifestChanged \? new Date\(\)\.toISOString\(\) : previousManifest\?\.generatedAt/u);
+assert.match(generator, /async function writeJsonIfChanged/u);
 assert.match(generator, /normalizeHistoricalEpicenterName/u);
 assert.match(generator, /hundredthsOfKilometers \/ 100/u);
 assert.match(app, /view === "history"/u);
@@ -139,12 +160,20 @@ assert.match(panel, /地図は先頭.*件/u);
 assert.match(map, /getEarthquakeMapView\(data\) === "history"/u);
 assert.match(map, /formatDistributionOriginTime\(item\?\.originTime, true\)/u);
 assert.match(updateWorkflow, /cron: "30 18 \* \* \*"/u);
+assert.match(updateWorkflow, /workflow_dispatch:/u);
+assert.match(updateWorkflow, /permissions:\s*\n\s*contents: write/u);
+assert.match(updateWorkflow, /concurrency:\s*\n\s*group: earthquake-history-data\s*\n\s*cancel-in-progress: false/u);
+assert.match(updateWorkflow, /actions\/cache\/restore@v4/u);
+assert.match(updateWorkflow, /actions\/cache\/save@v4/u);
+assert.match(updateWorkflow, /path: \.cache\/jma-earthquake-history/u);
 assert.match(updateWorkflow, /npm run data:update:earthquake-history/u);
 assert.match(updateWorkflow, /npm run test:earthquake/u);
 assert.match(updateWorkflow, /git diff --quiet -- public\/data\/earthquake-history/u);
 assert.match(updateWorkflow, /id: data-changes/u);
 assert.match(updateWorkflow, /git add public\/data\/earthquake-history/u);
+assert.match(updateWorkflow, /git commit -m "chore\(data\): update earthquake history"/u);
 assert.match(updateWorkflow, /git push/u);
+assert.doesNotMatch(updateWorkflow, /git push --force/u);
 assert.doesNotMatch(updateWorkflow, /CLOUDFLARE_API_TOKEN|npm run deploy:cloudflare/u);
 assert.match(epicenterRegionUpdater, /0Quake\/JMA_Region/u);
 assert.match(epicenterRegionApplier, /isPointInGeometry/u);
