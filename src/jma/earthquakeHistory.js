@@ -3,6 +3,7 @@ import { fetchJson } from "./jmaClient.js";
 const DATA_BASE = "/data/earthquake-history";
 export const EARTHQUAKE_HISTORY_RESULT_LIMIT = 1_000;
 export const EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT = 200;
+export const EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS = 7;
 export const EARTHQUAKE_HISTORY_INTENSITY_OPTIONS = Object.freeze([
   Object.freeze(["1", "震度1以上"]),
   Object.freeze(["2", "震度2以上"]),
@@ -89,12 +90,17 @@ export function normalizeEarthquakeHistoryFilters(filters, manifest) {
   const allowedMagnitudes = new Set(EARTHQUAKE_HISTORY_MAGNITUDE_OPTIONS.map(([value]) => value));
   const allowedDepths = new Set(EARTHQUAKE_HISTORY_DEPTH_OPTIONS.map(([value]) => value));
   const allowedSorts = new Set(EARTHQUAKE_HISTORY_SORT_OPTIONS.map(([value]) => value));
-  const startDate = isDate(filters.startDate) ? filters.startDate : shiftYear(manifest.endDate, -10);
+  const startDate = isDate(filters.startDate)
+    ? filters.startDate
+    : shiftDate(manifest.endDate, -(EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS - 1));
   const endDate = isDate(filters.endDate) ? filters.endDate : manifest.endDate;
   return {
     startDate: startDate <= endDate ? maxDate(startDate, manifest.startDate) : maxDate(endDate, manifest.startDate),
     endDate: startDate <= endDate ? minDate(endDate, manifest.endDate) : minDate(startDate, manifest.endDate),
-    minIntensity: allowedIntensities.has(String(filters.minIntensity)) ? String(filters.minIntensity) : "4",
+    // The archive contains all felt earthquakes.  Starting at 震度1 keeps newly
+    // published low-intensity events discoverable instead of silently filtering
+    // them out on first open.
+    minIntensity: allowedIntensities.has(String(filters.minIntensity)) ? String(filters.minIntensity) : "1",
     minMagnitude: allowedMagnitudes.has(String(filters.minMagnitude)) ? String(filters.minMagnitude) : "0",
     maxDepth: allowedDepths.has(String(filters.maxDepth)) ? String(filters.maxDepth) : "all",
     sort: allowedSorts.has(String(filters.sort)) ? String(filters.sort) : "newest",
@@ -173,9 +179,8 @@ function maxDate(left, right) {
   return left >= right ? left : right;
 }
 
-function shiftYear(date, offset) {
+function shiftDate(date, offset) {
   const [year, month, day] = String(date).split("-").map(Number);
-  const shiftedYear = year + offset;
-  const maximumDay = new Date(Date.UTC(shiftedYear, month, 0)).getUTCDate();
-  return `${shiftedYear}-${String(month).padStart(2, "0")}-${String(Math.min(day, maximumDay)).padStart(2, "0")}`;
+  const timestamp = Date.UTC(year, month - 1, day) + offset * 86_400_000;
+  return new Date(timestamp).toISOString().slice(0, 10);
 }

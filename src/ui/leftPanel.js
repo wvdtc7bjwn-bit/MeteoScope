@@ -6751,7 +6751,7 @@ function buildEarthquakeArchiveMarkup(data) {
         <label><span>終了日</span><input type="date" name="endDate" value="${escapeHtml(endDate)}" min="${escapeHtml(manifest?.startDate ?? "")}" max="${escapeHtml(manifest?.endDate ?? "")}"></label>
       </div>
       <div class="earthquake-archive-filter-grid">
-        ${buildArchiveSelect("minIntensity", "最大震度", filters.minIntensity ?? "4", EARTHQUAKE_HISTORY_INTENSITY_OPTIONS)}
+        ${buildArchiveSelect("minIntensity", "最大震度", filters.minIntensity ?? "1", EARTHQUAKE_HISTORY_INTENSITY_OPTIONS)}
         ${buildArchiveSelect("minMagnitude", "マグニチュード", filters.minMagnitude ?? "0", EARTHQUAKE_HISTORY_MAGNITUDE_OPTIONS)}
         ${buildArchiveSelect("maxDepth", "深さ", filters.maxDepth ?? "all", EARTHQUAKE_HISTORY_DEPTH_OPTIONS)}
         ${buildArchiveSelect("sort", "並び順", filters.sort ?? "newest", EARTHQUAKE_HISTORY_SORT_OPTIONS)}

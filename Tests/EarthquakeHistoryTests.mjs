@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import {
+  EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS,
   EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT,
   EARTHQUAKE_HISTORY_RESULT_LIMIT,
   formatHistoricalIntensity,
@@ -30,6 +31,7 @@ const officialEpicenterExpectations = [
 
 assert.equal(EARTHQUAKE_HISTORY_RESULT_LIMIT, 1_000, "検索結果の上限が意図せず変わっている");
 assert.equal(EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT, 200, "一覧表示の上限が意図せず変わっている");
+assert.equal(EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS, 7, "初期表示期間は過去1週間でなければならない");
 assert.equal(manifest.years.length, 51, "50年間の端点を含む51暦年分を保持する");
 assert.equal(manifest.years[0].year, Number(manifest.startDate.slice(0, 4)));
 assert.equal(manifest.years.at(-1).year, Number(manifest.endDate.slice(0, 4)));
@@ -87,8 +89,12 @@ for (const intensity of ["1", "2", "3"]) {
 }
 
 const normalized = normalizeEarthquakeHistoryFilters({}, manifest);
+const expectedDefaultStart = new Date(Date.parse(`${manifest.endDate}T00:00:00Z`) - (EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS - 1) * 86_400_000)
+  .toISOString()
+  .slice(0, 10);
 assert.equal(normalized.endDate, manifest.endDate);
-assert.equal(normalized.minIntensity, "4");
+assert.equal(normalized.minIntensity, "1");
+assert.equal(normalized.startDate, expectedDefaultStart, "初期検索は終了日を含む過去7日間に限定する");
 assert.equal(normalized.sort, "newest");
 assert.ok(normalized.startDate >= manifest.startDate && normalized.startDate <= manifest.endDate);
 assert.ok(getHistoricalIntensityRank("6+") > getHistoricalIntensityRank("6-"));
