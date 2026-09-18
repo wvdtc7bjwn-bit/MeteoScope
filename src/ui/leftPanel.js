@@ -6746,7 +6746,7 @@ function buildEarthquakeArchiveMarkup(data) {
         <div><strong>過去50年の有感地震</strong><span>震度1〜7を収録・更新時点から50年を保持</span></div>
         ${manifest?.sourceUrl ? `<a href="${escapeHtml(manifest.sourceUrl)}" target="_blank" rel="noopener noreferrer">気象庁 ↗</a>` : ""}
       </div>
-      <div class="earthquake-archive-date-grid">
+      <div class="earthquake-archive-date-grid earthquake-distribution-range-controls">
         <label><span>開始日</span><input type="date" name="startDate" value="${escapeHtml(startDate)}" min="${escapeHtml(manifest?.startDate ?? "")}" max="${escapeHtml(manifest?.endDate ?? "")}"></label>
         <label><span>終了日</span><input type="date" name="endDate" value="${escapeHtml(endDate)}" min="${escapeHtml(manifest?.startDate ?? "")}" max="${escapeHtml(manifest?.endDate ?? "")}"></label>
       </div>
