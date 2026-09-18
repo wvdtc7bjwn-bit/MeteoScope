@@ -38,7 +38,7 @@ import {
 } from "../volcanoAshfall.js";
 import { WORLD_TYPHOON_MODELS, isWorldTyphoonControlMember } from "../worldTyphoon.js";
 import {
-  buildStormWarningAreaLineSegments,
+  buildStormWarningAreaClosedPaths,
   destinationPoint
 } from "../typhoonGeometry.js";
 import { getEarlyWarningColor, getWarningColor } from "../warningMapColors.js";
@@ -298,8 +298,6 @@ const WARNING_FEATURE_STATE_KEYS = {
   status: "warningStatusLevel",
   early: "warningEarlyLevel"
 };
-const STORM_WARNING_ENDPOINT_SNAP_PX = 48;
-const STORM_WARNING_DUPLICATE_SEGMENT_PX = 18;
 const warningGeometryFixCodeSet = new Set(WARNING_GEOMETRY_FIX_CODES);
 const MAP_THEME_COLORS = {
   dark: {
@@ -4793,11 +4791,12 @@ function createTyphoonFeatures(data) {
       }
     });
 
-    if (typhoon.stormWarningAreaShape) {
-      features.push(...createTyphoonStormWarningShapeFeatures(typhoon));
-    } else if (hasStormWarningCircleGroups(typhoon)) {
-      features.push(...createTyphoonStormWarningFeatures(typhoon));
-    } else if (hasCircleSet(typhoon.stormWarningArea)) {
+    const stormWarningShapeFeatures = typhoon.stormWarningAreaShape
+      ? createTyphoonStormWarningShapeFeatures(typhoon)
+      : [];
+    if (stormWarningShapeFeatures.length > 0) {
+      features.push(...stormWarningShapeFeatures);
+    } else if (hasStormWarningCircleGroups(typhoon) || hasCircleSet(typhoon.stormWarningArea)) {
       features.push(...createTyphoonStormWarningFeatures(typhoon));
     } else if (typhoon.stormWarningArea?.length >= 3) {
       features.push({
@@ -5181,9 +5180,7 @@ function createStormWarningCircleGroupFeatures(typhoon, circles) {
       fillShape: "warningAreaFill",
       lineShape: "warningArea",
       color: "#ff2800",
-      popup: buildTyphoonPopup(typhoon, "暴風警戒域"),
-      useAdjacentTangents: true,
-      startRingAtEndArc: true
+      popup: buildTyphoonPopup(typhoon, "暴風警戒域")
     });
   }
 
@@ -5247,7 +5244,7 @@ function hasStormWarningCircleGroups(typhoon) {
 }
 
 function createTyphoonStormWarningShapeFeatures(typhoon) {
-  const linePaths = buildStormWarningAreaDrawableSegments(typhoon.stormWarningAreaShape);
+  const linePaths = buildStormWarningAreaClosedPaths(typhoon.stormWarningAreaShape);
   if (linePaths.length === 0) return [];
 
   const properties = {
@@ -5274,228 +5271,6 @@ function createTyphoonStormWarningShapeFeatures(typhoon) {
     });
 
   return features;
-}
-
-function buildStormWarningAreaDrawableSegments(stormWarningArea) {
-  const segments = removeDuplicateStormWarningSegments(
-    buildStormWarningAreaLineSegments(stormWarningArea)
-      .map((segment) => normalizeStormWarningLine(segment))
-      .filter((segment) => segment.length >= 2)
-  );
-  const snappedSegments = snapStormWarningSegmentEndpoints(segments);
-  const stitchedPaths = stitchStormWarningAreaSegments(snappedSegments);
-  return stitchedPaths.length > 0 ? stitchedPaths : snappedSegments;
-}
-
-function normalizeStormWarningLine(points) {
-  const normalized = [];
-  points.forEach((point) => {
-    if (!point?.length) return;
-    const last = normalized.at(-1);
-    if (!last || getMercatorPixelDistanceSq(last, point) > 1) normalized.push(point);
-  });
-  return normalized;
-}
-
-function removeDuplicateStormWarningSegments(segments) {
-  const unique = [];
-  segments.forEach((segment) => {
-    const isDuplicate = unique.some((existing) => areStormWarningSegmentsDuplicate(existing, segment));
-    if (!isDuplicate) unique.push(segment);
-  });
-  return unique;
-}
-
-function areStormWarningSegmentsDuplicate(a, b) {
-  const aLength = getStormWarningLineLengthPx(a);
-  const bLength = getStormWarningLineLengthPx(b);
-  const direct = getMercatorPixelDistanceSq(a[0], b[0])
-    + getMercatorPixelDistanceSq(a.at(-1), b.at(-1));
-  const reversed = getMercatorPixelDistanceSq(a[0], b.at(-1))
-    + getMercatorPixelDistanceSq(a.at(-1), b[0]);
-  const threshold = STORM_WARNING_DUPLICATE_SEGMENT_PX * STORM_WARNING_DUPLICATE_SEGMENT_PX * 2;
-  if (Math.min(direct, reversed) <= threshold) return true;
-
-  const aMiddle = a[Math.floor(a.length / 2)];
-  const bMiddle = b[Math.floor(b.length / 2)];
-  const lengthDelta = Math.abs(aLength - bLength) / Math.max(aLength, bLength, 1);
-  return lengthDelta < 0.04
-    && getMercatorPixelDistanceSq(aMiddle, bMiddle) <= STORM_WARNING_DUPLICATE_SEGMENT_PX * STORM_WARNING_DUPLICATE_SEGMENT_PX;
-}
-
-function getStormWarningLineLengthPx(points) {
-  return points.slice(1).reduce((sum, point, index) =>
-    sum + Math.sqrt(getMercatorPixelDistanceSq(points[index], point))
-  , 0);
-}
-
-function snapStormWarningSegmentEndpoints(segments) {
-  const endpointRefs = segments.flatMap((segment, segmentIndex) => [
-    { point: segment[0], segmentIndex, pointIndex: 0 },
-    { point: segment.at(-1), segmentIndex, pointIndex: segment.length - 1 }
-  ]);
-  const clusters = [];
-
-  endpointRefs.forEach((ref) => {
-    const target = projectMercatorPixel(ref.point);
-    const cluster = clusters.find((candidate) => {
-      const distanceSq = (candidate.x - target.x) ** 2 + (candidate.y - target.y) ** 2;
-      return distanceSq < STORM_WARNING_ENDPOINT_SNAP_PX * STORM_WARNING_ENDPOINT_SNAP_PX;
-    });
-    if (cluster) {
-      cluster.refs.push(ref);
-      cluster.x = (cluster.x * (cluster.refs.length - 1) + target.x) / cluster.refs.length;
-      cluster.y = (cluster.y * (cluster.refs.length - 1) + target.y) / cluster.refs.length;
-    } else {
-      clusters.push({ x: target.x, y: target.y, refs: [ref] });
-    }
-  });
-
-  const snapped = segments.map((segment) => segment.slice());
-  clusters
-    .filter((cluster) => cluster.refs.length >= 2)
-    .forEach((cluster) => {
-      const snappedPoint = unprojectMercatorPixel({ x: cluster.x, y: cluster.y });
-      cluster.refs.forEach(({ segmentIndex, pointIndex }) => {
-        snapped[segmentIndex][pointIndex] = snappedPoint;
-      });
-    });
-
-  return snapped;
-}
-
-function stitchStormWarningAreaSegments(segments) {
-  const sourceSegments = segments
-    .filter((segment) => segment.length >= 2)
-    .map((segment) => segment.slice());
-  const nodes = [];
-  const edges = [];
-
-  sourceSegments.forEach((segment) => {
-    const startNode = getStormWarningEndpointNode(nodes, segment[0]);
-    const endNode = getStormWarningEndpointNode(nodes, segment.at(-1));
-    if (startNode === endNode) return;
-
-    const coordinates = segment.slice();
-    coordinates[0] = nodes[startNode].point;
-    coordinates[coordinates.length - 1] = nodes[endNode].point;
-    const edgeIndex = edges.length;
-    edges.push({ startNode, endNode, coordinates });
-    nodes[startNode].edges.push(edgeIndex);
-    nodes[endNode].edges.push(edgeIndex);
-  });
-
-  const used = new Set();
-  const paths = [];
-
-  edges.forEach((edge, edgeIndex) => {
-    if (used.has(edgeIndex)) return;
-
-    used.add(edgeIndex);
-    const path = edge.coordinates.slice();
-    const startNode = edge.startNode;
-    let currentNode = edge.endNode;
-
-    while (currentNode !== startNode) {
-      const nextEdgeIndex = chooseNextStormWarningEdge(path, currentNode, edges, nodes, used);
-      if (nextEdgeIndex == null) break;
-
-      used.add(nextEdgeIndex);
-      const nextEdge = orientStormWarningEdge(edges[nextEdgeIndex], currentNode);
-      path.push(...nextEdge.coordinates.slice(1));
-      currentNode = nextEdge.endNode;
-    }
-
-    const closedPath = getMercatorPixelDistanceSq(path[0], path.at(-1)) < 4
-      ? closeLine(path.slice(0, -1))
-      : path;
-    paths.push(closedPath);
-  });
-
-  const sortedPaths = paths
-    .filter((path) => path.length >= 2)
-    .sort((a, b) => getStormWarningLineLengthPx(b) - getStormWarningLineLengthPx(a));
-
-  const closedPaths = sortedPaths.filter((path) =>
-    path.length >= 4 && getMercatorPixelDistanceSq(path[0], path.at(-1)) < 4
-  );
-  return closedPaths.length > 0 ? closedPaths : sortedPaths;
-}
-
-function getStormWarningEndpointNode(nodes, point) {
-  const projectedPoint = projectMercatorPixel(point);
-  const thresholdSq = STORM_WARNING_ENDPOINT_SNAP_PX * STORM_WARNING_ENDPOINT_SNAP_PX;
-  let targetIndex = -1;
-  let targetDistanceSq = Infinity;
-
-  nodes.forEach((node, nodeIndex) => {
-    const distanceSq = (node.x - projectedPoint.x) ** 2 + (node.y - projectedPoint.y) ** 2;
-    if (distanceSq < thresholdSq && distanceSq < targetDistanceSq) {
-      targetIndex = nodeIndex;
-      targetDistanceSq = distanceSq;
-    }
-  });
-
-  if (targetIndex >= 0) {
-    const node = nodes[targetIndex];
-    node.x = (node.x * node.count + projectedPoint.x) / (node.count + 1);
-    node.y = (node.y * node.count + projectedPoint.y) / (node.count + 1);
-    node.count += 1;
-    node.point = unprojectMercatorPixel({ x: node.x, y: node.y });
-    return targetIndex;
-  }
-
-  nodes.push({
-    x: projectedPoint.x,
-    y: projectedPoint.y,
-    point,
-    count: 1,
-    edges: []
-  });
-  return nodes.length - 1;
-}
-
-function chooseNextStormWarningEdge(path, currentNode, edges, nodes, used) {
-  const candidates = nodes[currentNode].edges.filter((edgeIndex) => !used.has(edgeIndex));
-  if (candidates.length === 0) return null;
-  if (candidates.length === 1) return candidates[0];
-
-  const previous = projectMercatorPixel(path.at(-2));
-  const current = projectMercatorPixel(path.at(-1));
-  const incoming = { x: current.x - previous.x, y: current.y - previous.y };
-
-  return candidates
-    .map((edgeIndex) => {
-      const oriented = orientStormWarningEdge(edges[edgeIndex], currentNode);
-      const next = projectMercatorPixel(oriented.coordinates[Math.min(1, oriented.coordinates.length - 1)]);
-      const outgoing = { x: next.x - current.x, y: next.y - current.y };
-      return {
-        edgeIndex,
-        score: getStormWarningVectorCosine(incoming, outgoing),
-        length: getStormWarningLineLengthPx(oriented.coordinates)
-      };
-    })
-    .sort((a, b) => b.score - a.score || b.length - a.length)[0].edgeIndex;
-}
-
-function orientStormWarningEdge(edge, currentNode) {
-  if (edge.startNode === currentNode) {
-    return {
-      endNode: edge.endNode,
-      coordinates: edge.coordinates
-    };
-  }
-  return {
-    endNode: edge.startNode,
-    coordinates: edge.coordinates.slice().reverse()
-  };
-}
-
-function getStormWarningVectorCosine(a, b) {
-  const aLength = Math.hypot(a.x, a.y);
-  const bLength = Math.hypot(b.x, b.y);
-  if (!aLength || !bLength) return -1;
-  return (a.x * b.x + a.y * b.y) / (aLength * bLength);
 }
 
 function createTyphoonForecastAreaFeatures(typhoon) {

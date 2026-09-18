@@ -850,6 +850,10 @@ assert.match(
 );
 assert.match(
   styles,
+  /Segmented controls sit directly on the map[\s\S]*?\.mobile-dock-action-row,[\s\S]*?\.mobile-dock-chip-grid,[\s\S]*?\.amedas-ranking-toggle[\s\S]*?backdrop-filter:\s*none;[\s\S]*?\.mobile-dock-segmented::before,[\s\S]*?box-shadow:\s*var\(--glass-shell-shadow\);[\s\S]*?backdrop-filter:\s*none;/
+);
+assert.match(
+  styles,
   /html\[data-theme="light"\] :is\(\.radar-action-button, \.mobile-dock-action, \.mobile-dock-chip\):disabled:not\(\.active\):not\(\[aria-selected="true"\]\):not\(\[aria-pressed="true"\]\)\s*\{/
 );
 assert.match(

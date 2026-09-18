@@ -24,6 +24,7 @@ import {
   selectTyphoonRadarFrame
 } from "../src/typhoonRadarOverlay.js";
 import {
+  buildStormWarningAreaClosedPaths,
   buildStormWarningAreaLineSegments,
   destinationPoint
 } from "../src/typhoonGeometry.js";
@@ -42,6 +43,47 @@ assert.deepEqual(warningAreaSegments[1], [[130, 20], [131, 21]]);
 assert.ok(warningAreaSegments[0].every((point) => (
   point.length === 2 && point.every(Number.isFinite)
 )));
+const jmaWarningAreaPaths = buildStormWarningAreaClosedPaths({
+  arc: [
+    { center: [144.4, 25.1], radius: 111.12, start: 20.7, end: 164.95 },
+    { center: [142, 25.2], radius: 185.2, start: 164.95, end: 213.21 },
+    { center: [140.5, 26.4], radius: 212.98, start: 0, end: 50.26 },
+    { center: [140.5, 26.4], radius: 212.98, start: 213.21, end: 360 }
+  ],
+  line: [
+    [[142.48, 23.59], [144.69, 24.14]],
+    [[144.79, 26.04], [143.11, 26.61]],
+    [[139.33, 24.8], [140.99, 23.81]],
+    [[143.11, 26.61], [142.14, 27.63]]
+  ]
+});
+assert.equal(jmaWarningAreaPaths.length, 1);
+assert.ok(jmaWarningAreaPaths[0].length > 40);
+assert.deepEqual(jmaWarningAreaPaths[0][0], jmaWarningAreaPaths[0].at(-1));
+const roundedEndpointWarningPath = buildStormWarningAreaClosedPaths({
+  line: [
+    [[140, 30], [141, 30]],
+    [[141.18, 30], [141.18, 31]],
+    [[141.18, 31.18], [140, 31.18]],
+    [[140, 31], [140, 30.18]]
+  ]
+});
+assert.equal(roundedEndpointWarningPath.length, 1);
+assert.deepEqual(roundedEndpointWarningPath[0][0], roundedEndpointWarningPath[0].at(-1));
+assert.equal(buildStormWarningAreaClosedPaths({
+  line: [
+    [[140, 30], [141, 30]],
+    [[141.18, 30], [141.18, 31]],
+    [[141.18, 31.18], [140, 31.18]],
+    [[140, 31], [140, 30.18]]
+  ]
+}, 8).length, 0);
+assert.equal(buildStormWarningAreaClosedPaths({
+  line: [
+    [[130, 20], [131, 20]],
+    [[132, 20], [133, 20]]
+  ]
+}).length, 0);
 const eastOfCenter = destinationPoint([130, 20], 100, 90);
 assert.ok(eastOfCenter[0] > 130);
 assert.ok(Math.abs(eastOfCenter[1] - 20) < 0.1);
@@ -414,6 +456,14 @@ assert.match(appSource, /function buildWorldTyphoonFocusCoordinates\(displayData
 assert.match(appSource, /function buildTyphoonFocusCoordinates\(typhoon\)[\s\S]*?typhoon\.strongWindRadius[\s\S]*?typhoon\.stormRadius[\s\S]*?stormWarningGroups[\s\S]*?collectTyphoonStormWarningShapeCoordinates/);
 assert.match(appSource, /function collectTyphoonFocusCircleCoordinates\(circles = \[\]\)/);
 assert.match(appSource, /function collectTyphoonStormWarningShapeCoordinates\(shape\)/);
+assert.match(
+  mapSource,
+  /const stormWarningShapeFeatures = typhoon\.stormWarningAreaShape[\s\S]*?createTyphoonStormWarningShapeFeatures\(typhoon\)[\s\S]*?if \(stormWarningShapeFeatures\.length > 0\)/
+);
+assert.match(
+  mapSource,
+  /function createTyphoonStormWarningShapeFeatures\(typhoon\)[\s\S]*?buildStormWarningAreaClosedPaths\(typhoon\.stormWarningAreaShape\)/
+);
 assert.match(appSource, /hasSelectedTargets[\s\S]*?primarySystemId[\s\S]*?layer\.forecastPositions/);
 assert.doesNotMatch(appSource, /getWorldTyphoonFocusCoordinates/);
 assert.match(appSource, /updateWorldTyphoonForecastPositions/);

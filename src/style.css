@@ -19753,6 +19753,41 @@ html[data-theme="light"] :is(
   }
 }
 
+/* Segmented controls sit directly on the map or a translucent sheet. Their
+   tracks and moving indicators must not create separate blurred layers. */
+@media (max-width: 800px) and (orientation: portrait) {
+  :is(
+    .mobile-dock-action-row,
+    .mobile-dock-chip-grid,
+    .amedas-sub-tabs.mobile-dock-segmented,
+    .amedas-precipitation-period-tabs,
+    .hypocenter-presentation-switch,
+    .amedas-chart-period-toggle,
+    .amedas-ranking-toggle
+  ),
+  html[data-theme="light"] :is(
+    .mobile-dock-action-row,
+    .mobile-dock-chip-grid,
+    .amedas-sub-tabs.mobile-dock-segmented,
+    .amedas-precipitation-period-tabs,
+    .hypocenter-presentation-switch,
+    .amedas-chart-period-toggle,
+    .amedas-ranking-toggle
+  ) {
+    background: var(--glass-shell-static-background);
+    box-shadow: var(--glass-shell-shadow);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .mobile-dock-segmented::before,
+  html[data-theme="light"] .mobile-dock-segmented::before {
+    box-shadow: var(--glass-shell-shadow);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 /* Repeated cards deliberately avoid per-card backdrop filters so large lists
    keep their existing scroll performance while sharing the same material. */
 :is(
