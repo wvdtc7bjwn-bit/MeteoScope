@@ -155,6 +155,7 @@
       <div id="map-utility-actions" class="map-utility-actions" aria-label="機能メニュー" hidden>
         <button id="disaster-quiz-button" class="disaster-map-open-button disaster-quiz-open-button" type="button" aria-label="防災クイズを開く" title="防災クイズ"></button>
         <button id="disaster-dashboard-button" class="disaster-map-open-button disaster-dashboard-open-button" type="button" aria-label="防災情報ダッシュボードを開く" title="防災情報ダッシュボード" aria-haspopup="dialog" aria-controls="disaster-dashboard-modal" aria-expanded="false"></button>
+        <button id="disaster-timeline-button" class="disaster-map-open-button disaster-timeline-open-button" type="button" aria-label="災害年表を開く" title="災害年表" aria-haspopup="dialog" aria-controls="disaster-timeline-modal" aria-expanded="false"></button>
         <button id="weekly-weather-button" class="disaster-map-open-button weekly-weather-open-button" type="button" aria-label="週間天気予報を開く" title="週間天気予報" aria-haspopup="dialog" aria-controls="weekly-weather-modal"></button>
         <button id="numeric-weather-chart-button" class="disaster-map-open-button numeric-weather-chart-open-button" type="button" aria-label="数値予報天気図のリンク集を開く" title="数値予報天気図" aria-haspopup="dialog" aria-controls="numeric-weather-chart-modal" aria-expanded="false"></button>
         <button id="upper-air-button" class="disaster-map-open-button upper-air-open-button" type="button" aria-label="高層気象観測のエマグラムを開く（アーリーアクセス）" title="高層気象（アーリーアクセス）" aria-haspopup="dialog" aria-controls="upper-air-modal" aria-expanded="false"></button>
@@ -584,6 +585,53 @@
             <ul id="feedback-recent-list"></ul>
           </section>
         </form>
+      </section>
+    </div>
+
+    <div id="disaster-timeline-modal" class="warning-modal disaster-timeline-modal" hidden>
+      <div class="warning-modal-backdrop disaster-timeline-overlay" data-disaster-timeline-close></div>
+      <section class="warning-modal-panel disaster-timeline-panel" role="dialog" aria-modal="true" aria-labelledby="disaster-timeline-title">
+        <header class="settings-modal-header disaster-timeline-header">
+          <h2 id="disaster-timeline-title">災害年表</h2>
+          <button class="warning-modal-close settings-modal-close" type="button" aria-label="災害年表を閉じる" data-disaster-timeline-close>×</button>
+        </header>
+        <div class="disaster-timeline-body">
+          <p class="disaster-timeline-intro">地震・津波、火山、風水害、雪害の主な記録を年代順に確認できます。すべての災害を網羅した一覧ではありません。</p>
+          <div class="disaster-timeline-controls">
+            <label class="disaster-timeline-search" for="disaster-timeline-search">
+              <span class="sr-only">災害名や地域を検索</span>
+              <input id="disaster-timeline-search" type="search" inputmode="search" autocomplete="off" placeholder="災害名・地域・年代を検索">
+            </label>
+            <div class="disaster-timeline-categories" role="group" aria-label="災害の分類">
+              <button type="button" class="is-active" data-disaster-timeline-category="all" aria-pressed="true">すべて</button>
+              <button type="button" data-disaster-timeline-category="earthquake" aria-pressed="false">地震・津波</button>
+              <button type="button" data-disaster-timeline-category="volcano" aria-pressed="false">火山</button>
+              <button type="button" data-disaster-timeline-category="flood" aria-pressed="false">風水害</button>
+              <button type="button" data-disaster-timeline-category="snow" aria-pressed="false">雪害</button>
+            </div>
+            <div class="disaster-timeline-selects">
+              <label for="disaster-timeline-era">
+                <span>年代</span>
+                <select id="disaster-timeline-era">
+                  <option value="all">すべての年代</option>
+                  <option value="2000-present">2000年以降</option>
+                  <option value="1950-1999">1950〜1999年</option>
+                  <option value="before-1950">1950年より前</option>
+                </select>
+              </label>
+              <label for="disaster-timeline-order">
+                <span>並び順</span>
+                <select id="disaster-timeline-order">
+                  <option value="desc">新しい順</option>
+                  <option value="asc">古い順</option>
+                </select>
+              </label>
+              <output id="disaster-timeline-count" aria-live="polite">0件</output>
+            </div>
+          </div>
+          <div id="disaster-timeline-results" class="disaster-timeline-results"></div>
+          <p class="disaster-timeline-note">各項目のリンクから、内閣府・気象庁・国土交通省の資料を確認できます。</p>
+        </div>
       </section>
     </div>
 

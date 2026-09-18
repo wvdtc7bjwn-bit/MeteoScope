@@ -11,6 +11,7 @@ import { setupWeeklyWeatherModal } from "./ui/weeklyWeatherModal.js";
 import { setupNumericWeatherChartModal } from "./ui/numericWeatherChartModal.js";
 import { setupUpperAirModal } from "./ui/upperAirModal.js";
 import { openDisasterQuizModal, setupDisasterQuizModal } from "./ui/disasterQuizModal.js";
+import { setupDisasterTimelineModal } from "./ui/disasterTimelineModal.js";
 import { setupOnboardingModal } from "./ui/onboardingModal.js";
 import { setupLegalConsentModal } from "./ui/legalConsentModal.js";
 import { openSettingsModal, refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
@@ -3692,6 +3693,7 @@ if (layerId === "river") {
       });
     }, { once: true });
     setupDisasterQuizModal();
+    setupDisasterTimelineModal();
     setupMapUtilityMenu();
     setupMeteoScopeLensModal({
       getContext: () => ({

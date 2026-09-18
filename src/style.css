@@ -10438,6 +10438,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 .map-utility-actions .disaster-map-open-button:nth-child(6) { --menu-item-index: 5; }
 .map-utility-actions .disaster-map-open-button:nth-child(7) { --menu-item-index: 6; }
 .map-utility-actions .disaster-map-open-button:nth-child(8) { --menu-item-index: 7; }
+.map-utility-actions .disaster-map-open-button:nth-child(9) { --menu-item-index: 8; }
 
 .map-utility-actions.is-open .disaster-map-open-button {
   opacity: 1;
@@ -20842,5 +20843,403 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
   .mobile-drawer-open .map-weather-distribution-toggle {
     opacity: 0;
     pointer-events: none;
+  }
+}
+
+/* Disaster chronology */
+.disaster-timeline-open-button::before {
+  width: 25px;
+  height: 25px;
+  background: #f4f9ff;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 4v16M5 7h5M5 12h9M5 17h12'/%3E%3Ccircle cx='12' cy='7' r='2' fill='black' stroke='none'/%3E%3Ccircle cx='16' cy='12' r='2' fill='black' stroke='none'/%3E%3Ccircle cx='19' cy='17' r='2' fill='black' stroke='none'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 4v16M5 7h5M5 12h9M5 17h12'/%3E%3Ccircle cx='12' cy='7' r='2' fill='black' stroke='none'/%3E%3Ccircle cx='16' cy='12' r='2' fill='black' stroke='none'/%3E%3Ccircle cx='19' cy='17' r='2' fill='black' stroke='none'/%3E%3C/g%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.disaster-timeline-modal {
+  z-index: 7200;
+  padding: 18px;
+}
+
+.disaster-timeline-panel {
+  --timeline-surface: #101923;
+  --timeline-card: #17222e;
+  --timeline-control: #0c151f;
+  --timeline-line: #344453;
+  --timeline-text: #eef5fb;
+  --timeline-muted: #a9b8c7;
+  --timeline-accent: #68c5ee;
+  width: min(720px, calc(100vw - 28px));
+  max-height: min(88dvh, 780px);
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  color: var(--timeline-text);
+}
+
+.disaster-timeline-header {
+  flex: 0 0 auto;
+  border-bottom-color: var(--modal-shell-divider);
+}
+
+.disaster-timeline-header h2 {
+  color: var(--timeline-text);
+}
+
+.disaster-timeline-body {
+  max-height: calc(min(88dvh, 780px) - var(--modal-header-height));
+  padding: 18px 20px 24px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.disaster-timeline-intro,
+.disaster-timeline-note {
+  margin: 0;
+  color: var(--timeline-muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.disaster-timeline-controls {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0 20px;
+  padding: 14px;
+  border: 1px solid var(--timeline-line);
+  border-radius: 12px;
+  background: var(--timeline-card);
+}
+
+.disaster-timeline-search {
+  display: block;
+}
+
+.disaster-timeline-search input,
+.disaster-timeline-selects select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--timeline-line);
+  border-radius: 9px;
+  color: var(--timeline-text);
+  background: var(--timeline-control);
+  font: inherit;
+}
+
+.disaster-timeline-search input {
+  padding: 0 13px 0 39px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='%23a9b8c7' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m15.5 15.5 5 5'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 12px center;
+  background-size: 18px;
+}
+
+.disaster-timeline-search input::placeholder {
+  color: var(--timeline-muted);
+}
+
+.disaster-timeline-search input:focus-visible,
+.disaster-timeline-selects select:focus-visible,
+.disaster-timeline-categories button:focus-visible,
+.disaster-timeline-source:focus-visible {
+  outline: 2px solid var(--timeline-accent);
+  outline-offset: 2px;
+}
+
+.disaster-timeline-categories {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.disaster-timeline-categories button {
+  min-height: 38px;
+  padding: 6px 8px;
+  border: 1px solid var(--timeline-line);
+  border-radius: 8px;
+  color: var(--timeline-muted);
+  background: var(--timeline-control);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.disaster-timeline-categories button.is-active {
+  border-color: #3e9dc8;
+  color: #071722;
+  background: var(--timeline-accent);
+}
+
+.disaster-timeline-selects {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(132px, 0.8fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.disaster-timeline-selects label {
+  display: grid;
+  gap: 5px;
+  color: var(--timeline-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.disaster-timeline-selects select {
+  padding: 0 34px 0 11px;
+}
+
+#disaster-timeline-count {
+  min-width: 56px;
+  padding: 0 2px 11px;
+  color: var(--timeline-muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.disaster-timeline-list {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0 0 0 31px;
+  list-style: none;
+}
+
+.disaster-timeline-list::before {
+  content: "";
+  position: absolute;
+  top: 13px;
+  bottom: 13px;
+  left: 9px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--timeline-line);
+}
+
+.disaster-timeline-item {
+  --timeline-category-color: #68c5ee;
+  position: relative;
+}
+
+.disaster-timeline-item.is-volcano {
+  --timeline-category-color: #ef916e;
+}
+
+.disaster-timeline-item.is-flood {
+  --timeline-category-color: #73b9f1;
+}
+
+.disaster-timeline-item.is-snow {
+  --timeline-category-color: #b5a4f4;
+}
+
+.disaster-timeline-marker {
+  position: absolute;
+  top: 17px;
+  left: -29px;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 3px solid var(--timeline-surface);
+  border-radius: 50%;
+  background: var(--timeline-category-color);
+  outline: 2px solid var(--timeline-category-color);
+}
+
+.disaster-timeline-card {
+  padding: 15px 16px 14px;
+  border: 1px solid var(--timeline-line);
+  border-left: 3px solid var(--timeline-category-color);
+  border-radius: 10px;
+  background: var(--timeline-card);
+}
+
+.disaster-timeline-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.disaster-timeline-card time {
+  color: var(--timeline-accent);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.disaster-timeline-category {
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--timeline-category-color) 62%, transparent);
+  border-radius: 999px;
+  color: var(--timeline-category-color);
+  font-size: 10px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.disaster-timeline-card h3 {
+  margin: 8px 0 2px;
+  color: var(--timeline-text);
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+.disaster-timeline-region,
+.disaster-timeline-summary {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.disaster-timeline-region {
+  color: var(--timeline-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.disaster-timeline-summary {
+  margin-top: 8px;
+  color: var(--timeline-text);
+  font-size: 13px;
+}
+
+.disaster-timeline-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  color: var(--timeline-accent);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.disaster-timeline-source:hover {
+  text-decoration: underline;
+}
+
+.disaster-timeline-empty {
+  padding: 48px 18px;
+  border: 1px dashed var(--timeline-line);
+  border-radius: 10px;
+  color: var(--timeline-muted);
+  text-align: center;
+}
+
+.disaster-timeline-empty strong {
+  color: var(--timeline-text);
+}
+
+.disaster-timeline-empty p {
+  margin: 7px 0 0;
+  font-size: 13px;
+}
+
+.disaster-timeline-note {
+  margin-top: 18px;
+}
+
+.disaster-timeline-modal .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+html[data-theme="light"] .disaster-timeline-panel {
+  --timeline-surface: #eef4f9;
+  --timeline-card: #ffffff;
+  --timeline-control: #f7fafc;
+  --timeline-line: #c6d3de;
+  --timeline-text: #173149;
+  --timeline-muted: #60778d;
+  --timeline-accent: #147ead;
+  color: var(--timeline-text);
+}
+
+html[data-theme="light"] .disaster-timeline-categories button.is-active {
+  color: #ffffff;
+}
+
+@media (max-width: 800px) {
+  .map-utility-actions {
+    display: grid;
+    grid-template-columns: repeat(5, 42px);
+  }
+
+  .map-utility-actions .disaster-map-open-button {
+    width: 42px;
+    height: 42px;
+    min-width: 42px;
+  }
+
+  .disaster-timeline-modal {
+    padding: max(8px, env(safe-area-inset-top)) 7px max(12px, env(safe-area-inset-bottom));
+  }
+
+  .disaster-timeline-panel {
+    width: 100%;
+    max-height: calc(100dvh - max(20px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)));
+    border-radius: var(--modal-shell-radius);
+  }
+
+  .disaster-timeline-header {
+    flex: 0 0 auto;
+  }
+
+  .disaster-timeline-body {
+    max-height: calc(100dvh - 94px - max(20px, env(safe-area-inset-top)) - max(16px, env(safe-area-inset-bottom)));
+    padding: 14px 13px max(18px, env(safe-area-inset-bottom));
+  }
+
+  .disaster-timeline-controls {
+    margin-block: 13px 17px;
+    padding: 11px;
+  }
+
+  .disaster-timeline-categories {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .disaster-timeline-categories button:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .disaster-timeline-selects {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  #disaster-timeline-count {
+    grid-column: 1 / -1;
+    min-width: 0;
+    padding: 0;
+    text-align: left;
+  }
+
+  .disaster-timeline-list {
+    padding-left: 26px;
+  }
+
+  .disaster-timeline-list::before {
+    left: 7px;
+  }
+
+  .disaster-timeline-marker {
+    left: -25px;
+  }
+
+  .disaster-timeline-card {
+    padding: 13px 12px 12px;
+  }
+
+  .disaster-timeline-card h3 {
+    font-size: 16px;
   }
 }

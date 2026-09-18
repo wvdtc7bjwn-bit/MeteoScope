@@ -36,6 +36,7 @@
     "test:weekly-weather": "node Tests/WeeklyWeatherTests.mjs",
     "test:upper-air": "node Tests/UpperAirTests.mjs",
     "test:dashboard": "node Tests/DisasterDashboardTests.mjs",
+    "test:timeline": "node Tests/DisasterTimelineTests.mjs",
     "test:location-nowcast": "node Tests/LocationNowcastStatusTests.mjs",
     "test:responsive": "node Tests/OnboardingModalTests.mjs && node Tests/ResponsiveLayoutTests.mjs",
     "test:startup": "node Tests/InitialMapLoadingTests.mjs",
