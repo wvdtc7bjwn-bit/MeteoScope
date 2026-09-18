@@ -61,7 +61,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     const sidebarRect = sidebar.getBoundingClientRect();
     if (event.clientY > sidebarRect.top + 64) return false;
     return !path.some((node) => node instanceof Element && node.matches(
-      "button, a, input, select, textarea, [role='button'], [role='tab'], [data-mobile-dock-control]"
+      "button, a, input, select, textarea, label, form, [role='button'], [role='tab'], [data-mobile-dock-control]"
     ));
   }
 

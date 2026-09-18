@@ -41,6 +41,14 @@ import {
   isHypocenterDistributionRangeWithinLimit
 } from "../jma/hypocenterDistribution.js";
 import {
+  EARTHQUAKE_HISTORY_DEPTH_OPTIONS,
+  EARTHQUAKE_HISTORY_INTENSITY_OPTIONS,
+  EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT,
+  EARTHQUAKE_HISTORY_MAGNITUDE_OPTIONS,
+  EARTHQUAKE_HISTORY_SORT_OPTIONS,
+  formatHistoricalIntensity
+} from "../jma/earthquakeHistory.js";
+import {
   HYPOCENTER_DEPTH_STOPS,
   HYPOCENTER_UNKNOWN_DEPTH_COLOR,
   getHypocenterDepthStopPercentage
@@ -1399,6 +1407,10 @@ export function setupEarthquakeSelector({
   onVolcanoBulletinBack,
   onVolcanoAshForecastChange,
   onViewChange,
+  onArchiveFilterChange,
+  onArchiveSearch,
+  onArchiveSelect,
+  onArchiveRetry,
   onDistributionPresentationChange,
   onDistributionFilterChange,
   onDistributionRangeModeChange,
@@ -1414,6 +1426,23 @@ export function setupEarthquakeSelector({
   const dateWheel = createHypocenterDateWheel({
     onSelect: ({ dayOffset }) => onDistributionFilterChange?.({ dayOffset })
   });
+
+  const readArchiveSearchFilters = (form) => {
+    const read = (name) => form.elements.namedItem(name)?.value ?? "";
+    return {
+      startDate: read("startDate"),
+      endDate: read("endDate"),
+      minIntensity: read("minIntensity"),
+      minMagnitude: read("minMagnitude"),
+      maxDepth: read("maxDepth"),
+      sort: read("sort"),
+      keyword: read("keyword")
+    };
+  };
+
+  const submitArchiveSearch = (form) => {
+    onArchiveSearch?.(readArchiveSearchFilters(form));
+  };
 
   const handleClick = (event) => {
     if (!(event.target instanceof Element)) return;
@@ -1460,9 +1489,27 @@ export function setupEarthquakeSelector({
       }
       return;
     }
-    const viewButton = event.target.closest("[data-earthquake-view]");
+    const viewButton = event.target.closest("button[data-earthquake-view]");
     if (viewButton) {
       onViewChange?.(viewButton.dataset.earthquakeView);
+      return;
+    }
+    const archiveRetryButton = event.target.closest("[data-earthquake-archive-retry]");
+    if (archiveRetryButton) {
+      onArchiveRetry?.();
+      return;
+    }
+    const archiveSearchButton = event.target.closest("[data-earthquake-archive-search]");
+    if (archiveSearchButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      const archiveForm = archiveSearchButton.closest("[data-earthquake-archive-form]");
+      if (archiveForm instanceof HTMLFormElement) submitArchiveSearch(archiveForm);
+      return;
+    }
+    const archiveItemButton = event.target.closest("[data-earthquake-archive-id]");
+    if (archiveItemButton) {
+      onArchiveSelect?.(archiveItemButton.dataset.earthquakeArchiveId);
       return;
     }
     const presentationButton = event.target.closest("[data-earthquake-distribution-presentation]");
@@ -1539,8 +1586,22 @@ export function setupEarthquakeSelector({
   root.addEventListener("click", handleClick);
   mobileDock?.addEventListener("click", handleClick);
 
+  root.addEventListener("submit", (event) => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement) || !form.matches("[data-earthquake-archive-form]")) return;
+    event.preventDefault();
+    submitArchiveSearch(form);
+  });
+
   const handleFilterChange = (event) => {
     const target = event.target;
+    const archiveForm = target instanceof Element
+      ? target.closest("[data-earthquake-archive-form]")
+      : null;
+    if (archiveForm instanceof HTMLFormElement) {
+      onArchiveFilterChange?.(readArchiveSearchFilters(archiveForm));
+      return;
+    }
     if (target instanceof HTMLInputElement && target.dataset.volcanoAshForecastIndex !== undefined) {
       mobileVolcanoAshSliderDragging = false;
       onVolcanoAshForecastChange?.(Number(target.value));
@@ -1560,6 +1621,14 @@ export function setupEarthquakeSelector({
   };
   root.addEventListener("change", handleFilterChange);
   mobileDock?.addEventListener("change", handleFilterChange);
+  root.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.name !== "keyword") return;
+    const archiveForm = target.closest("[data-earthquake-archive-form]");
+    if (archiveForm instanceof HTMLFormElement) {
+      onArchiveFilterChange?.(readArchiveSearchFilters(archiveForm));
+    }
+  });
 
   const previewVolcanoAshForecast = (slider) => {
     const index = Number(slider.value);
@@ -2707,6 +2776,9 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     }
     if (state.data?.earthquakeView === "distribution") {
       return buildEarthquakeDistributionMobileContextMarkup(state.data);
+    }
+    if (state.data?.earthquakeView === "history") {
+      return buildEarthquakeArchiveMobileContextMarkup(state.data);
     }
     const earthquakes = state.data?.earthquakes ?? [];
     const earthquake = state.data?.selectedEarthquake ?? earthquakes[0];
@@ -5919,7 +5991,7 @@ function renderEarthquakeList(tab, state) {
 
   const isEarthquake = tab.id === "earthquake";
   root.hidden = !isEarthquake;
-  root.classList.remove("is-distribution-view");
+  root.classList.remove("is-distribution-view", "is-history-view");
   if (!isEarthquake) {
     setSocialSharePayload("earthquake", null);
     root.innerHTML = "";
@@ -5933,7 +6005,11 @@ function renderEarthquakeList(tab, state) {
   }
 
   const view = state.data?.earthquakeView ?? "recent";
+  const viewChanged = root.dataset.earthquakeView !== view;
+  root.dataset.earthquakeView = view;
+  if (viewChanged) root.scrollTop = 0;
   root.classList.toggle("is-distribution-view", view === "distribution");
+  root.classList.toggle("is-history-view", view === "history");
   const viewToggle = buildEarthquakeViewToggle(view);
   const mapLayerControls = buildEarthquakeMapLayerControls(state.data ?? {});
   const earthquakes = state.data?.earthquakes ?? [];
@@ -5998,6 +6074,12 @@ function renderEarthquakeList(tab, state) {
       ${buildTideObservationDedicatedDetailMarkup(state.data?.tideObservation)}
     </div>
   `);
+
+  if (view === "history") {
+    setSocialSharePayload("earthquake", null);
+    renderDetailPages(`${viewToggle}${buildEarthquakeArchiveMarkup(state.data ?? {})}`);
+    return;
+  }
 
   if (view === "distribution") {
     renderDetailPages(
@@ -6645,8 +6727,108 @@ function buildEarthquakeViewToggle(activeView) {
     <div class="earthquake-view-toggle mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented" role="tablist" aria-label="地震情報の表示">
       <button type="button" role="tab" data-earthquake-view="recent" aria-selected="${activeView === "recent"}" class="mobile-dock-action${activeView === "recent" ? " active" : ""}">最近の地震</button>
       <button type="button" role="tab" data-earthquake-view="distribution" aria-selected="${activeView === "distribution"}" class="mobile-dock-action${activeView === "distribution" ? " active" : ""}">震央分布</button>
+      <button type="button" role="tab" data-earthquake-view="history" aria-selected="${activeView === "history"}" class="mobile-dock-action${activeView === "history" ? " active" : ""}">過去の地震</button>
     </div>
   `;
+}
+
+function buildEarthquakeArchiveMarkup(data) {
+  const snapshot = data.earthquakeArchive;
+  const status = data.earthquakeArchiveStatus ?? "idle";
+  const filters = data.earthquakeArchiveFilters ?? snapshot?.filters ?? {};
+  const manifest = snapshot?.manifest;
+  const startDate = filters.startDate ?? manifest?.startDate ?? "";
+  const endDate = filters.endDate ?? manifest?.endDate ?? "";
+  const loading = status === "loading" || status === "refreshing";
+  const form = `
+    <form class="earthquake-archive-search" data-earthquake-archive-form aria-label="過去の地震検索">
+      <div class="earthquake-archive-head">
+        <div><strong>過去50年の有感地震</strong><span>震度1〜7を収録・更新時点から50年を保持</span></div>
+        ${manifest?.sourceUrl ? `<a href="${escapeHtml(manifest.sourceUrl)}" target="_blank" rel="noopener noreferrer">気象庁 ↗</a>` : ""}
+      </div>
+      <div class="earthquake-archive-date-grid">
+        <label><span>開始日</span><input type="date" name="startDate" value="${escapeHtml(startDate)}" min="${escapeHtml(manifest?.startDate ?? "")}" max="${escapeHtml(manifest?.endDate ?? "")}"></label>
+        <label><span>終了日</span><input type="date" name="endDate" value="${escapeHtml(endDate)}" min="${escapeHtml(manifest?.startDate ?? "")}" max="${escapeHtml(manifest?.endDate ?? "")}"></label>
+      </div>
+      <div class="earthquake-archive-filter-grid">
+        ${buildArchiveSelect("minIntensity", "最大震度", filters.minIntensity ?? "4", EARTHQUAKE_HISTORY_INTENSITY_OPTIONS)}
+        ${buildArchiveSelect("minMagnitude", "マグニチュード", filters.minMagnitude ?? "0", EARTHQUAKE_HISTORY_MAGNITUDE_OPTIONS)}
+        ${buildArchiveSelect("maxDepth", "深さ", filters.maxDepth ?? "all", EARTHQUAKE_HISTORY_DEPTH_OPTIONS)}
+        ${buildArchiveSelect("sort", "並び順", filters.sort ?? "newest", EARTHQUAKE_HISTORY_SORT_OPTIONS)}
+      </div>
+      <label class="earthquake-archive-keyword"><span>震央地名</span><input type="search" name="keyword" value="${escapeHtml(filters.keyword ?? "")}" maxlength="40" placeholder="例：能登、宮城県沖"></label>
+      <button type="button" class="earthquake-archive-search-button" data-earthquake-archive-search ${loading ? "disabled" : ""}>${loading ? "検索中…" : "この条件で検索"}</button>
+      <p>検索時は気象庁へ接続せず、MeteoScopeに保存した年別データを使用します。古い年代の「有感」は震度階級が特定できない場合があります。</p>
+    </form>
+  `;
+  if (status === "idle" || status === "loading") {
+    return `${form}<div class="earthquake-empty" role="status" aria-live="polite">過去の地震データを読み込み中です。</div>`;
+  }
+  if (status === "error") {
+    return `${form}<div class="earthquake-empty" role="alert">${escapeHtml(data.earthquakeArchiveError ?? "過去の地震を検索できませんでした")}<button type="button" class="earthquake-distribution-retry" data-earthquake-archive-retry>再試行</button></div>`;
+  }
+  const items = snapshot?.items ?? [];
+  const visibleItems = items.slice(0, EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT);
+  const selectedId = String(data.selectedHistoricalEarthquakeId ?? "");
+  const totalMatched = Number(snapshot?.totalMatched ?? items.length);
+  const resultLimit = items.length;
+  const resultHead = `
+    <div class="earthquake-archive-result-head" role="status">
+      <strong>${totalMatched.toLocaleString("ja-JP")}件</strong>
+      <span>${snapshot?.truncated
+        ? `地図は先頭${resultLimit.toLocaleString("ja-JP")}件`
+        : `${formatArchiveDate(startDate)}〜${formatArchiveDate(endDate)}`}</span>
+    </div>
+  `;
+  if (!items.length) return `${form}${resultHead}<div class="earthquake-empty">条件に一致する地震はありません。</div>`;
+  const list = visibleItems.map((item) => {
+    const active = String(item.id) === selectedId;
+    const magnitude = Number.isFinite(item.magnitude) ? `M${item.magnitude.toFixed(1)}` : "M不明";
+    const depth = Number.isFinite(item.depthKm) ? `深さ${item.depthKm}km` : "深さ不明";
+    return `
+      <article class="earthquake-archive-item${active ? " active" : ""}">
+        <button type="button" data-earthquake-archive-id="${escapeHtml(item.id)}" aria-pressed="${active ? "true" : "false"}">
+          <em data-intensity="${escapeHtml(item.maxIntensity)}"><small>震度</small><b>${escapeHtml(formatHistoricalIntensity(item.maxIntensity))}</b></em>
+          <span class="earthquake-archive-item-content">
+            <small class="earthquake-archive-item-time">${escapeHtml(formatArchiveDateTime(item.originTime))}</small>
+            <strong title="${escapeHtml(item.place)}">${escapeHtml(item.place)}</strong>
+            <small class="earthquake-archive-item-metadata">${escapeHtml(magnitude)}<i aria-hidden="true">·</i>${escapeHtml(depth)}</small>
+          </span>
+        </button>
+        ${item.sourceUrl ? `<a href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noopener noreferrer" aria-label="気象庁でこの地震を確認">↗</a>` : ""}
+      </article>
+    `;
+  }).join("");
+  const remainder = totalMatched > visibleItems.length
+    ? `<p class="earthquake-archive-list-note">${snapshot?.truncated
+      ? `検索結果${totalMatched.toLocaleString("ja-JP")}件のうち、地図は先頭${resultLimit.toLocaleString("ja-JP")}件、一覧は先頭${visibleItems.length.toLocaleString("ja-JP")}件のみ表示しています。条件を絞ってください。`
+      : `検索結果${totalMatched.toLocaleString("ja-JP")}件のうち、一覧は先頭${visibleItems.length.toLocaleString("ja-JP")}件のみ表示しています。地図では全件を確認できます。`
+    }</p>`
+    : "";
+  return `${form}${resultHead}<div class="earthquake-archive-list">${list}</div>${remainder}`;
+}
+
+function buildArchiveSelect(name, label, value, options) {
+  return `<label><span>${escapeHtml(label)}</span><select name="${escapeHtml(name)}">${options.map(([optionValue, optionLabel]) => (
+    `<option value="${escapeHtml(optionValue)}"${String(optionValue) === String(value) ? " selected" : ""}>${escapeHtml(optionLabel)}</option>`
+  )).join("")}</select></label>`;
+}
+
+function formatArchiveDate(value) {
+  return String(value ?? "").replaceAll("-", "/") || "日付不明";
+}
+
+function formatArchiveDateTime(value) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return String(value ?? "時刻不明");
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(date);
 }
 
 function buildEarthquakeDepthLegend() {
@@ -7001,6 +7183,38 @@ function buildEarthquakeDistributionMobileContextMarkup(data) {
   });
 }
 
+function buildEarthquakeArchiveMobileContextMarkup(data) {
+  const snapshot = data.earthquakeArchive;
+  const status = data.earthquakeArchiveStatus ?? "idle";
+  const selected = snapshot?.items?.find((item) => (
+    String(item.id) === String(data.selectedHistoricalEarthquakeId)
+  )) ?? snapshot?.items?.[0];
+  const count = Number(snapshot?.totalMatched ?? snapshot?.items?.length ?? 0);
+  const filters = snapshot?.filters ?? data.earthquakeArchiveFilters ?? {};
+  const primaryMarkup = `
+    ${buildEarthquakeMobileViewSwitch("history")}
+    <div class="mobile-dock-earthquake-distribution-summary">
+      <div class="mobile-dock-earthquake-distribution-head">
+        <span class="mobile-dock-kicker">過去の地震・${escapeHtml(formatArchiveDate(filters.startDate))}〜</span>
+        <strong>${["idle", "loading"].includes(status) ? "取得中" : `${count.toLocaleString("ja-JP")}件`}</strong>
+      </div>
+      <div class="mobile-dock-earthquake-distribution-range-hint">${selected
+        ? `${escapeHtml(formatArchiveDateTime(selected.originTime))}・${escapeHtml(selected.place)}`
+        : status === "error" ? "検索データを取得できませんでした" : "詳細パネルで検索条件を指定"}</div>
+    </div>
+  `;
+  return buildMobileEarthquakeSummaryCarousel({
+    containerClass: "mobile-dock-content mobile-dock-earthquake-distribution mobile-dock-earthquake-carousel",
+    primaryAriaLabel: "過去の地震検索要約",
+    primaryDotLabel: "過去の地震",
+    primaryMarkup,
+    earthquake: null,
+    tsunami: data.tsunami,
+    tsunamiStatus: data.tsunamiStatus,
+    tideObservation: data.tideObservation
+  });
+}
+
 function buildDistributionDateButton(selectedDate, compact = false, disabled = false, dayOffset = 0, maximumOffset = 0) {
   const isEnglish = getCurrentLanguage() === "en";
   const label = selectedDate
@@ -7038,6 +7252,7 @@ function buildEarthquakeMobileViewSwitch(activeView) {
     <div class="mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented mobile-dock-earthquake-view-switch" role="tablist" aria-label="地震情報の表示">
       <button type="button" role="tab" class="mobile-dock-action${activeView === "recent" ? " active" : ""}" data-mobile-dock-control data-earthquake-view="recent" aria-selected="${activeView === "recent"}">最近の地震</button>
       <button type="button" role="tab" class="mobile-dock-action${activeView === "distribution" ? " active" : ""}" data-mobile-dock-control data-earthquake-view="distribution" aria-selected="${activeView === "distribution"}">震央分布</button>
+      <button type="button" role="tab" class="mobile-dock-action${activeView === "history" ? " active" : ""}" data-mobile-dock-control data-earthquake-view="history" aria-selected="${activeView === "history"}">過去の地震</button>
     </div>
   `;
 }

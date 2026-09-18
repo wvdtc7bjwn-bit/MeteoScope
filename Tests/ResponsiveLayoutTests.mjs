@@ -252,7 +252,7 @@ assert.match(panelToggle, /classList\.toggle\("is-vertical-dragging", initialAxi
 assert.match(panelToggle, /classList\.remove\("is-vertical-dragging"\)/);
 assert.match(
   panelToggle,
-  /function isSidebarGrabEvent\(event\)[\s\S]*?sidebarRect\.top \+ 64[\s\S]*?button, a, input, select, textarea[\s\S]*?sidebar\.addEventListener\("pointerdown"[\s\S]*?beginDrag\(event, sidebar, "y"\)/
+  /function isSidebarGrabEvent\(event\)[\s\S]*?sidebarRect\.top \+ 64[\s\S]*?button, a, input, select, textarea, label, form[\s\S]*?sidebar\.addEventListener\("pointerdown"[\s\S]*?beginDrag\(event, sidebar, "y"\)/
 );
 assert.match(panelToggle, /classList\.toggle\("is-drawer-grab-active", absorptionProgress < 0\.86\)/);
 assert.match(panelToggle, /setDrawerState\(drawerState === "peek" \? "full" : "peek"\);/);

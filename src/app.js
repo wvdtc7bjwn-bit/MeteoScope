@@ -53,6 +53,7 @@ import {
   normalizeHypocenterDistributionRange,
   fetchHypocenterDistribution
 } from "./jma/hypocenterDistribution.js";
+import { searchEarthquakeHistory } from "./jma/earthquakeHistory.js";
 import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFrameIndex } from "./jma/weatherChart.js";
 import { resolveCurrentLocationInfo, searchMunicipalities } from "./location/currentLocation.js";
 import { addMyArea, getMyAreaLimit, loadMyAreas, removeMyArea } from "./location/myAreas.js";
@@ -365,6 +366,10 @@ export function createWeatherApp() {
   let earthquakeDistributionState = { status: "idle", data: null, error: "" };
   let earthquakeDistributionRequestId = 0;
   let earthquakeDistributionAreaDrawing = false;
+  let earthquakeArchiveFilters = {};
+  let earthquakeArchiveState = { status: "idle", data: null, error: "" };
+  let earthquakeArchiveRequestId = 0;
+  let selectedHistoricalEarthquakeId = "";
   let earthquakeSummaryPage = "earthquake";
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
   let earlyAccessActiveFaultSource = loadEarlyAccessActiveFaultSource();
@@ -1411,7 +1416,7 @@ if (layerId === "river") {
   }
 
   function selectEarthquakeView(view) {
-    if (!["recent", "distribution"].includes(view)) return;
+    if (!["recent", "distribution", "history"].includes(view)) return;
     if (view !== "distribution" && earthquakeDistributionAreaDrawing) {
       weatherMap?.cancelHypocenterAreaDrawing();
       earthquakeDistributionAreaDrawing = false;
@@ -1422,6 +1427,53 @@ if (layerId === "river") {
     updateCurrentView(tab, latestDataByTab.earthquake ?? {});
     if (view === "distribution" && earthquakeDistributionState.status === "idle") {
       void refreshEarthquakeDistribution();
+    }
+    if (view === "history" && earthquakeArchiveState.status === "idle") {
+      void refreshEarthquakeArchive();
+    }
+  }
+
+  async function refreshEarthquakeArchive(filters = earthquakeArchiveFilters) {
+    earthquakeArchiveFilters = { ...earthquakeArchiveFilters, ...filters };
+    const requestId = ++earthquakeArchiveRequestId;
+    earthquakeArchiveState = {
+      ...earthquakeArchiveState,
+      status: earthquakeArchiveState.data ? "refreshing" : "loading",
+      error: ""
+    };
+    if (activeTab === "earthquake" && earthquakeView === "history") {
+      updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+    }
+    try {
+      const data = await searchEarthquakeHistory(earthquakeArchiveFilters);
+      if (requestId !== earthquakeArchiveRequestId) return;
+      earthquakeArchiveFilters = data.filters;
+      earthquakeArchiveState = { status: "ok", data, error: "" };
+      if (!data.items.some((item) => item.id === selectedHistoricalEarthquakeId)) {
+        selectedHistoricalEarthquakeId = data.items[0]?.id ?? "";
+      }
+    } catch (error) {
+      if (requestId !== earthquakeArchiveRequestId) return;
+      earthquakeArchiveState = {
+        ...earthquakeArchiveState,
+        status: "error",
+        error: error?.message ?? "過去の地震を検索できませんでした"
+      };
+    }
+    if (activeTab === "earthquake" && earthquakeView === "history") {
+      updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+    }
+  }
+
+  function selectHistoricalEarthquake(earthquakeId) {
+    const item = earthquakeArchiveState.data?.items?.find((candidate) => (
+      String(candidate.id) === String(earthquakeId)
+    ));
+    if (!item) return;
+    selectedHistoricalEarthquakeId = String(item.id);
+    if (activeTab === "earthquake" && earthquakeView === "history") {
+      updateCurrentView(TABS.find((candidate) => candidate.id === "earthquake"), latestDataByTab.earthquake ?? {});
+      weatherMap?.flyToLocation(item.coordinates, { minZoom: 6.5, duration: 750 });
     }
   }
 
@@ -2066,6 +2118,14 @@ if (layerId === "river") {
       distributionAreaDrawing: earthquakeDistributionAreaDrawing,
       distributionItems: distribution?.items ?? []
     };
+    const archiveData = {
+      earthquakeArchiveFilters,
+      earthquakeArchiveStatus: earthquakeArchiveState.status,
+      earthquakeArchiveError: earthquakeArchiveState.error,
+      earthquakeArchive: earthquakeArchiveState.data,
+      earthquakeArchiveItems: earthquakeArchiveState.data?.items ?? [],
+      selectedHistoricalEarthquakeId
+    };
     const tideData = {
       tideObservation,
       selectedTideStationCode: tideObservation.station?.code ?? "",
@@ -2077,6 +2137,7 @@ if (layerId === "river") {
       return {
         ...data,
         ...distributionData,
+        ...archiveData,
         ...tideData,
         earthquakeHistoryVisibleCount,
         earthquakeHistoryLoadingMore,
@@ -2096,6 +2157,7 @@ if (layerId === "river") {
     return {
       ...data,
       ...distributionData,
+      ...archiveData,
       ...tideData,
       activeFaultVisible: earthquakeActiveFaultVisible,
       activeFaultSource: getEffectiveActiveFaultSource(),
@@ -3589,6 +3651,12 @@ if (layerId === "river") {
         refreshVolcanoView();
       },
       onViewChange: selectEarthquakeView,
+      onArchiveFilterChange: (filters) => {
+        earthquakeArchiveFilters = { ...earthquakeArchiveFilters, ...filters };
+      },
+      onArchiveSearch: refreshEarthquakeArchive,
+      onArchiveSelect: selectHistoricalEarthquake,
+      onArchiveRetry: () => refreshEarthquakeArchive(earthquakeArchiveFilters),
       onDistributionPresentationChange: selectEarthquakeDistributionPresentation,
       onDistributionFilterChange: updateEarthquakeDistributionFilters,
       onDistributionRangeModeChange: selectEarthquakeDistributionRangeMode,

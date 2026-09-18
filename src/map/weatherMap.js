@@ -4447,6 +4447,34 @@ function createEarthquakeFeatures(data) {
     });
     return [...createTideStationFeatures(data), ...distributionFeatures];
   }
+  if (getEarthquakeMapView(data) === "history") {
+    const selectedId = String(data?.selectedHistoricalEarthquakeId ?? "");
+    const historyFeatures = (data?.earthquakeArchiveItems ?? []).flatMap((item) => {
+      const longitude = Number(item.longitude);
+      const latitude = Number(item.latitude);
+      if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return [];
+      const selected = String(item.id) === selectedId;
+      const magnitude = item?.magnitude == null ? Number.NaN : Number(item.magnitude);
+      return [{
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [longitude, latitude] },
+        properties: {
+          color: getEarthquakeIntensityColor(item.maxIntensity === "felt" ? "1" : item.maxIntensity),
+          opacity: selected ? 1 : 0.64,
+          strokeWidth: selected ? 2.5 : 0.7,
+          markerType: "hypocenter-distribution",
+          markerScaleMode: "fixed",
+          radius: selected
+            ? 10
+            : Number.isFinite(magnitude) ? Math.max(4, Math.min(9, 2.5 + magnitude)) : 4,
+          sortKey: selected ? 2_000 : (Number.isFinite(magnitude) ? magnitude : 0),
+          label: "",
+          popup: buildHistoricalEarthquakePopup(item)
+        }
+      }];
+    });
+    return [...createTideStationFeatures(data), ...historyFeatures];
+  }
   const tsunamiFeatures = (data?.tsunami?.mapFeatures ?? [])
     .filter((feature) => (
       data?.tideStationsVisible !== true
@@ -4686,11 +4714,12 @@ function buildHypocenterDistributionPopup(item) {
   `;
 }
 
-function formatDistributionOriginTime(value) {
+function formatDistributionOriginTime(value, includeYear = false) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return String(value ?? "時刻不明");
   return new Intl.DateTimeFormat("ja-JP", {
     timeZone: "Asia/Tokyo",
+    ...(includeYear ? { year: "numeric" } : {}),
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -5271,6 +5300,25 @@ function createTyphoonStormWarningShapeFeatures(typhoon) {
     });
 
   return features;
+}
+
+function buildHistoricalEarthquakePopup(item) {
+  const magnitudeNumber = item?.magnitude == null ? Number.NaN : Number(item.magnitude);
+  const depthNumber = item?.depthKm == null ? Number.NaN : Number(item.depthKm);
+  const magnitude = Number.isFinite(magnitudeNumber) ? `M${magnitudeNumber.toFixed(1)}` : "M不明";
+  const depth = Number.isFinite(depthNumber) ? `${depthNumber}km` : "不明";
+  const intensity = item?.maxIntensity === "felt"
+    ? "有感"
+    : `震度${String(item?.maxIntensity ?? "不明").replace("-", "弱").replace("+", "強")}`;
+  const sourceLink = item?.sourceUrl
+    ? `<br><a href="${escapePopup(item.sourceUrl)}" target="_blank" rel="noopener noreferrer">気象庁で確認 ↗</a>`
+    : "";
+  return `
+    <strong>${escapePopup(item?.place ?? "震央地名不明")}</strong><br>
+    <span>${escapePopup(formatDistributionOriginTime(item?.originTime, true))}</span><br>
+    <span>${escapePopup(intensity)}・${escapePopup(magnitude)}・深さ ${escapePopup(depth)}</span>
+    ${sourceLink}
+  `;
 }
 
 function createTyphoonForecastAreaFeatures(typhoon) {
