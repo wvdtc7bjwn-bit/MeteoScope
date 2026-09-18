@@ -8,11 +8,25 @@ import {
   getHistoricalIntensityRank,
   normalizeEarthquakeHistoryFilters
 } from "../src/jma/earthquakeHistory.js";
-import { translateHistoricalEpicenterName } from "../src/jma/historicalEpicenterNames.js";
+import {
+  normalizeHistoricalEpicenterName,
+  translateHistoricalEpicenterName
+} from "../src/jma/historicalEpicenterNames.js";
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
 const dataDirectory = path.join(projectRoot, "public", "data", "earthquake-history");
 const manifest = JSON.parse(await readFile(path.join(dataDirectory, "manifest.json"), "utf8"));
+const officialEpicenterExpectations = [
+  ["19980422203248420", "滋賀・岐阜県境", "三重県北部"],
+  ["20090218064707060", "滋賀・岐阜県境", "岐阜県美濃中西部"],
+  ["20111121191629590", "島根・広島県境", "広島県北部"],
+  ["20180409013230810", "島根・広島県境", "島根県西部"],
+  ["20180617152721870", "栃木・群馬県境", "群馬県南部"],
+  ["20180618075834140", "京都・大阪府境", "大阪府北部"],
+  ["20180626170009660", "島根・広島県境", "広島県北部"],
+  ["20200519131258160", "飛騨山脈", "岐阜県飛騨地方"],
+  ["20220502222103180", "京都・大阪府境", "京都府南部"]
+];
 
 assert.equal(EARTHQUAKE_HISTORY_RESULT_LIMIT, 1_000, "検索結果の上限が意図せず変わっている");
 assert.equal(EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT, 200, "一覧表示の上限が意図せず変わっている");
@@ -38,7 +52,9 @@ assert.deepEqual(
 let totalCount = 0;
 let totalBytes = (await stat(path.join(dataDirectory, "manifest.json"))).size;
 const recordIds = new Set();
+const recordsById = new Map();
 const intensityCounts = new Map();
+let legacyEpicenterNameCount = 0;
 for (const yearEntry of manifest.years) {
   const filePath = path.join(dataDirectory, yearEntry.file);
   const raw = await readFile(filePath, "utf8");
@@ -49,12 +65,14 @@ for (const yearEntry of manifest.years) {
   for (let index = 0; index < records.length; index += 1) {
     const record = records[index];
     intensityCounts.set(record.i, (intensityCounts.get(record.i) ?? 0) + 1);
+    if (/県境|山脈|山系/u.test(record.p)) legacyEpicenterNameCount += 1;
     const date = String(record.t).slice(0, 10);
     assert.ok(date >= manifest.startDate && date <= manifest.endDate, `${record.id}が50年範囲外`);
     assert.ok(Number.isFinite(Number(record.la)) && Number.isFinite(Number(record.lo)), `${record.id}の座標が不正`);
     assert.ok(record.id && record.p && record.i, `${record.id || yearEntry.year}の必須項目が不足`);
     assert.ok(!recordIds.has(record.id), `${record.id}の内部IDが重複している`);
     recordIds.add(record.id);
+    recordsById.set(record.id, record);
     if (index > 0) {
       assert.ok(records[index - 1].t >= record.t, `${yearEntry.year}年のデータが新しい順ではない`);
     }
@@ -62,6 +80,7 @@ for (const yearEntry of manifest.years) {
 }
 assert.equal(totalCount, manifest.totalCount, "全シャード件数と目録件数が一致しない");
 assert.ok(totalBytes < 30 * 1024 * 1024, "静的データが想定した30MiBを超えている");
+assert.equal(legacyEpicenterNameCount, 0, "旧カタログの県境・山脈・山系名が残っている");
 for (const intensity of ["1", "2", "3"]) {
   assert.ok((intensityCounts.get(intensity) ?? 0) > 0, `震度${intensity}の履歴データが欠けている`);
 }
@@ -75,13 +94,20 @@ assert.ok(getHistoricalIntensityRank("6+") > getHistoricalIntensityRank("6-"));
 assert.equal(formatHistoricalIntensity("5-"), "5弱");
 assert.equal(translateHistoricalEpicenterName("FAR E OFF MIYAGI PREF"), "宮城県東方はるか沖");
 assert.equal(translateHistoricalEpicenterName("E OFF MIYAGI PREF"), "宮城県東方沖");
+for (const [id, catalogueName, officialName] of officialEpicenterExpectations) {
+  assert.equal(normalizeHistoricalEpicenterName(id, catalogueName), officialName);
+  assert.equal(recordsById.get(id)?.p, officialName, `${id}には公式の震央地名を表示する`);
+}
+assert.equal(normalizeHistoricalEpicenterName("20170108230650810", "京都・大阪府境"), "京都・大阪府境");
 
-const [generator, app, panel, map, updateWorkflow] = await Promise.all([
+const [generator, app, panel, map, updateWorkflow, epicenterRegionUpdater, epicenterRegionApplier] = await Promise.all([
   readFile(path.join(projectRoot, "scripts", "update-jma-earthquake-history.mjs"), "utf8"),
   readFile(path.join(projectRoot, "src", "app.js"), "utf8"),
   readFile(path.join(projectRoot, "src", "ui", "leftPanel.js"), "utf8"),
   readFile(path.join(projectRoot, "src", "map", "weatherMap.js"), "utf8"),
-  readFile(path.join(projectRoot, ".github", "workflows", "earthquake-history-data.yml"), "utf8")
+  readFile(path.join(projectRoot, ".github", "workflows", "earthquake-history-data.yml"), "utf8"),
+  readFile(path.join(projectRoot, "scripts", "update-jma-earthquake-epicenter-regions.mjs"), "utf8"),
+  readFile(path.join(projectRoot, "scripts", "apply-jma-earthquake-epicenter-regions.mjs"), "utf8")
 ]);
 
 assert.match(generator, /const HISTORY_YEARS = 50;/u);
@@ -93,7 +119,7 @@ assert.match(generator, /replaceRecordsInRange\(recordsByYear, refreshStartDate,
 assert.match(generator, /unlink\(path\.join\(OUTPUT_DIR, entry\.name\)\)/u);
 assert.match(generator, /readCachedUrl/u);
 assert.match(generator, /readCachedIntensityQuery/u);
-assert.match(generator, /translateHistoricalEpicenterName/u);
+assert.match(generator, /normalizeHistoricalEpicenterName/u);
 assert.match(generator, /hundredthsOfKilometers \/ 100/u);
 assert.match(app, /view === "history"/u);
 assert.match(app, /onArchiveFilterChange:[\s\S]*?earthquakeArchiveFilters = \{ \.\.\.earthquakeArchiveFilters, \.\.\.filters \}/u);
@@ -120,5 +146,8 @@ assert.match(updateWorkflow, /id: data-changes/u);
 assert.match(updateWorkflow, /git add public\/data\/earthquake-history/u);
 assert.match(updateWorkflow, /git push/u);
 assert.doesNotMatch(updateWorkflow, /CLOUDFLARE_API_TOKEN|npm run deploy:cloudflare/u);
+assert.match(epicenterRegionUpdater, /0Quake\/JMA_Region/u);
+assert.match(epicenterRegionApplier, /isPointInGeometry/u);
+assert.match(epicenterRegionApplier, /normalizeHistoricalEpicenterName/u);
 
 console.log(`Earthquake history tests passed: ${totalCount.toLocaleString("ja-JP")} records, ${(totalBytes / 1024 / 1024).toFixed(2)} MiB.`);

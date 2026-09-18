@@ -385,6 +385,14 @@ assert.match(
   styles,
   /@supports \(-webkit-touch-callout:\s*none\)\s*\{[\s\S]*?@media \(max-width:\s*600px\)\s*\{[\s\S]*?\.earthquake-distribution-range-controls input\[type="date"\]\s*\{[\s\S]*?-webkit-appearance:\s*none;[\s\S]*?appearance:\s*none;[\s\S]*?inline-size:\s*100%;[\s\S]*?min-inline-size:\s*0;[\s\S]*?max-inline-size:\s*100%;[\s\S]*?overflow:\s*hidden;/
 );
+assert.match(
+  styles,
+  /\.earthquake-distribution-range-controls input\[type="date"\]\s*\{[\s\S]*?block-size:\s*34px;[\s\S]*?min-block-size:\s*34px;[\s\S]*?padding-block:\s*0;[\s\S]*?line-height:\s*32px;[\s\S]*?text-align:\s*center;/
+);
+assert.match(
+  styles,
+  /\.earthquake-distribution-range-controls input\[type="date"\]::-webkit-datetime-edit,[\s\S]*?::-webkit-datetime-edit-fields-wrapper\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?block-size:\s*100%;/
+);
 
 assert.match(index, /width=device-width/);
 assert.match(index, /viewport-fit=cover/);

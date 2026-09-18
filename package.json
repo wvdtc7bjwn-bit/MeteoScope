@@ -12,6 +12,8 @@
     "data:build:map-geometry": "node scripts/build-map-display-geometry.mjs",
     "data:update:tsunami-stations": "node scripts/update-jma-tsunami-observation-stations.mjs",
     "data:update:earthquake-history": "node scripts/update-jma-earthquake-history.mjs",
+    "data:update:earthquake-epicenter-regions": "node scripts/update-jma-earthquake-epicenter-regions.mjs",
+    "data:apply:earthquake-epicenter-regions": "node scripts/apply-jma-earthquake-epicenter-regions.mjs",
     "data:update:usgs-slab2": "node scripts/build-usgs-slab2-contours.mjs",
     "data:build:usgs-surface": "node scripts/build-usgs-slab2-surface.mjs",
     "data:upload:gsj-active-fault": "node scripts/upload-protected-gsj-active-fault.mjs",

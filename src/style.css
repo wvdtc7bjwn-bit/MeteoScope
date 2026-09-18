@@ -17106,8 +17106,26 @@ html[data-theme="light"] .typhoon-world-attribution a {
       inline-size: 100%;
       min-inline-size: 0;
       max-inline-size: 100%;
+      block-size: 34px;
+      min-block-size: 34px;
       overflow: hidden;
+      padding-block: 0;
       padding-inline: 6px;
+      line-height: 32px;
+      text-align: center;
+    }
+
+    .earthquake-distribution-range-controls input[type="date"]::-webkit-date-and-time-value {
+      min-block-size: 100%;
+      text-align: center;
+    }
+
+    .earthquake-distribution-range-controls input[type="date"]::-webkit-datetime-edit,
+    .earthquake-distribution-range-controls input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+      display: flex;
+      align-items: center;
+      block-size: 100%;
+      padding: 0;
     }
   }
 }

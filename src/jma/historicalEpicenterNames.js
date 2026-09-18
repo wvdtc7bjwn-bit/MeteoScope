@@ -288,7 +288,27 @@ export const HISTORICAL_EPICENTER_NAMES = Object.freeze(Object.fromEntries(
   NAME_PAIRS.trim().split("\n").map((pair) => pair.split("\t", 2))
 ));
 
+// The catalogue's regional label can differ from the official name used for a
+// notable event. Keep these narrowly scoped so the generic name stays usable.
+const HISTORICAL_EVENT_EPICENTER_OVERRIDES = Object.freeze({
+  "19980422203248420": "三重県北部",
+  "20090218064707060": "岐阜県美濃中西部",
+  "20111121191629590": "広島県北部",
+  "20180409013230810": "島根県西部",
+  "20180617152721870": "群馬県南部",
+  "20180618075834140": "大阪府北部",
+  "20180626170009660": "広島県北部",
+  "20200519131258160": "岐阜県飛騨地方",
+  "20220502222103180": "京都府南部"
+});
+
 export function translateHistoricalEpicenterName(value) {
   const original = String(value ?? "").trim();
   return HISTORICAL_EPICENTER_NAMES[original] ?? (original || "詳細不明");
+}
+
+export function normalizeHistoricalEpicenterName(id, value) {
+  const normalizedId = String(id ?? "").trim();
+  return HISTORICAL_EVENT_EPICENTER_OVERRIDES[normalizedId]
+    ?? translateHistoricalEpicenterName(value);
 }

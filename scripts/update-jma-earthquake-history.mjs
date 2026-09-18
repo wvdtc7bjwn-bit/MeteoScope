@@ -1,7 +1,7 @@
 import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import AdmZip from "adm-zip";
-import { translateHistoricalEpicenterName } from "../src/jma/historicalEpicenterNames.js";
+import { normalizeHistoricalEpicenterName } from "../src/jma/historicalEpicenterNames.js";
 
 const ARCHIVE_BASE_URL = "https://www.data.jma.go.jp/eqev/data/bulletin/data/hypo";
 const INTENSITY_API_URL = "https://www.data.jma.go.jp/eqdb/data/shindo/api/";
@@ -93,7 +93,10 @@ async function readExistingYear(year) {
   try {
     const records = JSON.parse(await readFile(path.join(OUTPUT_DIR, `${year}.json`), "utf8"));
     if (!Array.isArray(records)) throw new Error(`${year}年の既存地震データが配列ではありません`);
-    return records;
+    return records.map((record) => ({
+      ...record,
+      p: normalizeHistoricalEpicenterName(record?.id, record?.p)
+    }));
   } catch (error) {
     if (error?.code === "ENOENT") return null;
     throw error;
@@ -158,7 +161,7 @@ function parseHypocenterRecord(line) {
   return [{
     id,
     t: `${date}T${time}+09:00`,
-    p: translateHistoricalEpicenterName(line.slice(68, 92)),
+    p: normalizeHistoricalEpicenterName(id, line.slice(68, 92)),
     la: latitude,
     lo: longitude,
     d: parseDepth(line.slice(44, 49)),
@@ -224,7 +227,7 @@ function normalizeIntensityApiRecord(entry) {
   return [{
     id: String(entry.id),
     t: originTime,
-    p: String(entry.name ?? "詳細不明"),
+    p: normalizeHistoricalEpicenterName(entry.id, entry.name),
     la: roundCoordinate(latitude),
     lo: roundCoordinate(longitude),
     d: depthMatch ? Number(depthMatch[1]) : null,
