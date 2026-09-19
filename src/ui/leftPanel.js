@@ -1126,7 +1126,9 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
   let draggingSlider = null;
   let draggingSliderStartX = null;
   let draggingSliderStartValue = null;
+  let draggingSliderValue = null;
   let previewedSliderValue = null;
+  let draggingSliderMoved = false;
   const isSatelliteSlider = (slider) => slider?.matches?.("[data-mobile-weather-satellite-slider]");
   const isWeatherChartSlider = (slider) => slider?.id === "weather-chart-time-slider" || slider?.matches?.("[data-mobile-weather-chart-slider]") || isSatelliteSlider(slider);
   const commitSlider = (slider) => {
@@ -1151,7 +1153,9 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     draggingSlider = event.target;
     draggingSliderStartX = event.clientX;
     draggingSliderStartValue = Number(event.target.value) || 0;
+    draggingSliderValue = draggingSliderStartValue;
     previewedSliderValue = null;
+    draggingSliderMoved = false;
     if (event.target.matches("[data-mobile-weather-chart-slider]") || isSatelliteSlider(event.target)) mobileRadarDockSliding = true;
     beginWeatherTimelineDrag(event.target);
     previewSlider(event.target);
@@ -1163,18 +1167,26 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
   const handleInput = (event) => {
     if (!(event.target instanceof HTMLInputElement)) return;
     if (!isWeatherChartSlider(event.target)) return;
+    // The invisible range input may still emit an input event while a pointer
+    // drag is in progress. The drag owns the value in that case; otherwise a
+    // native range update can briefly overwrite the timeline position.
+    if (draggingSlider === event.target) return;
     previewSlider(event.target);
     if (draggingSlider !== event.target) commitSlider(event.target);
   };
 
   const handlePointerMove = (event) => {
     if (!draggingSlider) return;
-    updateSliderFromTimelineDrag(
+    if (Math.abs(event.clientX - draggingSliderStartX) < 2) return;
+    draggingSliderMoved = true;
+    const nextValue = updateSliderFromTimelineDrag(
       draggingSlider,
       draggingSliderStartX,
       draggingSliderStartValue,
       event.clientX,
     );
+    if (nextValue === null) return;
+    draggingSliderValue = nextValue;
     previewSlider(draggingSlider);
     updateWeatherTimelineDragPosition(
       draggingSlider,
@@ -1186,29 +1198,33 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     event.stopPropagation();
   };
 
-  const handleChange = (event) => {
-    if (!(event.target instanceof HTMLInputElement)) return;
-    commitSlider(event.target);
-  };
-
   const handlePointerUp = (event) => {
     if (!draggingSlider) return;
     const finishedSlider = draggingSlider;
-    updateSliderFromTimelineDrag(
-      finishedSlider,
-      draggingSliderStartX,
-      draggingSliderStartValue,
-      event.clientX,
-    );
-    previewSlider(draggingSlider);
-    commitSlider(draggingSlider);
-    finishWeatherTimelineDrag(finishedSlider, Number(finishedSlider?.value));
+    if (!draggingSliderMoved) {
+      const nextValue = updateSliderFromTimelineDrag(
+        finishedSlider,
+        draggingSliderStartX,
+        draggingSliderStartValue,
+        event.clientX,
+      );
+      if (nextValue !== null) draggingSliderValue = nextValue;
+      previewSlider(finishedSlider);
+    }
+    const committedValue = Number.isFinite(draggingSliderValue)
+      ? draggingSliderValue
+      : Number(finishedSlider.value);
+    finishedSlider.value = String(committedValue);
+    finishWeatherTimelineDrag(finishedSlider, committedValue);
     finishedSlider.releasePointerCapture?.(event.pointerId);
     if (finishedSlider?.matches?.("[data-mobile-weather-chart-slider]") || isSatelliteSlider(finishedSlider)) mobileRadarDockSliding = false;
     draggingSlider = null;
     draggingSliderStartX = null;
     draggingSliderStartValue = null;
+    draggingSliderValue = null;
     previewedSliderValue = null;
+    draggingSliderMoved = false;
+    commitSlider(finishedSlider);
     event.preventDefault();
     event.stopPropagation();
   };
@@ -1216,13 +1232,20 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
   const handlePointerCancel = (event) => {
     if (!draggingSlider) return;
     const cancelledSlider = draggingSlider;
-    finishWeatherTimelineDrag(cancelledSlider, Number(cancelledSlider?.value));
+    const committedValue = Number.isFinite(draggingSliderValue)
+      ? draggingSliderValue
+      : Number(cancelledSlider?.value);
+    cancelledSlider.value = String(committedValue);
+    finishWeatherTimelineDrag(cancelledSlider, committedValue);
     cancelledSlider.releasePointerCapture?.(event.pointerId);
     if (cancelledSlider?.matches?.("[data-mobile-weather-chart-slider]") || isSatelliteSlider(cancelledSlider)) mobileRadarDockSliding = false;
     draggingSlider = null;
     draggingSliderStartX = null;
     draggingSliderStartValue = null;
+    draggingSliderValue = null;
     previewedSliderValue = null;
+    draggingSliderMoved = false;
+    commitSlider(cancelledSlider);
     event.preventDefault();
     event.stopPropagation();
   };
@@ -1231,7 +1254,6 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     element.addEventListener("pointerdown", handlePointerDown);
     element.addEventListener("input", handleInput);
     element.addEventListener("pointermove", handlePointerMove);
-    element.addEventListener("change", handleChange);
     element.addEventListener("pointerup", handlePointerUp);
     element.addEventListener("pointercancel", handlePointerCancel);
   });

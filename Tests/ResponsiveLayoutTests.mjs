@@ -654,6 +654,14 @@ assert.match(
   panel,
   /function setupRadarControls[\s\S]*?previewSlider[\s\S]*?updateSliderFromTimelineDrag\([\s\S]*?onSeek\?\.\(value\)[\s\S]*?updateWeatherTimelineDragPosition\(/
 );
+const weatherChartControlsStart = panel.indexOf("export function setupWeatherChartControls");
+const weatherChartControlsEnd = panel.indexOf("\nexport function ", weatherChartControlsStart + 1);
+const weatherChartControls = panel.slice(weatherChartControlsStart, weatherChartControlsEnd);
+assert.ok(weatherChartControlsStart >= 0);
+assert.match(weatherChartControls, /let draggingSliderMoved = false;/);
+assert.match(weatherChartControls, /if \(!draggingSliderMoved\) \{[\s\S]*?updateSliderFromTimelineDrag\(/);
+assert.match(weatherChartControls, /draggingSliderMoved = false;[\s\S]*?commitSlider\(finishedSlider\);/);
+assert.doesNotMatch(weatherChartControls, /addEventListener\("change", handleChange\)/);
 assert.match(
   styles,
   /\.weather-time-range:focus-visible,\s*\.weather-time-timeline:focus-within\s*\{\s*outline:\s*none;/
@@ -679,7 +687,7 @@ assert.match(
 );
 assert.match(
   panel,
-  /const handlePointerUp = \(event\) => \{[\s\S]*?updateSliderFromTimelineDrag\([\s\S]*?commitSlider\(draggingSlider\)/
+  /const handlePointerUp = \(event\) => \{[\s\S]*?if \(!draggingSliderMoved\) \{[\s\S]*?updateSliderFromTimelineDrag\([\s\S]*?commitSlider\(finishedSlider\)/
 );
 assert.match(panel, /data-mobile-weather-date/);
 assert.match(panel, /data-mobile-weather-dates=/);
