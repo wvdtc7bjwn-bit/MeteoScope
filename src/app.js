@@ -74,7 +74,6 @@ import { yieldToMainThread } from "./scheduling.js";
 import { setupLongPressButton } from "./ui/longPressButton.js";
 import { setupEarthquakeLongPressHint } from "./ui/earthquakeLongPressHint.js";
 import { setupMapUtilityMenu } from "./ui/mapUtilityMenu.js";
-import { openMeteoScopeLensModal, setupMeteoScopeLensModal } from "./ui/meteoScopeLensModal.js";
 import { getSocialSharePayload } from "./socialShareState.js";
 import { recordDiagnostic } from "./runtimeDiagnostics.js";
 
@@ -485,23 +484,9 @@ export function createWeatherApp() {
       : (label ? `${label}を読み込み中` : "このタブでは画像共有を利用できません");
   }
 
-  function syncMeteoScopeLensButton(tabId = activeTab) {
-    const button = document.getElementById("meteoscope-lens-button");
-    if (!button) return;
-    const available = tabId === "amedas" && (latestDataByTab.amedas?.points?.length ?? 0) > 0;
-    button.hidden = tabId !== "amedas";
-    button.disabled = !available;
-    button.classList.remove("is-early-access-locked");
-    button.setAttribute("aria-label", !available
-      ? "AMeDAS情報を読み込み中"
-      : "MeteoScope Lensを開く");
-    button.title = "MeteoScope Lens";
-  }
-
   function renderLeftPanelState(tab, panelState) {
     updateLeftPanel(tab, panelState);
     syncSocialShareMapButton(tab?.id);
-    syncMeteoScopeLensButton(tab?.id);
     syncWeatherDistributionToggle({
       visible: tab?.id === "radar" && Boolean(weatherDistributionMode),
       activeMode: tab?.id === "radar" ? weatherDistributionMode : null
@@ -723,7 +708,6 @@ export function createWeatherApp() {
     document.dispatchEvent(new CustomEvent("meteoscope:early-access-change"));
     void applyActiveFaultDataSource();
     refreshWeatherChartAccessMode();
-    syncMeteoScopeLensButton();
     if (!earlyAccessEnabled && amedasDailyChartDayOffset === 1) {
       amedasDailyChartDayOffset = 0;
       const selectedPoint = (latestDataByTab.amedas?.points ?? [])
@@ -3898,18 +3882,6 @@ if (layerId === "river") {
     setupDisasterQuizModal();
     setupDisasterTimelineModal();
     setupMapUtilityMenu();
-    setupMeteoScopeLensModal({
-      getContext: () => ({
-        data: latestDataByTab.amedas,
-        metricId: activeAmedasMetric,
-        precipitationPeriod: activeAmedasPrecipitationPeriod,
-        currentLocation: currentLocationInfo,
-        earlyAccessEnabled
-      })
-    });
-    document.getElementById("meteoscope-lens-button")?.addEventListener("click", () => {
-      openMeteoScopeLensModal();
-    });
     setupCommunityReportModal({
       getContext: () => ({ currentLocation: currentLocationInfo }),
       onSubmitted: () => refreshCommunityReports({ force: true }),

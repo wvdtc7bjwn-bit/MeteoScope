@@ -4088,7 +4088,7 @@ function updateWeatherChartSatelliteLayer(map, mode, data = {}) {
       source: HIMAWARI_SATELLITE_SOURCE_ID,
       layout: { visibility: "visible" },
       paint: {
-        "raster-opacity": 0.44,
+        "raster-opacity": 0.58,
         "raster-saturation": -0.22,
         "raster-contrast": 0.06,
         "raster-fade-duration": 0

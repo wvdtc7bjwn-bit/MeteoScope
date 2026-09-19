@@ -451,6 +451,7 @@ for (const modalId of ["settings", "feedback", "weekly-weather", "disaster-map",
 }
 assert.match(index, /<header class="settings-modal-header legal-consent-header">\s*<h2 id="legal-consent-title">/u);
 assert.match(index, /<header class="settings-modal-header onboarding-header">\s*<h2 id="onboarding-title">/u);
+assert.match(index, /プライバシーポリシー[\s\S]*?<\/section>\s*<section class="settings-group" data-settings-section="support">[\s\S]*?<strong>謝辞<\/strong>/u);
 assert.match(index, /id="radar-time-timeline"\s+class="weather-time-timeline"/);
 assert.match(index, /id="radar-time-timeline"[\s\S]*?id="radar-location-insight-panel"[\s\S]*?class="weather-time-labels"/);
 assert.match(panel, /timeline\.points\.map\(\(point,\s*pointIndex\)[\s\S]*?--weather-time-index:\s*\$\{pointIndex\}/);

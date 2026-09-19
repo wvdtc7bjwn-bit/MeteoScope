@@ -43,6 +43,7 @@ assert.match(panelSource, /data-mobile-weather-satellite-slider/);
 assert.doesNotMatch(panelSource, /satelliteActive/);
 assert.match(mapSource, /updateWeatherChartSatelliteLayer\(map, mode, data\);[\s\S]*?updateWeatherChartLayer\(map, mode, data\);/);
 assert.match(mapSource, /type: "raster"[\s\S]*?tiles: \[frame\.tileUrl\]/);
+assert.match(mapSource, /HIMAWARI_SATELLITE_LAYER_ID[\s\S]*?"raster-opacity": 0\.58/);
 assert.match(mapSource, /weatherChartSatellite\?\.weatherChartOverlayEnabled/);
 assert.match(mapSource, /satellite\?\.enabled && satellite\.weatherChartOverlayEnabled/);
 assert.match(mapSource, /weatherChartSatellite\?\.enabled\s*&&[\s\S]*?weatherChartSatellite\?\.weatherChartOverlayEnabled/);

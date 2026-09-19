@@ -295,6 +295,8 @@ const EXACT_TRANSLATIONS = new Map(Object.entries({
   "使い方": "How to use",
   "利用規約": "Terms of Use",
   "プライバシーポリシー": "Privacy Policy",
+  "謝辞": "Acknowledgements",
+  "データ提供・技術への感謝": "Data and technology acknowledgements",
   "情報出典・加工": "Sources and processing",
   "外観": "Appearance",
   "アプリと地図の配色を選択します。": "Choose the color scheme for the app and map.",
