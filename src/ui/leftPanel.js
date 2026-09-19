@@ -1048,6 +1048,7 @@ export function setupMobileWeatherTimelineTapControls({
   };
 
   mobileDock.addEventListener("pointerdown", (event) => {
+    if (event.defaultPrevented) return;
     const mode = getTapMode(event.target);
     if (!mode || event.button !== 0) return;
 
@@ -1066,6 +1067,7 @@ export function setupMobileWeatherTimelineTapControls({
   });
 
   mobileDock.addEventListener("pointerup", (event) => {
+    if (event.defaultPrevented) return;
     const pointer = activePointer;
     activePointer = null;
     if (!pointer || pointer.id !== event.pointerId) return;
@@ -1115,7 +1117,7 @@ export function setupRadarOverlayToggle({ onChange, onWeatherDistributionPicker 
   document.getElementById("radar-overlay-tabs")?.addEventListener("click", handleClick);
   document.getElementById("mobile-context-dock")?.addEventListener("click", handleClick);
 }
-export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLatest }) {
+export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLatest, onSatelliteSeek, onSatellitePreview }) {
   const root = document.getElementById("weather-chart-controls");
   if (!root) return;
 
@@ -1125,19 +1127,22 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
   let draggingSliderStartX = null;
   let draggingSliderStartValue = null;
   let previewedSliderValue = null;
-  const isWeatherChartSlider = (slider) => slider?.id === "weather-chart-time-slider" || slider?.matches?.("[data-mobile-weather-chart-slider]");
+  const isSatelliteSlider = (slider) => slider?.matches?.("[data-mobile-weather-satellite-slider]");
+  const isWeatherChartSlider = (slider) => slider?.id === "weather-chart-time-slider" || slider?.matches?.("[data-mobile-weather-chart-slider]") || isSatelliteSlider(slider);
   const commitSlider = (slider) => {
     if (!isWeatherChartSlider(slider)) return;
-    onSeek?.(Number(slider.value));
+    if (isSatelliteSlider(slider)) onSatelliteSeek?.(Number(slider.value));
+    else onSeek?.(Number(slider.value));
   };
   const previewSlider = (slider) => {
     if (!isWeatherChartSlider(slider)) return;
     const value = Number(slider.value);
     if (previewedSliderValue === value) return;
     previewedSliderValue = value;
-    if (slider.matches?.("[data-mobile-weather-chart-slider]")) updateMobileWeatherChartSliderPreview(slider);
+    if (slider.matches?.("[data-mobile-weather-chart-slider]") || isSatelliteSlider(slider)) updateMobileWeatherChartSliderPreview(slider);
     else updateWeatherChartSliderPreview(slider);
-    onPreview?.(value);
+    if (isSatelliteSlider(slider)) onSatellitePreview?.(value);
+    else onPreview?.(value);
   };
 
   const handlePointerDown = (event) => {
@@ -1147,7 +1152,7 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     draggingSliderStartX = event.clientX;
     draggingSliderStartValue = Number(event.target.value) || 0;
     previewedSliderValue = null;
-    if (event.target.matches("[data-mobile-weather-chart-slider]")) mobileRadarDockSliding = true;
+    if (event.target.matches("[data-mobile-weather-chart-slider]") || isSatelliteSlider(event.target)) mobileRadarDockSliding = true;
     beginWeatherTimelineDrag(event.target);
     previewSlider(event.target);
     event.preventDefault();
@@ -1199,7 +1204,7 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     commitSlider(draggingSlider);
     finishWeatherTimelineDrag(finishedSlider, Number(finishedSlider?.value));
     finishedSlider.releasePointerCapture?.(event.pointerId);
-    if (finishedSlider?.matches?.("[data-mobile-weather-chart-slider]")) mobileRadarDockSliding = false;
+    if (finishedSlider?.matches?.("[data-mobile-weather-chart-slider]") || isSatelliteSlider(finishedSlider)) mobileRadarDockSliding = false;
     draggingSlider = null;
     draggingSliderStartX = null;
     draggingSliderStartValue = null;
@@ -1213,7 +1218,7 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     const cancelledSlider = draggingSlider;
     finishWeatherTimelineDrag(cancelledSlider, Number(cancelledSlider?.value));
     cancelledSlider.releasePointerCapture?.(event.pointerId);
-    if (cancelledSlider?.matches?.("[data-mobile-weather-chart-slider]")) mobileRadarDockSliding = false;
+    if (cancelledSlider?.matches?.("[data-mobile-weather-chart-slider]") || isSatelliteSlider(cancelledSlider)) mobileRadarDockSliding = false;
     draggingSlider = null;
     draggingSliderStartX = null;
     draggingSliderStartValue = null;
@@ -1231,7 +1236,7 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     element.addEventListener("pointercancel", handlePointerCancel);
   });
 
-  root.addEventListener("click", (event) => {
+  const handleClick = (event) => {
     if (!(event.target instanceof Element)) return;
     const button = event.target.closest("[data-weather-chart-action]");
     if (!button) return;
@@ -1239,7 +1244,9 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     if (action === "prev") onStep?.(-1);
     if (action === "next") onStep?.(1);
     if (action === "latest") onGoLatest?.();
-  });
+  };
+  root.addEventListener("click", handleClick);
+  mobileDock?.addEventListener("click", handleClick);
 }
 export function setupTyphoonSelector({ onChange }) {
   const handleClick = (event) => {
@@ -2288,10 +2295,11 @@ function renderRadarControls(tab, state) {
   if (!root || !slider || !label || !kind) return;
 
   const isRadar = tab.id === "radar";
-  root.hidden = !isRadar;
+  const isSatellite = Boolean(state.weatherChartSatellite?.enabled ?? state.data?.weatherChartSatellite?.enabled);
+  root.hidden = !isRadar || isSatellite;
   root.classList.toggle("weather-chart-active", isRadar && Boolean(state.weatherChartEnabled));
   root.classList.toggle("lightning-active", isRadar && Boolean(state.lightningEnabled));
-  if (!isRadar) return;
+  if (!isRadar || isSatellite) return;
   if (state.weatherChartEnabled) return;
 
   const isLightning = Boolean(state.lightningEnabled);
@@ -4005,20 +4013,25 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   const weatherDistributionMode = state.weatherDistributionMode ?? state.data?.weatherDistributionMode ?? null;
   const weatherDistributionEnabled = Boolean(weatherDistributionMode);
   const weatherChartLoading = weatherChartEnabled && state.weatherChartStatus === "loading";
+  const satelliteLoading = Boolean(state.weatherChartSatellite?.enabled ?? state.data?.weatherChartSatellite?.enabled)
+    && (state.weatherChartSatellite?.status ?? state.data?.weatherChartSatellite?.status) === "loading";
   const lightningLoading = lightningEnabled && state.lightningStatus === "loading";
   const weatherDistributionLoading = weatherDistributionEnabled && state.weatherDistributionStatus === "loading";
-  const radarLoading = !weatherChartEnabled && !lightningEnabled && !weatherDistributionEnabled && status === "loading";
+  const radarLoading = !weatherChartEnabled && !satelliteLoading && !lightningEnabled && !weatherDistributionEnabled && status === "loading";
   const loadingLabel = weatherChartLoading
     ? "天気図を読み込み中"
-    : (lightningLoading ? "雷情報を読み込み中" : (weatherDistributionLoading
+    : (satelliteLoading ? "衛星雲画像を読み込み中" : (lightningLoading ? "雷情報を読み込み中" : (weatherDistributionLoading
       ? `${getWeatherDistributionLabel(weatherDistributionMode)}を読み込み中`
-      : (radarLoading ? "雨雲レーダーを読み込み中" : "")));
+      : (radarLoading ? "雨雲レーダーを読み込み中" : ""))));
   const weatherChart = state.weatherChart ?? state.data?.weatherChart;
   const chartFrames = Array.isArray(weatherChart?.frames)
     ? weatherChart.frames
     : (weatherChart?.featureCount > 0 ? [weatherChart] : []);
   const chartIndex = clampIndex(weatherChart?.activeFrameIndex ?? 0, chartFrames.length);
   const chartFrame = chartFrames[chartIndex] ?? weatherChart?.activeFrame ?? weatherChart;
+  const satellite = state.weatherChartSatellite ?? state.data?.weatherChartSatellite ?? {};
+  const satelliteFrames = Array.isArray(satellite.frames) ? satellite.frames : [];
+  const satelliteIndex = clampIndex(satellite.activeFrameIndex ?? 0, satelliteFrames.length);
   const weatherDistribution = state.weatherDistribution ?? state.data?.weatherDistribution;
   const distributionFrames = weatherDistribution?.frames ?? [];
   const distributionIndex = clampIndex(weatherDistribution?.activeFrameIndex ?? 0, distributionFrames.length);
@@ -4048,8 +4061,16 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
     meta: getWeatherChartFrameKindLabel(item),
     isCurrent: frameIndex === currentChartIndex
   }));
+  const satelliteFrameMeta = satelliteFrames.map((item, frameIndex) => ({
+    title: item?.observedAt ?? "--",
+    meta: "衛星観測",
+    isCurrent: frameIndex === satelliteFrames.length - 1,
+    timeLabel: compactWeatherTimeLabel(item?.observedAt)
+  }));
 
   const isChartMode = weatherChartEnabled;
+  const satelliteEnabled = Boolean(satellite?.enabled);
+  const isSatelliteMode = satelliteEnabled;
   const isLightningMode = lightningEnabled;
   const isDistributionMode = weatherDistributionEnabled;
   const distributionFrameMeta = distributionFrames.map((item) => ({
@@ -4058,13 +4079,13 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   }));
   const length = isChartMode
     ? chartFrames.length
-    : (isLightningMode ? lightningFrames.length : (isDistributionMode ? distributionFrames.length : radarLength));
+    : (isSatelliteMode ? satelliteFrames.length : (isLightningMode ? lightningFrames.length : (isDistributionMode ? distributionFrames.length : radarLength)));
   const activeIndex = isChartMode
     ? chartIndex
-    : (isLightningMode ? lightningIndex : (isDistributionMode ? distributionIndex : index));
+    : (isSatelliteMode ? satelliteIndex : (isLightningMode ? lightningIndex : (isDistributionMode ? distributionIndex : index)));
   const frameMeta = isChartMode
     ? chartFrameMeta
-    : (isLightningMode ? lightningFrameMeta : (isDistributionMode ? distributionFrameMeta : radarFrameMeta));
+    : (isSatelliteMode ? satelliteFrameMeta : (isLightningMode ? lightningFrameMeta : (isDistributionMode ? distributionFrameMeta : radarFrameMeta)));
   const frameDates = frameMeta.map((item) => compactWeatherDateLabel(item?.title));
   const activeDate = frameDates[activeIndex] ?? "--";
   const frameDatesAttribute = `data-mobile-weather-dates="${escapeHtml(JSON.stringify(frameDates))}"`;
@@ -4074,8 +4095,8 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
       activeIndex,
       (item) => isLightningMode
         ? item?.timeLabel
-        : compactWeatherTimeLabel(item?.title),
-      `<input type="range" class="weather-time-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : (isLightningMode ? "data-mobile-lightning-slider" : (isDistributionMode ? "data-mobile-weather-distribution-slider" : "data-mobile-radar-slider"))} ${frameDatesAttribute} aria-label="${isChartMode ? "天気図" : (isLightningMode ? "雷" : (isDistributionMode ? getWeatherDistributionLabel(weatherDistributionMode) : "雨雲レーダー"))}時刻">`,
+        : (isSatelliteMode ? item?.timeLabel : compactWeatherTimeLabel(item?.title)),
+      `<input type="range" class="weather-time-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : (isSatelliteMode ? "data-mobile-weather-satellite-slider" : (isLightningMode ? "data-mobile-lightning-slider" : (isDistributionMode ? "data-mobile-weather-distribution-slider" : "data-mobile-radar-slider")))} ${frameDatesAttribute} aria-label="${isChartMode ? "天気図" : (isSatelliteMode ? "衛星雲画像" : (isLightningMode ? "雷" : (isDistributionMode ? getWeatherDistributionLabel(weatherDistributionMode) : "雨雲レーダー")))}時刻">`,
       { compact: true }
     )
     : buildWeatherTimeTimelineMarkup(
@@ -4083,7 +4104,7 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
       activeIndex,
       (item) => isLightningMode
         ? item?.timeLabel
-        : compactWeatherTimeLabel(item?.title),
+        : (isSatelliteMode ? item?.timeLabel : compactWeatherTimeLabel(item?.title)),
       '<span class="weather-time-range-placeholder" aria-hidden="true"></span>',
       { compact: true }
     );
@@ -4091,9 +4112,10 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   return `
     <div class="mobile-dock-content mobile-dock-radar" aria-busy="${Boolean(loadingLabel)}">
       <div class="mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented">
-        <button type="button" class="mobile-dock-action${!weatherChartEnabled && !lightningEnabled && !weatherDistributionEnabled ? " active" : ""}" data-mobile-dock-control data-radar-overlay="radar" aria-pressed="${!weatherChartEnabled && !lightningEnabled && !weatherDistributionEnabled ? "true" : "false"}"${!weatherChartEnabled && !lightningEnabled && !weatherDistributionEnabled ? " disabled" : ""}>雨雲レーダー</button>
-        <button type="button" class="mobile-dock-action${weatherDistributionEnabled ? " active" : ""}" data-mobile-dock-control ${weatherDistributionEnabled ? "data-weather-distribution-picker aria-controls=\"weather-distribution-toggle-choices\" aria-expanded=\"false\"" : "data-radar-overlay=\"weather-distribution\""} aria-pressed="${weatherDistributionEnabled ? "true" : "false"}">天気分布予報</button>
+        <button type="button" class="mobile-dock-action${!weatherChartEnabled && !satelliteEnabled && !lightningEnabled && !weatherDistributionEnabled ? " active" : ""}" data-mobile-dock-control data-radar-overlay="radar" aria-pressed="${!weatherChartEnabled && !satelliteEnabled && !lightningEnabled && !weatherDistributionEnabled ? "true" : "false"}"${!weatherChartEnabled && !satelliteEnabled && !lightningEnabled && !weatherDistributionEnabled ? " disabled" : ""}>雨雲レーダー</button>
+        <button type="button" class="mobile-dock-action${weatherDistributionEnabled ? " active" : ""}" data-mobile-dock-control ${weatherDistributionEnabled ? "data-weather-distribution-picker aria-controls=\"weather-distribution-toggle-choices\" aria-expanded=\"false\"" : "data-radar-overlay=\"weather-distribution\""} aria-label="天気分布予報" aria-pressed="${weatherDistributionEnabled ? "true" : "false"}">天気分布</button>
         <button type="button" class="mobile-dock-action${weatherChartEnabled ? " active" : ""}" data-mobile-dock-control data-radar-overlay="weather-chart" aria-pressed="${weatherChartEnabled ? "true" : "false"}"${weatherChartEnabled ? " disabled" : ""}>天気図</button>
+        <button type="button" class="mobile-dock-action${isSatelliteMode ? " active" : ""}" data-mobile-dock-control data-radar-overlay="satellite" aria-pressed="${isSatelliteMode ? "true" : "false"}"${isSatelliteMode ? " disabled" : ""}>雲画像</button>
         <button type="button" class="mobile-dock-action${lightningEnabled ? " active" : ""}" data-mobile-dock-control data-radar-overlay="lightning" aria-pressed="${lightningEnabled ? "true" : "false"}"${lightningEnabled ? " disabled" : ""}>雷</button>
       </div>
       <div class="mobile-dock-weather-timeline${loadingLabel ? " is-loading" : ""}" data-mobile-weather-tap-controls aria-busy="${loadingLabel ? "true" : "false"}">

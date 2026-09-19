@@ -175,6 +175,13 @@
         </div>
         <button id="weather-distribution-toggle-button" class="weather-distribution-toggle-button" type="button" aria-expanded="false" aria-controls="weather-distribution-toggle-choices" aria-label="天気分布予報の種類を選択" title="天気分布予報の種類を選択"></button>
       </section>
+      <section id="satellite-layer-toggle" class="map-weather-distribution-toggle map-satellite-layer-toggle collapsed" aria-label="雲画像に重ねるレイヤー" hidden>
+        <div id="satellite-layer-toggle-choices" class="weather-distribution-toggle-choices" aria-hidden="true" hidden>
+          <button type="button" data-satellite-layer="weather-chart" aria-pressed="false">天気図</button>
+          <button type="button" data-satellite-layer="radar" aria-pressed="false">雨雲</button>
+        </div>
+        <button id="satellite-layer-toggle-button" class="weather-distribution-toggle-button" type="button" aria-expanded="false" aria-controls="satellite-layer-toggle-choices" aria-label="雲画像に重ねるレイヤーを選択" title="雲画像に重ねるレイヤーを選択"></button>
+      </section>
       <button id="typhoon-radar-overlay-button" class="map-typhoon-radar-overlay-button" type="button" aria-label="台風情報の発表時刻の雨雲レーダを重ねる" title="台風情報の発表時刻の雨雲レーダを重ねる" aria-pressed="false" hidden></button>
       <div id="radar-overlay-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs radar-overlay-tabs" hidden></div>
       <div id="kikikuru-layer-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs" hidden></div>
@@ -596,12 +603,16 @@
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="災害年表を閉じる" data-disaster-timeline-close>×</button>
         </header>
         <div class="disaster-timeline-body">
-          <p class="disaster-timeline-intro">地震・津波、火山、風水害、雪害の主な記録を年代順に確認できます。すべての災害を網羅した一覧ではありません。</p>
+          <p class="disaster-timeline-intro">地震・津波、火山、風水害、雪害の主な記録を年代順に掲載しています。<span>すべての災害を網羅した一覧ではありません。</span></p>
           <div class="disaster-timeline-controls">
             <label class="disaster-timeline-search" for="disaster-timeline-search">
               <span class="sr-only">災害名や地域を検索</span>
               <input id="disaster-timeline-search" type="search" inputmode="search" autocomplete="off" placeholder="災害名・地域・年代を検索">
             </label>
+            <div class="disaster-timeline-filter-heading">
+              <span>分類</span>
+              <output id="disaster-timeline-count" aria-live="polite">0件</output>
+            </div>
             <div class="disaster-timeline-categories" role="group" aria-label="災害の分類">
               <button type="button" class="is-active" data-disaster-timeline-category="all" aria-pressed="true">すべて</button>
               <button type="button" data-disaster-timeline-category="earthquake" aria-pressed="false">地震・津波</button>
@@ -626,7 +637,6 @@
                   <option value="asc">古い順</option>
                 </select>
               </label>
-              <output id="disaster-timeline-count" aria-live="polite">0件</output>
             </div>
           </div>
           <div id="disaster-timeline-results" class="disaster-timeline-results"></div>

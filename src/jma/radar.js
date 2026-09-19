@@ -66,6 +66,12 @@ export function findLatestRadarObservationIndex(frames = []) {
   );
 }
 
+export function findRadarObservationFrameIndexAtTime(frames = [], validtime) {
+  const target = String(validtime ?? "");
+  if (!/^\d{14}$/.test(target)) return -1;
+  return frames.findIndex((frame) => !frame?.isForecast && frame?.validtime === target);
+}
+
 function supportsRadarTile(item) {
   return !Array.isArray(item.elements) || item.elements.includes(RADAR_TILE_ELEMENT);
 }

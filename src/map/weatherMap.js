@@ -201,6 +201,9 @@ const WEATHER_CHART_LAYERS = [
   "weather-chart-pressure-value-label"
 ];
 const WEATHER_CHART_MAX_ZOOM = 6.4;
+const HIMAWARI_SATELLITE_SOURCE_ID = "jma-himawari-satellite";
+const HIMAWARI_SATELLITE_LAYER_ID = "jma-himawari-satellite-raster";
+const himawariSatelliteLayerStateByMap = new WeakMap();
 const LIGHTNING_MAX_ZOOM = 8.9;
 const WEATHER_FRONT_COLD_IMAGE_ID = "weather-front-cold-triangle";
 const WEATHER_FRONT_WARM_IMAGE_ID = "weather-front-warm-semicircle";
@@ -864,6 +867,7 @@ export function createWeatherMap(elementId) {
     updateWeatherDistributionLayer(map, mode, data);
     updateLightningLayer(map, mode, data);
     updateLightningObservationLayer(map, mode, data);
+    updateWeatherChartSatelliteLayer(map, mode, data);
     updateWeatherChartLayer(map, mode, data);
     setRadarOverlayZoomLimit(map, mode, data);
     updateKikikuruLayer(map, mode, data);
@@ -4054,15 +4058,65 @@ function getRadarTileUrl(tileUrl, level) {
   return tileUrl.replace("{z}", String(level.z));
 }
 
+function updateWeatherChartSatelliteLayer(map, mode, data = {}) {
+  const satellite = data?.weatherChartSatellite;
+  const frame = satellite?.frame;
+  const shouldShow = mode === "radar"
+    && Boolean(satellite?.enabled)
+    && Boolean(frame?.tileUrl);
+  const current = himawariSatelliteLayerStateByMap.get(map);
+
+  if (!shouldShow) {
+    if (map.getLayer(HIMAWARI_SATELLITE_LAYER_ID)) {
+      map.setLayoutProperty(HIMAWARI_SATELLITE_LAYER_ID, "visibility", "none");
+    }
+    return;
+  }
+
+  if (!current || current.tileUrl !== frame.tileUrl || !map.getSource(HIMAWARI_SATELLITE_SOURCE_ID)) {
+    removeMapLayerAndSource(map, HIMAWARI_SATELLITE_LAYER_ID, HIMAWARI_SATELLITE_SOURCE_ID);
+    map.addSource(HIMAWARI_SATELLITE_SOURCE_ID, {
+      type: "raster",
+      tiles: [frame.tileUrl],
+      tileSize: 256,
+      minzoom: 1,
+      maxzoom: 10
+    });
+    map.addLayer({
+      id: HIMAWARI_SATELLITE_LAYER_ID,
+      type: "raster",
+      source: HIMAWARI_SATELLITE_SOURCE_ID,
+      layout: { visibility: "visible" },
+      paint: {
+        "raster-opacity": 0.44,
+        "raster-saturation": -0.22,
+        "raster-contrast": 0.06,
+        "raster-fade-duration": 0
+      }
+    }, map.getLayer("weather-chart-isobar-line") ? "weather-chart-isobar-line" : undefined);
+    himawariSatelliteLayerStateByMap.set(map, { tileUrl: frame.tileUrl });
+    return;
+  }
+
+  if (map.getLayer(HIMAWARI_SATELLITE_LAYER_ID)) {
+    map.setLayoutProperty(HIMAWARI_SATELLITE_LAYER_ID, "visibility", "visible");
+  }
+}
+
 function updateWeatherChartLayer(map, mode, data = {}) {
-  const shouldShow = mode === "radar" && data?.weatherChartEnabled && data?.weatherChart?.featureCount > 0;
+  const satellite = data?.weatherChartSatellite;
+  const satelliteWeatherChart = satellite?.enabled && satellite.weatherChartOverlayEnabled
+    ? satellite.weatherChartFrame
+    : null;
+  const weatherChart = data?.weatherChartEnabled ? data.weatherChart : satelliteWeatherChart;
+  const shouldShow = mode === "radar" && weatherChart?.featureCount > 0;
   if (!shouldShow) {
     setWeatherChartVisible(map, false);
     return;
   }
 
-  setGeoJsonSourceData(map.getSource(WEATHER_CHART_LINE_SOURCE_ID), data.weatherChart.lines ?? EMPTY_GEOJSON);
-  setGeoJsonSourceData(map.getSource(WEATHER_CHART_POINT_SOURCE_ID), data.weatherChart.points ?? EMPTY_GEOJSON);
+  setGeoJsonSourceData(map.getSource(WEATHER_CHART_LINE_SOURCE_ID), weatherChart.lines ?? EMPTY_GEOJSON);
+  setGeoJsonSourceData(map.getSource(WEATHER_CHART_POINT_SOURCE_ID), weatherChart.points ?? EMPTY_GEOJSON);
   setWeatherChartVisible(map, true);
 }
 
@@ -4078,15 +4132,21 @@ function setRadarOverlayZoomLimit(map, mode, data = {}) {
   if (!map?.setMaxZoom) return;
 
   const weatherChartVisible = mode === "radar"
-    && data?.weatherChartEnabled
-    && data?.weatherChart?.featureCount > 0;
+    && (data?.weatherChartEnabled
+      ? data?.weatherChart?.featureCount > 0
+      : data?.weatherChartSatellite?.enabled
+        && data?.weatherChartSatellite?.weatherChartOverlayEnabled
+        && data?.weatherChartSatellite?.weatherChartFrame?.featureCount > 0);
+  const satelliteVisible = mode === "radar"
+    && Boolean(data?.weatherChartSatellite?.enabled)
+    && Boolean(data?.weatherChartSatellite?.frame?.tileUrl);
   const lightningVisible = mode === "radar"
     && data?.lightningEnabled
     && Boolean(data?.lightningTileUrl);
   const weatherDistributionVisible = mode === "radar"
     && Boolean(data?.weatherDistributionMode)
     && Boolean(data?.weatherDistributionTileUrl);
-  const maxZoom = weatherChartVisible
+  const maxZoom = weatherChartVisible || satelliteVisible
     ? WEATHER_CHART_MAX_ZOOM
     : lightningVisible
       ? LIGHTNING_MAX_ZOOM

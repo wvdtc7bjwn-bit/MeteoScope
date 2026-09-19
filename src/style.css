@@ -10064,6 +10064,16 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     box-shadow 220ms ease;
 }
 
+.map-satellite-layer-toggle {
+  bottom: 134px;
+  height: 70px;
+}
+
+.map-satellite-layer-toggle .weather-distribution-toggle-choices {
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  height: 56px;
+}
+
 .weather-distribution-toggle-button {
   position: relative;
   z-index: 1;
@@ -11503,10 +11513,15 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-radar .mobile-dock-mode-switch .mobile-dock-action {
     min-width: 0;
-    padding-inline: 2px;
+    padding-inline: 4px;
     font-size: clamp(10px, 2.7vw, 12px);
-    letter-spacing: -0.04em;
+    letter-spacing: -0.025em;
     white-space: nowrap;
+  }
+
+  .mobile-dock-radar .mobile-dock-mode-switch {
+    gap: 3px;
+    padding-inline: 4px;
   }
 
   @media (min-width: 768px) and (orientation: landscape) {
@@ -19899,7 +19914,7 @@ html[data-theme="light"] :is(
     #map-attribution
   ) {
     background: var(--glass-shell-static-background);
-    box-shadow: var(--glass-shell-shadow);
+    box-shadow: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
@@ -21064,13 +21079,14 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
 }
 
 .disaster-timeline-panel {
-  --timeline-surface: #101923;
-  --timeline-card: #17222e;
-  --timeline-control: #0c151f;
-  --timeline-line: #344453;
-  --timeline-text: #eef5fb;
-  --timeline-muted: #a9b8c7;
-  --timeline-accent: #68c5ee;
+  --timeline-surface: #111b27;
+  --timeline-card: #182534;
+  --timeline-entry: #15212f;
+  --timeline-control: #101c29;
+  --timeline-line: #3a4b5e;
+  --timeline-text: #f1f5f8;
+  --timeline-muted: #aebdca;
+  --timeline-accent: #5ab9df;
   width: min(720px, calc(100vw - 28px));
   max-height: min(88dvh, 780px);
   padding: 0;
@@ -21104,13 +21120,19 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
   line-height: 1.65;
 }
 
+.disaster-timeline-intro span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+}
+
 .disaster-timeline-controls {
   display: grid;
-  gap: 12px;
-  margin: 16px 0 20px;
-  padding: 14px;
+  gap: 10px;
+  margin: 14px 0 18px;
+  padding: 13px;
   border: 1px solid var(--timeline-line);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--timeline-card);
 }
 
@@ -21122,9 +21144,9 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
 .disaster-timeline-selects select {
   box-sizing: border-box;
   width: 100%;
-  min-height: 42px;
+  min-height: 40px;
   border: 1px solid var(--timeline-line);
-  border-radius: 9px;
+  border-radius: 7px;
   color: var(--timeline-text);
   background: var(--timeline-control);
   font: inherit;
@@ -21136,6 +21158,15 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
   background-repeat: no-repeat;
   background-position: 12px center;
   background-size: 18px;
+}
+
+.disaster-timeline-filter-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  color: var(--timeline-muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .disaster-timeline-search input::placeholder {
@@ -21153,14 +21184,14 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
 .disaster-timeline-categories {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
+  gap: 5px;
 }
 
 .disaster-timeline-categories button {
-  min-height: 38px;
-  padding: 6px 8px;
+  min-height: 36px;
+  padding: 5px 7px;
   border: 1px solid var(--timeline-line);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--timeline-muted);
   background: var(--timeline-control);
   font: inherit;
@@ -21170,14 +21201,14 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
 }
 
 .disaster-timeline-categories button.is-active {
-  border-color: #3e9dc8;
-  color: #071722;
-  background: var(--timeline-accent);
+  border-color: var(--timeline-accent);
+  color: var(--timeline-text);
+  background: #1d3d52;
 }
 
 .disaster-timeline-selects {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(132px, 0.8fr) auto;
+  grid-template-columns: minmax(150px, 1fr) minmax(132px, 0.8fr);
   align-items: end;
   gap: 10px;
 }
@@ -21195,36 +21226,32 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
 }
 
 #disaster-timeline-count {
-  min-width: 56px;
-  padding: 0 2px 11px;
-  color: var(--timeline-muted);
+  color: var(--timeline-accent);
   font-size: 12px;
   font-weight: 800;
-  text-align: right;
 }
 
 .disaster-timeline-list {
   position: relative;
   display: grid;
-  gap: 14px;
+  gap: 10px;
   margin: 0;
-  padding: 0 0 0 31px;
+  padding: 0 0 0 22px;
   list-style: none;
 }
 
 .disaster-timeline-list::before {
   content: "";
   position: absolute;
-  top: 13px;
-  bottom: 13px;
-  left: 9px;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--timeline-line);
+  top: 18px;
+  bottom: 18px;
+  left: 6px;
+  width: 1px;
+  background: #607284;
 }
 
 .disaster-timeline-item {
-  --timeline-category-color: #68c5ee;
+  --timeline-category-color: #d2a653;
   position: relative;
 }
 
@@ -21233,7 +21260,7 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
 }
 
 .disaster-timeline-item.is-flood {
-  --timeline-category-color: #73b9f1;
+  --timeline-category-color: #5eafd6;
 }
 
 .disaster-timeline-item.is-snow {
@@ -21242,53 +21269,54 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
 
 .disaster-timeline-marker {
   position: absolute;
-  top: 17px;
-  left: -29px;
-  width: 12px;
-  height: 12px;
+  top: 20px;
+  left: -19px;
+  width: 7px;
+  height: 7px;
   box-sizing: border-box;
-  border: 3px solid var(--timeline-surface);
+  border: 1px solid var(--timeline-surface);
   border-radius: 50%;
   background: var(--timeline-category-color);
-  outline: 2px solid var(--timeline-category-color);
 }
 
 .disaster-timeline-card {
-  padding: 15px 16px 14px;
+  padding: 14px;
   border: 1px solid var(--timeline-line);
-  border-left: 3px solid var(--timeline-category-color);
-  border-radius: 10px;
-  background: var(--timeline-card);
+  border-radius: 6px;
+  background: var(--timeline-entry);
 }
 
 .disaster-timeline-card-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 6px;
 }
 
 .disaster-timeline-card time {
-  color: var(--timeline-accent);
+  color: var(--timeline-muted);
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 800;
 }
 
 .disaster-timeline-category {
-  padding: 3px 8px;
-  border: 1px solid color-mix(in srgb, var(--timeline-category-color) 62%, transparent);
-  border-radius: 999px;
+  padding: 0;
   color: var(--timeline-category-color);
   font-size: 10px;
-  font-weight: 900;
+  font-weight: 800;
   white-space: nowrap;
 }
 
+.disaster-timeline-category::before {
+  content: "・";
+  color: var(--timeline-muted);
+}
+
 .disaster-timeline-card h3 {
-  margin: 8px 0 2px;
+  margin: 6px 0 2px;
   color: var(--timeline-text);
-  font-size: 18px;
-  line-height: 1.4;
+  font-size: 17px;
+  line-height: 1.45;
 }
 
 .disaster-timeline-region,
@@ -21304,7 +21332,7 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
 }
 
 .disaster-timeline-summary {
-  margin-top: 8px;
+  margin-top: 6px;
   color: var(--timeline-text);
   font-size: 13px;
 }
@@ -21313,15 +21341,16 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-top: 10px;
+  margin-top: 8px;
   color: var(--timeline-accent);
   font-size: 12px;
   font-weight: 800;
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .disaster-timeline-source:hover {
-  text-decoration: underline;
+  color: var(--timeline-text);
 }
 
 .disaster-timeline-empty {
@@ -21359,6 +21388,7 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
 html[data-theme="light"] .disaster-timeline-panel {
   --timeline-surface: #eef4f9;
   --timeline-card: #ffffff;
+  --timeline-entry: #ffffff;
   --timeline-control: #f7fafc;
   --timeline-line: #c6d3de;
   --timeline-text: #173149;
@@ -21403,43 +21433,36 @@ html[data-theme="light"] .disaster-timeline-categories button.is-active {
   }
 
   .disaster-timeline-controls {
-    margin-block: 13px 17px;
+    margin-block: 12px 16px;
     padding: 11px;
   }
 
   .disaster-timeline-categories {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .disaster-timeline-categories button:last-child:nth-child(odd) {
-    grid-column: 1 / -1;
+  .disaster-timeline-categories button {
+    font-size: 12px;
   }
 
   .disaster-timeline-selects {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 
-  #disaster-timeline-count {
-    grid-column: 1 / -1;
-    min-width: 0;
-    padding: 0;
-    text-align: left;
+  .disaster-timeline-card {
+    padding: 13px 12px;
   }
 
   .disaster-timeline-list {
-    padding-left: 26px;
+    padding-left: 20px;
   }
 
   .disaster-timeline-list::before {
-    left: 7px;
+    left: 5px;
   }
 
   .disaster-timeline-marker {
-    left: -25px;
-  }
-
-  .disaster-timeline-card {
-    padding: 13px 12px 12px;
+    left: -18px;
   }
 
   .disaster-timeline-card h3 {
