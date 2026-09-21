@@ -198,49 +198,20 @@ function parseTimeDefines(series) {
 
 async function fetchRiverFeatures(reports) {
   const reportByCode = new Map(reports.filter((report) => report.forecastAreaCode).map((report) => [report.forecastAreaCode, report]));
-  const baseQuery = new URLSearchParams({
-    where: "1=1",
-    outFields: "FAREACODE,RIVERNAME",
-    returnGeometry: "true",
-    outSR: "4326",
-    maxAllowableOffset: "0.003",
-    geometryPrecision: "5",
-    f: "geojson"
-  });
-  const baseCollection = await fetchJson(`${JMA_ENDPOINTS.riverFloodGeometry}?${baseQuery}`, { ttlMs: GEOMETRY_TTL_MS });
-  let detailedFeatures = [];
-
-  if (reportByCode.size) {
-    const where = `FAREACODE IN (${[...reportByCode.keys()].map((code) => `'${code.replaceAll("'", "''")}'`).join(",")})`;
-    const detailQuery = new URLSearchParams({
-      where,
-      outFields: "FAREACODE,RIVERNAME",
-      returnGeometry: "true",
-      outSR: "4326",
-      geometryPrecision: "6",
-      f: "geojson"
-    });
-    const detailCollection = await fetchJson(`${JMA_ENDPOINTS.riverFloodGeometry}?${detailQuery}`, { ttlMs: GEOMETRY_TTL_MS });
-    detailedFeatures = detailCollection?.features ?? [];
-  }
-
-  const detailedByCode = new Map(detailedFeatures.map((feature) => [String(feature?.properties?.FAREACODE ?? ""), feature]));
-  const features = (baseCollection?.features ?? []).map((feature) => {
-    const code = String(feature?.properties?.FAREACODE ?? "");
-    const report = reportByCode.get(code);
-    const geometryFeature = detailedByCode.get(code) ?? feature;
+  const collection = await fetchJson(JMA_ENDPOINTS.riverFloodGeometry, { ttlMs: GEOMETRY_TTL_MS });
+  const features = (collection?.features ?? []).map((feature) => {
+    const report = reportByCode.get(String(feature?.properties?.FAREACODE ?? ""));
     return {
-      ...geometryFeature,
+      ...feature,
       properties: {
-        ...geometryFeature.properties,
+        ...feature.properties,
         reportId: report?.id ?? "",
         level: report?.level ?? 0,
         levelLabel: report?.levelLabel ?? "",
-        forecastAreaName: report?.forecastAreaName ?? geometryFeature?.properties?.RIVERNAME ?? ""
+        forecastAreaName: report?.forecastAreaName ?? feature?.properties?.RIVERNAME ?? ""
       }
     };
   });
-
   return { type: "FeatureCollection", features };
 }
 

@@ -28,19 +28,29 @@ import {
   splitWarningOutlookRows
 } from "../src/warningOutlookTime.js";
 
-const [appSource, warningsSource, leftPanelSource, weatherMapSource, warningGeometryFixes, indexSource, styleSource] = await Promise.all([
+const [appSource, warningsSource, leftPanelSource, weatherMapSource, warningGeometryFixes, riverFloodGeometrySource, indexSource, styleSource] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/jma/warnings.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
   readFile(new URL("../public/data/jma-weather-warning-municipality-fixes.geojson", import.meta.url), "utf8"),
+  readFile(new URL("../public/data/jma-designated-river-geometry.geojson", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/style.css", import.meta.url), "utf8")
 ]);
 
 const warningGeometryFixCollection = JSON.parse(warningGeometryFixes);
+const riverFloodGeometry = JSON.parse(riverFloodGeometrySource);
 const misakiGeometryFix = warningGeometryFixCollection.features.find((feature) => feature?.properties?.code === "2736600");
 const joetsuGeometryFix = warningGeometryFixCollection.features.find((feature) => feature?.properties?.code === "1522200");
+const zenpukujiRiver = riverFloodGeometry.features.find((feature) => feature?.properties?.FAREACODE === "830304004900");
+
+assert.equal(riverFloodGeometry.type, "FeatureCollection");
+assert.ok(riverFloodGeometry.features.length >= 331, "指定河川GISが完全に生成されている");
+assert.equal(zenpukujiRiver?.properties?.RIVERNAME, "善福寺川");
+assert.equal(zenpukujiRiver?.properties?.sourceLayer, 1);
+assert.ok(riverFloodGeometry.features.some((feature) => feature?.properties?.FAREACODE === "880801000200"), "石手川を補完する");
+assert.ok(riverFloodGeometry.features.some((feature) => feature?.properties?.FAREACODE === "890907000103"), "矢部川中流部を補完する");
 
 const myAreaFixture = [{ areaCode: "2921000", areaName: "香芝市", prefecture: "奈良県" }];
 const currentWarningInsights = buildMyAreaWarningSummaries(myAreaFixture, {

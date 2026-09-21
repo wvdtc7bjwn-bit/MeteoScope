@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "data:update:jma": "node scripts/update-jma-static-data.mjs",
+    "data:build:river-flood-geometry": "node scripts/build-jma-designated-river-geometry.mjs",
     "data:update:volcano-latest": "node scripts/update-jma-volcano-latest-info.mjs",
     "data:build:map-geometry": "node scripts/build-map-display-geometry.mjs",
     "data:update:tsunami-stations": "node scripts/update-jma-tsunami-observation-stations.mjs",
