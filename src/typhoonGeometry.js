@@ -20,47 +20,46 @@ export function destinationPoint([longitude, latitude], distanceKm, bearingDegre
 }
 
 export function buildStormWarningAreaLineSegments(stormWarningArea) {
-  const segments = [];
-
-  (stormWarningArea?.arc ?? []).forEach((arc) => {
-    const segment = makeStormWarningArcSegment(arc);
-    if (segment.length >= 2) segments.push(segment);
-  });
-
-  (stormWarningArea?.line ?? []).forEach((line) => {
-    const segment = (line ?? []).filter(isCoordinate);
-    if (segment.length >= 2) segments.push(segment);
-  });
-
-  return segments;
+  return buildStormWarningAreaSegments(stormWarningArea)
+    .map(({ coordinates }) => coordinates);
 }
 
 // Published tangent endpoints are rounded independently from the arc
 // definitions and can differ by about 23 km in current JMA bulletins.
 export function buildStormWarningAreaClosedPaths(stormWarningArea, maxEndpointDistanceKm = 30) {
-  const segments = buildStormWarningAreaLineSegments(stormWarningArea)
-    .filter((segment) => segment.length >= 2)
-    .map((segment) => segment.slice());
+  const segments = buildStormWarningAreaSegments(stormWarningArea)
+    .map((segment) => ({ ...segment, coordinates: segment.coordinates.slice() }));
   const closedPaths = [];
-  const nodes = [];
-  const edges = [];
-
-  segments.forEach((segment) => {
-    if (coordinateDistanceKm(segment[0], segment.at(-1)) <= maxEndpointDistanceKm) {
-      closedPaths.push(closeCoordinateLine(segment));
-      return;
+  const openSegments = segments.filter((segment) => {
+    if (segment.isClosedArc) {
+      closedPaths.push(closeCoordinateLine(segment.coordinates));
+      return false;
     }
-
-    const startNode = findOrCreateEndpointNode(nodes, segment[0], maxEndpointDistanceKm);
-    const endNode = findOrCreateEndpointNode(nodes, segment.at(-1), maxEndpointDistanceKm);
-    const edgeIndex = edges.length;
-    edges.push({ startNode, endNode, coordinates: segment });
-    nodes[startNode].edges.push(edgeIndex);
-    nodes[endNode].edges.push(edgeIndex);
+    return true;
   });
 
-  if (edges.length === 0) return closedPaths;
-  if (nodes.some((node) => node.edges.length !== 2)) return [];
+  if (openSegments.length === 0) return closedPaths;
+
+  const endpointPairs = pairStormWarningEndpoints(openSegments, maxEndpointDistanceKm);
+  if (!endpointPairs) return [];
+  const nodes = endpointPairs.map(([first, second]) => ({
+    point: averageCoordinates(first.point, second.point),
+    edges: []
+  }));
+  const endpointNodes = new Map();
+  endpointPairs.forEach(([first, second], nodeIndex) => {
+    endpointNodes.set(first.id, nodeIndex);
+    endpointNodes.set(second.id, nodeIndex);
+  });
+  const edges = openSegments.map((segment, index) => {
+    const startNode = endpointNodes.get(`${index}:start`);
+    const endNode = endpointNodes.get(`${index}:end`);
+    if (startNode === undefined || endNode === undefined) return null;
+    nodes[startNode].edges.push(index);
+    nodes[endNode].edges.push(index);
+    return { startNode, endNode, coordinates: segment.coordinates };
+  });
+  if (edges.some((edge) => !edge) || nodes.some((node) => node.edges.length !== 2)) return [];
 
   const usedEdges = new Set();
   edges.forEach((edge, edgeIndex) => {
@@ -87,19 +86,105 @@ export function buildStormWarningAreaClosedPaths(stormWarningArea, maxEndpointDi
   return usedEdges.size === edges.length ? closedPaths : [];
 }
 
-function findOrCreateEndpointNode(nodes, point, maxDistanceKm) {
-  let nearestIndex = -1;
-  let nearestDistance = Infinity;
-  nodes.forEach((node, index) => {
-    const distance = coordinateDistanceKm(node.point, point);
-    if (distance <= maxDistanceKm && distance < nearestDistance) {
-      nearestIndex = index;
-      nearestDistance = distance;
-    }
+function buildStormWarningAreaSegments(stormWarningArea) {
+  const segments = [];
+
+  (stormWarningArea?.arc ?? []).forEach((arc) => {
+    const coordinates = makeStormWarningArcSegment(arc);
+    if (coordinates.length < 2) return;
+    segments.push({
+      coordinates,
+      // Only a 360-degree arc is a complete shape by itself. Tangent lines
+      // and short arcs can have endpoints within the rounding tolerance, but
+      // must stay connected to the rest of the published perimeter.
+      isClosedArc: isFullStormWarningArc(arc)
+    });
   });
-  if (nearestIndex >= 0) return nearestIndex;
-  nodes.push({ point, edges: [] });
-  return nodes.length - 1;
+
+  (stormWarningArea?.line ?? []).forEach((line) => {
+    const coordinates = (line ?? []).filter(isCoordinate);
+    if (coordinates.length >= 2) segments.push({ coordinates, isClosedArc: false });
+  });
+
+  return segments;
+}
+
+function isFullStormWarningArc(arc) {
+  const start = Number(arc?.start);
+  const end = Number(arc?.end);
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
+  return Math.abs(end - start) >= 359.5;
+}
+
+function pairStormWarningEndpoints(segments, maxEndpointDistanceKm) {
+  const endpoints = segments.flatMap((segment, index) => [
+    { id: `${index}:start`, segmentIndex: index, point: segment.coordinates[0] },
+    { id: `${index}:end`, segmentIndex: index, point: segment.coordinates.at(-1) }
+  ]);
+  const candidates = endpoints.map((endpoint, index) => (
+    endpoints
+      .map((candidate, candidateIndex) => ({
+        candidateIndex,
+        distance: coordinateDistanceKm(endpoint.point, candidate.point)
+      }))
+      .filter(({ candidateIndex, distance }) => (
+        candidateIndex !== index
+        && endpoints[candidateIndex].segmentIndex !== endpoint.segmentIndex
+        && distance <= maxEndpointDistanceKm
+      ))
+      .sort((first, second) => first.distance - second.distance)
+      .map(({ candidateIndex }) => candidateIndex)
+  ));
+  const remaining = new Set(endpoints.map((_, index) => index));
+  const pairs = [];
+  const maxAttempts = 20000;
+  let attempts = 0;
+
+  function connect() {
+    if (remaining.size === 0) return pairs.slice();
+    if (attempts >= maxAttempts) return null;
+    attempts += 1;
+
+    let endpointIndex = -1;
+    let available = null;
+    remaining.forEach((candidateIndex) => {
+      const matching = candidates[candidateIndex]
+        .filter((neighborIndex) => remaining.has(neighborIndex));
+      if (!matching.length) {
+        endpointIndex = candidateIndex;
+        available = [];
+        return;
+      }
+      if (!available || matching.length < available.length) {
+        endpointIndex = candidateIndex;
+        available = matching;
+      }
+    });
+    if (!available?.length) return null;
+
+    remaining.delete(endpointIndex);
+    for (const neighborIndex of available) {
+      if (!remaining.has(neighborIndex)) continue;
+      remaining.delete(neighborIndex);
+      pairs.push([endpoints[endpointIndex], endpoints[neighborIndex]]);
+      const result = connect();
+      if (result) return result;
+      pairs.pop();
+      remaining.add(neighborIndex);
+    }
+    remaining.add(endpointIndex);
+    return null;
+  }
+
+  return connect();
+}
+
+function averageCoordinates(first, second) {
+  const longitudeDelta = ((Number(second[0]) - Number(first[0]) + 540) % 360) - 180;
+  return [
+    ((Number(first[0]) + longitudeDelta / 2 + 540) % 360) - 180,
+    (Number(first[1]) + Number(second[1])) / 2
+  ];
 }
 
 function orientStormWarningSegment(edge, startNode, nodes) {

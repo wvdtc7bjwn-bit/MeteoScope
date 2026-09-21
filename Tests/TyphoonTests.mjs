@@ -84,6 +84,17 @@ assert.equal(buildStormWarningAreaClosedPaths({
     [[132, 20], [133, 20]]
   ]
 }).length, 0);
+const shortTangentWarningPath = buildStormWarningAreaClosedPaths({
+  line: [
+    [[140, 30], [140.1, 30]],
+    [[140.1, 30], [140.1, 30.1]],
+    [[140.1, 30.1], [140, 30.1]],
+    [[140, 30.1], [140, 30]]
+  ]
+});
+assert.equal(shortTangentWarningPath.length, 1);
+assert.deepEqual(shortTangentWarningPath[0][0], shortTangentWarningPath[0].at(-1));
+assert.ok(shortTangentWarningPath[0].length >= 5);
 const eastOfCenter = destinationPoint([130, 20], 100, 90);
 assert.ok(eastOfCenter[0] > 130);
 assert.ok(Math.abs(eastOfCenter[1] - 20) < 0.1);
