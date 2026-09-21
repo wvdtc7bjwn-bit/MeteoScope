@@ -19801,10 +19801,12 @@ html[data-theme="light"] :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile
 /* Chrome's emulated-device compositor can leave a diffuse halo around fixed,
    blurred layers. Use an opaque enough static glass surface for the connected
    mobile controls so every tab renders without the residual shadow. */
-@media (max-width: 800px) and (orientation: portrait) {
+@media (max-width: 800px) and (orientation: portrait),
+  (orientation: landscape) and (max-height: 800px) {
   :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock),
   html[data-theme="light"] :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock) {
     background: var(--glass-shell-static-background);
+    filter: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }
@@ -19850,7 +19852,8 @@ html[data-theme="light"] :is(
 
 /* Apply the same stable composition to the map's fixed controls. Otherwise
    their individual backdrop layers leave grey halos in device emulation. */
-@media (max-width: 800px) and (orientation: portrait) {
+@media (max-width: 800px) and (orientation: portrait),
+  (orientation: landscape) and (max-height: 800px) {
   :is(
     .map-legend,
     .map-utility-actions,
@@ -19881,14 +19884,23 @@ html[data-theme="light"] :is(
   ) {
     background: var(--glass-shell-static-background);
     box-shadow: none;
+    filter: none !important;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+  }
+
+  /* These elements animate independently when their menus open and close.
+     A blur filter leaves an old compositor tile behind in landscape WebKit. */
+  :is(.map-utility-actions, .map-utility-actions .disaster-map-open-button, .map-legend, .map-legend .legend-list) {
+    filter: none !important;
+    will-change: auto;
   }
 }
 
 /* The legend and utility rail have open/closed variants with more specific
    styles. Their ids keep the static mobile surface intact in either state. */
-@media (max-width: 800px) and (orientation: portrait) {
+@media (max-width: 800px) and (orientation: portrait),
+  (orientation: landscape) and (max-height: 800px) {
   :is(#map-legend, #map-utility-actions) {
     background: var(--glass-shell-static-background) !important;
     box-shadow: var(--glass-shell-shadow) !important;
@@ -19901,7 +19913,8 @@ html[data-theme="light"] :is(
    page layers. On mobile, blur and exterior elevation can leave a visible
    raster seam around those layers, so use the same solid glass treatment as
    the navigation. The backdrop still keeps its semantic dimming color. */
-@media (max-width: 800px) and (orientation: portrait) {
+@media (max-width: 800px) and (orientation: portrait),
+  (orientation: landscape) and (max-height: 800px) {
   :is(
     .warning-modal-panel,
     .hypocenter-date-wheel-sheet,
@@ -19913,6 +19926,7 @@ html[data-theme="light"] :is(
   ) {
     background: var(--glass-shell-static-background) !important;
     box-shadow: var(--glass-shell-shadow) !important;
+    filter: none !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
   }
@@ -19940,7 +19954,8 @@ html[data-theme="light"] :is(
 
 /* Segmented controls sit directly on the map or a translucent sheet. Their
    tracks and moving indicators must not create separate blurred layers. */
-@media (max-width: 800px) and (orientation: portrait) {
+@media (max-width: 800px) and (orientation: portrait),
+  (orientation: landscape) and (max-height: 800px) {
   :is(
     .mobile-dock-action-row,
     .mobile-dock-chip-grid,
@@ -19961,6 +19976,7 @@ html[data-theme="light"] :is(
   ) {
     background: var(--glass-shell-static-background);
     box-shadow: var(--glass-shell-shadow);
+    filter: none;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }

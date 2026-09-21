@@ -62,6 +62,18 @@ assert.match(
 );
 assert.match(
   styles,
+  /@media \(max-width: 800px\) and \(orientation: portrait\),\s*\(orientation: landscape\) and \(max-height: 800px\)\s*\{[\s\S]*?\.map-utility-actions,[\s\S]*?filter:\s*none !important;[\s\S]*?backdrop-filter:\s*none;/
+);
+assert.match(
+  styles,
+  /@media \(max-width: 800px\) and \(orientation: portrait\),\s*\(orientation: landscape\) and \(max-height: 800px\)\s*\{[\s\S]*?\.warning-modal-panel,[\s\S]*?\.warning-modal-backdrop[\s\S]*?backdrop-filter:\s*none !important;/
+);
+assert.match(
+  styles,
+  /@media \(max-width: 800px\) and \(orientation: portrait\),\s*\(orientation: landscape\) and \(max-height: 800px\)\s*\{[\s\S]*?\.mobile-dock-segmented::before[\s\S]*?backdrop-filter:\s*none;/
+);
+assert.match(
+  styles,
   /@media screen\s*\{[\s\S]*?#main-tabs::after\s*\{[\s\S]*?background:\s*var\(--segmented-indicator-background\);[\s\S]*?box-shadow:\s*var\(--segmented-indicator-shadow\);[\s\S]*?#main-tabs\.is-dragging::after\s*\{[\s\S]*?background:\s*var\(--segmented-drag-background\);/
 );
 assert.match(
