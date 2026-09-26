@@ -191,6 +191,10 @@ const EARLY_ACCESS_ACTIVE_FAULT_SOURCE_STORAGE_KEY =
   "meteoscope-early-access-active-fault-source-v1";
 const EARTHQUAKE_DISTRIBUTION_RECENT_XML_STORAGE_KEY = "meteoscope-earthquake-distribution-recent-xml-v1";
 const AMEDAS_PRECIPITATION_PERIOD_STORAGE_KEY = "meteoscope-amedas-precipitation-period-v1";
+const TERRAIN_LAYER_SETTINGS_STORAGE_KEY = "meteoscope-terrain-layer-settings-v1";
+const TERRAIN_LAYER_SETTINGS_SESSION_KEY = "meteoscope-terrain-layer-settings-session-v1";
+const TERRAIN_LAYER_OPACITY_OPTIONS = [0.32, 0.48, 0.64];
+const DEFAULT_TERRAIN_LAYER_SETTINGS = Object.freeze({ visible: false, opacity: 0.48 });
 
 function loadAmedasPrecipitationPeriod() {
   try {
@@ -207,6 +211,67 @@ function saveAmedasPrecipitationPeriod(periodId) {
     localStorage.setItem(AMEDAS_PRECIPITATION_PERIOD_STORAGE_KEY, periodId);
   } catch {
     // Storage can be unavailable in privacy-restricted environments.
+  }
+}
+
+function normalizeTerrainLayerOpacity(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return DEFAULT_TERRAIN_LAYER_SETTINGS.opacity;
+  return TERRAIN_LAYER_OPACITY_OPTIONS.reduce((closest, option) => (
+    Math.abs(option - numeric) < Math.abs(closest - numeric) ? option : closest
+  ), TERRAIN_LAYER_OPACITY_OPTIONS[0]);
+}
+
+function loadTerrainLayerSettings() {
+  const stored = parseTerrainLayerSettings(readTerrainLayerSettingsValue());
+  return {
+    visible: stored?.visible === true,
+    opacity: normalizeTerrainLayerOpacity(stored?.opacity)
+  };
+}
+
+function readTerrainLayerSettingsValue() {
+  try {
+    const persistent = localStorage.getItem(TERRAIN_LAYER_SETTINGS_STORAGE_KEY);
+    if (persistent !== null) return persistent;
+  } catch {
+    // Fall through to the same-tab reload fallback.
+  }
+  try {
+    return sessionStorage.getItem(TERRAIN_LAYER_SETTINGS_SESSION_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function parseTerrainLayerSettings(value) {
+  if (value === "1" || value === "true") return { visible: true };
+  if (value === "0" || value === "false") return { visible: false };
+  try {
+    const parsed = JSON.parse(value || "null");
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveTerrainLayerSettings(settings) {
+  try {
+    const serialized = JSON.stringify({
+      visible: settings.visible === true,
+      opacity: normalizeTerrainLayerOpacity(settings.opacity)
+    });
+    localStorage.setItem(TERRAIN_LAYER_SETTINGS_STORAGE_KEY, serialized);
+    sessionStorage.setItem(TERRAIN_LAYER_SETTINGS_SESSION_KEY, serialized);
+  } catch {
+    try {
+      sessionStorage.setItem(TERRAIN_LAYER_SETTINGS_SESSION_KEY, JSON.stringify({
+        visible: settings.visible === true,
+        opacity: normalizeTerrainLayerOpacity(settings.opacity)
+      }));
+    } catch {
+      // Storage can be unavailable in privacy-restricted environments.
+    }
   }
 }
 
@@ -282,6 +347,7 @@ async function fetchWarningTabData(options = {}) {
 export function createWeatherApp() {
   const localeController = setupLocale();
   const themeController = setupTheme();
+  let terrainLayerSettings = loadTerrainLayerSettings();
   setupRemoteConfig();
 
   const launchOptions = getLaunchOptions();
@@ -3600,12 +3666,47 @@ if (layerId === "river") {
       myAreaLimit: getMyAreaLimit(),
       themePreference: themeController.getPreference(),
       languagePreference: localeController.getPreference(),
+      terrainLayerSettings,
       earthquakeDistributionRecentXmlVisible,
       earlyAccessEnabled,
       earlyAccessActiveFaultSource,
       earlyAccessActiveFaultDataState,
       earlyAccessState
     };
+  }
+
+  function setTerrainLayerSettings(nextSettings) {
+    terrainLayerSettings = {
+      visible: nextSettings?.visible === true,
+      opacity: normalizeTerrainLayerOpacity(nextSettings?.opacity ?? terrainLayerSettings.opacity)
+    };
+    saveTerrainLayerSettings(terrainLayerSettings);
+    weatherMap?.setTerrainLayer(terrainLayerSettings);
+    renderMapTerrainToggle();
+    refreshSettingsModalView();
+  }
+
+  function setupMapTerrainToggle() {
+    const toggle = document.getElementById("map-terrain-toggle");
+    if (!toggle) return;
+    toggle.addEventListener("click", () => {
+      setTerrainLayerSettings({
+        visible: terrainLayerSettings.visible !== true,
+        opacity: terrainLayerSettings.opacity
+      });
+    });
+    renderMapTerrainToggle();
+  }
+
+  function renderMapTerrainToggle() {
+    const toggle = document.getElementById("map-terrain-toggle");
+    if (!toggle) return;
+    const enabled = terrainLayerSettings.visible === true;
+    toggle.classList.toggle("is-enabled", enabled);
+    toggle.setAttribute("aria-checked", String(enabled));
+    toggle.setAttribute("aria-label", `地形表示を${enabled ? "OFF" : "ON"}にする`);
+    const state = toggle.querySelector(".map-terrain-toggle-state");
+    if (state) state.textContent = enabled ? "ON" : "OFF";
   }
 
   async function searchSettingsAreas(query) {
@@ -3667,6 +3768,8 @@ if (layerId === "river") {
     weatherMap.setPlateBoundaryVisible(earthquakePlateBoundaryVisible);
     weatherMap.setPlateDepthContoursVisible(earthquakePlateDepthContoursVisible);
     weatherMap.setTheme(themeController.getResolvedTheme());
+    weatherMap.setTerrainLayer(terrainLayerSettings);
+    setupMapTerrainToggle();
     weatherMap.setCurrentLocationVisible(currentLocationMarkerVisible);
     themeController.subscribe(({ resolvedTheme }) => weatherMap?.setTheme(resolvedTheme));
     localeController.subscribe(() => {
@@ -3846,6 +3949,7 @@ if (layerId === "river") {
       onToggleAdminNoticePush: toggleAdminNoticePush,
       onThemeChange: (theme) => themeController.setPreference(theme),
       onLanguageChange: (language) => localeController.setPreference(language),
+      onTerrainLayerChange: setTerrainLayerSettings,
       onEarthquakeDistributionRecentXmlChange:
         setEarthquakeDistributionRecentXmlVisible,
       onActivateEarlyAccess: authenticateEarlyAccess,
@@ -3922,6 +4026,7 @@ if (layerId === "river") {
       }
       finishInitialMapLoading();
       if (!legalConsent.showIfRequired()) startUserServices();
+      weatherMap?.setTerrainLayer(terrainLayerSettings);
     });
   }
 

@@ -151,6 +151,7 @@
     <main id="map-area">
       <div id="map"></div>
       <div id="clock"></div>
+      <button id="map-terrain-toggle" class="map-terrain-toggle" type="button" role="switch" aria-checked="false" aria-label="地形表示をONにする" data-map-terrain-toggle><span>地形</span><span class="map-terrain-toggle-state" aria-hidden="true">OFF</span></button>
       <button id="map-utility-menu-toggle" class="disaster-map-open-button map-utility-menu-toggle" type="button" aria-label="機能メニューを開く" title="機能メニュー" aria-expanded="false" aria-controls="map-utility-actions"></button>
       <div id="map-utility-actions" class="map-utility-actions" aria-label="機能メニュー" hidden>
         <button id="disaster-quiz-button" class="disaster-map-open-button disaster-quiz-open-button" type="button" aria-label="防災クイズを開く" title="防災クイズ"></button>
@@ -352,6 +353,21 @@
             </div>
           </section>
           <h3 class="settings-section-label" data-settings-section-label="display">地図と表示</h3>
+          <section class="settings-group settings-terrain-group" data-settings-section="display">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>地形の濃さ</strong><small>色別標高図と陰影起伏図</small></span></button>
+            <div class="settings-group-content" hidden>
+              <p id="settings-terrain-status" class="settings-terrain-status">地図右上の時刻表示の下にある「地形」でON/OFFを切り替えます。</p>
+              <div class="settings-terrain-opacity">
+                <span>濃さ</span>
+                <div id="settings-terrain-opacity-options" class="settings-theme-options settings-terrain-opacity-options" role="radiogroup" aria-label="地形の濃さ">
+                  <button type="button" data-settings-terrain-opacity="0.32" role="radio" aria-checked="false">薄い</button>
+                  <button type="button" data-settings-terrain-opacity="0.48" role="radio" aria-checked="false">標準</button>
+                  <button type="button" data-settings-terrain-opacity="0.64" role="radio" aria-checked="false">濃い</button>
+                </div>
+              </div>
+              <p class="settings-theme-help">国土地理院の色別標高図と陰影起伏図を使用します。海域部は海上保安庁海洋情報部の資料を使用して作成されています。</p>
+            </div>
+          </section>
           <section class="settings-group settings-disaster-map-group" data-settings-section="display">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>防災マップ</strong><small>保存ファイルの管理</small></span></button>
             <div class="settings-group-content" hidden>
@@ -463,6 +479,7 @@
               <div class="settings-policy-copy">
                 <p>MeteoScopeは、公開データとオープンソースソフトウェア、ならびに情報を整備・提供する各機関の協力によって成り立っています。関係する皆さまに感謝します。</p>
                 <p><strong>気象・防災データ</strong><br><a href="https://www.jma.go.jp/" target="_blank" rel="noopener noreferrer">気象庁</a>、<a href="https://maps.gsi.go.jp/" target="_blank" rel="noopener noreferrer">国土地理院</a>、<a href="https://www.j-shis.bosai.go.jp/" target="_blank" rel="noopener noreferrer">防災科学技術研究所（J-SHIS）</a>、<a href="https://www.usgs.gov/" target="_blank" rel="noopener noreferrer">U.S. Geological Survey（USGS）</a>、<a href="https://www.esrij.com/" target="_blank" rel="noopener noreferrer">ESRIジャパン株式会社</a>の公開情報・データを利用しています。個別の出典・利用条件は「情報出典・加工」に記載しています。</p>
+                <p><strong>地形表示</strong><br>色別標高図・陰影起伏図は<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院の地理院タイル</a>を利用しています。色別標高図の海域部は海上保安庁海洋情報部の資料を使用して作成されています。</p>
                 <p><strong>技術基盤</strong><br><a href="https://maplibre.org/" target="_blank" rel="noopener noreferrer">MapLibre GL JS</a>、<a href="https://www.cloudflare.com/" target="_blank" rel="noopener noreferrer">Cloudflare</a>、および本アプリで利用するオープンソースソフトウェアの開発者・貢献者に感謝します。</p>
               </div>
             </div>

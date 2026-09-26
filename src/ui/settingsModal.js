@@ -82,6 +82,17 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    const terrainOpacityButton = event.target.closest("[data-settings-terrain-opacity]");
+    if (terrainOpacityButton) {
+      const state = settingsOptions.getState?.() ?? {};
+      settingsOptions.onTerrainLayerChange?.({
+        visible: state.terrainLayerSettings?.visible === true,
+        opacity: terrainOpacityButton.dataset.settingsTerrainOpacity
+      });
+      renderSettingsTerrain();
+      return;
+    }
+
     if (event.target.closest("[data-settings-early-access-activate]")) {
       void submitEarlyAccessCode();
       return;
@@ -200,6 +211,7 @@ export function refreshSettingsModalView() {
   renderSettingsPushNotifications();
   renderSettingsEarthquake();
   renderSettingsTheme();
+  renderSettingsTerrain();
   renderSettingsLanguage();
   renderSettingsEarlyAccess();
   void renderSettingsAccount();
@@ -221,6 +233,7 @@ export function openSettingsModal() {
   renderSettingsPushNotifications();
   renderSettingsEarthquake();
   renderSettingsTheme();
+  renderSettingsTerrain();
   renderSettingsLanguage();
   renderSettingsEarlyAccess();
   void renderSettingsAccount();
@@ -415,6 +428,25 @@ function renderSettingsTheme() {
     button.classList.toggle("active", active);
     button.setAttribute("aria-checked", active ? "true" : "false");
   });
+}
+
+function renderSettingsTerrain() {
+  const state = settingsOptions.getState?.() ?? {};
+  const terrain = state.terrainLayerSettings ?? {};
+  const enabled = terrain.visible === true;
+  const opacity = Number(terrain.opacity) || 0.48;
+  const options = document.getElementById("settings-terrain-opacity-options");
+  const status = document.getElementById("settings-terrain-status");
+  if (options) options.toggleAttribute("disabled", !enabled);
+  document.querySelectorAll("[data-settings-terrain-opacity]").forEach((button) => {
+    const selected = Number(button.dataset.settingsTerrainOpacity) === opacity;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-checked", String(selected));
+    button.disabled = !enabled;
+  });
+  if (status) status.textContent = enabled
+    ? "地図右上の時刻表示の下にある「地形」でON/OFFを切り替えます。"
+    : "地形はOFFです。地図右上の時刻表示の下にある「地形」でONにしてください。";
 }
 
 function renderSettingsLanguage() {

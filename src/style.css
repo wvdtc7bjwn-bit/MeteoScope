@@ -3438,6 +3438,25 @@ html[data-theme="light"] .weekly-weather-issued strong {
   outline-offset: 3px;
 }
 
+.settings-terrain-opacity {
+  display: grid;
+  gap: 7px;
+}
+
+.settings-terrain-opacity > span {
+  color: #aebbd0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.settings-terrain-opacity-options[disabled] {
+  opacity: 0.48;
+}
+
+.settings-terrain-opacity-options button:disabled {
+  cursor: not-allowed;
+}
+
 .settings-theme-options {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -10585,6 +10604,54 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   text-align: center;
 }
 
+.map-terrain-toggle {
+  position: absolute;
+  z-index: 450;
+  top: 78px;
+  right: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 62px;
+  min-height: 28px;
+  padding: 5px 8px;
+  border: 1px solid rgba(207, 232, 255, 0.22);
+  border-radius: 9px;
+  color: #d8e6f7;
+  background: rgba(7, 14, 27, 0.78);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+}
+
+.map-terrain-toggle-state {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(216, 230, 247, 0.48);
+  font-size: 0;
+}
+
+.map-terrain-toggle.is-enabled {
+  border-color: rgba(71, 190, 244, 0.84);
+  color: #d9f4ff;
+  background: rgba(18, 105, 157, 0.88);
+}
+
+.map-terrain-toggle.is-enabled .map-terrain-toggle-state {
+  background: #8be0ff;
+}
+
+.map-terrain-toggle:focus-visible {
+  outline: 2px solid #56b7f2;
+  outline-offset: 3px;
+}
+
 #map-attribution {
   right: 18px;
   bottom: 16px;
@@ -10990,6 +11057,15 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     padding: 9px 12px;
     border-radius: 12px;
     font-size: 22px;
+  }
+
+  .map-terrain-toggle {
+    top: calc(max(18px, env(safe-area-inset-top)) + 55px);
+    right: 12px;
+    min-width: 58px;
+    min-height: 27px;
+    padding: 5px 7px;
+    font-size: 12px;
   }
 
   #map-attribution {
@@ -15992,6 +16068,7 @@ html[data-theme="light"] :is(
 ) { color: #4f667d; }
 
 html[data-theme="light"] .settings-switch-copy strong { color: #1e3852; }
+html[data-theme="light"] .settings-terrain-opacity > span { color: #4f667d; }
 
 html[data-theme="light"] :is(
   .settings-my-area-search-label,
@@ -19113,6 +19190,11 @@ html[data-theme="light"] .river-affected-cities span {
     padding: 8px 11px;
     border-radius: 11px;
     font-size: 19px;
+  }
+
+  .map-terrain-toggle {
+    top: calc(max(10px, env(safe-area-inset-top)) + 51px);
+    right: max(10px, env(safe-area-inset-right));
   }
 
   .remote-notice-ticker {

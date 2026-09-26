@@ -204,6 +204,12 @@ const WEATHER_CHART_MAX_ZOOM = 6.4;
 const HIMAWARI_SATELLITE_SOURCE_ID = "jma-himawari-satellite";
 const HIMAWARI_SATELLITE_LAYER_ID = "jma-himawari-satellite-raster";
 const himawariSatelliteLayerStateByMap = new WeakMap();
+const GSI_RELIEF_SOURCE_ID = "gsi-relief";
+const GSI_HILLSHADE_SOURCE_ID = "gsi-hillshade";
+const GSI_RELIEF_LAYER_ID = "gsi-relief-raster";
+const GSI_HILLSHADE_LAYER_ID = "gsi-hillshade-raster";
+const TERRAIN_LAYER_IDS = [GSI_RELIEF_LAYER_ID, GSI_HILLSHADE_LAYER_ID];
+const DEFAULT_TERRAIN_OPACITY = 0.48;
 const LIGHTNING_MAX_ZOOM = 8.9;
 const WEATHER_FRONT_COLD_IMAGE_ID = "weather-front-cold-triangle";
 const WEATHER_FRONT_WARM_IMAGE_ID = "weather-front-warm-semicircle";
@@ -383,6 +389,9 @@ export function createWeatherMap(elementId) {
   let modeApplyPending = false;
   let activeMode = "radar";
   let activeTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
+  let terrainLayerVisible = false;
+  let terrainLayerOpacity = DEFAULT_TERRAIN_OPACITY;
+  let terrainSyncPending = false;
   let activeFaultVisible = true;
   let activeFaultDataSource = "jshis";
   let gsjActiveFaultData = EMPTY_GEOJSON;
@@ -463,6 +472,7 @@ export function createWeatherMap(elementId) {
       revealInitialGeometryLayers(map);
       setupSampleLayers();
       applyMapTheme(map, activeTheme);
+      syncTerrainLayer();
       setMode(activeMode);
       scheduleWorldGeometryLoad();
       if (pendingRender) {
@@ -504,6 +514,86 @@ export function createWeatherMap(elementId) {
     syncCommunityReportVisibility();
     if (activeMode !== "earthquake") updateHypocenter3DPresentation(false);
     if (mode === "typhoon") void ensureWorldGeometryLoaded();
+  }
+
+  function setTerrainLayer({ visible, opacity } = {}) {
+    terrainLayerVisible = Boolean(visible);
+    terrainLayerOpacity = normalizeTerrainOpacity(opacity);
+    syncTerrainLayer();
+  }
+
+  function syncTerrainLayer() {
+    if (!map) return;
+    if (!map.isStyleLoaded?.()) {
+      if (!terrainSyncPending) {
+        terrainSyncPending = true;
+        map.once("idle", () => {
+          terrainSyncPending = false;
+          syncTerrainLayer();
+        });
+      }
+      return;
+    }
+    terrainSyncPending = false;
+    if (terrainLayerVisible) ensureTerrainLayers();
+    const reliefOpacity = terrainLayerOpacity;
+    const hillshadeOpacity = Math.min(0.52, terrainLayerOpacity * 0.72);
+    TERRAIN_LAYER_IDS.forEach((layerId) => {
+      if (!map.getLayer(layerId)) return;
+      map.setLayoutProperty(layerId, "visibility", terrainLayerVisible ? "visible" : "none");
+    });
+    if (map.getLayer(GSI_RELIEF_LAYER_ID)) {
+      map.setPaintProperty(GSI_RELIEF_LAYER_ID, "raster-opacity", reliefOpacity);
+    }
+    if (map.getLayer(GSI_HILLSHADE_LAYER_ID)) {
+      map.setPaintProperty(GSI_HILLSHADE_LAYER_ID, "raster-opacity", hillshadeOpacity);
+    }
+  }
+
+  function ensureTerrainLayers() {
+    if (!map || map.getSource(GSI_RELIEF_SOURCE_ID)) return;
+    // Keep operational overlays and administrative borders readable, but place
+    // terrain above the opaque municipality base fills so land relief is visible.
+    const beforeLayerId = map.getLayer(WARNING_OVERLAY_LAYER_ID)
+      ? WARNING_OVERLAY_LAYER_ID
+      : undefined;
+    map.addSource(GSI_RELIEF_SOURCE_ID, {
+      type: "raster",
+      tiles: [MAP_DATA_ENDPOINTS.gsiReliefTiles],
+      tileSize: 256,
+      minzoom: 5,
+      maxzoom: 15,
+      attribution: "国土地理院"
+    });
+    map.addSource(GSI_HILLSHADE_SOURCE_ID, {
+      type: "raster",
+      tiles: [MAP_DATA_ENDPOINTS.gsiHillshadeTiles],
+      tileSize: 256,
+      minzoom: 2,
+      maxzoom: 16,
+      attribution: "国土地理院"
+    });
+    map.addLayer({
+      id: GSI_RELIEF_LAYER_ID,
+      type: "raster",
+      source: GSI_RELIEF_SOURCE_ID,
+      layout: { visibility: "visible" },
+      paint: {
+        "raster-opacity": terrainLayerOpacity,
+        "raster-saturation": -0.08,
+        "raster-fade-duration": 0
+      }
+    }, beforeLayerId);
+    map.addLayer({
+      id: GSI_HILLSHADE_LAYER_ID,
+      type: "raster",
+      source: GSI_HILLSHADE_SOURCE_ID,
+      layout: { visibility: "visible" },
+      paint: {
+        "raster-opacity": Math.min(0.52, terrainLayerOpacity * 0.72),
+        "raster-fade-duration": 0
+      }
+    }, beforeLayerId);
   }
 
   function scheduleWorldGeometryLoad() {
@@ -2436,7 +2526,13 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+}
+
+function normalizeTerrainOpacity(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return DEFAULT_TERRAIN_OPACITY;
+  return Math.max(0.24, Math.min(0.72, numeric));
 }
 
 function normalizeAreaPolygon(polygon) {
