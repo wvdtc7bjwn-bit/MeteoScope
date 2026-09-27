@@ -53,7 +53,7 @@ import {
   HYPOCENTER_UNKNOWN_DEPTH_COLOR,
   getHypocenterDepthStopPercentage
 } from "../map/hypocenterDepthStyle.js";
-import { createHypocenterDateWheel } from "./hypocenterDateWheel.js";
+import { buildEarthquakeDistributionAnalysis } from "../earthquakeDistributionAnalysis.js";
 import { getVolcanoLevelColor } from "../volcanoLevels.js";
 import {
   getAvailableVolcanoAshForecasts,
@@ -1445,6 +1445,7 @@ export function setupEarthquakeSelector({
   onDistributionRangeModeChange,
   onDistributionAreaSearch,
   onDistributionAreaClear,
+  onDistributionPlateLayersShow,
   onDistributionRetry,
   getDistributionDates
 }) {
@@ -1452,10 +1453,6 @@ export function setupEarthquakeSelector({
   const mobileDock = document.getElementById("mobile-context-dock");
   if (!root) return;
   setupSegmentedControls(root);
-  const dateWheel = createHypocenterDateWheel({
-    onSelect: ({ dayOffset }) => onDistributionFilterChange?.({ dayOffset })
-  });
-
   const readArchiveSearchFilters = (form) => {
     const read = (name) => form.elements.namedItem(name)?.value ?? "";
     return {
@@ -1494,17 +1491,6 @@ export function setupEarthquakeSelector({
       event.preventDefault();
       event.stopPropagation();
       onVolcanoBulletinBack?.();
-      return;
-    }
-    const dateButton = event.target.closest("[data-earthquake-distribution-date-open]");
-    if (dateButton) {
-      event.preventDefault();
-      event.stopPropagation();
-      dateWheel.open({
-        availableDates: getDistributionDates?.() ?? [],
-        currentDate: dateButton.dataset.selectedDate,
-        source: dateButton
-      });
       return;
     }
     const dateStepButton = event.target.closest("[data-earthquake-distribution-date-step]");
@@ -1602,6 +1588,12 @@ export function setupEarthquakeSelector({
       onDistributionAreaClear?.();
       return;
     }
+    const showPlateLayersButton = event.target.closest("[data-earthquake-distribution-show-plate-layers]");
+    if (showPlateLayersButton) {
+      event.preventDefault();
+      onDistributionPlateLayersShow?.();
+      return;
+    }
     const historyLoadMoreButton = event.target.closest("[data-earthquake-history-load-more]");
     if (historyLoadMoreButton) {
       event.preventDefault();
@@ -1643,6 +1635,16 @@ export function setupEarthquakeSelector({
         button.setAttribute("aria-pressed", "false");
       });
       validateDistributionRangeDraft(controls);
+      return;
+    }
+    if (target instanceof HTMLInputElement && target.dataset.earthquakeDistributionDate) {
+      const availableDates = getDistributionDates?.() ?? [];
+      const dayOffset = availableDates.indexOf(target.value);
+      if (dayOffset >= 0) {
+        onDistributionFilterChange?.({ dayOffset });
+      } else {
+        target.value = target.dataset.selectedDate ?? "";
+      }
       return;
     }
     if (!(target instanceof HTMLSelectElement) || !target.dataset.earthquakeDistributionFilter) return;
@@ -6973,13 +6975,12 @@ function buildEarthquakeDistributionMarkup(data) {
           ? buildDistributionRangeControls(
             rangeStartDate,
             rangeEndDate,
-            hasArea,
-            areaDrawing,
             availableDates,
             rangeExceeded,
             rangeLoading
           )
-          : buildDistributionDateButton(selectedDate, false, maximumOffset === 0, dayOffset, maximumOffset)}
+          : buildDistributionDateButton(selectedDate, false, maximumOffset === 0, dayOffset, maximumOffset, availableDates)}
+        ${buildDistributionAreaControls(hasArea, areaDrawing)}
       </div>
       <div class="earthquake-distribution-control-card">
         <div class="earthquake-distribution-section-head">
@@ -6996,6 +6997,15 @@ function buildEarthquakeDistributionMarkup(data) {
       </div>
       ${statusMarkup}
       ${buildEarthquakeDepthLegend()}
+      ${buildEarthquakeDistributionAnalysisMarkup(snapshot, {
+        startDate: rangeEnabled ? rangeStartDate : selectedDate,
+        endDate: rangeEnabled ? rangeEndDate : selectedDate,
+        hasArea,
+        plateData: data.distributionPlateData,
+        plateDataStatus: data.distributionPlateDataStatus,
+        plateBoundaryVisible: data.plateBoundaryVisible === true,
+        plateDepthContoursVisible: data.plateDepthContoursVisible === true
+      })}
       ${buildEarthquakeDistributionTrend(snapshot)}
       ${syncStatusMarkup}
       ${buildEarthquakeDistributionSourceNote(snapshot)}
@@ -7006,8 +7016,6 @@ function buildEarthquakeDistributionMarkup(data) {
 function buildDistributionRangeControls(
   startDate,
   endDate,
-  hasArea,
-  areaDrawing,
   availableDates = [],
   rangeExceeded = false,
   rangeLoading = false
@@ -7037,6 +7045,13 @@ function buildDistributionRangeControls(
         role="alert"
         ${rangeExceeded ? "" : "hidden"}
       >${escapeHtml(HYPOCENTER_DISTRIBUTION_RANGE_TOO_LONG_MESSAGE)}</p>
+    </div>
+  `;
+}
+
+function buildDistributionAreaControls(hasArea, areaDrawing) {
+  return `
+    <div class="earthquake-distribution-area-controls">
       <div class="earthquake-distribution-area-actions">
         <button
           type="button"
@@ -7212,7 +7227,7 @@ function buildEarthquakeDistributionMobileContextMarkup(data) {
         ? `<div class="mobile-dock-earthquake-distribution-range-hint">${isEnglish
           ? "Change the period or selected area in Details"
           : "詳細パネルで期間・囲み範囲を変更"}</div>`
-        : buildDistributionDateButton(selectedDate, true, maximumOffset === 0, dayOffset, maximumOffset)}
+        : buildDistributionDateButton(selectedDate, true, maximumOffset === 0, dayOffset, maximumOffset, availableDates)}
     </div>
   `;
   return buildMobileEarthquakeSummaryCarousel({
@@ -7225,6 +7240,172 @@ function buildEarthquakeDistributionMobileContextMarkup(data) {
     tsunamiStatus: data.tsunamiStatus,
     tideObservation: data.tideObservation
   });
+}
+
+function buildEarthquakeDistributionAnalysisMarkup(snapshot, options) {
+  if (!snapshot?.items?.length) return "";
+  const analysis = buildEarthquakeDistributionAnalysis(snapshot.items, options);
+  if (!analysis.count) return "";
+  const depthMedian = formatAnalysisValue(analysis.depth.median, "km", 0);
+  const magnitudeMaximum = formatAnalysisValue(analysis.magnitude.max, "M", 1);
+  const activity = formatActivityChange(analysis.activity);
+  const selectionLabel = options.hasArea ? "囲み範囲" : "表示範囲";
+  const plateStatus = options.plateBoundaryVisible
+    ? `プレート境界：地図に表示中${options.plateDepthContoursVisible ? "・等深線：表示中" : ""}`
+    : "プレート境界：地図で非表示";
+  const plateAction = options.plateBoundaryVisible && options.plateDepthContoursVisible
+    ? ""
+    : '<button type="button" class="earthquake-analysis-plate-button" data-earthquake-distribution-show-plate-layers>プレート境界・等深線を表示</button>';
+  return `
+    <section class="earthquake-distribution-analysis" aria-label="選択範囲の地震解析">
+      <div class="earthquake-distribution-chart-head"><strong>${escapeHtml(selectionLabel)}の地震解析</strong><span>集計結果</span></div>
+      <div class="earthquake-analysis-summary">
+        ${buildAnalysisMetric("地震回数", `${analysis.count.toLocaleString("ja-JP")}件`)}
+        ${buildAnalysisMetric("深さ中央値", depthMedian)}
+        ${buildAnalysisMetric("最大規模", magnitudeMaximum)}
+        ${buildAnalysisMetric("活動変化", activity)}
+      </div>
+      ${buildSelectedEarthquakeDailyTrend(analysis.daily, selectionLabel)}
+      ${options.hasArea
+        ? buildEarthquakeCrossSection(analysis.crossSection, options.plateDataStatus)
+        : '<div class="earthquake-analysis-section-empty">地図で範囲を囲って検索すると、その範囲の主軸に沿った深さ断面を表示します。</div>'}
+      <div class="earthquake-analysis-plate-status"><p class="earthquake-distribution-analysis-note">${escapeHtml(plateStatus)}。断面は${escapeHtml(selectionLabel)}内の震源分布の主軸に沿う簡易表示で、プレート境界そのものの断面ではありません。</p>${plateAction}</div>
+    </section>
+  `;
+}
+
+function buildAnalysisMetric(label, value) {
+  return `<div><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
+}
+
+function formatAnalysisValue(value, suffix, fractionDigits) {
+  if (!Number.isFinite(value)) return "—";
+  const formatted = Number(value).toLocaleString("ja-JP", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: fractionDigits
+  });
+  return suffix === "M" ? `M${formatted}` : `${formatted}${suffix}`;
+}
+
+function formatActivityChange(activity) {
+  if (!activity?.comparable) return "—";
+  if (!Number.isFinite(activity.changePercent)) return "増加";
+  const rounded = Math.round(activity.changePercent);
+  return `${rounded > 0 ? "+" : ""}${rounded}%`;
+}
+
+function buildSelectedEarthquakeDailyTrend(daily, selectionLabel) {
+  if (!daily.length) return '<div class="earthquake-distribution-chart-empty">日付情報が不足しているため、日別推移を作成できません。</div>';
+  const maximum = getChartAxisMaximum(Math.max(0, ...daily.map((point) => point.count)));
+  const width = 320;
+  const height = 114;
+  const left = 30;
+  const right = 8;
+  const top = 8;
+  const bottom = 24;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const coordinates = daily.map((point, index) => ({
+    ...point,
+    x: left + (daily.length === 1 ? plotWidth / 2 : plotWidth * index / (daily.length - 1)),
+    y: top + plotHeight * (1 - point.count / maximum)
+  }));
+  const grid = [0, 1].map((ratio) => {
+    const y = top + plotHeight * (1 - ratio);
+    return `<line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" class="earthquake-chart-grid"></line><text x="${left - 5}" y="${y + 3}" text-anchor="end" class="earthquake-chart-axis-text">${Math.round(maximum * ratio)}</text>`;
+  }).join("");
+  const polyline = coordinates.map((point) => `${point.x},${point.y}`).join(" ");
+  const labels = [...new Set([0, Math.floor((daily.length - 1) / 2), daily.length - 1])].map((index) => {
+    const point = coordinates[index];
+    const anchor = index === 0 ? "start" : index === daily.length - 1 ? "end" : "middle";
+    return `<text x="${point.x}" y="${height - 7}" text-anchor="${anchor}" class="earthquake-chart-axis-text">${escapeHtml(formatDistributionDate(point.sourceDate))}</text>`;
+  }).join("");
+  return `
+    <div class="earthquake-analysis-subhead"><strong>日別の地震回数</strong><span>古い日 → 最新</span></div>
+    <svg class="earthquake-distribution-chart earthquake-analysis-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(selectionLabel)}の日別地震回数">${grid}<polyline points="${polyline}" class="earthquake-chart-line"></polyline>${coordinates.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="2.3" class="earthquake-chart-point"><title>${escapeHtml(formatDistributionFullDate(point.sourceDate))} ${point.count}件</title></circle>`).join("")}${labels}</svg>
+  `;
+}
+
+function buildEarthquakeCrossSection(crossSection, plateDataStatus) {
+  if (!crossSection.available) {
+    return '<div class="earthquake-analysis-section-empty">断面図は、位置と深さがそろう2件以上の地震で表示します。</div>';
+  }
+  const width = 320;
+  const height = 146;
+  const left = 30;
+  const right = 8;
+  const top = 20;
+  const bottom = 24;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const plateProfiles = crossSection.plateProfiles ?? [];
+  const maximumDepth = Math.max(
+    10,
+    ...crossSection.points.map((point) => point.depthKm),
+    ...plateProfiles.flatMap((profile) => profile.points.map((point) => point.depthKm))
+  );
+  const xRange = Math.max(1, crossSection.maxDistanceKm - crossSection.minDistanceKm);
+  const maxMagnitude = Math.max(1, ...crossSection.points.map((point) => point.magnitude ?? 1));
+  const coordinates = crossSection.points.map((point) => ({
+    ...point,
+    x: left + ((point.distanceKm - crossSection.minDistanceKm) / xRange) * plotWidth,
+    y: top + (point.depthKm / maximumDepth) * plotHeight,
+    radius: 2.3 + Math.max(0, (point.magnitude ?? 1) / maxMagnitude) * 3.2
+  }));
+  const grids = [0, 0.5, 1].map((ratio) => {
+    const y = top + plotHeight * ratio;
+    const depth = Math.round(maximumDepth * ratio);
+    return `<line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" class="earthquake-chart-grid"></line><text x="${left - 5}" y="${y + 3}" text-anchor="end" class="earthquake-chart-axis-text">${depth}</text>`;
+  }).join("");
+  const plateMarkup = plateProfiles.map((profile, index) => {
+    const color = ["#ffcf57", "#b278ff", "#5ad8b2"][index % 3];
+    const coordinates = profile.points.map((point) => ({
+      x: left + ((point.distanceKm - crossSection.minDistanceKm) / xRange) * plotWidth,
+      y: top + (point.depthKm / maximumDepth) * plotHeight
+    }));
+    const path = buildSmoothPlateProfilePath(coordinates);
+    const origin = profile.points.find((point) => point.depthKm === 0);
+    const originMarkup = origin
+      ? `<circle cx="${left + ((origin.distanceKm - crossSection.minDistanceKm) / xRange) * plotWidth}" cy="${top}" r="3.4" class="earthquake-analysis-plate-origin" style="stroke:${color}"><title>${escapeHtml(profile.plate)}の0km収束境界</title></circle>`
+      : "";
+    return `<path d="${path}" class="earthquake-analysis-plate-line" style="stroke:${color}"><title>${escapeHtml(profile.plate)}（Slab2）</title></path>${originMarkup}`;
+  }).join("");
+  const plateLegend = plateProfiles.length
+    ? `<p class="earthquake-analysis-plate-legend"><span>破線：Slab2プレート面（20km等深線の交点を補間）・丸印：0km収束境界</span>${plateProfiles.map((profile, index) => `<span><i style="background:${["#ffcf57", "#b278ff", "#5ad8b2"][index % 3]}"></i>${escapeHtml(profile.plate)}</span>`).join("")}</p>`
+    : plateDataStatus === "loading"
+      ? '<p class="earthquake-analysis-plate-legend">プレート面データを読み込み中です。</p>'
+      : '<p class="earthquake-analysis-plate-legend">この断面ではSlab2プレート面との交点を確認できません。</p>';
+  return `
+    <div class="earthquake-analysis-subhead"><strong>深さ断面</strong><span>横断 約${Math.round(crossSection.spanKm)}km</span></div>
+    <svg class="earthquake-distribution-chart earthquake-analysis-section-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="選択地震とプレート面の深さ断面">${grids}<text x="${left}" y="11" class="earthquake-chart-axis-text">浅い</text><text x="${left - 5}" y="${top + plotHeight + 3}" text-anchor="end" class="earthquake-chart-axis-text">km</text>${plateMarkup}${coordinates.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="${point.radius}" class="earthquake-analysis-section-point"><title>深さ ${Math.round(point.depthKm)}km${point.magnitude === null ? "" : `・M${point.magnitude.toFixed(1)}`}</title></circle>`).join("")}</svg>
+    ${plateLegend}
+  `;
+}
+
+function buildSmoothPlateProfilePath(points) {
+  const uniquePoints = [...points]
+    .sort((left, right) => left.x - right.x)
+    .filter((point, index, all) => index === 0 || Math.abs(point.x - all[index - 1].x) > 0.01);
+  if (!uniquePoints.length) return "";
+  if (uniquePoints.length === 1) return `M ${uniquePoints[0].x} ${uniquePoints[0].y}`;
+  const tension = 0.4;
+  let path = `M ${uniquePoints[0].x} ${uniquePoints[0].y}`;
+  for (let index = 0; index < uniquePoints.length - 1; index += 1) {
+    const previous = uniquePoints[Math.max(0, index - 1)];
+    const start = uniquePoints[index];
+    const end = uniquePoints[index + 1];
+    const next = uniquePoints[Math.min(uniquePoints.length - 1, index + 2)];
+    const firstControl = {
+      x: start.x + (end.x - previous.x) * tension / 3,
+      y: start.y + (end.y - previous.y) * tension / 3
+    };
+    const secondControl = {
+      x: end.x - (next.x - start.x) * tension / 3,
+      y: end.y - (next.y - start.y) * tension / 3
+    };
+    path += ` C ${firstControl.x} ${firstControl.y}, ${secondControl.x} ${secondControl.y}, ${end.x} ${end.y}`;
+  }
+  return path;
 }
 
 function buildEarthquakeArchiveMobileContextMarkup(data) {
@@ -7259,11 +7440,17 @@ function buildEarthquakeArchiveMobileContextMarkup(data) {
   });
 }
 
-function buildDistributionDateButton(selectedDate, compact = false, disabled = false, dayOffset = 0, maximumOffset = 0) {
+function buildDistributionDateButton(
+  selectedDate,
+  compact = false,
+  disabled = false,
+  dayOffset = 0,
+  maximumOffset = 0,
+  availableDates = []
+) {
   const isEnglish = getCurrentLanguage() === "en";
-  const label = selectedDate
-    ? isEnglish ? selectedDate.replaceAll("-", "/") : formatDistributionFullDate(selectedDate)
-    : isEnglish ? "Select date" : "日付を選択";
+  const oldestDate = availableDates.at(-1) ?? selectedDate;
+  const latestDate = availableDates[0] ?? selectedDate;
   const previousLabel = isEnglish ? "Previous day's epicenter distribution" : "前日の震央分布";
   const nextLabel = isEnglish ? "Next day's epicenter distribution" : "翌日の震央分布";
   return `
@@ -7271,9 +7458,7 @@ function buildDistributionDateButton(selectedDate, compact = false, disabled = f
       <button type="button" class="earthquake-distribution-date-step" data-earthquake-distribution-date-step="1" data-current-day-offset="${dayOffset}"${compact ? " data-mobile-dock-control" : ""}${dayOffset >= maximumOffset ? " disabled" : ""} aria-label="${previousLabel}">${isEnglish ? "Prev" : "前日"}</button>
       <label class="earthquake-distribution-date-control${compact ? " compact" : ""}">
       ${compact ? "" : `<span>${isEnglish ? "Date" : "日付"}</span>`}
-      <button type="button" data-earthquake-distribution-date-open data-selected-date="${escapeHtml(selectedDate)}"${compact ? " data-mobile-dock-control" : ""}${disabled ? " disabled" : ""} aria-label="${isEnglish ? "Select the epicenter distribution date" : "震央分布の日付を選択"}">
-        <span>${escapeHtml(label)}</span><span aria-hidden="true">⌄</span>
-      </button>
+      <input type="date" class="earthquake-distribution-date-input" data-earthquake-distribution-date data-selected-date="${escapeHtml(selectedDate)}" value="${escapeHtml(selectedDate)}" min="${escapeHtml(oldestDate)}" max="${escapeHtml(latestDate)}"${compact ? " data-mobile-dock-control" : ""}${disabled ? " disabled" : ""} aria-label="${isEnglish ? "Select the epicenter distribution date" : "震央分布の日付を選択"}">
       </label>
       <button type="button" class="earthquake-distribution-date-step" data-earthquake-distribution-date-step="-1" data-current-day-offset="${dayOffset}"${compact ? " data-mobile-dock-control" : ""}${dayOffset <= 0 ? " disabled" : ""} aria-label="${nextLabel}">${isEnglish ? "Next" : "翌日"}</button>
     </div>`;

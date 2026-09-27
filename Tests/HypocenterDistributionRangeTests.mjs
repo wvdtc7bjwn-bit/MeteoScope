@@ -99,6 +99,9 @@ const [app, panel, map, worker, client] = await Promise.all([
 assert.match(client, /!doesHypocenterDistributionCoverRange\(/u);
 assert.doesNotMatch(client, /parameters\.delete\("bounds"\)/u);
 assert.match(panel, /data-earthquake-distribution-area-search/u);
+assert.match(panel, /buildDistributionAreaControls\(hasArea, areaDrawing\)/u);
+assert.match(panel, /data-earthquake-distribution-date/u);
+assert.doesNotMatch(panel, /data-earthquake-distribution-date-open/u);
 assert.match(panel, /aria-pressed="\$\{areaDrawing \? "true" : "false"\}"/u);
 assert.match(panel, /範囲選択を中止/u);
 assert.match(panel, /data-earthquake-distribution-range-date="startDate"/u);
@@ -123,6 +126,8 @@ assert.doesNotMatch(panel, /最大5か月/u);
 assert.doesNotMatch(panel, /90日/u);
 assert.match(app, /startHypocenterAreaSelection/u);
 assert.match(app, /earthquakeDistributionAreaDrawing/u);
+assert.match(app, /updateEarthquakeDistributionFilters\(\{ areaPolygon \}\)/u);
+assert.doesNotMatch(app, /updateEarthquakeDistributionFilters\(\{ areaPolygon, rangeEnabled: true \}\)/u);
 assert.match(map, /hypocenter-area-selection/u);
 assert.match(map, /cancelHypocenterAreaDrawing/u);
 assert.match(worker, /requestedStartDate/u);

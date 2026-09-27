@@ -1,4 +1,4 @@
-import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, TABS, WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS } from "./config.js";
+import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, MAP_DATA_ENDPOINTS, TABS, WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
 import { setupAmedasDailyChartToggle, setupAmedasPrecipitationPeriods, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
@@ -431,6 +431,8 @@ export function createWeatherApp() {
   };
   let earthquakeDistributionState = { status: "idle", data: null, error: "" };
   let earthquakeDistributionRequestId = 0;
+  let earthquakeDistributionPlateDataState = { status: "idle", data: null, error: "" };
+  let earthquakeDistributionPlateDataRequest = null;
   let earthquakeDistributionAreaDrawing = false;
   let earthquakeArchiveFilters = {};
   let earthquakeArchiveState = { status: "idle", data: null, error: "" };
@@ -1494,9 +1496,48 @@ if (layerId === "river") {
     if (view === "distribution" && earthquakeDistributionState.status === "idle") {
       void refreshEarthquakeDistribution();
     }
+    if (view === "distribution") void ensureEarthquakeDistributionPlateData();
     if (view === "history" && earthquakeArchiveState.status === "idle") {
       void refreshEarthquakeArchive();
     }
+  }
+
+  async function ensureEarthquakeDistributionPlateData() {
+    if (earthquakeDistributionPlateDataState.data) return earthquakeDistributionPlateDataState.data;
+    if (earthquakeDistributionPlateDataRequest) return earthquakeDistributionPlateDataRequest;
+    earthquakeDistributionPlateDataState = { status: "loading", data: null, error: "" };
+    earthquakeDistributionPlateDataRequest = Promise.all([
+      fetch(MAP_DATA_ENDPOINTS.slab2DepthContours, { cache: "force-cache" }),
+      fetch(MAP_DATA_ENDPOINTS.tectonicPlateBoundaries, { cache: "force-cache" })
+    ])
+      .then(async ([contoursResponse, boundariesResponse]) => {
+        if (!contoursResponse.ok || !boundariesResponse.ok) {
+          throw new Error("プレート面データを取得できませんでした");
+        }
+        return {
+          contours: await contoursResponse.json(),
+          boundaries: await boundariesResponse.json()
+        };
+      })
+      .then((data) => {
+        earthquakeDistributionPlateDataState = { status: "ok", data, error: "" };
+        return data;
+      })
+      .catch((error) => {
+        earthquakeDistributionPlateDataState = {
+          status: "error",
+          data: null,
+          error: error?.message ?? "プレート面データを取得できませんでした"
+        };
+        return null;
+      })
+      .finally(() => {
+        earthquakeDistributionPlateDataRequest = null;
+        if (activeTab === "earthquake" && earthquakeView === "distribution") {
+          updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+        }
+      });
+    return earthquakeDistributionPlateDataRequest;
   }
 
   async function refreshEarthquakeArchive(filters = earthquakeArchiveFilters) {
@@ -1572,11 +1613,12 @@ if (layerId === "river") {
 
   function selectEarthquakeDistributionRangeMode(enabled) {
     if (!enabled) {
-      weatherMap?.clearHypocenterAreaSelection();
+      if (earthquakeDistributionAreaDrawing) {
+        weatherMap?.cancelHypocenterAreaDrawing();
+      }
       earthquakeDistributionAreaDrawing = false;
       updateEarthquakeDistributionFilters({
-        rangeEnabled: false,
-        areaPolygon: []
+        rangeEnabled: false
       });
       return;
     }
@@ -1604,22 +1646,13 @@ if (layerId === "river") {
       return;
     }
     earthquakeDistribution3DEnabled = false;
-    const availableDates = earthquakeDistributionState.data?.availableDates ?? [];
-    const endDate = earthquakeDistributionFilters.endDate || availableDates[0] || "";
-    const startDate = earthquakeDistributionFilters.startDate || availableDates[Math.min(6, availableDates.length - 1)] || endDate;
-    earthquakeDistributionFilters = {
-      ...earthquakeDistributionFilters,
-      rangeEnabled: true,
-      startDate,
-      endDate
-    };
     const started = weatherMap?.startHypocenterAreaSelection((areaPolygon) => {
       earthquakeDistributionAreaDrawing = false;
       if (!Array.isArray(areaPolygon) || areaPolygon.length < 3) {
         updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
         return;
       }
-      updateEarthquakeDistributionFilters({ areaPolygon, rangeEnabled: true });
+      updateEarthquakeDistributionFilters({ areaPolygon });
     });
     if (!started) return;
     earthquakeDistributionAreaDrawing = true;
@@ -2188,6 +2221,8 @@ if (layerId === "river") {
       distributionStatus: earthquakeDistributionState.status,
       distributionError: earthquakeDistributionState.error,
       distribution,
+      distributionPlateData: earthquakeDistributionPlateDataState.data,
+      distributionPlateDataStatus: earthquakeDistributionPlateDataState.status,
       distributionAreaDrawing: earthquakeDistributionAreaDrawing,
       distributionItems: distribution?.items ?? []
     };
@@ -3881,6 +3916,10 @@ if (layerId === "river") {
       onDistributionRangeModeChange: selectEarthquakeDistributionRangeMode,
       onDistributionAreaSearch: startEarthquakeDistributionAreaSearch,
       onDistributionAreaClear: clearEarthquakeDistributionAreaSearch,
+      onDistributionPlateLayersShow: () => {
+        setEarthquakeMapLayerVisible("plateBoundary", true);
+        setEarthquakeMapLayerVisible("plateDepthContours", true);
+      },
       onDistributionRetry: refreshEarthquakeDistribution,
       getDistributionDates: () => earthquakeDistributionState.data?.availableDates ?? []
     });
