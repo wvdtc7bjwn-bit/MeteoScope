@@ -541,6 +541,26 @@ assert.match(
 );
 assert.match(
   styles,
+  /\.mobile-context-dock\[data-tab="earthquake"\]\s*\{[\s\S]*?height:\s*137px;[\s\S]*?min-height:\s*137px;[\s\S]*?max-height:\s*137px;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-summary-viewport\s*\{[\s\S]*?height:\s*110px;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-summary-track\s*\{[\s\S]*?height:\s*110px;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-summary-page\s*\{[\s\S]*?grid-template-rows:\s*34px\s+69px;[\s\S]*?height:\s*110px;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-summary-page\[data-mobile-earthquake-summary="tsunami"\]\s*\{[\s\S]*?grid-template-rows:\s*26px\s+77px;/
+);
+assert.match(
+  styles,
   /\.mobile-dock-earthquake-distribution-summary\s*\{[\s\S]*?height:\s*61px;[\s\S]*?align-content:\s*center;/
 );
 const mobileEarthquakeIntensityStyle = styles.match(
