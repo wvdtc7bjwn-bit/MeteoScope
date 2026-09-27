@@ -7827,14 +7827,15 @@ html[data-theme="light"] .upper-air-insight { border-color: rgba(67, 110, 148, 0
 
 .mobile-dock-earthquake-distribution-summary {
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .mobile-dock-earthquake-distribution-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-height: 28px;
   min-width: 0;
 }
 
@@ -12165,9 +12166,9 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   .mobile-dock-earthquake,
   .mobile-dock-earthquake-distribution {
     display: grid;
-    grid-template-rows: 34px 50px;
+    grid-template-rows: 34px 61px;
     align-content: center;
-    gap: 7px;
+    gap: 8px;
   }
 
   .mobile-dock-earthquake-view-switch {
@@ -12179,7 +12180,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   }
 
   .mobile-dock-earthquake-distribution-summary {
-    height: 50px;
+    height: 61px;
     align-content: center;
     box-sizing: border-box;
   }
