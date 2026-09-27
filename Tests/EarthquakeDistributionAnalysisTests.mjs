@@ -26,42 +26,71 @@ const oneDay = buildEarthquakeDistributionAnalysis([
 ], { startDate: "2026-09-01", endDate: "2026-09-01" });
 assert.equal(oneDay.activity.comparable, false);
 
+const syntheticPlateData = {
+  contours: {
+    type: "FeatureCollection",
+    features: [20, 40].map((depthKm, index) => ({
+      type: "Feature",
+      properties: { region: "Kuril", plate: "太平洋プレート（日本・千島）", depthKm },
+      geometry: { type: "LineString", coordinates: [[139.13 - index * 0.02, 34.9], [139.13 - index * 0.02, 35.1]] }
+    }))
+  },
+  boundaries: {
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      properties: { NAME: "North American:Pacific", LABEL: "Convergent Boundary" },
+      geometry: { type: "LineString", coordinates: [[139.15, 34.9], [139.15, 35.1]] }
+    }]
+  }
+};
 const plateSection = buildEarthquakeDistributionAnalysis([
   { sourceDate: "2026-09-01", latitude: 35, longitude: 139, depthKm: 10, magnitude: 2 },
   { sourceDate: "2026-09-01", latitude: 35, longitude: 139.2, depthKm: 30, magnitude: 2.5 }
-], {
-  plateData: {
-    contours: {
-      type: "FeatureCollection",
-      features: [20, 40].map((depthKm, index) => ({
-        type: "Feature",
-        properties: { region: "Kuril", plate: "太平洋プレート（日本・千島）", depthKm },
-        geometry: { type: "LineString", coordinates: [[139.07 + index * 0.02, 34.9], [139.07 + index * 0.02, 35.1]] }
-      }))
-    },
-    boundaries: {
-      type: "FeatureCollection",
-      features: [{
-        type: "Feature",
-        properties: { NAME: "North American:Pacific", LABEL: "Convergent Boundary" },
-        geometry: { type: "LineString", coordinates: [[139.05, 34.9], [139.05, 35.1]] }
-      }]
-    }
-  }
-});
+], { plateData: syntheticPlateData });
 assert.equal(plateSection.crossSection.plateProfiles.length, 1);
 assert.deepEqual(plateSection.crossSection.plateProfiles[0].points.map((point) => point.depthKm), [0, 20, 40]);
 assert.ok(plateSection.crossSection.plateProfiles.every((profile) => profile.points[0].depthKm === 0));
+assert.ok(plateSection.crossSection.plateProfiles[0].points[0].distanceKm > plateSection.crossSection.plateProfiles[0].points.at(-1).distanceKm);
+
+const parallelPlateSection = buildEarthquakeDistributionAnalysis([
+  { sourceDate: "2026-09-01", latitude: 34.94, longitude: 139, depthKm: 10, magnitude: 2 },
+  { sourceDate: "2026-09-01", latitude: 35.06, longitude: 139, depthKm: 30, magnitude: 2.5 }
+], {
+  plateData: syntheticPlateData
+});
+assert.equal(parallelPlateSection.crossSection.axisSource, "plate-boundary-axis");
+assert.deepEqual(parallelPlateSection.crossSection.plateProfiles[0].points.map((point) => point.depthKm), [0, 20, 40]);
+assert.ok(parallelPlateSection.crossSection.plateProfiles[0].points[0].distanceKm > parallelPlateSection.crossSection.plateProfiles[0].points.at(-1).distanceKm);
 
 const [realContours, realBoundaries] = await Promise.all([
   readFile(new URL("../public/data/usgs-slab2-depth-contours-japan.geojson", import.meta.url), "utf8"),
   readFile(new URL("../public/data/usgs-plate-boundaries-japan.geojson", import.meta.url), "utf8")
 ]);
+const realPlateData = { contours: JSON.parse(realContours), boundaries: JSON.parse(realBoundaries) };
 const realPlateSection = buildEarthquakeDistributionAnalysis([
   { sourceDate: "2026-09-01", latitude: 37, longitude: 140, depthKm: 20, magnitude: 2 },
   { sourceDate: "2026-09-01", latitude: 37, longitude: 145, depthKm: 80, magnitude: 3 }
-], { plateData: { contours: JSON.parse(realContours), boundaries: JSON.parse(realBoundaries) } });
+], { plateData: realPlateData });
 assert.ok(realPlateSection.crossSection.plateProfiles.some((profile) => profile.points.length >= 2));
+
+const northeastJapanSection = buildEarthquakeDistributionAnalysis([
+  [35, 140.2], [35.4, 140.6], [35.9, 140.8], [36.4, 141.1],
+  [36.8, 141.4], [37.2, 141.7], [37.6, 142]
+].map(([latitude, longitude], index) => ({
+  sourceDate: "2026-09-25",
+  latitude,
+  longitude,
+  depthKm: 20 + index * 8,
+  magnitude: 2
+})), { plateData: realPlateData });
+assert.equal(northeastJapanSection.crossSection.axisSource, "plate-boundary-axis");
+assert.ok(northeastJapanSection.crossSection.plateProfiles.some((profile) => (
+  profile.points[0].depthKm === 0 && profile.points.at(-1).depthKm >= 100
+)));
+assert.ok(northeastJapanSection.crossSection.plateProfiles.some((profile) => (
+  profile.points[0].distanceKm > profile.points.at(-1).distanceKm
+)));
 
 const leftPanel = await readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8");
 assert.match(leftPanel, /選択範囲の地震解析/u);

@@ -95,8 +95,102 @@ function buildCrossSection(items, plateData) {
     xy: result.xy + item.x * item.y
   }), { xx: 0, yy: 0, xy: 0 });
   const angle = 0.5 * Math.atan2(2 * covariance.xy, covariance.xx - covariance.yy);
-  const axisX = Math.cos(angle);
-  const axisY = Math.sin(angle);
+  const principalAxis = {
+    axisX: Math.cos(angle),
+    axisY: Math.sin(angle),
+    axisSource: "earthquake-axis"
+  };
+  const contourAxis = {
+    axisX: -principalAxis.axisY,
+    axisY: principalAxis.axisX,
+    axisSource: "plate-contour-axis"
+  };
+  const boundaryAxes = getNearestBoundaryAxes(plateData, {
+    centerLatitude,
+    centerLongitude
+  });
+  const candidates = [principalAxis, contourAxis, ...boundaryAxes].map((axis) => (
+    buildCrossSectionCandidate(projected, {
+      centerLatitude,
+      centerLongitude,
+      ...axis,
+      plateData
+    })
+  ));
+  const boundaryCandidates = candidates.filter((candidate) => (
+    candidate.axisSource === "plate-boundary-axis"
+    && getPlateProfileScore(candidate.plateProfiles) > 0
+  ));
+  const selected = (boundaryCandidates.length ? boundaryCandidates : candidates).sort((left, right) => (
+    getPlateProfileScore(right.plateProfiles) - getPlateProfileScore(left.plateProfiles)
+  ))[0];
+  return getPlateProfileScore(selected.plateProfiles) > 0
+    ? selected
+    : {
+      ...selected,
+      minDistanceKm: selected.rawMinDistanceKm,
+      maxDistanceKm: selected.rawMaxDistanceKm,
+      spanKm: selected.rawMaxDistanceKm - selected.rawMinDistanceKm
+    };
+}
+
+function getZeroDepthContours(plateData) {
+  const boundaries = Array.isArray(plateData?.boundaries?.features) ? plateData.boundaries.features : [];
+  return SLAB_BOUNDARY_DEFINITIONS.flatMap((definition) => boundaries
+    .filter((feature) => feature?.properties?.LABEL === "Convergent Boundary")
+    .filter((feature) => feature?.properties?.NAME === definition.boundaryName)
+    .map((feature) => ({
+      ...feature,
+      properties: { region: definition.region, plate: definition.plate, depthKm: 0 }
+    })));
+}
+
+function getNearestBoundaryAxes(plateData, center) {
+  const cosine = Math.cos(center.centerLatitude * Math.PI / 180);
+  const axes = [];
+  getZeroDepthContours(plateData).forEach((feature) => {
+    getCoordinateLines(feature?.geometry).forEach((line) => {
+      for (let index = 1; index < line.length; index += 1) {
+        const previous = projectCoordinateToCenter(line[index - 1], center, cosine);
+        const current = projectCoordinateToCenter(line[index], center, cosine);
+        if (!previous || !current) continue;
+        const deltaX = current.x - previous.x;
+        const deltaY = current.y - previous.y;
+        const lengthSquared = deltaX ** 2 + deltaY ** 2;
+        if (lengthSquared < 0.000001) continue;
+        const ratio = Math.max(0, Math.min(1, -(previous.x * deltaX + previous.y * deltaY) / lengthSquared));
+        const closestX = previous.x + deltaX * ratio;
+        const closestY = previous.y + deltaY * ratio;
+        const distanceSquared = closestX ** 2 + closestY ** 2;
+        if (distanceSquared < 0.000001) continue;
+        axes.push({
+          axisX: closestX / Math.sqrt(distanceSquared),
+          axisY: closestY / Math.sqrt(distanceSquared),
+          axisSource: "plate-boundary-axis",
+          distanceSquared,
+          preferredZeroDistanceKm: Math.sqrt(distanceSquared)
+        });
+      }
+    });
+  });
+  return axes
+    .sort((left, right) => left.distanceSquared - right.distanceSquared)
+    .filter((axis, index, all) => index === 0 || !all.slice(0, index).some((other) => (
+      Math.abs(axis.axisX * other.axisX + axis.axisY * other.axisY) > 0.995
+    )))
+    .slice(0, 3)
+    .map(({ distanceSquared, ...axis }) => axis);
+}
+
+function buildCrossSectionCandidate(projected, {
+  centerLatitude,
+  centerLongitude,
+  axisX,
+  axisY,
+  axisSource,
+  preferredZeroDistanceKm = null,
+  plateData
+}) {
   const sectionPoints = projected.map((item) => ({
     distanceKm: item.x * axisX + item.y * axisY,
     depthKm: item.depthKm,
@@ -105,35 +199,48 @@ function buildCrossSection(items, plateData) {
   }));
   const distances = sectionPoints.map((item) => item.distanceKm);
   const spanKm = Math.max(...distances) - Math.min(...distances);
+  const rawMinDistanceKm = Math.min(...distances);
+  const rawMaxDistanceKm = Math.max(...distances);
+  const profilePaddingKm = Math.max(100, Math.min(320, spanKm * 0.8));
+  const minDistanceKm = rawMinDistanceKm - profilePaddingKm;
+  const maxDistanceKm = rawMaxDistanceKm + profilePaddingKm;
+  const section = {
+    centerLatitude,
+    centerLongitude,
+    rawMinDistanceKm,
+    rawMaxDistanceKm,
+    axisX,
+    axisY,
+    preferredZeroDistanceKm,
+    minDistanceKm,
+    maxDistanceKm
+  };
   return {
     available: Number.isFinite(spanKm) && spanKm >= 0.5,
     centerLatitude,
     centerLongitude,
-    minDistanceKm: Math.min(...distances),
-    maxDistanceKm: Math.max(...distances),
-    spanKm,
+    rawMinDistanceKm,
+    rawMaxDistanceKm,
+    minDistanceKm,
+    maxDistanceKm,
+    spanKm: maxDistanceKm - minDistanceKm,
+    axisSource,
     points: sectionPoints,
-    plateProfiles: buildPlateDepthProfiles(plateData, {
-      centerLatitude,
-      centerLongitude,
-      axisX,
-      axisY,
-      minDistanceKm: Math.min(...distances),
-      maxDistanceKm: Math.max(...distances)
-    })
+    plateProfiles: buildPlateDepthProfiles(plateData, section)
   };
+}
+
+function getPlateProfileScore(profiles) {
+  return (Array.isArray(profiles) ? profiles : []).reduce((score, profile) => {
+    const points = Array.isArray(profile?.points) ? profile.points : [];
+    const maximumDepth = Math.max(0, ...points.map((point) => point.depthKm ?? 0));
+    return score + Math.max(0, points.length - 1) * 1000 + maximumDepth;
+  }, 0);
 }
 
 function buildPlateDepthProfiles(plateData, section) {
   const contours = Array.isArray(plateData?.contours?.features) ? plateData.contours.features : [];
-  const boundaries = Array.isArray(plateData?.boundaries?.features) ? plateData.boundaries.features : [];
-  const zeroDepthContours = SLAB_BOUNDARY_DEFINITIONS.flatMap((definition) => boundaries
-    .filter((feature) => feature?.properties?.LABEL === "Convergent Boundary")
-    .filter((feature) => feature?.properties?.NAME === definition.boundaryName)
-    .map((feature) => ({
-      ...feature,
-      properties: { region: definition.region, plate: definition.plate, depthKm: 0 }
-    })));
+  const zeroDepthContours = getZeroDepthContours(plateData);
   const candidatesByProfile = new Map();
   [...zeroDepthContours, ...contours].forEach((feature) => {
     const depthKm = toFiniteNumber(feature?.properties?.depthKm);
@@ -152,21 +259,23 @@ function buildPlateDepthProfiles(plateData, section) {
   return [...candidatesByProfile.values()].map((profile) => ({
     region: profile.region,
     plate: profile.plate,
-    points: selectContinuousPlateProfile(profile.depths)
+    points: selectContinuousPlateProfile(profile.depths, section)
   })).filter((profile) => (
     profile.points.length >= 2
     && profile.points[0].depthKm === 0
   ));
 }
 
-function selectContinuousPlateProfile(depthCandidates) {
+function selectContinuousPlateProfile(depthCandidates, section = {}) {
   let previousDistance = null;
   return [...depthCandidates.entries()]
     .sort(([leftDepth], [rightDepth]) => leftDepth - rightDepth)
     .map(([depthKm, candidates]) => {
       const uniqueCandidates = [...new Set(candidates)];
       const distanceKm = uniqueCandidates.sort((left, right) => (
-        previousDistance === null
+        previousDistance === null && depthKm === 0 && Number.isFinite(section.preferredZeroDistanceKm)
+          ? Math.abs(left - section.preferredZeroDistanceKm) - Math.abs(right - section.preferredZeroDistanceKm)
+          : previousDistance === null
           ? Math.abs(left) - Math.abs(right)
           : Math.abs(left - previousDistance) - Math.abs(right - previousDistance)
       ))[0];
@@ -176,11 +285,7 @@ function selectContinuousPlateProfile(depthCandidates) {
 }
 
 function getSectionIntersections(geometry, section) {
-  const lines = geometry?.type === "LineString"
-    ? [geometry.coordinates]
-    : geometry?.type === "MultiLineString"
-      ? geometry.coordinates
-      : [];
+  const lines = getCoordinateLines(geometry);
   const limit = Math.max(8, (section.maxDistanceKm - section.minDistanceKm) * 0.08);
   const intersections = [];
   lines.forEach((line) => {
@@ -188,6 +293,12 @@ function getSectionIntersections(geometry, section) {
       const previous = projectCoordinateToSection(line[index - 1], section);
       const current = projectCoordinateToSection(line[index], section);
       if (!previous || !current) continue;
+      if (Math.abs(previous.offsetKm) < 0.000001) {
+        intersections.push(previous.distanceKm);
+      }
+      if (Math.abs(current.offsetKm) < 0.000001) {
+        intersections.push(current.distanceKm);
+      }
       const delta = previous.offsetKm - current.offsetKm;
       if (Math.abs(delta) < 0.000001) continue;
       if ((previous.offsetKm > 0 && current.offsetKm > 0) || (previous.offsetKm < 0 && current.offsetKm < 0)) continue;
@@ -198,7 +309,28 @@ function getSectionIntersections(geometry, section) {
       }
     }
   });
-  return intersections;
+  return intersections.filter((distanceKm) => (
+    distanceKm >= section.minDistanceKm - limit
+    && distanceKm <= section.maxDistanceKm + limit
+  ));
+}
+
+function getCoordinateLines(geometry) {
+  return geometry?.type === "LineString"
+    ? [geometry.coordinates]
+    : geometry?.type === "MultiLineString"
+      ? geometry.coordinates
+      : [];
+}
+
+function projectCoordinateToCenter(coordinate, center, cosine) {
+  const longitude = toFiniteNumber(coordinate?.[0]);
+  const latitude = toFiniteNumber(coordinate?.[1]);
+  if (longitude === null || latitude === null) return null;
+  return {
+    x: (longitude - center.centerLongitude) * 111.32 * cosine,
+    y: (latitude - center.centerLatitude) * 110.57
+  };
 }
 
 function projectCoordinateToSection(coordinate, section) {

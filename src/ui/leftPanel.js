@@ -7250,6 +7250,11 @@ function buildEarthquakeDistributionAnalysisMarkup(snapshot, options) {
   const magnitudeMaximum = formatAnalysisValue(analysis.magnitude.max, "M", 1);
   const activity = formatActivityChange(analysis.activity);
   const selectionLabel = options.hasArea ? "囲み範囲" : "表示範囲";
+  const sectionAxisLabel = analysis.crossSection?.axisSource === "plate-boundary-axis"
+    ? "近傍の収束境界から等深線を横切る方向"
+    : analysis.crossSection?.axisSource === "plate-contour-axis"
+      ? "Slab2等深線を横切る方向"
+      : "震源分布の主軸";
   const plateStatus = options.plateBoundaryVisible
     ? `プレート境界：地図に表示中${options.plateDepthContoursVisible ? "・等深線：表示中" : ""}`
     : "プレート境界：地図で非表示";
@@ -7268,8 +7273,8 @@ function buildEarthquakeDistributionAnalysisMarkup(snapshot, options) {
       ${buildSelectedEarthquakeDailyTrend(analysis.daily, selectionLabel)}
       ${options.hasArea
         ? buildEarthquakeCrossSection(analysis.crossSection, options.plateDataStatus)
-        : '<div class="earthquake-analysis-section-empty">地図で範囲を囲って検索すると、その範囲の主軸に沿った深さ断面を表示します。</div>'}
-      <div class="earthquake-analysis-plate-status"><p class="earthquake-distribution-analysis-note">${escapeHtml(plateStatus)}。断面は${escapeHtml(selectionLabel)}内の震源分布の主軸に沿う簡易表示で、プレート境界そのものの断面ではありません。</p>${plateAction}</div>
+        : '<div class="earthquake-analysis-section-empty">地図で範囲を囲って検索すると、震源分布とプレート等深線の向きから深さ断面を表示します。</div>'}
+      <div class="earthquake-analysis-plate-status"><p class="earthquake-distribution-analysis-note">${escapeHtml(plateStatus)}。断面は${escapeHtml(selectionLabel)}内の${escapeHtml(sectionAxisLabel)}に沿う簡易表示で、プレート境界そのものの断面ではありません。</p>${plateAction}</div>
     </section>
   `;
 }
