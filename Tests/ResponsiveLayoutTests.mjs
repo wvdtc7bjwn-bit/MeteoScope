@@ -529,39 +529,35 @@ assert.doesNotMatch(
 );
 assert.match(
   styles,
-  /\.mobile-dock-earthquake-distribution-summary\s*\{[\s\S]*?gap:\s*6px;/
+  /\.mobile-dock-earthquake-distribution-summary\s*\{[\s\S]*?gap:\s*4px;/
 );
 assert.match(
   styles,
-  /\.mobile-dock-earthquake-distribution-head\s*\{[\s\S]*?align-items:\s*center;[\s\S]*?min-height:\s*28px;/
+  /\.mobile-dock-earthquake-distribution-head\s*\{[\s\S]*?align-items:\s*center;/
 );
 assert.match(
   styles,
-  /\.mobile-dock-earthquake,\s*\.mobile-dock-earthquake-distribution\s*\{[\s\S]*?grid-template-rows:\s*34px\s+61px;[\s\S]*?gap:\s*8px;/
+  /\.mobile-dock-earthquake,\s*\.mobile-dock-earthquake-distribution\s*\{[\s\S]*?grid-template-rows:\s*34px\s+50px;[\s\S]*?gap:\s*7px;/
 );
 assert.match(
   styles,
-  /\.mobile-context-dock\[data-tab="earthquake"\]\s*\{[\s\S]*?height:\s*137px;[\s\S]*?min-height:\s*137px;[\s\S]*?max-height:\s*137px;/
+  /\.mobile-dock-earthquake-summary-viewport\s*\{[\s\S]*?height:\s*99px;/
 );
 assert.match(
   styles,
-  /\.mobile-dock-earthquake-summary-viewport\s*\{[\s\S]*?height:\s*110px;/
+  /\.mobile-dock-earthquake-summary-track\s*\{[\s\S]*?height:\s*99px;/
 );
 assert.match(
   styles,
-  /\.mobile-dock-earthquake-summary-track\s*\{[\s\S]*?height:\s*110px;/
+  /\.mobile-dock-earthquake-summary-page\s*\{[\s\S]*?grid-template-rows:\s*34px\s+58px;[\s\S]*?height:\s*99px;/
 );
 assert.match(
   styles,
-  /\.mobile-dock-earthquake-summary-page\s*\{[\s\S]*?grid-template-rows:\s*34px\s+69px;[\s\S]*?height:\s*110px;/
+  /\.mobile-dock-earthquake-summary-page\[data-mobile-earthquake-summary="tsunami"\]\s*\{[\s\S]*?grid-template-rows:\s*26px\s+66px;/
 );
 assert.match(
   styles,
-  /\.mobile-dock-earthquake-summary-page\[data-mobile-earthquake-summary="tsunami"\]\s*\{[\s\S]*?grid-template-rows:\s*26px\s+77px;/
-);
-assert.match(
-  styles,
-  /\.mobile-dock-earthquake-distribution-summary\s*\{[\s\S]*?height:\s*61px;[\s\S]*?align-content:\s*center;/
+  /\.mobile-dock-earthquake-distribution-summary\s*\{[\s\S]*?height:\s*50px;[\s\S]*?align-content:\s*center;/
 );
 const mobileEarthquakeIntensityStyle = styles.match(
   /\.mobile-dock-earthquake-intensity\s*\{([^}]*)\}/

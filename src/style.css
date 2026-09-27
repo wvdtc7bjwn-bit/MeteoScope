@@ -7827,7 +7827,7 @@ html[data-theme="light"] .upper-air-insight { border-color: rgba(67, 110, 148, 0
 
 .mobile-dock-earthquake-distribution-summary {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .mobile-dock-earthquake-distribution-head {
@@ -7835,7 +7835,6 @@ html[data-theme="light"] .upper-air-insight { border-color: rgba(67, 110, 148, 0
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 28px;
   min-width: 0;
 }
 
@@ -11591,9 +11590,6 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-context-dock[data-tab="earthquake"] {
     bottom: calc(max(0px, env(safe-area-inset-bottom)) + 76px);
-    height: 137px;
-    min-height: 137px;
-    max-height: 137px;
     padding-top: 10px;
     padding-bottom: 9px;
   }
@@ -12169,9 +12165,9 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   .mobile-dock-earthquake,
   .mobile-dock-earthquake-distribution {
     display: grid;
-    grid-template-rows: 34px 61px;
+    grid-template-rows: 34px 50px;
     align-content: center;
-    gap: 8px;
+    gap: 7px;
   }
 
   .mobile-dock-earthquake-view-switch {
@@ -12183,7 +12179,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   }
 
   .mobile-dock-earthquake-distribution-summary {
-    height: 61px;
+    height: 50px;
     align-content: center;
     box-sizing: border-box;
   }
@@ -12193,7 +12189,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     top: 3.1667px;
     width: calc(100% + 36px);
     min-width: 0;
-    height: 110px;
+    height: 99px;
     margin-inline: -18px;
     overflow: hidden;
   }
@@ -12201,7 +12197,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   .mobile-dock-earthquake-summary-track {
     display: flex;
     width: 300%;
-    height: 110px;
+    height: 99px;
     transform: translate3d(
       calc(var(--mobile-earthquake-summary-position, 0%) + var(--mobile-summary-drag-x, 0px)),
       0,
@@ -12220,12 +12216,12 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   .mobile-dock-earthquake-summary-page {
     display: grid;
     flex: 0 0 33.333333%;
-    grid-template-rows: 34px 69px;
+    grid-template-rows: 34px 58px;
     gap: 7px;
     padding-inline: 24px;
     width: 33.333333%;
     min-width: 0;
-    height: 110px;
+    height: 99px;
     box-sizing: border-box;
   }
 
@@ -12234,7 +12230,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   }
 
   .mobile-dock-earthquake-summary-page[data-mobile-earthquake-summary="tsunami"] {
-    grid-template-rows: 26px 77px;
+    grid-template-rows: 26px 66px;
   }
 
   .mobile-dock-earthquake-summary-dots {
