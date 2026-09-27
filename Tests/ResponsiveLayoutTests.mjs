@@ -395,7 +395,7 @@ assert.match(
 );
 assert.match(
   styles,
-  /@supports \(-webkit-touch-callout:\s*none\)\s*\{[\s\S]*?@media \(max-width:\s*600px\)\s*\{[\s\S]*?earthquake-distribution-date-input\[type="date"\][\s\S]*?-webkit-appearance:\s*none;[\s\S]*?appearance:\s*none;[\s\S]*?inline-size:\s*100%;[\s\S]*?min-inline-size:\s*0;[\s\S]*?max-inline-size:\s*100%;[\s\S]*?overflow:\s*hidden;/
+  /@supports \(-webkit-touch-callout:\s*none\)\s*\{[\s\S]*?@media \(max-width:\s*600px\),\s*\(orientation:\s*landscape\) and \(max-height:\s*600px\) and \(hover:\s*none\) and \(pointer:\s*coarse\)\s*\{[\s\S]*?earthquake-distribution-date-input\[type="date"\][\s\S]*?-webkit-appearance:\s*none;[\s\S]*?appearance:\s*none;[\s\S]*?inline-size:\s*100%;[\s\S]*?min-inline-size:\s*0;[\s\S]*?max-inline-size:\s*100%;[\s\S]*?overflow:\s*hidden;/
 );
 assert.match(
   styles,
@@ -411,11 +411,11 @@ assert.match(
 );
 assert.match(
   styles,
-  /earthquake-distribution-date-input\[type="date"\]\)::-webkit-datetime-edit,[\s\S]*?::-webkit-datetime-edit-fields-wrapper\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?block-size:\s*100%;/
+  /earthquake-distribution-date-input\[type="date"\]\)::-webkit-datetime-edit,[\s\S]*?::-webkit-datetime-edit-fields-wrapper\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center;[\s\S]*?block-size:\s*100%;/
 );
 assert.match(
   styles,
-  /earthquake-distribution-date-input\[type="date"\]\)::-webkit-date-and-time-value\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?block-size:\s*100%;/
+  /earthquake-distribution-date-input\[type="date"\]\)::-webkit-date-and-time-value\s*\{[\s\S]*?display:\s*flex;[\s\S]*?align-items:\s*center;[\s\S]*?justify-content:\s*center;[\s\S]*?block-size:\s*100%;/
 );
 assert.match(
   styles,
@@ -817,6 +817,14 @@ assert.match(panel, /\$\{isEnglish \? "Next" : "翌日"\}/);
 assert.match(
   styles,
   /\.earthquake-distribution-date-navigation\.compact \.earthquake-distribution-date-step\s*\{[\s\S]*?white-space:\s*nowrap;/
+);
+assert.match(
+  styles,
+  /\.earthquake-distribution-date-navigation\.compact\s*\{[\s\S]*?grid-template-columns:\s*46px\s+minmax\(0,\s*1fr\)\s+46px;[\s\S]*?gap:\s*4px;/
+);
+assert.match(
+  styles,
+  /\.earthquake-distribution-date-control\.compact input\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;[\s\S]*?overflow:\s*hidden;/
 );
 assert.match(
   styles,
