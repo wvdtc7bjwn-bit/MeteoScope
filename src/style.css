@@ -7827,7 +7827,7 @@ html[data-theme="light"] .upper-air-insight { border-color: rgba(67, 110, 148, 0
 
 .mobile-dock-earthquake-distribution-summary {
   display: grid;
-  gap: 4px;
+  gap: 3px;
 }
 
 .mobile-dock-earthquake-distribution-head {
@@ -7863,8 +7863,8 @@ html[data-theme="light"] .upper-air-insight { border-color: rgba(67, 110, 148, 0
      mobile segmented control.  The old 1px inset made the glass indicator
      2px shorter and vertically offset from the buttons. */
   box-sizing: border-box;
-  width: 76px;
-  height: 28px;
+  width: 72px;
+  height: 20px;
   padding: 2px;
 }
 
@@ -7873,9 +7873,9 @@ html[data-theme="light"] .upper-air-insight { border-color: rgba(67, 110, 148, 0
 }
 
 .hypocenter-presentation.compact .hypocenter-presentation-switch button {
-  height: 22px;
-  padding: 0 4px;
-  font-size: 8px;
+  height: 16px;
+  padding: 0 3px;
+  font-size: 7.5px;
 }
 
 .earthquake-distribution-date-control.compact {

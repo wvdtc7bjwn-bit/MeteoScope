@@ -529,7 +529,7 @@ assert.doesNotMatch(
 );
 assert.match(
   styles,
-  /\.mobile-dock-earthquake-distribution-summary\s*\{[\s\S]*?gap:\s*4px;/
+  /\.mobile-dock-earthquake-distribution-summary\s*\{[\s\S]*?gap:\s*3px;/
 );
 assert.match(
   styles,
@@ -558,6 +558,14 @@ assert.match(
 assert.match(
   styles,
   /\.mobile-dock-earthquake-distribution-summary\s*\{[\s\S]*?height:\s*50px;[\s\S]*?align-content:\s*center;/
+);
+assert.match(
+  styles,
+  /\.hypocenter-presentation\.compact \.hypocenter-presentation-switch\s*\{[\s\S]*?width:\s*72px;[\s\S]*?height:\s*20px;/
+);
+assert.match(
+  styles,
+  /\.hypocenter-presentation\.compact \.hypocenter-presentation-switch button\s*\{[\s\S]*?height:\s*16px;[\s\S]*?font-size:\s*7\.5px;/
 );
 const mobileEarthquakeIntensityStyle = styles.match(
   /\.mobile-dock-earthquake-intensity\s*\{([^}]*)\}/
