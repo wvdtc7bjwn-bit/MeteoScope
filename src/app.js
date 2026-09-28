@@ -4,7 +4,7 @@ import { setupTabs } from "./ui/tabs.js";
 import { setupAmedasDailyChartToggle, setupAmedasPrecipitationPeriods, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { applyAmedasPrecipitationPeriod, DEFAULT_AMEDAS_PRECIPITATION_PERIOD, normalizeAmedasPrecipitationPeriod } from "./amedasPrecipitationPeriod.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
-import { setupSatelliteLayerToggle, setupWeatherDistributionToggle, syncSatelliteLayerToggle, syncWeatherDistributionToggle, toggleWeatherDistributionPicker } from "./ui/weatherDistributionToggle.js";
+import { setupEarthquakeLayerToggle, setupSatelliteLayerToggle, setupWeatherDistributionToggle, syncEarthquakeLayerToggle, syncSatelliteLayerToggle, syncWeatherDistributionToggle, toggleWeatherDistributionPicker } from "./ui/weatherDistributionToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
 import { setupWeeklyWeatherModal } from "./ui/weeklyWeatherModal.js";
@@ -563,6 +563,15 @@ export function createWeatherApp() {
       visible: tab?.id === "radar" && weatherChartSatelliteEnabled,
       weatherChartEnabled: weatherChartSatelliteWeatherChartOverlayEnabled,
       radarEnabled: weatherChartSatelliteRadarOverlayEnabled
+    });
+    syncEarthquakeLayerToggle({
+      visible: tab?.id === "earthquake",
+      layers: {
+        activeFault: earthquakeActiveFaultVisible,
+        plateBoundary: earthquakePlateBoundaryVisible,
+        plateDepthContours: earthquakePlateDepthContoursVisible
+      },
+      presentation3d: earthquakeDistribution3DEnabled
     });
   }
 
@@ -3924,6 +3933,10 @@ if (layerId === "river") {
       getDistributionDates: () => earthquakeDistributionState.data?.availableDates ?? []
     });
     setupEarthquakeMapLayerToggles({ onChange: setEarthquakeMapLayerVisible });
+    setupEarthquakeLayerToggle({
+      onLayerChange: setEarthquakeMapLayerVisible,
+      onPresentationChange: selectEarthquakeDistributionPresentation
+    });
     setupRadarControls({
       onSeek: selectActiveRadarTimelineFrame,
       onStep: stepActiveRadarTimeline,

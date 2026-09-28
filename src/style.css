@@ -7827,7 +7827,7 @@ html[data-theme="light"] .upper-air-insight { border-color: rgba(67, 110, 148, 0
 
 .mobile-dock-earthquake-distribution-summary {
   display: grid;
-  gap: 3px;
+  gap: 4px;
 }
 
 .mobile-dock-earthquake-distribution-head {
@@ -7848,34 +7848,6 @@ html[data-theme="light"] .upper-air-insight { border-color: rgba(67, 110, 148, 0
   flex: 0 0 auto;
   font-size: 19px;
   line-height: 1;
-}
-
-.hypocenter-presentation.compact {
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-
-.hypocenter-presentation.compact .hypocenter-presentation-switch {
-  /* Keep the compact buttons on the same 3px indicator inset as every
-     mobile segmented control.  The old 1px inset made the glass indicator
-     2px shorter and vertically offset from the buttons. */
-  box-sizing: border-box;
-  width: 72px;
-  height: 20px;
-  padding: 2px;
-}
-
-.hypocenter-presentation.compact .hypocenter-presentation-switch::before {
-  box-shadow: none;
-}
-
-.hypocenter-presentation.compact .hypocenter-presentation-switch button {
-  height: 16px;
-  padding: 0 3px;
-  font-size: 7.5px;
 }
 
 .earthquake-distribution-date-control.compact {
@@ -10225,8 +10197,8 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   flex-direction: row;
   align-items: center;
   justify-content: flex-end;
-  width: 166px;
-  height: 98px;
+  width: 184px;
+  height: 132px;
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 14px;
@@ -10246,12 +10218,23 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
 .map-satellite-layer-toggle {
   bottom: 134px;
-  height: 70px;
+  height: 102px;
 }
 
 .map-satellite-layer-toggle .weather-distribution-toggle-choices {
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  height: 56px;
+  grid-template-rows: 20px repeat(2, minmax(0, 1fr));
+  height: 88px;
+}
+
+.map-earthquake-layer-toggle {
+  top: auto;
+  bottom: 82px;
+  height: 162px;
+}
+
+.map-earthquake-layer-toggle .weather-distribution-toggle-choices {
+  grid-template-rows: 20px repeat(4, minmax(0, 1fr));
+  height: 148px;
 }
 
 .weather-distribution-toggle-button {
@@ -10286,18 +10269,19 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
 .weather-distribution-toggle-choices {
   display: grid;
-  grid-template-rows: repeat(3, minmax(0, 1fr));
+  grid-template-rows: 20px repeat(3, minmax(0, 1fr));
   grid-template-columns: 1fr;
   flex: none;
   align-items: stretch;
   min-width: 0;
-  width: 112px;
-  height: 82px;
+  width: 134px;
+  height: 118px;
   margin: 0 6px 0 0;
   padding: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.045);
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  box-shadow: none;
   opacity: 1;
   filter: blur(0);
   transform: translate3d(0, 0, 0) scale(1);
@@ -10308,24 +10292,102 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     transform 220ms cubic-bezier(0.2, 1.12, 0.36, 1) 24ms;
 }
 
+.weather-distribution-toggle-choices::before {
+  content: attr(data-layer-picker-title);
+  display: flex;
+  align-items: center;
+  padding-inline: 5px;
+  color: rgba(214, 234, 251, 0.58);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+  line-height: 1;
+}
+
 .weather-distribution-toggle-choices button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   min-width: 0;
+  padding: 0 7px;
   border: 0;
-  border-radius: 9px;
+  border-bottom: 1px solid rgba(197, 220, 240, 0.1);
+  border-radius: 0;
   background: transparent;
-  color: rgba(216, 230, 247, 0.78);
-  font-size: 14px;
+  color: rgba(220, 235, 248, 0.72);
+  font-size: 12px;
   font-weight: 900;
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  transition: color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.weather-distribution-toggle-choices button:last-child {
+  border-bottom: 0;
+}
+
+.weather-distribution-toggle-choices button::after {
+  content: "";
+  box-sizing: border-box;
+  width: 24px;
+  height: 14px;
+  border: 1px solid rgba(188, 213, 234, 0.28);
+  border-radius: 999px;
+  background: rgba(118, 144, 170, 0.16);
+}
+
+.weather-distribution-toggle-choices button::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(192, 211, 227, 0.7);
+  transform: translateY(-50%);
+  transition: transform 160ms ease, background-color 160ms ease;
 }
 
 .weather-distribution-toggle-choices button.active {
-  color: #8ad8ff;
-  background: rgba(71, 148, 197, 0.25);
-  box-shadow: inset 0 0 0 1px rgba(112, 206, 252, 0.16);
+  color: #eef8ff;
+  background: rgba(104, 151, 186, 0.12);
+  box-shadow: inset 2px 0 0 rgba(118, 209, 246, 0.9);
+}
+
+.weather-distribution-toggle-choices button.active::after {
+  border-color: rgba(132, 221, 253, 0.78);
+  background: rgba(56, 153, 202, 0.72);
+}
+
+.weather-distribution-toggle-choices button.active::before {
+  background: #e4f8ff;
+  transform: translate(8px, -50%);
+}
+
+.weather-distribution-toggle-choices[data-layer-picker-kind="single"] button::after {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.weather-distribution-toggle-choices[data-layer-picker-kind="single"] button::before {
+  display: none;
+}
+
+.weather-distribution-toggle-choices[data-layer-picker-kind="single"] button.active::after {
+  content: "✓";
+  display: grid;
+  place-items: center;
+  border-color: transparent;
+  color: #062438;
+  background: #98dfff;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
 }
 
 .map-weather-distribution-toggle.collapsed {
@@ -12280,7 +12342,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-earthquake-main {
     display: grid;
-    grid-template-columns: 50px minmax(0, 1fr) 68px;
+    grid-template-columns: 50px minmax(0, 1fr);
     align-items: center;
     gap: 7px;
     min-width: 0;
@@ -12299,35 +12361,6 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     line-height: 1.35;
     overflow-wrap: anywhere;
     text-align: center;
-  }
-
-  .mobile-dock-earthquake-layer-list {
-    display: grid;
-    gap: 2px;
-    width: 68px;
-  }
-
-  .mobile-dock-earthquake-layer {
-    min-height: 14px;
-    padding: 1px 3px;
-    border: 1px solid rgba(173, 201, 226, 0.18);
-    border-radius: 999px;
-    color: rgba(211, 229, 246, 0.56);
-    background: rgba(5, 14, 28, 0.28);
-    font: inherit;
-    font-size: 7.8px;
-    font-weight: 850;
-    line-height: 1;
-    overflow: hidden;
-    text-overflow: clip;
-    white-space: nowrap;
-    cursor: pointer;
-  }
-
-  .mobile-dock-earthquake-layer.active {
-    border-color: rgba(91, 191, 244, 0.46);
-    color: #97dfff;
-    background: rgba(41, 145, 210, 0.18);
   }
 
   .mobile-dock-earthquake-time {
@@ -12430,16 +12463,6 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
   .mobile-dock-earthquake-intensity.is-bright-text {
     color: #fff;
-  }
-
-  .mobile-dock-earthquake-layer-list.has-estimated-intensity {
-    gap: 1px;
-  }
-
-  .mobile-dock-earthquake-layer-list.has-estimated-intensity .mobile-dock-earthquake-layer {
-    min-height: 11px;
-    padding-block: 0;
-    font-size: 7.8px;
   }
 
   .mobile-dock-tsunami-main {
@@ -14911,12 +14934,6 @@ html[data-theme="light"] .earthquake-distribution-presentation-card .hypocenter-
 }
 
 html[data-theme="light"] .earthquake-distribution-presentation-card .hypocenter-presentation-switch::before {
-  box-shadow: none;
-}
-
-html[data-theme="light"] .hypocenter-presentation.compact {
-  border: 0;
-  background: transparent;
   box-shadow: none;
 }
 
@@ -20982,6 +20999,24 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
   .mobile-drawer-open .map-weather-distribution-toggle {
     opacity: 0;
     pointer-events: none;
+  }
+}
+
+/* Keep the earthquake layer chooser opposite the locate control. The expanded
+   picker grows upward from this shared bottom edge, so it remains above the dock. */
+.map-weather-distribution-toggle.map-earthquake-layer-toggle {
+  top: auto;
+  right: 9px;
+  bottom: 82px;
+}
+
+@media (max-width: 800px) {
+  .map-weather-distribution-toggle.map-earthquake-layer-toggle {
+    right: 17px;
+    bottom: max(
+      calc(var(--mobile-sidebar-visible-height, 48dvh) + 70px),
+      calc(max(0px, env(safe-area-inset-bottom)) + 220px)
+    );
   }
 }
 

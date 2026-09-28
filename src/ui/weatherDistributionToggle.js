@@ -3,6 +3,7 @@ const layerToggleControllers = new Map();
 let updateWeatherDistributionToggle = () => {};
 let toggleWeatherDistributionToggle = () => {};
 let updateSatelliteLayerToggle = () => {};
+let updateEarthquakeLayerToggle = () => {};
 
 function setupLayerChoiceToggle({
   key,
@@ -13,7 +14,8 @@ function setupLayerChoiceToggle({
   dockPickerSelector = "",
   closedLabel,
   openLabel,
-  onChoice
+  onChoice,
+  syncChoice = () => {}
 }) {
   const existing = layerToggleControllers.get(key);
   if (existing) return existing;
@@ -81,6 +83,7 @@ function setupLayerChoiceToggle({
         const selected = Boolean(isSelected(choice));
         choice.classList.toggle("active", selected);
         choice.setAttribute("aria-pressed", String(selected));
+        syncChoice(choice, selected);
       });
       syncDockPickerState();
     }
@@ -144,4 +147,37 @@ export function setupSatelliteLayerToggle({ onChange }) {
 
 export function syncSatelliteLayerToggle(options) {
   updateSatelliteLayerToggle(options);
+}
+
+export function setupEarthquakeLayerToggle({ onLayerChange, onPresentationChange }) {
+  const controller = setupLayerChoiceToggle({
+    key: "earthquake-layer",
+    rootId: "earthquake-layer-toggle",
+    toggleId: "earthquake-layer-toggle-button",
+    choicesId: "earthquake-layer-toggle-choices",
+    choiceSelector: "[data-earthquake-map-layer], [data-earthquake-distribution-presentation]",
+    closedLabel: "地震地図のレイヤーを選択",
+    openLabel: "地震地図のレイヤーを閉じる",
+    onChoice: (choice) => {
+      if (choice.dataset.earthquakeMapLayer) {
+        onLayerChange?.(choice.dataset.earthquakeMapLayer, choice.dataset.earthquakeLayerVisible === "on");
+      } else if (choice.dataset.earthquakeDistributionPresentation) {
+        onPresentationChange?.(choice.getAttribute("aria-pressed") === "true" ? "flat" : "3d");
+      }
+    },
+    syncChoice: (choice, selected) => {
+      if (choice.dataset.earthquakeMapLayer) choice.dataset.earthquakeLayerVisible = selected ? "off" : "on";
+    }
+  });
+  if (!controller) return;
+  updateEarthquakeLayerToggle = ({ visible = false, layers = {}, presentation3d = false } = {}) => controller.update({
+    visible,
+    isSelected: (choice) => choice.dataset.earthquakeMapLayer
+      ? layers[choice.dataset.earthquakeMapLayer] === true
+      : choice.dataset.earthquakeDistributionPresentation === "3d" && presentation3d
+  });
+}
+
+export function syncEarthquakeLayerToggle(options) {
+  updateEarthquakeLayerToggle(options);
 }

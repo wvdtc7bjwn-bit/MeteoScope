@@ -2814,18 +2814,8 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     }
     const earthquakes = state.data?.earthquakes ?? [];
     const earthquake = state.data?.selectedEarthquake ?? earthquakes[0];
-    const activeFaultVisible = state.earthquakeActiveFaultVisible ?? state.data?.activeFaultVisible ?? true;
-    const plateBoundaryVisible = state.earthquakePlateBoundaryVisible ?? state.data?.plateBoundaryVisible ?? true;
-    const plateDepthContoursVisible = state.earthquakePlateDepthContoursVisible ?? state.data?.plateDepthContoursVisible ?? true;
-    const estimatedIntensityVisible = state.earthquakeEstimatedIntensityVisible
-      ?? state.data?.estimatedIntensityVisible
-      ?? true;
     return buildEarthquakeMobileContextMarkup(
       earthquake,
-      activeFaultVisible,
-      plateBoundaryVisible,
-      plateDepthContoursVisible,
-      estimatedIntensityVisible,
       state.data?.tsunami,
       state.data?.tsunamiStatus,
       state.data?.tideObservation,
@@ -3410,10 +3400,6 @@ function normalizeSummaryValue(value) {
 
 function buildEarthquakeMobileContextMarkup(
   earthquake,
-  activeFaultVisible,
-  plateBoundaryVisible,
-  plateDepthContoursVisible,
-  estimatedIntensityVisible,
   tsunami,
   tsunamiStatus,
   tideObservation,
@@ -3473,14 +3459,6 @@ function buildEarthquakeMobileContextMarkup(
           <span>${escapeHtml([magnitude, `深さ ${depth}`].filter((item) => item && item !== "--").join(" / ") || "詳細確認中")}</span>
           ${tsunamiMarkup}
         </div>
-      </div>
-      <div class="mobile-dock-earthquake-layer-list${earthquake?.estimatedIntensity ? " has-estimated-intensity" : ""}" aria-label="地震地図の表示項目">
-        ${earthquake?.estimatedIntensity
-          ? buildMobileEarthquakeLayerButton("estimatedIntensity", "推計震度", estimatedIntensityVisible)
-          : ""}
-        ${buildMobileEarthquakeLayerButton("activeFault", "活断層", activeFaultVisible)}
-        ${buildMobileEarthquakeLayerButton("plateBoundary", "境界", plateBoundaryVisible)}
-        ${buildMobileEarthquakeLayerButton("plateDepthContours", "等深線", plateDepthContoursVisible)}
       </div>
     </div>
   `;
@@ -4624,10 +4602,6 @@ function buildCurrentLocationCardContent(info, { warningView = "status", activeK
     detailAreaCode: info.areaCode,
     badges: warnings.map(buildWarningBadgeMarkup)
   };
-}
-
-function buildMobileEarthquakeLayerButton(layerId, label, visible) {
-  return `<button type="button" class="mobile-dock-earthquake-layer${visible ? " active" : ""}" data-mobile-dock-control data-earthquake-map-layer="${escapeHtml(layerId)}" data-earthquake-layer-visible="${visible ? "off" : "on"}" aria-pressed="${visible ? "true" : "false"}">${escapeHtml(label)}</button>`;
 }
 
 function getMobileWarningBadgeColorClass(warningView, level) {
@@ -7218,7 +7192,6 @@ function buildEarthquakeDistributionMobileContextMarkup(data) {
     <div class="mobile-dock-earthquake-distribution-summary">
       <div class="mobile-dock-earthquake-distribution-head">
         <span class="mobile-dock-kicker">${escapeHtml(distributionKicker)}</span>
-        ${buildHypocenterPresentationToggle(data.distribution3DEnabled === true, true)}
         <strong>${isPendingDate
           ? isEnglish ? "Loading" : "取得中"
           : isEnglish ? `${count.toLocaleString("en-US")} items` : `${count.toLocaleString("ja-JP")}件`}</strong>

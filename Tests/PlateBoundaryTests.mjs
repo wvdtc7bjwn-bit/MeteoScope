@@ -102,6 +102,7 @@ const plateDepth3DLayer = await readFile(new URL("src/map/plateDepth3DLayer.js",
 const plateDepthSurface3DLayer = await readFile(new URL("src/map/plateDepthSurface3DLayer.js", root), "utf8");
 const panel = await readFile(new URL("src/ui/leftPanel.js", root), "utf8");
 const style = await readFile(new URL("src/style.css", root), "utf8");
+const layerToggle = await readFile(new URL("src/ui/weatherDistributionToggle.js", root), "utf8");
 assert.match(index, /プレート境界: USGS/u);
 assert.match(index, /境界モデル: Bird, 2003/u);
 assert.match(index, /プレート面・等深線: USGS Slab2/u);
@@ -146,13 +147,15 @@ assert.match(
   style,
   /html\[data-theme="light"\] \.earthquake-distribution-presentation-card \.hypocenter-presentation-switch::before\s*\{[^}]*box-shadow:\s*none/u,
 );
-assert.match(style, /\.hypocenter-presentation\.compact \.hypocenter-presentation-switch::before\s*\{[^}]*box-shadow:\s*none/u);
-assert.match(
-  style,
-  /\.hypocenter-presentation\.compact \.hypocenter-presentation-switch\s*\{[^}]*box-sizing:\s*border-box;[^}]*width:\s*72px;[^}]*height:\s*20px;[^}]*padding:\s*2px;/u,
-  "the compact hypocenter presentation slider must fit the mobile epicenter summary row"
-);
-assert.match(style, /html\[data-theme="light"\] \.hypocenter-presentation\.compact\s*\{[^}]*background:\s*transparent/u);
+assert.match(index, /id="earthquake-layer-toggle"/u);
+assert.match(index, /data-earthquake-map-layer="activeFault"/u);
+assert.match(index, /data-earthquake-map-layer="plateBoundary"/u);
+assert.match(index, /data-earthquake-map-layer="plateDepthContours"/u);
+assert.match(index, /data-earthquake-distribution-presentation="3d"/u);
+assert.match(layerToggle, /setupEarthquakeLayerToggle/u);
+assert.match(layerToggle, /choice\.getAttribute\("aria-pressed"\) === "true" \? "flat" : "3d"/u);
+assert.match(style, /\.map-weather-distribution-toggle\.map-earthquake-layer-toggle\s*\{[\s\S]*?bottom:\s*82px;/u);
+assert.match(style, /\.map-earthquake-layer-toggle \.weather-distribution-toggle-choices\s*\{[\s\S]*?grid-template-rows:\s*20px\s+repeat\(4,/u);
 assert.match(depthRenderer, /uniform float u_depth_scale/u);
 assert.match(depthRenderer, /a_position\.z \* u_depth_scale/u);
 assert.match(hypocenter3DLayer, /getDepth3DZoomScale\(state\.map\?\.getZoom\(\)\)/u);

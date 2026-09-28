@@ -529,7 +529,7 @@ assert.doesNotMatch(
 );
 assert.match(
   styles,
-  /\.mobile-dock-earthquake-distribution-summary\s*\{[\s\S]*?gap:\s*3px;/
+  /\.mobile-dock-earthquake-distribution-summary\s*\{[\s\S]*?gap:\s*4px;/
 );
 assert.match(
   styles,
@@ -561,12 +561,17 @@ assert.match(
 );
 assert.match(
   styles,
-  /\.hypocenter-presentation\.compact \.hypocenter-presentation-switch\s*\{[\s\S]*?width:\s*72px;[\s\S]*?height:\s*20px;/
+  /\.mobile-dock-earthquake-main\s*\{[\s\S]*?grid-template-columns:\s*50px\s+minmax\(0,\s*1fr\);/
 );
-assert.match(
-  styles,
-  /\.hypocenter-presentation\.compact \.hypocenter-presentation-switch button\s*\{[\s\S]*?height:\s*16px;[\s\S]*?font-size:\s*7\.5px;/
-);
+assert.match(index, /data-layer-picker-title="天気分布予報"/);
+assert.match(index, /data-layer-picker-kind="single"/);
+assert.match(index, /data-layer-picker-title="重ねる情報"/);
+assert.match(index, /data-layer-picker-title="地震レイヤー"/);
+assert.match(styles, /\.weather-distribution-toggle-choices::before\s*\{[\s\S]*?content:\s*attr\(data-layer-picker-title\);/);
+assert.match(styles, /\.weather-distribution-toggle-choices button\.active::before\s*\{[\s\S]*?transform:\s*translate\(8px, -50%\);/);
+assert.doesNotMatch(panel, /mobile-dock-earthquake-layer-list/);
+assert.doesNotMatch(panel, /buildMobileEarthquakeLayerButton/);
+assert.doesNotMatch(panel, /buildHypocenterPresentationToggle\(data\.distribution3DEnabled === true, true\)/);
 const mobileEarthquakeIntensityStyle = styles.match(
   /\.mobile-dock-earthquake-intensity\s*\{([^}]*)\}/
 )?.[1] ?? "";
