@@ -3437,6 +3437,7 @@ function buildEarthquakeMobileContextMarkup(
   );
   const magnitude = formatEarthquakeMagnitude(earthquake?.magnitude, {
     prefix: true,
+    compact: true,
     unknownText
   });
   const depth = formatEarthquakeUnknownMetric(
@@ -3444,6 +3445,7 @@ function buildEarthquakeMobileContextMarkup(
     unknownText
   );
   const time = formatMobileEarthquakeTime(earthquake?.eventTime ?? earthquake?.reportTime);
+  const facts = [magnitude, depth].filter((item) => item && item !== "--").join("/");
   const tsunamiMarkup = buildMobileTsunamiStatusMarkup(earthquake, tsunami, tsunamiStatus);
   const primaryMarkup = `
     ${buildEarthquakeMobileViewSwitch("recent")}
@@ -3453,11 +3455,16 @@ function buildEarthquakeMobileContextMarkup(
         <span>${escapeHtml(intensity)}</span>
       </em>
       <div class="mobile-dock-earthquake-text">
-        <span class="mobile-dock-earthquake-time">最新 ${escapeHtml(time)}</span>
-        <strong>${escapeHtml(formatEarthquakeHypocenterText(earthquake))}</strong>
-        <div class="mobile-dock-earthquake-facts">
-          <span>${escapeHtml([magnitude, `深さ ${depth}`].filter((item) => item && item !== "--").join(" / ") || "詳細確認中")}</span>
-          ${tsunamiMarkup}
+        <div class="mobile-dock-earthquake-status-line">
+          <span class="mobile-dock-earthquake-status-label">最新</span>
+          <time class="mobile-dock-earthquake-time">${escapeHtml(time)}</time>
+        </div>
+        <div class="mobile-dock-earthquake-headline">
+          <strong>${escapeHtml(formatEarthquakeHypocenterText(earthquake))}</strong>
+          <div class="mobile-dock-earthquake-facts">
+            <span class="mobile-dock-earthquake-fact-values">${escapeHtml(facts || "詳細確認中")}</span>
+            ${tsunamiMarkup}
+          </div>
         </div>
       </div>
     </div>
@@ -5476,6 +5483,7 @@ function renderAmedasDailyChart(tab, state, metric) {
 
   const latest = chart.data?.latest;
   const isRollingPrecipitation = metric.id === "precipitation" && precipitationPeriod.id === "24h";
+  const temperatureNormal = metric.id === "temperature" ? chart.data?.temperatureNormal : null;
   root.style.setProperty("--amedas-series-color", metric.color);
   root.style.setProperty("--amedas-gust-color", metric.color);
   root.innerHTML = `
@@ -5495,8 +5503,13 @@ function renderAmedasDailyChart(tab, state, metric) {
         <span>平均風速</span>
         <span class="gust">最大瞬間風速</span>
       </div>
+    ` : metric.id === "temperature" ? `
+      <div class="amedas-temperature-chart-key amedas-temperature-reference-key" aria-label="気温グラフの凡例">
+        <span>実況</span>
+        ${buildAmedasTemperatureNormalLegend(temperatureNormal, metric)}
+      </div>
     ` : ""}
-    ${buildAmedasDailyChartSvg(points, chart.data?.min, chart.data?.max, metric, dayOffset, precipitationPeriod.id)}
+    ${buildAmedasDailyChartSvg(points, chart.data?.min, chart.data?.max, metric, dayOffset, precipitationPeriod.id, temperatureNormal)}
     ${isRollingPrecipitation ? `
       <p class="amedas-temperature-chart-note">${escapeHtml(getAmedasRollingPrecipitationNote())}</p>
     ` : ""}
@@ -5517,7 +5530,7 @@ function buildAmedasDailyChartPeriodToggle(dayOffset) {
   `;
 }
 
-function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset = 0, precipitationPeriodId = "1h") {
+function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset = 0, precipitationPeriodId = "1h", temperatureNormal = null) {
   const width = 320;
   const height = 142;
   const inset = { top: 10, right: 8, bottom: 23, left: 34 };
@@ -5525,11 +5538,16 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
   const plotHeight = height - inset.top - inset.bottom;
   const isPrecipitation = metric.id === "precipitation";
   const isRollingPrecipitation = isPrecipitation && precipitationPeriodId === "24h";
-  const min = isPrecipitation ? 0 : (Number.isFinite(minValue) ? Math.floor(minValue - 1) : 0);
+  const normalValues = metric.id === "temperature"
+    ? [temperatureNormal?.minimum, temperatureNormal?.maximum].filter(Number.isFinite)
+    : [];
+  const chartMinimum = Math.min(...[minValue, ...normalValues].filter(Number.isFinite));
+  const chartMaximum = Math.max(...[maxValue, ...normalValues].filter(Number.isFinite));
+  const min = isPrecipitation ? 0 : (Number.isFinite(chartMinimum) ? Math.floor(chartMinimum - 1) : 0);
   const gustMax = metric.id === "wind"
     ? Math.max(...points.map((point) => point.gust).filter(Number.isFinite), Number.NEGATIVE_INFINITY)
     : Number.NEGATIVE_INFINITY;
-  const max = getAmedasDailyAxisMax(Math.max(Number(maxValue) || 0, gustMax), metric.id);
+  const max = getAmedasDailyAxisMax(Math.max(Number(chartMaximum) || 0, gustMax), metric.id);
   const span = Math.max(1, max - min);
   const xFor = (minute) => inset.left + (Math.max(0, Math.min(1440, minute)) / 1440) * plotWidth;
   const yFor = (value) => inset.top + ((max - value) / span) * plotHeight;
@@ -5572,15 +5590,39 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
   const gustPaths = metric.id === "wind"
     ? buildSegments("gust").map((items) => `<polyline points="${items.join(" ")}"/>`).join("")
     : "";
+  const referenceLines = buildAmedasTemperatureNormalLines(temperatureNormal, metric, inset, width, yFor);
 
   return `
     <svg class="amedas-temperature-chart-plot" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriodId))}">
       <g class="amedas-temperature-chart-grid">${grids}</g>
       <g class="amedas-temperature-chart-axis">${times}</g>
+      ${referenceLines ? `<g class="amedas-temperature-chart-reference-lines">${referenceLines}</g>` : ""}
       <g class="amedas-temperature-chart-line${isPrecipitation && !isRollingPrecipitation ? " is-bar" : ""}${isRollingPrecipitation ? " is-rolling-precipitation" : ""}">${shapes}</g>
       ${gustPaths ? `<g class="amedas-temperature-chart-line-gust">${gustPaths}</g>` : ""}
     </svg>
   `;
+}
+
+function buildAmedasTemperatureNormalLegend(normal, metric) {
+  return getAmedasTemperatureNormalEntries(normal).map(([kind, label, value]) => `
+    <span class="reference ${kind}">${label} ${formatAmedasDailyValue(value, metric)} <small>(${escapeHtml(normal.period)})</small></span>
+  `).join("");
+}
+
+function buildAmedasTemperatureNormalLines(normal, metric, inset, width, yFor) {
+  if (!normal || metric.id !== "temperature") return "";
+  return getAmedasTemperatureNormalEntries(normal).map(([kind, label, value]) => {
+    const y = yFor(value).toFixed(1);
+    return `<line class="${kind}" x1="${inset.left}" x2="${width - inset.right}" y1="${y}" y2="${y}"><title>${escapeHtml(`${label}気温 ${formatAmedasDailyValue(value, metric)} (${normal.period})`)}</title></line>`;
+  }).join("");
+}
+
+function getAmedasTemperatureNormalEntries(normal) {
+  if (!normal) return [];
+  return [
+    ["maximum", "平年最高", normal.maximum],
+    ["minimum", "平年最低", normal.minimum]
+  ].filter(([, , value]) => Number.isFinite(value));
 }
 
 function getAmedasDailyAxisMax(value, metricId) {

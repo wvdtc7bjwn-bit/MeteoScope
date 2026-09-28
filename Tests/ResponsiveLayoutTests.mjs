@@ -509,7 +509,7 @@ assert.match(
 );
 assert.match(
   styles,
-  /\.mobile-dock-earthquake-text strong\s*\{[\s\S]*?line-height:\s*1\.24;/
+  /\.mobile-dock-earthquake-headline strong\s*\{[\s\S]*?font-size:\s*18px;[\s\S]*?line-height:\s*1\.18;/
 );
 assert.match(
   panel,
@@ -563,6 +563,20 @@ assert.match(
   styles,
   /\.mobile-dock-earthquake-main\s*\{[\s\S]*?grid-template-columns:\s*50px\s+minmax\(0,\s*1fr\);/
 );
+assert.match(panel, /mobile-dock-earthquake-status-line[\s\S]*?mobile-dock-earthquake-headline[\s\S]*?mobile-dock-earthquake-fact-values/);
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-text\s*\{[\s\S]*?grid-template-rows:\s*11px\s+minmax\(0,\s*1fr\);/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-headline\s*\{[\s\S]*?align-items:\s*center;[\s\S]*?gap:\s*7px;/
+);
+assert.match(
+  styles,
+  /\.mobile-dock-earthquake-facts\s*\{[\s\S]*?flex:\s*0 0 auto;[\s\S]*?gap:\s*5px;/
+);
+assert.match(panel, /compact:\s*true,[\s\S]*?const facts = \[magnitude, depth\][\s\S]*?\.join\("\/"\)/);
 assert.match(index, /data-layer-picker-title="天気分布予報"/);
 assert.match(index, /data-layer-picker-kind="single"/);
 assert.match(index, /data-layer-picker-title="重ねる情報"/);

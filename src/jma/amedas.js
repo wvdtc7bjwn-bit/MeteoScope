@@ -1,4 +1,5 @@
 import { AUTO_REFRESH_INTERVAL_MS, JMA_ENDPOINTS, STATIC_DATA_CACHE_TTL_MS } from "../config.js";
+import { fetchAmedasDailyTemperatureNormals } from "../amedasTemperatureNormal.js";
 import { getAmedasObservationField } from "../amedasPrecipitationPeriod.js";
 import { fetchArrayBuffer, fetchJson, fetchText, parseJmaTime } from "./jmaClient.js";
 
@@ -244,6 +245,12 @@ export async function fetchAmedasDailySeries(
   const chunkHours = normalizedDayOffset === 1
     ? AMEDAS_CHUNK_HOURS
     : AMEDAS_CHUNK_HOURS.filter((hour) => hour <= Math.floor(jst.hour / 3) * 3);
+  const normalRequest = metricId === "temperature"
+    ? fetchAmedasDailyTemperatureNormals(id, jst.date).catch((error) => {
+      console.warn("[MeteoScope] AMeDAS daily temperature normals unavailable", error);
+      return null;
+    })
+    : Promise.resolve(null);
   const chunks = await Promise.all(chunkHours.map(async (hour) => {
     const fileTime = `${jst.date}_${String(hour).padStart(2, "0")}`;
     return fetchJson(`${JMA_ENDPOINTS.amedasPointBase}/${id}/${fileTime}.json`, {
@@ -278,6 +285,7 @@ export async function fetchAmedasDailySeries(
   const maxGustPoint = gustPoints.length
     ? gustPoints.reduce((maximum, point) => point.gust > maximum.gust ? point : maximum)
     : null;
+  const temperatureNormal = await normalRequest;
 
   return {
     stationId: id,
@@ -289,6 +297,7 @@ export async function fetchAmedasDailySeries(
     min: points.length ? Math.min(...points.map((point) => point.value)) : null,
     max: points.length ? Math.max(...points.map((point) => point.value)) : null,
     latest: points.at(-1) ?? null,
+    temperatureNormal,
     maxGust: maxGustPoint?.gust ?? null,
     maxGustLabel: maxGustPoint?.gustLabel ?? null
   };

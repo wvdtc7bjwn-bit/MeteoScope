@@ -8643,6 +8643,23 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   border-top-style: dashed;
 }
 
+.amedas-temperature-chart-key span.reference::before {
+  border-top-style: dashed;
+}
+
+.amedas-temperature-chart-key span.reference.maximum::before {
+  border-color: #ef8a62;
+}
+
+.amedas-temperature-chart-key span.reference.minimum::before {
+  border-color: #68aee8;
+}
+
+.amedas-temperature-chart-key span.reference small {
+  color: #7f92ad;
+  font-size: inherit;
+}
+
 .amedas-temperature-chart-plot {
   display: block;
   width: 100%;
@@ -8660,6 +8677,18 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   fill: #8fa0b8;
   font-size: 10px;
   font-weight: 700;
+}
+
+.amedas-temperature-chart-reference-lines line.maximum {
+  stroke: #ef8a62;
+  stroke-dasharray: 4 3;
+  stroke-width: 1.4;
+}
+
+.amedas-temperature-chart-reference-lines line.minimum {
+  stroke: #68aee8;
+  stroke-dasharray: 4 3;
+  stroke-width: 1.4;
 }
 
 .amedas-temperature-chart-line polyline {
@@ -12371,36 +12400,51 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   }
 
   .mobile-dock-earthquake-time {
-    display: block;
-    color: rgba(218, 230, 244, 0.72);
-    font-size: 10px;
-    font-weight: 800;
+    color: rgba(226, 237, 247, 0.82);
+    font-size: 10.5px;
+    font-weight: 850;
     line-height: 1.1;
     white-space: nowrap;
   }
 
   .mobile-dock-earthquake-text {
     display: grid;
+    grid-template-rows: 11px minmax(0, 1fr);
     gap: 2px;
     min-width: 0;
   }
 
-  .mobile-dock-earthquake-text strong {
-    overflow: hidden;
-    color: #f5fbff;
-    font-size: 17px;
-    font-weight: 900;
-    line-height: 1.24;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .mobile-dock-earthquake-status-line {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
   }
 
-  .mobile-dock-earthquake-text span {
+  .mobile-dock-earthquake-status-label {
+    flex: 0 0 auto;
+    color: #74d7ff;
+    font-size: 8px;
+    font-weight: 950;
+    letter-spacing: 0.08em;
+    line-height: 1;
+  }
+
+  .mobile-dock-earthquake-headline {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .mobile-dock-earthquake-headline strong {
+    flex: 1 1 auto;
+    min-width: 0;
     overflow: hidden;
-    color: rgba(220, 233, 246, 0.72);
-    font-size: 10.5px;
-    font-weight: 800;
-    line-height: 1.2;
+    color: #f5fbff;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1.18;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -12408,21 +12452,31 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   .mobile-dock-earthquake-facts {
     display: flex;
     align-items: center;
+    justify-content: flex-start;
+    flex: 0 0 auto;
     gap: 5px;
     min-width: 0;
   }
 
-  .mobile-dock-earthquake-facts > span:first-child {
-    flex: 1 1 auto;
+  .mobile-dock-earthquake-fact-values {
+    flex: 0 0 auto;
     min-width: 0;
+    overflow: hidden;
+    color: rgba(220, 233, 246, 0.78);
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1.1;
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .mobile-dock-earthquake-facts .earthquake-tsunami-status {
     flex: 0 0 auto;
     max-width: none;
-    padding: 2px 4px;
-    font-size: 7.8px;
+    padding: 2px 5px;
+    border-color: rgba(116, 215, 255, 0.44);
+    background: rgba(30, 96, 139, 0.28);
+    font-size: 7.5px;
     line-height: 1.1;
     white-space: nowrap;
   }
