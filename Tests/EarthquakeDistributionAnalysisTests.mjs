@@ -63,6 +63,25 @@ assert.equal(parallelPlateSection.crossSection.axisSource, "plate-boundary-axis"
 assert.deepEqual(parallelPlateSection.crossSection.plateProfiles[0].points.map((point) => point.depthKm), [0, 20, 40]);
 assert.ok(parallelPlateSection.crossSection.plateProfiles[0].points[0].distanceKm > parallelPlateSection.crossSection.plateProfiles[0].points.at(-1).distanceKm);
 
+const nearbyProjectedPlateData = {
+  contours: {
+    type: "FeatureCollection",
+    features: [20, 40].map((depthKm, index) => ({
+      type: "Feature",
+      properties: { region: "Kuril", plate: "太平洋プレート（日本・千島）", depthKm },
+      geometry: { type: "LineString", coordinates: [[139.0, 35.12 + index * 0.04], [139.2, 35.12 + index * 0.04]] }
+    }))
+  },
+  boundaries: syntheticPlateData.boundaries
+};
+const projectedPlateSection = buildEarthquakeDistributionAnalysis([
+  { sourceDate: "2026-09-01", latitude: 35, longitude: 139, depthKm: 10, magnitude: 2 },
+  { sourceDate: "2026-09-01", latitude: 35, longitude: 139.1, depthKm: 30, magnitude: 2.5 }
+], { plateData: nearbyProjectedPlateData });
+assert.equal(projectedPlateSection.crossSection.plateProfileMethod, "nearby-projection");
+assert.deepEqual(projectedPlateSection.crossSection.plateProfiles[0].points.map((point) => point.depthKm), [0, 20, 40]);
+assert.ok(projectedPlateSection.crossSection.plateProfiles[0].projected);
+
 const [realContours, realBoundaries] = await Promise.all([
   readFile(new URL("../public/data/usgs-slab2-depth-contours-japan.geojson", import.meta.url), "utf8"),
   readFile(new URL("../public/data/usgs-plate-boundaries-japan.geojson", import.meta.url), "utf8")
@@ -99,5 +118,7 @@ assert.match(leftPanel, /プレート境界そのものの断面ではありま�
 assert.match(leftPanel, /data-earthquake-distribution-show-plate-layers/u);
 assert.match(leftPanel, /Slab2プレート面/u);
 assert.match(leftPanel, /0km収束境界/u);
+assert.match(leftPanel, /earthquake-analysis-section-loading/u);
+assert.match(leftPanel, /plateDataStatus === "loading"/u);
 
 console.log("Earthquake distribution analysis tests passed.");

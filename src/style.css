@@ -7698,6 +7698,13 @@ html[data-theme="light"] .upper-air-insight { border-color: rgba(67, 110, 148, 0
   line-height: 1.45;
 }
 
+.earthquake-analysis-section-loading {
+  min-height: 146px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
 .earthquake-distribution-analysis-note {
   margin: -1px 0 0;
 }

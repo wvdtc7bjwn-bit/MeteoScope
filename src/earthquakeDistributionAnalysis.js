@@ -215,18 +215,34 @@ function buildCrossSectionCandidate(projected, {
     minDistanceKm,
     maxDistanceKm
   };
+  const exactProfiles = buildPlateDepthProfiles(plateData, section);
+  const plateProfiles = getPlateProfileScore(exactProfiles) > 0
+    ? exactProfiles
+    : buildProjectedPlateDepthProfiles(plateData, section);
+  const plateDistances = plateProfiles.flatMap((profile) => profile.points.map((point) => point.distanceKm));
+  const displayMinDistanceKm = plateDistances.length
+    ? Math.min(minDistanceKm, Math.min(...plateDistances) - 12)
+    : minDistanceKm;
+  const displayMaxDistanceKm = plateDistances.length
+    ? Math.max(maxDistanceKm, Math.max(...plateDistances) + 12)
+    : maxDistanceKm;
   return {
     available: Number.isFinite(spanKm) && spanKm >= 0.5,
     centerLatitude,
     centerLongitude,
     rawMinDistanceKm,
     rawMaxDistanceKm,
-    minDistanceKm,
-    maxDistanceKm,
-    spanKm: maxDistanceKm - minDistanceKm,
+    minDistanceKm: displayMinDistanceKm,
+    maxDistanceKm: displayMaxDistanceKm,
+    spanKm: displayMaxDistanceKm - displayMinDistanceKm,
     axisSource,
     points: sectionPoints,
-    plateProfiles: buildPlateDepthProfiles(plateData, section)
+    plateProfiles,
+    plateProfileMethod: getPlateProfileScore(exactProfiles) > 0
+      ? "intersection"
+      : plateProfiles.length
+        ? "nearby-projection"
+        : "unavailable"
   };
 }
 
@@ -264,6 +280,60 @@ function buildPlateDepthProfiles(plateData, section) {
     profile.points.length >= 2
     && profile.points[0].depthKm === 0
   ));
+}
+
+function buildProjectedPlateDepthProfiles(plateData, section) {
+  const contours = Array.isArray(plateData?.contours?.features) ? plateData.contours.features : [];
+  const candidatesByProfile = new Map();
+  [...getZeroDepthContours(plateData), ...contours].forEach((feature) => {
+    const depthKm = toFiniteNumber(feature?.properties?.depthKm);
+    const region = String(feature?.properties?.region ?? "").trim();
+    const plate = String(feature?.properties?.plate ?? "").trim();
+    if (depthKm === null || depthKm < 0 || !region || !plate) return;
+    const projection = getNearestSectionProjection(feature?.geometry, section);
+    if (!projection) return;
+    const key = `${region}\u0000${plate}`;
+    const profile = candidatesByProfile.get(key) ?? { region, plate, depths: new Map() };
+    const candidates = profile.depths.get(depthKm) ?? [];
+    candidates.push(projection);
+    profile.depths.set(depthKm, candidates);
+    candidatesByProfile.set(key, profile);
+  });
+  const profiles = [...candidatesByProfile.values()].map((profile) => {
+    const selected = selectContinuousProjectedPlateProfile(profile.depths, section);
+    return {
+      region: profile.region,
+      plate: profile.plate,
+      projected: true,
+      zeroOffsetKm: selected[0]?.offsetKm ?? Infinity,
+      maximumOffsetKm: Math.max(0, ...selected.map((point) => point.offsetKm)),
+      points: selected.map(({ depthKm, distanceKm }) => ({ depthKm, distanceKm }))
+    };
+  }).filter((profile) => (
+    profile.points.length >= 2
+    && profile.points[0].depthKm === 0
+    && profile.maximumOffsetKm <= 260
+  ));
+  const nearestZeroOffsetKm = Math.min(...profiles.map((profile) => profile.zeroOffsetKm));
+  return profiles
+    .filter((profile) => profile.zeroOffsetKm <= nearestZeroOffsetKm + 16)
+    .map(({ zeroOffsetKm, ...profile }) => profile);
+}
+
+function selectContinuousProjectedPlateProfile(depthCandidates, section = {}) {
+  let previousDistance = null;
+  return [...depthCandidates.entries()]
+    .sort(([leftDepth], [rightDepth]) => leftDepth - rightDepth)
+    .map(([depthKm, candidates]) => {
+      const selected = candidates.sort((left, right) => {
+        const referenceDistance = previousDistance ?? section.preferredZeroDistanceKm ?? 0;
+        const leftScore = Math.abs(left.distanceKm - referenceDistance) + left.offsetKm * 1.5;
+        const rightScore = Math.abs(right.distanceKm - referenceDistance) + right.offsetKm * 1.5;
+        return leftScore - rightScore;
+      })[0];
+      previousDistance = selected.distanceKm;
+      return { depthKm, ...selected };
+    });
 }
 
 function selectContinuousPlateProfile(depthCandidates, section = {}) {
@@ -313,6 +383,27 @@ function getSectionIntersections(geometry, section) {
     distanceKm >= section.minDistanceKm - limit
     && distanceKm <= section.maxDistanceKm + limit
   ));
+}
+
+function getNearestSectionProjection(geometry, section) {
+  const limit = Math.max(80, (section.maxDistanceKm - section.minDistanceKm) * 0.35);
+  const projections = [];
+  getCoordinateLines(geometry).forEach((line) => {
+    for (let index = 1; index < line.length; index += 1) {
+      const previous = projectCoordinateToSection(line[index - 1], section);
+      const current = projectCoordinateToSection(line[index], section);
+      if (!previous || !current) continue;
+      const offsetDelta = current.offsetKm - previous.offsetKm;
+      const ratio = Math.max(0, Math.min(1, offsetDelta === 0 ? 0 : -previous.offsetKm / offsetDelta));
+      const distanceKm = previous.distanceKm + (current.distanceKm - previous.distanceKm) * ratio;
+      const offsetKm = Math.abs(previous.offsetKm + offsetDelta * ratio);
+      if (distanceKm < section.minDistanceKm - limit || distanceKm > section.maxDistanceKm + limit) continue;
+      projections.push({ distanceKm, offsetKm });
+    }
+  });
+  return projections.sort((left, right) => (
+    left.offsetKm - right.offsetKm || Math.abs(left.distanceKm) - Math.abs(right.distanceKm)
+  ))[0] ?? null;
 }
 
 function getCoordinateLines(geometry) {

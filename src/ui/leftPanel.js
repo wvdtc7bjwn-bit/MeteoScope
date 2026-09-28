@@ -7305,6 +7305,12 @@ function buildSelectedEarthquakeDailyTrend(daily, selectionLabel) {
 }
 
 function buildEarthquakeCrossSection(crossSection, plateDataStatus) {
+  if (plateDataStatus === "loading") {
+    return `
+      <div class="earthquake-analysis-subhead"><strong>深さ断面</strong><span>準備中</span></div>
+      <div class="earthquake-analysis-section-empty earthquake-analysis-section-loading" role="status" aria-live="polite" aria-busy="true">プレート面データを読み込み、深さ断面を準備しています。</div>
+    `;
+  }
   if (!crossSection.available) {
     return '<div class="earthquake-analysis-section-empty">断面図は、位置と深さがそろう2件以上の地震で表示します。</div>';
   }
@@ -7348,8 +7354,9 @@ function buildEarthquakeCrossSection(crossSection, plateDataStatus) {
       : "";
     return `<path d="${path}" class="earthquake-analysis-plate-line" style="stroke:${color}"><title>${escapeHtml(profile.plate)}（Slab2）</title></path>${originMarkup}`;
   }).join("");
+  const usesProjectedPlateProfile = crossSection.plateProfileMethod === "nearby-projection";
   const plateLegend = plateProfiles.length
-    ? `<p class="earthquake-analysis-plate-legend"><span>破線：Slab2プレート面（20km等深線の交点を補間）・丸印：0km収束境界</span>${plateProfiles.map((profile, index) => `<span><i style="background:${["#ffcf57", "#b278ff", "#5ad8b2"][index % 3]}"></i>${escapeHtml(profile.plate)}</span>`).join("")}</p>`
+    ? `<p class="earthquake-analysis-plate-legend"><span>${usesProjectedPlateProfile ? "破線：近傍のSlab2等深線を断面方向に投影・丸印：0km収束境界" : "破線：Slab2プレート面（20km等深線の交点を補間）・丸印：0km収束境界"}</span>${plateProfiles.map((profile, index) => `<span><i style="background:${["#ffcf57", "#b278ff", "#5ad8b2"][index % 3]}"></i>${escapeHtml(profile.plate)}</span>`).join("")}</p>`
     : plateDataStatus === "loading"
       ? '<p class="earthquake-analysis-plate-legend">プレート面データを読み込み中です。</p>'
       : '<p class="earthquake-analysis-plate-legend">この断面ではSlab2プレート面との交点を確認できません。</p>';
