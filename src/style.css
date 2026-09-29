@@ -10852,16 +10852,136 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 }
 
 #clock {
+  position: absolute;
+  z-index: 450;
   top: 20px;
   right: 20px;
   min-width: 166px;
   padding: 10px 16px;
+  border: 0;
   border-radius: 14px;
+  color: #f4f8ff;
   background: rgba(0, 0, 0, 0.78);
+  cursor: pointer;
+  font-family: inherit;
   font-size: 28px;
   line-height: 1;
   letter-spacing: 0;
   text-align: center;
+}
+
+.clock-display-mode {
+  position: fixed;
+  z-index: 3000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #e9f5e8;
+  background: #030704;
+}
+
+.clock-display-mode[hidden] {
+  display: none;
+}
+
+.clock-display-mode::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  opacity: .62;
+  background-image: linear-gradient(rgba(84, 255, 120, .045) 1px, transparent 1px), linear-gradient(90deg, rgba(84, 255, 120, .035) 1px, transparent 1px);
+  background-size: 7px 7px;
+  pointer-events: none;
+}
+
+.clock-display-board {
+  position: relative;
+  display: grid;
+  gap: clamp(10px, 2vh, 18px);
+  width: min(94vw, 1500px);
+  padding: clamp(16px, 3vw, 42px);
+  border: 1px solid rgba(153, 255, 166, .34);
+  background: #071109;
+  box-shadow: inset 0 0 0 3px #020502, 0 0 70px rgba(62, 255, 107, .11);
+}
+
+.clock-display-label,
+.clock-display-status {
+  margin: 0;
+  color: #87ac89;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: clamp(11px, 1.6vw, 18px);
+  font-weight: 700;
+  letter-spacing: .14em;
+}
+
+.clock-display-marquee {
+  overflow: hidden;
+  min-height: 1.35em;
+  border-block: 1px solid rgba(138, 255, 151, .26);
+  color: #aaff78;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: clamp(24px, 4.8vw, 68px);
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: .08em;
+  text-shadow: 0 0 8px rgba(152, 255, 113, .72);
+  white-space: nowrap;
+}
+
+#clock-display-marquee-line {
+  display: inline-block;
+  min-width: 100%;
+  padding-left: 100%;
+  animation: clock-display-marquee var(--clock-display-marquee-duration, 80s) linear infinite;
+  will-change: transform;
+}
+
+.clock-display-board.is-loading .clock-display-marquee,
+.clock-display-board.is-loading .clock-display-time {
+  visibility: hidden;
+}
+
+.clock-display-time {
+  color: #f1ffd5;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: clamp(64px, 18vw, 260px);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -.065em;
+  line-height: .9;
+  text-align: center;
+  text-shadow: 0 0 18px rgba(205, 255, 156, .5);
+}
+
+.clock-display-close {
+  position: fixed;
+  z-index: 3001;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  min-width: 64px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid rgba(185, 255, 188, .4);
+  border-radius: 2px;
+  color: #cbf5c9;
+  background: rgba(8, 22, 10, .86);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  touch-action: manipulation;
+}
+
+@keyframes clock-display-marquee {
+  to { transform: translateX(-100%); }
+}
+
+@media (max-aspect-ratio: 1 / 1) {
+  .clock-display-board { text-align: center; }
+  .clock-display-board[aria-hidden="true"] > :not(.clock-display-status) { visibility: hidden; }
+  .clock-display-status { color: #cde8cf; font-size: 16px; }
 }
 
 .map-terrain-toggle {

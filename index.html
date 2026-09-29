@@ -150,7 +150,16 @@
 
     <main id="map-area">
       <div id="map"></div>
-      <div id="clock"></div>
+      <button id="clock" type="button" aria-label="時計表示モードを開く" title="時計表示モード"></button>
+      <section id="clock-display-mode" class="clock-display-mode" aria-label="全国天気・時計表示モード" hidden>
+        <div id="clock-display-board" class="clock-display-board">
+          <p class="clock-display-label">NATIONAL WEATHER · JMA</p>
+          <div class="clock-display-marquee" aria-live="polite"><span id="clock-display-marquee-line"></span></div>
+          <p id="clock-display-status" class="clock-display-status">端末を横向きにすると表示を開始します</p>
+          <time id="clock-display-time" class="clock-display-time" aria-live="off"></time>
+        </div>
+        <button id="clock-display-close" class="clock-display-close" type="button" data-clock-display-close aria-label="時計表示モードを終了">終了</button>
+      </section>
       <button id="map-terrain-toggle" class="map-terrain-toggle" type="button" role="switch" aria-checked="false" aria-label="地形表示をONにする" data-map-terrain-toggle><span>地形</span><span class="map-terrain-toggle-state" aria-hidden="true">OFF</span></button>
       <button id="map-utility-menu-toggle" class="disaster-map-open-button map-utility-menu-toggle" type="button" aria-label="機能メニューを開く" title="機能メニュー" aria-expanded="false" aria-controls="map-utility-actions"></button>
       <div id="map-utility-actions" class="map-utility-actions" aria-label="機能メニュー" hidden>

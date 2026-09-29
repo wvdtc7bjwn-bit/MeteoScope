@@ -16,6 +16,7 @@ import { setupOnboardingModal } from "./ui/onboardingModal.js";
 import { setupLegalConsentModal } from "./ui/legalConsentModal.js";
 import { openSettingsModal, refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
 import { startClock } from "./ui/time.js";
+import { setupClockDisplayMode } from "./ui/clockDisplayMode.js";
 import { fetchRadarTimes, findLatestRadarObservationIndex, findRadarObservationFrameIndexAtTime } from "./jma/radar.js";
 import { selectTyphoonRadarFrame } from "./typhoonRadarOverlay.js";
 import { fetchLightningTimes, findLatestLightningObservationIndex } from "./jma/lightning.js";
@@ -4070,6 +4071,7 @@ if (layerId === "river") {
     });
     setCurrentLocationMarkerVisible(currentLocationMarkerVisible);
     startClock("clock");
+    setupClockDisplayMode();
     const initialMapReady = weatherMap.whenReady();
     void initialMapReady.then((ready) => {
       if (!ready) {

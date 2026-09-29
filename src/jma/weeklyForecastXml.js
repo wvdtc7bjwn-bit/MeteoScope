@@ -39,22 +39,36 @@ export async function fetchWeeklyForecastForRegion(region) {
     ttlMs: WEEKLY_AREA_TTL_MS,
     staleIfError: true
   });
-  const officeName = areaData?.offices?.[officeCode]?.name ?? String(region?.officeName ?? "");
-  const forecastAreaCode = String(region?.forecastAreaCode ?? "");
-  const areaPath = [
-    areaCode,
-    forecastAreaCode,
-    ...resolveJmaAreaPath(areaData, areaCode).filter((code) => code !== areaCode),
-    officeCode
-  ];
-  return fetchAndMergeForecasts(officeCode, {
-    areaPath: [...new Set(areaPath)],
-    targetAreaName: String(region?.areaName ?? ""),
-    municipalityName: officeName,
-    officeCode,
-    officeName,
-    stationCode: String(region?.stationCode ?? "")
+  return fetchAndMergeForecasts(officeCode, buildRegionForecastContext(region, areaData));
+}
+
+export async function fetchWeeklyForecastsForOfficeRegions(office) {
+  const officeCode = String(office?.officeCode ?? "").trim();
+  const regions = Array.isArray(office?.regions) ? office.regions : [];
+  if (!/^\d{6}$/u.test(officeCode) || !regions.length) return [];
+
+  const areaData = await fetchJson(JMA_ENDPOINTS.areaConst, {
+    ttlMs: WEEKLY_AREA_TTL_MS,
+    staleIfError: true
   });
+  const sources = await fetchForecastSources(officeCode);
+  const forecasts = [];
+  for (const region of regions) {
+    try {
+      forecasts.push({
+        region,
+        forecast: parseAndMergeForecastSources(sources, buildRegionForecastContext({
+          ...region,
+          officeCode,
+          officeName: office.officeName
+        }, areaData))
+      });
+    } catch (error) {
+      console.warn("[MeteoScope] regional weekly forecast unavailable", error);
+    }
+    await yieldToBrowser();
+  }
+  return forecasts;
 }
 
 export async function fetchWeeklyForecastRegionCatalog() {
@@ -76,6 +90,10 @@ async function fetchWeeklyForecastAreaData() {
 }
 
 async function fetchAndMergeForecasts(officeCode, context) {
+  return parseAndMergeForecastSources(await fetchForecastSources(officeCode), context);
+}
+
+async function fetchForecastSources(officeCode) {
   const [weeklyXml, shortTermXml] = await Promise.all([
     fetchLatestForecastXml(officeCode, "VPFW50"),
     fetchLatestForecastXml(officeCode, "VPFD51").catch((error) => {
@@ -83,6 +101,10 @@ async function fetchAndMergeForecasts(officeCode, context) {
       return "";
     })
   ]);
+  return { weeklyXml, shortTermXml };
+}
+
+function parseAndMergeForecastSources({ weeklyXml, shortTermXml }, context) {
   const weeklyForecast = parseWeeklyForecastXml(weeklyXml, context);
   if (!shortTermXml) return weeklyForecast;
   try {
@@ -94,6 +116,31 @@ async function fetchAndMergeForecasts(officeCode, context) {
     console.warn("[MeteoScope] latest VPFD51 could not be merged; using VPFW50 only", error);
     return weeklyForecast;
   }
+}
+
+function buildRegionForecastContext(region, areaData) {
+  const officeCode = String(region?.officeCode ?? "").trim();
+  const areaCode = String(region?.areaCode ?? "").trim();
+  const officeName = areaData?.offices?.[officeCode]?.name ?? String(region?.officeName ?? "");
+  const forecastAreaCode = String(region?.forecastAreaCode ?? "");
+  const areaPath = [
+    areaCode,
+    forecastAreaCode,
+    ...resolveJmaAreaPath(areaData, areaCode).filter((code) => code !== areaCode),
+    officeCode
+  ];
+  return {
+    areaPath: [...new Set(areaPath)],
+    targetAreaName: String(region?.areaName ?? ""),
+    municipalityName: officeName,
+    officeCode,
+    officeName,
+    stationCode: String(region?.stationCode ?? "")
+  };
+}
+
+function yieldToBrowser() {
+  return new Promise((resolve) => window.setTimeout(resolve, 0));
 }
 
 async function fetchLatestForecastXml(officeCode, bulletinCode) {
