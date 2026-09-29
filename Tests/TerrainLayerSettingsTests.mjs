@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const [app, config, weatherMap, settingsModal, index] = await Promise.all([
+const [app, config, weatherMap, settingsModal, index, styles] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/config.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/settingsModal.js", import.meta.url), "utf8"),
-  readFile(new URL("../index.html", import.meta.url), "utf8")
+  readFile(new URL("../index.html", import.meta.url), "utf8"),
+  readFile(new URL("../src/style.css", import.meta.url), "utf8")
 ]);
 
 assert.match(config, /gsiReliefTiles: "https:\/\/cyberjapandata\.gsi\.go\.jp\/xyz\/relief\/\{z\}\/\{x\}\/\{y\}\.png"/);
@@ -35,5 +36,8 @@ assert.doesNotMatch(index, /id="settings-terrain-toggle"/);
 assert.match(index, /data-settings-terrain-opacity="0\.32"/);
 assert.match(index, /data-settings-terrain-opacity="0\.48"/);
 assert.match(index, /data-settings-terrain-opacity="0\.64"/);
+assert.match(styles, /\.map-terrain-toggle\s*\{[\s\S]*?box-shadow:\s*none;/);
+assert.match(styles, /html\[data-theme="light"\] \.map-terrain-toggle\s*\{[\s\S]*?background:\s*rgba\(247, 251, 255, 0\.88\);/);
+assert.match(styles, /html\[data-theme="light"\] \.map-terrain-toggle\.is-enabled\s*\{[\s\S]*?background:\s*rgba\(20, 125, 191, 0\.94\);/);
 
 console.log("Terrain layer settings: OK");

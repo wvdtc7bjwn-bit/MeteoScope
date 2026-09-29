@@ -44,6 +44,8 @@ export const JMA_ENDPOINTS = {
   radarTimeList: "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json",
   lightningTimeList: "https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N3.json",
   radarTileBase: "https://www.jma.go.jp/bosai/jmatile/data/nowc",
+  shortTermRainfallTimeList: "https://www.jma.go.jp/bosai/jmatile/data/rasrf/targetTimes.json",
+  shortTermRainfallTileBase: "https://www.jma.go.jp/bosai/jmatile/data/rasrf",
   weatherDistributionTimeList: "https://www.jma.go.jp/bosai/jmatile/data/wdist/targetTimes.json",
   weatherDistributionTileBase: "https://www.jma.go.jp/bosai/jmatile/data/wdist",
   amedasTimeList: "https://www.jma.go.jp/bosai/amedas/data/latest_time.txt",
@@ -104,7 +106,7 @@ export const TABS = [
     title: "",
     cardLabel: "降水強度",
     primary: "Radar",
-    description: "気象庁の降水ナウキャストを地図上に重ねています。"
+    description: "気象庁の雨雲レーダーと降水短時間予報を連続表示しています。"
   },
   {
     id: "amedas",

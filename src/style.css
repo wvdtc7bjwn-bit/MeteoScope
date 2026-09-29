@@ -10880,7 +10880,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   border-radius: 9px;
   color: #d8e6f7;
   background: rgba(7, 14, 27, 0.78);
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+  box-shadow: none;
   font: inherit;
   font-size: 12px;
   font-weight: 900;
@@ -10905,6 +10905,26 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
 .map-terrain-toggle.is-enabled .map-terrain-toggle-state {
   background: #8be0ff;
+}
+
+html[data-theme="light"] .map-terrain-toggle {
+  border-color: rgba(46, 86, 119, 0.42);
+  color: #18354d;
+  background: rgba(247, 251, 255, 0.88);
+}
+
+html[data-theme="light"] .map-terrain-toggle .map-terrain-toggle-state {
+  background: rgba(33, 77, 111, 0.48);
+}
+
+html[data-theme="light"] .map-terrain-toggle.is-enabled {
+  border-color: rgba(16, 119, 183, 0.9);
+  color: #ffffff;
+  background: rgba(20, 125, 191, 0.94);
+}
+
+html[data-theme="light"] .map-terrain-toggle.is-enabled .map-terrain-toggle-state {
+  background: #dff7ff;
 }
 
 .map-terrain-toggle:focus-visible {
@@ -17416,7 +17436,9 @@ html[data-theme="light"] .typhoon-world-attribution a {
 }
 
 @supports (-webkit-touch-callout: none) {
-  @media (max-width: 600px), (orientation: landscape) and (max-height: 600px) and (hover: none) and (pointer: coarse) {
+  @media (max-width: 600px),
+    (orientation: landscape) and (max-height: 600px) and (hover: none) and (pointer: coarse),
+    (min-width: 768px) and (max-width: 1366px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
     :is(.earthquake-distribution-range-controls input[type="date"], .earthquake-distribution-date-input[type="date"]) {
       -webkit-appearance: none;
       appearance: none;
@@ -20037,6 +20059,30 @@ html[data-theme="light"] .social-share-preview-shell {
   #map-attribution {
     right: 20px;
     font-size: 10px;
+  }
+}
+
+/* iPad and comparable touch tablets in landscape retain the shared dock's
+   dimensions. Only the date controls get a stable internal layout before
+   Safari lays out its native date fields. */
+@media (min-width: 768px) and (max-width: 1366px) and (orientation: landscape) and (hover: none) and (pointer: coarse) {
+  .earthquake-distribution-date-navigation.compact {
+    grid-template-columns: 52px minmax(0, 1fr) 52px;
+    gap: 6px;
+  }
+
+  .earthquake-distribution-date-navigation.compact .earthquake-distribution-date-step,
+  .earthquake-distribution-date-control.compact input {
+    height: 30px;
+  }
+
+  .earthquake-distribution-date-control.compact input {
+    font-size: 12px;
+  }
+
+  .earthquake-distribution-range-controls input {
+    height: 36px;
+    font-size: 12px;
   }
 }
 

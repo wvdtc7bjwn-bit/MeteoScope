@@ -2361,17 +2361,21 @@ function renderRadarControls(tab, state) {
     (frame) => compactWeatherTimeLabel(frame?.label)
   );
 
-  const timeLabelPrefix = isWeatherDistribution ? "対象時刻" : (isLightning ? "表示時刻" : "更新時刻");
+  const timeLabelPrefix = isWeatherDistribution
+    ? "対象時刻"
+    : (isLightning ? "表示時刻" : (activeFrame?.isForecast ? "予測時刻" : "更新時刻"));
   label.textContent = activeFrame?.label
     ? `${timeLabelPrefix}: ${activeFrame.label}`
     : (timelineStatus === "loading" ? `${timeLabelPrefix}: 取得中` : `${timeLabelPrefix}: --`);
-  kind.textContent = isWeatherDistribution ? "予報" : (activeFrame?.isForecast ? "予測" : "観測");
+  kind.textContent = isWeatherDistribution ? "予報" : getRadarFrameKindLabel(activeFrame);
   kind.classList.toggle("forecast", isWeatherDistribution || Boolean(activeFrame?.isForecast));
 
   const radarPlaying = isWeatherDistribution
     ? Boolean(state.weatherDistributionPlaying)
     : (isLightning ? Boolean(state.lightningPlaying) : Boolean(state.radarPlaying));
-  const stepLabel = isWeatherDistribution ? "予報" : "5分";
+  const stepLabel = isWeatherDistribution
+    ? "予報"
+    : (activeFrame?.isShortTermRainfallForecast ? "1時間予想" : "5分");
   const previousButton = document.getElementById("radar-prev");
   const nextButton = document.getElementById("radar-next");
   const latestButton = document.getElementById("radar-now");
@@ -4050,7 +4054,7 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   const currentRadarIndex = findLatestRadarObservationIndex(frames);
   const radarFrameMeta = frames.map((item, frameIndex) => ({
     title: item?.label ?? "--",
-    meta: item?.isForecast ? "予測" : "観測",
+    meta: getRadarFrameKindLabel(item),
     isCurrent: frameIndex === currentRadarIndex
   }));
   const lightning = state.lightning ?? state.data?.lightning;
@@ -5601,6 +5605,11 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
       ${gustPaths ? `<g class="amedas-temperature-chart-line-gust">${gustPaths}</g>` : ""}
     </svg>
   `;
+}
+
+function getRadarFrameKindLabel(frame) {
+  if (frame?.isShortTermRainfallForecast) return "1時間予想";
+  return frame?.isForecast ? "予測" : "観測";
 }
 
 function buildAmedasTemperatureNormalLegend(normal, metric) {

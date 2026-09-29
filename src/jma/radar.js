@@ -6,10 +6,21 @@ const FIVE_MINUTES_MS = 5 * 60 * 1000;
 const OBSERVATION_LOOKBACK_HOURS = 3;
 const OBSERVATION_FRAME_COUNT = OBSERVATION_LOOKBACK_HOURS * 60 / 5 + 1;
 const FORECAST_FRAME_COUNT = 12;
+const SHORT_TERM_RAINFALL_ELEMENT = "rasrf";
 
 export async function fetchRadarTimes() {
-  const times = await fetchJson(JMA_ENDPOINTS.radarTimeList);
-  const frames = Array.isArray(times) ? buildRadarFrames(times) : [];
+  const [radarResult, rainfallResult] = await Promise.allSettled([
+    fetchJson(JMA_ENDPOINTS.radarTimeList),
+    fetchJson(JMA_ENDPOINTS.shortTermRainfallTimeList)
+  ]);
+  if (radarResult.status !== "fulfilled") throw radarResult.reason;
+
+  const times = radarResult.value;
+  const rainfallTimes = rainfallResult.status === "fulfilled" ? rainfallResult.value : [];
+  const frames = buildRadarFrames(
+    Array.isArray(times) ? times : [],
+    Array.isArray(rainfallTimes) ? rainfallTimes : []
+  );
   const latestObservationIndex = findLatestRadarObservationIndex(frames);
   const activeFrameIndex = latestObservationIndex >= 0 ? latestObservationIndex : Math.max(0, frames.length - 1);
   const activeFrame = frames[activeFrameIndex] ?? null;
@@ -20,12 +31,13 @@ export async function fetchRadarTimes() {
     activeFrameIndex,
     latestTime: activeFrame?.label ?? parseJmaTime(activeFrame?.validtime) ?? "取得済み",
     latestRawTime: activeFrame?.validtime ?? null,
-    radarTileUrl: activeFrame?.radarTileUrl ?? null
+    radarTileUrl: activeFrame?.radarTileUrl ?? null,
+    shortTermRainfallAvailable: rainfallResult.status === "fulfilled" && Array.isArray(rainfallTimes)
   };
 }
 
-function buildRadarFrames(times) {
-  const observations = times
+export function buildRadarFrames(times, rainfallTimes = []) {
+  const observations = (Array.isArray(times) ? times : [])
     .filter((item) => item?.basetime && item?.validtime && supportsRadarTile(item))
     .sort((a, b) => String(a.validtime).localeCompare(String(b.validtime)))
     .slice(-OBSERVATION_FRAME_COUNT)
@@ -45,7 +57,22 @@ function buildRadarFrames(times) {
     }, true));
   }
 
-  return [...observations, ...forecastFrames];
+  return [
+    ...observations,
+    ...forecastFrames,
+    ...buildShortTermRainfallFrames(rainfallTimes, latestMs + FORECAST_FRAME_COUNT * FIVE_MINUTES_MS)
+  ];
+}
+
+function buildShortTermRainfallFrames(times, nowcastForecastEndMs) {
+  if (!Array.isArray(times)) return [];
+
+  return times
+    .filter((item) => item?.basetime && item?.validtime && supportsShortTermRainfallTile(item))
+    .map((item) => ({ item, validtimeMs: jmaTimeToMs(item.validtime) }))
+    .filter(({ validtimeMs }) => Number.isFinite(validtimeMs) && validtimeMs > nowcastForecastEndMs)
+    .sort((left, right) => left.validtimeMs - right.validtimeMs)
+    .map(({ item }) => buildShortTermRainfallFrame(item));
 }
 
 function buildRadarFrame(item, isForecast) {
@@ -56,6 +83,18 @@ function buildRadarFrame(item, isForecast) {
     isForecast,
     label: formatJmaTime(item.validtime ?? item.basetime),
     radarTileUrl: buildRadarTileUrl(item)
+  };
+}
+
+function buildShortTermRainfallFrame(item) {
+  return {
+    basetime: item.basetime,
+    validtime: item.validtime,
+    member: item.member ?? "none",
+    isForecast: true,
+    isShortTermRainfallForecast: true,
+    label: formatJmaTime(item.validtime),
+    radarTileUrl: buildShortTermRainfallTileUrl(item)
   };
 }
 
@@ -76,11 +115,23 @@ function supportsRadarTile(item) {
   return !Array.isArray(item.elements) || item.elements.includes(RADAR_TILE_ELEMENT);
 }
 
+function supportsShortTermRainfallTile(item) {
+  return !Array.isArray(item.elements) || item.elements.includes(SHORT_TERM_RAINFALL_ELEMENT);
+}
+
 function buildRadarTileUrl(item) {
+  return buildPrecipitationTileUrl(JMA_ENDPOINTS.radarTileBase, RADAR_TILE_ELEMENT, item);
+}
+
+function buildShortTermRainfallTileUrl(item) {
+  return buildPrecipitationTileUrl(JMA_ENDPOINTS.shortTermRainfallTileBase, SHORT_TERM_RAINFALL_ELEMENT, item);
+}
+
+function buildPrecipitationTileUrl(tileBase, element, item) {
   const basetime = item.basetime;
   const validtime = item.validtime ?? item.basetime;
   const member = item.member ?? "none";
-  return `${JMA_ENDPOINTS.radarTileBase}/${basetime}/${member}/${validtime}/surf/${RADAR_TILE_ELEMENT}/{z}/{x}/{y}.png`;
+  return `${tileBase}/${basetime}/${member}/${validtime}/surf/${element}/{z}/{x}/{y}.png`;
 }
 
 function jmaTimeToMs(value) {

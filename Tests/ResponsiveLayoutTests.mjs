@@ -218,6 +218,14 @@ assert.match(
 );
 assert.match(
   styles,
+  /iPad and comparable touch tablets in landscape retain the shared dock's[\s\S]*?@media \(min-width: 768px\) and \(max-width: 1366px\) and \(orientation: landscape\) and \(hover: none\) and \(pointer: coarse\)\s*\{[\s\S]*?\.earthquake-distribution-date-navigation\.compact\s*\{[\s\S]*?grid-template-columns:\s*52px\s+minmax\(0,\s*1fr\)\s+52px;[\s\S]*?\.earthquake-distribution-range-controls input\s*\{[\s\S]*?height:\s*36px;/
+);
+assert.match(
+  styles,
+  /@supports \(-webkit-touch-callout: none\)\s*\{[\s\S]*?\(min-width: 768px\) and \(max-width: 1366px\) and \(orientation: landscape\) and \(hover: none\) and \(pointer: coarse\)[\s\S]*?\.earthquake-distribution-date-input\[type="date"\][\s\S]*?-webkit-appearance:\s*none;/
+);
+assert.match(
+  styles,
   /:root\s*\{[\s\S]*?--glass-shell-background:[\s\S]*?rgba\(7, 16, 34, 0\.46\);[\s\S]*?--glass-filter:\s*blur\(24px\) saturate\(1\.42\) contrast\(1\.03\);[\s\S]*?--shared-shell-glass-background:\s*var\(--glass-shell-background\);[\s\S]*?--shared-shell-glass-filter:\s*var\(--glass-filter\);/
 );
 assert.match(
@@ -395,7 +403,7 @@ assert.match(
 );
 assert.match(
   styles,
-  /@supports \(-webkit-touch-callout:\s*none\)\s*\{[\s\S]*?@media \(max-width:\s*600px\),\s*\(orientation:\s*landscape\) and \(max-height:\s*600px\) and \(hover:\s*none\) and \(pointer:\s*coarse\)\s*\{[\s\S]*?earthquake-distribution-date-input\[type="date"\][\s\S]*?-webkit-appearance:\s*none;[\s\S]*?appearance:\s*none;[\s\S]*?inline-size:\s*100%;[\s\S]*?min-inline-size:\s*0;[\s\S]*?max-inline-size:\s*100%;[\s\S]*?overflow:\s*hidden;/
+  /@supports \(-webkit-touch-callout:\s*none\)\s*\{[\s\S]*?@media \(max-width:\s*600px\),[\s\S]*?\(orientation:\s*landscape\) and \(max-height:\s*600px\) and \(hover:\s*none\) and \(pointer:\s*coarse\),[\s\S]*?\(min-width:\s*768px\) and \(max-width:\s*1366px\) and \(orientation:\s*landscape\) and \(hover:\s*none\) and \(pointer:\s*coarse\)\s*\{[\s\S]*?earthquake-distribution-date-input\[type="date"\][\s\S]*?-webkit-appearance:\s*none;[\s\S]*?appearance:\s*none;[\s\S]*?inline-size:\s*100%;[\s\S]*?min-inline-size:\s*0;[\s\S]*?max-inline-size:\s*100%;[\s\S]*?overflow:\s*hidden;/
 );
 assert.match(
   styles,

@@ -347,7 +347,7 @@ const EXACT_TRANSLATIONS = new Map(Object.entries({
   "雨雲": "Radar",
   "雨雲レーダー": "Rain radar",
   "雨雲レーダーを読み込み中": "Loading rain radar",
-  "気象庁の降水ナウキャストを地図上に重ねています。": "JMA precipitation nowcast is overlaid on the map.",
+  "気象庁の雨雲レーダーと降水短時間予報を連続表示しています。": "JMA rain radar and short-range precipitation forecasts are shown as one timeline.",
   "天気図": "Weather chart",
   "天気図を読み込み中": "Loading weather charts",
   "雷": "Lightning",
