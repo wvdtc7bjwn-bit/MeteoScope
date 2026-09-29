@@ -10946,7 +10946,7 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 .clock-display-time {
   color: #f1ffd5;
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
-  font-size: clamp(64px, 18vw, 260px);
+  font-size: clamp(64px, 17vw, 250px);
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   letter-spacing: -.065em;

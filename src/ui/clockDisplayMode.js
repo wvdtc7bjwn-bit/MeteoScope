@@ -8,6 +8,9 @@ let wakeLock = null;
 let modeOpen = false;
 let forecastLoaded = false;
 let clockDisplayModeSetup = false;
+let nationwideForecastResults = [];
+let tickerRefreshTimer = null;
+let displayedTickerDateKey = "";
 
 const FORECAST_REGION_PREFIX_BY_OFFICE = Object.freeze({
   "札幌管区気象台": "北海道",
@@ -34,6 +37,15 @@ const JAPAN_FORECAST_AREA_ORDER = Object.freeze([
 ]);
 const HOKKAIDO_AREA_PATTERN = /(?:宗谷|上川|留萌|網走|北見|紋別|釧路|根室|十勝|胆振|日高|石狩|空知|後志|渡島|檜山)/u;
 const OKINAWA_AREA_PATTERN = /(?:沖縄|大東|宮古|八重山)/u;
+const JAPAN_TIME_ZONE = "Asia/Tokyo";
+const japanDateTimeFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: JAPAN_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  hourCycle: "h23"
+});
 
 export function setupClockDisplayMode() {
   if (clockDisplayModeSetup) return;
@@ -72,6 +84,7 @@ async function openClockDisplayMode() {
 
 async function closeClockDisplayMode() {
   modeOpen = false;
+  clearTickerRefreshTimer();
   const mode = document.getElementById("clock-display-mode");
   if (mode) mode.hidden = true;
   document.body.classList.remove("clock-display-mode-open");
@@ -97,7 +110,12 @@ async function syncClockDisplayMode() {
     if (status) status.textContent = "全国の予報を読み込んでいます";
   }
   if (visible) await requestWakeLock();
-  if (!forecastLoaded) void loadNationwideForecast();
+  if (!forecastLoaded) {
+    void loadNationwideForecast();
+    return;
+  }
+  renderNationwideTickerForCurrentTime();
+  scheduleTickerRefresh();
 }
 
 async function requestWakeLock() {
@@ -126,12 +144,11 @@ async function loadNationwideForecast() {
     if (!regionCount) throw new Error("forecast regions unavailable");
     if (status) status.textContent = `全国${regionCount}地域の予報を読み込んでいます`;
     const results = await settleForecastOffices(offices);
-    const items = buildNationwideTickerEntries(results);
-    if (!items.length) throw new Error("forecast unavailable");
-    updateTickerLine(line, items);
+    nationwideForecastResults = results;
     forecastLoaded = true;
     document.getElementById("clock-display-board")?.classList.remove("is-loading");
-    if (status) status.textContent = `気象庁発表の全国${items.length}地域予報`;
+    if (!renderNationwideTickerForCurrentTime()) throw new Error("forecast unavailable");
+    scheduleTickerRefresh();
   } catch {
     document.getElementById("clock-display-board")?.classList.add("is-loading");
     if (status) status.textContent = "全国予報を読み込めません。時刻表示は継続します。";
@@ -182,18 +199,98 @@ async function settleForecastOffices(offices) {
   return results.flat();
 }
 
-export function buildNationwideTickerEntries(results = []) {
+export function buildNationwideTickerEntries(results = [], now = new Date()) {
   return results.flatMap((result) => {
     if (result?.status !== "fulfilled") return [];
     const forecast = result.value?.forecast ?? result.value;
-    const day = forecast?.days?.[0];
+    const day = getTickerForecastDay(forecast, now);
     if (!day) return [];
     const weather = normalizeTickerWeather(day.weather || getJmaWeeklyWeatherLabel(day.weatherCode) || "予報取得中");
-    const high = day.maxTemperature !== null && day.maxTemperature !== undefined && Number.isFinite(Number(day.maxTemperature))
-      ? ` ${Math.round(Number(day.maxTemperature))}℃`
-      : "";
-    return [`${result.value?.displayName || forecast.officeName || forecast.areaName}　${weather}${high}`];
+    const temperature = formatTickerTemperatures(day);
+    return [`${result.value?.displayName || forecast.officeName || forecast.areaName}　${weather}${temperature}`];
   }).sort(compareTickerEntries);
+}
+
+export function formatTickerTemperatures(day) {
+  if (day?.minTemperature === null || day?.minTemperature === undefined
+    || day?.maxTemperature === null || day?.maxTemperature === undefined) return "";
+  const minimum = Number(day?.minTemperature);
+  const maximum = Number(day?.maxTemperature);
+  if (!Number.isFinite(minimum) || !Number.isFinite(maximum)) return "";
+  return `　最高${Math.round(maximum)}℃ / 最低${Math.round(minimum)}℃`;
+}
+
+function renderNationwideTickerForCurrentTime() {
+  const tickerNow = new Date();
+  const items = buildNationwideTickerEntries(nationwideForecastResults, tickerNow);
+  if (!items.length) return false;
+  updateTickerLine(document.getElementById("clock-display-marquee-line"), items);
+  const forecastDate = formatNationwideForecastDate(nationwideForecastResults, tickerNow);
+  const status = document.getElementById("clock-display-status");
+  if (status) {
+    status.textContent = forecastDate
+      ? `気象庁発表・${forecastDate}の全国${items.length}地域予報`
+      : `気象庁発表の全国${items.length}地域予報`;
+  }
+  displayedTickerDateKey = getTickerTargetDateKey(tickerNow);
+  return true;
+}
+
+function scheduleTickerRefresh() {
+  clearTickerRefreshTimer();
+  if (!modeOpen || !forecastLoaded) return;
+  const waitMs = Math.max(1000, 60_000 - (Date.now() % 60_000) + 50);
+  tickerRefreshTimer = window.setTimeout(() => {
+    const nextDateKey = getTickerTargetDateKey();
+    if (nextDateKey !== displayedTickerDateKey) renderNationwideTickerForCurrentTime();
+    scheduleTickerRefresh();
+  }, waitMs);
+}
+
+function clearTickerRefreshTimer() {
+  if (tickerRefreshTimer !== null) window.clearTimeout(tickerRefreshTimer);
+  tickerRefreshTimer = null;
+}
+
+export function formatNationwideForecastDate(results = [], now = new Date()) {
+  const firstDate = results
+    .filter((result) => result?.status === "fulfilled")
+    .map((result) => getTickerForecastDay(result.value?.forecast ?? result.value, now)?.date)
+    .find((date) => forecastDateKey(date));
+  if (!firstDate) return "";
+
+  const match = forecastDateKey(firstDate)?.match(/^(\d{4})-(\d{2})-(\d{2})/u);
+  if (!match) return "";
+  const [, year, month, day] = match;
+  const weekday = ["日", "月", "火", "水", "木", "金", "土"][new Date(Date.UTC(
+    Number(year),
+    Number(month) - 1,
+    Number(day)
+  )).getUTCDay()];
+  return `${Number(month)}月${Number(day)}日（${weekday}）`;
+}
+
+export function getTickerForecastDay(forecast, now = new Date()) {
+  const days = Array.isArray(forecast?.days) ? forecast.days : [];
+  if (!days.length) return null;
+  const targetDateKey = getTickerTargetDateKey(now);
+  return days.find((day) => forecastDateKey(day?.date) === targetDateKey)
+    ?? days.find((day) => (forecastDateKey(day?.date) ?? "") > targetDateKey)
+    ?? days[0];
+}
+
+export function getTickerTargetDateKey(now = new Date()) {
+  const values = Object.fromEntries(japanDateTimeFormatter.formatToParts(now)
+    .filter((part) => part.type !== "literal")
+    .map((part) => [part.type, part.value]));
+  const baseDate = Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day));
+  const offset = Number(values.hour) >= 19 ? 24 * 60 * 60 * 1000 : 0;
+  return new Date(baseDate + offset).toISOString().slice(0, 10);
+}
+
+function forecastDateKey(value) {
+  const match = String(value ?? "").match(/^\d{4}-\d{2}-\d{2}/u);
+  return match?.[0] ?? "";
 }
 
 export function normalizeTickerWeather(weather) {
@@ -222,10 +319,21 @@ export function formatForecastRegionName(areaName, officeName = "") {
 function compareTickerEntries(left, right) {
   const leftIndex = findForecastAreaIndex(left);
   const rightIndex = findForecastAreaIndex(right);
-  return leftIndex - rightIndex || String(left).localeCompare(String(right), "ja");
+  if (leftIndex !== rightIndex) return leftIndex - rightIndex;
+
+  const directionOrder = findTickerDirectionOrder(left) - findTickerDirectionOrder(right);
+  return directionOrder || String(left).localeCompare(String(right), "ja");
 }
 
 function findForecastAreaIndex(value) {
   const index = JAPAN_FORECAST_AREA_ORDER.findIndex((area) => String(value).startsWith(area));
   return index < 0 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+function findTickerDirectionOrder(value) {
+  const regionName = String(value).split("　", 1)[0];
+  if (/(?:北部|北東|北西)/u.test(regionName)) return 0;
+  if (/(?:中部|中央|内陸)/u.test(regionName)) return 1;
+  if (/(?:南部|南東|南西)/u.test(regionName)) return 3;
+  return 2;
 }

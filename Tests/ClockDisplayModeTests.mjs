@@ -6,7 +6,10 @@ import { fileURLToPath } from "node:url";
 import {
   buildNationwideForecastRegions,
   buildNationwideTickerEntries,
+  formatNationwideForecastDate,
   formatForecastRegionName,
+  formatTickerTemperatures,
+  getTickerTargetDateKey,
   normalizeTickerWeather
 } from "../src/ui/clockDisplayMode.js";
 
@@ -26,11 +29,47 @@ assert.equal(formatForecastRegionName("東京地方", "東京管区気象台"), 
 assert.equal(formatForecastRegionName("嶺北", "福井地方気象台"), "福井県嶺北");
 assert.equal(formatForecastRegionName("石狩地方", "石狩・空知・後志地方"), "北海道石狩地方");
 assert.deepEqual(buildNationwideTickerEntries([
-  { status: "fulfilled", value: { displayName: "東京地方", forecast: { days: [{ weather: "晴れ", maxTemperature: 27 }] } } },
+  { status: "fulfilled", value: { displayName: "東京地方", forecast: { days: [{ weather: "晴れ", minTemperature: 17, maxTemperature: 27 }] } } },
   { status: "fulfilled", value: { displayName: "大阪府", forecast: { days: [{ weather: "雨後くもり", maxTemperature: null }] } } },
   { status: "rejected" },
   { status: "fulfilled", value: { officeName: "札幌", days: [] } }
-]), ["東京地方　晴れ 27℃", "大阪府　雨のちくもり"]);
+]), ["東京地方　晴れ　最高27℃ / 最低17℃", "大阪府　雨のちくもり"]);
+assert.equal(formatTickerTemperatures({ minTemperature: 8.4, maxTemperature: 18.6 }), "　最高19℃ / 最低8℃");
+assert.equal(formatTickerTemperatures({ minTemperature: null, maxTemperature: 18 }), "");
+assert.deepEqual(buildNationwideTickerEntries([
+  { status: "fulfilled", value: { displayName: "宮崎県南部平野部", forecast: { days: [{ weather: "晴れ" }] } } },
+  { status: "fulfilled", value: { displayName: "宮崎県北部山沿い", forecast: { days: [{ weather: "晴れ" }] } } },
+  { status: "fulfilled", value: { displayName: "宮崎県中部", forecast: { days: [{ weather: "晴れ" }] } } },
+  { status: "fulfilled", value: { displayName: "宮崎県北部平野部", forecast: { days: [{ weather: "晴れ" }] } } }
+]), [
+  "宮崎県北部山沿い　晴れ",
+  "宮崎県北部平野部　晴れ",
+  "宮崎県中部　晴れ",
+  "宮崎県南部平野部　晴れ"
+]);
+assert.equal(formatNationwideForecastDate([
+  { status: "fulfilled", value: { forecast: { days: [{ date: "2026-09-29T00:00:00+09:00" }] } } }
+]), "9月29日（火）");
+assert.equal(formatNationwideForecastDate([]), "");
+const dayBoundaryResults = [{
+  status: "fulfilled",
+  value: {
+    displayName: "東京都東京地方",
+    forecast: {
+      days: [
+        { date: "2026-09-29T00:00:00+09:00", weather: "くもり", minTemperature: 16, maxTemperature: 25 },
+        { date: "2026-09-30T00:00:00+09:00", weather: "晴れ", minTemperature: 18, maxTemperature: 27 }
+      ]
+    }
+  }
+}];
+const beforeNineteen = new Date("2026-09-29T09:59:00Z");
+const afterNineteen = new Date("2026-09-29T10:00:00Z");
+assert.equal(getTickerTargetDateKey(beforeNineteen), "2026-09-29");
+assert.equal(getTickerTargetDateKey(afterNineteen), "2026-09-30");
+assert.deepEqual(buildNationwideTickerEntries(dayBoundaryResults, beforeNineteen), ["東京都東京地方　くもり　最高25℃ / 最低16℃"]);
+assert.deepEqual(buildNationwideTickerEntries(dayBoundaryResults, afterNineteen), ["東京都東京地方　晴れ　最高27℃ / 最低18℃"]);
+assert.equal(formatNationwideForecastDate(dayBoundaryResults, afterNineteen), "9月30日（水）");
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [html, styles, appSource, moduleSource] = await Promise.all([
@@ -50,6 +89,8 @@ assert.match(moduleSource, /document\.addEventListener\("click"/u);
 assert.match(moduleSource, /closeButton\?\.addEventListener\("click"/u);
 assert.match(moduleSource, /window\.innerWidth > window\.innerHeight/u);
 assert.match(moduleSource, /releaseWakeLock\(\)/u);
+assert.match(moduleSource, /scheduleTickerRefresh\(\)/u);
+assert.match(moduleSource, /displayedTickerDateKey/u);
 assert.match(styles, /\.clock-display-mode\s*\{[\s\S]*?position:\s*fixed/u);
 assert.match(styles, /\.clock-display-mode\[hidden\]\s*\{\s*display:\s*none/u);
 assert.match(styles, /@media \(max-aspect-ratio: 1 \/ 1\)/u);
