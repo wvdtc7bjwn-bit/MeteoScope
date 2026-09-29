@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import questions from "../data/disasterQuizQuestions.js";
+import questions from "../data/scienceQuizQuestions.js";
 import { onRequest } from "../functions/api/quiz/[[path]].js";
 import {
   hashQuizPassword,

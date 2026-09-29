@@ -1,12 +1,17 @@
-import questions from "../../data/disasterQuizQuestions.js";
+import questions from "../../data/scienceQuizQuestions.js";
 
 export const DISASTER_QUIZ_QUESTION_COUNT = 10;
-export const DISASTER_QUIZ_POOL_SIZE = 40;
+export const DISASTER_QUIZ_POOL_SIZE = 1000;
+export const DISASTER_QUIZ_POOL_SIZE_BY_DIFFICULTY = Object.freeze({
+  beginner: 334,
+  intermediate: 333,
+  advanced: 333
+});
 
 export const DISASTER_QUIZ_DIFFICULTIES = Object.freeze([
-  Object.freeze({ id: "beginner", label: "初級", description: "基本の備えと天気の基礎" }),
-  Object.freeze({ id: "intermediate", label: "中級", description: "現行の防災情報と気象の仕組み" }),
-  Object.freeze({ id: "advanced", label: "上級", description: "気象予報士試験レベルの独自問題" })
+  Object.freeze({ id: "beginner", label: "基礎", description: "大学導入レベルの大気・地球物理" }),
+  Object.freeze({ id: "intermediate", label: "標準", description: "学部基礎の総観気象・宇宙天気" }),
+  Object.freeze({ id: "advanced", label: "発展", description: "大気力学・数値予報・宇宙環境" })
 ]);
 
 const difficultyIDs = new Set(DISASTER_QUIZ_DIFFICULTIES.map((item) => item.id));
@@ -34,7 +39,9 @@ export function validateDisasterQuizQuestions(items = questions) {
   }
   for (const difficulty of DISASTER_QUIZ_DIFFICULTIES) {
     const count = items.filter((item) => item.difficulty === difficulty.id).length;
-    if (count !== DISASTER_QUIZ_POOL_SIZE) errors.push(`invalid_question_count:${difficulty.id}:${count}`);
+    if (count !== DISASTER_QUIZ_POOL_SIZE_BY_DIFFICULTY[difficulty.id]) {
+      errors.push(`invalid_question_count:${difficulty.id}:${count}`);
+    }
   }
   return errors;
 }
@@ -80,7 +87,7 @@ function isOfficialSourceURL(value) {
   try {
     const hostname = new URL(value).hostname;
     return hostname === "www.jma.go.jp" || hostname === "www.data.jma.go.jp" ||
-      hostname === "www.bousai.go.jp" || hostname === "www.fdma.go.jp";
+      hostname === "science.nasa.gov" || hostname === "www.swpc.noaa.gov";
   }
   catch {
     return false;

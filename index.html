@@ -154,7 +154,7 @@
       <button id="map-terrain-toggle" class="map-terrain-toggle" type="button" role="switch" aria-checked="false" aria-label="地形表示をONにする" data-map-terrain-toggle><span>地形</span><span class="map-terrain-toggle-state" aria-hidden="true">OFF</span></button>
       <button id="map-utility-menu-toggle" class="disaster-map-open-button map-utility-menu-toggle" type="button" aria-label="機能メニューを開く" title="機能メニュー" aria-expanded="false" aria-controls="map-utility-actions"></button>
       <div id="map-utility-actions" class="map-utility-actions" aria-label="機能メニュー" hidden>
-        <button id="disaster-quiz-button" class="disaster-map-open-button disaster-quiz-open-button" type="button" aria-label="防災クイズを開く" title="防災クイズ"></button>
+        <button id="disaster-quiz-button" class="disaster-map-open-button disaster-quiz-open-button" type="button" aria-label="宇宙・気象学クイズを開く" title="宇宙・気象学クイズ"></button>
         <button id="disaster-dashboard-button" class="disaster-map-open-button disaster-dashboard-open-button" type="button" aria-label="防災情報ダッシュボードを開く" title="防災情報ダッシュボード" aria-haspopup="dialog" aria-controls="disaster-dashboard-modal" aria-expanded="false"></button>
         <button id="disaster-timeline-button" class="disaster-map-open-button disaster-timeline-open-button" type="button" aria-label="災害年表を開く" title="災害年表" aria-haspopup="dialog" aria-controls="disaster-timeline-modal" aria-expanded="false"></button>
         <button id="weekly-weather-button" class="disaster-map-open-button weekly-weather-open-button" type="button" aria-label="週間天気予報を開く" title="週間天気予報" aria-haspopup="dialog" aria-controls="weekly-weather-modal"></button>
@@ -872,14 +872,14 @@
       <div class="warning-modal-backdrop disaster-quiz-overlay" data-disaster-quiz-close></div>
       <section class="warning-modal-panel disaster-quiz-panel" role="dialog" aria-modal="true" aria-labelledby="disaster-quiz-title">
         <header class="settings-modal-header disaster-quiz-header">
-          <h2 id="disaster-quiz-title">防災クイズ</h2>
+          <h2 id="disaster-quiz-title">宇宙・気象学クイズ</h2>
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-disaster-quiz-close>×</button>
         </header>
         <div class="disaster-quiz-body">
           <section id="quiz-start-view" class="disaster-quiz-view">
             <div class="disaster-quiz-intro">
-              <strong>難易度を選んで10問に挑戦</strong>
-              <p>気象庁・内閣府・消防庁の公開情報をもとに、災害時の行動と気象の仕組みを確認できます。</p>
+              <strong>大学生レベルの1,000問から10問に挑戦</strong>
+              <p>気象庁・NASA・NOAAの公開資料をもとに、大気・気候・太陽・宇宙天気を、近接概念を見分けながら学べます。</p>
             </div>
             <div id="quiz-difficulty-options" class="disaster-quiz-difficulties" aria-label="難易度"></div>
             <section class="quiz-account-card" aria-labelledby="quiz-account-title">
@@ -951,7 +951,7 @@
               <button class="disaster-quiz-primary" type="button" data-quiz-retry>もう一度挑戦</button>
             </div>
           </section>
-          <p class="disaster-quiz-note">クイズはMeteoScopeが独自に作成した学習用問題です。気象予報士試験の過去問題・解答例は転載していません。実際の災害時は、気象庁・自治体などの最新の公式情報を確認してください。</p>
+          <p class="disaster-quiz-note">クイズはMeteoScopeが独自に作成した学習用問題です。気象予報士試験の過去問題・解答例は転載していません。各問題の解説と一次資料を確認し、実際の防災判断は気象庁・自治体などの最新公式情報を優先してください。</p>
         </div>
       </section>
     </div>

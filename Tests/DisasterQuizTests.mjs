@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   DISASTER_QUIZ_DIFFICULTIES,
   DISASTER_QUIZ_POOL_SIZE,
+  DISASTER_QUIZ_POOL_SIZE_BY_DIFFICULTY,
   DISASTER_QUIZ_QUESTION_COUNT,
   disasterQuizQuestionsByIDs,
   getDisasterQuizQuestions,
@@ -23,17 +24,17 @@ assert.deepEqual(DISASTER_QUIZ_DIFFICULTIES.map((item) => item.id), [
 const allIDs = new Set();
 for (const difficulty of DISASTER_QUIZ_DIFFICULTIES) {
   const questions = getDisasterQuizQuestions(difficulty.id);
-  assert.equal(questions.length, DISASTER_QUIZ_POOL_SIZE);
+  assert.equal(questions.length, DISASTER_QUIZ_POOL_SIZE_BY_DIFFICULTY[difficulty.id]);
   for (const question of questions) {
     assert.equal(allIDs.has(question.id), false);
     allIDs.add(question.id);
-    assert.ok(question.choices.length >= 3);
+    assert.equal(question.choices.length, 4);
     assert.ok(question.correctIndex >= 0 && question.correctIndex < question.choices.length);
-    assert.match(question.sourceURL, /^https:\/\/(?:www\.)?(?:data\.)?(?:jma\.go\.jp|bousai\.go\.jp|fdma\.go\.jp)\//u);
-    assert.doesNotMatch(question.question, /土砂災害警戒情報|警戒レベル[0-9０-９].*相当情報|災害切迫|竜巻注意情報|顕著な大雨に関する気象情報/u);
+    assert.match(question.sourceURL, /^https:\/\/(?:www\.)?(?:data\.)?(?:jma\.go\.jp|science\.nasa\.gov|swpc\.noaa\.gov)\//u);
+    assert.match(question.explanation, /正解は「/u);
   }
 }
-assert.equal(allIDs.size, DISASTER_QUIZ_POOL_SIZE * DISASTER_QUIZ_DIFFICULTIES.length);
+assert.equal(allIDs.size, DISASTER_QUIZ_POOL_SIZE);
 assert.deepEqual(getDisasterQuizQuestions("unknown"), []);
 
 const original = getDisasterQuizQuestions("beginner").map((item) => item.id);
@@ -61,6 +62,8 @@ assert.match(html, /id="disaster-quiz-button"[\s\S]*id="weekly-weather-button"[\
 assert.match(html, /id="disaster-quiz-modal"/u);
 assert.match(html, /id="quiz-register-form"/u);
 assert.match(html, /id="quiz-leaderboard-list"/u);
+assert.match(html, /大学生レベルの1,000問から10問に挑戦/u);
+assert.match(html, /宇宙・気象学クイズ/u);
 assert.match(html, /気象予報士試験の過去問題・解答例は転載していません/u);
 assert.match(appSource, /setupDisasterQuizModal\(\)/u);
 assert.match(html, /id="map-utility-actions"[\s\S]*id="disaster-quiz-button"[\s\S]*id="weekly-weather-button"[\s\S]*id="disaster-map-button"/u);

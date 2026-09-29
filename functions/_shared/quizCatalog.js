@@ -1,4 +1,4 @@
-import questions from "../../data/disasterQuizQuestions.js";
+import questions from "../../data/scienceQuizQuestions.js";
 
 export const QUIZ_DIFFICULTIES = Object.freeze(["beginner", "intermediate", "advanced"]);
 export const QUIZ_QUESTION_COUNT = 10;
