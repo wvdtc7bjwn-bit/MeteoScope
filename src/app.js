@@ -55,7 +55,10 @@ import {
   normalizeHypocenterDistributionRange,
   fetchHypocenterDistribution
 } from "./jma/hypocenterDistribution.js";
-import { searchEarthquakeHistory } from "./jma/earthquakeHistory.js";
+import {
+  EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT,
+  searchEarthquakeHistory
+} from "./jma/earthquakeHistory.js";
 import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFrameIndex } from "./jma/weatherChart.js";
 import { fetchHimawariSatelliteFrames, isHimawariTimestampEqualToJstTime } from "./jma/himawariSatellite.js";
 import { resolveCurrentLocationInfo, searchMunicipalities } from "./location/currentLocation.js";
@@ -439,6 +442,7 @@ export function createWeatherApp() {
   let earthquakeArchiveFilters = {};
   let earthquakeArchiveState = { status: "idle", data: null, error: "" };
   let earthquakeArchiveRequestId = 0;
+  let earthquakeArchiveListVisibleCount = EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT;
   let selectedHistoricalEarthquakeId = "";
   let earthquakeSummaryPage = "earthquake";
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
@@ -2255,6 +2259,7 @@ if (layerId === "river") {
       earthquakeArchiveError: earthquakeArchiveState.error,
       earthquakeArchive: earthquakeArchiveState.data,
       earthquakeArchiveItems: earthquakeArchiveState.data?.items ?? [],
+      earthquakeArchiveListVisibleCount,
       selectedHistoricalEarthquakeId
     };
     const tideData = {
@@ -3931,7 +3936,18 @@ if (layerId === "river") {
       onArchiveFilterChange: (filters) => {
         earthquakeArchiveFilters = { ...earthquakeArchiveFilters, ...filters };
       },
-      onArchiveSearch: refreshEarthquakeArchive,
+      onArchiveSearch: (filters) => {
+        earthquakeArchiveListVisibleCount = EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT;
+        return refreshEarthquakeArchive(filters);
+      },
+      onArchiveListMore: (nextVisibleCount) => {
+        const availableCount = earthquakeArchiveState.data?.items?.length ?? 0;
+        if (!Number.isFinite(nextVisibleCount) || nextVisibleCount <= earthquakeArchiveListVisibleCount) return;
+        earthquakeArchiveListVisibleCount = Math.min(availableCount, Math.floor(nextVisibleCount));
+        if (activeTab === "earthquake" && earthquakeView === "history") {
+          updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+        }
+      },
       onArchiveSelect: selectHistoricalEarthquake,
       onArchiveRetry: () => refreshEarthquakeArchive(earthquakeArchiveFilters),
       onDistributionPresentationChange: selectEarthquakeDistributionPresentation,

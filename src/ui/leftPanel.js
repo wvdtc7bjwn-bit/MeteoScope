@@ -45,6 +45,7 @@ import {
   EARTHQUAKE_HISTORY_INTENSITY_OPTIONS,
   EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT,
   EARTHQUAKE_HISTORY_MAGNITUDE_OPTIONS,
+  EARTHQUAKE_HISTORY_RESULT_LIMIT,
   EARTHQUAKE_HISTORY_SORT_OPTIONS,
   formatHistoricalIntensity,
   getJmaLatestAvailableDate
@@ -1439,6 +1440,7 @@ export function setupEarthquakeSelector({
   onViewChange,
   onArchiveFilterChange,
   onArchiveSearch,
+  onArchiveListMore,
   onArchiveSelect,
   onArchiveRetry,
   onDistributionPresentationChange,
@@ -1521,6 +1523,11 @@ export function setupEarthquakeSelector({
       event.stopPropagation();
       const archiveForm = archiveSearchButton.closest("[data-earthquake-archive-form]");
       if (archiveForm instanceof HTMLFormElement) submitArchiveSearch(archiveForm);
+      return;
+    }
+    const archiveListMoreButton = event.target.closest("[data-earthquake-archive-list-more]");
+    if (archiveListMoreButton) {
+      onArchiveListMore?.(Number(archiveListMoreButton.dataset.nextVisibleCount));
       return;
     }
     const archiveItemButton = event.target.closest("[data-earthquake-archive-id]");
@@ -6841,10 +6848,17 @@ function buildEarthquakeArchiveMarkup(data) {
     return `${form}<div class="earthquake-empty" role="alert">${escapeHtml(data.earthquakeArchiveError ?? "過去の地震を検索できませんでした")}<button type="button" class="earthquake-distribution-retry" data-earthquake-archive-retry>再試行</button></div>`;
   }
   const items = snapshot?.items ?? [];
-  const visibleItems = items.slice(0, EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT);
+  const requestedVisibleCount = Number(data.earthquakeArchiveListVisibleCount);
+  const visibleCount = Math.min(
+    items.length,
+    Number.isFinite(requestedVisibleCount) && requestedVisibleCount >= EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT
+      ? Math.floor(requestedVisibleCount)
+      : EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT
+  );
+  const visibleItems = items.slice(0, visibleCount);
   const selectedId = String(data.selectedHistoricalEarthquakeId ?? "");
   const totalMatched = Number(snapshot?.totalMatched ?? items.length);
-  const resultLimit = items.length;
+  const resultLimit = Math.min(items.length, EARTHQUAKE_HISTORY_RESULT_LIMIT);
   const coverageLabel = snapshot?.complete === false
     ? `新しい年から取得中・${formatArchiveDate(snapshot.loadedFromDate)}まで`
     : `${formatArchiveDate(startDate)}〜${formatArchiveDate(endDate)}`;
@@ -6881,13 +6895,17 @@ function buildEarthquakeArchiveMarkup(data) {
       </article>
     `;
   }).join("");
-  const remainder = totalMatched > visibleItems.length
-    ? `<p class="earthquake-archive-list-note">${snapshot?.truncated
-      ? `検索結果${totalMatched.toLocaleString("ja-JP")}件のうち、地図は先頭${resultLimit.toLocaleString("ja-JP")}件、一覧は先頭${visibleItems.length.toLocaleString("ja-JP")}件のみ表示しています。条件を絞ってください。`
-      : `検索結果${totalMatched.toLocaleString("ja-JP")}件のうち、一覧は先頭${visibleItems.length.toLocaleString("ja-JP")}件のみ表示しています。地図では全件を確認できます。`
-    }</p>`
+  const hasMoreListItems = visibleItems.length < items.length;
+  const remainder = hasMoreListItems
+    ? `<p class="earthquake-archive-list-note">一覧は${visibleItems.length.toLocaleString("ja-JP")}件表示中${snapshot?.truncated ? `（検索条件に一致した${totalMatched.toLocaleString("ja-JP")}件のうち、地図には先頭${resultLimit.toLocaleString("ja-JP")}件まで表示）` : `（全${totalMatched.toLocaleString("ja-JP")}件）`}</p>`
     : "";
-  return `${form}${progressNotice}${fallbackNotice}${resultHead}<div class="earthquake-archive-list">${list}</div>${remainder}`;
+  const loadMore = hasMoreListItems
+    ? `<button type="button" class="earthquake-archive-list-more" data-earthquake-archive-list-more data-next-visible-count="${Math.min(items.length, visibleItems.length + EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT)}">さらに${Math.min(EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT, items.length - visibleItems.length).toLocaleString("ja-JP")}件を表示</button>`
+    : "";
+  const truncatedNotice = snapshot?.truncated
+    ? `<p class="earthquake-archive-list-note">検索結果が上限の${EARTHQUAKE_HISTORY_RESULT_LIMIT.toLocaleString("ja-JP")}件を超えています。期間や震度・規模を絞ると、ほかの地震も検索できます。</p>`
+    : "";
+  return `${form}${progressNotice}${fallbackNotice}${resultHead}${truncatedNotice}<div class="earthquake-archive-list">${list}</div>${remainder}${loadMore}`;
 }
 
 function buildArchiveSelect(name, label, value, options) {
@@ -7468,7 +7486,9 @@ function buildEarthquakeArchiveMobileContextMarkup(data) {
     <div class="mobile-dock-earthquake-distribution-summary">
       <div class="mobile-dock-earthquake-distribution-head">
         <span class="mobile-dock-kicker">過去の地震・${escapeHtml(formatArchiveDate(filters.startDate))}〜</span>
-        <strong>${["idle", "loading"].includes(status) ? "取得中" : `${count.toLocaleString("ja-JP")}件${snapshot?.complete === false ? "・更新中" : ""}`}</strong>
+        <strong>${["idle", "loading"].includes(status)
+          ? "取得中"
+          : `${count.toLocaleString("ja-JP")}件${status === "refreshing" ? "・更新中" : status === "partial-error" ? "・一部取得" : ""}`}</strong>
       </div>
       <div class="mobile-dock-earthquake-distribution-range-hint">${selected
         ? `${escapeHtml(formatArchiveDateTime(selected.originTime))}・${escapeHtml(selected.place)}`

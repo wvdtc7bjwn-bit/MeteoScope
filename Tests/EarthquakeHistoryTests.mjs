@@ -30,7 +30,7 @@ const officialEpicenterExpectations = [
   ["20220502222103180", "京都・大阪府境", "京都府南部"]
 ];
 
-assert.equal(EARTHQUAKE_HISTORY_RESULT_LIMIT, 1_000, "検索結果の上限が意図せず変わっている");
+assert.equal(EARTHQUAKE_HISTORY_RESULT_LIMIT, 3_000, "検索結果の上限が意図せず変わっている");
 assert.equal(EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT, 200, "一覧表示の上限が意図せず変わっている");
 assert.equal(EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS, 7, "初期表示期間は過去1週間でなければならない");
 assert.equal(manifest.years.length, 51, "50年間の端点を含む51暦年分を保持する");
@@ -217,8 +217,12 @@ assert.match(panel, /const filters = data\.earthquakeArchiveFilters \?\? snapsho
 assert.match(panel, /1919年〜2日前/u);
 assert.match(panel, /earthquake-archive-item-content/u);
 assert.match(panel, /<small>震度<\/small><b>/u);
-assert.match(panel, /一覧は先頭.*のみ表示しています/u);
+assert.match(panel, /一覧は\$\{visibleItems\.length\.toLocaleString\("ja-JP"\)\}件表示中/u);
 assert.match(panel, /地図は先頭.*件/u);
+assert.match(panel, /data-earthquake-archive-list-more/u);
+assert.match(panel, /data-next-visible-count/u);
+assert.match(panel, /status === "refreshing" \? "・更新中"/u);
+assert.doesNotMatch(panel, /snapshot\?\.complete === false \? "・更新中"/u);
 assert.match(panel, /snapshot\.loadedFromDate/u);
 assert.match(app, /onProgress: \(partialData\)/u);
 assert.match(panel, /気象庁の震度データベースへ接続/u);

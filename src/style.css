@@ -7170,6 +7170,21 @@ html[data-theme="light"] .upper-air-annotation-item p { color: #19344e; }
 }
 
 .earthquake-archive-search-button:disabled { cursor: wait; opacity: 0.62; }
+.earthquake-archive-list-more {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 8px;
+  border: 1px solid rgba(83, 184, 239, 0.34);
+  border-radius: 10px;
+  background: rgba(38, 137, 201, 0.12);
+  color: #bfeaff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.earthquake-archive-list-more:hover { background: rgba(38, 137, 201, 0.22); }
+.earthquake-archive-list-more:focus-visible { outline: 2px solid #78c9fa; outline-offset: 2px; }
 .earthquake-archive-search p,
 .earthquake-archive-list-note { margin: 0; }
 .earthquake-archive-result-head { margin: 3px 2px 8px; }
@@ -15122,6 +15137,7 @@ html[data-theme="light"] .earthquake-archive-item em[data-intensity^="5"] { back
 html[data-theme="light"] .earthquake-archive-item em[data-intensity^="6"],
 html[data-theme="light"] .earthquake-archive-item em[data-intensity="7"] { background: #ed9aa4; color: #6e2432; }
 html[data-theme="light"] .earthquake-archive-search-button { color: #15668f; background: rgba(101, 183, 232, 0.17); }
+html[data-theme="light"] .earthquake-archive-list-more { color: #245875; background: rgba(101, 183, 232, 0.12); }
 html[data-theme="light"] :is(
   .earthquake-distribution-control-card,
   .earthquake-depth-legend,
