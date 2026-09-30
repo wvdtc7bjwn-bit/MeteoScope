@@ -62,10 +62,7 @@ const elements = {
   pushSubmit: document.getElementById("admin-push-submit"),
   pushHistory: document.getElementById("admin-push-history"),
   discordTestButton: document.getElementById("discord-test-button"),
-  discordTestMessage: document.getElementById("discord-test-message"),
-  earthquakeHistoryUpdateButton: document.getElementById("earthquake-history-update-button"),
-  earthquakeHistoryStopButton: document.getElementById("earthquake-history-stop-button"),
-  earthquakeHistoryUpdateMessage: document.getElementById("earthquake-history-update-message")
+  discordTestMessage: document.getElementById("discord-test-message")
 };
 
 setupLocale();
@@ -170,12 +167,6 @@ function bindEvents() {
   });
   elements.discordTestButton?.addEventListener("click", () => {
     void sendDiscordTestNotification();
-  });
-  elements.earthquakeHistoryUpdateButton?.addEventListener("click", () => {
-    void dispatchEarthquakeHistoryUpdate();
-  });
-  elements.earthquakeHistoryStopButton?.addEventListener("click", () => {
-    void stopEarthquakeHistoryUpdate();
   });
   elements.refreshAccountsButton?.addEventListener("click", () => {
     void refreshAccounts({ reset: true });
@@ -987,39 +978,6 @@ async function purgeCache() {
   setMessage(elements.dashboardMessage, "キャッシュ削除APIを実行中...");
   const response = await requestJson("/cache/purge", { method: "POST" });
   setMessage(elements.dashboardMessage, response.message || "完了しました。", response.ok ? "success" : "error");
-}
-
-async function dispatchEarthquakeHistoryUpdate() {
-  if (!window.confirm("保存用の過去地震データ更新を開始します。データに差分があればGitHubへコミット・反映されます。続行しますか？")) return;
-  setEarthquakeHistoryUpdateBusy(true);
-  setMessage(elements.earthquakeHistoryUpdateMessage, "GitHub Actionsを起動中...");
-  try {
-    const response = await requestJson("/earthquake-history/update", { method: "POST" });
-    setMessage(elements.earthquakeHistoryUpdateMessage, response.message || "更新を開始しました。", "success");
-  } catch (error) {
-    setMessage(elements.earthquakeHistoryUpdateMessage, error.message || "更新を開始できませんでした。", "error");
-  } finally {
-    setEarthquakeHistoryUpdateBusy(false);
-  }
-}
-
-async function stopEarthquakeHistoryUpdate() {
-  if (!window.confirm("待機中または実行中の過去地震更新ジョブを停止しますか？")) return;
-  setEarthquakeHistoryUpdateBusy(true);
-  setMessage(elements.earthquakeHistoryUpdateMessage, "更新状況を確認中...");
-  try {
-    const response = await requestJson("/earthquake-history/stop", { method: "POST" });
-    setMessage(elements.earthquakeHistoryUpdateMessage, response.message || "停止要求を処理しました。", "success");
-  } catch (error) {
-    setMessage(elements.earthquakeHistoryUpdateMessage, error.message || "更新を停止できませんでした。", "error");
-  } finally {
-    setEarthquakeHistoryUpdateBusy(false);
-  }
-}
-
-function setEarthquakeHistoryUpdateBusy(isBusy) {
-  if (elements.earthquakeHistoryUpdateButton) elements.earthquakeHistoryUpdateButton.disabled = isBusy;
-  if (elements.earthquakeHistoryStopButton) elements.earthquakeHistoryStopButton.disabled = isBusy;
 }
 
 async function requestJson(path, options = {}) {
