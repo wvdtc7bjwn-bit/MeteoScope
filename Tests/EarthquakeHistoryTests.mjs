@@ -7,7 +7,8 @@ import {
   EARTHQUAKE_HISTORY_RESULT_LIMIT,
   formatHistoricalIntensity,
   getHistoricalIntensityRank,
-  normalizeEarthquakeHistoryFilters
+  normalizeEarthquakeHistoryFilters,
+  searchEarthquakeHistory
 } from "../src/jma/earthquakeHistory.js";
 import {
   normalizeHistoricalEpicenterName,
@@ -107,6 +108,61 @@ for (const [id, catalogueName, officialName] of officialEpicenterExpectations) {
 }
 assert.equal(normalizeHistoricalEpicenterName("20170108230650810", "京都・大阪府境"), "京都・大阪府境");
 
+const originalFetch = globalThis.fetch;
+const progressSnapshots = [];
+globalThis.fetch = async (url) => {
+  const requestUrl = new URL(String(url), "https://meteoscope.test");
+  const archivePath = requestUrl.pathname.match(/^\/data\/earthquake-history\/(.+)$/u)?.[1];
+  if (archivePath) {
+    const body = await readFile(path.join(dataDirectory, archivePath), "utf8");
+    return new Response(body, { status: 200 });
+  }
+  if (requestUrl.pathname !== "/api/earthquake-history") return new Response("Not found", { status: 404 });
+  const year = requestUrl.searchParams.get("start")?.slice(0, 4);
+  if (year === "2023") return new Response(JSON.stringify({ ok: false }), { status: 502 });
+  const records = JSON.parse(await readFile(path.join(dataDirectory, `${year}.json`), "utf8"))
+    .filter(({ t }) => t.slice(0, 10) >= requestUrl.searchParams.get("start") && t.slice(0, 10) <= requestUrl.searchParams.get("end"))
+    .map((record) => ({
+      id: record.id,
+      ot: record.t.replace(/^(\d{4})-(\d{2})-(\d{2})T/u, "$1/$2/$3 ").replace(/\+09:00$/u, ""),
+      name: record.p,
+      lat: record.la,
+      lon: record.lo,
+      mag: record.m,
+      dep: record.d == null ? "" : `${record.d} km`,
+      maxI: `震度${record.i}`
+    }));
+  return new Response(JSON.stringify({ ok: true, records }), { status: 200 });
+};
+try {
+  const progressiveSearch = await searchEarthquakeHistory({
+    startDate: "2024-01-01",
+    endDate: manifest.endDate
+  }, {
+    onProgress: (snapshot) => progressSnapshots.push(snapshot)
+  });
+  assert.deepEqual(
+    progressSnapshots.map(({ loadedYearCount }) => loadedYearCount),
+    [1, 2, 3],
+    "期間検索は年単位で段階的に結果を返す"
+  );
+  assert.equal(progressSnapshots[0].complete, false);
+  assert.equal(progressSnapshots[0].loadedFromDate, "2026-01-01");
+  assert.ok(progressSnapshots[0].items.every(({ originTime }) => originTime.startsWith("2026-")), "最初に最新年だけを反映する");
+  assert.deepEqual(progressSnapshots.map(({ loadedFromDate }) => loadedFromDate), ["2026-01-01", "2025-01-01", "2024-01-01"]);
+  assert.equal(progressiveSearch.complete, true);
+  assert.equal(progressiveSearch.loadedFromDate, "2024-01-01");
+  assert.ok(progressiveSearch.items.every(({ originTime }) => originTime >= "2024-01-01"));
+  const fallbackSearch = await searchEarthquakeHistory({
+    startDate: "2023-06-01",
+    endDate: "2023-06-02"
+  });
+  assert.equal(fallbackSearch.complete, true);
+  assert.deepEqual(fallbackSearch.fallbackYears, [2023], "JMA接続障害時は保存済み年データへ切り替える");
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
 const [generator, app, panel, map, updateWorkflow, epicenterRegionUpdater, epicenterRegionApplier] = await Promise.all([
   readFile(path.join(projectRoot, "scripts", "update-jma-earthquake-history.mjs"), "utf8"),
   readFile(path.join(projectRoot, "src", "app.js"), "utf8"),
@@ -158,14 +214,17 @@ assert.match(panel, /archiveSearchButton\.closest\("\[data-earthquake-archive-fo
 assert.match(panel, /closest\("button\[data-earthquake-view\]"\)/u);
 assert.match(panel, /onArchiveFilterChange\?\.\(readArchiveSearchFilters\(archiveForm\)\)/u);
 assert.match(panel, /const filters = data\.earthquakeArchiveFilters \?\? snapshot\?\.filters/u);
-assert.match(panel, /震度1〜7を収録/u);
+assert.match(panel, /1919年〜2日前/u);
 assert.match(panel, /earthquake-archive-item-content/u);
 assert.match(panel, /<small>震度<\/small><b>/u);
 assert.match(panel, /一覧は先頭.*のみ表示しています/u);
 assert.match(panel, /地図は先頭.*件/u);
+assert.match(panel, /snapshot\.loadedFromDate/u);
+assert.match(app, /onProgress: \(partialData\)/u);
+assert.match(panel, /気象庁の震度データベースへ接続/u);
 assert.match(map, /getEarthquakeMapView\(data\) === "history"/u);
 assert.match(map, /formatDistributionOriginTime\(item\?\.originTime, true\)/u);
-assert.match(updateWorkflow, /cron: "30 0 \* \* \*"/u);
+assert.doesNotMatch(updateWorkflow, /schedule:/u, "年次履歴の自動コミットは停止し、手動実行は維持する");
 assert.match(updateWorkflow, /workflow_dispatch:/u);
 assert.match(updateWorkflow, /permissions:\s*\n\s*contents: write/u);
 assert.match(updateWorkflow, /concurrency:\s*\n\s*group: earthquake-history-data\s*\n\s*cancel-in-progress: false/u);

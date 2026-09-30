@@ -1,6 +1,10 @@
 import { fetchJson } from "./jmaClient.js";
+import { normalizeHistoricalEpicenterName } from "./historicalEpicenterNames.js";
+import { normalizeJmaEarthquakeIntensity, normalizeJmaEarthquakeOriginTime } from "./earthquakeHistoryApi.js";
 
 const DATA_BASE = "/data/earthquake-history";
+const LIVE_SEARCH_ENDPOINT = "/api/earthquake-history";
+export const EARTHQUAKE_HISTORY_EARLIEST_DATE = "1919-01-01";
 export const EARTHQUAKE_HISTORY_RESULT_LIMIT = 1_000;
 export const EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT = 200;
 export const EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS = 7;
@@ -45,19 +49,50 @@ export async function fetchEarthquakeHistoryManifest() {
   return manifest;
 }
 
-export async function searchEarthquakeHistory(filters = {}) {
+export async function searchEarthquakeHistory(filters = {}, { onProgress } = {}) {
   const manifest = await fetchEarthquakeHistoryManifest();
   const normalized = normalizeEarthquakeHistoryFilters(filters, manifest);
-  const years = manifest.years.filter(({ year }) => (
-    Number(year) >= Number(normalized.startDate.slice(0, 4))
-    && Number(year) <= Number(normalized.endDate.slice(0, 4))
-  ));
+  const archivedYears = new Map(manifest.years.map((entry) => [Number(entry.year), entry]));
+  const firstYear = Number(normalized.startDate.slice(0, 4));
+  const lastYear = Number(normalized.endDate.slice(0, 4));
+  const years = Array.from({ length: lastYear - firstYear + 1 }, (_, index) => lastYear - index);
   const records = [];
-  for (let index = 0; index < years.length; index += 6) {
-    const batch = years.slice(index, index + 6);
-    const payloads = await Promise.all(batch.map(({ year, file }) => loadHistoryYear(year, file)));
-    records.push(...payloads.flat());
+  const fallbackYears = [];
+  let result = createHistorySearchResult([], normalized, manifest, {
+    complete: years.length === 0,
+    loadedYearCount: 0,
+    totalYearCount: years.length,
+    loadedFromDate: years.length === 0 ? normalized.startDate : ""
+  });
+  for (let index = 0; index < years.length; index += 1) {
+    const year = years[index];
+    const rangeStart = maxDate(normalized.startDate, `${year}-01-01`);
+    const rangeEnd = minDate(normalized.endDate, `${year}-12-31`);
+    try {
+      records.push(...await loadLiveHistoryRange(rangeStart, rangeEnd));
+    } catch (error) {
+      const archiveEntry = archivedYears.get(year);
+      if (!archiveEntry) throw error;
+      console.warn(`[MeteoScope] JMA live history unavailable for ${year}; using saved archive`, error);
+      records.push(...await loadHistoryYear(year, archiveEntry.file));
+      fallbackYears.push(year);
+    }
+    const loadedFromDate = index === years.length - 1
+      ? normalized.startDate
+      : maxDate(normalized.startDate, `${year}-01-01`);
+    result = createHistorySearchResult(records, normalized, manifest, {
+      complete: index === years.length - 1,
+      loadedYearCount: index + 1,
+      totalYearCount: years.length,
+      loadedFromDate,
+      fallbackYears: [...fallbackYears]
+    });
+    onProgress?.(result);
   }
+  return result;
+}
+
+function createHistorySearchResult(records, normalized, manifest, progress) {
   const keyword = normalized.keyword.toLocaleLowerCase("ja-JP");
   const minimumIntensityRank = getHistoricalIntensityRank(normalized.minIntensity);
   const minimumMagnitude = Number(normalized.minMagnitude);
@@ -79,6 +114,7 @@ export async function searchEarthquakeHistory(filters = {}) {
     ok: true,
     filters: normalized,
     manifest,
+    ...progress,
     totalMatched: matches.length,
     truncated: matches.length > EARTHQUAKE_HISTORY_RESULT_LIMIT,
     items: matches.slice(0, EARTHQUAKE_HISTORY_RESULT_LIMIT)
@@ -90,13 +126,16 @@ export function normalizeEarthquakeHistoryFilters(filters, manifest) {
   const allowedMagnitudes = new Set(EARTHQUAKE_HISTORY_MAGNITUDE_OPTIONS.map(([value]) => value));
   const allowedDepths = new Set(EARTHQUAKE_HISTORY_DEPTH_OPTIONS.map(([value]) => value));
   const allowedSorts = new Set(EARTHQUAKE_HISTORY_SORT_OPTIONS.map(([value]) => value));
-  const startDate = isDate(filters.startDate)
+  const latestDate = getJmaLatestAvailableDate();
+  const requestedStartDate = isDate(filters.startDate)
     ? filters.startDate
-    : shiftDate(manifest.endDate, -(EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS - 1));
-  const endDate = isDate(filters.endDate) ? filters.endDate : manifest.endDate;
+    : shiftDate(latestDate, -(EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS - 1));
+  const requestedEndDate = isDate(filters.endDate) ? filters.endDate : latestDate;
+  const startDate = requestedStartDate <= requestedEndDate ? requestedStartDate : requestedEndDate;
+  const endDate = requestedStartDate <= requestedEndDate ? requestedEndDate : requestedStartDate;
   return {
-    startDate: startDate <= endDate ? maxDate(startDate, manifest.startDate) : maxDate(endDate, manifest.startDate),
-    endDate: startDate <= endDate ? minDate(endDate, manifest.endDate) : minDate(startDate, manifest.endDate),
+    startDate: minDate(maxDate(startDate, EARTHQUAKE_HISTORY_EARLIEST_DATE), latestDate),
+    endDate: minDate(endDate, latestDate),
     // The archive contains all felt earthquakes.  Starting at 震度1 keeps newly
     // published low-intensity events discoverable instead of silently filtering
     // them out on first open.
@@ -106,6 +145,13 @@ export function normalizeEarthquakeHistoryFilters(filters, manifest) {
     sort: allowedSorts.has(String(filters.sort)) ? String(filters.sort) : "newest",
     keyword: String(filters.keyword ?? "").trim().slice(0, 40)
   };
+}
+
+export function getJmaLatestAvailableDate(now = Date.now()) {
+  const todayInJapan = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit"
+  }).format(new Date(now));
+  return shiftDate(todayInJapan, -2);
 }
 
 export function getHistoricalIntensityRank(value) {
@@ -131,6 +177,41 @@ async function loadHistoryYear(year, file) {
     }));
   }
   return yearCache.get(key);
+}
+
+async function loadLiveHistoryRange(startDate, endDate) {
+  const query = new URLSearchParams({ start: startDate, end: endDate });
+  const payload = await fetchJson(`${LIVE_SEARCH_ENDPOINT}?${query}`, {
+    ttlMs: 6 * 60 * 60 * 1000,
+    timeoutMs: 30_000,
+    retryCount: 0
+  });
+  if (!payload?.ok || !Array.isArray(payload.records)) {
+    throw new Error("気象庁の震度データベースを取得できませんでした");
+  }
+  return payload.records.flatMap(normalizeLiveHistoryRecord);
+}
+
+function normalizeLiveHistoryRecord(record) {
+  const latitude = Number(record?.lat);
+  const longitude = Number(record?.lon);
+  const originTime = normalizeJmaEarthquakeOriginTime(record?.ot);
+  if (!record?.id || !originTime || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
+  const magnitude = record.mag == null || String(record.mag).trim() === "" ? NaN : Number(record.mag);
+  const depthMatch = String(record.dep ?? "").match(/(\d+(?:\.\d+)?)\s*km/iu);
+  const id = String(record.id);
+  return [{
+    id,
+    originTime,
+    place: normalizeHistoricalEpicenterName(id, record.name),
+    latitude,
+    longitude,
+    coordinates: [longitude, latitude],
+    depthKm: depthMatch ? Number(depthMatch[1]) : null,
+    magnitude: Number.isFinite(magnitude) ? magnitude : null,
+    maxIntensity: normalizeJmaEarthquakeIntensity(record.maxI),
+    sourceUrl: `https://www.data.jma.go.jp/eqdb/data/shindo/#${encodeURIComponent(id)}`
+  }];
 }
 
 function normalizeHistoryRecord(record) {

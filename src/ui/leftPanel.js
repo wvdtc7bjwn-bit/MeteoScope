@@ -46,7 +46,8 @@ import {
   EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT,
   EARTHQUAKE_HISTORY_MAGNITUDE_OPTIONS,
   EARTHQUAKE_HISTORY_SORT_OPTIONS,
-  formatHistoricalIntensity
+  formatHistoricalIntensity,
+  getJmaLatestAvailableDate
 } from "../jma/earthquakeHistory.js";
 import {
   HYPOCENTER_DEPTH_STOPS,
@@ -6810,16 +6811,17 @@ function buildEarthquakeArchiveMarkup(data) {
   const manifest = snapshot?.manifest;
   const startDate = filters.startDate ?? manifest?.startDate ?? "";
   const endDate = filters.endDate ?? manifest?.endDate ?? "";
+  const latestDate = manifest ? getJmaLatestAvailableDate() : "";
   const loading = status === "loading" || status === "refreshing";
   const form = `
     <form class="earthquake-archive-search" data-earthquake-archive-form aria-label="過去の地震検索">
       <div class="earthquake-archive-head">
-        <div><strong>過去50年の有感地震</strong><span>震度1〜7を収録・更新時点から50年を保持</span></div>
-        ${manifest?.sourceUrl ? `<a href="${escapeHtml(manifest.sourceUrl)}" target="_blank" rel="noopener noreferrer">気象庁 ↗</a>` : ""}
+        <div><strong>気象庁 震度データベース</strong><span>1919年〜2日前・震度1以上の地震を検索</span></div>
+        <a href="https://www.data.jma.go.jp/eqdb/data/shindo/" target="_blank" rel="noopener noreferrer">気象庁 ↗</a>
       </div>
       <div class="earthquake-archive-date-grid earthquake-distribution-range-controls">
-        <label><span>開始日</span><input type="date" name="startDate" value="${escapeHtml(startDate)}" min="${escapeHtml(manifest?.startDate ?? "")}" max="${escapeHtml(manifest?.endDate ?? "")}"></label>
-        <label><span>終了日</span><input type="date" name="endDate" value="${escapeHtml(endDate)}" min="${escapeHtml(manifest?.startDate ?? "")}" max="${escapeHtml(manifest?.endDate ?? "")}"></label>
+        <label><span>開始日</span><input type="date" name="startDate" value="${escapeHtml(startDate)}" min="1919-01-01" max="${escapeHtml(latestDate)}"></label>
+        <label><span>終了日</span><input type="date" name="endDate" value="${escapeHtml(endDate)}" min="1919-01-01" max="${escapeHtml(latestDate)}"></label>
       </div>
       <div class="earthquake-archive-filter-grid">
         ${buildArchiveSelect("minIntensity", "最大震度", filters.minIntensity ?? "1", EARTHQUAKE_HISTORY_INTENSITY_OPTIONS)}
@@ -6829,7 +6831,7 @@ function buildEarthquakeArchiveMarkup(data) {
       </div>
       <label class="earthquake-archive-keyword"><span>震央地名</span><input type="search" name="keyword" value="${escapeHtml(filters.keyword ?? "")}" maxlength="40" placeholder="例：能登、宮城県沖"></label>
       <button type="button" class="earthquake-archive-search-button" data-earthquake-archive-search ${loading ? "disabled" : ""}>${loading ? "検索中…" : "この条件で検索"}</button>
-      <p>検索時は気象庁へ接続せず、MeteoScopeに保存した年別データを使用します。古い年代の「有感」は震度階級が特定できない場合があります。</p>
+      <p>気象庁の震度データベースへ接続して新しい年から検索します。接続障害時は保存済みデータがある年代のみ代替表示します。</p>
     </form>
   `;
   if (status === "idle" || status === "loading") {
@@ -6843,15 +6845,24 @@ function buildEarthquakeArchiveMarkup(data) {
   const selectedId = String(data.selectedHistoricalEarthquakeId ?? "");
   const totalMatched = Number(snapshot?.totalMatched ?? items.length);
   const resultLimit = items.length;
+  const coverageLabel = snapshot?.complete === false
+    ? `新しい年から取得中・${formatArchiveDate(snapshot.loadedFromDate)}まで`
+    : `${formatArchiveDate(startDate)}〜${formatArchiveDate(endDate)}`;
+  const progressNotice = status === "partial-error"
+    ? `<p class="earthquake-archive-list-note" role="alert">${escapeHtml(data.earthquakeArchiveError ?? "続きのデータを取得できませんでした")}。取得済み分を表示しています。<button type="button" class="earthquake-distribution-retry" data-earthquake-archive-retry>再試行</button></p>`
+    : "";
+  const fallbackNotice = snapshot?.fallbackYears?.length
+    ? `<p class="earthquake-archive-list-note" role="status">気象庁へ接続できなかったため、${escapeHtml(snapshot.fallbackYears.join("・"))}年は保存済みデータを表示しています。</p>`
+    : "";
   const resultHead = `
     <div class="earthquake-archive-result-head" role="status">
-      <strong>${totalMatched.toLocaleString("ja-JP")}件</strong>
+      <strong>${snapshot?.complete === false ? "取得済み " : ""}${totalMatched.toLocaleString("ja-JP")}件</strong>
       <span>${snapshot?.truncated
         ? `地図は先頭${resultLimit.toLocaleString("ja-JP")}件`
-        : `${formatArchiveDate(startDate)}〜${formatArchiveDate(endDate)}`}</span>
+        : coverageLabel}${snapshot?.complete === false ? `（残り${Math.max(0, snapshot.totalYearCount - snapshot.loadedYearCount)}年）` : ""}</span>
     </div>
   `;
-  if (!items.length) return `${form}${resultHead}<div class="earthquake-empty">条件に一致する地震はありません。</div>`;
+  if (!items.length) return `${form}${progressNotice}${fallbackNotice}${resultHead}${snapshot?.complete === false ? `<div class="earthquake-empty" role="status">${escapeHtml(coverageLabel)}。新しい地震データを読み込み中です。</div>` : `<div class="earthquake-empty">条件に一致する地震はありません。</div>`}`;
   const list = visibleItems.map((item) => {
     const active = String(item.id) === selectedId;
     const magnitude = Number.isFinite(item.magnitude) ? `M${item.magnitude.toFixed(1)}` : "M不明";
@@ -6876,7 +6887,7 @@ function buildEarthquakeArchiveMarkup(data) {
       : `検索結果${totalMatched.toLocaleString("ja-JP")}件のうち、一覧は先頭${visibleItems.length.toLocaleString("ja-JP")}件のみ表示しています。地図では全件を確認できます。`
     }</p>`
     : "";
-  return `${form}${resultHead}<div class="earthquake-archive-list">${list}</div>${remainder}`;
+  return `${form}${progressNotice}${fallbackNotice}${resultHead}<div class="earthquake-archive-list">${list}</div>${remainder}`;
 }
 
 function buildArchiveSelect(name, label, value, options) {
@@ -7457,7 +7468,7 @@ function buildEarthquakeArchiveMobileContextMarkup(data) {
     <div class="mobile-dock-earthquake-distribution-summary">
       <div class="mobile-dock-earthquake-distribution-head">
         <span class="mobile-dock-kicker">過去の地震・${escapeHtml(formatArchiveDate(filters.startDate))}〜</span>
-        <strong>${["idle", "loading"].includes(status) ? "取得中" : `${count.toLocaleString("ja-JP")}件`}</strong>
+        <strong>${["idle", "loading"].includes(status) ? "取得中" : `${count.toLocaleString("ja-JP")}件${snapshot?.complete === false ? "・更新中" : ""}`}</strong>
       </div>
       <div class="mobile-dock-earthquake-distribution-range-hint">${selected
         ? `${escapeHtml(formatArchiveDateTime(selected.originTime))}・${escapeHtml(selected.place)}`

@@ -3,6 +3,12 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import AdmZip from "adm-zip";
 import { normalizeHistoricalEpicenterName } from "../src/jma/historicalEpicenterNames.js";
+import {
+  buildJmaIntensitySearchForm,
+  normalizeJmaEarthquakeIntensity,
+  normalizeJmaEarthquakeOriginTime,
+  splitJmaEarthquakeDateRange
+} from "../src/jma/earthquakeHistoryApi.js";
 
 const ARCHIVE_BASE_URL = "https://www.data.jma.go.jp/eqev/data/bulletin/data/hypo";
 const INTENSITY_API_URL = "https://www.data.jma.go.jp/eqdb/data/shindo/api/";
@@ -213,7 +219,7 @@ async function readIntensityRange(startDate, endDate, { bypassCache = false } = 
   const payload = await readCachedIntensityQuery(startDate, endDate, { bypassCache });
   const rows = Array.isArray(payload?.res) ? payload.res : [];
   if (rows.length < API_RESULT_LIMIT || startDate === endDate) return rows.flatMap(normalizeIntensityApiRecord);
-  const [leftEnd, rightStart] = splitDateRange(startDate, endDate);
+  const [leftEnd, rightStart] = splitJmaEarthquakeDateRange(startDate, endDate);
   const left = await readIntensityRange(startDate, leftEnd, { bypassCache });
   const right = await readIntensityRange(rightStart, endDate, { bypassCache });
   return [...left, ...right];
@@ -229,7 +235,7 @@ async function readCachedIntensityQuery(startDate, endDate, { bypassCache = fals
   await waitForRequestSlot();
   const response = await fetch(INTENSITY_API_URL, {
     method: "POST",
-    body: buildIntensitySearchForm(startDate, endDate),
+    body: buildJmaIntensitySearchForm(startDate, endDate),
     headers: {
       accept: "application/json",
       "user-agent": "MeteoScope archive updater (low-frequency static-data refresh)"
@@ -256,24 +262,10 @@ class JmaIntensityAvailabilityError extends Error {
   }
 }
 
-function buildIntensitySearchForm(startDate, endDate) {
-  const form = new FormData();
-  [
-    ["mode", "search"],
-    ["dateTimeF[]", startDate], ["dateTimeF[]", "00:00"],
-    ["dateTimeT[]", endDate], ["dateTimeT[]", "23:59"],
-    ["mag[]", "0.0"], ["mag[]", "9.9"], ["dep[]", "000"], ["dep[]", "999"],
-    ["epi[]", "99"], ["pref[]", "99"], ["city[]", "99"], ["station[]", "99"],
-    ["obsInt", "1"], ["maxInt", "1"], ["additionalC", "false"],
-    ["Sort", "S0"], ["Comp", "C0"], ["seisCount", "false"], ["observed", "false"]
-  ].forEach(([key, value]) => form.append(key, value));
-  return form;
-}
-
 function normalizeIntensityApiRecord(entry) {
   const latitude = Number(entry?.lat);
   const longitude = Number(entry?.lon);
-  const originTime = normalizeApiOriginTime(entry?.ot);
+  const originTime = normalizeJmaEarthquakeOriginTime(entry?.ot);
   if (!entry?.id || !originTime || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
   const magnitude = Number(entry.mag);
   const depthMatch = String(entry.dep ?? "").match(/(\d+(?:\.\d+)?)\s*km/iu);
@@ -285,7 +277,7 @@ function normalizeIntensityApiRecord(entry) {
     lo: roundCoordinate(longitude),
     d: depthMatch ? Number(depthMatch[1]) : null,
     m: Number.isFinite(magnitude) ? magnitude : null,
-    i: normalizeApiIntensity(entry.maxI),
+    i: normalizeJmaEarthquakeIntensity(entry.maxI),
     u: `${SOURCE_PAGE_URL}#${encodeURIComponent(String(entry.id))}`
   }];
 }
@@ -363,15 +355,6 @@ function normalizeArchiveIntensity(value) {
   return "";
 }
 
-function normalizeApiIntensity(value) {
-  return String(value ?? "")
-    .replace(/^震度/u, "")
-    .replace(/[０-９]/gu, (digit) => String("０１２３４５６７８９".indexOf(digit)))
-    .replace("弱", "-")
-    .replace("強", "+")
-    .trim() || "felt";
-}
-
 function parseMagnitude(value) {
   const text = String(value ?? "");
   if (!text.trim()) return null;
@@ -402,19 +385,6 @@ function parseFixedHundredths(value) {
 function parseInteger(value) {
   const number = Number.parseInt(String(value ?? "").trim(), 10);
   return Number.isFinite(number) ? number : NaN;
-}
-
-function normalizeApiOriginTime(value) {
-  const match = String(value ?? "").match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}(?:\.\d+)?))?$/u);
-  if (!match) return "";
-  return `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6] ?? "00"}+09:00`;
-}
-
-function splitDateRange(startDate, endDate) {
-  const start = Date.parse(`${startDate}T00:00:00Z`);
-  const end = Date.parse(`${endDate}T00:00:00Z`);
-  const middle = start + Math.floor((end - start) / (2 * 86_400_000)) * 86_400_000;
-  return [formatUtcDate(middle), formatUtcDate(middle + 86_400_000)];
 }
 
 function formatJstDate(timestamp) {

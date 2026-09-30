@@ -54,6 +54,7 @@
           <a href="#account-management">アカウント</a>
           <a href="#maintenance-settings">メンテナンス</a>
           <a href="#notification-management">管理者通知管理</a>
+          <a href="#earthquake-history-update">地震履歴の障害対応</a>
           <a href="#early-access-management">アーリーアクセス</a>
           <a href="#notice-management">お知らせ・意見</a>
           <a href="#cache-management">キャッシュ</a>
@@ -151,6 +152,22 @@
             </div>
             <p class="admin-note">公開内容が更新されない場合に限り実行してください。Cloudflare APIトークンの設定が必要です。</p>
             <button id="purge-cache-button" class="admin-secondary-button admin-block-action" type="button">キャッシュ削除APIを実行</button>
+          </section>
+
+          <section id="earthquake-history-update" class="admin-card">
+            <div class="admin-section-head">
+              <div class="admin-section-title">
+                <span class="admin-section-number">09</span>
+                <div><h2>地震履歴の障害対応</h2><p>保存済み履歴データを手動で更新</p></div>
+              </div>
+            </div>
+            <p class="admin-note">通常は気象庁データベースへ直接接続します。接続障害や仕様変更で表示に支障が出た場合のみ、GitHub Actionsで保存用データを更新してください。差分があればGitHubへコミット・反映されます。</p>
+            <div class="admin-earthquake-history-actions">
+              <button id="earthquake-history-update-button" class="admin-primary-button" type="button">障害時更新を開始</button>
+              <button id="earthquake-history-stop-button" class="admin-secondary-button" type="button">更新を停止</button>
+            </div>
+            <p id="earthquake-history-update-message" class="admin-message" role="status" aria-live="polite"></p>
+            <p class="admin-note">Cloudflare PagesのSecretに <code>GITHUB_ACTIONS_TOKEN</code>（対象リポジトリのActions: write権限）が必要です。</p>
           </section>
 
           <section id="notification-management" class="admin-card admin-span-2">

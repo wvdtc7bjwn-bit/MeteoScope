@@ -19,6 +19,11 @@ const EARLY_ACCESS_CODES_KEY = "early-access-codes";
 const PDF_OBJECT_KEY = "admin/disaster-map.pdf";
 const SESSION_COOKIE = "weather_viewer_admin";
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
+const EARTHQUAKE_HISTORY_REPOSITORY = "wvdtc7bjwn-bit/MeteoScope";
+const EARTHQUAKE_HISTORY_WORKFLOW = "update-earthquake-history.yml";
+const EARTHQUAKE_HISTORY_WORKFLOW_REF = "main";
+const EARTHQUAKE_HISTORY_DISPATCH_COOLDOWN_MS = 60_000;
+let lastEarthquakeHistoryDispatchAt = 0;
 
 const DEFAULT_CONFIG = {
   maintenance: {
@@ -79,6 +84,12 @@ export async function onRequest({ request, env }) {
     if (route === "disaster-map" && method === "DELETE") return await deleteDisasterMap(env);
     if (route === "disaster-map/file" && method === "GET") return await getDisasterMapFile(env);
     if (route === "cache/purge" && method === "POST") return await purgeCache(env);
+    if (route === "earthquake-history/update" && method === "POST") {
+      return await dispatchEarthquakeHistoryUpdate(request, env);
+    }
+    if (route === "earthquake-history/stop" && method === "POST") {
+      return await stopEarthquakeHistoryUpdate(request, env);
+    }
 
     return json({ error: "Not found" }, { status: 404 });
   } catch (error) {
@@ -127,7 +138,8 @@ async function sessionStatus(request, env) {
       passwordConfigured: Boolean(env.ADMIN_PASSWORD),
       d1: Boolean(env.NOTIFICATIONS_DB),
       r2: Boolean(env.DISASTER_MAPS),
-      cachePurge: Boolean(env.CLOUDFLARE_ZONE_ID && env.CLOUDFLARE_API_TOKEN)
+      cachePurge: Boolean(env.CLOUDFLARE_ZONE_ID && env.CLOUDFLARE_API_TOKEN),
+      earthquakeHistoryUpdate: Boolean(env.GITHUB_ACTIONS_TOKEN)
     }
   });
 }
@@ -187,6 +199,100 @@ async function postDiscordTest(env) {
 
 async function quota(env) {
   return json({ usage: await readCloudflareFreeTierUsage(env) });
+}
+
+async function dispatchEarthquakeHistoryUpdate(request, env) {
+  if (!env.GITHUB_ACTIONS_TOKEN) {
+    return json({ error: "GITHUB_ACTIONS_TOKEN が未設定です。Cloudflare PagesのSecretへ設定してください。" }, { status: 503 });
+  }
+  const requestOrigin = request.headers.get("origin");
+  if (requestOrigin && requestOrigin !== new URL(request.url).origin) {
+    return json({ error: "許可されていないリクエストです。" }, { status: 403 });
+  }
+  if (Date.now() - lastEarthquakeHistoryDispatchAt < EARTHQUAKE_HISTORY_DISPATCH_COOLDOWN_MS) {
+    return json({ error: "更新ジョブを起動した直後です。少し待ってから再度お試しください。" }, { status: 429 });
+  }
+
+  const response = await fetch(
+    `https://api.github.com/repos/${EARTHQUAKE_HISTORY_REPOSITORY}/actions/workflows/${EARTHQUAKE_HISTORY_WORKFLOW}/dispatches`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `Bearer ${env.GITHUB_ACTIONS_TOKEN}`,
+        "content-type": "application/json",
+        "user-agent": "MeteoScope-admin",
+        "x-github-api-version": "2022-11-28"
+      },
+      body: JSON.stringify({
+        ref: EARTHQUAKE_HISTORY_WORKFLOW_REF,
+        inputs: { reason: "管理画面からの障害時更新" }
+      }),
+      signal: AbortSignal.timeout(10_000)
+    }
+  );
+  if (!response.ok) {
+    console.error("[Admin API] earthquake history dispatch rejected", response.status);
+    return json({ error: `GitHub Actionsの起動に失敗しました（HTTP ${response.status}）。Secretの権限とworkflow設定を確認してください。` }, { status: 502 });
+  }
+  lastEarthquakeHistoryDispatchAt = Date.now();
+  return json({ ok: true, message: "過去地震データの更新を開始しました。完了状況はGitHub Actionsで確認してください。" });
+}
+
+async function stopEarthquakeHistoryUpdate(request, env) {
+  if (!env.GITHUB_ACTIONS_TOKEN) {
+    return json({ error: "GITHUB_ACTIONS_TOKEN が未設定です。Cloudflare PagesのSecretへ設定してください。" }, { status: 503 });
+  }
+  const requestOrigin = request.headers.get("origin");
+  if (requestOrigin && requestOrigin !== new URL(request.url).origin) {
+    return json({ error: "許可されていないリクエストです。" }, { status: 403 });
+  }
+
+  const apiBase = `https://api.github.com/repos/${EARTHQUAKE_HISTORY_REPOSITORY}/actions`;
+  const headers = {
+    accept: "application/vnd.github+json",
+    authorization: `Bearer ${env.GITHUB_ACTIONS_TOKEN}`,
+    "user-agent": "MeteoScope-admin",
+    "x-github-api-version": "2022-11-28"
+  };
+  const runsResponse = await fetch(
+    `${apiBase}/workflows/${EARTHQUAKE_HISTORY_WORKFLOW}/runs?branch=${EARTHQUAKE_HISTORY_WORKFLOW_REF}&per_page=100`,
+    { headers, signal: AbortSignal.timeout(10_000) }
+  );
+  if (!runsResponse.ok) {
+    console.error("[Admin API] earthquake history runs unavailable", runsResponse.status);
+    return json({ error: `更新状況を取得できませんでした（HTTP ${runsResponse.status}）。` }, { status: 502 });
+  }
+  const runsPayload = await runsResponse.json().catch(() => ({}));
+  const activeStatuses = new Set(["queued", "in_progress", "requested", "waiting", "pending"]);
+  const activeRuns = new Map((Array.isArray(runsPayload.workflow_runs) ? runsPayload.workflow_runs : [])
+    .filter((run) => activeStatuses.has(run.status))
+    .map((run) => [Number(run.id), run]));
+  if (!activeRuns.size) {
+    return json({ ok: true, cancelled: 0, message: "停止できる更新ジョブはありません。" });
+  }
+
+  let cancelled = 0;
+  for (const runId of activeRuns.keys()) {
+    const response = await fetch(`${apiBase}/runs/${runId}/cancel`, {
+      method: "POST",
+      headers,
+      signal: AbortSignal.timeout(10_000)
+    });
+    if (response.ok) {
+      cancelled += 1;
+      continue;
+    }
+    if (response.status !== 409) {
+      console.error("[Admin API] earthquake history run cancel failed", runId, response.status);
+      return json({ error: `更新ジョブ ${runId} を停止できませんでした（HTTP ${response.status}）。` }, { status: 502 });
+    }
+  }
+  return json({
+    ok: true,
+    cancelled,
+    message: cancelled ? `${cancelled}件の更新ジョブへ停止を要求しました。` : "更新はすでに完了していました。"
+  });
 }
 
 async function getConfig(env) {

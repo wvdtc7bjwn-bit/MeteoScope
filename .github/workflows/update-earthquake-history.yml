@@ -1,10 +1,13 @@
 name: Update earthquake history data
 
 on:
-  schedule:
-    # 09:30 JST. The archive intentionally lags two days to allow JMA publication.
-    - cron: "30 0 * * *"
   workflow_dispatch:
+    inputs:
+      reason:
+        description: "手動更新の理由（障害対応など）"
+        required: false
+        default: "管理画面からの障害時更新"
+        type: string
 
 permissions:
   contents: write

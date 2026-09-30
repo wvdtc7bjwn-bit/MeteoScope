@@ -1554,16 +1554,28 @@ if (layerId === "river") {
   async function refreshEarthquakeArchive(filters = earthquakeArchiveFilters) {
     earthquakeArchiveFilters = { ...earthquakeArchiveFilters, ...filters };
     const requestId = ++earthquakeArchiveRequestId;
-    earthquakeArchiveState = {
-      ...earthquakeArchiveState,
-      status: earthquakeArchiveState.data ? "refreshing" : "loading",
-      error: ""
-    };
+    earthquakeArchiveState = { status: "loading", data: null, error: "" };
     if (activeTab === "earthquake" && earthquakeView === "history") {
       updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
     }
     try {
-      const data = await searchEarthquakeHistory(earthquakeArchiveFilters);
+      const data = await searchEarthquakeHistory(earthquakeArchiveFilters, {
+        onProgress: (partialData) => {
+          if (requestId !== earthquakeArchiveRequestId) return;
+          earthquakeArchiveFilters = partialData.filters;
+          earthquakeArchiveState = {
+            status: partialData.complete ? "ok" : "refreshing",
+            data: partialData,
+            error: ""
+          };
+          if (!partialData.items.some((item) => item.id === selectedHistoricalEarthquakeId)) {
+            selectedHistoricalEarthquakeId = partialData.items[0]?.id ?? "";
+          }
+          if (activeTab === "earthquake" && earthquakeView === "history") {
+            updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+          }
+        }
+      });
       if (requestId !== earthquakeArchiveRequestId) return;
       earthquakeArchiveFilters = data.filters;
       earthquakeArchiveState = { status: "ok", data, error: "" };
@@ -1574,7 +1586,7 @@ if (layerId === "river") {
       if (requestId !== earthquakeArchiveRequestId) return;
       earthquakeArchiveState = {
         ...earthquakeArchiveState,
-        status: "error",
+        status: earthquakeArchiveState.data?.loadedYearCount ? "partial-error" : "error",
         error: error?.message ?? "過去の地震を検索できませんでした"
       };
     }
