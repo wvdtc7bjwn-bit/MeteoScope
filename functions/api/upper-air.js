@@ -1,4 +1,4 @@
-import { UPPER_AIR_STATIONS, parseUpperAirTemperatureHumidityHtml } from "../../src/jma/upperAir.js";
+import { UPPER_AIR_STATIONS, parseUpperAirTemperatureHumidityHtml, parseUpperAirWindHtml } from "../../src/jma/upperAir.js";
 import { validateEarlyAccessToken } from "../_shared/earlyAccessAuth.js";
 
 const JMA_UPPER_AIR_BASE = "https://www.data.jma.go.jp/stats/etrn/upper/view/daily_uth.php";
@@ -42,7 +42,15 @@ export async function findLatestUpperAirObservation(station, fetchText = fetchJm
       const html = await fetchText(sourceUrl);
       const rows = parseUpperAirTemperatureHumidityHtml(html);
       if (rows.length < 8) continue;
-      return { station, date: candidate.date, hour: candidate.hour, sourceUrl, html };
+      const windSourceUrl = buildJmaUrl(station, candidate.date, candidate.hour, "uwd");
+      let windHtml = "";
+      try {
+        const candidateWindHtml = await fetchText(windSourceUrl);
+        if (parseUpperAirWindHtml(candidateWindHtml).length) windHtml = candidateWindHtml;
+      } catch {
+        // Keep the established temperature/humidity sounding usable without wind.
+      }
+      return { station, date: candidate.date, hour: candidate.hour, sourceUrl, windSourceUrl, html, windHtml };
     } catch {
       // Individual soundings can be unavailable. Continue to the prior scheduled observation.
     }
@@ -60,10 +68,13 @@ export function buildObservationCandidates(now = new Date(), days = 4) {
   return candidates;
 }
 
-export function buildJmaUrl(station, date, hour) {
+export function buildJmaUrl(station, date, hour, dataset = "uth") {
   const [year, month, day] = date.split("-");
   const params = new URLSearchParams({ year, month: String(Number(month)), day: String(Number(day)), hour: String(hour), point: station, atm: "", view: "" });
-  return `${JMA_UPPER_AIR_BASE}?${params}`;
+  const base = dataset === "uwd"
+    ? JMA_UPPER_AIR_BASE.replace("daily_uth.php", "daily_uwd.php")
+    : JMA_UPPER_AIR_BASE;
+  return `${base}?${params}`;
 }
 
 async function fetchJmaText(url) {

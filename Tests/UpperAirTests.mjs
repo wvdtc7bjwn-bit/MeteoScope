@@ -5,6 +5,8 @@ import {
   buildUpperAirProfile,
   calculateDewPoint,
   parseUpperAirTemperatureHumidityHtml,
+  parseUpperAirWindHtml,
+  mergeUpperAirWinds,
   saturationVaporPressure,
   summarizeUpperAirProfile,
   temperatureAlongDryAdiabat,
@@ -33,6 +35,15 @@ const rows = parseUpperAirTemperatureHumidityHtml(fixture);
 assert.equal(rows.length, 8, "parses observation rows and preserves missing humidity");
 assert.equal(rows[0].pressure, 1000);
 assert.equal(rows[4].humidity, null);
+const windFixture = `<h2>風速(m/s)</h2>
+  <tr class="mtx"><td>1000.0</td><td>12</td><td>10.0</td><td>270</td></tr>
+  <tr class="mtx"><td>850.0</td><td>1450</td><td>20.0</td><td>180</td></tr>`;
+const windRows = parseUpperAirWindHtml(windFixture);
+assert.equal(windRows.length, 2, "parses wind profile rows separately from temperature and humidity");
+assert.ok(Math.abs(windRows[0].uWind - 10) < 0.001, "converts a west-origin wind to eastward U component");
+const mergedRows = mergeUpperAirWinds(rows, windRows);
+assert.ok(Math.abs(mergedRows[0].windSpeed - 10) < 0.001, "pairs wind to matching pressure levels");
+assert.ok(Math.abs(mergedRows[1].windDirection - 180) < 0.001, "preserves wind-from direction when converting components");
 assert.equal(calculateDewPoint(25, 80)?.toFixed(1), "21.3");
 assert.ok(Math.abs(saturationVaporPressure(20) - 23.39) < 0.05, "uses a precise saturation vapor pressure calculation");
 assert.ok(Math.abs(temperatureAlongDryAdiabat(20, 1000) - 20) < 0.001, "dry adiabats start at their labelled 1000 hPa temperature");
@@ -56,6 +67,9 @@ assert.equal(analysis?.observedLevelCount, 7);
 assert.ok(analysis?.estimatedCloudBase > 0, "derives a labelled LCL estimate from surface temperature and dew point");
 assert.ok(analysis?.lapseRate > 4 && analysis?.lapseRate < 8, "calculates the observed surface-to-500 hPa lapse rate");
 assert.equal(analysis?.topPressure, 100);
+const windAnalysis = analyzeUpperAirProfile(buildUpperAirProfile(mergedRows));
+assert.equal(windAnalysis?.windLevelCount, 2, "includes observed wind levels in diagnostic summary");
+assert.equal(windAnalysis?.strongestWindSpeed, 20, "reports strongest wind speed from the profile");
 
 const observation = await findLatestUpperAirObservation(
   "47646",

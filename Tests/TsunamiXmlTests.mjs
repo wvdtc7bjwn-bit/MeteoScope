@@ -51,13 +51,19 @@ const earthquakeWithForecastComment = parseEarthquakeReport(`
 assert.equal(earthquakeWithForecastComment.headline, "１５日１７時３９分ころ、地震がありました。");
 assert.equal(earthquakeWithForecastComment.tsunamiComment, "この地震による津波の心配はありません。");
 
-function report(body, { code, id, updated = "2026-07-15T10:05:00+09:00" }) {
+function report(body, {
+  code,
+  id,
+  updated = "2026-07-15T10:05:00+09:00",
+  validDateTime = ""
+}) {
   return parseTsunamiReport(`<?xml version="1.0" encoding="UTF-8"?>
     <Report xmlns="http://xml.kishou.go.jp/jmaxml1/">
       <Control><Title>津波情報</Title><DateTime>${updated}</DateTime></Control>
       <Head>
         <Title>津波警報・注意報・予報</Title>
         <ReportDateTime>${updated}</ReportDateTime>
+        ${validDateTime ? `<ValidDateTime>${validDateTime}</ValidDateTime>` : ""}
         <EventID>20260715100000</EventID>
         <Headline><Text>海の中や海岸付近は危険です。</Text></Headline>
       </Head>
@@ -183,6 +189,30 @@ const reportsByEventId = mergeTsunamiReportsByEventId([warning, observation, can
 assert.equal(reportsByEventId.size, 1);
 assert.equal(reportsByEventId.get("20260715100000").highestLevel, "none");
 assert.equal(reportsByEventId.get("20260715100000").isCancellation, true);
+
+const expiringForecast = report(`
+  <Forecast>
+    <Item>
+      <Area><Name>宮古島・八重山地方</Name><Code>391</Code></Area>
+      <Category><Kind><Name>津波予報</Name><Code>00</Code></Kind></Category>
+    </Item>
+  </Forecast>
+`, {
+  code: "VTSE51",
+  id: "expiring-forecast",
+  updated: "2026-07-15T14:08:00+09:00",
+  validDateTime: "2026-07-15T18:00:00+09:00"
+});
+
+assert.equal(expiringForecast.validDateTimeRaw, "2026-07-15T18:00:00+09:00");
+assert.equal(
+  mergeTsunamiReports([expiringForecast], { now: Date.parse("2026-07-15T17:59:59+09:00") }).isActive,
+  false
+);
+assert.equal(
+  mergeTsunamiReports([expiringForecast], { now: Date.parse("2026-07-15T18:00:00+09:00") }),
+  null
+);
 
 assert.throws(() => parseTsunamiReport("<Report><Body /></Report>", {
   code: "VTSE41",

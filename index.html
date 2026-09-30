@@ -163,15 +163,16 @@
       <button id="map-terrain-toggle" class="map-terrain-toggle" type="button" role="switch" aria-checked="false" aria-label="地形表示をONにする" data-map-terrain-toggle><span>地形</span><span class="map-terrain-toggle-state" aria-hidden="true">OFF</span></button>
       <button id="map-utility-menu-toggle" class="disaster-map-open-button map-utility-menu-toggle" type="button" aria-label="機能メニューを開く" title="機能メニュー" aria-expanded="false" aria-controls="map-utility-actions"></button>
       <div id="map-utility-actions" class="map-utility-actions" aria-label="機能メニュー" hidden>
-        <button id="disaster-quiz-button" class="disaster-map-open-button disaster-quiz-open-button" type="button" aria-label="宇宙・気象学クイズを開く" title="宇宙・気象学クイズ"></button>
-        <button id="disaster-dashboard-button" class="disaster-map-open-button disaster-dashboard-open-button" type="button" aria-label="防災情報ダッシュボードを開く" title="防災情報ダッシュボード" aria-haspopup="dialog" aria-controls="disaster-dashboard-modal" aria-expanded="false"></button>
-        <button id="disaster-timeline-button" class="disaster-map-open-button disaster-timeline-open-button" type="button" aria-label="災害年表を開く" title="災害年表" aria-haspopup="dialog" aria-controls="disaster-timeline-modal" aria-expanded="false"></button>
-        <button id="weekly-weather-button" class="disaster-map-open-button weekly-weather-open-button" type="button" aria-label="週間天気予報を開く" title="週間天気予報" aria-haspopup="dialog" aria-controls="weekly-weather-modal"></button>
-        <button id="numeric-weather-chart-button" class="disaster-map-open-button numeric-weather-chart-open-button" type="button" aria-label="数値予報天気図のリンク集を開く" title="数値予報天気図" aria-haspopup="dialog" aria-controls="numeric-weather-chart-modal" aria-expanded="false"></button>
-        <button id="upper-air-button" class="disaster-map-open-button upper-air-open-button" type="button" aria-label="高層気象観測のエマグラムを開く（アーリーアクセス）" title="高層気象（アーリーアクセス）" aria-haspopup="dialog" aria-controls="upper-air-modal" aria-expanded="false"></button>
-        <button id="disaster-map-button" class="disaster-map-open-button" type="button" aria-label="防災マップを開く" title="防災マップ"></button>
-        <button id="social-share-map-button" class="disaster-map-open-button social-share-map-button" type="button" data-social-share="" aria-label="現在の情報を画像で共有" title="このタブでは画像共有を利用できません" disabled></button>
-        <button id="settings-button" class="disaster-map-open-button map-settings-open-button" type="button" aria-label="設定を開く" title="設定" aria-haspopup="dialog" aria-controls="settings-modal" aria-expanded="false"></button>
+        <button id="disaster-quiz-button" class="disaster-map-open-button disaster-quiz-open-button" type="button" aria-label="宇宙・気象学クイズを開く" title="宇宙・気象学クイズ"><span class="map-utility-label">宇宙・気象学クイズ</span></button>
+        <button id="disaster-dashboard-button" class="disaster-map-open-button disaster-dashboard-open-button" type="button" aria-label="防災情報ダッシュボードを開く" title="防災情報ダッシュボード" aria-haspopup="dialog" aria-controls="disaster-dashboard-modal" aria-expanded="false"><span class="map-utility-label">防災情報ダッシュボード</span></button>
+        <button id="disaster-timeline-button" class="disaster-map-open-button disaster-timeline-open-button" type="button" aria-label="災害年表を開く" title="災害年表" aria-haspopup="dialog" aria-controls="disaster-timeline-modal" aria-expanded="false"><span class="map-utility-label">災害年表</span></button>
+        <button id="weekly-weather-button" class="disaster-map-open-button weekly-weather-open-button" type="button" aria-label="週間天気予報を開く" title="週間天気予報" aria-haspopup="dialog" aria-controls="weekly-weather-modal"><span class="map-utility-label">週間天気予報</span></button>
+        <button id="cloud-classification-button" class="disaster-map-open-button cloud-classification-open-button" type="button" aria-label="雲の分類図鑑を開く" title="雲の分類図鑑" aria-haspopup="dialog" aria-controls="cloud-classification-modal" aria-expanded="false"><span class="map-utility-label">雲の分類図鑑</span></button>
+        <button id="numeric-weather-chart-button" class="disaster-map-open-button numeric-weather-chart-open-button" type="button" aria-label="数値予報天気図のリンク集を開く" title="数値予報天気図" aria-haspopup="dialog" aria-controls="numeric-weather-chart-modal" aria-expanded="false"><span class="map-utility-label">数値予報天気図</span></button>
+        <button id="upper-air-button" class="disaster-map-open-button upper-air-open-button" type="button" aria-label="高層気象観測のエマグラムを開く（アーリーアクセス）" title="高層気象（アーリーアクセス）" aria-haspopup="dialog" aria-controls="upper-air-modal" aria-expanded="false"><span class="map-utility-label">高層気象（エマグラム）</span></button>
+        <button id="disaster-map-button" class="disaster-map-open-button" type="button" aria-label="防災マップを開く" title="防災マップ"><span class="map-utility-label">防災マップ</span></button>
+        <button id="social-share-map-button" class="disaster-map-open-button social-share-map-button" type="button" data-social-share="" aria-label="現在の情報を画像で共有" title="このタブでは画像共有を利用できません" disabled><span class="map-utility-label">情報を画像で共有</span></button>
+        <button id="settings-button" class="disaster-map-open-button map-settings-open-button" type="button" aria-label="設定を開く" title="設定" aria-haspopup="dialog" aria-controls="settings-modal" aria-expanded="false"><span class="map-utility-label">設定</span></button>
       </div>
       <button id="locate-button" class="map-locate-button" type="button" aria-label="現在地へ移動。長押しで現在地マーカーを非表示" title="現在地へ移動。長押しで現在地マーカーを非表示" aria-keyshortcuts="Shift+Enter"></button>
       <button id="world-typhoon-target-button" class="map-world-typhoon-target-button" type="button" aria-label="各国予想の対象を選択" title="対象選択" aria-haspopup="dialog" aria-controls="world-typhoon-target-modal" aria-expanded="false" hidden></button>
@@ -786,11 +787,25 @@
         <header class="settings-modal-header">
           <div>
             <span class="settings-modal-kicker">気象庁 高層気象観測</span>
-            <h2 id="upper-air-title">エマグラム</h2>
+            <h2 id="upper-air-title">高層解析ワークスペース</h2>
           </div>
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-upper-air-close>×</button>
         </header>
         <div id="upper-air-body" class="upper-air-body" aria-live="polite"></div>
+      </section>
+    </div>
+
+    <div id="cloud-classification-modal" class="warning-modal cloud-classification-modal" hidden>
+      <div class="warning-modal-backdrop" data-cloud-atlas-close></div>
+      <section class="warning-modal-panel cloud-classification-panel" role="dialog" aria-modal="true" aria-labelledby="cloud-classification-title">
+        <header class="settings-modal-header cloud-classification-header">
+          <div>
+            <span class="settings-modal-kicker">雲の形・構造・観測</span>
+            <h2 id="cloud-classification-title">雲の分類図鑑</h2>
+          </div>
+          <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-cloud-atlas-close>×</button>
+        </header>
+        <div id="cloud-classification-body" class="cloud-classification-body"></div>
       </section>
     </div>
 

@@ -10,6 +10,7 @@ import { setupFeedbackModal } from "./ui/feedbackModal.js";
 import { setupWeeklyWeatherModal } from "./ui/weeklyWeatherModal.js";
 import { setupNumericWeatherChartModal } from "./ui/numericWeatherChartModal.js";
 import { setupUpperAirModal } from "./ui/upperAirModal.js";
+import { setupCloudClassificationModal } from "./ui/cloudClassificationModal.js";
 import { openDisasterQuizModal, setupDisasterQuizModal } from "./ui/disasterQuizModal.js";
 import { setupDisasterTimelineModal } from "./ui/disasterTimelineModal.js";
 import { setupOnboardingModal } from "./ui/onboardingModal.js";
@@ -4019,6 +4020,7 @@ if (layerId === "river") {
       requestCurrentLocation: () => requestAndFocusCurrentPosition({ announceLoading: true, setBusy: true })
     });
     setupNumericWeatherChartModal();
+    setupCloudClassificationModal();
     setupUpperAirModal({
       isEarlyAccessEnabled: () => earlyAccessEnabled,
       onOpenSettings: openSettingsModal

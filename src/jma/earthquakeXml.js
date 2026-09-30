@@ -310,6 +310,7 @@ export function parseTsunamiReport(text, entry = {}) {
     reportTimeRaw,
     targetDateTime: parseJmaTime(targetDateTime) ?? targetDateTime ?? "",
     validDateTime: parseJmaTime(validDateTime) ?? validDateTime ?? "",
+    validDateTimeRaw: validDateTime,
     areas,
     observations: isOffshore ? [] : parsedObservations,
     offshoreObservations: isOffshore ? parsedObservations : [],
@@ -371,8 +372,10 @@ function parseTsunamiObservationItem(item, offshore) {
   });
 }
 
-export function mergeTsunamiReports(reports) {
-  const validReports = (reports ?? []).filter(Boolean);
+export function mergeTsunamiReports(reports, { now = Date.now() } = {}) {
+  const validReports = (reports ?? []).filter((report) => (
+    report && !isExpiredTsunamiForecastReport(report, now)
+  ));
   if (!validReports.length) return null;
 
   const grouped = new Map();
@@ -409,6 +412,7 @@ export function mergeTsunamiReports(reports) {
     reportTimeRaw: latest.reportTimeRaw,
     targetDateTime: latest.targetDateTime,
     validDateTime: latest.validDateTime || latestForecast.validDateTime,
+    validDateTimeRaw: latest.validDateTimeRaw || latestForecast.validDateTimeRaw,
     areas,
     observations,
     offshoreObservations,
@@ -418,6 +422,14 @@ export function mergeTsunamiReports(reports) {
     sourceUrls: [...new Set(ordered.map((report) => report.url).filter(Boolean))],
     mapFeatures: []
   };
+}
+
+function isExpiredTsunamiForecastReport(report, now) {
+  const validUntil = getDateMs(report?.validDateTimeRaw);
+  if (!validUntil || validUntil > now) return false;
+
+  const activeAreas = (report?.areas ?? []).filter((area) => area.level !== "none");
+  return activeAreas.length > 0 && activeAreas.every((area) => area.level === "forecast");
 }
 
 export function mergeTsunamiReportsByEventId(reports) {

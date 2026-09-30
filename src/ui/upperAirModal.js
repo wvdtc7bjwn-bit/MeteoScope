@@ -4,7 +4,9 @@ import {
   buildMoistAdiabat,
   buildUpperAirProfile,
   formatJmaObservationTime,
+  mergeUpperAirWinds,
   parseUpperAirTemperatureHumidityHtml,
+  parseUpperAirWindHtml,
   summarizeUpperAirProfile,
   temperatureAlongDryAdiabat,
   temperatureForSaturationMixingRatio
@@ -14,6 +16,7 @@ import { getEarlyAccessToken } from "./earlyAccess.js";
 import { buildModalLoadingState } from "./modalLoadingState.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+const UPPER_AIR_NOTES_KEY = "meteoscope-upper-air-analysis-notes-v1";
 let initialized = false;
 let options = {};
 let requestId = 0;
@@ -108,6 +111,19 @@ export function buildEmagramSvg(profile) {
   const dewPointPoints = profile.filter((row) => Number.isFinite(row.dewPoint)).map((row) => ({ x: temperatureToX(row.dewPoint, plot), y: pressureToY(row.pressure, plot) }));
   appendPath(curves, temperaturePoints, { class: "upper-air-emagram-temperature" });
   appendPath(curves, dewPointPoints, { class: "upper-air-emagram-dewpoint" });
+  profile.forEach((row) => {
+    const point = createElement("circle", {
+      cx: temperatureToX(row.temperature, plot),
+      cy: pressureToY(row.pressure, plot),
+      r: 7,
+      class: "upper-air-emagram-point",
+      "data-profile-pressure": row.pressure,
+      role: "button",
+      tabindex: 0,
+      "aria-label": `${Math.round(row.pressure)}ヘクトパスカルの気温・露点`
+    });
+    curves.append(point);
+  });
   const xLabel = createElement("text", { x: plot.left + plot.width / 2, y: height - 8, class: "upper-air-emagram-axis-title", "text-anchor": "middle" });
   xLabel.textContent = "気温（℃）";
   svg.append(xLabel);
@@ -139,6 +155,286 @@ function formatTemperature(value) {
 
 function formatHeight(value) {
   return Number.isFinite(value) ? `${Math.round(value).toLocaleString("ja-JP")} m` : "--";
+}
+
+function formatWindDirection(value) {
+  if (!Number.isFinite(value)) return "—";
+  return ["北", "北北東", "北東", "東北東", "東", "東南東", "南東", "南南東", "南", "南南西", "南西", "西南西", "西", "西北西", "北西", "北北西"][Math.round(value / 22.5) % 16];
+}
+
+function getStoredAnalysisNotes() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(UPPER_AIR_NOTES_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((note) => note && typeof note.id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function createProfileIdentity({ source, station, date, hour, coordinates, cycle }) {
+  if (source === "observation") return `${source}:${station}:${date}:${hour}`;
+  return `${source}:${coordinates.latitude.toFixed(2)}:${coordinates.longitude.toFixed(2)}:${cycle?.date ?? ""}:${cycle?.hour ?? ""}`;
+}
+
+function buildHodographSvg(profile) {
+  const width = 360;
+  const height = 300;
+  const plot = { left: 42, top: 20, width: 278, height: 238 };
+  const center = { x: plot.left + plot.width / 2, y: plot.top + plot.height / 2 };
+  const windRows = profile.filter((row) => Number.isFinite(row.uWind) && Number.isFinite(row.vWind));
+  const maxComponent = Math.max(10, ...windRows.flatMap((row) => [Math.abs(row.uWind), Math.abs(row.vWind)]));
+  const range = Math.ceil(maxComponent / 10) * 10;
+  const scale = Math.min(plot.width, plot.height) / (2 * range);
+  const svg = document.createElementNS(SVG_NS, "svg");
+  svg.setAttribute("class", "upper-air-hodograph");
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "風の東西・南北成分を高度別に示すホドグラフ。点を選ぶとエマグラムの気圧面と連動します。");
+  const createSvg = (name, attributes) => {
+    const element = document.createElementNS(SVG_NS, name);
+    Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
+    return element;
+  };
+  svg.append(createSvg("rect", { x: plot.left, y: plot.top, width: plot.width, height: plot.height, class: "upper-air-hodograph-frame" }));
+  for (let speed = 5; speed <= range; speed += 5) {
+    const radius = speed * scale;
+    svg.append(createSvg("circle", { cx: center.x, cy: center.y, r: radius, class: "upper-air-hodograph-ring" }));
+    if (speed % 10 === 0 || speed === range) {
+      const label = createSvg("text", { x: center.x + 3, y: center.y - radius + 12, class: "upper-air-hodograph-label" });
+      label.textContent = `${speed}`;
+      svg.append(label);
+    }
+  }
+  svg.append(createSvg("line", { x1: plot.left, y1: center.y, x2: plot.left + plot.width, y2: center.y, class: "upper-air-hodograph-axis" }));
+  svg.append(createSvg("line", { x1: center.x, y1: plot.top, x2: center.x, y2: plot.top + plot.height, class: "upper-air-hodograph-axis" }));
+  const points = windRows.map((row) => ({
+    row,
+    x: center.x + row.uWind * scale,
+    y: center.y - row.vWind * scale
+  }));
+  if (points.length > 1) {
+    const path = createSvg("path", {
+      d: points.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" "),
+      class: "upper-air-hodograph-track"
+    });
+    svg.append(path);
+  }
+  points.forEach(({ row, x, y }) => {
+    const point = createSvg("circle", {
+      cx: x,
+      cy: y,
+      r: 5,
+      class: "upper-air-hodograph-point",
+      "data-profile-pressure": row.pressure,
+      role: "button",
+      tabindex: 0,
+      "aria-label": `${Math.round(row.pressure)}ヘクトパスカル、高度${Math.round(row.height)}メートルの風`
+    });
+    svg.append(point);
+  });
+  const labels = [
+    ["−U 西向き", plot.left, height - 12, "start"],
+    ["U 東向き", plot.left + plot.width, height - 12, "end"],
+    ["V 北向き", center.x, 13, "middle"]
+  ];
+  labels.forEach(([text, x, y, anchor]) => {
+    const label = createSvg("text", { x, y, "text-anchor": anchor, class: "upper-air-hodograph-axis-title" });
+    label.textContent = text;
+    svg.append(label);
+  });
+  if (!points.length) {
+    const empty = createSvg("text", { x: center.x, y: center.y, "text-anchor": "middle", class: "upper-air-hodograph-empty" });
+    empty.textContent = "風データなし";
+    svg.append(empty);
+  }
+  return svg;
+}
+
+function buildAnalysisWorkspace(profile, identity, { windAvailable, sourceName }) {
+  const workspace = document.createElement("section");
+  workspace.className = "upper-air-analysis-workspace";
+  workspace.setAttribute("aria-label", "同期高層解析ワークスペース");
+  const heading = document.createElement("div");
+  heading.className = "upper-air-workspace-heading";
+  const title = document.createElement("h3");
+  title.textContent = "同期解析";
+  const help = document.createElement("p");
+  help.textContent = windAvailable
+    ? `${sourceName}の同一プロファイルから表示。気圧面を選ぶとエマグラムと風 hodograph の選択が連動します。`
+    : `${sourceName}の気温・湿度を表示中です。風データがないため hodograph は利用できません。`;
+  heading.append(title, help);
+  const grid = document.createElement("div");
+  grid.className = "upper-air-workspace-grid";
+  const emagramPanel = document.createElement("section");
+  emagramPanel.className = "upper-air-workspace-panel";
+  const emagramTitle = document.createElement("h4");
+  emagramTitle.textContent = "気温・露点（エマグラム）";
+  const emagramWrap = document.createElement("div");
+  emagramWrap.className = "upper-air-chart-wrap upper-air-workspace-emagram";
+  emagramWrap.append(buildEmagramSvg(profile));
+  emagramPanel.append(emagramTitle, emagramWrap);
+  const windPanel = document.createElement("section");
+  windPanel.className = "upper-air-workspace-panel";
+  const windTitle = document.createElement("h4");
+  windTitle.textContent = "風の鉛直変化（hodograph）";
+  const windWrap = document.createElement("div");
+  windWrap.className = "upper-air-hodograph-wrap";
+  windWrap.append(buildHodographSvg(profile));
+  windPanel.append(windTitle, windWrap);
+  grid.append(emagramPanel, windPanel);
+
+  const cursor = document.createElement("p");
+  cursor.className = "upper-air-workspace-cursor";
+  cursor.setAttribute("aria-live", "polite");
+  cursor.setAttribute("aria-label", "選択中の気圧面の観測値");
+  const notes = document.createElement("section");
+  notes.className = "upper-air-annotation-panel";
+  const notesHeading = document.createElement("div");
+  notesHeading.className = "upper-air-annotation-heading";
+  const notesTitle = document.createElement("h4");
+  notesTitle.textContent = "解析メモ";
+  const noteHelp = document.createElement("p");
+  noteHelp.textContent = "選択中の気圧面に紐づけてこの端末に保存します。";
+  notesHeading.append(notesTitle, noteHelp);
+  const textarea = document.createElement("textarea");
+  textarea.className = "upper-air-annotation-input";
+  textarea.maxLength = 500;
+  textarea.rows = 3;
+  textarea.placeholder = "例：850 hPaの湿潤層と南西風の強まりに注目";
+  const actions = document.createElement("div");
+  actions.className = "upper-air-annotation-actions";
+  const save = document.createElement("button");
+  save.type = "button";
+  save.textContent = "選択層に注釈を保存";
+  const exportButton = document.createElement("button");
+  exportButton.type = "button";
+  exportButton.textContent = "メモを書き出す";
+  const status = document.createElement("span");
+  status.className = "upper-air-annotation-status";
+  actions.append(save, exportButton, status);
+  const list = document.createElement("div");
+  list.className = "upper-air-annotation-list";
+  notes.append(notesHeading, textarea, actions, list);
+  workspace.append(heading, grid, cursor, notes);
+
+  let selectedRow = profile[0] ?? null;
+  const syncSelection = (pressure) => {
+    const row = profile.find((entry) => entry.pressure === pressure);
+    if (!row) return;
+    selectedRow = row;
+    workspace.querySelectorAll("[data-profile-pressure]").forEach((point) => {
+      const selected = Number(point.getAttribute("data-profile-pressure")) === pressure;
+      point.classList.toggle("is-selected", selected);
+      point.setAttribute("aria-pressed", String(selected));
+    });
+    const readings = [
+      ["気圧", `${Math.round(row.pressure)} hPa`],
+      ["高度", formatHeight(row.height)],
+      ["気温", `${formatTemperature(row.temperature)}℃`],
+      ["露点", `${formatTemperature(row.dewPoint) ?? "—"}℃`],
+      ["風", Number.isFinite(row.windSpeed) ? `${formatWindDirection(row.windDirection)} ${row.windSpeed.toFixed(1)} m/s` : "—"]
+    ];
+    cursor.replaceChildren(...readings.map(([label, value]) => {
+      const item = document.createElement("span");
+      item.className = "upper-air-workspace-reading";
+      const term = document.createElement("span");
+      term.textContent = label;
+      const reading = document.createElement("strong");
+      reading.textContent = value;
+      item.append(term, reading);
+      return item;
+    }));
+  };
+  workspace.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const point = event.target.closest("[data-profile-pressure]");
+    if (point) syncSelection(Number(point.getAttribute("data-profile-pressure")));
+  });
+  workspace.addEventListener("keydown", (event) => {
+    if (!(event.target instanceof Element) || !event.target.matches("[data-profile-pressure]") || !["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    syncSelection(Number(event.target.getAttribute("data-profile-pressure")));
+  });
+  if (selectedRow) syncSelection(selectedRow.pressure);
+
+  const renderNotes = () => {
+    const savedNotes = getStoredAnalysisNotes().filter((note) => note.identity === identity);
+    list.replaceChildren();
+    if (!savedNotes.length) {
+      const empty = document.createElement("p");
+      empty.className = "upper-air-annotation-empty";
+      empty.textContent = "この観測の保存メモはありません。";
+      list.append(empty);
+      exportButton.disabled = true;
+      return;
+    }
+    exportButton.disabled = false;
+    savedNotes.slice().reverse().forEach((note) => {
+      const item = document.createElement("article");
+      item.className = "upper-air-annotation-item";
+      const meta = document.createElement("small");
+      meta.textContent = `${note.pressure} hPa ・ ${note.height} m ・ ${note.savedAt}`;
+      const text = document.createElement("p");
+      text.textContent = note.text;
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.textContent = "削除";
+      remove.setAttribute("aria-label", `${note.pressure} hPaの注釈を削除`);
+      remove.addEventListener("click", () => {
+        const current = getStoredAnalysisNotes();
+        try {
+          localStorage.setItem(UPPER_AIR_NOTES_KEY, JSON.stringify(current.filter((entry) => entry.id !== note.id)));
+          status.textContent = "注釈を削除しました";
+          renderNotes();
+        } catch {
+          status.textContent = "保存データを更新できませんでした";
+        }
+      });
+      item.append(meta, text, remove);
+      list.append(item);
+    });
+  };
+
+  save.addEventListener("click", () => {
+    const text = textarea.value.trim();
+    if (!text || !selectedRow) {
+      status.textContent = "注釈と気圧面を選択してください";
+      return;
+    }
+    const current = getStoredAnalysisNotes();
+    const note = {
+      id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      identity,
+      pressure: Math.round(selectedRow.pressure),
+      height: Math.round(selectedRow.height),
+      temperature: Number.isFinite(selectedRow.temperature) ? Number(selectedRow.temperature.toFixed(1)) : null,
+      dewPoint: Number.isFinite(selectedRow.dewPoint) ? Number(selectedRow.dewPoint.toFixed(1)) : null,
+      windSpeed: Number.isFinite(selectedRow.windSpeed) ? Number(selectedRow.windSpeed.toFixed(1)) : null,
+      text,
+      savedAt: new Date().toISOString()
+    };
+    try {
+      localStorage.setItem(UPPER_AIR_NOTES_KEY, JSON.stringify([...current, note].slice(-200)));
+      textarea.value = "";
+      status.textContent = "この端末に保存しました";
+      renderNotes();
+    } catch {
+      status.textContent = "端末の保存領域が利用できません";
+    }
+  });
+  exportButton.addEventListener("click", () => {
+    const savedNotes = getStoredAnalysisNotes().filter((note) => note.identity === identity);
+    if (!savedNotes.length) return;
+    const blob = new Blob([JSON.stringify({ identity, exportedAt: new Date().toISOString(), notes: savedNotes }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "meteoscope-upper-air-notes.json";
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+  renderNotes();
+  return workspace;
 }
 
 function createInsight(title, value, description) {
@@ -236,6 +532,44 @@ function buildObservationInsights(analysis, { isModel = false } = {}) {
     inversion
       ? `この層では高度とともに気温が ${inversion.temperatureChange.toFixed(1)}℃ 上がっています。霧・低い雲・煙霧などをみる際の一材料になります。`
       : "今回の観測の隣り合う層では、0.5℃以上の明瞭な昇温層を検出していません。"
+  ));
+
+  const indexValue = (value) => Number.isFinite(value) ? `${value.toFixed(1)}℃` : "算出できません";
+  grid.append(createInsight(
+    "K指数",
+    indexValue(analysis.kIndex),
+    Number.isFinite(analysis.kIndex)
+      ? "850・700・500 hPaの気温と850・700 hPaの露点温度から算出した対流性降水の目安です。単独で雷雨の有無を判断する指数ではありません。"
+      : "850・700・500 hPaの気温または下層の露点温度が不足しています。"
+  ));
+  grid.append(createInsight(
+    "Total Totals",
+    indexValue(analysis.totalTotalsIndex),
+    "850 hPaの気温・露点温度と500 hPaの気温による経験指数です。地域・季節の背景場と合わせて読みます。"
+  ));
+  grid.append(createInsight(
+    "Showalter / Lifted Index",
+    `${indexValue(analysis.showalterIndex)} / ${indexValue(analysis.liftedIndex)}`,
+    "850 hPaまたは地上から持ち上げた簡易 parcel と500 hPa環境気温の差です。正確なCAPE/CIN解析の代替ではありません。"
+  ));
+  const windMaximum = Number.isFinite(analysis.strongestWindSpeed)
+    ? `${analysis.strongestWindSpeed.toFixed(1)} m/s ・ ${formatHeight(analysis.strongestWindHeight)}`
+    : "風データなし";
+  const shearValue = (value) => Number.isFinite(value) ? `${value.toFixed(1)} m/s` : "算出できません";
+  grid.append(createInsight(
+    "最大風速（プロファイル内）",
+    windMaximum,
+    "高層プロファイルに含まれる最大の風速です。ジェット気流の診断には周辺の高度・気圧面分布も確認してください。"
+  ));
+  grid.append(createInsight(
+    "鉛直風 shear（0–1 / 0–6 km）",
+    `${shearValue(analysis.windShear0to1km)} / ${shearValue(analysis.windShear0to6km)}`,
+    "地上付近から指定深度までの風ベクトル差です。高度間に大きな欠測がある場合は計算しません。"
+  ));
+  grid.append(createInsight(
+    "地上 parcel CAPE / CIN",
+    `${Number.isFinite(analysis.cape) ? Math.round(analysis.cape) : "—"} / ${Number.isFinite(analysis.cin) ? Math.round(analysis.cin) : "—"} J/kg`,
+    "観測プロファイルと簡易な地上 parcel を使った参考積算です。湿度欠測・観測間隔・混合層の扱いに制約があり、予報や警報の判断には使えません。"
   ));
 
   const coverage = Number.isFinite(analysis.topPressure) && Number.isFinite(analysis.topHeight)
@@ -372,7 +706,10 @@ function buildModelPicker(content) {
 }
 
 function renderObservation(output, observation) {
-  const rows = parseUpperAirTemperatureHumidityHtml(observation.html);
+  const rows = mergeUpperAirWinds(
+    parseUpperAirTemperatureHumidityHtml(observation.html),
+    parseUpperAirWindHtml(observation.windHtml)
+  );
   const profile = buildUpperAirProfile(rows);
   if (profile.length < 8) {
     renderError(output, "気温・湿度の観測データを十分に取得できませんでした。別の地点または次回の観測をお試しください。");
@@ -398,11 +735,13 @@ function renderObservation(output, observation) {
 
   const legend = document.createElement("div");
   legend.className = "upper-air-chart-legend";
-  legend.innerHTML = '<span class="upper-air-chart-legend-temperature">気温</span><span class="upper-air-chart-legend-dewpoint">露点温度</span><span class="upper-air-chart-legend-dry">乾燥断熱線</span><span class="upper-air-chart-legend-moist">湿潤断熱線</span><span class="upper-air-chart-legend-mixing">飽和混合比線</span>';
-
-  const chart = document.createElement("div");
-  chart.className = "upper-air-chart-wrap";
-  chart.append(buildEmagramSvg(profile));
+  legend.innerHTML = '<span class="upper-air-chart-legend-temperature">気温</span><span class="upper-air-chart-legend-dewpoint">露点温度</span><span class="upper-air-chart-legend-dry">乾燥断熱線</span><span class="upper-air-chart-legend-moist">湿潤断熱線</span><span class="upper-air-chart-legend-mixing">飽和混合比線</span><span class="upper-air-chart-legend-wind">風の層選択</span>';
+  const workspace = buildAnalysisWorkspace(profile, createProfileIdentity({
+    source: "observation",
+    station: observation.station,
+    date: observation.date,
+    hour: observation.hour
+  }), { windAvailable: profile.some((row) => Number.isFinite(row.windSpeed)), sourceName: "気象庁の高層観測" });
 
   const stats = document.createElement("section");
   stats.className = "upper-air-stats";
@@ -416,8 +755,8 @@ function renderObservation(output, observation) {
 
   const note = document.createElement("p");
   note.className = "upper-air-note";
-  note.textContent = "気温・相対湿度から露点温度を算出して表示しています。背景の断熱線・飽和混合比線は標準大気の計算値です。図は観測時刻の鉛直構造を読むための補助で、危険度の判定や予報ではありません。";
-  output.replaceChildren(heading, legend, chart, stats, buildObservationInsights(analysis), note);
+  note.textContent = "気温・相対湿度から露点温度を算出し、気象庁の風観測を気圧で対応づけています。風の観測層が異なる場合はベクトルを対数気圧で補間します。背景の断熱線・飽和混合比線は計算値です。各診断は解析補助で、危険度の判定や予報ではありません。";
+  output.replaceChildren(heading, legend, workspace, stats, buildObservationInsights(analysis), note);
 }
 
 function renderModelProfile(output, model) {
@@ -450,10 +789,12 @@ function renderModelProfile(output, model) {
 
   const legend = document.createElement("div");
   legend.className = "upper-air-chart-legend";
-  legend.innerHTML = '<span class="upper-air-chart-legend-temperature">気温</span><span class="upper-air-chart-legend-dewpoint">露点温度</span><span class="upper-air-chart-legend-dry">乾燥断熱線</span><span class="upper-air-chart-legend-moist">湿潤断熱線</span><span class="upper-air-chart-legend-mixing">飽和混合比線</span>';
-  const chart = document.createElement("div");
-  chart.className = "upper-air-chart-wrap";
-  chart.append(buildEmagramSvg(profile));
+  legend.innerHTML = '<span class="upper-air-chart-legend-temperature">気温</span><span class="upper-air-chart-legend-dewpoint">露点温度</span><span class="upper-air-chart-legend-dry">乾燥断熱線</span><span class="upper-air-chart-legend-moist">湿潤断熱線</span><span class="upper-air-chart-legend-mixing">飽和混合比線</span><span class="upper-air-chart-legend-wind">風の層選択</span>';
+  const workspace = buildAnalysisWorkspace(profile, createProfileIdentity({
+    source: "gfs",
+    coordinates: model.coordinates,
+    cycle: model.cycle
+  }), { windAvailable: profile.some((row) => Number.isFinite(row.windSpeed)), sourceName: "NOAA GFS地点モデル" });
 
   const stats = document.createElement("section");
   stats.className = "upper-air-stats";
@@ -467,7 +808,7 @@ function renderModelProfile(output, model) {
   const note = document.createElement("p");
   note.className = "upper-air-note";
   note.textContent = "NOAA GFS 0.25°の最寄り格子点における解析時刻の数値モデルです。気温・相対湿度から露点温度を算出して表示しています。地点の実測値ではありません。";
-  output.replaceChildren(heading, legend, chart, stats, buildObservationInsights(analysis, { isModel: true }), note);
+  output.replaceChildren(heading, legend, workspace, stats, buildObservationInsights(analysis, { isModel: true }), note);
 }
 
 function renderError(output, message) {
