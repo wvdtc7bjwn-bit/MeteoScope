@@ -90,16 +90,23 @@ async function queryJmaRange(startDate, endDate, state) {
   });
   if (!response.ok) throw new Error(`JMA returned HTTP ${response.status}`);
   const payload = await response.json();
-  if (!Array.isArray(payload?.res)) {
+  const records = normalizeJmaResults(payload?.res);
+  if (!records) {
     throw new Error("JMA returned an unsupported response");
   }
-  if (payload.res.length < API_RESULT_LIMIT) return payload.res;
+  if (records.length < API_RESULT_LIMIT) return records;
   if (startDate === endDate) throw new Error("JMA result limit reached for a single day");
 
   const [leftEnd, rightStart] = splitJmaEarthquakeDateRange(startDate, endDate);
   const left = await queryJmaRange(startDate, leftEnd, state);
   const right = await queryJmaRange(rightStart, endDate, state);
   return [...left, ...right];
+}
+
+function normalizeJmaResults(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string" && /検索結果地震数\s*[:：]\s*ありませんでした/u.test(value)) return [];
+  return null;
 }
 
 function getJmaLatestDate() {

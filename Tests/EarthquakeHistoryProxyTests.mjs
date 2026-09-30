@@ -8,12 +8,11 @@ const manifest = JSON.parse(await readFile(path.join(projectRoot, "public", "dat
 const originalFetch = globalThis.fetch;
 let outboundUrl = "";
 let outboundForm = null;
+let jmaResult = [{ id: "20260928100000123", ot: "2026/09/28 10:00", name: "東京都２３区", lat: "35.7", lon: "139.7", mag: "3.1", dep: "10 km", maxI: "震度１" }];
 globalThis.fetch = async (url, init) => {
   outboundUrl = String(url);
   outboundForm = init.body;
-  return Response.json({
-    res: [{ id: "20260928100000123", ot: "2026/09/28 10:00", name: "東京都２３区", lat: "35.7", lon: "139.7", mag: "3.1", dep: "10 km", maxI: "震度１" }]
-  });
+  return Response.json({ res: jmaResult });
 };
 
 try {
@@ -28,6 +27,14 @@ try {
   assert.equal(outboundForm.getAll("dateTimeT[]")[0], manifest.endDate);
   assert.equal((await response.json()).records.length, 1);
   assert.match(response.headers.get("cache-control"), /s-maxage=/u);
+
+  jmaResult = "検索結果地震数：ありませんでした";
+  const emptyYear = await onRequestGet({
+    request: new Request("https://meteoscope.test/api/earthquake-history?start=1950-01-01&end=1950-12-31")
+  });
+  assert.equal(emptyYear.status, 200, "地震がない年は接続エラーではなく空の検索結果として返す");
+  assert.deepEqual((await emptyYear.json()).records, []);
+  jmaResult = [{ id: "20260928100000123", ot: "2026/09/28 10:00", name: "東京都２３区", lat: "35.7", lon: "139.7", mag: "3.1", dep: "10 km", maxI: "震度１" }];
 
   const oversizedRange = await onRequestGet({
     request: new Request("https://meteoscope.test/api/earthquake-history?start=2020-01-01&end=2022-01-01")

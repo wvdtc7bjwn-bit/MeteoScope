@@ -6,6 +6,7 @@ import {
   EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT,
   EARTHQUAKE_HISTORY_RESULT_LIMIT,
   formatHistoricalIntensity,
+  getJmaLatestAvailableDate,
   getHistoricalIntensityRank,
   normalizeEarthquakeHistoryFilters,
   searchEarthquakeHistory
@@ -90,10 +91,10 @@ for (const intensity of ["1", "2", "3"]) {
 }
 
 const normalized = normalizeEarthquakeHistoryFilters({}, manifest);
-const expectedDefaultStart = new Date(Date.parse(`${manifest.endDate}T00:00:00Z`) - (EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS - 1) * 86_400_000)
+const expectedDefaultStart = new Date(Date.parse(`${getJmaLatestAvailableDate()}T00:00:00Z`) - (EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS - 1) * 86_400_000)
   .toISOString()
   .slice(0, 10);
-assert.equal(normalized.endDate, manifest.endDate);
+assert.equal(normalized.endDate, getJmaLatestAvailableDate(), "検索可能な最新日を現在日から判定する");
 assert.equal(normalized.minIntensity, "1");
 assert.equal(normalized.startDate, expectedDefaultStart, "初期検索は終了日を含む過去7日間に限定する");
 assert.equal(normalized.sort, "newest");
