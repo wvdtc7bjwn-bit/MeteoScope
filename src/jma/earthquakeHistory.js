@@ -1,6 +1,10 @@
 import { fetchJson } from "./jmaClient.js";
 import { normalizeHistoricalEpicenterName } from "./historicalEpicenterNames.js";
-import { normalizeJmaEarthquakeIntensity, normalizeJmaEarthquakeOriginTime } from "./earthquakeHistoryApi.js";
+import {
+  normalizeJmaEarthquakeIntensity,
+  normalizeJmaEarthquakeOriginTime,
+  splitJmaEarthquakeDateRange
+} from "./earthquakeHistoryApi.js";
 
 const DATA_BASE = "/data/earthquake-history";
 const LIVE_SEARCH_ENDPOINT = "/api/earthquake-history";
@@ -69,7 +73,7 @@ export async function searchEarthquakeHistory(filters = {}, { onProgress } = {})
     const rangeStart = maxDate(normalized.startDate, `${year}-01-01`);
     const rangeEnd = minDate(normalized.endDate, `${year}-12-31`);
     try {
-      records.push(...await loadLiveHistoryRange(rangeStart, rangeEnd));
+      records.push(...await loadLiveHistoryRangeAdaptive(rangeStart, rangeEnd));
     } catch (error) {
       const archiveEntry = archivedYears.get(year);
       if (!archiveEntry) throw error;
@@ -90,6 +94,18 @@ export async function searchEarthquakeHistory(filters = {}, { onProgress } = {})
     onProgress?.(result);
   }
   return result;
+}
+
+async function loadLiveHistoryRangeAdaptive(startDate, endDate) {
+  try {
+    return await loadLiveHistoryRange(startDate, endDate);
+  } catch (error) {
+    if (error?.code !== "JMA_RANGE_TOO_DENSE" || startDate === endDate) throw error;
+    const [leftEnd, rightStart] = splitJmaEarthquakeDateRange(startDate, endDate);
+    const left = await loadLiveHistoryRangeAdaptive(startDate, leftEnd);
+    const right = await loadLiveHistoryRangeAdaptive(rightStart, endDate);
+    return [...left, ...right];
+  }
 }
 
 function createHistorySearchResult(records, normalized, manifest, progress) {
@@ -181,11 +197,19 @@ async function loadHistoryYear(year, file) {
 
 async function loadLiveHistoryRange(startDate, endDate) {
   const query = new URLSearchParams({ start: startDate, end: endDate });
-  const payload = await fetchJson(`${LIVE_SEARCH_ENDPOINT}?${query}`, {
-    ttlMs: 6 * 60 * 60 * 1000,
-    timeoutMs: 30_000,
-    retryCount: 0
-  });
+  let payload;
+  try {
+    payload = await fetchJson(`${LIVE_SEARCH_ENDPOINT}?${query}`, {
+      ttlMs: 6 * 60 * 60 * 1000,
+      timeoutMs: 30_000,
+      retryCount: 0
+    });
+  } catch (error) {
+    if (error?.status === 422 && error?.payload?.error === "jma_query_range_too_dense") {
+      error.code = "JMA_RANGE_TOO_DENSE";
+    }
+    throw error;
+  }
   if (!payload?.ok || !Array.isArray(payload.records)) {
     throw new Error("気象庁の震度データベースを取得できませんでした");
   }

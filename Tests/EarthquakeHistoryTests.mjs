@@ -120,6 +120,12 @@ globalThis.fetch = async (url) => {
   }
   if (requestUrl.pathname !== "/api/earthquake-history") return new Response("Not found", { status: 404 });
   const year = requestUrl.searchParams.get("start")?.slice(0, 4);
+  const startDate = requestUrl.searchParams.get("start");
+  const endDate = requestUrl.searchParams.get("end");
+  const rangeDays = (Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / 86_400_000 + 1;
+  if (year === "2016" && rangeDays > 30) {
+    return Response.json({ ok: false, error: "jma_query_range_too_dense" }, { status: 422 });
+  }
   if (year === "2023") return new Response(JSON.stringify({ ok: false }), { status: 502 });
   const records = JSON.parse(await readFile(path.join(dataDirectory, `${year}.json`), "utf8"))
     .filter(({ t }) => t.slice(0, 10) >= requestUrl.searchParams.get("start") && t.slice(0, 10) <= requestUrl.searchParams.get("end"))
@@ -160,6 +166,13 @@ try {
   });
   assert.equal(fallbackSearch.complete, true);
   assert.deepEqual(fallbackSearch.fallbackYears, [2023], "JMA接続障害時は保存済み年データへ切り替える");
+  const denseYearSearch = await searchEarthquakeHistory({
+    startDate: "2016-01-01",
+    endDate: "2016-12-31"
+  });
+  assert.equal(denseYearSearch.complete, true, "件数の多い年は期間を分割して最後まで検索する");
+  assert.deepEqual(denseYearSearch.fallbackYears, [], "分割取得できた年を保存済みデータ扱いしない");
+  assert.equal(denseYearSearch.totalMatched, manifest.years.find(({ year }) => year === 2016).count);
   const cappedSearch = await searchEarthquakeHistory({
     startDate: manifest.startDate,
     endDate: manifest.endDate

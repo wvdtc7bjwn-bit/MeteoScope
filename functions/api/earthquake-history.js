@@ -70,6 +70,9 @@ export async function onRequestGet(context) {
     return response;
   } catch (error) {
     console.error("[earthquake-history-proxy] JMA query failed", error);
+    if (error?.message === "JMA query split limit exceeded") {
+      return jsonResponse({ ok: false, error: "jma_query_range_too_dense" }, 422);
+    }
     return jsonResponse({ ok: false, error: "jma_query_failed" }, 502);
   }
 }

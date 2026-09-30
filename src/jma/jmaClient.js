@@ -130,6 +130,11 @@ async function fetchWithRetry(url, { accept, cache, parse, validate, retryCount,
       if (!response.ok) {
         const error = new Error(`JMA request failed: ${response.status} ${response.statusText}`);
         error.status = response.status;
+        try {
+          error.payload = await response.clone().json();
+        } catch {
+          // Error bodies from upstream services are not always JSON.
+        }
         throw error;
       }
       let value;
