@@ -12,6 +12,7 @@ export const EARTHQUAKE_HISTORY_EARLIEST_DATE = "1919-01-01";
 export const EARTHQUAKE_HISTORY_RESULT_LIMIT = 1_000;
 export const EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT = 200;
 export const EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS = 7;
+export const EARTHQUAKE_HISTORY_QUERY_CONCURRENCY = 3;
 export const EARTHQUAKE_HISTORY_INTENSITY_OPTIONS = Object.freeze([
   Object.freeze(["1", "震度1以上"]),
   Object.freeze(["2", "震度2以上"]),
@@ -60,39 +61,72 @@ export async function searchEarthquakeHistory(filters = {}, { onProgress } = {})
   const firstYear = Number(normalized.startDate.slice(0, 4));
   const lastYear = Number(normalized.endDate.slice(0, 4));
   const years = Array.from({ length: lastYear - firstYear + 1 }, (_, index) => lastYear - index);
-  const records = [];
   const fallbackYears = [];
-  let result = createHistorySearchResult([], normalized, manifest, {
+  const matchedState = { totalMatched: 0, items: [] };
+  let result = createHistorySearchResult(matchedState, normalized, manifest, {
     complete: years.length === 0,
     loadedYearCount: 0,
     totalYearCount: years.length,
     loadedFromDate: years.length === 0 ? normalized.startDate : ""
   });
-  for (let index = 0; index < years.length; index += 1) {
+  const yearResults = new Array(years.length);
+  let nextIndex = 0;
+  let publishedCount = 0;
+  let fatalError = null;
+
+  async function loadYear(index) {
     const year = years[index];
     const rangeStart = maxDate(normalized.startDate, `${year}-01-01`);
     const rangeEnd = minDate(normalized.endDate, `${year}-12-31`);
     try {
-      records.push(...await loadLiveHistoryRangeAdaptive(rangeStart, rangeEnd));
+      return { records: await loadLiveHistoryRangeAdaptive(rangeStart, rangeEnd), fallback: false };
     } catch (error) {
       const archiveEntry = archivedYears.get(year);
       if (!archiveEntry) throw error;
       console.warn(`[MeteoScope] JMA live history unavailable for ${year}; using saved archive`, error);
-      records.push(...await loadHistoryYear(year, archiveEntry.file));
-      fallbackYears.push(year);
+      return { records: await loadHistoryYear(year, archiveEntry.file), fallback: true };
     }
-    const loadedFromDate = index === years.length - 1
-      ? normalized.startDate
-      : maxDate(normalized.startDate, `${year}-01-01`);
-    result = createHistorySearchResult(records, normalized, manifest, {
-      complete: index === years.length - 1,
-      loadedYearCount: index + 1,
-      totalYearCount: years.length,
-      loadedFromDate,
-      fallbackYears: [...fallbackYears]
-    });
-    onProgress?.(result);
   }
+
+  async function publishReadyYears() {
+    while (yearResults[publishedCount]) {
+      const index = publishedCount;
+      const year = years[index];
+      const loaded = yearResults[index];
+      if (loaded.fallback) fallbackYears.push(year);
+      appendHistorySearchMatches(matchedState, loaded.records, normalized);
+      publishedCount += 1;
+      const loadedFromDate = publishedCount === years.length
+        ? normalized.startDate
+        : maxDate(normalized.startDate, `${year}-01-01`);
+      result = createHistorySearchResult(matchedState, normalized, manifest, {
+        complete: publishedCount === years.length,
+        loadedYearCount: publishedCount,
+        totalYearCount: years.length,
+        loadedFromDate,
+        fallbackYears: [...fallbackYears]
+      });
+      onProgress?.(result);
+    }
+  }
+
+  async function worker() {
+    while (!fatalError) {
+      const index = nextIndex;
+      nextIndex += 1;
+      if (index >= years.length) return;
+      try {
+        yearResults[index] = await loadYear(index);
+        await publishReadyYears();
+      } catch (error) {
+        fatalError ??= error;
+      }
+    }
+  }
+
+  const workerCount = Math.min(EARTHQUAKE_HISTORY_QUERY_CONCURRENCY, years.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  if (fatalError) throw fatalError;
   return result;
 }
 
@@ -108,7 +142,7 @@ async function loadLiveHistoryRangeAdaptive(startDate, endDate) {
   }
 }
 
-function createHistorySearchResult(records, normalized, manifest, progress) {
+function appendHistorySearchMatches(state, records, normalized) {
   const keyword = normalized.keyword.toLocaleLowerCase("ja-JP");
   const minimumIntensityRank = getHistoricalIntensityRank(normalized.minIntensity);
   const minimumMagnitude = Number(normalized.minMagnitude);
@@ -125,15 +159,21 @@ function createHistorySearchResult(records, normalized, manifest, progress) {
     }
     return !keyword || record.place.toLocaleLowerCase("ja-JP").includes(keyword);
   });
-  matches.sort(getHistoryComparator(normalized.sort));
+  state.totalMatched += matches.length;
+  state.items = [...state.items, ...matches]
+    .sort(getHistoryComparator(normalized.sort))
+    .slice(0, EARTHQUAKE_HISTORY_RESULT_LIMIT);
+}
+
+function createHistorySearchResult(state, normalized, manifest, progress) {
   return {
     ok: true,
     filters: normalized,
     manifest,
     ...progress,
-    totalMatched: matches.length,
-    truncated: matches.length > EARTHQUAKE_HISTORY_RESULT_LIMIT,
-    items: matches.slice(0, EARTHQUAKE_HISTORY_RESULT_LIMIT)
+    totalMatched: state.totalMatched,
+    truncated: state.totalMatched > EARTHQUAKE_HISTORY_RESULT_LIMIT,
+    items: state.items
   };
 }
 

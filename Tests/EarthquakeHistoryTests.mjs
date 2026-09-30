@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS,
   EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT,
+  EARTHQUAKE_HISTORY_QUERY_CONCURRENCY,
   EARTHQUAKE_HISTORY_RESULT_LIMIT,
   formatHistoricalIntensity,
   getJmaLatestAvailableDate,
@@ -33,6 +34,7 @@ const officialEpicenterExpectations = [
 
 assert.equal(EARTHQUAKE_HISTORY_RESULT_LIMIT, 1_000, "検索結果は1000件を上限とする");
 assert.equal(EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT, 200, "一覧表示の上限が意図せず変わっている");
+assert.equal(EARTHQUAKE_HISTORY_QUERY_CONCURRENCY, 3, "過去地震の年次検索は過剰な同時接続を避けて3件並列にする");
 assert.equal(EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS, 7, "初期表示期間は過去1週間でなければならない");
 assert.equal(manifest.years.length, 51, "50年間の端点を含む51暦年分を保持する");
 assert.equal(manifest.years[0].year, Number(manifest.startDate.slice(0, 4)));
@@ -111,6 +113,8 @@ assert.equal(normalizeHistoricalEpicenterName("20170108230650810", "京都・大
 
 const originalFetch = globalThis.fetch;
 const progressSnapshots = [];
+let activeLiveRequests = 0;
+let maximumLiveRequestConcurrency = 0;
 globalThis.fetch = async (url) => {
   const requestUrl = new URL(String(url), "https://meteoscope.test");
   const archivePath = requestUrl.pathname.match(/^\/data\/earthquake-history\/(.+)$/u)?.[1];
@@ -119,14 +123,21 @@ globalThis.fetch = async (url) => {
     return new Response(body, { status: 200 });
   }
   if (requestUrl.pathname !== "/api/earthquake-history") return new Response("Not found", { status: 404 });
+  activeLiveRequests += 1;
+  maximumLiveRequestConcurrency = Math.max(maximumLiveRequestConcurrency, activeLiveRequests);
+  await new Promise((resolve) => setTimeout(resolve, 10));
   const year = requestUrl.searchParams.get("start")?.slice(0, 4);
   const startDate = requestUrl.searchParams.get("start");
   const endDate = requestUrl.searchParams.get("end");
   const rangeDays = (Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / 86_400_000 + 1;
   if (year === "2016" && rangeDays > 30) {
+    activeLiveRequests -= 1;
     return Response.json({ ok: false, error: "jma_query_range_too_dense" }, { status: 422 });
   }
-  if (year === "2023") return new Response(JSON.stringify({ ok: false }), { status: 502 });
+  if (year === "2023") {
+    activeLiveRequests -= 1;
+    return new Response(JSON.stringify({ ok: false }), { status: 502 });
+  }
   const records = JSON.parse(await readFile(path.join(dataDirectory, `${year}.json`), "utf8"))
     .filter(({ t }) => t.slice(0, 10) >= requestUrl.searchParams.get("start") && t.slice(0, 10) <= requestUrl.searchParams.get("end"))
     .map((record) => ({
@@ -139,6 +150,7 @@ globalThis.fetch = async (url) => {
       dep: record.d == null ? "" : `${record.d} km`,
       maxI: `震度${record.i}`
     }));
+  activeLiveRequests -= 1;
   return new Response(JSON.stringify({ ok: true, records }), { status: 200 });
 };
 try {
@@ -153,6 +165,7 @@ try {
     [1, 2, 3],
     "期間検索は年単位で段階的に結果を返す"
   );
+  assert.ok(maximumLiveRequestConcurrency >= 2, "複数年の検索を直列化せず並列取得する");
   assert.equal(progressSnapshots[0].complete, false);
   assert.equal(progressSnapshots[0].loadedFromDate, "2026-01-01");
   assert.ok(progressSnapshots[0].items.every(({ originTime }) => originTime.startsWith("2026-")), "最初に最新年だけを反映する");
