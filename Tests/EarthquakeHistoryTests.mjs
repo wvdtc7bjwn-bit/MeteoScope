@@ -31,7 +31,7 @@ const officialEpicenterExpectations = [
   ["20220502222103180", "京都・大阪府境", "京都府南部"]
 ];
 
-assert.equal(EARTHQUAKE_HISTORY_RESULT_LIMIT, 3_000, "検索結果の上限が意図せず変わっている");
+assert.equal(EARTHQUAKE_HISTORY_RESULT_LIMIT, 1_000, "検索結果は1000件を上限とする");
 assert.equal(EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT, 200, "一覧表示の上限が意図せず変わっている");
 assert.equal(EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS, 7, "初期表示期間は過去1週間でなければならない");
 assert.equal(manifest.years.length, 51, "50年間の端点を含む51暦年分を保持する");
@@ -160,6 +160,13 @@ try {
   });
   assert.equal(fallbackSearch.complete, true);
   assert.deepEqual(fallbackSearch.fallbackYears, [2023], "JMA接続障害時は保存済み年データへ切り替える");
+  const cappedSearch = await searchEarthquakeHistory({
+    startDate: manifest.startDate,
+    endDate: manifest.endDate
+  });
+  assert.equal(cappedSearch.totalMatched, manifest.totalCount, "件数表示は上限超過を判定できるよう全件数を保つ");
+  assert.equal(cappedSearch.items.length, 1_000, "検索結果の返却は1000件で打ち切る");
+  assert.equal(cappedSearch.truncated, true, "1000件を超えた検索結果は上限超過として明示する");
 } finally {
   globalThis.fetch = originalFetch;
 }
@@ -216,6 +223,7 @@ assert.match(panel, /closest\("button\[data-earthquake-view\]"\)/u);
 assert.match(panel, /onArchiveFilterChange\?\.\(readArchiveSearchFilters\(archiveForm\)\)/u);
 assert.match(panel, /const filters = data\.earthquakeArchiveFilters \?\? snapshot\?\.filters/u);
 assert.match(panel, /1919年〜2日前/u);
+assert.match(panel, /検索結果が上限の\$\{EARTHQUAKE_HISTORY_RESULT_LIMIT\.toLocaleString\("ja-JP"\)\}件を超えています/u);
 assert.match(panel, /earthquake-archive-item-content/u);
 assert.match(panel, /<small>震度<\/small><b>/u);
 assert.match(panel, /一覧は\$\{visibleItems\.length\.toLocaleString\("ja-JP"\)\}件表示中/u);

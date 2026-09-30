@@ -5,7 +5,7 @@ import { normalizeJmaEarthquakeIntensity, normalizeJmaEarthquakeOriginTime } fro
 const DATA_BASE = "/data/earthquake-history";
 const LIVE_SEARCH_ENDPOINT = "/api/earthquake-history";
 export const EARTHQUAKE_HISTORY_EARLIEST_DATE = "1919-01-01";
-export const EARTHQUAKE_HISTORY_RESULT_LIMIT = 3_000;
+export const EARTHQUAKE_HISTORY_RESULT_LIMIT = 1_000;
 export const EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT = 200;
 export const EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS = 7;
 export const EARTHQUAKE_HISTORY_INTENSITY_OPTIONS = Object.freeze([

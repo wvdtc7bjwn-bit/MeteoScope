@@ -9,9 +9,18 @@ const originalFetch = globalThis.fetch;
 let outboundUrl = "";
 let outboundForm = null;
 let jmaResult = [{ id: "20260928100000123", ot: "2026/09/28 10:00", name: "東京都２３区", lat: "35.7", lon: "139.7", mag: "3.1", dep: "10 km", maxI: "震度１" }];
+let denseRangeMode = false;
+let upstreamQueryCount = 0;
 globalThis.fetch = async (url, init) => {
   outboundUrl = String(url);
   outboundForm = init.body;
+  if (denseRangeMode) {
+    upstreamQueryCount += 1;
+    const start = Date.parse(`${outboundForm.getAll("dateTimeF[]")[0]}T00:00:00Z`);
+    const end = Date.parse(`${outboundForm.getAll("dateTimeT[]")[0]}T00:00:00Z`);
+    const days = Math.floor((end - start) / 86_400_000) + 1;
+    return Response.json({ res: Array.from({ length: days > 30 ? 1_000 : 500 }, () => ({})) });
+  }
   return Response.json({ res: jmaResult });
 };
 
@@ -35,6 +44,16 @@ try {
   assert.equal(emptyYear.status, 200, "地震がない年は接続エラーではなく空の検索結果として返す");
   assert.deepEqual((await emptyYear.json()).records, []);
   jmaResult = [{ id: "20260928100000123", ot: "2026/09/28 10:00", name: "東京都２３区", lat: "35.7", lon: "139.7", mag: "3.1", dep: "10 km", maxI: "震度１" }];
+
+  denseRangeMode = true;
+  const denseYear = await onRequestGet({
+    request: new Request("https://meteoscope.test/api/earthquake-history?start=2020-01-01&end=2020-12-31")
+  });
+  const denseYearPayload = await denseYear.json();
+  assert.equal(denseYear.status, 200, "件数の多い年はCloudflareの外部リクエスト上限内で分割して取得する");
+  assert.ok(upstreamQueryCount > 20 && upstreamQueryCount <= 48, "密な年の分割は20回を超えてもFree枠内に収める");
+  assert.ok(denseYearPayload.records.length > 1_000);
+  denseRangeMode = false;
 
   const oversizedRange = await onRequestGet({
     request: new Request("https://meteoscope.test/api/earthquake-history?start=2020-01-01&end=2022-01-01")

@@ -7,7 +7,8 @@ import {
 
 const CACHE_TTL_SECONDS = 6 * 60 * 60;
 const API_RESULT_LIMIT = 1_000;
-const MAX_UPSTREAM_QUERIES = 20;
+// Keep two external-subrequest slots free under Cloudflare Workers Free's 50-call cap.
+const MAX_UPSTREAM_QUERIES = 48;
 const EARLIEST_DATE = "1919-01-01";
 
 function jsonResponse(payload, status = 200, cacheControl = "no-store") {
