@@ -78,6 +78,10 @@ export async function onRequestGet(context) {
 }
 
 async function queryJmaRange(startDate, endDate, state) {
+  return queryJmaTimeRange(startDate, "00:00", endDate, "23:59", state);
+}
+
+async function queryJmaTimeRange(startDate, startTime, endDate, endTime, state) {
   state.count += 1;
   if (state.count > MAX_UPSTREAM_QUERIES) {
     throw new Error("JMA query split limit exceeded");
@@ -89,7 +93,7 @@ async function queryJmaRange(startDate, endDate, state) {
       referer: JMA_EARTHQUAKE_HISTORY_SOURCE_URL,
       "user-agent": "MeteoScope earthquake history search"
     },
-    body: buildJmaIntensitySearchForm(startDate, endDate),
+    body: buildJmaIntensitySearchForm(startDate, endDate, startTime, endTime),
     signal: AbortSignal.timeout(25_000)
   });
   if (!response.ok) throw new Error(`JMA returned HTTP ${response.status}`);
@@ -99,12 +103,34 @@ async function queryJmaRange(startDate, endDate, state) {
     throw new Error("JMA returned an unsupported response");
   }
   if (records.length < API_RESULT_LIMIT) return records;
-  if (startDate === endDate) throw new Error("JMA result limit reached for a single day");
+  if (startDate === endDate) {
+    if (startTime === endTime) throw new Error("JMA result limit reached for a single minute");
+    const [leftEndTime, rightStartTime] = splitJmaTimeRange(startTime, endTime);
+    const left = await queryJmaTimeRange(startDate, startTime, startDate, leftEndTime, state);
+    const right = await queryJmaTimeRange(startDate, rightStartTime, endDate, endTime, state);
+    return [...left, ...right];
+  }
 
   const [leftEnd, rightStart] = splitJmaEarthquakeDateRange(startDate, endDate);
   const left = await queryJmaRange(startDate, leftEnd, state);
   const right = await queryJmaRange(rightStart, endDate, state);
   return [...left, ...right];
+}
+
+function splitJmaTimeRange(startTime, endTime) {
+  const startMinutes = toMinutes(startTime);
+  const endMinutes = toMinutes(endTime);
+  const middleMinutes = startMinutes + Math.floor((endMinutes - startMinutes) / 2);
+  return [fromMinutes(middleMinutes), fromMinutes(middleMinutes + 1)];
+}
+
+function toMinutes(time) {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function fromMinutes(minutes) {
+  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
 function normalizeJmaResults(value) {

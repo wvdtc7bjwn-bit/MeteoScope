@@ -1,12 +1,12 @@
 export const JMA_EARTHQUAKE_INTENSITY_API_URL = "https://www.data.jma.go.jp/eqdb/data/shindo/api/";
 export const JMA_EARTHQUAKE_HISTORY_SOURCE_URL = "https://www.data.jma.go.jp/eqdb/data/shindo/";
 
-export function buildJmaIntensitySearchForm(startDate, endDate) {
+export function buildJmaIntensitySearchForm(startDate, endDate, startTime = "00:00", endTime = "23:59") {
   const form = new FormData();
   [
     ["mode", "search"],
-    ["dateTimeF[]", startDate], ["dateTimeF[]", "00:00"],
-    ["dateTimeT[]", endDate], ["dateTimeT[]", "23:59"],
+    ["dateTimeF[]", startDate], ["dateTimeF[]", startTime],
+    ["dateTimeT[]", endDate], ["dateTimeT[]", endTime],
     ["mag[]", "0.0"], ["mag[]", "9.9"], ["dep[]", "000"], ["dep[]", "999"],
     ["epi[]", "99"], ["pref[]", "99"], ["city[]", "99"], ["station[]", "99"],
     ["obsInt", "1"], ["maxInt", "1"], ["additionalC", "false"],
