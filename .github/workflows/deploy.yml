@@ -36,6 +36,12 @@ jobs:
       - name: Test current-location marker controls
         run: npm run test:location
 
+      - name: Test historical earthquake search and request cancellation
+        run: |
+          node Tests/EarthquakeHistoryProxyTests.mjs
+          node Tests/EarthquakeHistoryTests.mjs
+          npm run test:resilience
+
       - name: Test responsive layouts
         run: npm run test:responsive
 
