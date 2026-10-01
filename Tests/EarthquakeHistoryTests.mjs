@@ -112,87 +112,142 @@ for (const [id, catalogueName, officialName] of officialEpicenterExpectations) {
 assert.equal(normalizeHistoricalEpicenterName("20170108230650810", "京都・大阪府境"), "京都・大阪府境");
 
 const originalFetch = globalThis.fetch;
-const progressSnapshots = [];
-let activeLiveRequests = 0;
-let maximumLiveRequestConcurrency = 0;
-globalThis.fetch = async (url) => {
+let liveCalls = [];
+let archiveCalls = [];
+let override = null;
+const toLive = (record) => ({
+  id: record.id, ot: record.t.replace(/^(\d{4})-(\d{2})-(\d{2})T/u, "$1/$2/$3 ").replace(/\+09:00$/u, ""),
+  name: record.p, lat: record.la, lon: record.lo, mag: record.m, dep: record.d == null ? "" : `${record.d} km`, maxI: `震度${record.i}`
+});
+globalThis.fetch = async (url, init) => {
   const requestUrl = new URL(String(url), "https://meteoscope.test");
   const archivePath = requestUrl.pathname.match(/^\/data\/earthquake-history\/(.+)$/u)?.[1];
   if (archivePath) {
-    const body = await readFile(path.join(dataDirectory, archivePath), "utf8");
-    return new Response(body, { status: 200 });
+    archiveCalls.push(archivePath);
+    return new Response(await readFile(path.join(dataDirectory, archivePath), "utf8"));
   }
-  if (requestUrl.pathname !== "/api/earthquake-history") return new Response("Not found", { status: 404 });
-  activeLiveRequests += 1;
-  maximumLiveRequestConcurrency = Math.max(maximumLiveRequestConcurrency, activeLiveRequests);
-  await new Promise((resolve) => setTimeout(resolve, 10));
-  const year = requestUrl.searchParams.get("start")?.slice(0, 4);
-  const startDate = requestUrl.searchParams.get("start");
-  const endDate = requestUrl.searchParams.get("end");
-  const rangeDays = (Date.parse(`${endDate}T00:00:00Z`) - Date.parse(`${startDate}T00:00:00Z`)) / 86_400_000 + 1;
-  if (year === "2016" && rangeDays > 30) {
-    activeLiveRequests -= 1;
-    return Response.json({ ok: false, error: "jma_query_range_too_dense" }, { status: 422 });
-  }
-  if (year === "2023") {
-    activeLiveRequests -= 1;
-    return new Response(JSON.stringify({ ok: false }), { status: 502 });
-  }
-  const records = JSON.parse(await readFile(path.join(dataDirectory, `${year}.json`), "utf8"))
-    .filter(({ t }) => t.slice(0, 10) >= requestUrl.searchParams.get("start") && t.slice(0, 10) <= requestUrl.searchParams.get("end"))
-    .map((record) => ({
-      id: record.id,
-      ot: record.t.replace(/^(\d{4})-(\d{2})-(\d{2})T/u, "$1/$2/$3 ").replace(/\+09:00$/u, ""),
-      name: record.p,
-      lat: record.la,
-      lon: record.lo,
-      mag: record.m,
-      dep: record.d == null ? "" : `${record.d} km`,
-      maxI: `震度${record.i}`
-    }));
-  activeLiveRequests -= 1;
-  return new Response(JSON.stringify({ ok: true, records }), { status: 200 });
+  liveCalls.push(requestUrl);
+  if (override) return override(requestUrl, init);
+  const p = requestUrl.searchParams;
+  const records = [...recordsById.values()].filter((r) => r.t.slice(0, 10) >= p.get("start") && r.t.slice(0, 10) <= p.get("end")
+    && getHistoricalIntensityRank(r.i) >= getHistoricalIntensityRank(p.get("minIntensity"))
+    && (Number(p.get("minMagnitude")) === 0 || r.m != null && r.m >= Number(p.get("minMagnitude")))
+    && (p.get("maxDepth") === "all" || r.d != null && r.d <= Number(p.get("maxDepth"))));
+  records.sort(p.get("sort") === "oldest" ? (a,b) => a.t.localeCompare(b.t)
+    : p.get("sort") === "magnitude" ? (a,b) => (b.m ?? -10)-(a.m ?? -10) || b.t.localeCompare(a.t)
+    : p.get("sort") === "intensity" ? (a,b) => getHistoricalIntensityRank(b.i)-getHistoricalIntensityRank(a.i) || b.t.localeCompare(a.t)
+    : (a,b) => b.t.localeCompare(a.t));
+  return Response.json({ ok: true, records: records.slice(0,1000).map(toLive), limited: records.length > 1000, limitExceeded: records.length > 1000 });
 };
 try {
-  const progressiveSearch = await searchEarthquakeHistory({
-    startDate: "2024-01-01",
-    endDate: manifest.endDate
-  }, {
-    onProgress: (snapshot) => progressSnapshots.push(snapshot)
+  for (const sort of ["newest", "oldest", "intensity", "magnitude"]) {
+    liveCalls = []; archiveCalls = [];
+    const result = await searchEarthquakeHistory({ startDate: manifest.startDate, endDate: manifest.endDate, minMagnitude: "7", minIntensity: "5-", maxDepth: "100", sort });
+    assert.equal(result.complete, true);
+    assert.equal(result.searchFinished, true);
+    assert.equal(liveCalls.length, 1, "50年間の条件検索を1回で問い合わせる");
+    assert.equal(archiveCalls.length, 0, "通常検索では目録を含め保存JSONへ依存しない");
+    assert.equal(liveCalls[0].searchParams.get("minIntensity"), "5-");
+    assert.equal(liveCalls[0].searchParams.get("minMagnitude"), "7");
+    assert.equal(liveCalls[0].searchParams.get("maxDepth"), "100");
+    assert.equal(liveCalls[0].searchParams.get("sort"), sort);
+    const expected = [...recordsById.values()].filter(r => r.m >= 7 && getHistoricalIntensityRank(r.i) >= 5 && r.d != null && r.d <= 100)
+      .sort(sort === "oldest" ? (a,b) => a.t.localeCompare(b.t) : sort === "magnitude" ? (a,b) => b.m-a.m || b.t.localeCompare(a.t)
+        : sort === "intensity" ? (a,b) => getHistoricalIntensityRank(b.i)-getHistoricalIntensityRank(a.i) || b.t.localeCompare(a.t) : (a,b) => b.t.localeCompare(a.t));
+    assert.deepEqual(result.items.map(r=>r.id), expected.map(r=>r.id), `${sort}は全期間に対して正しい`);
+  }
+  archiveCalls = [];
+  const capped = await searchEarthquakeHistory({ startDate: "2025-01-01", endDate: "2025-12-31" });
+  assert.equal(capped.items.length, 1000);
+  assert.equal(capped.totalMatched, null, "上限時に1000を総件数としない");
+  assert.equal(capped.complete, false);
+  assert.equal(capped.searchFinished, true, "処理終了と全期間取得を区別する");
+  assert.equal(capped.limitExceeded, true);
+  assert.equal(capped.queryCount, 1, "並び順の先頭1000件が分かる時は追加取得しない");
+  assert.equal(archiveCalls.length, 0, "上限で保存データに切り替えない");
+  const empty = await searchEarthquakeHistory({ startDate: "1950-01-01", endDate: "1950-01-02" });
+  assert.equal(empty.totalMatched, 0);
+  assert.equal(empty.complete, true);
+  assert.equal(archiveCalls.length, 0, "0件でも保存データに切り替えない");
+  await assert.rejects(searchEarthquakeHistory({ startDate: "2025-02-30" }), /日付/);
+
+  override = () => Response.json({ ok: false }, { status: 400 });
+  await assert.rejects(searchEarthquakeHistory({ startDate: "1982-01-01", endDate: "1982-01-02" }), e => e.status === 400);
+  assert.equal(archiveCalls.length, 0, "入力エラーを通信障害と扱わない");
+  override = () => Response.json({ ok: false }, { status: 422 });
+  await assert.rejects(searchEarthquakeHistory({ startDate: "1983-01-01", endDate: "1983-01-02" }), e => e.status === 422);
+  assert.equal(archiveCalls.length, 0, "検索上限を示すHTTP応答でも保存JSONへ切り替えない");
+
+  override = () => Response.json({ ok: false }, { status: 502 });
+  const fallback = await searchEarthquakeHistory({ startDate: "1976-09-26", endDate: "1976-10-02", minMagnitude: "3", keyword: "沖" });
+  assert.equal(fallback.complete, false, "保存データの範囲外は検索完了と表示しない");
+  assert.equal(fallback.fallbackRanges[0].startDate, manifest.startDate);
+  assert.equal(fallback.fallbackRanges[0].updatedAt, manifest.generatedAt);
+  assert.equal(fallback.unavailableRanges[0].endDate, "1976-09-27");
+  assert.ok(fallback.items.every(r => r.magnitude >= 3 && r.place.includes("沖") && r.originTime >= manifest.startDate));
+  override = () => { throw new DOMException("timeout", "TimeoutError"); };
+  const timedOut = await searchEarthquakeHistory({ startDate: "2020-04-01", endDate: "2020-04-02" });
+  assert.equal(timedOut.complete, true);
+  assert.equal(timedOut.fallbackRanges.length, 1);
+
+  archiveCalls = [];
+  let networkAborted = false;
+  const controller = new AbortController();
+  override = (url, init) => new Promise((resolve, reject) => {
+    init.signal.addEventListener("abort", () => { networkAborted = true; reject(init.signal.reason); }, { once: true });
+    setTimeout(() => controller.abort(), 5);
   });
-  assert.deepEqual(
-    progressSnapshots.map(({ loadedYearCount }) => loadedYearCount),
-    [1, 2, 3],
-    "期間検索は年単位で段階的に結果を返す"
-  );
-  assert.ok(maximumLiveRequestConcurrency >= 2, "複数年の検索を直列化せず並列取得する");
-  assert.equal(progressSnapshots[0].complete, false);
-  assert.equal(progressSnapshots[0].loadedFromDate, "2026-01-01");
-  assert.ok(progressSnapshots[0].items.every(({ originTime }) => originTime.startsWith("2026-")), "最初に最新年だけを反映する");
-  assert.deepEqual(progressSnapshots.map(({ loadedFromDate }) => loadedFromDate), ["2026-01-01", "2025-01-01", "2024-01-01"]);
-  assert.equal(progressiveSearch.complete, true);
-  assert.equal(progressiveSearch.loadedFromDate, "2024-01-01");
-  assert.ok(progressiveSearch.items.every(({ originTime }) => originTime >= "2024-01-01"));
-  const fallbackSearch = await searchEarthquakeHistory({
-    startDate: "2023-06-01",
-    endDate: "2023-06-02"
+  let progressAfterAbort = 0;
+  await assert.rejects(searchEarthquakeHistory({ startDate: "1951-01-01", endDate: "1951-02-01" }, { signal: controller.signal, onProgress: () => progressAfterAbort++ }), e=>e.name==="AbortError");
+  assert.equal(networkAborted, true, "待ち合わせだけでなく実際の通信も中断する");
+  assert.equal(archiveCalls.length, 0, "中断はフォールバックしない");
+  assert.equal(progressAfterAbort, 0);
+
+  // A partial-name search must inspect censored ranges; parent/child records
+  // overlap, so use IDs to count and merge each earthquake just once.
+  const synthetic = Array.from({ length: 1200 }, (_,i) => {
+    const day = new Date(Date.UTC(2005,0,1)+Math.floor(i/4)*86400000).toISOString().slice(0,10);
+    return { id: `synthetic-${i}`, t: `${day}T12:0${i%4}:00+09:00`, p: i%2 ? "能登沖" : "別地域", la:35,lo:138,m:4,d:10,i:"3" };
   });
-  assert.equal(fallbackSearch.complete, true);
-  assert.deepEqual(fallbackSearch.fallbackYears, [2023], "JMA接続障害時は保存済み年データへ切り替える");
-  const denseYearSearch = await searchEarthquakeHistory({
-    startDate: "2016-01-01",
-    endDate: "2016-12-31"
-  });
-  assert.equal(denseYearSearch.complete, true, "件数の多い年は期間を分割して最後まで検索する");
-  assert.deepEqual(denseYearSearch.fallbackYears, [], "分割取得できた年を保存済みデータ扱いしない");
-  assert.equal(denseYearSearch.totalMatched, manifest.years.find(({ year }) => year === 2016).count);
-  const cappedSearch = await searchEarthquakeHistory({
-    startDate: manifest.startDate,
-    endDate: manifest.endDate
-  });
-  assert.equal(cappedSearch.totalMatched, manifest.totalCount, "件数表示は上限超過を判定できるよう全件数を保つ");
-  assert.equal(cappedSearch.items.length, 1_000, "検索結果の返却は1000件で打ち切る");
-  assert.equal(cappedSearch.truncated, true, "1000件を超えた検索結果は上限超過として明示する");
+  override = (url) => {
+    const p=url.searchParams;
+    const rows=synthetic.filter(r=>r.t.slice(0,10)>=p.get("start") && r.t.slice(0,10)<=p.get("end")).sort((a,b)=>b.t.localeCompare(a.t));
+    return Response.json({ ok:true, records:rows.slice(0,1000).map(toLive), limited:rows.length>1000, limitExceeded:rows.length>1000 });
+  };
+  const partialSnapshots = [];
+  const partial = await searchEarthquakeHistory({ startDate:"2005-01-01",endDate:"2005-12-31",keyword:"能登" }, {onProgress:r=>partialSnapshots.push(r)});
+  assert.equal(partial.complete,true);
+  assert.equal(partial.totalMatched,600);
+  assert.equal(new Set(partial.items.map(r=>r.id)).size,600);
+  assert.ok(partial.queryCount>1, "部分一致で候補が不足するときは必要な期間を追加取得する");
+  assert.ok(partialSnapshots[0].items.length>0 && !partialSnapshots[0].searchFinished, "追加取得を待たず既に取得した結果を表示する");
+  assert.ok(partialSnapshots.length<=partial.queryCount+1);
+
+  const mixedYear = [...recordsById.values()].filter(r => r.t.startsWith("2008-"));
+  const expectedMixed = mixedYear.filter(r => r.p.includes("県"));
+  override = (url) => {
+    const p=url.searchParams;
+    if (p.get("start")==="2008-01-01" && p.get("end")==="2008-12-31") {
+      return Response.json({ok:true,records:mixedYear.slice(0,1000).map(toLive),limited:true,limitExceeded:true});
+    }
+    if (p.get("start")==="2008-01-01") return Response.json({ok:false},{status:502});
+    return Response.json({ok:true,records:mixedYear.filter(r=>r.t.slice(0,10)>=p.get("start") && r.t.slice(0,10)<=p.get("end")).map(toLive),limited:false});
+  };
+  const mixed = await searchEarthquakeHistory({startDate:"2008-01-01",endDate:"2008-12-31",keyword:"県"});
+  assert.equal(mixed.complete,true,"ライブと保存データが全期間を埋めた場合だけ完了とする");
+  assert.equal(mixed.totalMatched,expectedMixed.length,"親範囲と障害時代替分を重複カウントしない");
+  assert.ok(mixed.fallbackRanges.length>0);
+  assert.equal(mixed.unavailableRanges.length,0);
+  archiveCalls=[];
+
+  // Even a saturated one-minute query terminates without false fallback.
+  override = () => Response.json({ok:true,records:synthetic.slice(0,1000).map(toLive),limited:true,limitExceeded:true});
+  const budget = await searchEarthquakeHistory({startDate:"2006-01-01",endDate:"2006-12-31",keyword:"予算"});
+  assert.equal(budget.complete,false);
+  assert.equal(budget.searchFinished,true);
+  assert.ok(budget.scannedRecordCount<=budget.acquisitionLimit);
+  assert.ok(budget.unsearchedRanges.length>0);
+  assert.equal(archiveCalls.length,0);
 } finally {
   globalThis.fetch = originalFetch;
 }
@@ -256,11 +311,11 @@ assert.match(panel, /一覧は\$\{visibleItems\.length\.toLocaleString\("ja-JP"\
 assert.match(panel, /地図は先頭.*件/u);
 assert.match(panel, /data-earthquake-archive-list-more/u);
 assert.match(panel, /data-next-visible-count/u);
-assert.match(panel, /status === "refreshing" \? "・更新中"/u);
+assert.match(panel, /status === "refreshing" \? "・検索中"/u);
 assert.doesNotMatch(panel, /snapshot\?\.complete === false \? "・更新中"/u);
-assert.match(panel, /snapshot\.loadedFromDate/u);
+assert.match(panel, /snapshot\.unavailableRanges/u);
 assert.match(app, /onProgress: \(partialData\)/u);
-assert.match(panel, /気象庁の震度データベースへ接続/u);
+assert.match(panel, /気象庁の震度データベースを検索/u);
 assert.match(map, /getEarthquakeMapView\(data\) === "history"/u);
 assert.match(map, /formatDistributionOriginTime\(item\?\.originTime, true\)/u);
 assert.doesNotMatch(updateWorkflow, /schedule:/u, "年次履歴の自動コミットは停止し、手動実行は維持する");

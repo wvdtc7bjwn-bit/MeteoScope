@@ -442,6 +442,8 @@ export function createWeatherApp() {
   let earthquakeArchiveFilters = {};
   let earthquakeArchiveState = { status: "idle", data: null, error: "" };
   let earthquakeArchiveRequestId = 0;
+  let earthquakeArchiveAbortController = null;
+  let earthquakeArchiveRenderFrame = null;
   let earthquakeArchiveListVisibleCount = EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT;
   let selectedHistoricalEarthquakeId = "";
   let earthquakeSummaryPage = "earthquake";
@@ -1556,6 +1558,11 @@ if (layerId === "river") {
   }
 
   async function refreshEarthquakeArchive(filters = earthquakeArchiveFilters) {
+    if (earthquakeArchiveRenderFrame !== null) cancelAnimationFrame(earthquakeArchiveRenderFrame);
+    earthquakeArchiveRenderFrame = null;
+    earthquakeArchiveAbortController?.abort();
+    earthquakeArchiveAbortController = new AbortController();
+    const signal = earthquakeArchiveAbortController.signal;
     earthquakeArchiveFilters = { ...earthquakeArchiveFilters, ...filters };
     const requestId = ++earthquakeArchiveRequestId;
     earthquakeArchiveState = { status: "loading", data: null, error: "" };
@@ -1564,11 +1571,12 @@ if (layerId === "river") {
     }
     try {
       const data = await searchEarthquakeHistory(earthquakeArchiveFilters, {
+        signal,
         onProgress: (partialData) => {
           if (requestId !== earthquakeArchiveRequestId) return;
           earthquakeArchiveFilters = partialData.filters;
           earthquakeArchiveState = {
-            status: partialData.complete ? "ok" : "refreshing",
+            status: partialData.searchFinished ? "ok" : "refreshing",
             data: partialData,
             error: ""
           };
@@ -1576,7 +1584,14 @@ if (layerId === "river") {
             selectedHistoricalEarthquakeId = partialData.items[0]?.id ?? "";
           }
           if (activeTab === "earthquake" && earthquakeView === "history") {
-            updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+            if (earthquakeArchiveRenderFrame === null) {
+              earthquakeArchiveRenderFrame = requestAnimationFrame(() => {
+                earthquakeArchiveRenderFrame = null;
+                if (requestId === earthquakeArchiveRequestId && activeTab === "earthquake" && earthquakeView === "history") {
+                  updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+                }
+              });
+            }
           }
         }
       });
@@ -1588,12 +1603,16 @@ if (layerId === "river") {
       }
     } catch (error) {
       if (requestId !== earthquakeArchiveRequestId) return;
+      if (signal.aborted) return;
       earthquakeArchiveState = {
         ...earthquakeArchiveState,
-        status: earthquakeArchiveState.data?.loadedYearCount ? "partial-error" : "error",
+        status: earthquakeArchiveState.data?.queryCount ? "partial-error" : "error",
         error: error?.message ?? "過去の地震を検索できませんでした"
       };
     }
+    if (requestId === earthquakeArchiveRequestId) earthquakeArchiveAbortController = null;
+    if (earthquakeArchiveRenderFrame !== null) cancelAnimationFrame(earthquakeArchiveRenderFrame);
+    earthquakeArchiveRenderFrame = null;
     if (activeTab === "earthquake" && earthquakeView === "history") {
       updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
     }
@@ -3935,6 +3954,29 @@ if (layerId === "river") {
       onViewChange: selectEarthquakeView,
       onArchiveFilterChange: (filters) => {
         earthquakeArchiveFilters = { ...earthquakeArchiveFilters, ...filters };
+        if (earthquakeArchiveAbortController) {
+          earthquakeArchiveAbortController.abort();
+          earthquakeArchiveAbortController = null;
+          earthquakeArchiveRequestId += 1;
+          earthquakeArchiveState = {
+            ...earthquakeArchiveState,
+            status: earthquakeArchiveState.data ? "ok" : "idle",
+            data: earthquakeArchiveState.data ? { ...earthquakeArchiveState.data, searchFinished: true, complete: false, cancelled: true } : null
+          };
+          if (activeTab === "earthquake" && earthquakeView === "history") {
+            const focused = document.activeElement;
+            const focusName = focused?.closest?.("[data-earthquake-archive-form]") ? focused.name : "";
+            const selectionStart = focused?.selectionStart;
+            const selectionEnd = focused?.selectionEnd;
+            refreshActivePanel();
+            const form = document.querySelector("[data-earthquake-archive-form]");
+            const input = focusName ? form?.elements?.namedItem(focusName) : null;
+            input?.focus({ preventScroll: true });
+            if (typeof selectionStart === "number" && typeof input?.setSelectionRange === "function") {
+              input.setSelectionRange(selectionStart, selectionEnd);
+            }
+          }
+        }
       },
       onArchiveSearch: (filters) => {
         earthquakeArchiveListVisibleCount = EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT;

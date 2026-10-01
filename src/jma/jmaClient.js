@@ -41,7 +41,7 @@ async function fetchCached(url, options) {
   if (ttlMs > 0 && cached && cached.expiresAt > now) return cached.value;
 
   const inFlight = inFlightRequests.get(cacheKey);
-  if (inFlight) return waitForRequest(inFlight, options.signal);
+  if (inFlight && !options.cancelUnderlying) return waitForRequest(inFlight, options.signal);
 
   const startedAt = performance.now();
   const request = fetchWithRetry(url, {
@@ -50,7 +50,8 @@ async function fetchCached(url, options) {
     parse: options.parse,
     validate: options.validate,
     retryCount,
-    timeoutMs
+    timeoutMs,
+    signal: options.cancelUnderlying ? options.signal : undefined
   })
     .then((value) => {
       if (ttlMs > 0) {
@@ -65,6 +66,7 @@ async function fetchCached(url, options) {
       return value;
     })
     .catch((error) => {
+      if (options.cancelUnderlying && options.signal?.aborted) throw options.signal.reason ?? createAbortError();
       const canUseStale = options.staleIfError !== false && cached?.value !== undefined;
       recordRequestHealth(url, {
         ok: false,
@@ -85,10 +87,10 @@ async function fetchCached(url, options) {
       throw error;
     })
     .finally(() => {
-      inFlightRequests.delete(cacheKey);
+      if (!options.cancelUnderlying) inFlightRequests.delete(cacheKey);
     });
 
-  inFlightRequests.set(cacheKey, request);
+  if (!options.cancelUnderlying) inFlightRequests.set(cacheKey, request);
   return waitForRequest(request, options.signal);
 }
 
@@ -116,10 +118,13 @@ function createAbortError() {
   return error;
 }
 
-async function fetchWithRetry(url, { accept, cache, parse, validate, retryCount, timeoutMs }) {
+async function fetchWithRetry(url, { accept, cache, parse, validate, retryCount, timeoutMs, signal }) {
   let lastError;
   for (let attempt = 0; attempt <= retryCount; attempt += 1) {
+    throwIfAborted(signal);
     const controller = new AbortController();
+    const onAbort = () => controller.abort(signal.reason ?? createAbortError());
+    signal?.addEventListener("abort", onAbort, { once: true });
     const timeoutId = setTimeout(() => controller.abort(new DOMException("Request timed out", "TimeoutError")), timeoutMs);
     try {
       const response = await fetch(url, {
@@ -141,6 +146,8 @@ async function fetchWithRetry(url, { accept, cache, parse, validate, retryCount,
       try {
         value = await parse(response);
       } catch (error) {
+        throwIfAborted(signal);
+        if (controller.signal.aborted) throw controller.signal.reason;
         const contentType = response.headers.get("content-type") || "unknown content type";
         throw new Error(`JMA response parse failed: ${url} (${contentType})`, { cause: error });
       }
@@ -149,12 +156,14 @@ async function fetchWithRetry(url, { accept, cache, parse, validate, retryCount,
       }
       return value;
     } catch (error) {
+      throwIfAborted(signal);
       lastError = error;
       const retryable = attempt < retryCount && isRetryableRequestError(error);
       if (!retryable) throw error;
       await wait(180 + Math.round(Math.random() * 220));
     } finally {
       clearTimeout(timeoutId);
+      signal?.removeEventListener("abort", onAbort);
     }
   }
   throw lastError;
