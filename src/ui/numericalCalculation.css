@@ -1,4 +1,5 @@
-#numerical-calculation-modal { --numerical-surface: #151e2f; }
+/* Keep the workspace header and close control above the global notice ticker. */
+#numerical-calculation-modal { --numerical-surface: #151e2f; z-index: 9300; }
 html[data-theme="light"] #numerical-calculation-modal { --numerical-surface: #f8fbff; }
 /* Override the shared mobile glass rule only in this reading workspace. */
 #numerical-calculation-modal .warning-modal-panel.numerical-calculation-panel { display: flex; flex-direction: column; width: min(1100px, 100%); max-height: calc(100dvh - 36px); padding: 0; overflow: hidden; border-radius: 10px; background: var(--numerical-surface) !important; color: var(--text); box-shadow: none !important; backdrop-filter: none; -webkit-backdrop-filter: none; }
