@@ -30,6 +30,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Setup Python for numerical parity tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test numerical calculations and related features
+        run: |
+          npm run test:numerical-calculation
+          npm run test:upper-air
+          npm run test:cloud-classification
+
       - name: Test disaster quiz catalog
         run: npm run test:quiz
 

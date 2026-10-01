@@ -329,7 +329,7 @@ function mixingRatioFromDewPoint(dewPoint, pressure) {
   return WATER_VAPOR_RATIO * vaporPressure * 100 / (pressurePascal - vaporPressure * 100);
 }
 
-function calculateLcl(temperature, dewPoint, pressure) {
+export function calculateLcl(temperature, dewPoint, pressure) {
   if (![temperature, dewPoint, pressure].every(Number.isFinite) || pressure <= 0) return null;
   const temperatureKelvin = temperature + KELVIN_OFFSET;
   const dewPointKelvin = Math.min(dewPoint, temperature) + KELVIN_OFFSET;

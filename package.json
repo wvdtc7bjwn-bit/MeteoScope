@@ -40,6 +40,7 @@
     "test:weather-chart": "node Tests/WeatherChartTests.mjs && node Tests/HimawariSatelliteTests.mjs",
     "test:weekly-weather": "node Tests/WeeklyWeatherTests.mjs",
     "test:upper-air": "node Tests/UpperAirTests.mjs",
+    "test:numerical-calculation": "node Tests/NumericalCalculationTests.mjs",
     "test:dashboard": "node Tests/DisasterDashboardTests.mjs",
     "test:timeline": "node Tests/DisasterTimelineTests.mjs",
     "test:location-nowcast": "node Tests/LocationNowcastStatusTests.mjs",

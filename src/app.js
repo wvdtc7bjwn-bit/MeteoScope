@@ -11,6 +11,7 @@ import { setupWeeklyWeatherModal } from "./ui/weeklyWeatherModal.js";
 import { setupNumericWeatherChartModal } from "./ui/numericWeatherChartModal.js";
 import { setupUpperAirModal } from "./ui/upperAirModal.js";
 import { setupCloudClassificationModal } from "./ui/cloudClassificationModal.js";
+import { setupNumericalCalculationModal } from "./ui/numericalCalculationModal.js";
 import { openDisasterQuizModal, setupDisasterQuizModal } from "./ui/disasterQuizModal.js";
 import { setupDisasterTimelineModal } from "./ui/disasterTimelineModal.js";
 import { setupOnboardingModal } from "./ui/onboardingModal.js";
@@ -4091,6 +4092,7 @@ if (layerId === "river") {
     });
     setupNumericWeatherChartModal();
     setupCloudClassificationModal();
+    setupNumericalCalculationModal();
     setupUpperAirModal({
       isEarlyAccessEnabled: () => earlyAccessEnabled,
       onOpenSettings: openSettingsModal
