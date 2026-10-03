@@ -19,14 +19,20 @@ export function destinationPoint([longitude, latitude], distanceKm, bearingDegre
   ];
 }
 
+const MAX_JMA_STORM_WARNING_ENDPOINT_GAP_KM = 50;
+
 export function buildStormWarningAreaLineSegments(stormWarningArea) {
   return buildStormWarningAreaSegments(stormWarningArea)
     .map(({ coordinates }) => coordinates);
 }
 
-// Published tangent endpoints are rounded independently from the arc
-// definitions and can differ by about 23 km in current JMA bulletins.
-export function buildStormWarningAreaClosedPaths(stormWarningArea, maxEndpointDistanceKm = 30) {
+// JMA rounds the arc and tangent endpoints independently. Live bulletins can
+// leave gaps of about 42 km, so 30 km causes valid warning areas to be dropped
+// and the map to fall back to a visibly straight-edged circle hull.
+export function buildStormWarningAreaClosedPaths(
+  stormWarningArea,
+  maxEndpointDistanceKm = MAX_JMA_STORM_WARNING_ENDPOINT_GAP_KM
+) {
   const segments = buildStormWarningAreaSegments(stormWarningArea)
     .map((segment) => ({ ...segment, coordinates: segment.coordinates.slice() }));
   const closedPaths = [];

@@ -70,6 +70,16 @@ const roundedEndpointWarningPath = buildStormWarningAreaClosedPaths({
 });
 assert.equal(roundedEndpointWarningPath.length, 1);
 assert.deepEqual(roundedEndpointWarningPath[0][0], roundedEndpointWarningPath[0].at(-1));
+const widelyRoundedJmaWarningPath = buildStormWarningAreaClosedPaths({
+  line: [
+    [[140, 30], [141, 30]],
+    [[141.36, 30], [141.36, 31]],
+    [[141.36, 31.36], [140, 31.36]],
+    [[140, 31], [140, 30.36]]
+  ]
+});
+assert.equal(widelyRoundedJmaWarningPath.length, 1);
+assert.deepEqual(widelyRoundedJmaWarningPath[0][0], widelyRoundedJmaWarningPath[0].at(-1));
 assert.equal(buildStormWarningAreaClosedPaths({
   line: [
     [[140, 30], [141, 30]],
