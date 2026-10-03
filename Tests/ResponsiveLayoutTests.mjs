@@ -62,15 +62,15 @@ assert.match(
 );
 assert.match(
   styles,
-  /@media \(max-width: 800px\) and \(orientation: portrait\),\s*\(orientation: landscape\) and \(max-height: 800px\)\s*\{[\s\S]*?\.map-utility-actions,[\s\S]*?filter:\s*none !important;[\s\S]*?backdrop-filter:\s*none;/
+  /@media \(max-width: 800px\) and \(orientation: portrait\),\s*\(orientation: landscape\) and \(max-height: 800px\),\s*\(min-width: 801px\) and \(max-width: 1366px\)\s*\{[\s\S]*?\.map-utility-actions,[\s\S]*?filter:\s*none !important;[\s\S]*?backdrop-filter:\s*none;/
 );
 assert.match(
   styles,
-  /@media \(max-width: 800px\) and \(orientation: portrait\),\s*\(orientation: landscape\) and \(max-height: 800px\)\s*\{[\s\S]*?\.warning-modal-panel,[\s\S]*?\.warning-modal-backdrop[\s\S]*?backdrop-filter:\s*none !important;/
+  /@media \(max-width: 800px\) and \(orientation: portrait\),\s*\(orientation: landscape\) and \(max-height: 800px\),\s*\(min-width: 801px\) and \(max-width: 1366px\)\s*\{[\s\S]*?\.warning-modal-panel,[\s\S]*?\.warning-modal-backdrop[\s\S]*?backdrop-filter:\s*none !important;/
 );
 assert.match(
   styles,
-  /@media \(max-width: 800px\) and \(orientation: portrait\),\s*\(orientation: landscape\) and \(max-height: 800px\)\s*\{[\s\S]*?\.mobile-dock-segmented::before[\s\S]*?backdrop-filter:\s*none;/
+  /@media \(max-width: 800px\) and \(orientation: portrait\),\s*\(orientation: landscape\) and \(max-height: 800px\),\s*\(min-width: 801px\) and \(max-width: 1366px\)\s*\{[\s\S]*?\.mobile-dock-segmented::before[\s\S]*?backdrop-filter:\s*none;/
 );
 assert.match(
   styles,
@@ -1069,5 +1069,14 @@ assert.doesNotMatch(
   styles,
   /#main-tabs\.is-dragging::after\s*\{[^}]*radial-gradient/
 );
+
+assert.match(styles, /@media \(min-width: 768px\) and \(max-width: 1366px\)\s*\{\s*:root,\s*html\[data-theme="light"\]\s*\{[^}]*--glass-shell-shadow:\s*none;[^}]*--glass-shadow:\s*none;[^}]*--glass-shadow-soft:\s*none;/);
+assert.match(styles, /iPad-sized viewports[\s\S]*?html\[data-theme="light"\]\s*\{[^}]*--glass-shell-shadow:\s*none;/);
+assert.match(styles, /\.map-weather-distribution-toggle,\s*\.map-weather-distribution-toggle\.map-earthquake-layer-toggle\s*\{[^}]*bottom:\s*var\(--shared-map-controls-bottom\);[^}]*align-items:\s*flex-end;/);
+assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-weather-distribution-toggle\s*\{[^}]*align-items:\s*flex-end;[^}]*transform-origin:\s*right bottom;/);
+assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-weather-distribution-toggle\.collapsed \.weather-distribution-toggle-choices\s*\{\s*filter:\s*none;/);
+assert.doesNotMatch(styles, /bottom:\s*calc\(var\(--shared-map-controls-bottom\) \+ 54px\);\s*\}\s*\.mobile-drawer-open \.map-weather-distribution-toggle/);
+assert.match(styles, /Keep posting below the picker[\s\S]*?\.map-community-report-button\s*\{[^}]*right:\s*max\(12px, env\(safe-area-inset-right\)\);[^}]*bottom:\s*calc\(var\(--shared-map-controls-bottom\) - 54px\);/);
+assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-community-report-button\s*\{[^}]*--mobile-sidebar-visible-height, 48dvh\) \+ 16px\)[^}]*166px/);
 
 console.log("Responsive layouts: OK");

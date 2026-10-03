@@ -20421,7 +20421,8 @@ html[data-theme="light"] :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile
    blurred layers. Use an opaque enough static glass surface for the connected
    mobile controls so every tab renders without the residual shadow. */
 @media (max-width: 800px) and (orientation: portrait),
-  (orientation: landscape) and (max-height: 800px) {
+  (orientation: landscape) and (max-height: 800px),
+  (min-width: 801px) and (max-width: 1366px) {
   :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock),
   html[data-theme="light"] :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock) {
     background: var(--glass-shell-static-background);
@@ -20440,7 +20441,8 @@ html[data-theme="light"] :is(.warning-modal-panel, .hypocenter-date-wheel-sheet)
   .map-utility-menu-toggle,
   .map-locate-button,
   .map-community-report-button,
-    .map-weather-distribution-toggle,
+  .map-weather-distribution-toggle,
+  .map-terrain-toggle,
   .map-typhoon-radar-overlay-button,
   .map-world-typhoon-target-button,
   .map-settings-open-button,
@@ -20453,7 +20455,8 @@ html[data-theme="light"] :is(
   .map-utility-menu-toggle,
   .map-locate-button,
   .map-community-report-button,
-    .map-weather-distribution-toggle,
+  .map-weather-distribution-toggle,
+  .map-terrain-toggle,
   .map-typhoon-radar-overlay-button,
   .map-world-typhoon-target-button,
   .map-settings-open-button,
@@ -20472,14 +20475,16 @@ html[data-theme="light"] :is(
 /* Apply the same stable composition to the map's fixed controls. Otherwise
    their individual backdrop layers leave grey halos in device emulation. */
 @media (max-width: 800px) and (orientation: portrait),
-  (orientation: landscape) and (max-height: 800px) {
+  (orientation: landscape) and (max-height: 800px),
+  (min-width: 801px) and (max-width: 1366px) {
   :is(
     .map-legend,
     .map-utility-actions,
     .map-utility-menu-toggle,
     .map-locate-button,
     .map-community-report-button,
-        .map-weather-distribution-toggle,
+    .map-weather-distribution-toggle,
+    .map-terrain-toggle,
     .map-typhoon-radar-overlay-button,
     .map-world-typhoon-target-button,
     .map-settings-open-button,
@@ -20493,7 +20498,8 @@ html[data-theme="light"] :is(
     .map-utility-menu-toggle,
     .map-locate-button,
     .map-community-report-button,
-        .map-weather-distribution-toggle,
+    .map-weather-distribution-toggle,
+    .map-terrain-toggle,
     .map-typhoon-radar-overlay-button,
     .map-world-typhoon-target-button,
     .map-settings-open-button,
@@ -20519,7 +20525,8 @@ html[data-theme="light"] :is(
 /* The legend and utility rail have open/closed variants with more specific
    styles. Their ids keep the static mobile surface intact in either state. */
 @media (max-width: 800px) and (orientation: portrait),
-  (orientation: landscape) and (max-height: 800px) {
+  (orientation: landscape) and (max-height: 800px),
+  (min-width: 801px) and (max-width: 1366px) {
   :is(#map-legend, #map-utility-actions) {
     background: var(--glass-shell-static-background) !important;
     box-shadow: var(--glass-shell-shadow) !important;
@@ -20533,7 +20540,8 @@ html[data-theme="light"] :is(
    raster seam around those layers, so use the same solid glass treatment as
    the navigation. The backdrop still keeps its semantic dimming color. */
 @media (max-width: 800px) and (orientation: portrait),
-  (orientation: landscape) and (max-height: 800px) {
+  (orientation: landscape) and (max-height: 800px),
+  (min-width: 801px) and (max-width: 1366px) {
   :is(
     .warning-modal-panel,
     .hypocenter-date-wheel-sheet,
@@ -20574,7 +20582,8 @@ html[data-theme="light"] :is(
 /* Segmented controls sit directly on the map or a translucent sheet. Their
    tracks and moving indicators must not create separate blurred layers. */
 @media (max-width: 800px) and (orientation: portrait),
-  (orientation: landscape) and (max-height: 800px) {
+  (orientation: landscape) and (max-height: 800px),
+  (min-width: 801px) and (max-width: 1366px) {
   :is(
     .mobile-dock-action-row,
     .mobile-dock-chip-grid,
@@ -21321,9 +21330,18 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
 }
 
 @media (orientation: landscape), (min-width: 801px) {
-  .map-weather-distribution-toggle {
+  .map-weather-distribution-toggle,
+  .map-weather-distribution-toggle.map-earthquake-layer-toggle {
+    top: auto;
     right: max(12px, env(safe-area-inset-right));
-    bottom: calc(var(--shared-map-controls-bottom) + 54px);
+    bottom: var(--shared-map-controls-bottom);
+    align-items: flex-end;
+  }
+
+  /* Keep posting below the picker, including when its choices expand upward. */
+  .map-community-report-button {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: calc(var(--shared-map-controls-bottom) - 54px);
   }
 
   .mobile-drawer-open .map-weather-distribution-toggle {
@@ -21332,20 +21350,44 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
   }
 }
 
-/* Keep the earthquake layer chooser opposite the locate control. The expanded
-   picker grows upward from this shared bottom edge, so it remains above the dock. */
-.map-weather-distribution-toggle.map-earthquake-layer-toggle {
-  top: auto;
-  right: 9px;
-  bottom: 82px;
+/* iPad-sized viewports use static surfaces in both orientations. Remove even
+   inset elevation from shared shells; geometry and semantic colors stay intact. */
+@media (min-width: 768px) and (max-width: 1366px) {
+  :root,
+  html[data-theme="light"] {
+    --glass-shell-shadow: none;
+    --glass-shadow: none;
+    --glass-shadow-soft: none;
+  }
+
+  .map-weather-distribution-toggle {
+    align-items: flex-end;
+    transform-origin: right bottom;
+  }
+
+  .map-weather-distribution-toggle .weather-distribution-toggle-choices,
+  .map-weather-distribution-toggle.collapsed .weather-distribution-toggle-choices {
+    filter: none;
+  }
+
+  :is(.map-weather-distribution-toggle, .map-weather-distribution-toggle.is-open),
+  html[data-theme="light"] :is(.map-weather-distribution-toggle, .map-weather-distribution-toggle.is-open) {
+    box-shadow: none;
+  }
 }
 
-@media (max-width: 800px) {
-  .map-weather-distribution-toggle.map-earthquake-layer-toggle {
-    right: 17px;
+@media (min-width: 768px) and (max-width: 800px) and (orientation: portrait) {
+  .map-weather-distribution-toggle {
     bottom: max(
       calc(var(--mobile-sidebar-visible-height, 48dvh) + 70px),
       calc(max(0px, env(safe-area-inset-bottom)) + 220px)
+    );
+  }
+
+  .map-community-report-button {
+    bottom: max(
+      calc(var(--mobile-sidebar-visible-height, 48dvh) + 16px),
+      calc(max(0px, env(safe-area-inset-bottom)) + 166px)
     );
   }
 }

@@ -616,6 +616,7 @@ const EXACT_TRANSLATIONS = new Map(Object.entries({
   "くもり": "Cloudy",
   "曇り": "Cloudy",
   "雨": "Rain",
+  "雨または雪": "Rain or snow",
   "雪": "Snow",
   "みぞれ": "Sleet",
   "霙": "Sleet",

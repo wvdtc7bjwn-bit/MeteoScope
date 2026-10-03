@@ -2084,6 +2084,7 @@ function buildLegendItems(tabId, amedasMetricId, warningView = "status", data = 
         ["晴れ", "", "#f7b733"],
         ["くもり", "", "#8ea3b5"],
         ["雨", "", "#388de3"],
+        ["雨または雪", "", "#73b6df"],
         ["雪", "", "#c9e7ff"]
       ];
     }

@@ -17,15 +17,15 @@ assert.match(distribution, /snowfall:\s*\{\s*element: "s3",\s*label: "降雪量"
 assert.match(app, /syncWeatherDistributionToggle/);
 assert.match(app, /toggleWeatherDistributionPicker/);
 assert.match(app, /visible: tab\?\.id === "radar" && Boolean\(weatherDistributionMode\)/);
-assert.match(panel, />天気分布予報<\/button>/);
+assert.match(panel, /aria-label="天気分布予報"/);
 assert.match(panel, /data-weather-distribution-picker/);
 assert.match(panel, /event\.target\.closest\("\[data-weather-distribution-picker\]"\)\) return;/);
 assert.match(panel, /const isWeatherDistribution = Boolean\(weatherDistributionMode\);/);
 assert.match(panel, /state\.weatherDistribution \?\? state\.data\?\.weatherDistribution/);
 assert.match(panel, /\$\{distributionLabel\}の時刻を選択/);
-assert.match(panel, /timeLabelPrefix = isWeatherDistribution \? "対象時刻"/);
+assert.match(panel, /timeLabelPrefix = isWeatherDistribution\s*\?\s*"対象時刻"/);
+assert.match(panel, /weatherDistributionMode === "weather"[\s\S]*?\["雨または雪", "", "#[0-9a-f]{6}"\]/);
 assert.match(panel, /renderWeatherTimeTimeline\([\s\S]*?\{ compact: true \}/);
-assert.doesNotMatch(panel, />天気分布<\/button>/);
 assert.doesNotMatch(panel, />気温分布<\/button>/);
 assert.match(toggle, /setCollapsed\(true\)/);
 assert.match(toggle, /data-weather-distribution-mode/);
@@ -37,6 +37,6 @@ const choiceHandler = toggle.slice(
 assert.doesNotMatch(choiceHandler, /setCollapsed\(true\)/);
 assert.match(toggle, /pointerdown/);
 assert.match(toggle, /toggleWeatherDistributionPicker/);
-assert.match(toggle, /if \(!root \|\| !toggle \|\| !choices\) return;\s*weatherDistributionToggleInitialized = true;/);
+assert.match(toggle, /if \(!root \|\| !toggle \|\| !choices\) return null;/);
 
 console.log("Weather distribution dock and map picker: OK");
