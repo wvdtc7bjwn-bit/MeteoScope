@@ -1443,6 +1443,8 @@ export function setupEarthquakeSelector({
   onArchiveListMore,
   onArchiveSelect,
   onArchiveRetry,
+  onNearbySearch,
+  onNearbyClear,
   onDistributionPresentationChange,
   onDistributionFilterChange,
   onDistributionRangeModeChange,
@@ -1465,7 +1467,10 @@ export function setupEarthquakeSelector({
       minMagnitude: read("minMagnitude"),
       maxDepth: read("maxDepth"),
       sort: read("sort"),
-      keyword: read("keyword")
+      keyword: read("keyword"),
+      ...(read("nearbyLat") && read("nearbyLon") && read("nearbyRadiusKm") ? {
+        nearby: { latitude: read("nearbyLat"), longitude: read("nearbyLon"), radiusKm: read("nearbyRadiusKm") }
+      } : {})
     };
   };
 
@@ -1523,6 +1528,20 @@ export function setupEarthquakeSelector({
       event.stopPropagation();
       const archiveForm = archiveSearchButton.closest("[data-earthquake-archive-form]");
       if (archiveForm instanceof HTMLFormElement) submitArchiveSearch(archiveForm);
+      return;
+    }
+    const nearbyButton = event.target.closest("[data-earthquake-nearby-search]");
+    if (nearbyButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      onNearbySearch?.(nearbyButton.dataset.earthquakeNearbySearch);
+      return;
+    }
+    const nearbyClearButton = event.target.closest("[data-earthquake-nearby-clear]");
+    if (nearbyClearButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      onNearbyClear?.();
       return;
     }
     const archiveListMoreButton = event.target.closest("[data-earthquake-archive-list-more]");
@@ -3471,6 +3490,8 @@ function buildEarthquakeMobileContextMarkup(
         <div class="mobile-dock-earthquake-status-line">
           <span class="mobile-dock-earthquake-status-label">最新</span>
           <time class="mobile-dock-earthquake-time">${escapeHtml(time)}</time>
+          ${Array.isArray(earthquake?.coordinates) && earthquake.coordinates.length === 2
+            ? `<button type="button" class="earthquake-nearby-search-button is-compact" data-mobile-dock-control data-earthquake-nearby-search="${escapeHtml(earthquake.id)}">近傍検索</button>` : ""}
         </div>
         <div class="mobile-dock-earthquake-headline">
           <strong>${escapeHtml(formatEarthquakeHypocenterText(earthquake))}</strong>
@@ -6239,6 +6260,8 @@ function renderEarthquakeList(tab, state) {
           ${summaryMarkup}
           <span class="earthquake-card-chevron" aria-hidden="true"></span>
         </button>
+        ${Array.isArray(earthquake.coordinates) && earthquake.coordinates.length === 2
+          ? `<button type="button" class="earthquake-nearby-search-button" data-mobile-dock-control data-earthquake-nearby-search="${escapeHtml(earthquake.id)}">この震源の近傍を検索</button>` : ""}
         ${isExpanded ? renderEarthquakeObservations(observations, observationsId, { showShareButton: true }) : ""}
         ${isExpanded ? renderEarthquakeTsunamiDetails(tsunamiState) : ""}
       </article>
@@ -6821,6 +6844,7 @@ function buildEarthquakeArchiveMarkup(data) {
   const endDate = filters.endDate ?? manifest?.endDate ?? "";
   const latestDate = getJmaLatestAvailableDate();
   const loading = status === "loading" || status === "refreshing";
+  const nearby = filters.nearby;
   const form = `
     <form class="earthquake-archive-search" data-earthquake-archive-form aria-label="過去の地震検索">
       <div class="earthquake-archive-head">
@@ -6838,6 +6862,7 @@ function buildEarthquakeArchiveMarkup(data) {
         ${buildArchiveSelect("sort", "並び順", filters.sort ?? "newest", EARTHQUAKE_HISTORY_SORT_OPTIONS)}
       </div>
       <label class="earthquake-archive-keyword"><span>震央地名</span><input type="search" name="keyword" value="${escapeHtml(filters.keyword ?? "")}" maxlength="40" placeholder="例：能登、宮城県沖"></label>
+      ${nearby ? `<div class="earthquake-nearby-context"><span>震源近傍：北緯${Number(nearby.latitude).toFixed(3)}°・東経${Number(nearby.longitude).toFixed(3)}°</span><label><span>半径</span><select name="nearbyRadiusKm">${[10, 25, 50, 100, 200, 300].map((radius) => `<option value="${radius}"${Number(nearby.radiusKm) === radius ? " selected" : ""}>${radius} km</option>`).join("")}</select></label><input type="hidden" name="nearbyLat" value="${escapeHtml(nearby.latitude)}"><input type="hidden" name="nearbyLon" value="${escapeHtml(nearby.longitude)}">${data.earthquakeNearbySearchActive ? "" : `<button type="button" data-earthquake-nearby-clear>近傍条件を解除</button>`}</div>` : ""}
       <button type="button" class="earthquake-archive-search-button" data-earthquake-archive-search>${loading ? "この条件で再検索" : "この条件で検索"}</button>
       <p>気象庁の震度データベースを検索します。通信障害時は、保存データで代替した期間と更新日時を表示します。</p>
     </form>
@@ -6870,7 +6895,9 @@ function buildEarthquakeArchiveMarkup(data) {
   const missingNotice = snapshot?.unavailableRanges?.length
     ? `<p class="earthquake-archive-list-note" role="alert">取得できていない期間：${snapshot.unavailableRanges.map((range) => `${escapeHtml(formatArchiveDate(range.startDate))}〜${escapeHtml(formatArchiveDate(range.endDate))}`).join("、")}。保存データの収録範囲外や取得失敗のため、全期間の検索は完了していません。</p>` : "";
   const incompleteNotice = snapshot?.searchFinished && !snapshot.complete && !snapshot.cancelled && snapshot?.unsearchedRanges?.length
-    ? `<p class="earthquake-archive-list-note" role="status">${snapshot.limitExceeded ? snapshot.filters.keyword ? "部分一致を適用する前の候補が気象庁の上限1,000件を超えています。" : "検索結果が上限の1,000件を超えています。" : "取得上限に達しました。"}未取得の地震があります（総件数は未確定）。${snapshot.filters.keyword ? `部分一致の追加取得は候補${snapshot.acquisitionLimit.toLocaleString("ja-JP")}件・64回まで。並び順は取得済み分に適用しています。` : "選択した並び順の先頭1,000件を表示しています。"}期間や条件を絞って再検索してください。</p>` : "";
+    ? `<p class="earthquake-archive-list-note" role="status">${snapshot.filters.nearby && snapshot.filters.sort === "newest"
+      ? "新しい地震から最大1,000件を表示しています。これより古い期間は未取得です。"
+      : `${snapshot.limitExceeded ? snapshot.filters.keyword ? "部分一致を適用する前の候補が気象庁の上限1,000件を超えています。" : "検索結果が上限の1,000件を超えています。" : "取得上限に達しました。"}未取得の地震があります（総件数は未確定）。${snapshot.filters.keyword ? `部分一致の追加取得は候補${snapshot.acquisitionLimit.toLocaleString("ja-JP")}件・64回まで。並び順は取得済み分に適用しています。` : "選択した並び順の先頭1,000件を表示しています。"}期間や条件を絞って再検索してください。`}</p>` : "";
   const cancelledNotice = snapshot?.cancelled ? `<p class="earthquake-archive-list-note" role="status">条件変更のため検索を中断しました。取得済み分を表示しています。</p>` : "";
   const resultHead = `
     <div class="earthquake-archive-result-head" role="status">
@@ -6880,7 +6907,9 @@ function buildEarthquakeArchiveMarkup(data) {
         : coverageLabel}${loading ? "・検索中" : snapshot?.complete === false ? "・全期間未取得" : ""}</span>
     </div>
   `;
-  const notices = `${progressNotice}${fallbackNotice}${missingNotice}${incompleteNotice}${cancelledNotice}`;
+  const nearbyNotice = snapshot?.filters?.nearby
+    ? `<p class="earthquake-archive-list-note">震源から半径${escapeHtml(snapshot.filters.nearby.radiusKm)}km以内を検索しています。</p>` : "";
+  const notices = `${nearbyNotice}${progressNotice}${fallbackNotice}${missingNotice}${incompleteNotice}${cancelledNotice}`;
   if (!items.length) return `${form}${notices}${resultHead}${loading ? `<div class="earthquake-empty" role="status">取得済みの期間から順次表示します。</div>` : `<div class="earthquake-empty">${snapshot?.complete ? "条件に一致する地震はありません。" : "取得済み分には条件に一致する地震がありません。"}</div>`}`;
   const list = visibleItems.map((item) => {
     const active = String(item.id) === selectedId;
@@ -7490,14 +7519,14 @@ function buildEarthquakeArchiveMobileContextMarkup(data) {
     ${buildEarthquakeMobileViewSwitch("history")}
     <div class="mobile-dock-earthquake-distribution-summary">
       <div class="mobile-dock-earthquake-distribution-head">
-        <span class="mobile-dock-kicker">過去の地震・${escapeHtml(formatArchiveDate(filters.startDate))}〜</span>
+        <span class="mobile-dock-kicker">${data.earthquakeNearbySearchActive ? "震源近傍・震度3以上" : "過去の地震"}・${escapeHtml(formatArchiveDate(filters.startDate))}〜</span>
         <strong>${["idle", "loading"].includes(status)
-          ? "取得中"
+          ? "検索中"
           : `${count.toLocaleString("ja-JP")}件${status === "refreshing" ? "・検索中" : snapshot?.complete === false || status === "partial-error" ? "・一部取得" : ""}`}</strong>
       </div>
       <div class="mobile-dock-earthquake-distribution-range-hint">${selected
         ? `${escapeHtml(formatArchiveDateTime(selected.originTime))}・${escapeHtml(selected.place)}`
-        : status === "error" ? "検索データを取得できませんでした" : "詳細パネルで検索条件を指定"}</div>
+        : status === "error" ? "検索データを取得できませんでした" : data.earthquakeNearbySearchActive ? "震源から半径50km以内を検索中" : "詳細パネルで検索条件を指定"}</div>
     </div>
   `;
   return buildMobileEarthquakeSummaryCarousel({

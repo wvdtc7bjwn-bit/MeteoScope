@@ -5,7 +5,8 @@ import {
   normalizeJmaEarthquakeOriginTime,
   isJmaHistoryDate,
   validateJmaHistoryConditions,
-  splitJmaEarthquakeDateRange
+  splitJmaEarthquakeDateRange,
+  isCoordinateWithinRadius
 } from "./earthquakeHistoryApi.js";
 
 const DATA_BASE = "/data/earthquake-history";
@@ -161,8 +162,9 @@ export async function searchEarthquakeHistory(filters = {}, { onProgress, signal
         limitExceeded ||= payload.limitExceeded === true;
         // Without a substring filter, the sorted upstream response already holds
         // the globally selected first 1000. More date queries cannot improve it.
-        const children = normalized.keyword ? splitHistoryRange(range) : [];
-        if (children.length) pending.push(...children);
+        const children = normalized.keyword || normalized.nearby ? splitHistoryRange(range) : [];
+        if (children.length && normalized.nearby && normalized.sort === "newest") pending.unshift(...children.reverse());
+        else if (children.length) pending.push(...children);
         else unresolvedRanges.push(range);
       }
     } catch (error) {
@@ -181,13 +183,19 @@ export async function searchEarthquakeHistory(filters = {}, { onProgress, signal
   try {
     while (pending.length) {
       signal?.throwIfAborted();
-      const slots = Math.min(EARTHQUAKE_HISTORY_QUERY_CONCURRENCY, pending.length,
+      const maxConcurrency = normalized.nearby && normalized.sort === "newest" ? 1 : EARTHQUAKE_HISTORY_QUERY_CONCURRENCY;
+      const slots = Math.min(maxConcurrency, pending.length,
         HISTORY_QUERY_LIMIT - queryCount, Math.floor((HISTORY_ACQUISITION_LIMIT - scannedRecordCount) / 1_000));
       if (slots <= 0) break;
       const batch = pending.splice(0, slots);
       const outcomes = await Promise.allSettled(batch.map(loadRange));
       const rejected = outcomes.find((outcome) => outcome.status === "rejected");
       if (rejected) throw rejected.reason;
+      if (normalized.nearby && normalized.sort === "newest" && matches.size >= EARTHQUAKE_HISTORY_RESULT_LIMIT && pending.length) {
+        limitExceeded = true;
+        unresolvedRanges.push(...pending.splice(0));
+        break;
+      }
     }
     signal?.throwIfAborted();
     publish(true);
@@ -224,6 +232,7 @@ function recordMatchesHistorySearch(record, filters, range) {
   if (getHistoricalIntensityRank(record.maxIntensity) < getHistoricalIntensityRank(filters.minIntensity)) return false;
   if (Number(filters.minMagnitude) > 0 && (!Number.isFinite(record.magnitude) || record.magnitude < Number(filters.minMagnitude))) return false;
   if (filters.maxDepth !== "all" && (!Number.isFinite(record.depthKm) || record.depthKm > Number(filters.maxDepth))) return false;
+  if (filters.nearby && !isCoordinateWithinRadius(record.coordinates, [filters.nearby.longitude, filters.nearby.latitude], filters.nearby.radiusKm)) return false;
   return !filters.keyword || record.place.toLocaleLowerCase("ja-JP").includes(filters.keyword.toLocaleLowerCase("ja-JP"));
 }
 
@@ -242,7 +251,8 @@ export function normalizeEarthquakeHistoryFilters(filters) {
   return {
     startDate: minDate(maxDate(startDate, EARTHQUAKE_HISTORY_EARLIEST_DATE), latestDate),
     endDate: minDate(endDate, latestDate),
-    ...conditions
+    ...conditions,
+    nearby: conditions.nearby
   };
 }
 
@@ -273,7 +283,12 @@ async function loadHistoryYear(year, file, signal) {
 
 async function loadLiveHistoryRange(range, conditions, signal) {
   const query = new URLSearchParams({ start: range.startDate, end: range.endDate, startTime: range.startTime, endTime: range.endTime,
-    minIntensity: conditions.minIntensity, minMagnitude: conditions.minMagnitude, maxDepth: conditions.maxDepth, sort: conditions.sort, keyword: conditions.keyword, v: "2" });
+    minIntensity: conditions.minIntensity, minMagnitude: conditions.minMagnitude, maxDepth: conditions.maxDepth, sort: conditions.sort, keyword: conditions.keyword, v: "3" });
+  if (conditions.nearby) {
+    query.set("nearbyLat", String(conditions.nearby.latitude));
+    query.set("nearbyLon", String(conditions.nearby.longitude));
+    query.set("nearbyRadiusKm", String(conditions.nearby.radiusKm));
+  }
   const payload = await fetchJson(`${LIVE_SEARCH_ENDPOINT}?${query}`, {
       ttlMs: 6 * 60 * 60 * 1000,
       timeoutMs: 30_000,

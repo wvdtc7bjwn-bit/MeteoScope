@@ -16,6 +16,7 @@ import {
   normalizeHistoricalEpicenterName,
   translateHistoricalEpicenterName
 } from "../src/jma/historicalEpicenterNames.js";
+import { isCoordinateWithinRadius } from "../src/jma/earthquakeHistoryApi.js";
 
 const projectRoot = path.resolve(import.meta.dirname, "..");
 const dataDirectory = path.join(projectRoot, "public", "data", "earthquake-history");
@@ -100,6 +101,9 @@ assert.equal(normalized.endDate, getJmaLatestAvailableDate(), "検索可能な�
 assert.equal(normalized.minIntensity, "1");
 assert.equal(normalized.startDate, expectedDefaultStart, "初期検索は終了日を含む過去7日間に限定する");
 assert.equal(normalized.sort, "newest");
+const nearbyNormalized = normalizeEarthquakeHistoryFilters({ startDate: "2025-01-01", endDate: "2025-01-02", nearby: { latitude: 35.5, longitude: 139.5, radiusKm: 50 } });
+assert.deepEqual(nearbyNormalized.nearby, { latitude: 35.5, longitude: 139.5, radiusKm: 50 }, "近傍検索の座標と半径を正規化する");
+assert.throws(() => normalizeEarthquakeHistoryFilters({ nearby: { latitude: 91, longitude: 0, radiusKm: 50 } }), /近傍/u);
 assert.ok(normalized.startDate >= manifest.startDate && normalized.startDate <= manifest.endDate);
 assert.ok(getHistoricalIntensityRank("6+") > getHistoricalIntensityRank("6-"));
 assert.equal(formatHistoricalIntensity("5-"), "5弱");
@@ -185,6 +189,15 @@ try {
   assert.equal(fallback.fallbackRanges[0].updatedAt, manifest.generatedAt);
   assert.equal(fallback.unavailableRanges[0].endDate, "1976-09-27");
   assert.ok(fallback.items.every(r => r.magnitude >= 3 && r.place.includes("沖") && r.originTime >= manifest.startDate));
+  const nearbyFallbackRecord = [...recordsById.values()].find((record) => getHistoricalIntensityRank(record.i) >= 3);
+  override = () => Response.json({ ok: false }, { status: 502 });
+  const nearbyFallback = await searchEarthquakeHistory({
+    startDate: nearbyFallbackRecord.t.slice(0, 10), endDate: nearbyFallbackRecord.t.slice(0, 10),
+    minIntensity: "3", nearby: { latitude: Number(nearbyFallbackRecord.la), longitude: Number(nearbyFallbackRecord.lo), radiusKm: 10 }
+  });
+  assert.ok(nearbyFallback.items.some((record) => record.id === nearbyFallbackRecord.id), "通信障害時も半径条件に一致する保存地震を検索する");
+  assert.ok(nearbyFallback.items.every((record) => isCoordinateWithinRadius(record.coordinates,
+    [nearbyFallback.filters.nearby.longitude, nearbyFallback.filters.nearby.latitude], nearbyFallback.filters.nearby.radiusKm)), "保存JSONにもライブ取得と同じ近傍条件を適用する");
   override = () => { throw new DOMException("timeout", "TimeoutError"); };
   const timedOut = await searchEarthquakeHistory({ startDate: "2020-04-01", endDate: "2020-04-02" });
   assert.equal(timedOut.complete, true);
@@ -222,6 +235,38 @@ try {
   assert.ok(partial.queryCount>1, "部分一致で候補が不足するときは必要な期間を追加取得する");
   assert.ok(partialSnapshots[0].items.length>0 && !partialSnapshots[0].searchFinished, "追加取得を待たず既に取得した結果を表示する");
   assert.ok(partialSnapshots.length<=partial.queryCount+1);
+
+  override = (url) => {
+    const p=url.searchParams;
+    const rows=synthetic.filter(r=>r.t.slice(0,10)>=p.get("start") && r.t.slice(0,10)<=p.get("end"))
+      .sort((a,b)=>b.t.localeCompare(a.t));
+    return Response.json({ok:true,records:rows.slice(0,1000).map(toLive),candidateCount:Math.min(rows.length,1000),limited:rows.length>1000,limitExceeded:rows.length>1000});
+  };
+  liveCalls=[];
+  const deepNearby = await searchEarthquakeHistory({
+    startDate:"1919-01-01", endDate:"2026-10-01", minIntensity:"3", sort:"newest",
+    nearby:{latitude:35,longitude:138,radiusKm:50}
+  });
+  assert.equal(deepNearby.filters.minIntensity,"3");
+  assert.equal(liveCalls[0].searchParams.get("nearbyLat"),"35");
+  assert.equal(liveCalls[0].searchParams.get("nearbyRadiusKm"),"50");
+  assert.equal(deepNearby.items.length,1000,"近傍検索は検索表示上限まで古い期間へ遡る");
+  assert.deepEqual(deepNearby.items.map(r=>r.id),synthetic.slice().sort((a,b)=>b.t.localeCompare(a.t)).slice(0,1000).map(r=>r.id),"広い期間は新しい地震から優先して上限分を集める");
+  assert.equal(deepNearby.queryCount,1,"気象庁が返す最新1,000件で上限分を満たすなら不要な追加問い合わせをしない");
+  assert.equal(deepNearby.complete,false,"1,000件上限より古い未検索期間は明示的に未完了とする");
+
+  const sparseNearby = synthetic.map((record,index)=>({...record,la:index<700?35:35.5}));
+  override = (url) => {
+    const p=url.searchParams;
+    const candidates=sparseNearby.filter(r=>r.t.slice(0,10)>=p.get("start") && r.t.slice(0,10)<=p.get("end"))
+      .sort((a,b)=>b.t.localeCompare(a.t));
+    const page=candidates.slice(0,1000);
+    const exact=page.filter(r=>Math.abs(Number(r.la)-35)<=0.449);
+    return Response.json({ok:true,records:exact.map(toLive),candidateCount:page.length,limited:candidates.length>1000,limitExceeded:candidates.length>1000});
+  };
+  const sparseHistory = await searchEarthquakeHistory({startDate:"2005-01-01",endDate:"2005-12-31",minIntensity:"3",sort:"newest",nearby:{latitude:35,longitude:138,radiusKm:50}});
+  assert.equal(sparseHistory.totalMatched,700,"近傍円の外側候補で初回1,000件が埋まる場合は期間分割し、円内の古い地震も補う");
+  assert.ok(sparseHistory.queryCount>1);
 
   const mixedYear = [...recordsById.values()].filter(r => r.t.startsWith("2008-"));
   const expectedMixed = mixedYear.filter(r => r.p.includes("県"));
@@ -310,6 +355,18 @@ assert.match(panel, /<small>震度<\/small><b>/u);
 assert.match(panel, /一覧は\$\{visibleItems\.length\.toLocaleString\("ja-JP"\)\}件表示中/u);
 assert.match(panel, /地図は先頭.*件/u);
 assert.match(panel, /data-earthquake-archive-list-more/u);
+assert.match(panel, /data-earthquake-nearby-search/u);
+assert.match(panel, /data-mobile-dock-control data-earthquake-nearby-search/u,
+  "近傍検索ボタン操作で下部シートのドラッグを開始しない");
+assert.match(panel, /data-earthquake-nearby-clear/u);
+assert.match(app, /function searchNearbyEarthquakes/u);
+assert.match(app, /earthquakeNearbySearchActive = true;\s*earthquakeView = "history";/u,
+  "近傍検索は過去の地震タブへ切り替える");
+assert.doesNotMatch(panel, /if \(state\.data\?\.earthquakeNearbySearchActive\) \{\s*root\.hidden = true;/u,
+  "詳細パネルを手動で開いた際に近傍検索結果を空にしない");
+assert.match(panel, /if \(view === "history"\) \{[\s\S]*?buildEarthquakeArchiveMarkup\(state\.data \?\? \{\}\)/u,
+  "過去の地震タブを開くと検索条件と結果を詳細パネルに表示する");
+assert.match(app, /radiusKm: 50/u);
 assert.match(panel, /data-next-visible-count/u);
 assert.match(panel, /status === "refreshing" \? "・検索中"/u);
 assert.doesNotMatch(panel, /snapshot\?\.complete === false \? "・更新中"/u);

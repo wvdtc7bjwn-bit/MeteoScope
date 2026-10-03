@@ -1,6 +1,7 @@
 import {
   buildJmaIntensitySearchForm, isJmaHistoryDate, validateJmaHistoryConditions,
-  JMA_EARTHQUAKE_HISTORY_SOURCE_URL, JMA_EARTHQUAKE_INTENSITY_API_URL
+  JMA_EARTHQUAKE_HISTORY_SOURCE_URL, JMA_EARTHQUAKE_INTENSITY_API_URL,
+  isCoordinateWithinRadius
 } from "../../src/jma/earthquakeHistoryApi.js";
 import { normalizeHistoricalEpicenterName } from "../../src/jma/historicalEpicenterNames.js";
 
@@ -31,14 +32,16 @@ export async function onRequestGet(context) {
   let conditions;
   try {
     conditions = validateJmaHistoryConditions(Object.fromEntries(
-      ["minIntensity", "minMagnitude", "maxDepth", "sort", "keyword"].flatMap((key) => url.searchParams.has(key) ? [[key, url.searchParams.get(key)]] : [])
+      ["minIntensity", "minMagnitude", "maxDepth", "sort", "keyword", "nearbyLat", "nearbyLon", "nearbyRadiusKm"].flatMap((key) => url.searchParams.has(key) ? [[key, url.searchParams.get(key)]] : [])
     ));
   } catch {
     return jsonResponse({ ok: false, error: "invalid_search_conditions" }, 400);
   }
   // Versioning separates the former recursively-expanded annual cache.
   const cacheUrl = new URL("/api/earthquake-history", url.origin);
-  cacheUrl.search = new URLSearchParams({ v: "2", start: startDate, end: endDate, startTime, endTime, ...conditions });
+  const { nearby, ...plainConditions } = conditions;
+  cacheUrl.search = new URLSearchParams({ v: "3", start: startDate, end: endDate, startTime, endTime, ...plainConditions,
+    ...(nearby ? { nearbyLat: String(nearby.latitude), nearbyLon: String(nearby.longitude), nearbyRadiusKm: String(nearby.radiusKm) } : {}) });
   const cacheKey = new Request(cacheUrl);
   const cache = globalThis.caches?.default;
   if (cache) {
@@ -73,10 +76,12 @@ export async function onRequestGet(context) {
     const limited = limitExceeded || (candidates.length >= API_RESULT_LIMIT && Number(reportedCount?.[1]) !== candidates.length);
     const keyword = conditions.keyword.toLocaleLowerCase("ja-JP");
     const records = keyword ? candidates.filter((record) => normalizeHistoricalEpicenterName(String(record.id), record.name).toLocaleLowerCase("ja-JP").includes(keyword)) : candidates;
+    const matchedRecords = nearby ? records.filter((record) => isWithinNearbyRadius(record, nearby)) : records;
     const result = jsonResponse({
       ok: true, startDate, endDate, startTime, endTime, conditions,
       sourceUrl: JMA_EARTHQUAKE_HISTORY_SOURCE_URL,
-      records, candidateCount: candidates.length, limited, limitExceeded, totalMatched: limited ? null : records.length, upstreamQueryCount: 1
+      records: matchedRecords,
+      candidateCount: candidates.length, limited, limitExceeded, totalMatched: limited ? null : matchedRecords.length, upstreamQueryCount: 1
     }, 200, `public, max-age=0, s-maxage=${CACHE_TTL_SECONDS}`);
     if (cache) {
       const write = cache.put(cacheKey, result.clone()).catch((error) => console.warn("[earthquake-history-proxy] cache write failed", error));
@@ -89,6 +94,12 @@ export async function onRequestGet(context) {
     console.error("[earthquake-history-proxy] JMA query failed", error);
     return jsonResponse({ ok: false, error: "jma_query_failed" }, 502);
   }
+}
+
+function isWithinNearbyRadius(record, nearby) {
+  const latitude = Number(record?.lat);
+  const longitude = Number(record?.lon);
+  return isCoordinateWithinRadius([longitude, latitude], [nearby.longitude, nearby.latitude], nearby.radiusKm);
 }
 
 function getJmaLatestDate() {

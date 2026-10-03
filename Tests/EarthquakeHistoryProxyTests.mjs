@@ -51,6 +51,29 @@ try {
     "&minIntensity=5-&minMagnitude=7&maxDepth=50&sort=magnitude&keyword=能登&startTime=12:00"
   ]) await query(variant);
   assert.equal(cache.size,7,"震度・M・深さ・並び順・文字列・時刻ごとにキャッシュを分離する");
+  const nearbyQuery = "&nearbyLat=37.5&nearbyLon=137.3&nearbyRadiusKm=50";
+  const nearbyResponse = await query(nearbyQuery);
+  assert.equal(nearbyResponse.status,200);
+  const nearbyPayload = await nearbyResponse.json();
+  assert.equal(nearbyPayload.records.length,1,"近傍半径内の地点を返す");
+  const nearbyForm = forms.at(-1);
+  assert.equal(nearbyForm.get("boundsAr[0][]") !== null,true,"JMA APIに座標範囲を渡す");
+  assert.equal(nearbyForm.getAll("boundsAr[0][]").length,2,"boundsArは緯度・経度の組で送信");
+  assert.equal(Array.from({ length: 32 }, (_, index) => nearbyForm.getAll(`boundsAr[${index}][]`).length === 2).every(Boolean),true);
+  const firstBoundaryPoint = nearbyForm.getAll("boundsAr[0][]").map(Number);
+  assert.ok(firstBoundaryPoint[0] > 37.9 && firstBoundaryPoint[1] === 137.3,"円周の緯度・経度をJMAのboundsArに渡す");
+  responsePayload={res:[{...row,lat:"38.5"}],str:["検索結果地震数 ： 1 地震"]};
+  const exactRadius = await query("&nearbyLat=37.5&nearbyLon=137.3&nearbyRadiusKm=10");
+  assert.deepEqual((await exactRadius.json()).records,[],"多角形候補を実距離で正確に半径判定する");
+  responsePayload={res:[row],str:["検索結果地震数 ： 1 地震"]};
+  await query("&nearbyLat=37.6&nearbyLon=137.3&nearbyRadiusKm=50");
+  await query("&nearbyLat=37.5&nearbyLon=137.3&nearbyRadiusKm=100");
+  assert.equal(cache.size,11,"近傍検索の中心・半径でキャッシュを分離");
+  for (const invalid of ["&nearbyLat=91&nearbyLon=137&nearbyRadiusKm=50", "&nearbyLat=37&nearbyLon=181&nearbyRadiusKm=50", "&nearbyLat=37&nearbyLon=137&nearbyRadiusKm=5"]) {
+    const before = requests.length;
+    assert.equal((await query(invalid)).status,400,"近傍条件の範囲外値を拒否");
+    assert.equal(requests.length,before,"不正な近傍条件ではJMAへ送信しない");
+  }
   for(const invalid of ["&minIntensity=wrong","&minMagnitude=-1","&maxDepth=1000","&sort=random","&startTime=25:00","&keyword="+encodeURIComponent("x".repeat(41))]) {
     const before=requests.length;
     assert.equal((await query(invalid)).status,400);
