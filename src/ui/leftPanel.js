@@ -1442,6 +1442,8 @@ export function setupEarthquakeSelector({
   onArchiveSearch,
   onArchiveListMore,
   onArchiveSelect,
+  onArchiveDetailRetry,
+  onArchiveDetailBack,
   onArchiveRetry,
   onNearbySearch,
   onNearbyClear,
@@ -1554,6 +1556,16 @@ export function setupEarthquakeSelector({
       onArchiveSelect?.(archiveItemButton.dataset.earthquakeArchiveId);
       return;
     }
+    const historyDetailRetryButton = event.target.closest("[data-earthquake-history-detail-retry]");
+    if (historyDetailRetryButton) {
+      onArchiveDetailRetry?.();
+      return;
+    }
+    const historyDetailBackButton = event.target.closest("[data-earthquake-history-detail-back]");
+    if (historyDetailBackButton) {
+      onArchiveDetailBack?.();
+      return;
+    }
     const presentationButton = event.target.closest("[data-earthquake-distribution-presentation]");
     if (presentationButton) {
       onDistributionPresentationChange?.(presentationButton.dataset.earthquakeDistributionPresentation);
@@ -1633,6 +1645,14 @@ export function setupEarthquakeSelector({
   };
   root.addEventListener("click", handleClick);
   mobileDock?.addEventListener("click", handleClick);
+  mobileDock?.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const backButton = event.target.closest("[data-earthquake-history-detail-back]");
+    if (!backButton) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onArchiveDetailBack?.();
+  });
 
   root.addEventListener("submit", (event) => {
     const form = event.target;
@@ -3834,11 +3854,14 @@ function applyMobileEarthquakeDetailPage(page) {
   }
 }
 
-function formatMobileEarthquakeTime(value) {
+function formatMobileEarthquakeTime(value, includeYear = false) {
   const text = String(value ?? "").trim().replace(/頃$/u, "");
   if (!text || text === "--") return "--";
-  const match = text.match(/(?:\d{4}\/)?(\d{1,2}\/\d{1,2})\s+(\d{1,2}:\d{2})/u);
-  return match ? `${match[1]} ${match[2]}` : text;
+  const match = text.match(/(?:(\d{4})\/)?(\d{1,2})\/(\d{1,2})\s+(\d{1,2}:\d{2})/u);
+  if (!match) return text;
+  const date = `${match[2].padStart(2, "0")}/${match[3].padStart(2, "0")}`;
+  const year = includeYear && match[1] ? `${match[1]}/` : "";
+  return `${year}${date} ${match[4]}`;
 }
 function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLocation, loadingLabel, riverFlood, warningView, warnings }) {
   if (warningView === "river") return buildRiverFloodMobileContextMarkup(riverFlood, currentLocation, loadingLabel);
@@ -6862,7 +6885,7 @@ function buildEarthquakeArchiveMarkup(data) {
         ${buildArchiveSelect("sort", "並び順", filters.sort ?? "newest", EARTHQUAKE_HISTORY_SORT_OPTIONS)}
       </div>
       <label class="earthquake-archive-keyword"><span>震央地名</span><input type="search" name="keyword" value="${escapeHtml(filters.keyword ?? "")}" maxlength="40" placeholder="例：能登、宮城県沖"></label>
-      ${nearby ? `<div class="earthquake-nearby-context"><span>震源近傍：北緯${Number(nearby.latitude).toFixed(3)}°・東経${Number(nearby.longitude).toFixed(3)}°</span><label><span>半径</span><select name="nearbyRadiusKm">${[10, 25, 50, 100, 200, 300].map((radius) => `<option value="${radius}"${Number(nearby.radiusKm) === radius ? " selected" : ""}>${radius} km</option>`).join("")}</select></label><input type="hidden" name="nearbyLat" value="${escapeHtml(nearby.latitude)}"><input type="hidden" name="nearbyLon" value="${escapeHtml(nearby.longitude)}">${data.earthquakeNearbySearchActive ? "" : `<button type="button" data-earthquake-nearby-clear>近傍条件を解除</button>`}</div>` : ""}
+      ${nearby ? `<div class="earthquake-nearby-context"><span>震源近傍：北緯${Number(nearby.latitude).toFixed(3)}°・東経${Number(nearby.longitude).toFixed(3)}°</span><label><span>半径</span><select name="nearbyRadiusKm">${[10, 25, 50, 100, 200, 300].map((radius) => `<option value="${radius}"${Number(nearby.radiusKm) === radius ? " selected" : ""}>${radius} km</option>`).join("")}</select></label><input type="hidden" name="nearbyLat" value="${escapeHtml(nearby.latitude)}"><input type="hidden" name="nearbyLon" value="${escapeHtml(nearby.longitude)}"><button type="button" data-earthquake-nearby-clear>近傍条件を解除</button></div>` : ""}
       <button type="button" class="earthquake-archive-search-button" data-earthquake-archive-search>${loading ? "この条件で再検索" : "この条件で検索"}</button>
       <p>気象庁の震度データベースを検索します。通信障害時は、保存データで代替した期間と更新日時を表示します。</p>
     </form>
@@ -6915,10 +6938,12 @@ function buildEarthquakeArchiveMarkup(data) {
     const active = String(item.id) === selectedId;
     const magnitude = Number.isFinite(item.magnitude) ? `M${item.magnitude.toFixed(1)}` : "M不明";
     const depth = Number.isFinite(item.depthKm) ? `深さ${item.depthKm}km` : "深さ不明";
+    const intensityColor = getEarthquakeIntensityColor(item.maxIntensity);
+    const intensityTextColor = getEarthquakeIntensityTextClass(item.maxIntensity) === "is-bright-text" ? "#ffffff" : "#14283d";
     return `
       <article class="earthquake-archive-item${active ? " active" : ""}">
         <button type="button" data-earthquake-archive-id="${escapeHtml(item.id)}" aria-pressed="${active ? "true" : "false"}">
-          <em data-intensity="${escapeHtml(item.maxIntensity)}"><small>震度</small><b>${escapeHtml(formatHistoricalIntensity(item.maxIntensity))}</b></em>
+          <em data-intensity="${escapeHtml(item.maxIntensity)}" style="background-color:${escapeHtml(intensityColor)};color:${intensityTextColor}"><small>震度</small><b>${escapeHtml(formatHistoricalIntensity(item.maxIntensity))}</b></em>
           <span class="earthquake-archive-item-content">
             <small class="earthquake-archive-item-time">${escapeHtml(formatArchiveDateTime(item.originTime))}</small>
             <strong title="${escapeHtml(item.place)}">${escapeHtml(item.place)}</strong>
@@ -6939,7 +6964,60 @@ function buildEarthquakeArchiveMarkup(data) {
   const truncatedNotice = snapshot?.complete && snapshot?.truncated
     ? `<p class="earthquake-archive-list-note">検索結果が上限の${EARTHQUAKE_HISTORY_RESULT_LIMIT.toLocaleString("ja-JP")}件を超えています。期間や震度・規模を絞ると、ほかの地震も検索できます。</p>`
     : "";
-  return `${form}${notices}${resultHead}${truncatedNotice}<div class="earthquake-archive-list">${list}</div>${remainder}${loadMore}`;
+  const selectedItem = items.find((item) => String(item.id) === selectedId);
+  const detailMarkup = selectedItem && data.historicalEarthquakeDetailVisible === true
+    ? buildHistoricalEarthquakeDetailMarkup(selectedItem, data.selectedHistoricalEarthquakeDetail)
+    : "";
+  return `${form}${notices}${resultHead}${truncatedNotice}${detailMarkup}<div class="earthquake-archive-list">${list}</div>${remainder}${loadMore}`;
+}
+
+function buildHistoricalEarthquakeDetailMarkup(item, detailState = {}) {
+  const backButton = '<button type="button" class="earthquake-history-detail-back" data-earthquake-history-detail-back>一覧へ戻る</button>';
+  if (String(detailState.id ?? "") !== String(item.id)) {
+    return `<section class="earthquake-history-detail" aria-live="polite"><div class="earthquake-history-detail-title-row"><div><span class="earthquake-history-detail-kicker">過去地震</span><strong>地震の詳細</strong></div>${backButton}</div><p>震央を選択すると観測点ごとの震度を読み込みます。</p></section>`;
+  }
+  if (detailState.status === "loading") {
+    return `<section class="earthquake-history-detail" role="status" aria-live="polite"><div class="earthquake-history-detail-title-row"><div><span class="earthquake-history-detail-kicker">過去地震</span><strong>${escapeHtml(item.place)}</strong></div>${backButton}</div><p>気象庁から震度観測点を取得中です。</p></section>`;
+  }
+  if (detailState.status === "error") {
+    return `<section class="earthquake-history-detail" role="alert"><div class="earthquake-history-detail-title-row"><div><span class="earthquake-history-detail-kicker">過去地震</span><strong>${escapeHtml(item.place)}</strong></div>${backButton}</div><p>${escapeHtml(detailState.error || "観測点データを取得できませんでした")}</p><button type="button" class="earthquake-history-detail-retry" data-earthquake-history-detail-retry>再取得</button></section>`;
+  }
+  if (detailState.status !== "ok" || !detailState.event) return "";
+  const event = detailState.event;
+  const stations = event.stations ?? [];
+  const rows = buildEarthquakeObservationRows({
+    intensityStations: stations.map((station) => ({
+      code: station.code,
+      stationName: station.name,
+      intensity: station.intensity,
+      intensityLabel: station.intensityLabel
+    }))
+  });
+  const stationList = rows.map((station) => `
+    <li><span>${escapeHtml(station.name)}</span><strong>${escapeHtml(station.intensityLabel)}</strong></li>
+  `).join("");
+  const hypocenter = event.hypocenter ?? {};
+  const magnitude = Number.isFinite(hypocenter.magnitude) ? `M${hypocenter.magnitude.toFixed(1)}` : "M不明";
+  const depth = Number.isFinite(hypocenter.depthKm) ? `${hypocenter.depthKm}km` : "深さ不明";
+  const originTime = formatArchiveDateTime(hypocenter.originTime || item.originTime);
+  const maximumIntensity = formatHistoricalIntensity(hypocenter.maxIntensity || item.maxIntensity);
+  return `
+    <section class="earthquake-history-detail">
+      <div class="earthquake-history-detail-title-row">
+        <div class="earthquake-history-detail-title"><span class="earthquake-history-detail-kicker">選択中の地震</span><strong>${escapeHtml(hypocenter.place || item.place)}</strong></div>
+        <span class="earthquake-history-detail-count">${stations.length.toLocaleString("ja-JP")}地点</span>
+      </div>
+      <div class="earthquake-history-detail-toolbar">${backButton}<span>気象庁 震度データベース</span></div>
+      <div class="earthquake-history-detail-facts" aria-label="地震の概要">
+        <div><span>発生日時</span><strong>${escapeHtml(originTime)}</strong></div>
+        <div><span>最大震度</span><strong>震度${escapeHtml(maximumIntensity)}</strong></div>
+        <div><span>規模</span><strong>${escapeHtml(magnitude)}</strong></div>
+        <div><span>深さ</span><strong>${escapeHtml(depth)}</strong></div>
+      </div>
+      <p class="earthquake-history-detail-hint">観測点は地図に表示中。点を選ぶと地点名と震度を確認できます。</p>
+      ${rows.length ? `<details><summary>観測点一覧を表示（${rows.length.toLocaleString("ja-JP")}地点）</summary><ul>${stationList}</ul></details>` : `<p>気象庁から観測点別データがありませんでした。</p>`}
+    </section>
+  `;
 }
 
 function buildArchiveSelect(name, label, value, options) {
@@ -7515,6 +7593,60 @@ function buildEarthquakeArchiveMobileContextMarkup(data) {
   )) ?? snapshot?.items?.[0];
   const count = Number(snapshot?.totalMatched ?? snapshot?.matchedCount ?? snapshot?.items?.length ?? 0);
   const filters = snapshot?.filters ?? data.earthquakeArchiveFilters ?? {};
+  const detailVisible = data.historicalEarthquakeDetailVisible === true && Boolean(selected);
+  if (detailVisible) {
+    const liveHypocenter = data.selectedHistoricalEarthquakeDetail?.id === String(selected.id)
+      && data.selectedHistoricalEarthquakeDetail?.status === "ok"
+      ? data.selectedHistoricalEarthquakeDetail.event?.hypocenter
+      : null;
+    const hypocenter = {
+      hypocenterName: liveHypocenter?.place || selected.place,
+      maxIntensity: liveHypocenter?.maxIntensity || selected.maxIntensity,
+      magnitude: liveHypocenter?.magnitude ?? selected.magnitude,
+      depth: liveHypocenter?.depthKm ?? selected.depthKm
+    };
+    const intensity = formatHistoricalIntensity(hypocenter.maxIntensity);
+    const intensityColor = getEarthquakeIntensityColor(hypocenter.maxIntensity);
+    const intensityTextClass = getEarthquakeIntensityTextClass(hypocenter.maxIntensity);
+    const facts = [
+      formatEarthquakeMagnitude(hypocenter.magnitude, { prefix: true, compact: true }),
+      formatEarthquakeDepthText(hypocenter.depth, { compact: true })
+    ].filter((value) => value && value !== "--").join("/");
+    const time = formatMobileEarthquakeTime(liveHypocenter?.originTime || selected.originTime, true);
+    const primaryMarkup = `
+      ${buildEarthquakeMobileViewSwitch("history")}
+      <div class="mobile-dock-earthquake-main">
+        <em class="mobile-dock-earthquake-intensity ${intensityTextClass}">
+          <small>最大震度</small>
+          <span>${escapeHtml(intensity)}</span>
+        </em>
+        <div class="mobile-dock-earthquake-text">
+          <div class="mobile-dock-earthquake-status-line">
+            <span class="mobile-dock-earthquake-status-label">過去</span>
+            <time class="mobile-dock-earthquake-time">${escapeHtml(time)}</time>
+            <button type="button" class="earthquake-nearby-search-button is-compact earthquake-history-summary-back" data-mobile-dock-control data-earthquake-history-detail-back>震央一覧</button>
+          </div>
+          <div class="mobile-dock-earthquake-headline">
+            <strong>${escapeHtml(formatEarthquakeHypocenterText(hypocenter))}</strong>
+            <div class="mobile-dock-earthquake-facts">
+              <span class="mobile-dock-earthquake-fact-values">${escapeHtml(facts || "詳細確認中")}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    return buildMobileEarthquakeSummaryCarousel({
+      containerClass: "mobile-dock-content mobile-dock-earthquake mobile-dock-earthquake-carousel",
+      containerStyle: `--mobile-earthquake-intensity-bg: ${escapeHtml(intensityColor)};`,
+      primaryAriaLabel: "選択した過去地震の要約",
+      primaryDotLabel: "過去の地震",
+      primaryMarkup,
+      earthquake: null,
+      tsunami: data.tsunami,
+      tsunamiStatus: data.tsunamiStatus,
+      tideObservation: data.tideObservation
+    });
+  }
   const primaryMarkup = `
     ${buildEarthquakeMobileViewSwitch("history")}
     <div class="mobile-dock-earthquake-distribution-summary">

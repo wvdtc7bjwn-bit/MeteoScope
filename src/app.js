@@ -61,6 +61,7 @@ import {
   getJmaLatestAvailableDate,
   searchEarthquakeHistory
 } from "./jma/earthquakeHistory.js";
+import { fetchEarthquakeHistoryEvent } from "./jma/earthquakeHistoryDetail.js";
 import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFrameIndex } from "./jma/weatherChart.js";
 import { fetchHimawariSatelliteFrames, isHimawariTimestampEqualToJstTime } from "./jma/himawariSatellite.js";
 import { resolveCurrentLocationInfo, searchMunicipalities } from "./location/currentLocation.js";
@@ -449,6 +450,10 @@ export function createWeatherApp() {
   let earthquakeArchiveRenderFrame = null;
   let earthquakeArchiveListVisibleCount = EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT;
   let selectedHistoricalEarthquakeId = "";
+  let historicalEarthquakeDetailVisible = false;
+  let selectedHistoricalEarthquakeDetail = { id: "", status: "idle", event: null, error: "" };
+  let historicalEarthquakeDetailController = null;
+  let historicalEarthquakeDetailRequestId = 0;
   let earthquakeSummaryPage = "earthquake";
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
   let earlyAccessActiveFaultSource = loadEarlyAccessActiveFaultSource();
@@ -1288,9 +1293,13 @@ if (layerId === "river") {
 
   function closeNearbyEarthquakeSearch() {
     earthquakeNearbySearchActive = false;
-    earthquakeArchiveAbortController?.abort();
-    earthquakeArchiveRequestId += 1;
-    if (activeTab === "earthquake") refreshActivePanel();
+    const filters = { ...earthquakeArchiveFilters, nearby: null };
+    earthquakeArchiveFilters = filters;
+    historicalEarthquakeDetailVisible = false;
+    selectedHistoricalEarthquakeId = "";
+    selectedHistoricalEarthquakeDetail = { id: "", status: "idle", event: null, error: "" };
+    earthquakeArchiveListVisibleCount = EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT;
+    if (activeTab === "earthquake") void refreshEarthquakeArchive(filters);
   }
 
   async function loadMoreEarthquakeHistory() {
@@ -1661,9 +1670,63 @@ if (layerId === "river") {
     ));
     if (!item) return;
     selectedHistoricalEarthquakeId = String(item.id);
+    historicalEarthquakeDetailVisible = true;
     if (isEarthquakeArchiveVisible()) {
       updateCurrentView(TABS.find((candidate) => candidate.id === "earthquake"), latestDataByTab.earthquake ?? {});
       weatherMap?.flyToLocation(item.coordinates, { minZoom: 6.5, duration: 750 });
+    }
+    void loadSelectedHistoricalEarthquakeDetail(item);
+  }
+
+  function closeHistoricalEarthquakeDetail() {
+    historicalEarthquakeDetailVisible = false;
+    if (selectedHistoricalEarthquakeDetail.status === "loading") {
+      historicalEarthquakeDetailController?.abort();
+      historicalEarthquakeDetailController = null;
+      historicalEarthquakeDetailRequestId += 1;
+      selectedHistoricalEarthquakeDetail = { id: selectedHistoricalEarthquakeId, status: "idle", event: null, error: "" };
+    }
+    if (isEarthquakeArchiveVisible()) {
+      updateCurrentView(TABS.find((candidate) => candidate.id === "earthquake"), latestDataByTab.earthquake ?? {});
+    }
+  }
+
+  async function loadSelectedHistoricalEarthquakeDetail(item) {
+    const id = String(item?.id ?? "");
+    if (!id) return;
+    if (selectedHistoricalEarthquakeDetail.id === id && selectedHistoricalEarthquakeDetail.status === "ok") {
+      if (isEarthquakeArchiveVisible()) updateCurrentView(TABS.find((candidate) => candidate.id === "earthquake"), latestDataByTab.earthquake ?? {});
+      return;
+    }
+    historicalEarthquakeDetailController?.abort();
+    const controller = new AbortController();
+    historicalEarthquakeDetailController = controller;
+    const requestId = ++historicalEarthquakeDetailRequestId;
+    selectedHistoricalEarthquakeDetail = { id, status: "loading", event: null, error: "" };
+    if (isEarthquakeArchiveVisible()) updateCurrentView(TABS.find((candidate) => candidate.id === "earthquake"), latestDataByTab.earthquake ?? {});
+    try {
+      const event = await fetchEarthquakeHistoryEvent(id, { signal: controller.signal });
+      if (requestId !== historicalEarthquakeDetailRequestId || controller.signal.aborted) return;
+      selectedHistoricalEarthquakeDetail = { id, status: "ok", event, error: "" };
+      if (isEarthquakeArchiveVisible()) {
+        updateCurrentView(TABS.find((candidate) => candidate.id === "earthquake"), latestDataByTab.earthquake ?? {});
+        const coordinates = [
+          item.coordinates,
+          ...(event.stations ?? []).map((station) => station.coordinates)
+        ].filter((point) => Array.isArray(point) && point.length === 2 && point.every(Number.isFinite));
+        if (coordinates.length > 1) weatherMap?.fitToCoordinates(coordinates, { maxZoom: 8.8, duration: 850 });
+      }
+    } catch (error) {
+      if (requestId !== historicalEarthquakeDetailRequestId || controller.signal.aborted) return;
+      selectedHistoricalEarthquakeDetail = {
+        id,
+        status: "error",
+        event: null,
+        error: error?.message ?? "地震の詳細を取得できませんでした"
+      };
+      if (isEarthquakeArchiveVisible()) updateCurrentView(TABS.find((candidate) => candidate.id === "earthquake"), latestDataByTab.earthquake ?? {});
+    } finally {
+      if (requestId === historicalEarthquakeDetailRequestId) historicalEarthquakeDetailController = null;
     }
   }
 
@@ -2317,6 +2380,8 @@ if (layerId === "river") {
       earthquakeArchiveItems: earthquakeArchiveState.data?.items ?? [],
       earthquakeArchiveListVisibleCount,
       selectedHistoricalEarthquakeId,
+      historicalEarthquakeDetailVisible,
+      selectedHistoricalEarthquakeDetail,
       earthquakeNearbySearchActive
     };
     const tideData = {
@@ -3940,6 +4005,10 @@ if (layerId === "river") {
       const stationCode = String(event.detail?.stationCode ?? "").trim();
       if (stationCode) void selectTideObservationStation(stationCode);
     });
+    window.addEventListener("earthquake-history-select", (event) => {
+      if (earthquakeContentMode !== "earthquake" || earthquakeView !== "history") return;
+      selectHistoricalEarthquake(event.detail?.eventId);
+    });
     setupKikikuruLayerToggles({ onChange: selectKikikuruLayer });
     setupWarningAreaSelection({
       onDetailRequest: (areaCode) => refreshWarningDetails({ areaCode }),
@@ -4031,6 +4100,11 @@ if (layerId === "river") {
         }
       },
       onArchiveSelect: selectHistoricalEarthquake,
+      onArchiveDetailRetry: () => {
+        const item = earthquakeArchiveState.data?.items?.find((candidate) => String(candidate.id) === selectedHistoricalEarthquakeId);
+        if (item) void loadSelectedHistoricalEarthquakeDetail(item);
+      },
+      onArchiveDetailBack: closeHistoricalEarthquakeDetail,
       onArchiveRetry: () => refreshEarthquakeArchive(earthquakeArchiveFilters),
       onDistributionPresentationChange: selectEarthquakeDistributionPresentation,
       onDistributionFilterChange: updateEarthquakeDistributionFilters,

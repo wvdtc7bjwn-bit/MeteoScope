@@ -38,7 +38,7 @@ import {
 } from "../volcanoAshfall.js";
 import { WORLD_TYPHOON_MODELS, isWorldTyphoonControlMember } from "../worldTyphoon.js";
 import {
-  buildStormWarningAreaClosedPaths,
+  buildStormWarningAreaFeatures,
   destinationPoint
 } from "../typhoonGeometry.js";
 import { getEarlyWarningColor, getWarningColor } from "../warningMapColors.js";
@@ -57,7 +57,7 @@ const HYPOCENTER_AREA_FILL_LAYER_ID = "hypocenter-area-selection-fill";
 const HYPOCENTER_AREA_LINE_LAYER_ID = "hypocenter-area-selection-line";
 const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-circle", "earthquake-station-intensity-label", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
-const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "earthquake-station-intensity-circle", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-line"];
+const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "sample-cross", "earthquake-station-intensity-circle", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-line"];
 const EARTHQUAKE_STATION_RADIUS = 7.5;
 const EARTHQUAKE_STATION_STROKE_WIDTH = 1;
 const SAMPLE_CIRCLE_BASE_RADIUS = ["coalesce", ["get", "radius"], 8];
@@ -940,6 +940,9 @@ export function createWeatherMap(elementId) {
       pendingRender = { mode, data };
       return;
     }
+    if (mode === "earthquake" && data?.historicalEarthquakeDetailVisible === true) {
+      hideMapInfo("earthquake-distribution");
+    }
 
     const source = map.getSource(SAMPLE_SOURCE_ID);
     const areaVisible = mode === "earthquake" && data?.earthquakeMapView === "distribution";
@@ -1447,7 +1450,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
       },
       paint: {
-        "text-color": ["coalesce", ["get", "color"], "#f8fbff"],
+        "text-color": "#e3342f",
         "text-halo-color": "rgba(5, 9, 20, 0.82)",
         "text-halo-width": 2.4,
         "text-halo-blur": 0.4
@@ -2152,6 +2155,16 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           ? (event.features?.find((item) => item?.properties?.tideStationCode) ?? event.features?.[0])
           : event.features?.[0];
         if (layerID === "sample-fill" && feature?.properties?.markerType !== "ashfall") return;
+        const historicalEventId = String(feature?.properties?.earthquakeHistoryId ?? "").trim();
+        if (historicalEventId) {
+          window.dispatchEvent(new CustomEvent("earthquake-history-select", {
+            detail: { eventId: historicalEventId }
+          }));
+        }
+        if (feature?.properties?.isHistoricalEarthquake === true) {
+          hideMapInfo("earthquake-distribution");
+          return;
+        }
         const tideStationCode = String(feature?.properties?.tideStationCode ?? "").trim();
         if (layerID === "sample-circle" && tideStationCode) {
           window.dispatchEvent(new CustomEvent("tide-station-select", {
@@ -4605,7 +4618,25 @@ function createEarthquakeFeatures(data) {
   }
   if (getEarthquakeMapView(data) === "history") {
     const selectedId = String(data?.selectedHistoricalEarthquakeId ?? "");
-    const historyFeatures = (data?.earthquakeArchiveItems ?? []).flatMap((item) => {
+    const detailVisible = data?.historicalEarthquakeDetailVisible === true;
+    const eventDetail = data?.selectedHistoricalEarthquakeDetail;
+    const stations = detailVisible && eventDetail?.id === selectedId && eventDetail?.status === "ok"
+      ? eventDetail.event?.stations ?? []
+      : [];
+    const historicalAreaFeatures = detailVisible && eventDetail?.id === selectedId && eventDetail?.status === "ok"
+      ? (eventDetail.event?.intensityAreaFeatures ?? []).map((feature) => ({
+        ...feature,
+        properties: {
+          ...(feature.properties ?? {}),
+          popup: `<strong>${escapePopup(feature.properties?.areaName ?? "細分区域")}</strong><br>最大震度 ${escapePopup(feature.properties?.intensityLabel ?? "不明")}`
+        }
+      }))
+      : [];
+    const historicalAreaMarkers = createEarthquakeAreaIntensityMarkers(historicalAreaFeatures);
+    const historyItems = (data?.earthquakeArchiveItems ?? []).filter((item) => (
+      !detailVisible || String(item.id) === selectedId
+    ));
+    const historyFeatures = historyItems.flatMap((item) => {
       const longitude = Number(item.longitude);
       const latitude = Number(item.latitude);
       if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return [];
@@ -4618,7 +4649,9 @@ function createEarthquakeFeatures(data) {
           color: getEarthquakeIntensityColor(item.maxIntensity === "felt" ? "1" : item.maxIntensity),
           opacity: selected ? 1 : 0.64,
           strokeWidth: selected ? 2.5 : 0.7,
-          markerType: "hypocenter-distribution",
+          markerType: detailVisible && selected ? "cross" : "hypocenter-distribution",
+          isHistoricalEarthquake: true,
+          earthquakeHistoryId: String(item.id),
           markerScaleMode: "fixed",
           radius: selected
             ? 10
@@ -4629,7 +4662,33 @@ function createEarthquakeFeatures(data) {
         }
       }];
     });
-    return [...createTideStationFeatures(data), ...historyFeatures];
+    const observationFeatures = stations.flatMap((station) => {
+      if (!Array.isArray(station.coordinates) || !station.intensity) return [];
+      const rank = getEarthquakeIntensityRank(station.intensity);
+      return [{
+        type: "Feature",
+        geometry: { type: "Point", coordinates: station.coordinates },
+        properties: {
+          color: getEarthquakeIntensityColor(station.intensity),
+          markerType: "earthquake-station",
+          isHistoricalEarthquake: true,
+          markerScaleMode: "earthquake-zoom",
+          radius: EARTHQUAKE_STATION_RADIUS,
+          strokeWidth: EARTHQUAKE_STATION_STROKE_WIDTH,
+          sortKey: rank,
+          intensityText: formatMapIntensityText(station.intensity),
+          textColor: getMapIntensityTextColor(station.intensity),
+          popup: buildHistoricalEarthquakeStationPopup(station, eventDetail.event.hypocenter)
+        }
+      }];
+    });
+    return [
+      ...createTideStationFeatures(data),
+      ...historyFeatures,
+      ...historicalAreaFeatures,
+      ...historicalAreaMarkers,
+      ...observationFeatures
+    ];
   }
   const tsunamiFeatures = (data?.tsunami?.mapFeatures ?? [])
     .filter((feature) => (
@@ -5429,33 +5488,14 @@ function hasStormWarningCircleGroups(typhoon) {
 }
 
 function createTyphoonStormWarningShapeFeatures(typhoon) {
-  const linePaths = buildStormWarningAreaClosedPaths(typhoon.stormWarningAreaShape);
-  if (linePaths.length === 0) return [];
-
-  const properties = {
+  // Keep the JMA-published perimeter visible even when its independently
+  // rounded arc/line endpoints cannot be assembled into a closed fill ring.
+  // In that case the caller sees these official segments and does not replace
+  // them with the circle-hull approximation.
+  return buildStormWarningAreaFeatures(typhoon.stormWarningAreaShape, {
     color: "#ff2800",
     popup: buildTyphoonPopup(typhoon, "暴風警戒域")
-  };
-
-  const features = [];
-
-  linePaths
-    .filter((coordinates) => coordinates?.length >= 2)
-    .forEach((coordinates) => {
-      features.push({
-        type: "Feature",
-        geometry: {
-          type: "LineString",
-          coordinates
-        },
-        properties: {
-          ...properties,
-          typhoonShape: "warningArea"
-        }
-      });
-    });
-
-  return features;
+  });
 }
 
 function buildHistoricalEarthquakePopup(item) {
@@ -5473,7 +5513,17 @@ function buildHistoricalEarthquakePopup(item) {
     <strong>${escapePopup(item?.place ?? "震央地名不明")}</strong><br>
     <span>${escapePopup(formatDistributionOriginTime(item?.originTime, true))}</span><br>
     <span>${escapePopup(intensity)}・${escapePopup(magnitude)}・深さ ${escapePopup(depth)}</span>
+    <br><small>タップすると観測点ごとの震度を地図に表示</small>
     ${sourceLink}
+  `;
+}
+
+function buildHistoricalEarthquakeStationPopup(station, hypocenter = {}) {
+  return `
+    <strong>${escapePopup(station?.name ?? "震度観測点")}</strong><br>
+    <span>${escapePopup(station?.intensityLabel ?? "震度不明")}</span><br>
+    <span>${escapePopup(hypocenter?.place ?? "")}</span><br>
+    <span>${escapePopup(formatDistributionOriginTime(hypocenter?.originTime, true))} 発生</span>
   `;
 }
 

@@ -352,6 +352,8 @@ assert.match(panel, /1919年〜2日前/u);
 assert.match(panel, /検索結果が上限の\$\{EARTHQUAKE_HISTORY_RESULT_LIMIT\.toLocaleString\("ja-JP"\)\}件を超えています/u);
 assert.match(panel, /earthquake-archive-item-content/u);
 assert.match(panel, /<small>震度<\/small><b>/u);
+assert.match(panel, /getEarthquakeIntensityColor\(item\.maxIntensity\)[\s\S]*?style="background-color:\$\{escapeHtml\(intensityColor\)\};color:\$\{intensityTextColor\}"/u,
+  "過去地震の震度バッジは凡例と共通の震度色を使う");
 assert.match(panel, /一覧は\$\{visibleItems\.length\.toLocaleString\("ja-JP"\)\}件表示中/u);
 assert.match(panel, /地図は先頭.*件/u);
 assert.match(panel, /data-earthquake-archive-list-more/u);
@@ -359,9 +361,15 @@ assert.match(panel, /data-earthquake-nearby-search/u);
 assert.match(panel, /data-mobile-dock-control data-earthquake-nearby-search/u,
   "近傍検索ボタン操作で下部シートのドラッグを開始しない");
 assert.match(panel, /data-earthquake-nearby-clear/u);
+assert.match(panel, /<button type="button" data-earthquake-nearby-clear>近傍条件を解除<\/button>/u,
+  "近傍検索が実行中でも解除ボタンを表示する");
+assert.doesNotMatch(panel, /earthquakeNearbySearchActive\s*\?\s*""\s*:\s*`<button[^`]*data-earthquake-nearby-clear/u,
+  "近傍検索中に解除ボタンを隠さない");
 assert.match(app, /function searchNearbyEarthquakes/u);
 assert.match(app, /earthquakeNearbySearchActive = true;\s*earthquakeView = "history";/u,
   "近傍検索は過去の地震タブへ切り替える");
+assert.match(app, /function closeNearbyEarthquakeSearch\(\)\s*\{[\s\S]*?earthquakeNearbySearchActive = false;[\s\S]*?nearby: null[\s\S]*?refreshEarthquakeArchive\(filters\)/u,
+  "近傍条件解除後は条件を消して通常の過去地震検索を再実行する");
 assert.doesNotMatch(panel, /if \(state\.data\?\.earthquakeNearbySearchActive\) \{\s*root\.hidden = true;/u,
   "詳細パネルを手動で開いた際に近傍検索結果を空にしない");
 assert.match(panel, /if \(view === "history"\) \{[\s\S]*?buildEarthquakeArchiveMarkup\(state\.data \?\? \{\}\)/u,

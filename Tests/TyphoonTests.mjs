@@ -25,6 +25,7 @@ import {
 } from "../src/typhoonRadarOverlay.js";
 import {
   buildStormWarningAreaClosedPaths,
+  buildStormWarningAreaFeatures,
   buildStormWarningAreaLineSegments,
   destinationPoint
 } from "../src/typhoonGeometry.js";
@@ -94,6 +95,61 @@ assert.equal(buildStormWarningAreaClosedPaths({
     [[132, 20], [133, 20]]
   ]
 }).length, 0);
+const arcEndpoint = destinationPoint([140, 30], 180, 115);
+const distanceKm = (first, second) => {
+  const toRadians = (degrees) => degrees * Math.PI / 180;
+  const dLat = toRadians(second[1] - first[1]);
+  const dLon = toRadians(second[0] - first[0]);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRadians(first[1])) * Math.cos(toRadians(second[1])) * Math.sin(dLon / 2) ** 2;
+  return 6371.0088 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+};
+const buildWideGapWarningShape = (tangentBearing) => {
+  const start = destinationPoint(arcEndpoint, 53.5, tangentBearing);
+  const end = destinationPoint(start, 100, tangentBearing);
+  const arcStart = destinationPoint([140, 30], 180, 20);
+  return {
+    arc: [{ center: [140, 30], radius: 180, start: 20, end: 115 }],
+    line: [[start, end], [end, arcStart]]
+  };
+};
+const warningShapeOverClosureTolerance = buildWideGapWarningShape(180);
+const actualArcEndpoint = destinationPoint([140, 30], 180, 115);
+assert.ok(Math.abs(distanceKm(actualArcEndpoint, warningShapeOverClosureTolerance.line[0][0]) - 53.5) < 1e-8);
+const closedTangentWarningPath = buildStormWarningAreaClosedPaths(warningShapeOverClosureTolerance);
+assert.equal(closedTangentWarningPath.length, 1, "53.5 kmの円弧・接線端点ずれを接線方向の一致で安全に閉じる");
+assert.deepEqual(closedTangentWarningPath[0][0], closedTangentWarningPath[0].at(-1));
+const preservedOpenOfficialSegments = buildStormWarningAreaLineSegments(warningShapeOverClosureTolerance);
+assert.equal(preservedOpenOfficialSegments.length, 3, "閉鎖時も元の円弧・接線セグメント数を維持する");
+assert.ok(preservedOpenOfficialSegments.every((segment) => segment.length >= 2
+  && segment.every(([longitude, latitude]) => Number.isFinite(longitude) && Number.isFinite(latitude))));
+assert.equal(new Set(preservedOpenOfficialSegments.map((segment) => JSON.stringify(segment))).size, 3, "公式線分を重複生成しない");
+const wideGapOfficialFeatures = buildStormWarningAreaFeatures(warningShapeOverClosureTolerance, { popup: "warning" });
+const wideGapOfficialLines = wideGapOfficialFeatures.filter((feature) => feature.geometry.type === "LineString");
+assert.equal(wideGapOfficialLines.length, 1, "正常に接続できる公式境界は重ねず1本の連続線で描く");
+assert.equal(wideGapOfficialFeatures.filter((feature) => feature.geometry.type === "Polygon").length, 1);
+assert.deepEqual(wideGapOfficialLines[0].geometry.coordinates[0], wideGapOfficialLines[0].geometry.coordinates.at(-1));
+assert.ok(wideGapOfficialLines
+  .every((feature) => feature.properties.typhoonShape === "warningArea"));
+const unrelatedWideJoin = buildWideGapWarningShape(0);
+assert.equal(buildStormWarningAreaClosedPaths(unrelatedWideJoin).length, 0, "端点間が53.5 kmでも接線方向の不一致を接続しない");
+assert.equal(buildStormWarningAreaFeatures(unrelatedWideJoin).filter((feature) => feature.geometry.type === "LineString").length, 3,
+  "安全に閉じられない場合は元の公式線分を個別に保つ");
+const lineToLineWideGap = {
+  line: [
+    [[140, 30], [141, 30]],
+    [[141.55, 30], [141.55, 31]],
+    [[141.55, 31], [140, 31]],
+    [[140, 31], [140, 30]]
+  ]
+};
+assert.equal(buildStormWarningAreaClosedPaths(lineToLineWideGap).length, 0, "60 km枠でも離れた直線同士を誤接続しない");
+const invalidWarningShape = {
+  arc: [{ center: [140, 95], radius: -1, start: Number.NaN, end: 360 }],
+  line: [[[Number.NaN, 30], [140, 30]], [[140, 30]]]
+};
+assert.deepEqual(buildStormWarningAreaLineSegments(invalidWarningShape), []);
+assert.deepEqual(buildStormWarningAreaClosedPaths(invalidWarningShape), []);
 const shortTangentWarningPath = buildStormWarningAreaClosedPaths({
   line: [
     [[140, 30], [140.1, 30]],
@@ -105,6 +161,19 @@ const shortTangentWarningPath = buildStormWarningAreaClosedPaths({
 assert.equal(shortTangentWarningPath.length, 1);
 assert.deepEqual(shortTangentWarningPath[0][0], shortTangentWarningPath[0].at(-1));
 assert.ok(shortTangentWarningPath[0].length >= 5);
+const fullCircleWarningShape = {
+  arc: [{ center: [140, 30], radius: 180, start: 0, end: 360 }],
+  line: []
+};
+const closedOfficialFeatures = buildStormWarningAreaFeatures(fullCircleWarningShape);
+assert.equal(closedOfficialFeatures.filter((feature) => feature.geometry.type === "LineString").length, 1);
+assert.equal(closedOfficialFeatures.filter((feature) => feature.geometry.type === "Polygon").length, 1);
+const fullCircleWarningLines = buildStormWarningAreaLineSegments(fullCircleWarningShape);
+const fullCircleWarningPaths = buildStormWarningAreaClosedPaths(fullCircleWarningShape);
+assert.equal(fullCircleWarningLines.length, 1);
+assert.equal(fullCircleWarningPaths.length, 1);
+assert.deepEqual(fullCircleWarningPaths[0][0], fullCircleWarningPaths[0].at(-1));
+assert.ok(fullCircleWarningLines[0].every(([longitude, latitude]) => Number.isFinite(longitude) && Number.isFinite(latitude)));
 const eastOfCenter = destinationPoint([130, 20], 100, 90);
 assert.ok(eastOfCenter[0] > 130);
 assert.ok(Math.abs(eastOfCenter[1] - 20) < 0.1);
@@ -483,7 +552,7 @@ assert.match(
 );
 assert.match(
   mapSource,
-  /function createTyphoonStormWarningShapeFeatures\(typhoon\)[\s\S]*?buildStormWarningAreaClosedPaths\(typhoon\.stormWarningAreaShape\)/
+  /function createTyphoonStormWarningShapeFeatures\(typhoon\)[\s\S]*?buildStormWarningAreaFeatures\(typhoon\.stormWarningAreaShape/
 );
 assert.match(appSource, /hasSelectedTargets[\s\S]*?primarySystemId[\s\S]*?layer\.forecastPositions/);
 assert.doesNotMatch(appSource, /getWorldTyphoonFocusCoordinates/);

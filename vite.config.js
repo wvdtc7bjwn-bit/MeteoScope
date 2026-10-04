@@ -1,13 +1,14 @@
 import { defineConfig } from "vite";
 import { onRequest as handleWeeklyWeatherRequest } from "./functions/api/weekly-weather.js";
 import { onRequestGet as handleEarthquakeHistoryRequest } from "./functions/api/earthquake-history.js";
+import { onRequestGet as handleEarthquakeHistoryEventRequest } from "./functions/api/earthquake-history-event.js";
 import { findLatestUpperAirObservation } from "./functions/api/upper-air.js";
 import { buildGfsSubsetUrl, getLatestGfsCycle, parseGfsPointProfile, normalizeGfsCoordinates } from "./functions/api/gfs-profile.js";
 
 const cloudflareApiTarget = process.env.METEOSCOPE_API_TARGET || "https://meteoscope.pages.dev";
 
 export default defineConfig({
-  plugins: [localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localUpperAirApi(), localGfsProfileApi()],
+  plugins: [localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localUpperAirApi(), localGfsProfileApi()],
   base: process.env.GITHUB_PAGES === "true" ? "/MeteoScope/" : "/",
   server: {
     proxy: {
@@ -106,6 +107,41 @@ function localEarthquakeHistoryApi() {
           response.statusCode = 502;
           response.setHeader("Content-Type", "application/json; charset=utf-8");
           response.end(JSON.stringify({ ok: false, error: "jma_query_failed" }));
+        }
+      });
+    }
+  };
+}
+
+function localEarthquakeHistoryEventApi() {
+  return {
+    name: "meteoscope-local-earthquake-history-event-api",
+    configureServer(server) {
+      server.middlewares.use(async (request, response, next) => {
+        const requestUrl = new URL(request.url ?? "/", "http://localhost");
+        if (requestUrl.pathname !== "/api/earthquake-history-event") {
+          next();
+          return;
+        }
+        if (request.method !== "GET" && request.method !== "HEAD") {
+          response.statusCode = 405;
+          response.setHeader("Content-Type", "application/json; charset=utf-8");
+          response.end(JSON.stringify({ ok: false, error: "method_not_allowed" }));
+          return;
+        }
+        try {
+          const result = await handleEarthquakeHistoryEventRequest({
+            request: new Request(requestUrl, { method: request.method, headers: request.headers }),
+            waitUntil: () => {}
+          });
+          response.statusCode = result.status;
+          result.headers.forEach((value, name) => response.setHeader(name, value));
+          response.end(request.method === "HEAD" ? undefined : Buffer.from(await result.arrayBuffer()));
+        } catch (error) {
+          server.config.logger.error(`[earthquake-history-event] local API failed: ${error?.message ?? error}`);
+          response.statusCode = 502;
+          response.setHeader("Content-Type", "application/json; charset=utf-8");
+          response.end(JSON.stringify({ ok: false, error: "jma_event_query_failed" }));
         }
       });
     }
