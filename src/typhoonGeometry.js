@@ -19,7 +19,7 @@ export function destinationPoint([longitude, latitude], distanceKm, bearingDegre
   ];
 }
 
-const MAX_JMA_STORM_WARNING_ENDPOINT_GAP_KM = 60;
+const MAX_JMA_STORM_WARNING_ENDPOINT_GAP_KM = 100;
 const MAX_ROUNDED_TANGENT_JOIN_GAP_KM = 50;
 const MAX_ROUNDED_TANGENT_JOIN_ANGLE_DEGREES = 35;
 
@@ -56,7 +56,7 @@ export function buildStormWarningAreaFeatures(stormWarningArea, properties = {})
 }
 
 // JMA rounds arc and tangent endpoints independently. Gaps through 50 km keep
-// the existing matching behavior. The 50–60 km allowance is only for an
+// the existing matching behavior. A wider allowance is only for an unambiguous
 // arc-to-line pair whose outward directions meet smoothly; line-line and
 // misaligned pairs are never connected by the larger allowance.
 export function buildStormWarningAreaClosedPaths(
@@ -172,7 +172,7 @@ function pairStormWarningEndpoints(segments, maxEndpointDistanceKm) {
     { id: `${index}:start`, segmentIndex: index, point: segment.coordinates[0] },
     { id: `${index}:end`, segmentIndex: index, point: segment.coordinates.at(-1) }
   ]);
-  const candidates = endpoints.map((endpoint, index) => (
+  const candidateDetails = endpoints.map((endpoint, index) => (
     endpoints
       .map((candidate, candidateIndex) => ({
         candidateIndex,
@@ -191,8 +191,13 @@ function pairStormWarningEndpoints(segments, maxEndpointDistanceKm) {
           ))
       ))
       .sort((first, second) => first.distance - second.distance)
-      .map(({ candidateIndex }) => candidateIndex)
   ));
+  const candidates = candidateDetails.map((details, endpointIndex) => details
+    .filter(({ candidateIndex, distance }) => (
+      distance <= MAX_ROUNDED_TANGENT_JOIN_GAP_KM
+      || isMutualUniqueNearestCandidate(endpointIndex, candidateIndex, distance, candidateDetails)
+    ))
+    .map(({ candidateIndex }) => candidateIndex));
   const remaining = new Set(endpoints.map((_, index) => index));
   const pairs = [];
   const maxAttempts = 20000;
@@ -249,6 +254,15 @@ function isRoundedArcLineTangentJoin(first, second, segments, distance) {
 
   const alignment = firstTangent[0] * secondTangent[0] + firstTangent[1] * secondTangent[1];
   return alignment <= -Math.cos(MAX_ROUNDED_TANGENT_JOIN_ANGLE_DEGREES * Math.PI / 180);
+}
+
+function isMutualUniqueNearestCandidate(firstIndex, secondIndex, distance, candidateDetails) {
+  const firstNearest = candidateDetails[firstIndex].filter((candidate) => candidate.distance <= distance + 0.001);
+  const secondNearest = candidateDetails[secondIndex].filter((candidate) => candidate.distance <= distance + 0.001);
+  return firstNearest.length === 1
+    && secondNearest.length === 1
+    && firstNearest[0].candidateIndex === secondIndex
+    && secondNearest[0].candidateIndex === firstIndex;
 }
 
 function outwardEndpointTangent(coordinates, isStart) {

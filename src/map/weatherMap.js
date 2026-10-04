@@ -403,6 +403,7 @@ export function createWeatherMap(elementId) {
   let mapInfoLngLat = null;
   let mapInfoAnchorLngLat = null;
   let mapInfoOwner = null;
+  let lastTyphoonForecastMode = null;
   let communityReports = [];
   let currentLocationVisible = true;
   let hypocenterAreaPolygon = [];
@@ -1366,7 +1367,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       id: "earthquake-station-intensity-label",
       type: "symbol",
       source: SAMPLE_SOURCE_ID,
-      minzoom: 7.5,
+      minzoom: 6.5,
       filter: ["all",
         ["==", ["geometry-type"], "Point"],
         ["==", ["get", "markerType"], "earthquake-station"]
@@ -2394,6 +2395,16 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   function updateTyphoonLayers(mode, data) {
     const source = map?.getSource(TYPHOON_SOURCE_ID);
     if (!source?.setData) return null;
+
+    const nextTyphoonForecastMode = data?.worldForecastMode === true;
+    if (
+      mode === "typhoon"
+      && lastTyphoonForecastMode !== null
+      && lastTyphoonForecastMode !== nextTyphoonForecastMode
+    ) {
+      hideMapInfo("typhoon");
+    }
+    lastTyphoonForecastMode = nextTyphoonForecastMode;
 
     const collection = mode === "typhoon"
       ? {
@@ -5291,15 +5302,12 @@ function buildTyphoonPopup(typhoon, label) {
 
 function buildTyphoonForecastCirclePopup(typhoon, circle) {
   const details = resolveTyphoonForecastDetails(circle.details ?? {});
-  const isLowPressureSystem = details.maxWind === "-"
-    && details.maxGust === "-"
-    && Boolean(details.systemType);
   const rows = [
+    ["種別", details.systemType],
     ["強さ", details.strength],
     ["中心気圧", details.pressure],
-    ...(isLowPressureSystem
-      ? [["種別", details.systemType]]
-      : [["最大風速", details.maxWind], ["最大瞬間風速", details.maxGust]])
+    ["最大風速", details.maxWind],
+    ["最大瞬間風速", details.maxGust]
   ].filter(([label, value]) => isKnownTyphoonDetail(value) || isZeroWindTyphoonRow(label, value));
   const body = rows.length > 0
     ? rows.map(([label, value]) => `

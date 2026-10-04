@@ -104,8 +104,8 @@ const distanceKm = (first, second) => {
     + Math.cos(toRadians(first[1])) * Math.cos(toRadians(second[1])) * Math.sin(dLon / 2) ** 2;
   return 6371.0088 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
-const buildWideGapWarningShape = (tangentBearing) => {
-  const start = destinationPoint(arcEndpoint, 53.5, tangentBearing);
+const buildWideGapWarningShape = (tangentBearing, gapKm = 53.5) => {
+  const start = destinationPoint(arcEndpoint, gapKm, tangentBearing);
   const end = destinationPoint(start, 100, tangentBearing);
   const arcStart = destinationPoint([140, 30], 180, 20);
   return {
@@ -119,6 +119,10 @@ assert.ok(Math.abs(distanceKm(actualArcEndpoint, warningShapeOverClosureToleranc
 const closedTangentWarningPath = buildStormWarningAreaClosedPaths(warningShapeOverClosureTolerance);
 assert.equal(closedTangentWarningPath.length, 1, "53.5 kmの円弧・接線端点ずれを接線方向の一致で安全に閉じる");
 assert.deepEqual(closedTangentWarningPath[0][0], closedTangentWarningPath[0].at(-1));
+const warningShapeAtExtendedTangentTolerance = buildWideGapWarningShape(180, 80);
+const extendedTangentWarningPath = buildStormWarningAreaClosedPaths(warningShapeAtExtendedTangentTolerance);
+assert.equal(extendedTangentWarningPath.length, 1, "端点ずれが60kmを超えても、曖昧さのない円弧・接線接続は閉じる");
+assert.deepEqual(extendedTangentWarningPath[0][0], extendedTangentWarningPath[0].at(-1));
 const preservedOpenOfficialSegments = buildStormWarningAreaLineSegments(warningShapeOverClosureTolerance);
 assert.equal(preservedOpenOfficialSegments.length, 3, "閉鎖時も元の円弧・接線セグメント数を維持する");
 assert.ok(preservedOpenOfficialSegments.every((segment) => segment.length >= 2
@@ -135,6 +139,8 @@ const unrelatedWideJoin = buildWideGapWarningShape(0);
 assert.equal(buildStormWarningAreaClosedPaths(unrelatedWideJoin).length, 0, "端点間が53.5 kmでも接線方向の不一致を接続しない");
 assert.equal(buildStormWarningAreaFeatures(unrelatedWideJoin).filter((feature) => feature.geometry.type === "LineString").length, 3,
   "安全に閉じられない場合は元の公式線分を個別に保つ");
+assert.equal(buildStormWarningAreaClosedPaths(buildWideGapWarningShape(0, 80)).length, 0,
+  "100 km以内でも80 km離れた接線不一致の円弧・直線は誤接続しない");
 const lineToLineWideGap = {
   line: [
     [[140, 30], [141, 30]],
@@ -315,6 +321,30 @@ const jmaLowPressureForecast = normalizeTyphoon({
 assert.equal(jmaLowPressureForecast.forecastCircles[0].details.maxWind, "-");
 assert.equal(jmaLowPressureForecast.forecastCircles[0].details.maxGust, "-");
 assert.equal(jmaLowPressureForecast.forecastCircles[0].details.systemType, "熱帯低気圧");
+const jmaExtratropicalForecast = normalizeTyphoon({
+  tropicalCyclone: "TC2633",
+  typhoonNumber: "2627",
+  forecast: [
+    { part: "title", category: { jp: "台風", en: "TY" } },
+    {
+      advancedHours: 96,
+      center: { lat: 53.9, lon: 167.8 },
+      probabilityCircle: { radius: 320 },
+      validtime: { JST: "2026-10-08T09:00:00+09:00" }
+    }
+  ],
+  specifications: [
+    {
+      advancedHours: 96,
+      category: { jp: "温帯低気圧", en: "LOW" },
+      pressure: "960",
+      maximumWind: { sustained: { "m/s": "35" }, gust: { "m/s": "50" } }
+    }
+  ]
+});
+assert.equal(jmaExtratropicalForecast.forecastCircles[0].details.systemType, "温帯低気圧");
+assert.equal(jmaExtratropicalForecast.forecastCircles[0].details.maxWind, "35 m/s");
+assert.equal(jmaExtratropicalForecast.forecastCircles[0].details.maxGust, "50 m/s");
 
 const selectedWorldSystem = selectWorldTyphoonSystem({
   systems: [
@@ -544,6 +574,9 @@ assert.match(
 );
 assert.match(appSource, /function buildWorldTyphoonFocusCoordinates\(displayData = \{\}\)/);
 assert.match(appSource, /function buildTyphoonFocusCoordinates\(typhoon\)[\s\S]*?typhoon\.strongWindRadius[\s\S]*?typhoon\.stormRadius[\s\S]*?stormWarningGroups[\s\S]*?collectTyphoonStormWarningShapeCoordinates/);
+assert.match(mapSource, /function buildTyphoonForecastCirclePopup\(typhoon, circle\)[\s\S]*?\["種別", details\.systemType\][\s\S]*?\["最大風速", details\.maxWind\][\s\S]*?\["最大瞬間風速", details\.maxGust\]/);
+assert.match(mapSource, /function updateTyphoonLayers\(mode, data\)[\s\S]*?lastTyphoonForecastMode !== nextTyphoonForecastMode[\s\S]*?hideMapInfo\("typhoon"\)/,
+  "気象庁と各国予想を切り替えたとき、前モードの地図カードを閉じる");
 assert.match(appSource, /function collectTyphoonFocusCircleCoordinates\(circles = \[\]\)/);
 assert.match(appSource, /function collectTyphoonStormWarningShapeCoordinates\(shape\)/);
 assert.match(
