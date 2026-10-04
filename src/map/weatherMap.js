@@ -1298,7 +1298,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       id: "earthquake-area-intensity-marker",
       type: "symbol",
       source: SAMPLE_SOURCE_ID,
-      maxzoom: 7.5,
+      maxzoom: 6.5,
       filter: ["all",
         ["==", ["geometry-type"], "Point"],
         ["==", ["get", "markerType"], "earthquake-area-intensity"]
@@ -1345,7 +1345,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       id: "earthquake-station-intensity-circle",
       type: "circle",
       source: SAMPLE_SOURCE_ID,
-      minzoom: 7.5,
+      minzoom: 6.5,
       filter: ["all",
         ["==", ["geometry-type"], "Point"],
         ["==", ["get", "markerType"], "earthquake-station"]

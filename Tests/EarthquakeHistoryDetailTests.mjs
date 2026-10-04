@@ -64,8 +64,25 @@ assert.match(map, /historicalEarthquakeDetailVisible === true\)[\s\S]*?hideMapIn
 assert.match(map, /markerType: detailVisible && selected \? "cross" : "hypocenter-distribution"/u);
 assert.match(map, /EARTHQUAKE_INTERACTIVE_LAYERS = \["sample-circle", "sample-cross"/u);
 assert.match(map, /markerType: "earthquake-station"/u);
-assert.match(map, /id: "earthquake-station-intensity-circle"[\s\S]{0,100}?minzoom: 7\.5/u);
-assert.match(map, /id: "earthquake-station-intensity-label"[\s\S]{0,100}?minzoom: 7\.5/u);
+assert.match(map, /id: "earthquake-area-intensity-marker"[\s\S]{0,100}?maxzoom: 6\.5/u,
+  "広域表示では細分区域の四角マーカーを使う");
+assert.match(map, /id: "earthquake-station-intensity-circle"[\s\S]{0,100}?minzoom: 6\.5/u,
+  "ズームイン開始時に各地の震度を丸で表示する");
+assert.match(map, /id: "earthquake-station-intensity-label"[\s\S]{0,100}?minzoom: 6\.5/u);
+const areaIntensityLayer = map.slice(
+  map.indexOf('id: "earthquake-area-intensity-marker"'),
+  map.indexOf('id: "earthquake-station-intensity-circle"')
+);
+const stationIntensityLabelLayer = map.slice(
+  map.indexOf('id: "earthquake-station-intensity-label"'),
+  map.indexOf('id: "sample-wind-arrow"')
+);
+assert.match(areaIntensityLayer, /icon-image": EARTHQUAKE_AREA_INTENSITY_MARKER_IMAGE_ID/u,
+  "細分区域の最大震度は四角マーカーで表示する");
+assert.match(areaIntensityLayer, /\["get", "markerType"\], "earthquake-area-intensity"/u);
+assert.doesNotMatch(stationIntensityLabelLayer, /icon-image|icon-color/u,
+  "各地の観測点は四角アイコンを重ねず、円マーカー上に震度数字だけを表示する");
+assert.match(stationIntensityLabelLayer, /\["get", "markerType"\], "earthquake-station"/u);
 assert.match(map, /eventDetail\.event\?\.intensityAreaFeatures/u);
 assert.match(map, /const historicalAreaMarkers = createEarthquakeAreaIntensityMarkers/u);
 assert.match(map, /"text-color": "#e3342f"/u);
