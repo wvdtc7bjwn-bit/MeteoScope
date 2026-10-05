@@ -257,7 +257,9 @@ function normalizeIntensity(value) {
     .replace("弱", "-")
     .replace("強", "+")
     .trim();
-  return /^(?:1|2|3|4|5-|5\+|6-|6\+|7)$/u.test(intensity) ? intensity : "";
+  // The JMA database contains unsplit "5" and "6" values for observations
+  // made under the pre-October-1996 intensity scale. Keep those labels intact.
+  return /^(?:1|2|3|4|5|5-|5\+|6|6-|6\+|7)$/u.test(intensity) ? intensity : "";
 }
 
 function parseDepth(value) {

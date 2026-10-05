@@ -33,6 +33,25 @@ assert.deepEqual(
   [9, 7, 4],
   "観測点データは震度の大きい順に並ぶ"
 );
+const legacyScaleEvent = normalizeEarthquakeHistoryEvent({
+  hypocenter: {
+    id: "19950905123456", originTime: "1995/09/05 12:34:56.0", place: "旧階級の地震",
+    lat: "35.0", lon: "139.0", depth: "20 km", magnitude: "6.0", maxIntensity: "震度6"
+  },
+  stations: [
+    { name: "旧階級震度5地点", latitude: "35.1", longitude: "139.1", code: "L05", intensity: "震度５" },
+    { name: "旧階級震度6地点", latitude: "35.2", longitude: "139.2", code: "L06", intensity: "震度６" }
+  ]
+}, "19950905123456");
+assert.deepEqual(legacyScaleEvent.stations.map(({ intensity, intensityLabel }) => [intensity, intensityLabel]), [
+  ["6", "震度6"], ["5", "震度5"]
+], "1996年10月以前の震度5・6を捨てず、弱・強を付加せずそのまま表示する");
+assert.deepEqual(legacyScaleEvent.stations.map(({ intensity }) => getEarthquakeIntensityRank(intensity)), [7, 5],
+  "旧階級の震度5・6も正しい強さ順でソートできる");
+assert.equal(getEarthquakeIntensityRank("5"), getEarthquakeIntensityRank("5-"),
+  "旧階級震度5は区域集計上の5弱相当として色・優先順位を保つ");
+assert.equal(getEarthquakeIntensityRank("6"), getEarthquakeIntensityRank("6-"),
+  "旧階級震度6は区域集計上の6弱相当として色・優先順位を保つ");
 assert.throws(() => normalizeEarthquakeHistoryEvent({ hypocenter: { id: "bad", lat: 0, lon: 0 } }));
 
 const historyAreas = buildHistoricalIntensityAreaFeatures(event.stations, {
