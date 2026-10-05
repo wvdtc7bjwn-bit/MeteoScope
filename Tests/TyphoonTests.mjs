@@ -236,7 +236,9 @@ assert.equal(
 
 assert.equal(getTyphoonSystemType({ jp: "温帯低気圧" }), "温帯低気圧");
 assert.equal(getTyphoonSystemType("TD"), "熱帯低気圧");
-assert.equal(getTyphoonSystemType("台風"), null);
+assert.equal(getTyphoonSystemType({ jp: "台風", en: "TS" }), "台風");
+assert.equal(getTyphoonSystemType("TY"), "台風");
+assert.equal(getTyphoonSystemType("category unknown"), null);
 
 assert.equal(
   formatTyphoonTransitionStatus(getTyphoonTransitionStatus("TD"), "b"),
@@ -301,8 +303,9 @@ assert.equal(jmaNamedTyphoon.details.position, "日本のはるか東");
 const jmaLowPressureForecast = normalizeTyphoon({
   tropicalCyclone: "TD-b",
   typhoonNumber: "b",
+  category: "TD",
   forecast: [
-    { part: "title", category: "TD" },
+    { part: "title", typhoonNumber: "b" },
     {
       advancedHours: 0,
       center: { lat: 20, lon: 130 },
@@ -310,17 +313,22 @@ const jmaLowPressureForecast = normalizeTyphoon({
     },
     {
       advancedHours: 24,
-      category: { jp: "熱帯低気圧" },
       center: { lat: 22, lon: 132 },
       probabilityCircle: { radius: 150 },
       validtime: { JST: "2026-08-10T00:00:00+09:00" }
     }
   ],
-  specifications: []
+  specifications: [
+    { part: "title", typhoonNumber: "b", category: { jp: "熱帯低気圧", en: "TD" } },
+    { advancedHours: 0, category: { jp: "熱帯低気圧", en: "TD" } },
+    { advancedHours: 24, category: { jp: "台風", en: "TS" } }
+  ]
 });
+assert.equal(jmaLowPressureForecast.name, "熱帯低気圧b");
+assert.equal(jmaLowPressureForecast.details.systemType, "熱帯低気圧");
 assert.equal(jmaLowPressureForecast.forecastCircles[0].details.maxWind, "-");
 assert.equal(jmaLowPressureForecast.forecastCircles[0].details.maxGust, "-");
-assert.equal(jmaLowPressureForecast.forecastCircles[0].details.systemType, "熱帯低気圧");
+assert.equal(jmaLowPressureForecast.forecastCircles[0].details.systemType, "台風");
 const jmaExtratropicalForecast = normalizeTyphoon({
   tropicalCyclone: "TC2633",
   typhoonNumber: "2627",
@@ -575,6 +583,16 @@ assert.match(
 assert.match(appSource, /function buildWorldTyphoonFocusCoordinates\(displayData = \{\}\)/);
 assert.match(appSource, /function buildTyphoonFocusCoordinates\(typhoon\)[\s\S]*?typhoon\.strongWindRadius[\s\S]*?typhoon\.stormRadius[\s\S]*?stormWarningGroups[\s\S]*?collectTyphoonStormWarningShapeCoordinates/);
 assert.match(mapSource, /function buildTyphoonForecastCirclePopup\(typhoon, circle\)[\s\S]*?\["種別", details\.systemType\][\s\S]*?\["最大風速", details\.maxWind\][\s\S]*?\["最大瞬間風速", details\.maxGust\]/);
+assert.match(mapSource, /function buildTyphoonPopup\(typhoon, label\)[\s\S]*?const systemTypeRow = details\.systemType[\s\S]*?種別:/,
+  "実況の最大風速がある熱帯低気圧でも種別を表示する");
+assert.match(panelSource, /function getTyphoonStatusPresentation\(transitionStatus, systemType\)[\s\S]*?return type \? \{ label: "種別", text: type \} : null/u,
+  "番号bの熱帯低気圧にも種別を表示する");
+const mobileTyphoonSummaryStart = panelSource.indexOf("function buildTyphoonMobileContextMarkup");
+const mobileTyphoonSummaryEnd = panelSource.indexOf("\r\n\r\nfunction ", mobileTyphoonSummaryStart + 1);
+const mobileTyphoonSummarySource = panelSource.slice(mobileTyphoonSummaryStart, mobileTyphoonSummaryEnd);
+assert.match(mobileTyphoonSummarySource, /transitionStatus \?[^\n]*mobile-dock-typhoon-status/u);
+assert.doesNotMatch(mobileTyphoonSummarySource, /systemType|種別/u,
+  "要約バーには台風・熱帯低気圧の種別を表示しない");
 assert.match(mapSource, /function updateTyphoonLayers\(mode, data\)[\s\S]*?lastTyphoonForecastMode !== nextTyphoonForecastMode[\s\S]*?hideMapInfo\("typhoon"\)/,
   "気象庁と各国予想を切り替えたとき、前モードの地図カードを閉じる");
 assert.match(appSource, /function collectTyphoonFocusCircleCoordinates\(circles = \[\]\)/);

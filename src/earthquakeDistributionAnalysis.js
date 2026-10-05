@@ -1,5 +1,9 @@
 const DAY_MS = 24 * 60 * 60 * 1000;
 const JAPAN_UTC_OFFSET_MS = 9 * 60 * 60 * 1000;
+// Display-only screening to avoid projecting distant slabs into a shallow,
+// clearly inland earthquake cluster. This is not a tectonic classification.
+const SHALLOW_INLAND_MAX_DEPTH_KM = 30;
+const SHALLOW_INLAND_MIN_BOUNDARY_DISTANCE_KM = 100;
 const SLAB_BOUNDARY_DEFINITIONS = [
   { region: "Kuril", plate: "太平洋プレート（日本・千島）", boundaryName: "North American:Pacific" },
   { region: "Izu-Bonin", plate: "太平洋プレート（伊豆・小笠原）", boundaryName: "Pacific:Philippine" },
@@ -105,16 +109,22 @@ function buildCrossSection(items, plateData) {
     axisY: principalAxis.axisX,
     axisSource: "plate-contour-axis"
   };
-  const boundaryAxes = getNearestBoundaryAxes(plateData, {
+  const boundaryCenter = {
     centerLatitude,
     centerLongitude
-  });
-  const candidates = [principalAxis, contourAxis, ...boundaryAxes].map((axis) => (
+  };
+  const boundaryAxes = getNearestBoundaryAxes(plateData, boundaryCenter);
+  const shallowInland = projected.every((item) => item.depthKm <= SHALLOW_INLAND_MAX_DEPTH_KM)
+    && boundaryAxes.length > 0
+    && Math.min(...boundaryAxes.map((axis) => axis.preferredZeroDistanceKm)) > SHALLOW_INLAND_MIN_BOUNDARY_DISTANCE_KM;
+  const axes = shallowInland ? [principalAxis] : [principalAxis, contourAxis, ...boundaryAxes];
+  const candidates = axes.map((axis) => (
     buildCrossSectionCandidate(projected, {
       centerLatitude,
       centerLongitude,
       ...axis,
-      plateData
+      plateData,
+      includePlateProfiles: !shallowInland
     })
   ));
   const boundaryCandidates = candidates.filter((candidate) => (
@@ -130,7 +140,8 @@ function buildCrossSection(items, plateData) {
       ...selected,
       minDistanceKm: selected.rawMinDistanceKm,
       maxDistanceKm: selected.rawMaxDistanceKm,
-      spanKm: selected.rawMaxDistanceKm - selected.rawMinDistanceKm
+      spanKm: selected.rawMaxDistanceKm - selected.rawMinDistanceKm,
+      plateProfileStatus: shallowInland ? "shallow-inland" : "unavailable"
     };
 }
 
@@ -189,7 +200,8 @@ function buildCrossSectionCandidate(projected, {
   axisY,
   axisSource,
   preferredZeroDistanceKm = null,
-  plateData
+  plateData,
+  includePlateProfiles = true
 }) {
   const sectionPoints = projected.map((item) => ({
     distanceKm: item.x * axisX + item.y * axisY,
@@ -215,10 +227,12 @@ function buildCrossSectionCandidate(projected, {
     minDistanceKm,
     maxDistanceKm
   };
-  const exactProfiles = buildPlateDepthProfiles(plateData, section);
-  const plateProfiles = getPlateProfileScore(exactProfiles) > 0
-    ? exactProfiles
-    : buildProjectedPlateDepthProfiles(plateData, section);
+  const exactProfiles = includePlateProfiles ? buildPlateDepthProfiles(plateData, section) : [];
+  const plateProfiles = !includePlateProfiles
+    ? []
+    : getPlateProfileScore(exactProfiles) > 0
+      ? exactProfiles
+      : buildProjectedPlateDepthProfiles(plateData, section);
   const plateDistances = plateProfiles.flatMap((profile) => profile.points.map((point) => point.distanceKm));
   const displayMinDistanceKm = plateDistances.length
     ? Math.min(minDistanceKm, Math.min(...plateDistances) - 12)
@@ -238,7 +252,8 @@ function buildCrossSectionCandidate(projected, {
     axisSource,
     points: sectionPoints,
     plateProfiles,
-    plateProfileMethod: getPlateProfileScore(exactProfiles) > 0
+    plateProfileStatus: includePlateProfiles ? "available" : "shallow-inland",
+      plateProfileMethod: getPlateProfileScore(exactProfiles) > 0
       ? "intersection"
       : plateProfiles.length
         ? "nearby-projection"
@@ -404,6 +419,18 @@ function getNearestSectionProjection(geometry, section) {
   return projections.sort((left, right) => (
     left.offsetKm - right.offsetKm || Math.abs(left.distanceKm) - Math.abs(right.distanceKm)
   ))[0] ?? null;
+}
+
+// Plate contours are assembled in increasing depth order. Keep that order in
+// the cross-section: sorting by horizontal distance can reverse the profile
+// when the slab bends, and spline interpolation can invent extrema between
+// measured contours.
+export function buildPlateProfilePath(points) {
+  const validPoints = (Array.isArray(points) ? points : []).filter((point) => (
+    Number.isFinite(point?.x) && Number.isFinite(point?.y)
+  ));
+  if (!validPoints.length) return "";
+  return validPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");
 }
 
 function getCoordinateLines(geometry) {

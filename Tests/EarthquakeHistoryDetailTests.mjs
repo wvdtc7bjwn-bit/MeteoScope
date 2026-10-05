@@ -48,6 +48,30 @@ assert.deepEqual(historyAreas.map((area) => [area.properties.areaCode, area.prop
 ], "過去地震の観測点から細分区域ごとの最大震度を求める");
 assert.deepEqual(buildHistoricalIntensityAreaFeatures(event.stations, null), [], "区域境界データがないときは区域表示を作らない");
 
+const boundaryRecoveryAreas = buildHistoricalIntensityAreaFeatures([
+  { coordinates: [140.001, 36.001], intensity: "2" },
+  { coordinates: [140.2, 36.2], intensity: "4" }
+], {
+  type: "FeatureCollection",
+  features: [
+    { type: "Feature", properties: { code: "A", name: "境界区域" }, geometry: { type: "Polygon", coordinates: [[[140, 36], [140.01, 36], [140.01, 36.01], [140, 36.01], [140, 36]]] } },
+    { type: "Feature", properties: { code: "A", name: "境界区域の別ポリゴン" }, geometry: { type: "Polygon", coordinates: [[[140.02, 36], [140.03, 36], [140.03, 36.01], [140.02, 36.01], [140.02, 36]]] } }
+  ]
+});
+assert.equal(boundaryRecoveryAreas.length, 1, "同じ区域コードの複数ポリゴンは1区域へ統合する");
+assert.equal(boundaryRecoveryAreas[0].properties.intensity, "2", "ポリゴン境界から5km以内の観測点は区域最大震度に反映する");
+assert.equal(boundaryRecoveryAreas[0].geometry.coordinates.length, 2, "同じ区域コードの全ポリゴン形状を保持する");
+
+const distantStationAreas = buildHistoricalIntensityAreaFeatures([
+  { coordinates: [140.2, 36.2], intensity: "4" }
+], {
+  type: "FeatureCollection",
+  features: [
+    { type: "Feature", properties: { code: "A" }, geometry: { type: "Polygon", coordinates: [[[140, 36], [140.01, 36], [140.01, 36.01], [140, 36.01], [140, 36]]] } }
+  ]
+});
+assert.deepEqual(distantStationAreas, [], "5kmより遠い未割当観測点を誤って区域へ割り当てない");
+
 const [app, map, panel, vite, style] = await Promise.all([
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
@@ -64,6 +88,8 @@ assert.match(map, /historicalEarthquakeDetailVisible === true\)[\s\S]*?hideMapIn
 assert.match(map, /markerType: detailVisible && selected \? "cross" : "hypocenter-distribution"/u);
 assert.match(map, /EARTHQUAKE_INTERACTIVE_LAYERS = \["sample-circle", "sample-cross"/u);
 assert.match(map, /markerType: "earthquake-station"/u);
+assert.match(map, /const EARTHQUAKE_STATION_RADIUS = 10;/u,
+  "最新・過去地震の観測点マーカー半径を少し大きくする");
 assert.match(map, /id: "earthquake-area-intensity-marker"[\s\S]{0,100}?maxzoom: 6\.5/u,
   "広域表示では細分区域の四角マーカーを使う");
 assert.match(map, /id: "earthquake-station-intensity-circle"[\s\S]{0,100}?minzoom: 6\.5/u,
@@ -83,6 +109,8 @@ assert.match(areaIntensityLayer, /\["get", "markerType"\], "earthquake-area-inte
 assert.doesNotMatch(stationIntensityLabelLayer, /icon-image|icon-color/u,
   "各地の観測点は四角アイコンを重ねず、円マーカー上に震度数字だけを表示する");
 assert.match(stationIntensityLabelLayer, /\["get", "markerType"\], "earthquake-station"/u);
+assert.match(stationIntensityLabelLayer, /7\.5,\s*11,\s*10,\s*13/u,
+  "震度数字だけを少し大きくし、色や配置は維持する");
 assert.match(map, /eventDetail\.event\?\.intensityAreaFeatures/u);
 assert.match(map, /const historicalAreaMarkers = createEarthquakeAreaIntensityMarkers/u);
 assert.match(map, /"text-color": "#e3342f"/u);

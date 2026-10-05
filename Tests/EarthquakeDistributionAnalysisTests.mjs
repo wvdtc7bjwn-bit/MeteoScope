@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildEarthquakeDistributionAnalysis } from "../src/earthquakeDistributionAnalysis.js";
+import { buildEarthquakeDistributionAnalysis, buildPlateProfilePath } from "../src/earthquakeDistributionAnalysis.js";
 import { readFile } from "node:fs/promises";
 
 const analysis = buildEarthquakeDistributionAnalysis([
@@ -25,6 +25,15 @@ const oneDay = buildEarthquakeDistributionAnalysis([
   { sourceDate: "2026-09-01", latitude: 35, longitude: 139, depthKm: 10, magnitude: 2 }
 ], { startDate: "2026-09-01", endDate: "2026-09-01" });
 assert.equal(oneDay.activity.comparable, false);
+
+// A one-day selection can have a narrow footprint. A bent slab profile must
+// retain depth order instead of being re-sorted into a backtracking curve.
+assert.equal(buildPlateProfilePath([
+  { x: 50, y: 10 },
+  { x: 20, y: 30 },
+  { x: 60, y: 50 }
+]), "M 50 10 L 20 30 L 60 50");
+assert.equal(buildPlateProfilePath([{ x: Number.NaN, y: 10 }]), "");
 
 const syntheticPlateData = {
   contours: {
@@ -93,6 +102,19 @@ const realPlateSection = buildEarthquakeDistributionAnalysis([
 ], { plateData: realPlateData });
 assert.ok(realPlateSection.crossSection.plateProfiles.some((profile) => profile.points.length >= 2));
 
+const inlandShallowSection = buildEarthquakeDistributionAnalysis([
+  [36.2, 137.1], [36.25, 137.15], [36.3, 137.2]
+].map(([latitude, longitude], index) => ({
+  sourceDate: "2026-10-03",
+  latitude,
+  longitude,
+  depthKm: 8 + index,
+  magnitude: 1.5
+})), { plateData: realPlateData });
+assert.equal(inlandShallowSection.crossSection.plateProfileStatus, "shallow-inland");
+assert.deepEqual(inlandShallowSection.crossSection.plateProfiles, []);
+assert.equal(inlandShallowSection.crossSection.plateProfileMethod, "unavailable");
+
 const northeastJapanSection = buildEarthquakeDistributionAnalysis([
   [35, 140.2], [35.4, 140.6], [35.9, 140.8], [36.4, 141.1],
   [36.8, 141.4], [37.2, 141.7], [37.6, 142]
@@ -114,11 +136,14 @@ assert.ok(northeastJapanSection.crossSection.plateProfiles.some((profile) => (
 const leftPanel = await readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8");
 assert.match(leftPanel, /選択範囲の地震解析/u);
 assert.match(leftPanel, /深さ断面/u);
+assert.match(leftPanel, /深さ断面（km）/u);
 assert.match(leftPanel, /プレート境界そのものの断面ではありません/u);
 assert.match(leftPanel, /data-earthquake-distribution-show-plate-layers/u);
 assert.match(leftPanel, /Slab2プレート面/u);
 assert.match(leftPanel, /0km収束境界/u);
+assert.match(leftPanel, /内陸の浅い地震群のため、離れたプレート面の投影を省略しています/u);
 assert.match(leftPanel, /earthquake-analysis-section-loading/u);
 assert.match(leftPanel, /plateDataStatus === "loading"/u);
+assert.doesNotMatch(leftPanel, /buildSmoothPlateProfilePath/u);
 
 console.log("Earthquake distribution analysis tests passed.");

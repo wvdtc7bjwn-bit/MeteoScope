@@ -58,7 +58,7 @@ const HYPOCENTER_AREA_LINE_LAYER_ID = "hypocenter-area-selection-line";
 const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-circle", "earthquake-station-intensity-label", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
 const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "sample-cross", "earthquake-station-intensity-circle", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-line"];
-const EARTHQUAKE_STATION_RADIUS = 7.5;
+const EARTHQUAKE_STATION_RADIUS = 10;
 const EARTHQUAKE_STATION_STROKE_WIDTH = 1;
 const SAMPLE_CIRCLE_BASE_RADIUS = ["coalesce", ["get", "radius"], 8];
 const SAMPLE_CIRCLE_RADIUS_EXPRESSION = buildCircleZoomExpression({
@@ -1380,9 +1380,9 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           ["linear"],
           ["zoom"],
           7.5,
-          8,
+          11,
           10,
-          10
+          13
         ],
         "text-anchor": "center",
         "text-allow-overlap": true,
@@ -5285,14 +5285,18 @@ function buildTyphoonPopup(typhoon, label) {
     && details.maxGust === "-"
     && Boolean(details.systemType);
   const windRows = isLowPressureSystem
-    ? `<span>種別: ${escapePopup(details.systemType)}</span><br>`
+    ? ""
     : `
       <span>最大風速: ${escapePopup(details.maxWind ?? "未取得")}</span><br>
       <span>最大瞬間風速: ${escapePopup(details.maxGust ?? "未取得")}</span><br>
     `;
+  const systemTypeRow = details.systemType
+    ? `<span>種別: ${escapePopup(details.systemType)}</span><br>`
+    : "";
   return `
     <strong>${escapePopup(typhoon.name ?? "台風情報")}</strong><br>
     <span>${escapePopup(label)}</span><br>
+    ${systemTypeRow}
     <span>中心気圧: ${escapePopup(details.pressure ?? "未取得")}</span><br>
     ${windRows}
     <span>移動: ${escapePopup(details.direction ?? "未取得")} ${escapePopup(details.speed ?? "")}</span><br>

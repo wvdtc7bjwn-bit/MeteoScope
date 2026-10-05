@@ -503,7 +503,11 @@ function isTropicalDepression(item) {
 
 function getTyphoonSystemTypeForEntries(...entries) {
   const typeFields = ["category", "class", "type", "status"];
-  return getTyphoonSystemType(...entries.flatMap((entry) => typeFields.map((field) => entry?.[field])));
+  for (const entry of entries) {
+    const systemType = getTyphoonSystemType(...typeFields.map((field) => entry?.[field]));
+    if (systemType) return systemType;
+  }
+  return null;
 }
 
 export function getTyphoonSystemType(...sources) {
@@ -511,6 +515,7 @@ export function getTyphoonSystemType(...sources) {
   if (!text) return null;
   if (/温帯低気圧|EXTRATROPICAL|(?:^|\W)(?:EX|ET)(?:\W|$)/.test(text)) return "温帯低気圧";
   if (/熱帯低気圧|TROPICAL DEPRESSION|(?:^|\W)TD(?:\W|$)/.test(text)) return "熱帯低気圧";
+  if (/台風|TYPHOON|(?:^|\W)(?:TY|TS|STS|STY)(?:\W|$)/.test(text)) return "台風";
   return null;
 }
 

@@ -6002,12 +6002,14 @@ html[data-theme="light"] .upper-air-annotation-item p { color: #19344e; }
 
 .typhoon-transition-status {
   grid-column: 1 / -1;
-  display: grid;
-  gap: 3px;
-  padding: 10px 12px;
-  border: 1px solid rgba(79, 180, 235, 0.38);
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(56, 154, 213, 0.18), rgba(255, 255, 255, 0.04));
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(138, 163, 185, 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .typhoon-transition-status span {
@@ -6017,7 +6019,7 @@ html[data-theme="light"] .upper-air-annotation-item p { color: #19344e; }
 }
 
 .typhoon-transition-status strong {
-  color: #dff4ff;
+  color: var(--type-emphasis-title-color);
   font-size: 14px;
   font-weight: 900;
   line-height: 1.3;
@@ -16866,9 +16868,8 @@ html[data-theme="light"] .mobile-dock-volcano-forecast strong {
 }
 
 html[data-theme="light"] .typhoon-transition-status {
-  border-color: rgba(43, 112, 157, 0.36);
-  background: linear-gradient(135deg, rgba(190, 226, 247, 0.76), rgba(232, 245, 253, 0.62));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  border-color: rgba(68, 94, 118, 0.2);
+  background: rgba(228, 235, 241, 0.58);
 }
 
 html[data-theme="light"] .typhoon-transition-status span {
@@ -16877,7 +16878,7 @@ html[data-theme="light"] .typhoon-transition-status span {
 
 html[data-theme="light"] .typhoon-transition-status strong,
 html[data-theme="light"] .mobile-dock-typhoon-status {
-  color: #174f73;
+  color: #253b50;
 }
 
 html[data-theme="light"] .typhoon-analysis-panel {

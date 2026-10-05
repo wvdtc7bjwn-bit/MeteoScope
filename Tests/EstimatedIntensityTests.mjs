@@ -92,7 +92,7 @@ assert.match(mapSource, /url:\s*protocolUrl/u);
 assert.match(mapSource, /imageData\.slice\(0\)/u);
 assert.match(mapSource, /map\.getLayer\("sample-line"\)\s*\?\s*"sample-line"/u);
 assert.match(mapSource, /"raster-resampling":\s*"nearest"/u);
-assert.match(mapSource, /const EARTHQUAKE_STATION_RADIUS = 7\.5;/u);
+assert.match(mapSource, /const EARTHQUAKE_STATION_RADIUS = 10;/u);
 assert.match(mapSource, /const EARTHQUAKE_STATION_STROKE_WIDTH = 1;/u);
 assert.match(mapSource, /radius:\s*EARTHQUAKE_STATION_RADIUS,\s*strokeWidth:\s*EARTHQUAKE_STATION_STROKE_WIDTH/u);
 assert.doesNotMatch(mapSource, /getEarthquakeIntensityRadius/u);

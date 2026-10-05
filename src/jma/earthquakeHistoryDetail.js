@@ -3,6 +3,7 @@ import { JMA_ENDPOINTS, STATIC_DATA_CACHE_TTL_MS } from "../config.js";
 import { getEarthquakeIntensityColor, getEarthquakeIntensityRank } from "../earthquakeIntensity.js";
 
 const EVENT_ENDPOINT = "/api/earthquake-history-event";
+const AREA_BOUNDARY_SNAP_TOLERANCE_KM = 5;
 
 export async function fetchEarthquakeHistoryEvent(eventId, { signal } = {}) {
   const id = normalizeEarthquakeHistoryEventId(eventId);
@@ -36,32 +37,46 @@ export function buildHistoricalIntensityAreaFeatures(stations = [], geoJson = nu
   const areaFeatures = (geoJson?.features ?? []).flatMap((feature) => {
     const areaCode = String(feature?.properties?.code ?? feature?.properties?.areaCode ?? "").trim();
     const bounds = getGeometryBounds(feature?.geometry);
-    return areaCode && bounds ? [{ feature, areaCode, bounds }] : [];
+    if (!areaCode || !bounds) return [];
+    let group = areaGroups.get(areaCode);
+    if (!group) {
+      group = { areaCode, features: [], intensity: "" };
+      areaGroups.set(areaCode, group);
+    }
+    group.features.push({ feature, bounds });
+    return [{ feature, areaCode, bounds, group }];
   });
   for (const station of stations) {
     const coordinate = station?.coordinates;
     if (!Array.isArray(coordinate) || !station.intensity) continue;
     const [longitude, latitude] = coordinate;
+    let contained = false;
     for (const { feature, areaCode, bounds } of areaFeatures) {
       if (longitude < bounds[0] || longitude > bounds[2] || latitude < bounds[1] || latitude > bounds[3]) continue;
       if (!geometryContainsCoordinate(feature.geometry, coordinate)) continue;
-      const previous = areaGroups.get(areaCode);
-      if (!previous || getEarthquakeIntensityRank(station.intensity) > getEarthquakeIntensityRank(previous.intensity)) {
-        areaGroups.set(areaCode, { feature, intensity: station.intensity });
-      }
+      contained = true;
+      setAreaIntensity(areaGroups.get(areaCode), station.intensity);
+    }
+    // The JMA station coordinate catalogue and area polygons can differ by a
+    // small amount at a boundary. Keep exact containment first; only snap an
+    // unmatched station to its nearest area when the edge is within 5 km.
+    if (contained) continue;
+    const nearestArea = findNearestAreaFeature(coordinate, areaFeatures);
+    if (nearestArea && nearestArea.distanceKm <= AREA_BOUNDARY_SNAP_TOLERANCE_KM) {
+      setAreaIntensity(nearestArea.group, station.intensity);
     }
   }
-  return [...areaGroups.entries()].map(([areaCode, group]) => {
-    const properties = group.feature.properties ?? {};
+  return [...areaGroups.values()].filter((group) => group.intensity).map((group) => {
+    const properties = group.features[0]?.feature.properties ?? {};
     const intensity = group.intensity;
     return {
       type: "Feature",
-      geometry: group.feature.geometry,
+      geometry: combineAreaGeometries(group.features.map(({ feature }) => feature.geometry)),
       properties: {
         ...properties,
-        code: areaCode,
-        areaCode,
-        areaName: properties.name ?? areaCode,
+        code: group.areaCode,
+        areaCode: group.areaCode,
+        areaName: properties.name ?? group.areaCode,
         intensity,
         intensityLabel: `震度${intensity.replace("-", "弱").replace("+", "強")}`,
         color: getEarthquakeIntensityColor(intensity),
@@ -71,6 +86,68 @@ export function buildHistoricalIntensityAreaFeatures(stations = [], geoJson = nu
       }
     };
   });
+}
+
+function setAreaIntensity(group, intensity) {
+  if (group && getEarthquakeIntensityRank(intensity) > getEarthquakeIntensityRank(group.intensity)) {
+    group.intensity = intensity;
+  }
+}
+
+function findNearestAreaFeature(coordinate, areaFeatures) {
+  const [longitude, latitude] = coordinate;
+  const cosine = Math.max(0.01, Math.cos(latitude * Math.PI / 180));
+  let nearest = null;
+  for (const entry of areaFeatures) {
+    const [minLongitude, minLatitude, maxLongitude, maxLatitude] = entry.bounds;
+    const boundsDeltaX = Math.max(minLongitude - longitude, 0, longitude - maxLongitude) * 111.32 * cosine;
+    const boundsDeltaY = Math.max(minLatitude - latitude, 0, latitude - maxLatitude) * 110.57;
+    const boundsDistanceKm = Math.hypot(boundsDeltaX, boundsDeltaY);
+    if (boundsDistanceKm > AREA_BOUNDARY_SNAP_TOLERANCE_KM || (nearest && boundsDistanceKm > nearest.distanceKm)) continue;
+    const distanceKm = getGeometryBoundaryDistanceKm(entry.feature.geometry, coordinate, cosine);
+    if (Number.isFinite(distanceKm) && (!nearest || distanceKm < nearest.distanceKm)) {
+      nearest = { ...entry, distanceKm };
+    }
+  }
+  return nearest;
+}
+
+function getGeometryBoundaryDistanceKm(geometry, coordinate, cosine) {
+  const lines = geometry?.type === "Polygon"
+    ? geometry.coordinates
+    : geometry?.type === "MultiPolygon" ? geometry.coordinates.flat() : [];
+  let minimumDistanceKm = Infinity;
+  for (const ring of lines) {
+    if (!Array.isArray(ring) || ring.length < 2) continue;
+    for (let index = 1; index < ring.length; index += 1) {
+      const previous = ring[index - 1];
+      const current = ring[index];
+      if (![previous?.[0], previous?.[1], current?.[0], current?.[1]].every(Number.isFinite)) continue;
+      const startX = (previous[0] - coordinate[0]) * 111.32 * cosine;
+      const startY = (previous[1] - coordinate[1]) * 110.57;
+      const endX = (current[0] - coordinate[0]) * 111.32 * cosine;
+      const endY = (current[1] - coordinate[1]) * 110.57;
+      const deltaX = endX - startX;
+      const deltaY = endY - startY;
+      const lengthSquared = deltaX ** 2 + deltaY ** 2;
+      const ratio = lengthSquared === 0
+        ? 0
+        : Math.max(0, Math.min(1, -(startX * deltaX + startY * deltaY) / lengthSquared));
+      minimumDistanceKm = Math.min(minimumDistanceKm, Math.hypot(startX + deltaX * ratio, startY + deltaY * ratio));
+    }
+  }
+  return minimumDistanceKm;
+}
+
+function combineAreaGeometries(geometries) {
+  return {
+    type: "MultiPolygon",
+    coordinates: geometries.flatMap((geometry) => (
+      geometry?.type === "Polygon"
+        ? [geometry.coordinates]
+        : geometry?.type === "MultiPolygon" ? geometry.coordinates : []
+    ))
+  };
 }
 
 function getGeometryBounds(geometry) {

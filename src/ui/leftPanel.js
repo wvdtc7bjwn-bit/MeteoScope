@@ -55,7 +55,7 @@ import {
   HYPOCENTER_UNKNOWN_DEPTH_COLOR,
   getHypocenterDepthStopPercentage
 } from "../map/hypocenterDepthStyle.js";
-import { buildEarthquakeDistributionAnalysis } from "../earthquakeDistributionAnalysis.js";
+import { buildEarthquakeDistributionAnalysis, buildPlateProfilePath } from "../earthquakeDistributionAnalysis.js";
 import { getVolcanoLevelColor } from "../volcanoLevels.js";
 import {
   getAvailableVolcanoAshForecasts,
@@ -3863,6 +3863,14 @@ function formatMobileEarthquakeTime(value, includeYear = false) {
   const year = includeYear && match[1] ? `${match[1]}/` : "";
   return `${year}${date} ${match[4]}`;
 }
+
+function getTyphoonStatusPresentation(transitionStatus, systemType) {
+  const transition = String(transitionStatus ?? "").trim();
+  if (transition) return { label: "現在の状態", text: transition };
+  const type = String(systemType ?? "").trim();
+  return type ? { label: "種別", text: type } : null;
+}
+
 function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLocation, loadingLabel, riverFlood, warningView, warnings }) {
   if (warningView === "river") return buildRiverFloodMobileContextMarkup(riverFlood, currentLocation, loadingLabel);
   const topWarning = getPrimaryMobileWarning(warnings);
@@ -6046,10 +6054,14 @@ function renderTyphoonDetails(tab, state) {
     setSocialSharePayload("typhoon", null);
   }
   const movement = formatTyphoonMovement(details.direction, details.speed);
-  const statusMarkup = transitionStatus ? `
+  const statusPresentation = getTyphoonStatusPresentation(
+    transitionStatus,
+    selectedTyphoon?.details?.systemType ?? details.systemType
+  );
+  const statusMarkup = statusPresentation ? `
     <div class="typhoon-transition-status" role="status">
-      <span>現在の状態</span>
-      <strong>${escapeHtml(transitionStatus)}</strong>
+      <span>${escapeHtml(statusPresentation.label)}</span>
+      <strong>${escapeHtml(statusPresentation.text)}</strong>
     </div>
   ` : "";
   const shareMarkup = selectedTyphoon ? `
@@ -7539,7 +7551,7 @@ function buildEarthquakeCrossSection(crossSection, plateDataStatus) {
       x: left + ((point.distanceKm - crossSection.minDistanceKm) / xRange) * plotWidth,
       y: top + (point.depthKm / maximumDepth) * plotHeight
     }));
-    const path = buildSmoothPlateProfilePath(coordinates);
+    const path = buildPlateProfilePath(coordinates);
     const origin = profile.points.find((point) => point.depthKm === 0);
     const originMarkup = origin
       ? `<circle cx="${left + ((origin.distanceKm - crossSection.minDistanceKm) / xRange) * plotWidth}" cy="${top}" r="3.4" class="earthquake-analysis-plate-origin" style="stroke:${color}"><title>${escapeHtml(profile.plate)}の0km収束境界</title></circle>`
@@ -7549,40 +7561,16 @@ function buildEarthquakeCrossSection(crossSection, plateDataStatus) {
   const usesProjectedPlateProfile = crossSection.plateProfileMethod === "nearby-projection";
   const plateLegend = plateProfiles.length
     ? `<p class="earthquake-analysis-plate-legend"><span>${usesProjectedPlateProfile ? "破線：近傍のSlab2等深線を断面方向に投影・丸印：0km収束境界" : "破線：Slab2プレート面（20km等深線の交点を補間）・丸印：0km収束境界"}</span>${plateProfiles.map((profile, index) => `<span><i style="background:${["#ffcf57", "#b278ff", "#5ad8b2"][index % 3]}"></i>${escapeHtml(profile.plate)}</span>`).join("")}</p>`
-    : plateDataStatus === "loading"
+    : crossSection.plateProfileStatus === "shallow-inland"
+      ? '<p class="earthquake-analysis-plate-legend">内陸の浅い地震群のため、離れたプレート面の投影を省略しています。</p>'
+      : plateDataStatus === "loading"
       ? '<p class="earthquake-analysis-plate-legend">プレート面データを読み込み中です。</p>'
       : '<p class="earthquake-analysis-plate-legend">この断面ではSlab2プレート面との交点を確認できません。</p>';
   return `
-    <div class="earthquake-analysis-subhead"><strong>深さ断面</strong><span>横断 約${Math.round(crossSection.spanKm)}km</span></div>
-    <svg class="earthquake-distribution-chart earthquake-analysis-section-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="選択地震とプレート面の深さ断面">${grids}<text x="${left}" y="11" class="earthquake-chart-axis-text">浅い</text><text x="${left - 5}" y="${top + plotHeight + 3}" text-anchor="end" class="earthquake-chart-axis-text">km</text>${plateMarkup}${coordinates.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="${point.radius}" class="earthquake-analysis-section-point"><title>深さ ${Math.round(point.depthKm)}km${point.magnitude === null ? "" : `・M${point.magnitude.toFixed(1)}`}</title></circle>`).join("")}</svg>
+    <div class="earthquake-analysis-subhead"><strong>深さ断面（km）</strong><span>横断 約${Math.round(crossSection.spanKm)}km</span></div>
+    <svg class="earthquake-distribution-chart earthquake-analysis-section-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="選択地震とプレート面の深さ断面">${grids}<text x="${left}" y="11" class="earthquake-chart-axis-text">浅い</text>${plateMarkup}${coordinates.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="${point.radius}" class="earthquake-analysis-section-point"><title>深さ ${Math.round(point.depthKm)}km${point.magnitude === null ? "" : `・M${point.magnitude.toFixed(1)}`}</title></circle>`).join("")}</svg>
     ${plateLegend}
   `;
-}
-
-function buildSmoothPlateProfilePath(points) {
-  const uniquePoints = [...points]
-    .sort((left, right) => left.x - right.x)
-    .filter((point, index, all) => index === 0 || Math.abs(point.x - all[index - 1].x) > 0.01);
-  if (!uniquePoints.length) return "";
-  if (uniquePoints.length === 1) return `M ${uniquePoints[0].x} ${uniquePoints[0].y}`;
-  const tension = 0.4;
-  let path = `M ${uniquePoints[0].x} ${uniquePoints[0].y}`;
-  for (let index = 0; index < uniquePoints.length - 1; index += 1) {
-    const previous = uniquePoints[Math.max(0, index - 1)];
-    const start = uniquePoints[index];
-    const end = uniquePoints[index + 1];
-    const next = uniquePoints[Math.min(uniquePoints.length - 1, index + 2)];
-    const firstControl = {
-      x: start.x + (end.x - previous.x) * tension / 3,
-      y: start.y + (end.y - previous.y) * tension / 3
-    };
-    const secondControl = {
-      x: end.x - (next.x - start.x) * tension / 3,
-      y: end.y - (next.y - start.y) * tension / 3
-    };
-    path += ` C ${firstControl.x} ${firstControl.y}, ${secondControl.x} ${secondControl.y}, ${end.x} ${end.y}`;
-  }
-  return path;
 }
 
 function buildEarthquakeArchiveMobileContextMarkup(data) {
