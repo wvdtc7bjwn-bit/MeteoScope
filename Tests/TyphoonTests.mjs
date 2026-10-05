@@ -18,7 +18,12 @@ import {
   selectWorldTyphoonGenesisSystems,
   selectWorldTyphoonSystem
 } from "../src/worldTyphoon.js";
-import { splitLineAtAntimeridian } from "../src/map/geoLine.js";
+import {
+  splitLineAtAntimeridian,
+  splitPolygonRingAtAntimeridian,
+  unwrapLineAtAntimeridian,
+  unwrapLongitudeNear
+} from "../src/map/geoLine.js";
 import {
   parseTyphoonRadarTime,
   selectTyphoonRadarFrame
@@ -51,6 +56,43 @@ assert.equal(datelineWarningSegments.length, 2, "日付変更線をまたぐ暴�
 assert.ok(datelineWarningSegments.every((segment) => segment.every((point, index) => (
   index === 0 || Math.abs(point[0] - segment[index - 1][0]) <= 180
 ))), "分割後の線に地図を横断する経度ジャンプが残らない");
+const unwrappedDatelineTrack = unwrapLineAtAntimeridian([
+  [170, 20], [179, 20], [-179, 20], [-170, 20]
+]);
+assert.deepEqual(unwrappedDatelineTrack.map(([longitude]) => longitude), [170, 179, 181, 190],
+  "日付変更線をまたぐ経路・円中心列は短い側へ連続化する");
+assert.equal(unwrapLongitudeNear(-179, 181), 181,
+  "日付変更線東側の円中心に対して西側表記の端点を同じ経度コピーにそろえる");
+assert.equal(unwrapLongitudeNear(179, -181), -181,
+  "日付変更線西側の円中心に対して東側表記の端点を同じ経度コピーにそろえる");
+assert.ok(unwrappedDatelineTrack.every((point, index) => (
+  index === 0 || Math.abs(point[0] - unwrappedDatelineTrack[index - 1][0]) <= 180
+)));
+const closedDatelineRing = unwrapLineAtAntimeridian([
+  [179, 10], [-179, 10], [-179, 12], [179, 12], [179, 10]
+]);
+assert.deepEqual(closedDatelineRing[0], closedDatelineRing.at(-1), "日付変更線をまたぐ輪郭を閉じたまま連続化する");
+const unwrappedInputSegments = splitLineAtAntimeridian([
+  [179, 10], [181, 10], [185, 12]
+]);
+assert.equal(unwrappedInputSegments.length, 2, "連続化済みの経度が180度を越える線も地図端で分割する");
+assert.ok(unwrappedInputSegments.flat().every(([longitude]) => Math.abs(longitude) <= 180));
+const datelineCirclePolygons = splitPolygonRingAtAntimeridian([
+  [179, 10], [181, 10], [181, 12], [179, 12], [179, 10]
+]);
+assert.equal(datelineCirclePolygons.length, 2, "日付変更線をまたぐ強風域・暴風域のポリゴンを両側に切り分ける");
+assert.ok(datelineCirclePolygons.every((ring) => (
+  ring.length >= 4
+  && ring.every(([longitude, latitude]) => Math.abs(longitude) <= 180 && Number.isFinite(latitude))
+  && JSON.stringify(ring[0]) === JSON.stringify(ring.at(-1))
+)));
+assert.ok(datelineCirclePolygons.every((ring) => ring.some(([longitude]) => Math.abs(longitude) === 180)),
+  "分割した両方の円ポリゴンを日付変更線上で閉じる");
+const westernDatelinePolygons = splitPolygonRingAtAntimeridian([
+  [-181, 14], [-179, 14], [-179, 16], [-181, 16], [-181, 14]
+]);
+assert.equal(westernDatelinePolygons.length, 2, "西経側から日付変更線を越える円ポリゴンも分割する");
+assert.ok(westernDatelinePolygons.every((ring) => ring.every(([longitude]) => Math.abs(longitude) <= 180)));
 const jmaWarningAreaPaths = buildStormWarningAreaClosedPaths({
   arc: [
     { center: [144.4, 25.1], radius: 111.12, start: 20.7, end: 164.95 },
@@ -614,8 +656,20 @@ assert.match(
 );
 assert.match(
   mapSource,
-  /function createTyphoonStormWarningShapeFeatures\(typhoon\)[\s\S]*?feature\.geometry\?\.type === "LineString"[\s\S]*?createWorldLineFeatures\(feature\.geometry\.coordinates/
-, "暴風警戒域の公式線分を地図描画前に日付変更線で分割する");
+  /return features\.flatMap\(\(feature\) => \{[\s\S]*?feature\.geometry\?\.type === "LineString"[\s\S]*?createWorldLineFeatures\(feature\.geometry\.coordinates[\s\S]*?feature\.geometry\?\.type === "Polygon"[\s\S]*?const sourceRing = feature\.geometry\.coordinates\?\.\[0\][\s\S]*?splitPolygonRingAtAntimeridian\(sourceRing\)/u,
+  "台風レイヤーの線と強風域・暴風域を含む円ポリゴンを地図描画前に日付変更線で分割する");
+assert.match(mapSource, /function createOuterTangentAreaFeatures\(circles, options\)[\s\S]*?unwrapTyphoonCircleSequence\(circles\)/u,
+  "日付変更線をまたぐ予報域・暴風警戒域の円中心列を投影前に連続化する");
+assert.match(mapSource, /function projectCircleForTangents\(circle\)[\s\S]*?unwrapLongitudeNear\(rawEdge\[0\], circle\.center\[0\]\)/u,
+  "円の東端を中心と同じ経度コピーへそろえて半径の誤算を防ぐ");
+assert.match(mapSource, /typhoon-wind-area-fill[\s\S]*?\["get", "typhoonShape"\], "windAreaFill"\]/u,
+  "日付変更線で分割された風域ポリゴンだけを塗り、分割線を輪郭として描かない");
+assert.match(mapSource, /"fill-antialias": false/u,
+  "日付変更線上で隣接する風域塗りポリゴンのアンチエイリアス継ぎ目を消す");
+assert.match(mapSource, /typhoon-wind-area-line[\s\S]*?\["geometry-type"\], "LineString"\][\s\S]*?\["get", "typhoonShape"\], "windAreaLine"\]/u,
+  "風域の輪郭は元の円周を日付変更線で分割した実際の線分として描く");
+assert.match(mapSource, /function createTyphoonFeatures\(data\)[\s\S]*?return features\.flatMap\(\(feature\) => \{[\s\S]*?createWorldLineFeatures\(feature\.geometry\.coordinates/u,
+  "実況・予報経路と予報域・警戒域の境界線を日付変更線で分割する");
 assert.match(appSource, /hasSelectedTargets[\s\S]*?primarySystemId[\s\S]*?layer\.forecastPositions/);
 assert.doesNotMatch(appSource, /getWorldTyphoonFocusCoordinates/);
 assert.match(appSource, /updateWorldTyphoonForecastPositions/);

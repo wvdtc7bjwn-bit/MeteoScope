@@ -24,7 +24,12 @@ import { createHypocenter3DLayer } from "./hypocenter3DLayer.js";
 import { createPlateDepth3DLayer } from "./plateDepth3DLayer.js";
 import { createPlateDepthSurface3DLayer } from "./plateDepthSurface3DLayer.js";
 import { getHypocenterDepthColor } from "./hypocenterDepthStyle.js";
-import { splitLineAtAntimeridian } from "./geoLine.js";
+import {
+  splitLineAtAntimeridian,
+  splitPolygonRingAtAntimeridian,
+  unwrapLineAtAntimeridian,
+  unwrapLongitudeNear
+} from "./geoLine.js";
 import { getVolcanoLevelColor, VOLCANO_UNKNOWN_LEVEL_COLOR } from "../volcanoLevels.js";
 import {
   getAvailableVolcanoAshForecasts,
@@ -1612,11 +1617,11 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       id: "typhoon-wind-area-fill",
       type: "fill",
       source: TYPHOON_SOURCE_ID,
-      filter: ["all", ["==", ["geometry-type"], "Polygon"], ["==", ["get", "typhoonShape"], "windArea"]],
+      filter: ["all", ["==", ["geometry-type"], "Polygon"], ["==", ["get", "typhoonShape"], "windAreaFill"]],
       paint: {
         "fill-color": ["get", "color"],
         "fill-opacity": ["coalesce", ["get", "fillOpacity"], 0.08],
-        "fill-outline-color": ["get", "color"]
+        "fill-antialias": false
       }
     });
 
@@ -1624,7 +1629,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       id: "typhoon-wind-area-line",
       type: "line",
       source: TYPHOON_SOURCE_ID,
-      filter: ["all", ["==", ["geometry-type"], "Polygon"], ["==", ["get", "typhoonShape"], "windArea"]],
+      filter: ["all", ["==", ["geometry-type"], "LineString"], ["==", ["get", "typhoonShape"], "windAreaLine"]],
       paint: {
         "line-color": ["coalesce", ["get", "lineColor"], ["get", "color"]],
         "line-opacity": 0.98,
@@ -5000,10 +5005,7 @@ function createTyphoonFeatures(data) {
     if (pastTrack?.length >= 2) {
       features.push({
         type: "Feature",
-        geometry: {
-          type: "LineString",
-          coordinates: pastTrack
-        },
+        geometry: { type: "LineString", coordinates: pastTrack },
         properties: {
           type: "pastTrack",
           typhoonShape: "pastTrack",
@@ -5015,10 +5017,7 @@ function createTyphoonFeatures(data) {
     if (typhoon.forecastTrack?.length >= 2) {
       features.push({
         type: "Feature",
-        geometry: {
-          type: "LineString",
-          coordinates: typhoon.forecastTrack
-        },
+        geometry: { type: "LineString", coordinates: typhoon.forecastTrack },
         properties: {
           color: "#f8fbff",
           typhoonShape: "forecastRoute",
@@ -5072,7 +5071,28 @@ function createTyphoonFeatures(data) {
       features.push(...createTyphoonCenterXFeatures(typhoon));
     }
 
-    return features;
+    return features.flatMap((feature) => {
+      if (feature.geometry?.type === "LineString") {
+        return createWorldLineFeatures(feature.geometry.coordinates, { properties: feature.properties });
+      }
+      if (feature.geometry?.type === "Polygon") {
+        const sourceRing = feature.geometry.coordinates?.[0];
+        const fillFeatures = splitPolygonRingAtAntimeridian(sourceRing).map((ring) => ({
+          ...feature,
+          properties: feature.properties?.typhoonShape === "windArea"
+            ? { ...feature.properties, typhoonShape: "windAreaFill" }
+            : feature.properties,
+          geometry: { type: "Polygon", coordinates: [ring] }
+        }));
+        if (feature.properties?.typhoonShape !== "windArea") return fillFeatures;
+        const outlineProperties = { ...feature.properties, typhoonShape: "windAreaLine" };
+        return [
+          ...fillFeatures,
+          ...createWorldLineFeatures(sourceRing, { properties: outlineProperties })
+        ];
+      }
+      return [feature];
+    });
   });
 }
 
@@ -5504,15 +5524,10 @@ function createTyphoonStormWarningShapeFeatures(typhoon) {
   // rounded arc/line endpoints cannot be assembled into a closed fill ring.
   // In that case the caller sees these official segments and does not replace
   // them with the circle-hull approximation.
-  const officialFeatures = buildStormWarningAreaFeatures(typhoon.stormWarningAreaShape, {
+  return buildStormWarningAreaFeatures(typhoon.stormWarningAreaShape, {
     color: "#ff2800",
     popup: buildTyphoonPopup(typhoon, "暴風警戒域")
   });
-  return officialFeatures.flatMap((feature) => (
-    feature.geometry?.type === "LineString"
-      ? createWorldLineFeatures(feature.geometry.coordinates, { properties: feature.properties })
-      : [feature]
-  ));
 }
 
 function buildHistoricalEarthquakePopup(item) {
@@ -5564,9 +5579,10 @@ function createTyphoonForecastAreaFeatures(typhoon) {
 }
 
 function createOuterTangentAreaFeatures(circles, options) {
+  const continuousCircles = unwrapTyphoonCircleSequence(circles);
   const ring = options.useAdjacentTangents
-    ? createOuterTangentMergedPolygonRing(circles, options)
-    : createCircleHullRing(circles);
+    ? createOuterTangentMergedPolygonRing(continuousCircles, options)
+    : createCircleHullRing(continuousCircles);
   if (!ring) return [];
 
   const properties = {
@@ -5589,7 +5605,7 @@ function createOuterTangentAreaFeatures(circles, options) {
   ];
 
   if (options.skipEndArc) {
-    features.push(...createAdjacentOuterTangentLineFeatures(circles, options, properties));
+    features.push(...createAdjacentOuterTangentLineFeatures(continuousCircles, options, properties));
     return features;
   }
 
@@ -5607,6 +5623,12 @@ function createOuterTangentAreaFeatures(circles, options) {
     }
   );
   return features;
+}
+
+function unwrapTyphoonCircleSequence(circles) {
+  if (!Array.isArray(circles) || circles.length === 0) return [];
+  const centers = unwrapLineAtAntimeridian(circles.map((circle) => circle.center));
+  return circles.map((circle, index) => ({ ...circle, center: centers[index] ?? circle.center }));
 }
 
 function createCircleHullRing(circles) {
@@ -5675,10 +5697,14 @@ function createCircleHullSamplePoints(circle, circleIndex) {
 
 function createDirectionalRadiusHullSamplePoints(circle, circleIndex) {
   const steps = 144;
-  return Array.from({ length: steps }, (_, index) => {
+  const coordinates = unwrapLineAtAntimeridian(Array.from({ length: steps + 1 }, (_, index) => {
     const bearing = (index / steps) * 360;
     const radius = interpolateDirectionalRadius(circle.axes, bearing, circle.radius);
-    const lngLat = destinationPoint(circle.center, radius, bearing);
+    return destinationPoint(circle.center, radius, bearing);
+  }).slice(0, -1));
+  const worldOffset = Math.round((circle.center[0] - coordinates[0]?.[0]) / 360) * 360;
+  return coordinates.map(([longitude, latitude]) => {
+    const lngLat = [longitude + worldOffset, latitude];
     const point = projectMercatorPixel(lngLat);
     return {
       ...point,
@@ -5777,6 +5803,7 @@ function createOuterTangentMergedPolygonRing(circles, options = {}) {
   if (options.startRingAtEndArc && !options.skipEndArc) {
     ringPoints = rotateOpenLine(ringPoints, startArc.length + sideA.length);
   }
+  ringPoints = unwrapLineAtAntimeridian(ringPoints);
   let ring = closeLine(ringPoints);
   if (hasSelfIntersection(ring)) {
     const sideA = parts.straightSideA;
@@ -6101,7 +6128,8 @@ function createProjectedTangentCircles(circles) {
 
 function projectCircleForTangents(circle) {
   const pixelCenter = projectMercatorPixel(circle.center);
-  const edge = destinationPoint(circle.center, Number(circle.radius) || 0, 90);
+  const rawEdge = destinationPoint(circle.center, Number(circle.radius) || 0, 90);
+  const edge = [unwrapLongitudeNear(rawEdge[0], circle.center[0]), rawEdge[1]];
   const pixelEdge = projectMercatorPixel(edge);
   const dx = pixelEdge.x - pixelCenter.x;
   const dy = pixelEdge.y - pixelCenter.y;
