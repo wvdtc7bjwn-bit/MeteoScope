@@ -44,6 +44,13 @@ assert.deepEqual(warningAreaSegments[1], [[130, 20], [131, 21]]);
 assert.ok(warningAreaSegments[0].every((point) => (
   point.length === 2 && point.every(Number.isFinite)
 )));
+const datelineWarningSegments = splitLineAtAntimeridian([
+  [170, 20], [179, 20], [-179, 20], [-170, 20]
+]);
+assert.equal(datelineWarningSegments.length, 2, "日付変更線をまたぐ暴風警戒域の線を左右に分割する");
+assert.ok(datelineWarningSegments.every((segment) => segment.every((point, index) => (
+  index === 0 || Math.abs(point[0] - segment[index - 1][0]) <= 180
+))), "分割後の線に地図を横断する経度ジャンプが残らない");
 const jmaWarningAreaPaths = buildStormWarningAreaClosedPaths({
   arc: [
     { center: [144.4, 25.1], radius: 111.12, start: 20.7, end: 164.95 },
@@ -605,6 +612,10 @@ assert.match(
   mapSource,
   /function createTyphoonStormWarningShapeFeatures\(typhoon\)[\s\S]*?buildStormWarningAreaFeatures\(typhoon\.stormWarningAreaShape/
 );
+assert.match(
+  mapSource,
+  /function createTyphoonStormWarningShapeFeatures\(typhoon\)[\s\S]*?feature\.geometry\?\.type === "LineString"[\s\S]*?createWorldLineFeatures\(feature\.geometry\.coordinates/
+, "暴風警戒域の公式線分を地図描画前に日付変更線で分割する");
 assert.match(appSource, /hasSelectedTargets[\s\S]*?primarySystemId[\s\S]*?layer\.forecastPositions/);
 assert.doesNotMatch(appSource, /getWorldTyphoonFocusCoordinates/);
 assert.match(appSource, /updateWorldTyphoonForecastPositions/);

@@ -5504,10 +5504,15 @@ function createTyphoonStormWarningShapeFeatures(typhoon) {
   // rounded arc/line endpoints cannot be assembled into a closed fill ring.
   // In that case the caller sees these official segments and does not replace
   // them with the circle-hull approximation.
-  return buildStormWarningAreaFeatures(typhoon.stormWarningAreaShape, {
+  const officialFeatures = buildStormWarningAreaFeatures(typhoon.stormWarningAreaShape, {
     color: "#ff2800",
     popup: buildTyphoonPopup(typhoon, "暴風警戒域")
   });
+  return officialFeatures.flatMap((feature) => (
+    feature.geometry?.type === "LineString"
+      ? createWorldLineFeatures(feature.geometry.coordinates, { properties: feature.properties })
+      : [feature]
+  ));
 }
 
 function buildHistoricalEarthquakePopup(item) {
