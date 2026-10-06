@@ -1,6 +1,7 @@
 import { getDefaultTabOrder, normalizeTabOrder } from "./tabOrder.js";
 import { QuizRankingClient } from "../domain/quizRankingClient.js";
 import { getCurrentLanguage } from "./locale.js";
+import changelogMarkdown from "../../CHANGELOG.md?raw";
 
 let settingsModalInitialized = false;
 let settingsOptions = {};
@@ -280,7 +281,63 @@ function toggleSettingsGroup(toggle) {
     });
   }
   setSettingsGroupExpanded(group, expanded);
-  if (expanded) scrollSettingsGroupIntoView(group);
+  if (expanded) {
+    if (group.matches(".settings-changelog-group")) renderSettingsChangelog();
+    scrollSettingsGroupIntoView(group);
+  }
+}
+
+function renderSettingsChangelog() {
+  const container = document.getElementById("settings-changelog-content");
+  if (!container || container.dataset.rendered === "true") return;
+
+  const lines = changelogMarkdown.split(/\r?\n/);
+  const html = [];
+  let listOpen = false;
+  let entryOpen = false;
+  const closeList = () => {
+    if (!listOpen) return;
+    html.push("</ul>");
+    listOpen = false;
+  };
+  for (const line of lines) {
+    const heading = line.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      closeList();
+      const level = heading[1].length;
+      const title = escapeHtml(heading[2].trim()).replace(/`([^`]+)`/g, "<code>$1</code>");
+      if (level === 1) continue;
+      if (level === 2) {
+        if (entryOpen) html.push("</section>");
+        const date = heading[2].trim().match(/^(\d{4}-\d{2}-\d{2})$/)?.[1];
+        html.push(date
+          ? `<section class="settings-changelog-entry"><h3><time datetime="${date}">${date}</time></h3>`
+          : `<section class="settings-changelog-entry settings-changelog-period"><h3>${title}</h3>`);
+        entryOpen = true;
+      } else {
+        html.push(`<h4>${title}</h4>`);
+      }
+      continue;
+    }
+
+    const item = line.match(/^\s*-\s+(.+)$/);
+    if (item) {
+      if (!listOpen) {
+        html.push("<ul>");
+        listOpen = true;
+      }
+      const content = escapeHtml(item[1].trim()).replace(/`([^`]+)`/g, "<code>$1</code>");
+      html.push(`<li>${content}</li>`);
+      continue;
+    }
+
+    closeList();
+  }
+  closeList();
+  if (entryOpen) html.push("</section>");
+
+  container.innerHTML = html.join("");
+  container.dataset.rendered = "true";
 }
 
 function setSettingsGroupExpanded(group, expanded) {
@@ -340,6 +397,7 @@ function openSettingsGroup(groupClass) {
     if (otherGroup !== group) setSettingsGroupExpanded(otherGroup, false);
   });
   setSettingsGroupExpanded(group, true);
+  if (group.matches(".settings-changelog-group")) renderSettingsChangelog();
   scrollSettingsGroupIntoView(group);
 }
 

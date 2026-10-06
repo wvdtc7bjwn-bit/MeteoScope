@@ -56,6 +56,12 @@ jobs:
       - name: Test responsive layouts
         run: npm run test:responsive
 
+      - name: Test in-app changelog
+        run: npm run test:changelog
+
+      - name: Test map date formatting
+        run: npm run test:map-date-formatters
+
       - name: Test initial map loading gates
         run: npm run test:startup
 

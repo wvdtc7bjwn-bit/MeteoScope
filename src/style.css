@@ -4839,6 +4839,83 @@ html[data-theme="light"] .upper-air-annotation-item p { color: #19344e; }
   line-height: 1.6;
 }
 
+.settings-changelog {
+  display: grid;
+  gap: 14px;
+  color: #dbe6f4;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.settings-changelog-entry {
+  display: grid;
+  gap: 8px;
+  padding: 11px 12px;
+  border: 1px solid rgba(142, 173, 211, 0.18);
+  border-radius: 12px;
+  background: rgba(15, 29, 48, 0.28);
+}
+
+.settings-changelog-entry h3,
+.settings-changelog-entry h4,
+.settings-changelog-entry ul {
+  margin: 0;
+}
+
+.settings-changelog-entry h3 {
+  color: #8bd5ff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.settings-changelog-entry h4 {
+  color: #aebfd4;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.settings-changelog-entry ul {
+  display: grid;
+  gap: 5px;
+  padding-left: 18px;
+}
+
+.settings-changelog-entry li::marker {
+  color: #75c9ed;
+}
+
+.settings-changelog code {
+  color: inherit;
+  font: inherit;
+}
+
+.settings-changelog-loading {
+  margin: 0;
+  color: #9db3d7;
+}
+
+html[data-theme="light"] .settings-changelog {
+  color: #334a62;
+}
+
+html[data-theme="light"] .settings-changelog-entry {
+  border-color: rgba(66, 96, 129, 0.18);
+  background: rgba(255, 255, 255, 0.76);
+}
+
+html[data-theme="light"] .settings-changelog-entry h3 {
+  color: #0875aa;
+}
+
+html[data-theme="light"] .settings-changelog-entry h4,
+html[data-theme="light"] .settings-changelog-loading {
+  color: #536b84;
+}
+
+html[data-theme="light"] .settings-changelog-entry li::marker {
+  color: #1685bd;
+}
+
 .feedback-modal {
   z-index: 1290;
 }

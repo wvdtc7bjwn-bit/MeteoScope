@@ -30,6 +30,11 @@ import {
   unwrapLineAtAntimeridian,
   unwrapLongitudeNear
 } from "./geoLine.js";
+import {
+  formatCommunityReportTime,
+  formatDistributionOriginTime,
+  formatWorldForecastMapTime
+} from "./dateFormatters.js";
 import { getVolcanoLevelColor, VOLCANO_UNKNOWN_LEVEL_COLOR } from "../volcanoLevels.js";
 import {
   getAvailableVolcanoAshForecasts,
@@ -2646,12 +2651,6 @@ function communityHazardLabel(value) {
   return ({ "flooded-road": "道路冠水", "strong-wind": "強風", "poor-visibility": "視界不良", thunder: "雷", slippery: "路面凍結・滑りやすい" })[value] || "";
 }
 
-function formatCommunityReportTime(value) {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "時刻不明";
-  return new Intl.DateTimeFormat("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
-}
-
 function escapeHTML(value) {
   return String(value ?? "").replace(/[&<>"']/gu, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
@@ -4945,20 +4944,6 @@ function buildHypocenterDistributionPopup(item) {
   `;
 }
 
-function formatDistributionOriginTime(value, includeYear = false) {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return String(value ?? "時刻不明");
-  return new Intl.DateTimeFormat("ja-JP", {
-    timeZone: "Asia/Tokyo",
-    ...(includeYear ? { year: "numeric" } : {}),
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  }).format(date);
-}
-
 function buildEarthquakePopup(earthquake) {
   const unknownText = getEarthquakeUnknownText(earthquake);
   const intensity = String(
@@ -5244,20 +5229,6 @@ function buildWorldTyphoonPositionPopup(
     ${details ? `<br><span>${escapePopup(details)}</span>` : ""}
     <br><small>${escapePopup(`${modelLabel}${licenceLabel}`)}（代表進路・加工済み）</small>
   `;
-}
-
-function formatWorldForecastMapTime(value, includeYear = false) {
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "時刻未取得";
-  return new Intl.DateTimeFormat("ja-JP", {
-    timeZone: "Asia/Tokyo",
-    ...(includeYear ? { year: "numeric" } : {}),
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23"
-  }).format(date);
 }
 
 function formatWorldForecastCoordinates(latitude, longitude) {
