@@ -18,6 +18,7 @@ assert.match(changelog, /## 2026-09-18[\s\S]*?約50年分の過去地震検索/)
 assert.match(changelog, /## 2026-07/);
 assert.match(changelog, /## 2026-06/);
 assert.doesNotMatch(changelog, /GitHub Pages|Cloudflare Pages|wrangler\.toml|README|### デプロイ/);
+assert.doesNotMatch(changelog, /管理者画面|管理者機能|\/admin\.html/);
 
 assert.match(index, /class="settings-group settings-changelog-group"[\s\S]*?id="settings-changelog-content"/);
 assert.match(settingsModal, /import changelogMarkdown from "\.\.\/\.\.\/CHANGELOG\.md\?raw"/);
