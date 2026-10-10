@@ -57,6 +57,7 @@ import {
 } from "../map/hypocenterDepthStyle.js";
 import { buildEarthquakeDistributionAnalysis, buildPlateProfilePath } from "../earthquakeDistributionAnalysis.js";
 import { getVolcanoLevelColor } from "../volcanoLevels.js";
+import { groupMobileTsunamiAreas } from "./mobileTsunamiTicker.js";
 import {
   getAvailableVolcanoAshForecasts,
   getHighestPriorityVolcanoReport,
@@ -3612,9 +3613,7 @@ function buildMobileTsunamiSummaryMarkup(earthquake, tsunami, tsunamiStatus) {
   const state = getCurrentTsunamiState(earthquake, tsunami, tsunamiStatus);
   const report = state.tsunami;
   const areas = (report?.areas ?? []).filter((area) => area.level !== "none");
-  const tickerAreas = [...areas].sort(
-    (left, right) => getMobileTsunamiLevelRank(right.level) - getMobileTsunamiLevelRank(left.level)
-  );
+  const tickerGroups = groupMobileTsunamiAreas(areas);
   const observations = [...(report?.observations ?? []), ...(report?.offshoreObservations ?? [])];
   const primaryArea = areas[0];
   const latestObservation = observations[0];
@@ -3626,25 +3625,13 @@ function buildMobileTsunamiSummaryMarkup(earthquake, tsunami, tsunamiStatus) {
   const title = primaryArea?.name
     || latestObservation?.stationName
     || (state.level === "none" ? "警報・注意報なし" : state.label || "発表状況を確認中");
-  const areaTickerText = tickerAreas
-    .map((area) => area.name)
-    .filter(Boolean)
+  const areaTickerText = tickerGroups
+    .flatMap((group) => group.areas.map((area) => area.name))
     .join("　•　");
-  const tickerGroups = tickerAreas
-    .filter((area) => area.name)
-    .reduce((groups, area) => {
-      const current = groups.at(-1);
-      if (current?.level === area.level) {
-        current.areas.push(area);
-      } else {
-        groups.push({ level: area.level, areas: [area] });
-      }
-      return groups;
-    }, []);
   const areaTickerGroupsMarkup = tickerGroups
     .map((group, groupIndex) => {
       const groupText = group.areas.map((area) => area.name).join("　•　");
-      const duration = Math.max(12, Math.min(28, Math.ceil(groupText.length * 0.55)));
+      const duration = Math.max(18, Math.min(72, Math.ceil(groupText.length * 0.8)));
       const areasMarkup = group.areas
         .map((area, index, entries) => `
           <strong data-mobile-tsunami-area-level="${escapeHtml(area.level)}">${escapeHtml(area.name)}${index < entries.length - 1 ? "　•　" : ""}</strong>
@@ -3704,16 +3691,6 @@ function getMobileTsunamiLevelShortLabel(level) {
   if (level === "forecast") return "予報";
   if (level === "none") return "なし";
   return "未確認";
-}
-
-function getMobileTsunamiLevelRank(level) {
-  return {
-    "major-warning": 4,
-    warning: 3,
-    advisory: 2,
-    forecast: 1,
-    none: 0
-  }[level] ?? -1;
 }
 
 function syncMobileTsunamiAreaTickers(root) {

@@ -105,7 +105,7 @@ assert.match(map, /isHistoricalEarthquake: true/u);
 assert.match(map, /if \(feature\?\.properties\?\.isHistoricalEarthquake === true\)[\s\S]*?hideMapInfo\("earthquake-distribution"\);[\s\S]*?return;/u);
 assert.match(map, /historicalEarthquakeDetailVisible === true\)[\s\S]*?hideMapInfo\("earthquake-distribution"\)/u);
 assert.match(map, /markerType: detailVisible && selected \? "cross" : "hypocenter-distribution"/u);
-assert.match(map, /EARTHQUAKE_INTERACTIVE_LAYERS = \["sample-circle", "sample-cross"/u);
+assert.match(map, /EARTHQUAKE_INTERACTIVE_LAYERS = \["sample-circle", "sample-tsunami-coastal", "sample-cross"/u);
 assert.match(map, /markerType: "earthquake-station"/u);
 assert.match(map, /const EARTHQUAKE_STATION_RADIUS = 10;/u,
   "最新・過去地震の観測点マーカー半径を少し大きくする");

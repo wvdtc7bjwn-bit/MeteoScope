@@ -13143,7 +13143,7 @@ html[data-theme="light"] .map-terrain-toggle.is-enabled .map-terrain-toggle-stat
 
   .mobile-dock-tsunami-area-ticker {
     min-width: 0;
-    height: 18px;
+    height: 20px;
     overflow: hidden;
     opacity: 1;
     transition: opacity 160ms ease;
@@ -13160,14 +13160,14 @@ html[data-theme="light"] .map-terrain-toggle.is-enabled .map-terrain-toggle-stat
     align-items: center;
     width: max-content;
     min-width: 100%;
-    height: 18px;
+    height: 20px;
   }
 
   .mobile-dock-tsunami-area-ticker-sequence {
     display: inline-flex;
     flex: 0 0 auto;
     align-items: center;
-    height: 18px;
+    height: 20px;
   }
 
   .mobile-dock-tsunami-area-ticker-sequence[hidden] {
@@ -13175,8 +13175,13 @@ html[data-theme="light"] .map-terrain-toggle.is-enabled .map-terrain-toggle-stat
   }
 
   .mobile-dock-tsunami-area-ticker.is-animated .mobile-dock-tsunami-area-ticker-track {
-    animation: remoteTickerLeft var(--mobile-tsunami-ticker-duration, 18s) linear infinite;
+    animation: mobileTsunamiTickerLeft var(--mobile-tsunami-ticker-duration, 24s) linear infinite;
     will-change: transform;
+  }
+
+  @keyframes mobileTsunamiTickerLeft {
+    from { transform: translate3d(0, 0, 0); }
+    to { transform: translate3d(-50%, 0, 0); }
   }
 
   .mobile-dock-tsunami-area-ticker-track strong {

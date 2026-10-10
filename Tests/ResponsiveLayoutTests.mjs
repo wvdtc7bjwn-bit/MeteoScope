@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { groupMobileTsunamiAreas } from "../src/ui/mobileTsunamiTicker.js";
 
 const [styles, index, panel, app, weatherMap, panelToggle, tabs, time, mapUtilityMenu, legendToggle, remoteConfig, settingsModal] = await Promise.all([
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
@@ -15,6 +16,32 @@ const [styles, index, panel, app, weatherMap, panelToggle, tabs, time, mapUtilit
   readFile(new URL("../src/remoteConfig.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/settingsModal.js", import.meta.url), "utf8")
 ]);
+
+const tsunamiForecastAreas = [
+  { name: "宮城県", level: "warning" },
+  { name: "北海道太平洋沿岸東部", level: "forecast" },
+  { name: "岩手県", level: "warning" },
+  { name: "伊豆諸島", level: "advisory" },
+  { name: "青森県太平洋沿岸", level: "forecast" },
+  { name: "北海道太平洋沿岸中部", level: "forecast" },
+  { name: "千葉県九十九里・外房", level: "advisory" },
+  { name: "北海道太平洋沿岸西部", level: "forecast" },
+  { name: "発表対象外地域", level: "none" }
+];
+const tsunamiTickerGroups = groupMobileTsunamiAreas(tsunamiForecastAreas);
+const tsunamiTickerAreaNames = tsunamiTickerGroups.flatMap((group) => group.areas.map((area) => area.name));
+assert.deepEqual(tsunamiTickerGroups.map((group) => group.level), ["warning", "advisory", "forecast"]);
+assert.deepEqual(tsunamiTickerAreaNames, [
+  "宮城県",
+  "岩手県",
+  "伊豆諸島",
+  "千葉県九十九里・外房",
+  "北海道太平洋沿岸東部",
+  "青森県太平洋沿岸",
+  "北海道太平洋沿岸中部",
+  "北海道太平洋沿岸西部"
+]);
+assert.equal(new Set(tsunamiTickerAreaNames).size, tsunamiTickerAreaNames.length, "予報区名を欠落・重複なく全件含める");
 
 assert.match(styles, /--sidebar-width:\s*clamp\(300px,\s*24vw,\s*380px\)/);
 assert.match(
@@ -678,21 +705,24 @@ assert.match(panel, /const overflows = sequence\.scrollWidth > ticker\.clientWid
 assert.match(panel, /duplicate\.setAttribute\("aria-hidden", "true"\)/);
 assert.match(panel, /duplicate\.setAttribute\("data-mobile-tsunami-ticker-duplicate", ""\)/);
 assert.match(panel, /const isVisible = summaryPage\?\.getAttribute\("aria-hidden"\) !== "true"/);
-assert.match(panel, /const tickerAreas = \[\.\.\.areas\]\.sort\(/);
-assert.match(panel, /const tickerGroups = tickerAreas/);
-assert.match(panel, /function getMobileTsunamiLevelRank\(level\)/);
+assert.match(panel, /const tickerGroups = groupMobileTsunamiAreas\(areas\)/);
+assert.match(panel, /const areasMarkup = group\.areas\s*\.map\(\(area, index, entries\)/);
+assert.match(panel, /Math\.max\(18, Math\.min\(72, Math\.ceil\(groupText\.length \* 0\.8\)\)\)/);
 assert.match(panel, /badgeText\.textContent = getMobileTsunamiLevelShortLabel\(level\)/);
 assert.match(panel, /main\.style\.setProperty\("--mobile-tsunami-color", getTsunamiLevelColor\(level\)\)/);
 assert.match(panel, /groups\.length > 1 && isVisible/);
 assert.match(panel, /overflows && !prefersReducedMotion\s*\? durationSeconds \* 1000\s*:\s*3500/);
 assert.match(panel, /ticker\.classList\.add\("is-group-changing"\)/);
 assert.doesNotMatch(panel, /areas\.length > 1 \? " is-animated"/);
-assert.match(styles, /\.mobile-dock-tsunami-area-ticker\.is-animated \.mobile-dock-tsunami-area-ticker-track\s*\{[\s\S]*?animation:\s*remoteTickerLeft/);
+assert.match(styles, /\.mobile-dock-tsunami-area-ticker\.is-animated \.mobile-dock-tsunami-area-ticker-track\s*\{[\s\S]*?animation:\s*mobileTsunamiTickerLeft/);
+assert.match(styles, /@keyframes mobileTsunamiTickerLeft\s*\{\s*from\s*\{\s*transform:\s*translate3d\(0, 0, 0\);\s*\}\s*to\s*\{\s*transform:\s*translate3d\(-50%, 0, 0\);/);
 assert.match(styles, /\.mobile-dock-tsunami-area-ticker\.is-group-changing\s*\{[\s\S]*?opacity:\s*0/);
 assert.match(styles, /\.mobile-dock-tsunami-area-ticker-sequence\[hidden\]\s*\{[\s\S]*?display:\s*none/);
 assert.match(styles, /mask-image:\s*linear-gradient\(90deg,\s*#000 0,\s*#000 calc\(100% - 7px\),\s*transparent 100%\)/);
 assert.doesNotMatch(styles, /mask-image:\s*linear-gradient\(90deg,\s*transparent 0,\s*#000 7px/);
 assert.equal(styles.match(/@keyframes remoteTickerLeft/g)?.length, 1);
+assert.equal(styles.match(/@keyframes mobileTsunamiTickerLeft/g)?.length, 1);
+assert.match(styles, /\.mobile-dock-tsunami-area-ticker\s*\{[^}]*height:\s*20px;[^}]*overflow:\s*hidden;/);
 const mobileTsunamiLevelStyle = styles.match(
   /\.mobile-dock-tsunami-level\s*\{([^}]*)\}/
 )?.[1] ?? "";
@@ -707,7 +737,7 @@ const tsunamiMobileSummary = panel.slice(tsunamiMobileSummaryStart, tsunamiMobil
 assert.doesNotMatch(tsunamiMobileSummary, /<small>津波<\/small>/);
 assert.doesNotMatch(tsunamiMobileSummary, /primaryArea\.arrivalCondition|primaryArea\.arrivalTime/);
 assert.doesNotMatch(tsunamiMobileSummary, /primaryArea\.heightCondition|primaryArea\.height/);
-assert.match(tsunamiMobileSummary, /const areaTickerText = tickerAreas\s*\.map\(\(area\) => area\.name\)\s*\.filter\(Boolean\)\s*\.join\(/);
+assert.match(tsunamiMobileSummary, /const areaTickerText = tickerGroups\s*\.flatMap\(\(group\) => group\.areas\.map\(\(area\) => area\.name\)\)\s*\.join\(/);
 const mobileTapControlsStart = panel.indexOf("export function setupMobileWeatherTimelineTapControls");
 const mobileTapControlsEnd = panel.indexOf("\nexport function ", mobileTapControlsStart + 1);
 const mobileTapControls = panel.slice(mobileTapControlsStart, mobileTapControlsEnd);

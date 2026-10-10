@@ -162,12 +162,21 @@ const weatherMapSource = await readFile(
 );
 assert.match(
   weatherMapSource,
-  /"circle-stroke-color":\s*\[[\s\S]*?"tsunami-coastal"[\s\S]*?"#050505"/
+  /id:\s*"sample-tsunami-coastal"[\s\S]*?"circle-stroke-color":\s*"#050505"/
 );
 assert.match(
   weatherMapSource,
   /id:\s*"sample-tsunami-offshore"[\s\S]*?"text-halo-color":\s*"#050505"/
 );
+assert.match(weatherMapSource, /id:\s*"sample-tsunami-area-fill"[\s\S]*?\["has", "tsunamiLevel"\][\s\S]*?"fill-opacity-transition":\s*\{ duration: 750, delay: 0 \}/);
+assert.match(weatherMapSource, /id:\s*"sample-tsunami-area-line"[\s\S]*?\["has", "tsunamiLevel"\][\s\S]*?"line-opacity-transition":\s*\{ duration: 750, delay: 0 \}/);
+assert.match(weatherMapSource, /id:\s*"sample-tsunami-coastal"[\s\S]*?\["==", \["get", "markerType"\], "tsunami-coastal"\][\s\S]*?"circle-opacity-transition":\s*\{ duration: 750, delay: 0 \}/);
+assert.match(weatherMapSource, /"text-opacity-transition":\s*\{ duration: 750, delay: 0 \}/);
+assert.match(weatherMapSource, /const TSUNAMI_BLINK_INTERVAL_MS = 1800/);
+assert.match(weatherMapSource, /prefers-reduced-motion: reduce/);
+assert.match(weatherMapSource, /syncTsunamiBlink\(mode, collection\)/);
+assert.match(weatherMapSource, /\["!", \["has", "tsunamiLevel"\]\]/);
+assert.match(weatherMapSource, /\["!=", \["get", "markerType"\], "tsunami-coastal"\]/);
 assert.match(mapped.mapFeatures[0].properties.popup, /沿岸津波観測/u);
 assert.match(mapped.mapFeatures[1].properties.popup, /沖合津波観測/u);
 

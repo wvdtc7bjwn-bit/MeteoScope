@@ -65,9 +65,11 @@ const SAMPLE_SOURCE_ID = "weather-samples";
 const HYPOCENTER_AREA_SOURCE_ID = "hypocenter-area-selection";
 const HYPOCENTER_AREA_FILL_LAYER_ID = "hypocenter-area-selection-fill";
 const HYPOCENTER_AREA_LINE_LAYER_ID = "hypocenter-area-selection-line";
-const SAMPLE_LAYERS = ["sample-fill", "sample-line", "sample-line-dashed", "sample-circle", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-circle", "earthquake-station-intensity-label", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
+const SAMPLE_LAYERS = ["sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-circle", "earthquake-station-intensity-label", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
-const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "sample-cross", "earthquake-station-intensity-circle", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-line"];
+const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "sample-tsunami-coastal", "sample-cross", "earthquake-station-intensity-circle", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line"];
+const TSUNAMI_BLINK_INTERVAL_MS = 1800;
+const TSUNAMI_DIMMED_OPACITY_FACTOR = 0.38;
 const EARTHQUAKE_STATION_RADIUS = 10;
 const EARTHQUAKE_STATION_STROKE_WIDTH = 1;
 const SAMPLE_CIRCLE_BASE_RADIUS = ["coalesce", ["get", "radius"], 8];
@@ -402,6 +404,8 @@ export function createWeatherMap(elementId) {
   let terrainLayerVisible = false;
   let terrainLayerOpacity = DEFAULT_TERRAIN_OPACITY;
   let terrainSyncPending = false;
+  let tsunamiBlinkTimer = 0;
+  let tsunamiBlinkVisible = true;
   let activeFaultVisible = true;
   let activeFaultDataSource = "jshis";
   let gsjActiveFaultData = EMPTY_GEOJSON;
@@ -964,6 +968,7 @@ export function createWeatherMap(elementId) {
     }
     const collection = createSampleFeatureCollection(mode, data);
     setGeoJsonSourceData(source, collection);
+    syncTsunamiBlink(mode, collection);
     updateHypocenter3D(mode, data);
     const typhoonCollection = updateTyphoonLayers(mode, data);
     updateWarningAreaLookup(mode, data);
@@ -978,6 +983,52 @@ export function createWeatherMap(elementId) {
     updateEstimatedIntensityLayer(map, mode, data);
     updateRiverFloodLayer(map, mode, data);
     updateWarningMunicipalityPaint(map, mode, data);
+  }
+
+  function syncTsunamiBlink(mode, collection) {
+    const hasTsunami = mode === "earthquake"
+      && (collection?.features ?? []).some((feature) => (
+        feature?.properties?.tsunamiLevel
+        || ["tsunami-coastal", "tsunami-offshore"].includes(feature?.properties?.markerType)
+      ));
+    const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+    if (!hasTsunami || prefersReducedMotion) {
+      const needsReset = Boolean(tsunamiBlinkTimer) || !tsunamiBlinkVisible;
+      if (tsunamiBlinkTimer) window.clearInterval(tsunamiBlinkTimer);
+      tsunamiBlinkTimer = 0;
+      tsunamiBlinkVisible = true;
+      if (needsReset) setTsunamiMapOpacity(1);
+      return;
+    }
+    if (tsunamiBlinkTimer) return;
+
+    tsunamiBlinkVisible = true;
+    setTsunamiMapOpacity(1);
+    tsunamiBlinkTimer = window.setInterval(() => {
+      if (!map?.isStyleLoaded?.() || document.hidden) return;
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true) {
+        window.clearInterval(tsunamiBlinkTimer);
+        tsunamiBlinkTimer = 0;
+        tsunamiBlinkVisible = true;
+        setTsunamiMapOpacity(1);
+        return;
+      }
+      tsunamiBlinkVisible = !tsunamiBlinkVisible;
+      setTsunamiMapOpacity(tsunamiBlinkVisible ? 1 : TSUNAMI_DIMMED_OPACITY_FACTOR);
+    }, TSUNAMI_BLINK_INTERVAL_MS);
+  }
+
+  function setTsunamiMapOpacity(factor) {
+    if (!map?.isStyleLoaded?.()) return;
+    const updates = [
+      ["sample-tsunami-area-fill", "fill-opacity", ["*", ["coalesce", ["get", "fillOpacity"], 0.2], factor]],
+      ["sample-tsunami-area-line", "line-opacity", ["*", ["coalesce", ["get", "lineOpacity"], 0.9], factor]],
+      ["sample-tsunami-coastal", "circle-opacity", ["*", ["coalesce", ["get", "opacity"], 0.92], factor]],
+      ["sample-tsunami-offshore", "text-opacity", factor]
+    ];
+    updates.forEach(([layerId, property, value]) => {
+      if (map.getLayer(layerId)) map.setPaintProperty(layerId, property, value);
+    });
   }
 
   function setCurrentLocationVisible(visible) {
@@ -1178,10 +1229,22 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       id: "sample-fill",
       type: "fill",
       source: SAMPLE_SOURCE_ID,
-      filter: ["==", ["geometry-type"], "Polygon"],
+      filter: ["all", ["==", ["geometry-type"], "Polygon"], ["!", ["has", "tsunamiLevel"]]],
       paint: {
         "fill-color": ["get", "color"],
         "fill-opacity": ["coalesce", ["get", "fillOpacity"], 0.2]
+      }
+    });
+
+    map.addLayer({
+      id: "sample-tsunami-area-fill",
+      type: "fill",
+      source: SAMPLE_SOURCE_ID,
+      filter: ["all", ["==", ["geometry-type"], "Polygon"], ["has", "tsunamiLevel"]],
+      paint: {
+        "fill-color": ["get", "color"],
+        "fill-opacity": ["coalesce", ["get", "fillOpacity"], 0.2],
+        "fill-opacity-transition": { duration: 750, delay: 0 }
       }
     });
 
@@ -1191,12 +1254,29 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       source: SAMPLE_SOURCE_ID,
       filter: ["all",
         ["any", ["==", ["geometry-type"], "Polygon"], ["==", ["geometry-type"], "LineString"]],
+        ["!", ["has", "tsunamiLevel"]],
         ["!=", ["get", "lineStyle"], "dashed"]
       ],
       paint: {
         "line-color": ["get", "color"],
         "line-opacity": 0.9,
         "line-width": ["coalesce", ["get", "lineWidth"], 2]
+      }
+    });
+
+    map.addLayer({
+      id: "sample-tsunami-area-line",
+      type: "line",
+      source: SAMPLE_SOURCE_ID,
+      filter: ["all",
+        ["any", ["==", ["geometry-type"], "Polygon"], ["==", ["geometry-type"], "LineString"]],
+        ["has", "tsunamiLevel"]
+      ],
+      paint: {
+        "line-color": ["get", "color"],
+        "line-opacity": 0.9,
+        "line-width": ["coalesce", ["get", "lineWidth"], 2],
+        "line-opacity-transition": { duration: 750, delay: 0 }
       }
     });
 
@@ -1222,6 +1302,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         ["!=", ["get", "markerType"], "wind"],
         ["!=", ["get", "markerType"], "cross"],
         ["!=", ["get", "markerType"], "volcano"],
+        ["!=", ["get", "markerType"], "tsunami-coastal"],
         ["!=", ["get", "markerType"], "tsunami-offshore"],
         ["!=", ["get", "markerType"], "earthquake-area-intensity"],
         ["!=", ["get", "markerType"], "earthquake-station"]
@@ -1233,12 +1314,28 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "circle-color": ["get", "color"],
         "circle-opacity": ["coalesce", ["get", "opacity"], 0.92],
         "circle-radius": SAMPLE_CIRCLE_RADIUS_EXPRESSION,
-        "circle-stroke-color": [
-          "case",
-          ["==", ["get", "markerType"], "tsunami-coastal"],
-          "#050505",
-          "#f8fbff"
-        ],
+        "circle-stroke-color": "#f8fbff",
+        "circle-stroke-width": SAMPLE_CIRCLE_STROKE_WIDTH_EXPRESSION
+      }
+    });
+
+    map.addLayer({
+      id: "sample-tsunami-coastal",
+      type: "circle",
+      source: SAMPLE_SOURCE_ID,
+      filter: ["all",
+        ["==", ["geometry-type"], "Point"],
+        ["==", ["get", "markerType"], "tsunami-coastal"]
+      ],
+      layout: {
+        "circle-sort-key": ["coalesce", ["get", "sortKey"], 0]
+      },
+      paint: {
+        "circle-color": ["get", "color"],
+        "circle-opacity": ["coalesce", ["get", "opacity"], 0.92],
+        "circle-opacity-transition": { duration: 750, delay: 0 },
+        "circle-radius": SAMPLE_CIRCLE_RADIUS_EXPRESSION,
+        "circle-stroke-color": "#050505",
         "circle-stroke-width": SAMPLE_CIRCLE_STROKE_WIDTH_EXPRESSION
       }
     });
@@ -1496,6 +1593,8 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       },
       paint: {
         "text-color": ["coalesce", ["get", "color"], "#ff2b12"],
+        "text-opacity": 1,
+        "text-opacity-transition": { duration: 750, delay: 0 },
         "text-halo-color": "#050505",
         "text-halo-width": 2
       }
