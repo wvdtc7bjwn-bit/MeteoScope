@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { parseJmaDisasterArchive } from "../src/jma/disasterArchive.js";
+import { getJmaDisasterArchiveEndpoint } from "../src/ui/jmaDisasterArchiveModal.js";
 import { onRequest } from "../functions/api/jma-disaster-cases.js";
 
 const [indexHtml, appSource, modalSource] = await Promise.all([
@@ -11,7 +12,9 @@ const [indexHtml, appSource, modalSource] = await Promise.all([
 assert.match(indexHtml, /id="jma-disaster-archive-button"[^>]*aria-controls="jma-disaster-archive-modal"/u);
 assert.match(indexHtml, /id="jma-disaster-archive-modal"[\s\S]*?id="jma-disaster-archive-results"/u);
 assert.match(appSource, /setupJmaDisasterArchiveModal\(\)/u);
-assert.match(modalSource, /fetch\("\/api\/jma-disaster-cases"/u);
+assert.equal(getJmaDisasterArchiveEndpoint("wvdtc7bjwn-bit.github.io"), "https://meteoscope.pages.dev/api/jma-disaster-cases");
+assert.equal(getJmaDisasterArchiveEndpoint("localhost"), "/api/jma-disaster-cases");
+assert.match(modalSource, /fetch\(getJmaDisasterArchiveEndpoint\(\)/u);
 assert.match(modalSource, /data-jma-archive-case/gu);
 
 const fixture = `
@@ -47,6 +50,7 @@ try {
   });
   assert.equal(response.status, 200);
   assert.match(response.headers.get("cache-control"), /s-maxage=1800/u);
+  assert.equal(response.headers.get("access-control-allow-origin"), "*");
   assert.equal(await response.text(), fixture);
 
   const denied = await onRequest({

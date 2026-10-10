@@ -5,6 +5,12 @@ let archivePromise = null;
 let archiveCases = null;
 let previouslyFocused = null;
 
+export function getJmaDisasterArchiveEndpoint(hostname = globalThis.location?.hostname ?? "") {
+  return hostname.endsWith(".github.io")
+    ? "https://meteoscope.pages.dev/api/jma-disaster-cases"
+    : "/api/jma-disaster-cases";
+}
+
 export function setupJmaDisasterArchiveModal() {
   if (initialized) return;
   initialized = true;
@@ -62,7 +68,7 @@ async function loadJmaDisasterArchiveCases() {
   const status = document.getElementById("jma-disaster-archive-status");
   if (archivePromise) return archivePromise;
   setStatus(status, "loading", "気象庁の事例一覧を読み込んでいます…");
-  archivePromise = fetch("/api/jma-disaster-cases", { headers: { Accept: "text/plain" } })
+  archivePromise = fetch(getJmaDisasterArchiveEndpoint(), { headers: { Accept: "text/plain" } })
     .then((response) => {
       if (!response.ok) throw new Error(`JMA archive request failed: ${response.status}`);
       return response.text();

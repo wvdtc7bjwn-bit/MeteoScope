@@ -3,6 +3,7 @@ const MAX_CASE_LIST_BYTES = 512 * 1024;
 const RESPONSE_HEADERS = {
   "Cache-Control": "public, max-age=300, s-maxage=1800, stale-while-revalidate=21600",
   "Content-Type": "text/plain; charset=utf-8",
+  "Access-Control-Allow-Origin": "*",
   "X-Content-Type-Options": "nosniff"
 };
 
