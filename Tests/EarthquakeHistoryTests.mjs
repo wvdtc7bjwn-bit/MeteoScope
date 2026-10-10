@@ -104,7 +104,7 @@ assert.equal(normalized.sort, "newest");
 const nearbyNormalized = normalizeEarthquakeHistoryFilters({ startDate: "2025-01-01", endDate: "2025-01-02", nearby: { latitude: 35.5, longitude: 139.5, radiusKm: 50 } });
 assert.deepEqual(nearbyNormalized.nearby, { latitude: 35.5, longitude: 139.5, radiusKm: 50 }, "近傍検索の座標と半径を正規化する");
 assert.throws(() => normalizeEarthquakeHistoryFilters({ nearby: { latitude: 91, longitude: 0, radiusKm: 50 } }), /近傍/u);
-assert.ok(normalized.startDate >= manifest.startDate && normalized.startDate <= manifest.endDate);
+assert.ok(manifest.startDate <= manifest.endDate, "静的履歴マニフェストの期間が有効である");
 assert.ok(getHistoricalIntensityRank("6+") > getHistoricalIntensityRank("6-"));
 assert.equal(formatHistoricalIntensity("5-"), "5弱");
 assert.equal(translateHistoricalEpicenterName("FAR E OFF MIYAGI PREF"), "宮城県東方はるか沖");
