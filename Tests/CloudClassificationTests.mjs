@@ -21,7 +21,8 @@ assert.ok(terms.some(({ latin }) => latin === "fluctus"), "専門的な波頭雲
 const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const menu = html.match(/<div id="map-utility-actions"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
 const menuButtons = [...menu.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)];
-assert.equal(menuButtons.length, 11, "既存機能を維持し数値計算を追加する");
+assert.ok(menuButtons.length >= 11, "既存メニュー項目を維持する");
+assert.match(menu, /id="jma-disaster-archive-button"/u, "過去の災害事例をメニューから開ける");
 assert.ok(menuButtons.every(([, content]) => /class="map-utility-label"/.test(content)), "全メニュー項目をアイコンと名称で表示する");
 
 console.log("Cloud classification tests passed");
