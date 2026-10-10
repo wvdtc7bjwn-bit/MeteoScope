@@ -43,6 +43,7 @@
     "test:numerical-calculation": "node Tests/NumericalCalculationTests.mjs",
     "test:dashboard": "node Tests/DisasterDashboardTests.mjs",
     "test:timeline": "node Tests/DisasterTimelineTests.mjs",
+    "test:jma-disaster-archive": "node Tests/JmaDisasterArchiveTests.mjs",
     "test:location-nowcast": "node Tests/LocationNowcastStatusTests.mjs",
     "test:radar": "node Tests/RadarForecastTests.mjs",
     "test:clock-display": "node Tests/ClockDisplayModeTests.mjs",

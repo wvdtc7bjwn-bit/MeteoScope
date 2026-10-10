@@ -14,6 +14,7 @@ import { setupCloudClassificationModal } from "./ui/cloudClassificationModal.js"
 import { setupNumericalCalculationModal } from "./ui/numericalCalculationModal.js";
 import { openDisasterQuizModal, setupDisasterQuizModal } from "./ui/disasterQuizModal.js";
 import { setupDisasterTimelineModal } from "./ui/disasterTimelineModal.js";
+import { setupJmaDisasterArchiveModal } from "./ui/jmaDisasterArchiveModal.js";
 import { setupOnboardingModal } from "./ui/onboardingModal.js";
 import { setupLegalConsentModal } from "./ui/legalConsentModal.js";
 import { openSettingsModal, refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
@@ -4225,6 +4226,7 @@ if (layerId === "river") {
     }, { once: true });
     setupDisasterQuizModal();
     setupDisasterTimelineModal();
+    setupJmaDisasterArchiveModal();
     setupMapUtilityMenu();
     setupCommunityReportModal({
       getContext: () => ({ currentLocation: currentLocationInfo }),

@@ -2,13 +2,14 @@ import { defineConfig } from "vite";
 import { onRequest as handleWeeklyWeatherRequest } from "./functions/api/weekly-weather.js";
 import { onRequestGet as handleEarthquakeHistoryRequest } from "./functions/api/earthquake-history.js";
 import { onRequestGet as handleEarthquakeHistoryEventRequest } from "./functions/api/earthquake-history-event.js";
+import { onRequest as handleJmaDisasterCasesRequest } from "./functions/api/jma-disaster-cases.js";
 import { findLatestUpperAirObservation } from "./functions/api/upper-air.js";
 import { buildGfsSubsetUrl, getLatestGfsCycle, parseGfsPointProfile, normalizeGfsCoordinates } from "./functions/api/gfs-profile.js";
 
 const cloudflareApiTarget = process.env.METEOSCOPE_API_TARGET || "https://meteoscope.pages.dev";
 
 export default defineConfig({
-  plugins: [localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localUpperAirApi(), localGfsProfileApi()],
+  plugins: [localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localUpperAirApi(), localGfsProfileApi()],
   base: process.env.GITHUB_PAGES === "true" ? "/MeteoScope/" : "/",
   server: {
     proxy: {
@@ -45,6 +46,35 @@ export default defineConfig({
     }
   }
 });
+
+function localJmaDisasterCasesApi() {
+  return {
+    name: "meteoscope-local-jma-disaster-cases-api",
+    configureServer(server) {
+      server.middlewares.use(async (request, response, next) => {
+        const requestUrl = new URL(request.url ?? "/", "http://localhost");
+        if (requestUrl.pathname !== "/api/jma-disaster-cases") {
+          next();
+          return;
+        }
+
+        try {
+          const result = await handleJmaDisasterCasesRequest({
+            request: new Request(requestUrl, { method: request.method, headers: request.headers })
+          });
+          response.statusCode = result.status;
+          result.headers.forEach((value, name) => response.setHeader(name, value));
+          response.end(request.method === "HEAD" ? undefined : Buffer.from(await result.arrayBuffer()));
+        } catch (error) {
+          server.config.logger.error(`[jma-disaster-cases] local API failed: ${error?.message ?? error}`);
+          response.statusCode = 502;
+          response.setHeader("Content-Type", "application/json; charset=utf-8");
+          response.end(JSON.stringify({ error: "jma_disaster_archive_unavailable" }));
+        }
+      });
+    }
+  };
+}
 
 function localWeeklyWeatherApi() {
   return {

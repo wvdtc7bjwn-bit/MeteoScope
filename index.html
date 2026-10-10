@@ -166,6 +166,7 @@
         <button id="disaster-quiz-button" class="disaster-map-open-button disaster-quiz-open-button" type="button" aria-label="宇宙・気象学クイズを開く" title="宇宙・気象学クイズ"><span class="map-utility-label">宇宙・気象学クイズ</span></button>
         <button id="disaster-dashboard-button" class="disaster-map-open-button disaster-dashboard-open-button" type="button" aria-label="防災情報ダッシュボードを開く" title="防災情報ダッシュボード" aria-haspopup="dialog" aria-controls="disaster-dashboard-modal" aria-expanded="false"><span class="map-utility-label">防災情報ダッシュボード</span></button>
         <button id="disaster-timeline-button" class="disaster-map-open-button disaster-timeline-open-button" type="button" aria-label="災害年表を開く" title="災害年表" aria-haspopup="dialog" aria-controls="disaster-timeline-modal" aria-expanded="false"><span class="map-utility-label">災害年表</span></button>
+        <button id="jma-disaster-archive-button" class="disaster-map-open-button jma-disaster-archive-open-button" type="button" aria-label="過去の災害事例を開く" title="過去の災害事例" aria-haspopup="dialog" aria-controls="jma-disaster-archive-modal" aria-expanded="false"><span class="map-utility-label">過去の災害事例</span></button>
         <button id="weekly-weather-button" class="disaster-map-open-button weekly-weather-open-button" type="button" aria-label="週間天気予報を開く" title="週間天気予報" aria-haspopup="dialog" aria-controls="weekly-weather-modal"><span class="map-utility-label">週間天気予報</span></button>
         <button id="cloud-classification-button" class="disaster-map-open-button cloud-classification-open-button" type="button" aria-label="雲の分類図鑑を開く" title="雲の分類図鑑" aria-haspopup="dialog" aria-controls="cloud-classification-modal" aria-expanded="false"><span class="map-utility-label">雲の分類図鑑</span></button>
         <button id="numeric-weather-chart-button" class="disaster-map-open-button numeric-weather-chart-open-button" type="button" aria-label="数値予報天気図のリンク集を開く" title="数値予報天気図" aria-haspopup="dialog" aria-controls="numeric-weather-chart-modal" aria-expanded="false"><span class="map-utility-label">数値予報天気図</span></button>
@@ -695,6 +696,31 @@
           </div>
           <div id="disaster-timeline-results" class="disaster-timeline-results"></div>
           <p class="disaster-timeline-note">各項目のリンクから、内閣府・気象庁・国土交通省の資料を確認できます。</p>
+        </div>
+      </section>
+    </div>
+
+    <div id="jma-disaster-archive-modal" class="warning-modal jma-disaster-archive-modal" hidden>
+      <div class="warning-modal-backdrop" data-jma-disaster-archive-close></div>
+      <section class="warning-modal-panel jma-disaster-archive-panel" role="dialog" aria-modal="true" aria-labelledby="jma-disaster-archive-title">
+        <header class="settings-modal-header jma-disaster-archive-header">
+          <h2 id="jma-disaster-archive-title">過去の災害事例</h2>
+          <button class="warning-modal-close settings-modal-close" type="button" aria-label="過去の災害事例を閉じる" data-jma-disaster-archive-close>×</button>
+        </header>
+        <div class="jma-disaster-archive-body">
+          <p class="jma-disaster-archive-intro">気象庁が公開する主な気象災害のアーカイブです。事例と時刻を選ぶと、当時の防災気象情報を気象庁のページで確認できます。<span>掲載されている事例のみ表示します。</span></p>
+          <label class="jma-disaster-archive-search" for="jma-disaster-archive-search">
+            <span class="sr-only">災害事例を検索</span>
+            <input id="jma-disaster-archive-search" type="search" inputmode="search" autocomplete="off" placeholder="災害名・年を検索">
+            <output id="jma-disaster-archive-count" aria-live="polite"></output>
+          </label>
+          <p id="jma-disaster-archive-status" class="jma-disaster-archive-status" role="status">一覧を開くと気象庁から取得します。</p>
+          <div id="jma-disaster-archive-results" class="jma-disaster-archive-results"></div>
+          <div class="jma-disaster-archive-fallback">
+            <button id="jma-disaster-archive-retry" type="button" data-jma-disaster-archive-retry hidden>再読み込み</button>
+            <a id="jma-disaster-archive-official-link" href="https://www.data.jma.go.jp/review/" target="_blank" rel="noopener noreferrer" hidden>気象庁の公式ページを開く ↗</a>
+          </div>
+          <p class="jma-disaster-archive-note">情報は気象庁の公開一覧から取得しています。メンテナンス中は公式ページをご利用ください。</p>
         </div>
       </section>
     </div>

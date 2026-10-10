@@ -59,6 +59,9 @@ jobs:
       - name: Test in-app changelog
         run: npm run test:changelog
 
+      - name: Test JMA disaster archive
+        run: npm run test:jma-disaster-archive
+
       - name: Test map date formatting
         run: npm run test:map-date-formatters
 
