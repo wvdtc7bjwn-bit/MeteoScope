@@ -1,3 +1,5 @@
+import { createUpperAirArchivePicker } from "./upperAirArchivePicker.js";
+
 const JMA_NUMERIC_MAP_BASE = "https://www.jma.go.jp/bosai/numericmap/";
 const JMA_LONG_FORECAST_BASE = "https://www.data.jma.go.jp/cpd/data/longfcst/fax/";
 
@@ -11,7 +13,7 @@ const utcCharts = (entries) => entries.flatMap(({
   label,
   forecast,
   leadHours,
-  meta: `${forecast}｜${code}｜${time} UTC`,
+  meta: `${forecast}｜${code}｜${time}:00 UTC（${time === "00" ? "09:00" : "21:00"} JST）`,
   href: `${JMA_NUMERIC_MAP_BASE}data/nwpmap/${code.toLowerCase()}_${time}.pdf`
 })));
 
@@ -107,6 +109,7 @@ export const numericWeatherChartGroups = [
 ];
 
 let initialized = false;
+let loadArchive = null;
 
 function createChartLink({ href, label, meta }) {
   const link = document.createElement("a");
@@ -172,8 +175,12 @@ function renderNumericWeatherChartLinks() {
 
   const intro = document.createElement("p");
   intro.className = "numeric-weather-chart-intro";
-  intro.textContent = "気象庁が公開する数値予報天気図の全リンクです。時刻はUTC表記です（日本時間は＋9時間）。";
+  intro.textContent = "気象庁の高層天気図を過去の保存用資料から探せます。下には現在の実況・予報天気図のリンクを掲載しています。";
   body.append(intro);
+
+  const archivePicker = createUpperAirArchivePicker();
+  body.append(archivePicker.section);
+  loadArchive = archivePicker.load;
 
   buildTimelineGroups().forEach((group, index) => {
     const section = document.createElement("section");
@@ -245,6 +252,7 @@ export function openNumericWeatherChartModal() {
   modal.hidden = false;
   document.body.classList.add("modal-open");
   document.getElementById("numeric-weather-chart-button")?.setAttribute("aria-expanded", "true");
+  void loadArchive?.();
 }
 
 function closeNumericWeatherChartModal() {

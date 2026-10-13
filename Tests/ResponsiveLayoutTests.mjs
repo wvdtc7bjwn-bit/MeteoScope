@@ -1108,5 +1108,6 @@ assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-weather-distribution-tog
 assert.doesNotMatch(styles, /bottom:\s*calc\(var\(--shared-map-controls-bottom\) \+ 54px\);\s*\}\s*\.mobile-drawer-open \.map-weather-distribution-toggle/);
 assert.match(styles, /Keep posting below the picker[\s\S]*?\.map-community-report-button\s*\{[^}]*right:\s*max\(12px, env\(safe-area-inset-right\)\);[^}]*bottom:\s*calc\(var\(--shared-map-controls-bottom\) - 54px\);/);
 assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-community-report-button\s*\{[^}]*--mobile-sidebar-visible-height, 48dvh\) \+ 16px\)[^}]*166px/);
+assert.match(styles, /html\[data-theme="light"\] #map-utility-actions\s*\{[^}]*background:\s*#edf4fa !important;[^}]*box-shadow:\s*none !important;[^}]*backdrop-filter:\s*none !important;/);
 
 console.log("Responsive layouts: OK");

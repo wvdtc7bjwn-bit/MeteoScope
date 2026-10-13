@@ -3829,6 +3829,70 @@ html[data-theme="light"] .weekly-weather-issued strong {
   line-height: 1.6;
 }
 
+.numeric-weather-archive {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(115, 151, 188, 0.3);
+  border-radius: 14px;
+  background: rgba(21, 42, 68, 0.42);
+}
+
+.numeric-weather-archive h3,
+.numeric-weather-archive p { margin: 0; }
+.numeric-weather-archive h3 { color: #eaf3ff; font-size: 16px; }
+.numeric-weather-archive p { color: #a5b6ca; font-size: 12px; line-height: 1.5; }
+
+.numeric-weather-archive-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.numeric-weather-archive-controls label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  color: #bfd0e0;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.numeric-weather-archive-controls select {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid rgba(115, 151, 188, 0.4);
+  border-radius: 8px;
+  background: #16283d;
+  color: #f0f6ff;
+  font: inherit;
+  font-size: 14px;
+}
+
+.numeric-weather-archive-controls select:disabled { opacity: 0.55; }
+.numeric-weather-archive .numeric-weather-archive-status { min-height: 18px; }
+
+@media (max-width: 480px) {
+  .numeric-weather-archive-controls { grid-template-columns: 1fr; }
+}
+
+.numeric-weather-archive-open {
+  display: block;
+  padding: 11px 12px;
+  border-radius: 8px;
+  background: #1685b7;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+}
+
+.numeric-weather-archive-open:hover { background: #0d709e; }
+.numeric-weather-archive-open[hidden] { display: none; }
+.numeric-weather-archive-official { color: #80cffa; font-size: 12px; }
+
 .numeric-weather-chart-group {
   flex: 0 0 auto;
   display: grid;
@@ -4025,6 +4089,21 @@ html[data-theme="light"] .weekly-weather-issued strong {
 html[data-theme="light"] .numeric-weather-chart-intro {
   color: #58718c;
 }
+
+html[data-theme="light"] .numeric-weather-archive {
+  border-color: rgba(77, 111, 145, 0.27);
+  background: rgba(241, 248, 252, 0.75);
+}
+
+html[data-theme="light"] .numeric-weather-archive h3,
+html[data-theme="light"] .numeric-weather-archive-controls label { color: #1b3652; }
+html[data-theme="light"] .numeric-weather-archive p { color: #506c87; }
+html[data-theme="light"] .numeric-weather-archive-controls select {
+  border-color: rgba(77, 111, 145, 0.35);
+  background: #fff;
+  color: #173553;
+}
+html[data-theme="light"] .numeric-weather-archive-official { color: #075e92; }
 
 html[data-theme="light"] .numeric-weather-chart-group {
   border-color: rgba(77, 111, 145, 0.2);
@@ -22136,6 +22215,56 @@ html[data-theme="light"] .cloud-atlas-term-card p { color: #475c6c; }
 }
 .map-utility-actions .disaster-map-open-button:disabled { opacity: 0.55; }
 html[data-theme="light"] .map-utility-label { color: #293f52; }
+
+/* Keep light-theme map chrome stable across large and compact viewports. */
+html[data-theme="light"] #map-utility-actions {
+  border-color: rgba(72, 99, 127, 0.18);
+  background: #edf4fa !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-theme="light"] #map-utility-actions .disaster-map-open-button {
+  border-color: rgba(72, 99, 127, 0.18);
+  background: #f7fbff;
+  box-shadow: none;
+}
+
+html[data-theme="light"] .map-utility-menu-toggle[aria-expanded="true"] {
+  box-shadow: none;
+}
+
+html[data-theme="light"] :is(#sidebar, #main-tabs, .mobile-context-dock, #map-legend) {
+  background: #edf4fa !important;
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-theme="light"] :is(
+  #map-utility-menu-toggle,
+  .map-locate-button,
+  .map-community-report-button,
+  .map-weather-distribution-toggle,
+  .map-terrain-toggle,
+  .map-typhoon-radar-overlay-button,
+  .map-world-typhoon-target-button,
+  .map-settings-open-button,
+  #clock,
+  #map-attribution
+) {
+  box-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-theme="light"] #main-tabs {
+  --tab-glass-shadow: none;
+  --tab-lens-shadow: none;
+}
 
 @media (max-width: 800px) {
   .map-utility-actions {

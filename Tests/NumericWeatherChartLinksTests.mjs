@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { numericWeatherChartGroups } from "../src/ui/numericWeatherChartModal.js";
 
-const [indexSource, appSource, styleSource, modalSource] = await Promise.all([
+const [indexSource, appSource, rawStyleSource, modalSource] = await Promise.all([
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/style.css", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/numericWeatherChartModal.js", import.meta.url), "utf8")
 ]);
+const styleSource = rawStyleSource.replaceAll("\r\n", "\n");
 
 assert.ok(indexSource.includes('id="numeric-weather-chart-button"'));
 assert.ok(indexSource.includes('id="numeric-weather-chart-modal"'));
@@ -36,5 +37,7 @@ assert.ok(modalSource.includes('toggle.className = "numeric-weather-chart-group-
 assert.ok(!modalSource.includes("settings-group-toggle numeric-weather-chart-group-toggle"));
 assert.equal(chartLinks.find((link) => link.href.includes("feas514_12.pdf"))?.leadHours, 144);
 assert.equal(chartLinks.find((link) => link.href.includes("feas526_12.pdf"))?.leadHours, 264);
+assert.ok(chartLinks.filter((link) => link.href.endsWith("_00.pdf")).every((link) => link.meta.includes("00:00 UTC（09:00 JST）")));
+assert.ok(chartLinks.filter((link) => link.href.endsWith("_12.pdf")).every((link) => link.meta.includes("12:00 UTC（21:00 JST）")));
 
 console.log("Numeric weather chart link tests passed");

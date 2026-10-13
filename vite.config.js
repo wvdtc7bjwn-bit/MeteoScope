@@ -3,13 +3,14 @@ import { onRequest as handleWeeklyWeatherRequest } from "./functions/api/weekly-
 import { onRequestGet as handleEarthquakeHistoryRequest } from "./functions/api/earthquake-history.js";
 import { onRequestGet as handleEarthquakeHistoryEventRequest } from "./functions/api/earthquake-history-event.js";
 import { onRequest as handleJmaDisasterCasesRequest } from "./functions/api/jma-disaster-cases.js";
+import { onRequest as handleJmaUpperAirArchiveRequest } from "./functions/api/jma-upper-air-archive.js";
 import { findLatestUpperAirObservation } from "./functions/api/upper-air.js";
 import { buildGfsSubsetUrl, getLatestGfsCycle, parseGfsPointProfile, normalizeGfsCoordinates } from "./functions/api/gfs-profile.js";
 
 const cloudflareApiTarget = process.env.METEOSCOPE_API_TARGET || "https://meteoscope.pages.dev";
 
 export default defineConfig({
-  plugins: [localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localUpperAirApi(), localGfsProfileApi()],
+  plugins: [localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localJmaUpperAirArchiveApi(), localUpperAirApi(), localGfsProfileApi()],
   base: process.env.GITHUB_PAGES === "true" ? "/MeteoScope/" : "/",
   server: {
     proxy: {
@@ -48,28 +49,36 @@ export default defineConfig({
 });
 
 function localJmaDisasterCasesApi() {
+  return localReadOnlyPagesApi("jma-disaster-cases", "/api/jma-disaster-cases", handleJmaDisasterCasesRequest);
+}
+
+function localJmaUpperAirArchiveApi() {
+  return localReadOnlyPagesApi("jma-upper-air-archive", "/api/jma-upper-air-archive", handleJmaUpperAirArchiveRequest);
+}
+
+function localReadOnlyPagesApi(name, pathname, handler) {
   return {
-    name: "meteoscope-local-jma-disaster-cases-api",
+    name: `meteoscope-local-${name}-api`,
     configureServer(server) {
       server.middlewares.use(async (request, response, next) => {
         const requestUrl = new URL(request.url ?? "/", "http://localhost");
-        if (requestUrl.pathname !== "/api/jma-disaster-cases") {
+        if (requestUrl.pathname !== pathname) {
           next();
           return;
         }
 
         try {
-          const result = await handleJmaDisasterCasesRequest({
+          const result = await handler({
             request: new Request(requestUrl, { method: request.method, headers: request.headers })
           });
           response.statusCode = result.status;
           result.headers.forEach((value, name) => response.setHeader(name, value));
           response.end(request.method === "HEAD" ? undefined : Buffer.from(await result.arrayBuffer()));
         } catch (error) {
-          server.config.logger.error(`[jma-disaster-cases] local API failed: ${error?.message ?? error}`);
+          server.config.logger.error(`[${name}] local API failed: ${error?.message ?? error}`);
           response.statusCode = 502;
           response.setHeader("Content-Type", "application/json; charset=utf-8");
-          response.end(JSON.stringify({ error: "jma_disaster_archive_unavailable" }));
+          response.end(JSON.stringify({ error: `${name.replaceAll("-", "_")}_unavailable` }));
         }
       });
     }

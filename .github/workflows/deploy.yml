@@ -62,6 +62,9 @@ jobs:
       - name: Test JMA disaster archive
         run: npm run test:jma-disaster-archive
 
+      - name: Test JMA upper-air chart archive
+        run: npm run test:upper-air-archive
+
       - name: Test map date formatting
         run: npm run test:map-date-formatters
 
