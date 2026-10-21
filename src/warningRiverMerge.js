@@ -59,6 +59,9 @@ export function mergeRiverFloodWarningsIntoGroups(groups = [], reports = []) {
           (WARNING_RANK[right.level] ?? 0) - (WARNING_RANK[left.level] ?? 0)
         );
       }
+      area.level = area.warnings.reduce((highest, item) =>
+        (WARNING_RANK[item.level] ?? 0) > (WARNING_RANK[highest] ?? 0) ? item.level : highest,
+      area.level ?? "");
     });
   });
 

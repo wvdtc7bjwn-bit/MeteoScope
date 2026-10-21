@@ -639,9 +639,7 @@ export function createWeatherApp() {
           if (earthquakeContentMode === "volcano") void refreshVolcanoData();
           else void refreshEarthquakeData();
         }
-        if (tab.id === "warnings" && activeWarningView === "river") {
-          void refreshRiverFloodData();
-        }
+        if (tab.id === "warnings") void refreshRiverFloodData();
         if (!isTabDataFresh(tab.id)) void refreshCachedTab(tab);
         scheduleBackgroundPrefetch(tab.id);
         recordDiagnostic("tab-switch", {
@@ -698,7 +696,7 @@ export function createWeatherApp() {
       }
       updateCurrentView(tab, data, { deferPanel: true });
       if (tabChanged) scheduleTabAutoFocus(tab.id, autoFocusGeneration);
-      if (tab.id === "warnings" && activeWarningView === "river") void refreshRiverFloodData();
+      if (tab.id === "warnings") void refreshRiverFloodData();
       scheduleBackgroundPrefetch(tab.id);
       recordDiagnostic("tab-switch", {
         tab: tab.id,
@@ -3751,7 +3749,7 @@ if (layerId === "river") {
           riverFlood: { ...riverFlood, status: "ok" }
         };
         riverFloodLoadedAt = Date.now();
-        refreshWarningsView({ view: "river", updateMap: true });
+        refreshWarningsView({ updateMap: true });
         return latestDataByTab.warnings;
       })
       .catch((error) => {
@@ -3760,7 +3758,7 @@ if (layerId === "river") {
           ...(latestDataByTab.warnings ?? {}),
           riverFlood: { status: "error", error, reports: [], riverFeatures: { type: "FeatureCollection", features: [] } }
         };
-        refreshWarningsView({ view: "river", updateMap: true });
+        refreshWarningsView({ updateMap: true });
         return latestDataByTab.warnings;
       })
       .finally(() => {

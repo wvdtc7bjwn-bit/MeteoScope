@@ -52,6 +52,7 @@ import {
   destinationPoint
 } from "../typhoonGeometry.js";
 import { getEarlyWarningColor, getWarningColor } from "../warningMapColors.js";
+import { mergeRiverFloodWarningsIntoGroups } from "../warningRiverMerge.js";
 
 const MODE_CLASS = {
   radar: "mode-radar",
@@ -3832,7 +3833,20 @@ function getActiveWarningOverlayAreas(mode, data = {}) {
       ? data.earlyMunicipalityAreas.filter((area) => area.level === "high" || area.level === "middle")
       : [];
   }
-  return Array.isArray(data?.activeAreas) ? data.activeAreas : [];
+  const activeAreas = Array.isArray(data?.activeAreas) ? data.activeAreas : [];
+  const riverReports = data?.riverFlood?.status === "ok" && Array.isArray(data.riverFlood.reports)
+    ? data.riverFlood.reports
+    : [];
+  if (riverReports.length === 0) return activeAreas;
+
+  const groupsByPrefecture = new Map();
+  activeAreas.forEach((area) => {
+    const prefecture = String(area?.prefecture ?? "");
+    if (!groupsByPrefecture.has(prefecture)) groupsByPrefecture.set(prefecture, []);
+    groupsByPrefecture.get(prefecture).push(area);
+  });
+  const groups = [...groupsByPrefecture.entries()].map(([prefecture, areas]) => ({ prefecture, areas }));
+  return mergeRiverFloodWarningsIntoGroups(groups, riverReports).flatMap((group) => group.areas);
 }
 
 function getSelectableWarningAreas(mode, data = {}) {

@@ -283,6 +283,16 @@ assert.equal(resolveRiverFloodLevel({
   kindNames: ["氾濫危険情報"],
   title: "指定河川洪水予報"
 }), 4);
+assert.equal(resolveRiverFloodLevel({
+  condition: "レベル５氾濫特別警報（発表）",
+  kindNames: ["レベル５氾濫特別警報"],
+  title: "子吉川レベル５氾濫特別警報"
+}), 5);
+assert.equal(isRiverFloodReportActive({
+  level: 5,
+  title: "子吉川レベル５氾濫特別警報",
+  condition: "レベル５氾濫特別警報（発表）"
+}), true);
 assert.deepEqual(
   [2, 3, 4, 5].map(getRiverFloodLevelLabel),
   [
@@ -337,7 +347,28 @@ assert.deepEqual(
     ["大雨注意報", "advisory"]
   ]
 );
+assert.equal(mergedRiverWarningGroups[0].areas[0].level, "warning");
 assert.equal(mergedRiverWarningGroups[0].areas[0].warnings[0].status, "継続");
+const childRiverSpecialWarning = mergeRiverFloodWarningsIntoGroups([], [{
+  id: "820210000100",
+  forecastAreaName: "子吉川",
+  level: 5,
+  levelLabel: "レベル5 氾濫特別警報・発生情報",
+  headline: "【警戒レベル５相当情報［洪水］】〔警戒レベル４相当から５相当に切替〕《氾濫切迫》",
+  updatedAt: "2026/10/21 19:45",
+  affectedAreas: [
+    { prefecture: "秋田県", city: "由利本荘市", cityCode: "0521000" },
+    { prefecture: "秋田県", city: "秋田市", cityCode: "0520100" }
+  ]
+}]);
+assert.equal(childRiverSpecialWarning[0].areas[0].areaCode, "0521000");
+const childRiverWarningLevels = buildWarningLevelMap(childRiverSpecialWarning.flatMap((group) => group.areas));
+assert.equal(childRiverWarningLevels.get("0521000"), "emergency");
+assert.equal(childRiverWarningLevels.get("0520100"), "emergency");
+assert.deepEqual(
+  childRiverSpecialWarning[0].areas[0].warnings.map(({ label, level, status }) => [label, level, status]),
+  [["子吉川・レベル5 氾濫特別警報・発生情報", "emergency", "切替"]]
+);
 assert.equal(getRiverFloodWarningStatus({
   headline: "【警戒レベル2情報［洪水］】〔新規〕吉田川では、氾濫注意水位に到達"
 }), "発表");
@@ -501,8 +532,11 @@ assert.match(
 );
 assert.match(
   appSource,
-  /riverFloodLoadedAt = Date\.now\(\);[\s\S]*?refreshWarningsView\(\{ view: "river", updateMap: true \}\);/
+  /riverFloodLoadedAt = Date\.now\(\);[\s\S]*?refreshWarningsView\(\{ updateMap: true \}\);/
 );
+assert.match(appSource, /if \(tab\.id === "warnings"\) void refreshRiverFloodData\(\);/);
+assert.doesNotMatch(appSource, /refreshWarningsView\(\{ view: "river", updateMap: true \}\)/);
+assert.match(weatherMapSource, /mergeRiverFloodWarningsIntoGroups\(groups, riverReports\)\.flatMap\(\(group\) => group\.areas\)/);
 assert.match(
   appSource,
   /warningKikikuruLoadedAt = Date\.now\(\);[\s\S]*?refreshWarningsView\(\{ view: "kikikuru", updateMap: true \}\);/
