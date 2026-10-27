@@ -343,6 +343,8 @@ const EXACT_TRANSLATIONS = new Map(Object.entries({
   "火山情報を読み込み中": "Loading volcano information",
   "地図を読み込み中": "Loading map",
   "地図を読み込めませんでした。再読み込みしてください。": "The map could not be loaded. Please reload the page.",
+  "地図を読み込めませんでした。10秒後に再読み込みします。": "The map could not be loaded. The page will reload in 10 seconds.",
+  "今すぐ再読み込み": "Reload now",
   "利用者意見": "Feedback",
   "雨雲": "Radar",
   "雨雲レーダー": "Rain radar",

@@ -74,7 +74,8 @@ import { buildMyAreaEarlyWarningSummaries, buildMyAreaWarningSummaries } from ".
 import { createAdminNoticePush } from "./push/adminNoticePush.js";
 import { setupRemoteConfig } from "./remoteConfig.js";
 import { setupTheme } from "./ui/theme.js";
-import { getCurrentLanguage, setupLocale } from "./ui/locale.js";
+import { getCurrentLanguage, localizeText, setupLocale } from "./ui/locale.js";
+import { createMapStartupRecovery } from "./mapStartupRecovery.js";
 import { activateEarlyAccess, deactivateEarlyAccess, fetchEarlyAccessActiveFaultSegments, validateEarlyAccess } from "./ui/earlyAccess.js";
 import { CommunityReportClient } from "./domain/communityReportClient.js";
 import { openCommunityReportModal, setupCommunityReportModal } from "./ui/communityReportModal.js";
@@ -3929,7 +3930,20 @@ if (layerId === "river") {
     refreshSettingsModalView();
   }
 
+  const mapStartupRecovery = createMapStartupRecovery({
+    setTimer: (callback, delay) => window.setTimeout(callback, delay),
+    clearTimer: (timer) => window.clearTimeout(timer),
+    reload: () => window.location.reload()
+  });
+  window.addEventListener("pagehide", () => mapStartupRecovery.cancel());
+  window.addEventListener("pageshow", (event) => {
+    if (event.persisted && document.getElementById("app-startup-loader")?.dataset.failed === "true") {
+      mapStartupRecovery.schedule();
+    }
+  });
+
   function finishInitialMapLoading() {
+    mapStartupRecovery.cancel();
     const loader = document.getElementById("app-startup-loader");
     document.documentElement.classList.remove("app-initializing");
     if (loader) loader.hidden = true;
@@ -3938,11 +3952,20 @@ if (layerId === "river") {
 
   function showInitialMapLoadingError() {
     const loader = document.getElementById("app-startup-loader");
-    if (!loader) return;
-    loader.setAttribute("aria-label", "地図の読み込みに失敗しました");
-    loader.querySelector(".app-startup-spinner")?.setAttribute("hidden", "");
-    const message = loader.querySelector("span:last-child");
-    if (message) message.textContent = "地図を読み込めませんでした。再読み込みしてください。";
+    if (loader) {
+      loader.dataset.failed = "true";
+      loader.setAttribute("aria-label", localizeText("地図の読み込みに失敗しました"));
+      loader.querySelector(".app-startup-spinner")?.setAttribute("hidden", "");
+      const message = loader.querySelector(".app-startup-message");
+      if (message) message.textContent = localizeText("地図を読み込めませんでした。10秒後に再読み込みします。");
+      const button = loader.querySelector(".app-startup-retry");
+      if (button) {
+        button.textContent = localizeText("今すぐ再読み込み");
+        button.hidden = false;
+        button.onclick = mapStartupRecovery.retry;
+      }
+    }
+    mapStartupRecovery.schedule();
   }
 
   function start() {
@@ -3959,7 +3982,13 @@ if (layerId === "river") {
     localeController.subscribe(() => {
       void selectTab(activeTab);
     });
-    weatherMap.initialize();
+    try {
+      weatherMap.initialize();
+    } catch (error) {
+      console.warn("[MeteoScope] map initialization failed", error);
+      showInitialMapLoadingError();
+      return;
+    }
     tabControls = setupTabs({ onChange: selectTab, tabs: TABS });
     const earthquakeTabButton = document.querySelector('.tab-button[data-tab="earthquake"]');
     const earthquakeLongPressHint = setupEarthquakeLongPressHint(earthquakeTabButton);
@@ -4268,6 +4297,9 @@ if (layerId === "river") {
       finishInitialMapLoading();
       if (!legalConsent.showIfRequired()) startUserServices();
       weatherMap?.setTerrainLayer(terrainLayerSettings);
+    }, (error) => {
+      console.warn("[MeteoScope] map readiness failed", error);
+      showInitialMapLoadingError();
     });
   }
 

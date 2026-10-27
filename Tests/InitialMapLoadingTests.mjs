@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { createMapStartupRecovery } from "../src/mapStartupRecovery.js";
 
 const [html, app, weatherMap, main, serviceWorker, headers, manifestSource] = await Promise.all([
   readFile(new URL("../index.html", import.meta.url), "utf8"),
@@ -34,6 +35,40 @@ assert.match(serviceWorker, /meteoscope-shell-v\d+/);
 assert.doesNotMatch(serviceWorker, /site-dark\.webmanifest/);
 assert.doesNotMatch(serviceWorker, /icon-dark-/);
 assert.match(html, /地図を読み込み中/);
+assert.match(html, /class="app-startup-retry"[^>]*hidden/);
+
+let pendingTimer = null;
+let reloadCount = 0;
+const recovery = createMapStartupRecovery({
+  setTimer: (callback, delay) => {
+    assert.equal(delay, 10000);
+    pendingTimer = callback;
+    return 1;
+  },
+  clearTimer: () => { pendingTimer = null; },
+  reload: () => { reloadCount += 1; }
+});
+recovery.schedule();
+assert.equal(typeof pendingTimer, "function");
+recovery.cancel();
+assert.equal(pendingTimer, null);
+recovery.schedule();
+recovery.retry();
+assert.equal(reloadCount, 1);
+assert.equal(pendingTimer, null);
+recovery.retry();
+assert.equal(reloadCount, 1, "手動と自動で再読み込みが重複しない");
+
+let autoReload = null;
+let automaticReloadCount = 0;
+const automaticRecovery = createMapStartupRecovery({
+  setTimer: (callback, delay) => { assert.equal(delay, 10000); autoReload = callback; return 2; },
+  clearTimer: () => {},
+  reload: () => { automaticReloadCount += 1; }
+});
+automaticRecovery.schedule();
+autoReload();
+assert.equal(automaticReloadCount, 1);
 
 assert.match(weatherMap, /function whenReady\(\)/);
 assert.doesNotMatch(weatherMap, /map\.once\("render", finishAfterPaint\)/);
