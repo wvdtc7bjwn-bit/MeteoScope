@@ -2136,6 +2136,7 @@ if (layerId === "river") {
     if (tab.id === "amedas") {
       return {
         ...applyAmedasPrecipitationPeriod(data, activeAmedasPrecipitationPeriod),
+        latestTime: activeAmedasMetric === "snow" ? (data.snowLatestTime ?? "未取得") : data.latestTime,
         activeMetric: activeAmedasMetric
       };
     }

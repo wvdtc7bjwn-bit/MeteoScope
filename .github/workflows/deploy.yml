@@ -47,6 +47,9 @@ jobs:
       - name: Test current-location marker controls
         run: npm run test:location
 
+      - name: Test AMeDAS observations
+        run: npm run test:amedas
+
       - name: Test historical earthquake search and request cancellation
         run: |
           node Tests/EarthquakeHistoryProxyTests.mjs

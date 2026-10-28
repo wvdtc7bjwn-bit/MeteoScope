@@ -10,6 +10,13 @@ export async function fetchAmedasLatestTime() {
   const latestTimeText = await fetchText(JMA_ENDPOINTS.amedasTimeList);
   const latestTime = latestTimeText.trim();
   const mapTime = formatAmedasMapTime(latestTime);
+  const snowMapTime = getAmedasSnowMapTime(mapTime);
+  const snowObservationsRequest = snowMapTime !== mapTime
+    ? fetchJson(`${JMA_ENDPOINTS.amedasMapBase}/${snowMapTime}.json`, { timeoutMs: 5000, retryCount: 0 }).catch((error) => {
+      console.warn("[MeteoScope] AMeDAS snow observations unavailable", error);
+      return null;
+    })
+    : Promise.resolve(null);
   const temperatureRankingsRequest = fetchAmedasTemperatureRankings()
     .catch((error) => {
       console.warn("[MeteoScope] AMeDAS temperature rankings unavailable", error);
@@ -26,18 +33,23 @@ export async function fetchAmedasLatestTime() {
     console.warn("[MeteoScope] AMeDAS pressure rankings unavailable", error);
     return null;
   });
-  const [observations, stations, temperatureRankings, windRankings, pressureDailyHtml] = await Promise.all([
+  const [observations, stations, temperatureRankings, windRankings, pressureDailyHtml, hourlySnowObservations] = await Promise.all([
     fetchJson(`${JMA_ENDPOINTS.amedasMapBase}/${mapTime}.json`),
     fetchJson(JMA_ENDPOINTS.amedasStationTable, { ttlMs: STATIC_DATA_CACHE_TTL_MS, cache: "force-cache" }),
     temperatureRankingsRequest,
     windRankingsRequest,
-    pressureDailyHtmlRequest
+    pressureDailyHtmlRequest,
+    snowObservationsRequest
   ]);
-  const points = buildAmedasPoints(observations, stations);
+  const snowObservations = snowMapTime === mapTime ? observations : hourlySnowObservations;
+  const points = buildAmedasPoints(observations, stations, snowObservations);
 
   return {
     latestRawTime: latestTime,
     latestTime: parseJmaTime(latestTime) ?? latestTime,
+    snowLatestTime: snowObservations
+      ? `${snowMapTime.slice(0, 4)}/${snowMapTime.slice(4, 6)}/${snowMapTime.slice(6, 8)} ${snowMapTime.slice(8, 10)}:00`
+      : null,
     mapTime,
     points,
     temperatureRankings,
@@ -303,8 +315,14 @@ export async function fetchAmedasDailySeries(
   };
 }
 
-function buildAmedasPoints(observations, stations) {
-  return Object.entries(observations ?? {}).flatMap(([stationId, observation]) => {
+export function getAmedasSnowMapTime(mapTime) {
+  return `${String(mapTime).slice(0, 10)}0000`;
+}
+
+export function buildAmedasPoints(observations, stations, snowObservations = observations) {
+  const stationIds = new Set([...Object.keys(observations ?? {}), ...Object.keys(snowObservations ?? {})]);
+  return [...stationIds].flatMap((stationId) => {
+    const observation = observations?.[stationId] ?? {};
     const station = stations?.[stationId];
     const coordinates = getStationCoordinates(station);
     if (!coordinates) return [];
@@ -323,7 +341,7 @@ function buildAmedasPoints(observations, stations) {
         wind: readObservedValue(observation.wind),
         humidity: readObservedValue(observation.humidity),
         pressure: readObservedValue(observation.normalPressure),
-        snow: readObservedValue(observation.snow) ?? readObservedValue(observation.snow1h)
+        snow: readObservedValue(snowObservations?.[stationId]?.snow)
       },
       windDirection: readObservedValue(observation.windDirection)
     }];
