@@ -6278,7 +6278,6 @@ function getAmedasColor(metricId, value, precipitationPeriodId) {
 function getAmedasRadius(metricId, value) {
   if (metricId === "precipitation") return 8.5;
   if (metricId === "wind") return Math.min(13, 5 + value / 4);
-  if (metricId === "snow") return Math.min(13, 5 + value / 30);
   return 8.5;
 }
 
