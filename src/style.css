@@ -11207,6 +11207,24 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   text-align: center;
 }
 
+.clock-seven-segment {
+  display: inline-block;
+  width: 100%;
+  max-width: 150px;
+  height: 1em;
+  vertical-align: middle;
+}
+
+.clock-readable-time {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .clock-display-mode {
   position: fixed;
   z-index: 3000;

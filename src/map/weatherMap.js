@@ -328,7 +328,6 @@ const MAP_THEME_COLORS = {
     worldCountryLine: "#5e6672",
     municipalityFill: "#3c3d40",
     municipalityLine: "#848a94",
-    prefectureLine: "#f7fbff",
     weatherIsobar: "rgba(246, 250, 255, 0.78)",
     weatherIsobarLabel: "rgba(246, 250, 255, 0.86)",
     weatherIsobarHalo: "rgba(5, 9, 20, 0.82)",
@@ -354,7 +353,6 @@ const MAP_THEME_COLORS = {
     worldCountryLine: "#7f8d9b",
     municipalityFill: "#f8fafc",
     municipalityLine: "#788797",
-    prefectureLine: "#3f5266",
     weatherIsobar: "rgba(48, 66, 85, 0.82)",
     weatherIsobarLabel: "rgba(37, 55, 74, 0.92)",
     weatherIsobarHalo: "rgba(247, 251, 255, 0.9)",
@@ -3078,7 +3076,7 @@ function createBaseStyle(theme = "dark") {
           "line-join": "round"
         },
         paint: {
-          "line-color": colors.prefectureLine,
+          "line-color": colors.municipalityLine,
           "line-width": [
             "interpolate",
             ["linear"],
@@ -3143,7 +3141,7 @@ function applyMapTheme(map, theme) {
     [MUNICIPALITY_FIX_FILL_LAYER_ID, "fill-color", colors.municipalityFill],
     [MUNICIPALITY_LINE_LAYER_ID, "line-color", colors.municipalityLine],
     [MUNICIPALITY_FIX_LINE_LAYER_ID, "line-color", colors.municipalityLine],
-    ["japan-prefecture-line", "line-color", colors.prefectureLine],
+    ["japan-prefecture-line", "line-color", colors.municipalityLine],
     ["weather-chart-isobar-line", "line-color", colors.weatherIsobar],
     ["weather-chart-isobar-label", "text-color", colors.weatherIsobarLabel],
     ["weather-chart-isobar-label", "text-halo-color", colors.weatherIsobarHalo],

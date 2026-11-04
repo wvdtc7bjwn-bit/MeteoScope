@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { renderSevenSegmentClock } from "../src/ui/time.js";
 
 import {
   buildNationwideForecastRegions,
@@ -12,6 +13,13 @@ import {
   getTickerTargetDateKey,
   normalizeTickerWeather
 } from "../src/ui/clockDisplayMode.js";
+
+const segmentClock = renderSevenSegmentClock("08:26:36");
+assert.match(segmentClock, /class="clock-seven-segment"/);
+assert.match(segmentClock, /<span class="clock-readable-time">08:26:36<\/span>/);
+assert.equal((segmentClock.match(/<rect /g) ?? []).length, 4);
+assert.equal((segmentClock.match(/<polygon /g) ?? []).length, 35);
+assert.equal(renderSevenSegmentClock("<script>"), "");
 
 assert.deepEqual(buildNationwideForecastRegions([{
   officeCode: "130000",

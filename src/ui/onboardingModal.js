@@ -24,7 +24,7 @@ const PAGES = [
     visual: `<div class="onboarding-demo onboarding-navigation-demo" aria-hidden="true">
       <header class="onboarding-demo-heading"><span><small>表示切替</small><strong>タップ / スライド</strong></span></header>
       <div class="onboarding-tab-visual">
-        <span class="is-active" data-tab="radar">雨雲</span>
+        <span class="is-active" data-tab="radar">レーダー</span>
         <span data-tab="amedas">アメダス</span>
         <span data-tab="warnings">警報</span>
         <span data-tab="typhoon">台風</span>

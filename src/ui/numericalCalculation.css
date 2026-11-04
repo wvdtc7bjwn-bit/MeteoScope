@@ -54,6 +54,11 @@ html[data-theme="light"] #numerical-calculation-modal { --numerical-surface: #f8
 .numerical-python summary { cursor: pointer; font-size: 15px; }
 .numerical-python textarea { height: 320px; resize: vertical; font: 12px/1.6 ui-monospace, Consolas, monospace; white-space: pre; overflow: auto; }
 .numerical-sources a { color: var(--blue); margin-right: 8px; }
-.numerical-calculation-open-button::before { content: ""; width: 24px; height: 24px; background: currentColor; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='2' d='M4 2h16v20H4zM7 6h10M7 11h2m3 0h2m3 0h1M7 16h2m3 0h2m3 0h1'/%3E%3C/svg%3E") center / contain no-repeat; }
+.disaster-map-open-button.numerical-calculation-open-button::before {
+  width: 24px;
+  height: 24px;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='2' d='M4 2h16v20H4zM7 6h10M7 11h2m3 0h2m3 0h1M7 16h2m3 0h2m3 0h1'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='none' stroke='black' stroke-width='2' d='M4 2h16v20H4zM7 6h10M7 11h2m3 0h2m3 0h1M7 16h2m3 0h2m3 0h1'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 @media (max-width: 600px) { .numerical-calculation-body { padding: 12px 14px 22px; } .numerical-fields, .numerical-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 360px) { .numerical-fields { grid-template-columns: 1fr; } }
