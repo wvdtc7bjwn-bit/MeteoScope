@@ -15,7 +15,7 @@ export const APP_BASE_URL = import.meta.env?.BASE_URL ?? "/";
 export const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 export const AUTO_REFRESH_RESUME_THROTTLE_MS = 60 * 1000;
 export const WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
-export const EARTHQUAKE_REFRESH_INTERVAL_MS = 60 * 1000;
+export const EARTHQUAKE_REFRESH_INTERVAL_MS = 30 * 1000;
 export const STATIC_DATA_CACHE_TTL_MS = 60 * 60 * 1000;
 
 function publicAsset(path) {
@@ -54,6 +54,7 @@ export const JMA_ENDPOINTS = {
   warningsMap: "https://www.jma.go.jp/bosai/warning/data/r8/map.json",
   warningTimelineBase: "https://www.jma.go.jp/bosai/warning_timeline/data",
   probabilityMap: "https://www.jma.go.jp/bosai/probability/data/probability/r8/map.json",
+  weeklyForecastAreaMapping: "https://www.jma.go.jp/bosai/forecast/const/week_area05.json",
   noWaveTide: "https://www.jma.go.jp/bosai/warning/const/no_wave_tide.json",
   kikikuruTimeList: "https://www.jma.go.jp/bosai/jmatile/data/risk/targetTimes.json",
   kikikuruTileBase: "https://www.jma.go.jp/bosai/jmatile/data/risk",

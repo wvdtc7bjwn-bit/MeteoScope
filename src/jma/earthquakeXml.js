@@ -2,6 +2,7 @@ import {
   getEarthquakeIntensityColor,
   getEarthquakeIntensityLabel,
   getEarthquakeIntensityRank,
+  EARTHQUAKE_REFRESH_INTERVAL_MS,
   JMA_ENDPOINTS,
   STATIC_DATA_CACHE_TTL_MS
 } from "../config.js";
@@ -33,6 +34,8 @@ const TSUNAMI_XML_DETAIL_FETCH_LIMIT = 18;
 const TSUNAMI_XML_CODES = /VTSE(?:41|51|52)/;
 const EARTHQUAKE_SERIES_WINDOW_MS = 5 * 60 * 1000;
 const EARTHQUAKE_SERIES_COORDINATE_DISTANCE_KM = 120;
+const EARTHQUAKE_LONG_FEED_TTL_MS = 60 * 1000;
+const EARTHQUAKE_REPORT_TTL_MS = 60 * 60 * 1000;
 let earthquakeAreaLookupPromise = null;
 let tsunamiAreaLookupPromise = null;
 let tsunamiStationLookupPromise = null;
@@ -150,7 +153,10 @@ async function fetchEarthquakeFeeds() {
   const feedUrls = [JMA_ENDPOINTS.earthquakeXmlFeed, JMA_ENDPOINTS.earthquakeXmlLongFeed].filter(Boolean);
   const results = await Promise.allSettled(feedUrls.map(async (url) => ({
     url,
-    feed: parseXml(await fetchText(url, { ttlMs: 60 * 1000, cache: "no-store" }))
+    feed: parseXml(await fetchText(url, {
+      ttlMs: url === JMA_ENDPOINTS.earthquakeXmlFeed ? EARTHQUAKE_REFRESH_INTERVAL_MS : EARTHQUAKE_LONG_FEED_TTL_MS,
+      cache: "no-store"
+    }))
   })));
   const feeds = results
     .filter((result) => result.status === "fulfilled" && result.value?.feed)
@@ -178,14 +184,14 @@ function getLatestFeedUpdatedTime(feeds) {
 
 async function fetchEarthquakeDetail(entry) {
   return parseEarthquakeReport(await fetchText(entry.url, {
-    ttlMs: 60 * 1000,
+    ttlMs: EARTHQUAKE_REPORT_TTL_MS,
     cache: "no-store"
   }), entry);
 }
 
 async function fetchTsunamiDetail(entry) {
   return parseTsunamiReport(await fetchText(entry.url, {
-    ttlMs: 60 * 1000,
+    ttlMs: EARTHQUAKE_REPORT_TTL_MS,
     cache: "no-store"
   }), entry);
 }

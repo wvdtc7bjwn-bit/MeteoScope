@@ -1,4 +1,4 @@
-import { JMA_ENDPOINTS } from "../config.js";
+import { EARTHQUAKE_REFRESH_INTERVAL_MS, JMA_ENDPOINTS } from "../config.js";
 import { fetchText, parseJmaTime } from "./jmaClient.js";
 
 const VOLCANO_XML_CODES = new Set(["VFVO50", "VFVO51", "VFVO52", "VFVO53", "VFVO54", "VFVO55", "VFVO56"]);
@@ -640,7 +640,10 @@ async function fetchVolcanoFeeds() {
   const urls = [JMA_ENDPOINTS.earthquakeXmlFeed, JMA_ENDPOINTS.earthquakeXmlLongFeed].filter(Boolean);
   const results = await Promise.allSettled(urls.map(async (url) => ({
     url,
-    feed: parseXml(await fetchText(url, { ttlMs: 60 * 1000, cache: "no-store" }))
+    feed: parseXml(await fetchText(url, {
+      ttlMs: url === JMA_ENDPOINTS.earthquakeXmlFeed ? EARTHQUAKE_REFRESH_INTERVAL_MS : 60 * 1000,
+      cache: "no-store"
+    }))
   })));
   const feeds = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
   if (feeds.length) return feeds;

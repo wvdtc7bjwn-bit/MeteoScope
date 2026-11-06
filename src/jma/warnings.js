@@ -43,12 +43,15 @@ export async function fetchWarningMap(options = {}) {
   let earlyDetailsLoaded = false;
 
   if (includeDetails) {
-    const areaConst = await fetchJson(JMA_ENDPOINTS.areaConst, {
-      ttlMs: STATIC_DATA_CACHE_TTL_MS,
-      cache: "force-cache",
-      signal
-    });
-    const areaHierarchy = buildAreaHierarchy(areaConst, municipalityIndex);
+    const [areaConst, weeklyAreaMapping] = await Promise.all([
+      fetchJson(JMA_ENDPOINTS.areaConst, {
+        ttlMs: STATIC_DATA_CACHE_TTL_MS,
+        cache: "force-cache",
+        signal
+      }),
+      includeEarlyWarnings ? fetchWeeklyAreaMapping({ signal }) : Promise.resolve({})
+    ]);
+    const areaHierarchy = buildAreaHierarchy(areaConst, municipalityIndex, weeklyAreaMapping);
     const officeCode = detailAreaCode ? areaHierarchy.getOfficeCode(detailAreaCode) : "";
     const [warningTimelineReports, earlyWarningReports, noWaveTideConst] = await Promise.all([
       officeCode
@@ -212,6 +215,20 @@ async function fetchEarlyWarningReports(options = {}) {
     if (error?.name === "AbortError") throw error;
     console.warn("[MeteoScope] early warning probability JSON unavailable", error);
     return [];
+  }
+}
+
+async function fetchWeeklyAreaMapping(options = {}) {
+  try {
+    return await fetchJson(JMA_ENDPOINTS.weeklyForecastAreaMapping, {
+      ttlMs: STATIC_DATA_CACHE_TTL_MS,
+      cache: "force-cache",
+      signal: options.signal
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") throw error;
+    console.warn("[MeteoScope] weekly forecast area mapping unavailable", error);
+    return {};
   }
 }
 
@@ -446,7 +463,7 @@ function buildMunicipalityIndex(data) {
   return { byCode, byParentCode };
 }
 
-function buildAreaHierarchy(areaConst, municipalityIndex) {
+export function buildAreaHierarchy(areaConst, municipalityIndex, weeklyAreaMapping = {}) {
   const nodes = new Map();
   ["offices", "class10s", "class15s", "class20s"].forEach((bucketName) => {
     const bucket = areaConst?.[bucketName] ?? {};
@@ -464,6 +481,19 @@ function buildAreaHierarchy(areaConst, municipalityIndex) {
       current.buckets.add(bucketName);
       (value?.children ?? []).forEach((childCode) => current.children.add(String(childCode)));
       nodes.set(normalizedCode, current);
+    });
+  });
+
+  // Weekly forecast areas can cover several class10 areas and are not in area.json.
+  const weeklyToClass10 = new Map();
+  Object.entries(weeklyAreaMapping ?? {}).forEach(([class10Code, weeklyCodes]) => {
+    if (!nodes.get(class10Code)?.buckets?.has("class10s") || !Array.isArray(weeklyCodes)) return;
+    weeklyCodes.forEach((weeklyCode) => {
+      const code = String(weeklyCode ?? "");
+      if (!code) return;
+      const areas = weeklyToClass10.get(code) ?? new Set();
+      areas.add(class10Code);
+      weeklyToClass10.set(code, areas);
     });
   });
 
@@ -502,7 +532,10 @@ function buildAreaHierarchy(areaConst, municipalityIndex) {
       .map((code) => String(code))
       .filter((code) => code !== normalizedCode && nodes.get(code)?.buckets?.has("class10s"))
       .filter((code) => collectMunicipalityCodes(code).length > 0);
-    return class10Children.length > 0 ? class10Children : [normalizedCode];
+    if (class10Children.length > 0) return class10Children;
+    const weeklyAreas = [...(weeklyToClass10.get(normalizedCode) ?? [])]
+      .filter((code) => collectMunicipalityCodes(code).length > 0);
+    return weeklyAreas.length > 0 ? weeklyAreas : [normalizedCode];
   }
 
   function getOfficeCode(areaCode) {
@@ -548,7 +581,7 @@ function expandToMunicipalityCodes(areaCode, municipalityIndex) {
   return municipalityIndex.byParentCode.get(areaCode) ?? [{ code: areaCode, name: "" }];
 }
 
-function buildEarlyWarningData(probabilityReports, municipalityIndex, areaHierarchy, noWaveTideIndex = {}) {
+export function buildEarlyWarningData(probabilityReports, municipalityIndex, areaHierarchy, noWaveTideIndex = {}) {
   const areasByCode = new Map();
   const reports = flattenProbabilityReports(probabilityReports)
     .sort((a, b) => new Date(a.reportDatetime).getTime() - new Date(b.reportDatetime).getTime());

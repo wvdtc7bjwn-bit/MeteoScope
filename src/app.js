@@ -3624,7 +3624,7 @@ if (layerId === "river") {
   function scheduleEarthquakeRefresh() {
     if (earthquakeRefreshTimer) window.clearTimeout(earthquakeRefreshTimer);
     earthquakeRefreshTimer = null;
-    // 接続中は全タブ共通の5分更新に任せ、地震専用タイマーとの二重取得を避ける。
+    // 地震情報は表示中のみ専用タイマーで更新し、同時取得は共通のリクエストでまとめる。
     earthquakeRefreshTimer = window.setTimeout(async () => {
       earthquakeRefreshTimer = null;
       try {

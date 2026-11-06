@@ -31,7 +31,7 @@
     "test:tsunami": "node Tests/TsunamiXmlTests.mjs && node Tests/TsunamiTestScenarioTests.mjs",
     "test:tide": "node Tests/TideLevelTests.mjs",
     "test:typhoon": "node Tests/TyphoonTests.mjs",
-    "test:warnings": "node Tests/WarningResponsivenessTests.mjs",
+    "test:warnings": "node Tests/WarningResponsivenessTests.mjs && node Tests/EarlyWarningWeeklyAreaTests.mjs",
     "test:amedas": "node Tests/AmedasRankingTests.mjs && node Tests/AmedasPrecipitationPeriodTests.mjs && node Tests/AmedasTemperatureNormalTests.mjs && node Tests/AmedasSnowTests.mjs",
     "test:terrain": "node Tests/TerrainLayerSettingsTests.mjs",
     "test:social-share": "node Tests/SocialShareTests.mjs",
