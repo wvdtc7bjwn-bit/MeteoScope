@@ -604,7 +604,7 @@ assert.match(index, /id="weekly-weather-region-select"/u);
 assert.match(app, /setupWeeklyWeatherModal\(\{/u);
 assert.match(styles, /\.weekly-weather-open-button::before/u);
 assert.match(styles, /\.weekly-weather-region-control select/u);
-assert.match(styles, /\.weekly-weather-days\s*\{[\s\S]*?grid-template-columns:\s*repeat\(auto-fit,/u);
+assert.match(styles, /\.weekly-weather-days\s*\{[^}]*grid-auto-flow:\s*column;[^}]*grid-auto-columns:\s*minmax\(112px,\s*1fr\);[^}]*overflow-x:\s*auto;/u);
 assert.match(modal, /weekly-weather-today/u);
 assert.match(styles, /\.weekly-weather-today\s*\{[\s\S]*?white-space:\s*nowrap;/u);
 assert.match(styles, /@media\s*\(max-width:\s*430px\)[\s\S]*?\.weekly-weather-region-control\s*\{[\s\S]*?grid-template-columns:\s*108px\s+minmax\(0,\s*1fr\)/u);

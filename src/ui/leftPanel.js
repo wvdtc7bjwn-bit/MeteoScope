@@ -1444,7 +1444,6 @@ export function setupEarthquakeSelector({
   onArchiveSearch,
   onArchiveListMore,
   onArchiveSelect,
-  onArchiveDetailRetry,
   onArchiveDetailBack,
   onArchiveRetry,
   onNearbySearch,
@@ -1556,11 +1555,6 @@ export function setupEarthquakeSelector({
     const archiveItemButton = event.target.closest("[data-earthquake-archive-id]");
     if (archiveItemButton) {
       onArchiveSelect?.(archiveItemButton.dataset.earthquakeArchiveId);
-      return;
-    }
-    const historyDetailRetryButton = event.target.closest("[data-earthquake-history-detail-retry]");
-    if (historyDetailRetryButton) {
-      onArchiveDetailRetry?.();
       return;
     }
     const historyDetailBackButton = event.target.closest("[data-earthquake-history-detail-back]");
@@ -6918,16 +6912,20 @@ function buildEarthquakeArchiveMarkup(data) {
     const magnitude = Number.isFinite(item.magnitude) ? `M${item.magnitude.toFixed(1)}` : "M不明";
     const depth = Number.isFinite(item.depthKm) ? `深さ${item.depthKm}km` : "深さ不明";
     const intensityColor = getEarthquakeIntensityColor(item.maxIntensity);
-    const intensityTextColor = getEarthquakeIntensityTextClass(item.maxIntensity) === "is-bright-text" ? "#ffffff" : "#14283d";
+    const summaryMarkup = renderExpandedEarthquakeSummary({
+      earthquake: { maxIntensityShort: formatHistoricalIntensity(item.maxIntensity) },
+      intensityColor,
+      intensityTextClass: getEarthquakeIntensityTextClass(item.maxIntensity),
+      magnitude,
+      depthText: depth,
+      displayTime: formatArchiveDateTime(item.originTime),
+      displayPlace: item.place,
+      showTsunami: false
+    });
     return `
       <article class="earthquake-archive-item${active ? " active" : ""}">
-        <button type="button" data-earthquake-archive-id="${escapeHtml(item.id)}" aria-pressed="${active ? "true" : "false"}">
-          <em data-intensity="${escapeHtml(item.maxIntensity)}" style="background-color:${escapeHtml(intensityColor)};color:${intensityTextColor}"><small>震度</small><b>${escapeHtml(formatHistoricalIntensity(item.maxIntensity))}</b></em>
-          <span class="earthquake-archive-item-content">
-            <small class="earthquake-archive-item-time">${escapeHtml(formatArchiveDateTime(item.originTime))}</small>
-            <strong title="${escapeHtml(item.place)}">${escapeHtml(item.place)}</strong>
-            <small class="earthquake-archive-item-metadata">${escapeHtml(magnitude)}<i aria-hidden="true">·</i>${escapeHtml(depth)}</small>
-          </span>
+        <button type="button" class="earthquake-select-button earthquake-detail-button" data-earthquake-archive-id="${escapeHtml(item.id)}" aria-pressed="${active ? "true" : "false"}">
+          ${summaryMarkup}
         </button>
         ${item.sourceUrl ? `<a href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noopener noreferrer" aria-label="気象庁でこの地震を確認">↗</a>` : ""}
       </article>
@@ -6943,60 +6941,7 @@ function buildEarthquakeArchiveMarkup(data) {
   const truncatedNotice = snapshot?.complete && snapshot?.truncated
     ? `<p class="earthquake-archive-list-note">検索結果が上限の${EARTHQUAKE_HISTORY_RESULT_LIMIT.toLocaleString("ja-JP")}件を超えています。期間や震度・規模を絞ると、ほかの地震も検索できます。</p>`
     : "";
-  const selectedItem = items.find((item) => String(item.id) === selectedId);
-  const detailMarkup = selectedItem && data.historicalEarthquakeDetailVisible === true
-    ? buildHistoricalEarthquakeDetailMarkup(selectedItem, data.selectedHistoricalEarthquakeDetail)
-    : "";
-  return `${form}${notices}${resultHead}${truncatedNotice}${detailMarkup}<div class="earthquake-archive-list">${list}</div>${remainder}${loadMore}`;
-}
-
-function buildHistoricalEarthquakeDetailMarkup(item, detailState = {}) {
-  const backButton = '<button type="button" class="earthquake-history-detail-back" data-earthquake-history-detail-back>一覧へ戻る</button>';
-  if (String(detailState.id ?? "") !== String(item.id)) {
-    return `<section class="earthquake-history-detail" aria-live="polite"><div class="earthquake-history-detail-title-row"><div><span class="earthquake-history-detail-kicker">過去地震</span><strong>地震の詳細</strong></div>${backButton}</div><p>震央を選択すると観測点ごとの震度を読み込みます。</p></section>`;
-  }
-  if (detailState.status === "loading") {
-    return `<section class="earthquake-history-detail" role="status" aria-live="polite"><div class="earthquake-history-detail-title-row"><div><span class="earthquake-history-detail-kicker">過去地震</span><strong>${escapeHtml(item.place)}</strong></div>${backButton}</div><p>気象庁から震度観測点を取得中です。</p></section>`;
-  }
-  if (detailState.status === "error") {
-    return `<section class="earthquake-history-detail" role="alert"><div class="earthquake-history-detail-title-row"><div><span class="earthquake-history-detail-kicker">過去地震</span><strong>${escapeHtml(item.place)}</strong></div>${backButton}</div><p>${escapeHtml(detailState.error || "観測点データを取得できませんでした")}</p><button type="button" class="earthquake-history-detail-retry" data-earthquake-history-detail-retry>再取得</button></section>`;
-  }
-  if (detailState.status !== "ok" || !detailState.event) return "";
-  const event = detailState.event;
-  const stations = event.stations ?? [];
-  const rows = buildEarthquakeObservationRows({
-    intensityStations: stations.map((station) => ({
-      code: station.code,
-      stationName: station.name,
-      intensity: station.intensity,
-      intensityLabel: station.intensityLabel
-    }))
-  });
-  const stationList = rows.map((station) => `
-    <li><span>${escapeHtml(station.name)}</span><strong>${escapeHtml(station.intensityLabel)}</strong></li>
-  `).join("");
-  const hypocenter = event.hypocenter ?? {};
-  const magnitude = Number.isFinite(hypocenter.magnitude) ? `M${hypocenter.magnitude.toFixed(1)}` : "M不明";
-  const depth = Number.isFinite(hypocenter.depthKm) ? `${hypocenter.depthKm}km` : "深さ不明";
-  const originTime = formatArchiveDateTime(hypocenter.originTime || item.originTime);
-  const maximumIntensity = formatHistoricalIntensity(hypocenter.maxIntensity || item.maxIntensity);
-  return `
-    <section class="earthquake-history-detail">
-      <div class="earthquake-history-detail-title-row">
-        <div class="earthquake-history-detail-title"><span class="earthquake-history-detail-kicker">選択中の地震</span><strong>${escapeHtml(hypocenter.place || item.place)}</strong></div>
-        <span class="earthquake-history-detail-count">${stations.length.toLocaleString("ja-JP")}地点</span>
-      </div>
-      <div class="earthquake-history-detail-toolbar">${backButton}<span>気象庁 震度データベース</span></div>
-      <div class="earthquake-history-detail-facts" aria-label="地震の概要">
-        <div><span>発生日時</span><strong>${escapeHtml(originTime)}</strong></div>
-        <div><span>最大震度</span><strong>震度${escapeHtml(maximumIntensity)}</strong></div>
-        <div><span>規模</span><strong>${escapeHtml(magnitude)}</strong></div>
-        <div><span>深さ</span><strong>${escapeHtml(depth)}</strong></div>
-      </div>
-      <p class="earthquake-history-detail-hint">観測点は地図に表示中。点を選ぶと地点名と震度を確認できます。</p>
-      ${rows.length ? `<details><summary>観測点一覧を表示（${rows.length.toLocaleString("ja-JP")}地点）</summary><ul>${stationList}</ul></details>` : `<p>気象庁から観測点別データがありませんでした。</p>`}
-    </section>
-  `;
+  return `${form}${notices}${resultHead}${truncatedNotice}<div class="earthquake-archive-list">${list}</div>${remainder}${loadMore}`;
 }
 
 function buildArchiveSelect(name, label, value, options) {
@@ -7680,7 +7625,10 @@ function renderExpandedEarthquakeSummary({
   intensityTextClass,
   magnitude,
   depthText,
-  tsunamiState
+  tsunamiState,
+  displayTime,
+  displayPlace,
+  showTsunami = true
 }) {
   const unknownText = getEarthquakeUnknownText(earthquake);
   const tsunamiMetricText = getEarthquakeTsunamiMetricText(tsunamiState);
@@ -7703,16 +7651,16 @@ function renderExpandedEarthquakeSummary({
       </strong>
     </span>
     <span class="earthquake-detail-heading">
-      <time>${escapeHtml(formatEarthquakeEventTime(earthquake.eventTime ?? earthquake.reportTime))}発生</time>
+      <time>${escapeHtml(displayTime ?? formatEarthquakeEventTime(earthquake.eventTime ?? earthquake.reportTime))}発生</time>
       <span class="earthquake-detail-epicenter-row">
         <small>震源地</small>
-        <strong>${escapeHtml(formatEarthquakeHypocenterText(earthquake))}</strong>
+        <strong>${escapeHtml(displayPlace || formatEarthquakeHypocenterText(earthquake))}</strong>
       </span>
     </span>
-    <span class="earthquake-detail-metrics">
+    <span class="earthquake-detail-metrics${showTsunami ? "" : " earthquake-detail-metrics-two"}">
       <strong>${escapeHtml(magnitudeMetricText)}</strong>
       <strong>${escapeHtml(depthMetricText)}</strong>
-      <strong class="earthquake-detail-tsunami level-${escapeHtml(tsunamiState.level)}">${escapeHtml(tsunamiMetricText)}</strong>
+      ${showTsunami ? `<strong class="earthquake-detail-tsunami level-${escapeHtml(tsunamiState?.level ?? "unknown")}">${escapeHtml(tsunamiMetricText)}</strong>` : ""}
     </span>
   `;
 }

@@ -122,28 +122,24 @@ const stationIntensityLayer = map.slice(
   map.indexOf('id: "sample-wind-arrow"')
 );
 assert.match(areaIntensityLayer, /icon-image": EARTHQUAKE_AREA_INTENSITY_MARKER_IMAGE_ID/u);
-assert.match(areaIntensityLayer, /3,\s*0\.4,\s*7,\s*0\.58/u);
+assert.match(areaIntensityLayer, /3,\s*0\.44,\s*7,\s*0\.64/u);
 assert.match(areaIntensityLayer, /3,\s*7,\s*7,\s*9/u);
 assert.match(areaIntensityLayer, /"icon-allow-overlap": true/u);
 assert.match(areaIntensityLayer, /"text-allow-overlap": true/u);
 assert.match(stationIntensityLayer, /"icon-image": \["concat", EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID/u);
 assert.match(stationIntensityLayer, /"icon-allow-overlap": true/u);
-assert.match(stationIntensityLayer, /"text-allow-overlap": true/u);
 assert.match(stationIntensityLayer, /"icon-ignore-placement": true/u);
-assert.match(stationIntensityLayer, /"text-ignore-placement": true/u);
-assert.match(stationIntensityLayer, /7\.5, 8\.5, 10, 11, 12, 13/u);
+assert.doesNotMatch(stationIntensityLayer, /"text-field"/u, "震度の数字をアイコンと一緒に描き、手前の丸が奥の数字を覆う");
+assert.match(map, /context\.fillText\(formatMapIntensityText\(level\.value\)/u);
 assert.match(map, /eventDetail\.event\?\.intensityAreaFeatures/u);
 assert.match(map, /const historicalAreaMarkers = createEarthquakeAreaIntensityMarkers/u);
 assert.match(map, /"text-color": "#e3342f"/u);
 assert.match(map, /buildHistoricalEarthquakeStationPopup/u);
-assert.match(panel, /buildHistoricalEarthquakeDetailMarkup/u);
-assert.match(panel, /data-earthquake-history-detail-retry/u);
+assert.doesNotMatch(panel, /buildHistoricalEarthquakeDetailMarkup/u);
 assert.match(panel, /選択した過去地震の要約/u);
 assert.match(panel, /earthquake-history-summary-back/u);
-assert.match(panel, /earthquake-history-detail-facts/u);
 assert.match(panel, /formatMobileEarthquakeTime\(liveHypocenter\?\.originTime \|\| selected\.originTime, true\)/u,
   "過去地震の要約バーには発生年を含む日時を表示する");
-assert.match(style, /@media \(max-width: 560px\)[\s\S]*?\.earthquake-history-detail-facts \{ grid-template-columns: repeat\(2/u);
 assert.match(vite, /localEarthquakeHistoryEventApi\(\)/u);
 assert.match(vite, /handleEarthquakeHistoryEventRequest/u);
 console.log("Earthquake history detail tests passed.");

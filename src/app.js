@@ -4110,10 +4110,6 @@ if (layerId === "river") {
         }
       },
       onArchiveSelect: selectHistoricalEarthquake,
-      onArchiveDetailRetry: () => {
-        const item = earthquakeArchiveState.data?.items?.find((candidate) => String(candidate.id) === selectedHistoricalEarthquakeId);
-        if (item) void loadSelectedHistoricalEarthquakeDetail(item);
-      },
       onArchiveDetailBack: closeHistoricalEarthquakeDetail,
       onArchiveRetry: () => refreshEarthquakeArchive(earthquakeArchiveFilters),
       onDistributionPresentationChange: selectEarthquakeDistributionPresentation,

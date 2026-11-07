@@ -1420,9 +1420,9 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           ["linear"],
           ["zoom"],
           3,
-          0.4,
+          0.44,
           7,
-          0.58
+          0.64
         ],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
@@ -1444,8 +1444,6 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       },
       paint: {
         "icon-color": ["get", "color"],
-        "icon-halo-color": "rgba(248, 251, 255, 0.92)",
-        "icon-halo-width": 1,
         "text-color": ["get", "textColor"],
         "text-halo-width": 0
       }
@@ -1462,24 +1460,15 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         ["==", ["get", "markerType"], "earthquake-station"]
       ],
       layout: {
-        "icon-image": ["concat", EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID, ["get", "color"]],
+        "icon-image": ["concat", EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID, ["get", "intensityKey"]],
         "icon-size": ["interpolate", ["linear"], ["zoom"], 3, 0.09, 5, 0.13, 7, 0.20, 9, 0.26, 10, 0.32, 12, 0.3845],
         "icon-padding": 1,
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
-        "text-field": ["get", "intensityText"],
-        "text-font": ["Noto Sans JP"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 7.5, 8.5, 10, 11, 12, 13],
-        "text-anchor": "center",
-        "text-padding": 1,
-        "text-allow-overlap": true,
-        "text-ignore-placement": true,
         "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
       },
       paint: {
-        "icon-opacity": ["coalesce", ["get", "opacity"], 0.92],
-        "text-color": ["get", "textColor"],
-        "text-halo-width": 0
+        "icon-opacity": 1
       }
     });
 
@@ -1540,7 +1529,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       },
       paint: {
         "text-color": "#e3342f",
-        "text-halo-color": "rgba(5, 9, 20, 0.82)",
+        "text-halo-color": "#b8860b",
         "text-halo-width": 2.4,
         "text-halo-blur": 0.4
       }
@@ -3264,7 +3253,21 @@ function setupEarthquakeAreaIntensityMarkerImage(map) {
   if (!context) return;
 
   context.fillStyle = "#ffffff";
-  context.fillRect(3, 3, size - 6, size - 6);
+  const inset = 3;
+  const radius = 3;
+  const edge = size - inset;
+  context.beginPath();
+  context.moveTo(inset + radius, inset);
+  context.lineTo(edge - radius, inset);
+  context.quadraticCurveTo(edge, inset, edge, inset + radius);
+  context.lineTo(edge, edge - radius);
+  context.quadraticCurveTo(edge, edge, edge - radius, edge);
+  context.lineTo(inset + radius, edge);
+  context.quadraticCurveTo(inset, edge, inset, edge - radius);
+  context.lineTo(inset, inset + radius);
+  context.quadraticCurveTo(inset, inset, inset + radius, inset);
+  context.closePath();
+  context.fill();
   map.addImage(
     EARTHQUAKE_AREA_INTENSITY_MARKER_IMAGE_ID,
     context.getImageData(0, 0, size, size),
@@ -3273,9 +3276,9 @@ function setupEarthquakeAreaIntensityMarkerImage(map) {
 }
 
 function setupEarthquakeStationIntensityMarkerImage(map) {
-  const colors = new Set([...EARTHQUAKE_INTENSITY_LEVELS.map((level) => level.color), "#4b5563"]);
-  for (const color of colors) {
-    const imageId = `${EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID}${color}`;
+  const levels = [...EARTHQUAKE_INTENSITY_LEVELS, { value: "unknown", color: "#4b5563" }];
+  for (const level of levels) {
+    const imageId = `${EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID}${level.value}`;
     if (map.hasImage(imageId)) continue;
     const size = 64;
     const canvas = document.createElement("canvas");
@@ -3285,11 +3288,18 @@ function setupEarthquakeStationIntensityMarkerImage(map) {
     if (!context) return;
     context.beginPath();
     context.arc(size / 2, size / 2, 26, 0, Math.PI * 2);
-    context.fillStyle = color;
+    context.fillStyle = level.color;
     context.fill();
     context.strokeStyle = "#f8fbff";
     context.lineWidth = 3;
     context.stroke();
+    if (level.value !== "unknown") {
+      context.fillStyle = getMapIntensityTextColor(level.value);
+      context.font = `600 ${level.value.length > 1 ? 30 : 38}px sans-serif`;
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(formatMapIntensityText(level.value), size / 2, size / 2, 48);
+    }
     map.addImage(imageId, context.getImageData(0, 0, size, size));
   }
 }
@@ -4806,8 +4816,7 @@ function createEarthquakeFeatures(data) {
           radius: EARTHQUAKE_STATION_RADIUS,
           strokeWidth: EARTHQUAKE_STATION_STROKE_WIDTH,
           sortKey: rank,
-          intensityText: formatMapIntensityText(station.intensity),
-          textColor: getMapIntensityTextColor(station.intensity),
+          intensityKey: getStationIntensityKey(station.intensity),
           popup: buildHistoricalEarthquakeStationPopup(station, eventDetail.event.hypocenter)
         }
       }];
@@ -4867,8 +4876,7 @@ function createEarthquakeFeatures(data) {
         radius: EARTHQUAKE_STATION_RADIUS,
         strokeWidth: EARTHQUAKE_STATION_STROKE_WIDTH,
         sortKey: getEarthquakeIntensityRank(station.intensity),
-        intensityText: formatMapIntensityText(station.intensity),
-        textColor: getMapIntensityTextColor(station.intensity),
+        intensityKey: getStationIntensityKey(station.intensity),
         popup: buildEarthquakeStationPopup(station, earthquake)
       }
     }];
@@ -4989,6 +4997,11 @@ function formatMapIntensityText(value) {
   const text = String(value ?? "").trim();
   if (!text || text.includes("未入電") || text.includes("不明")) return "";
   return text.replace("-", "⁻").replace("+", "⁺");
+}
+
+function getStationIntensityKey(value) {
+  const key = String(value ?? "");
+  return EARTHQUAKE_INTENSITY_LEVELS.some((level) => level.value === key) ? key : "unknown";
 }
 
 function getMapIntensityTextColor(value) {

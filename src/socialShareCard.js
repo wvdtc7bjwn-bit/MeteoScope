@@ -1136,10 +1136,7 @@ function drawTyphoonMap(context, box, theme, mapData, payload) {
     appendTyphoonRadiusExtentPoints(extentPoints, forecast?.center, forecast?.radius);
   });
   const bounds = calculateTyphoonMapBounds(extentPoints, box);
-  const project = ([longitude, latitude]) => [
-    box.x + ((Number(longitude) - bounds.minLon) / (bounds.maxLon - bounds.minLon)) * box.width,
-    box.y + ((bounds.maxLat - Number(latitude)) / (bounds.maxLat - bounds.minLat)) * box.height
-  ];
+  const project = (point) => projectTyphoonSharePoint(point, bounds, box);
 
   drawTyphoonGeoJson(context, mapData?.worldLandGeoJson, project, bounds, {
     fillStyle: theme.panelSoft,
@@ -1433,8 +1430,9 @@ function typhoonPolygonIntersectsBounds(polygon, bounds) {
   (polygon ?? []).forEach((ring) => {
     (ring ?? []).forEach((point) => {
       if (!isCoordinate(point)) return;
-      minLon = Math.min(minLon, Number(point[0]));
-      maxLon = Math.max(maxLon, Number(point[0]));
+      const longitude = unwrapTyphoonLongitude(Number(point[0]), bounds.centerLon);
+      minLon = Math.min(minLon, longitude);
+      maxLon = Math.max(maxLon, longitude);
       minLat = Math.min(minLat, Number(point[1]));
       maxLat = Math.max(maxLat, Number(point[1]));
     });
@@ -1488,21 +1486,18 @@ function drawTyphoonMapLegend(context, box, theme, visibility) {
 function drawTyphoonRadiusArea(context, center, radiusKm, project, options = {}) {
   const radius = Number(radiusKm);
   if (!isCoordinate(center) || !Number.isFinite(radius) || radius <= 0) return;
-  const projectedCircle = getTyphoonProjectedCircle(center, radius, project);
-  if (!(projectedCircle.radius > 0)) return;
   context.save();
   context.fillStyle = options.fillStyle ?? "transparent";
   context.strokeStyle = options.strokeStyle ?? "#ffffff";
   context.lineWidth = options.lineWidth ?? 2;
   context.setLineDash(options.dash ?? []);
   context.beginPath();
-  context.arc(
-    projectedCircle.x,
-    projectedCircle.y,
-    projectedCircle.radius,
-    0,
-    Math.PI * 2
-  );
+  for (let bearing = 0; bearing < 360; bearing += 5) {
+    const [x, y] = project(destinationPoint(center, radius, bearing));
+    if (bearing === 0) context.moveTo(x, y);
+    else context.lineTo(x, y);
+  }
+  context.closePath();
   context.fill();
   context.stroke();
   context.restore();
@@ -1545,27 +1540,50 @@ function drawTyphoonTrack(context, points, project, color, dash, width) {
   context.restore();
 }
 
-function calculateTyphoonMapBounds(points, box) {
+function unwrapTyphoonLongitude(longitude, reference) {
+  return longitude + 360 * Math.round((reference - longitude) / 360);
+}
+
+function typhoonMercatorY(latitude) {
+  const radians = Math.max(-85, Math.min(85, Number(latitude))) * Math.PI / 180;
+  return Math.log(Math.tan(Math.PI / 4 + radians / 2)) * 180 / Math.PI;
+}
+
+function typhoonLatitudeFromMercator(y) {
+  return (2 * Math.atan(Math.exp(y * Math.PI / 180)) - Math.PI / 2) * 180 / Math.PI;
+}
+
+export function projectTyphoonSharePoint([longitude, latitude], bounds, box) {
+  return [
+    box.x + ((unwrapTyphoonLongitude(Number(longitude), bounds.centerLon) - bounds.minLon) / (bounds.maxLon - bounds.minLon)) * box.width,
+    box.y + ((bounds.maxY - typhoonMercatorY(latitude)) / (bounds.maxY - bounds.minY)) * box.height
+  ];
+}
+
+export function calculateTyphoonMapBounds(points, box) {
   const validPoints = points.filter(isCoordinate);
   if (!validPoints.length) {
-    return { minLon: 118, maxLon: 152, minLat: 18, maxLat: 48 };
+    return calculateTyphoonMapBounds([[118, 18], [152, 48]], box);
   }
-  let minLon = Math.min(...validPoints.map((point) => Number(point[0])));
-  let maxLon = Math.max(...validPoints.map((point) => Number(point[0])));
-  let minLat = Math.min(...validPoints.map((point) => Number(point[1])));
-  let maxLat = Math.max(...validPoints.map((point) => Number(point[1])));
+  const reference = Number(validPoints[0][0]);
+  const longitudes = validPoints.map((point) => unwrapTyphoonLongitude(Number(point[0]), reference));
+  let minLon = Math.min(...longitudes);
+  let maxLon = Math.max(...longitudes);
+  const projectedLatitudes = validPoints.map((point) => typhoonMercatorY(point[1]));
+  let minY = Math.min(...projectedLatitudes);
+  let maxY = Math.max(...projectedLatitudes);
   const centerLon = (minLon + maxLon) / 2;
-  const centerLat = (minLat + maxLat) / 2;
+  const centerY = (minY + maxY) / 2;
   let lonSpan = Math.max(8, maxLon - minLon) * 1.34;
-  let latSpan = Math.max(7, maxLat - minLat) * 1.34;
+  let latSpan = Math.max(7, maxY - minY) * 1.34;
   const targetAspect = box.width / box.height;
   if (lonSpan / latSpan < targetAspect) lonSpan = latSpan * targetAspect;
   else latSpan = lonSpan / targetAspect;
   minLon = centerLon - lonSpan / 2;
   maxLon = centerLon + lonSpan / 2;
-  minLat = centerLat - latSpan / 2;
-  maxLat = centerLat + latSpan / 2;
-  return { minLon, maxLon, minLat, maxLat };
+  minY = centerY - latSpan / 2;
+  maxY = centerY + latSpan / 2;
+  return { minLon, maxLon, minLat: typhoonLatitudeFromMercator(minY), maxLat: typhoonLatitudeFromMercator(maxY), minY, maxY, centerLon };
 }
 
 export function sortEarthquakeObservationsForMap(observations = []) {

@@ -350,10 +350,8 @@ assert.match(panel, /onArchiveFilterChange\?\.\(readArchiveSearchFilters\(archiv
 assert.match(panel, /const filters = data\.earthquakeArchiveFilters \?\? snapshot\?\.filters/u);
 assert.match(panel, /1919年〜2日前/u);
 assert.match(panel, /検索結果が上限の\$\{EARTHQUAKE_HISTORY_RESULT_LIMIT\.toLocaleString\("ja-JP"\)\}件を超えています/u);
-assert.match(panel, /earthquake-archive-item-content/u);
-assert.match(panel, /<small>震度<\/small><b>/u);
-assert.match(panel, /getEarthquakeIntensityColor\(item\.maxIntensity\)[\s\S]*?style="background-color:\$\{escapeHtml\(intensityColor\)\};color:\$\{intensityTextColor\}"/u,
-  "過去地震の震度バッジは凡例と共通の震度色を使う");
+assert.match(panel, /getEarthquakeIntensityColor\(item\.maxIntensity\)[\s\S]*?renderExpandedEarthquakeSummary\(\{[\s\S]*?intensityColor,[\s\S]*?showTsunami: false/u,
+  "過去地震は共通の震度色と最新の地震の表示を使い、津波情報を推測しない");
 assert.match(panel, /一覧は\$\{visibleItems\.length\.toLocaleString\("ja-JP"\)\}件表示中/u);
 assert.match(panel, /地図は先頭.*件/u);
 assert.match(panel, /data-earthquake-archive-list-more/u);

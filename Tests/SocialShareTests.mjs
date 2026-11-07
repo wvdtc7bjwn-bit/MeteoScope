@@ -4,6 +4,8 @@ import {
   SOCIAL_SHARE_FORMATS,
   buildSocialShareFilename,
   calculateTyphoonCircleTangents,
+  calculateTyphoonMapBounds,
+  projectTyphoonSharePoint,
   formatAmedasShareMeta,
   formatEarthquakeObservationShareLabel,
   renderSocialShareCard,
@@ -169,6 +171,14 @@ const tangentCircles = [
   { x: 0, y: 0, radius: 10 },
   { x: 100, y: 0, radius: 20 }
 ];
+for (const box of [{x: 0, y: 0, width: 800, height: 600}, {x: 0, y: 0, width: 600, height: 800}, {x: 0, y: 0, width: 600, height: 600}]) {
+  const bounds = calculateTyphoonMapBounds([[179, 30], [-179, 30]], box);
+  assert.ok(bounds.maxLon - bounds.minLon < 30, "日付変更線付近を世界一周の範囲で描かない");
+  const east = projectTyphoonSharePoint([179, 30], bounds, box);
+  const west = projectTyphoonSharePoint([-179, 30], bounds, box);
+  assert.ok(west[0] > east[0] && west[0] - east[0] < box.width / 2);
+  assert.ok(Math.abs(east[1] - west[1]) < 1e-8);
+}
 const forecastTangents = calculateTyphoonCircleTangents(...tangentCircles);
 assert.equal(forecastTangents.length, 2);
 forecastTangents.forEach(([start, end]) => {
