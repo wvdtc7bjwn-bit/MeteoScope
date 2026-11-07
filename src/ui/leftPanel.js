@@ -6900,7 +6900,7 @@ function buildEarthquakeArchiveMarkup(data) {
       <strong>${snapshot?.complete ? "" : "取得済み "}${totalMatched.toLocaleString("ja-JP")}件</strong>
       <span>${snapshot?.truncated
         ? `地図は先頭${resultLimit.toLocaleString("ja-JP")}件`
-        : coverageLabel}${loading ? "・検索中" : snapshot?.complete === false ? "・全期間未取得" : ""}</span>
+        : coverageLabel}${loading ? "・検索中" : snapshot?.complete === false ? "・未取得期間あり" : ""}</span>
     </div>
   `;
   const nearbyNotice = snapshot?.filters?.nearby
