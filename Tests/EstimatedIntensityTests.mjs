@@ -98,8 +98,7 @@ assert.match(mapSource, /radius:\s*EARTHQUAKE_STATION_RADIUS,\s*strokeWidth:\s*E
 assert.doesNotMatch(mapSource, /getEarthquakeIntensityRadius/u);
 assert.doesNotMatch(mapSource, /getEarthquakeStationLabel/u);
 assert.match(mapSource, /id:\s*"earthquake-area-intensity-marker"/u);
-assert.match(mapSource, /id:\s*"earthquake-station-intensity-circle"/u);
-assert.match(mapSource, /id:\s*"earthquake-station-intensity-label"/u);
+assert.match(mapSource, /id:\s*"earthquake-station-intensity-marker"/u);
 assert.match(mapSource, /\["!=",\s*\["get",\s*"markerType"\],\s*"earthquake-station"\]/u);
 assert.match(mapSource, /maxzoom:\s*6\.5/u);
 assert.match(mapSource, /minzoom:\s*6\.5/u);

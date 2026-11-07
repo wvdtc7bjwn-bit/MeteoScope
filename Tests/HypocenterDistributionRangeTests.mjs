@@ -101,6 +101,7 @@ assert.doesNotMatch(client, /parameters\.delete\("bounds"\)/u);
 assert.match(panel, /data-earthquake-distribution-area-search/u);
 assert.match(panel, /buildDistributionAreaControls\(hasArea, areaDrawing\)/u);
 assert.match(panel, /data-earthquake-distribution-date/u);
+assert.match(panel, /target\.hasAttribute\("data-earthquake-distribution-date"\)/u);
 assert.doesNotMatch(panel, /data-earthquake-distribution-date-open/u);
 assert.match(panel, /aria-pressed="\$\{areaDrawing \? "true" : "false"\}"/u);
 assert.match(panel, /範囲選択を中止/u);

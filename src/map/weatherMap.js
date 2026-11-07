@@ -2,6 +2,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
   AMEDAS_METRICS,
+  EARTHQUAKE_INTENSITY_LEVELS,
   DEFAULT_VIEW,
   getAmedasObservationColor,
   getEarthquakeIntensityColor,
@@ -66,9 +67,9 @@ const SAMPLE_SOURCE_ID = "weather-samples";
 const HYPOCENTER_AREA_SOURCE_ID = "hypocenter-area-selection";
 const HYPOCENTER_AREA_FILL_LAYER_ID = "hypocenter-area-selection-fill";
 const HYPOCENTER_AREA_LINE_LAYER_ID = "hypocenter-area-selection-line";
-const SAMPLE_LAYERS = ["sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-circle", "earthquake-station-intensity-label", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
+const SAMPLE_LAYERS = ["sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
-const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "sample-tsunami-coastal", "sample-cross", "earthquake-station-intensity-circle", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line"];
+const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "sample-tsunami-coastal", "sample-cross", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line"];
 const TSUNAMI_BLINK_INTERVAL_MS = 1800;
 const TSUNAMI_DIMMED_OPACITY_FACTOR = 0.38;
 const EARTHQUAKE_STATION_RADIUS = 10;
@@ -180,6 +181,7 @@ const TYPHOON_FORECAST_INFO_LAYERS = [
 const WIND_ARROW_IMAGE_ID = "amedas-wind-arrow";
 const VOLCANO_MARKER_IMAGE_ID = "volcano-filled-triangle";
 const EARTHQUAKE_AREA_INTENSITY_MARKER_IMAGE_ID = "earthquake-area-intensity-square";
+const EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID = "earthquake-station-intensity-round";
 const RADAR_SOURCE_PREFIX = "jma-nowcast-radar-z";
 const RADAR_LAYER_PREFIX = "jma-nowcast-radar-z";
 const LIGHTNING_SOURCE_PREFIX = "jma-nowcast-lightning-z";
@@ -1198,6 +1200,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     setupWindArrowImage(map);
     setupVolcanoMarkerImage(map);
     setupEarthquakeAreaIntensityMarkerImage(map);
+    setupEarthquakeStationIntensityMarkerImage(map);
     setupWarningHatchImage(map);
     setupWeatherFrontImages(map);
 
@@ -1417,9 +1420,9 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           ["linear"],
           ["zoom"],
           3,
-          0.62,
+          0.4,
           7,
-          0.82
+          0.58
         ],
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
@@ -1430,9 +1433,9 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           ["linear"],
           ["zoom"],
           3,
-          9,
           7,
-          12
+          7,
+          9
         ],
         "text-anchor": "center",
         "text-allow-overlap": true,
@@ -1448,29 +1451,9 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       }
     });
 
+    // Draw every observation point; use smaller symbols at wider zoom levels.
     map.addLayer({
-      id: "earthquake-station-intensity-circle",
-      type: "circle",
-      source: SAMPLE_SOURCE_ID,
-      minzoom: 6.5,
-      filter: ["all",
-        ["==", ["geometry-type"], "Point"],
-        ["==", ["get", "markerType"], "earthquake-station"]
-      ],
-      layout: {
-        "circle-sort-key": ["coalesce", ["get", "sortKey"], 0]
-      },
-      paint: {
-        "circle-color": ["get", "color"],
-        "circle-opacity": ["coalesce", ["get", "opacity"], 0.92],
-        "circle-radius": SAMPLE_CIRCLE_RADIUS_EXPRESSION,
-        "circle-stroke-color": "#f8fbff",
-        "circle-stroke-width": SAMPLE_CIRCLE_STROKE_WIDTH_EXPRESSION
-      }
-    });
-
-    map.addLayer({
-      id: "earthquake-station-intensity-label",
+      id: "earthquake-station-intensity-marker",
       type: "symbol",
       source: SAMPLE_SOURCE_ID,
       minzoom: 6.5,
@@ -1479,23 +1462,22 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         ["==", ["get", "markerType"], "earthquake-station"]
       ],
       layout: {
+        "icon-image": ["concat", EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID, ["get", "color"]],
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 3, 0.09, 5, 0.13, 7, 0.20, 9, 0.26, 10, 0.32, 12, 0.3845],
+        "icon-padding": 1,
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
         "text-field": ["get", "intensityText"],
         "text-font": ["Noto Sans JP"],
-        "text-size": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          7.5,
-          11,
-          10,
-          13
-        ],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 7.5, 8.5, 10, 11, 12, 13],
         "text-anchor": "center",
+        "text-padding": 1,
         "text-allow-overlap": true,
         "text-ignore-placement": true,
         "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
       },
       paint: {
+        "icon-opacity": ["coalesce", ["get", "opacity"], 0.92],
         "text-color": ["get", "textColor"],
         "text-halo-width": 0
       }
@@ -3288,6 +3270,28 @@ function setupEarthquakeAreaIntensityMarkerImage(map) {
     context.getImageData(0, 0, size, size),
     { sdf: true }
   );
+}
+
+function setupEarthquakeStationIntensityMarkerImage(map) {
+  const colors = new Set([...EARTHQUAKE_INTENSITY_LEVELS.map((level) => level.color), "#4b5563"]);
+  for (const color of colors) {
+    const imageId = `${EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID}${color}`;
+    if (map.hasImage(imageId)) continue;
+    const size = 64;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    context.beginPath();
+    context.arc(size / 2, size / 2, 26, 0, Math.PI * 2);
+    context.fillStyle = color;
+    context.fill();
+    context.strokeStyle = "#f8fbff";
+    context.lineWidth = 3;
+    context.stroke();
+    map.addImage(imageId, context.getImageData(0, 0, size, size));
+  }
 }
 
 function setupWarningHatchImage(map) {

@@ -274,7 +274,7 @@ export async function fetchAmedasDailySeries(
   chunks.forEach((chunk) => {
     Object.entries(chunk ?? {}).forEach(([time, observation]) => {
       const value = readObservedValue(observation?.[field]);
-      if (!Number.isFinite(value) || !isSameJstDate(time, jst.date)) return;
+      if (!Number.isFinite(value) || (metricId === "snow" && value < 0) || !isSameJstDate(time, jst.date)) return;
       const gust = metricId === "wind" ? readObservedValue(observation?.gust) : null;
       pointsByTime.set(time, {
         time,

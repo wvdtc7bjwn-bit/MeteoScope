@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getSnowDepthAxisMaximum, splitAmedasChartSegments } from "../src/amedasChart.js";
 import { buildAmedasPoints, fetchAmedasLatestTime, getAmedasSnowMapTime } from "../src/jma/amedas.js";
 import { JMA_ENDPOINTS } from "../src/config.js";
 
@@ -49,4 +50,14 @@ try {
   globalThis.fetch = originalFetch;
 }
 
+const snowPoints = [
+  { minute: 0, value: 0 }, { minute: 60, value: 0 },
+  { minute: 120, value: 2 }, { minute: 240, value: 4 }
+];
+assert.deepEqual(splitAmedasChartSegments(snowPoints, "value", "snow").map((segment) => segment.length), [3, 1]);
+assert.deepEqual(splitAmedasChartSegments(snowPoints, "value", "temperature").map((segment) => segment.length), [1, 1, 1, 1]);
+assert.equal(getSnowDepthAxisMaximum(0), 2);
+assert.equal(getSnowDepthAxisMaximum(1), 2);
+assert.equal(getSnowDepthAxisMaximum(37), 38);
+assert.equal(getSnowDepthAxisMaximum(-1), 2);
 console.log("AMeDAS snow tests passed");

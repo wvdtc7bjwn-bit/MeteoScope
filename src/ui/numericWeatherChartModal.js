@@ -182,7 +182,7 @@ function renderNumericWeatherChartLinks() {
   body.append(archivePicker.section);
   loadArchive = archivePicker.load;
 
-  buildTimelineGroups().forEach((group, index) => {
+  buildTimelineGroups().forEach((group) => {
     const section = document.createElement("section");
     section.className = "numeric-weather-chart-group";
 
@@ -208,7 +208,6 @@ function renderNumericWeatherChartLinks() {
     links.hidden = true;
     group.links.forEach((item) => links.append(createChartLink(item)));
     section.append(toggle, links);
-    if (index === 0) setNumericWeatherChartGroupExpanded(section, true);
     body.append(section);
   });
 

@@ -547,32 +547,8 @@ export function createWeatherApp() {
   let panelRenderGeneration = 0;
   let tabAutoFocusGeneration = 0;
 
-  function syncSocialShareMapButton(tabId = activeTab) {
-    const button = document.getElementById("social-share-map-button");
-    if (!button) return;
-  const labels = {
-    amedas: "アメダスランキング",
-    typhoon: "台風情報",
-    earthquake: "地震情報",
-    warnings: "現在地付近の発表状況"
-  };
-  const payloadType = tabId === "warnings" ? "warning" : tabId;
-  const label = labels[tabId] ?? "";
-  const payload = label ? getSocialSharePayload(payloadType) : null;
-  button.dataset.socialShare = label ? payloadType : "";
-    button.disabled = !payload;
-    button.setAttribute(
-      "aria-label",
-      payload ? `${label}を画像で共有` : (label ? `${label}を読み込み中` : "このタブでは画像共有を利用できません")
-    );
-    button.title = payload
-      ? `${label}を画像で共有`
-      : (label ? `${label}を読み込み中` : "このタブでは画像共有を利用できません");
-  }
-
   function renderLeftPanelState(tab, panelState) {
     updateLeftPanel(tab, panelState);
-    syncSocialShareMapButton(tab?.id);
     syncWeatherDistributionToggle({
       visible: tab?.id === "radar" && Boolean(weatherDistributionMode),
       activeMode: tab?.id === "radar" ? weatherDistributionMode : null
@@ -605,7 +581,6 @@ export function createWeatherApp() {
     activeTab = tab.id;
     syncTyphoonRadarOverlayButton();
     syncEarlyWarningRefreshTimer();
-    syncSocialShareMapButton(tab.id);
     invalidateScheduledMapRender();
     invalidateScheduledPanelRender();
     syncActiveTabToUrl(tab.id);
@@ -735,8 +710,7 @@ export function createWeatherApp() {
     if (activeTab !== "amedas") return;
     const tab = TABS.find((item) => item.id === "amedas");
     updateCurrentView(tab, latestDataByTab.amedas);
-    const selectedPoint = (latestDataByTab.amedas?.points ?? [])
-      .find((point) => String(point.id) === selectedAmedasStationId);
+    const selectedPoint = findAmedasStation(selectedAmedasStationId);
     if (selectedPoint && (
       amedasDailyChart.metricId !== activeAmedasMetric
       || (activeAmedasMetric === "precipitation"
@@ -755,8 +729,7 @@ export function createWeatherApp() {
 
     const tab = TABS.find((item) => item.id === "amedas");
     updateCurrentView(tab, latestDataByTab.amedas);
-    const selectedPoint = (latestDataByTab.amedas?.points ?? [])
-      .find((point) => String(point.id) === selectedAmedasStationId);
+    const selectedPoint = findAmedasStation(selectedAmedasStationId);
     if (selectedPoint && activeAmedasMetric === "precipitation") {
       void loadAmedasDailyChart(selectedPoint, activeAmedasMetric, amedasDailyChartDayOffset);
     }
@@ -767,8 +740,7 @@ export function createWeatherApp() {
     if (normalizedDayOffset === 1 && !earlyAccessEnabled) return;
     if (normalizedDayOffset === amedasDailyChartDayOffset) return;
     amedasDailyChartDayOffset = normalizedDayOffset;
-    const selectedPoint = (latestDataByTab.amedas?.points ?? [])
-      .find((point) => String(point.id) === selectedAmedasStationId);
+    const selectedPoint = findAmedasStation(selectedAmedasStationId);
     if (!selectedPoint) return;
     void loadAmedasDailyChart(selectedPoint, activeAmedasMetric, amedasDailyChartDayOffset);
   }
@@ -803,8 +775,7 @@ export function createWeatherApp() {
     refreshWeatherChartAccessMode();
     if (!earlyAccessEnabled && amedasDailyChartDayOffset === 1) {
       amedasDailyChartDayOffset = 0;
-      const selectedPoint = (latestDataByTab.amedas?.points ?? [])
-        .find((point) => String(point.id) === selectedAmedasStationId);
+      const selectedPoint = findAmedasStation(selectedAmedasStationId);
       if (selectedPoint) void loadAmedasDailyChart(selectedPoint, activeAmedasMetric, 0);
     } else if (activeTab === "amedas") {
       refreshAmedasPanel();
@@ -1944,9 +1915,21 @@ if (layerId === "river") {
     });
   }
 
-  function focusAmedasStation(stationId) {
-    const point = (latestDataByTab.amedas?.points ?? [])
+  function findAmedasStation(stationId) {
+    const data = latestDataByTab.amedas;
+    const candidates = [
+      data?.points,
+      data?.temperatureRankings?.maximum,
+      data?.temperatureRankings?.minimum,
+      data?.windRankings?.maximum,
+      data?.windRankings?.gust,
+      data?.pressureRankings?.minimum
+    ];
+    return candidates.flatMap((items) => items ?? [])
       .find((item) => String(item.id) === String(stationId));
+  }
+
+  function focusAmedasStation(point) {
     if (!Array.isArray(point?.coordinates)) return;
     weatherMap?.flyToLocation(point.coordinates, {
       minZoom: 9.2,
@@ -1955,14 +1938,12 @@ if (layerId === "river") {
   }
 
   function selectAmedasStation(stationId) {
-    const point = (latestDataByTab.amedas?.points ?? [])
-      .find((item) => String(item.id) === String(stationId));
+    const point = findAmedasStation(stationId);
     if (!point) return;
 
     selectedAmedasStationId = String(point.id);
-    focusAmedasStation(point.id);
+    focusAmedasStation(point);
     void loadAmedasDailyChart(point, activeAmedasMetric, amedasDailyChartDayOffset);
-    refreshAmedasPanel();
   }
 
   async function loadAmedasDailyChart(
@@ -4014,7 +3995,7 @@ if (layerId === "river") {
       onRangeChange: selectTideObservationRange,
       onClose: closeTideObservation
     });
-    setupAmedasRankingToggle({ onChange: refreshAmedasPanel, onSelectStation: focusAmedasStation });
+    setupAmedasRankingToggle({ onChange: refreshAmedasPanel, onSelectStation: selectAmedasStation });
     window.addEventListener("amedas-station-select", (event) => {
       const stationId = event.detail?.stationId;
       if (stationId) selectAmedasStation(stationId);

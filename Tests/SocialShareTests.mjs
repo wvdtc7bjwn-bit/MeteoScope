@@ -195,14 +195,12 @@ assert.deepEqual(
 
 assert.match(indexSource, /id="social-share-modal"/);
 assert.match(indexSource, /id="social-share-preview"/);
-assert.match(indexSource, /id="social-share-map-button"/);
+assert.doesNotMatch(indexSource, /id="social-share-map-button"/);
 assert.match(indexSource, /data-social-share-format="portrait"/);
 assert.match(indexSource, /data-social-share-theme="light"/);
 assert.doesNotMatch(indexSource, /<span>SNS投稿用PNG<\/span>/);
 assert.match(appSource, /import\("\.\/ui\/socialShareModal\.js"\)/);
-assert.match(appSource, /function syncSocialShareMapButton\(/);
-assert.match(appSource, /const payloadType = tabId === "warnings" \? "warning" : tabId/);
-assert.match(appSource, /button\.dataset\.socialShare = label \? payloadType : ""/);
+assert.doesNotMatch(appSource, /function syncSocialShareMapButton\(/);
 assert.match(appSource, /function renderLeftPanelState\(/);
 assert.match(leftPanelSource, /function setWarningSocialSharePayload\(/);
 assert.match(leftPanelSource, /setSocialSharePayload\("warning"/);
@@ -213,7 +211,6 @@ assert.match(leftPanelSource, /data-social-share="earthquake"/);
 assert.match(leftPanelSource, /data-social-share="typhoon"/);
 assert.match(leftPanelSource, /earthquake-observations-title-row[\s\S]*?earthquake-share-button[\s\S]*?visibleObservations\.length/);
 assert.doesNotMatch(leftPanelSource, /earthquake-share-row/);
-assert.match(indexSource, /id="map-utility-actions"[\s\S]*?id="social-share-map-button"/);
 assert.match(styleSource, /\.map-utility-actions\s*\{[\s\S]*?left:\s*calc\(var\(--sidebar-width\) \+ 72px\)/);
 assert.match(styleSource, /@media \(max-width: 800px\)[\s\S]*?\.map-utility-actions\s*\{[\s\S]*?left:\s*12px/);
 assert.match(leftPanelSource, /items:\s*items\.map/);

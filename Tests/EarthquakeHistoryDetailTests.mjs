@@ -111,25 +111,27 @@ assert.match(map, /const EARTHQUAKE_STATION_RADIUS = 10;/u,
   "最新・過去地震の観測点マーカー半径を少し大きくする");
 assert.match(map, /id: "earthquake-area-intensity-marker"[\s\S]{0,100}?maxzoom: 6\.5/u,
   "広域表示では細分区域の四角マーカーを使う");
-assert.match(map, /id: "earthquake-station-intensity-circle"[\s\S]{0,100}?minzoom: 6\.5/u,
-  "ズームイン開始時に各地の震度を丸で表示する");
-assert.match(map, /id: "earthquake-station-intensity-label"[\s\S]{0,100}?minzoom: 6\.5/u);
+assert.match(map, /id: "earthquake-station-intensity-marker"[\s\S]{0,100}?minzoom: 6\.5/u,
+  "ズームイン開始時に各地の震度を表示する");
 const areaIntensityLayer = map.slice(
   map.indexOf('id: "earthquake-area-intensity-marker"'),
-  map.indexOf('id: "earthquake-station-intensity-circle"')
+  map.indexOf('id: "earthquake-station-intensity-marker"')
 );
-const stationIntensityLabelLayer = map.slice(
-  map.indexOf('id: "earthquake-station-intensity-label"'),
+const stationIntensityLayer = map.slice(
+  map.indexOf('id: "earthquake-station-intensity-marker"'),
   map.indexOf('id: "sample-wind-arrow"')
 );
-assert.match(areaIntensityLayer, /icon-image": EARTHQUAKE_AREA_INTENSITY_MARKER_IMAGE_ID/u,
-  "細分区域の最大震度は四角マーカーで表示する");
-assert.match(areaIntensityLayer, /\["get", "markerType"\], "earthquake-area-intensity"/u);
-assert.doesNotMatch(stationIntensityLabelLayer, /icon-image|icon-color/u,
-  "各地の観測点は四角アイコンを重ねず、円マーカー上に震度数字だけを表示する");
-assert.match(stationIntensityLabelLayer, /\["get", "markerType"\], "earthquake-station"/u);
-assert.match(stationIntensityLabelLayer, /7\.5,\s*11,\s*10,\s*13/u,
-  "震度数字だけを少し大きくし、色や配置は維持する");
+assert.match(areaIntensityLayer, /icon-image": EARTHQUAKE_AREA_INTENSITY_MARKER_IMAGE_ID/u);
+assert.match(areaIntensityLayer, /3,\s*0\.4,\s*7,\s*0\.58/u);
+assert.match(areaIntensityLayer, /3,\s*7,\s*7,\s*9/u);
+assert.match(areaIntensityLayer, /"icon-allow-overlap": true/u);
+assert.match(areaIntensityLayer, /"text-allow-overlap": true/u);
+assert.match(stationIntensityLayer, /"icon-image": \["concat", EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID/u);
+assert.match(stationIntensityLayer, /"icon-allow-overlap": true/u);
+assert.match(stationIntensityLayer, /"text-allow-overlap": true/u);
+assert.match(stationIntensityLayer, /"icon-ignore-placement": true/u);
+assert.match(stationIntensityLayer, /"text-ignore-placement": true/u);
+assert.match(stationIntensityLayer, /7\.5, 8\.5, 10, 11, 12, 13/u);
 assert.match(map, /eventDetail\.event\?\.intensityAreaFeatures/u);
 assert.match(map, /const historicalAreaMarkers = createEarthquakeAreaIntensityMarkers/u);
 assert.match(map, /"text-color": "#e3342f"/u);

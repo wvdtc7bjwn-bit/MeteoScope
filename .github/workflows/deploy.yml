@@ -53,12 +53,20 @@ jobs:
       - name: Test historical earthquake search and request cancellation
         run: |
           node Tests/EarthquakeRefreshTests.mjs
+          node Tests/HypocenterDistributionRangeTests.mjs
+          node Tests/EarthquakeHistoryDetailTests.mjs
+          node Tests/EstimatedIntensityTests.mjs
           node Tests/EarthquakeHistoryProxyTests.mjs
           node Tests/EarthquakeHistoryTests.mjs
           npm run test:resilience
 
       - name: Test warning areas
         run: npm run test:warnings
+
+      - name: Test sharing and upper-air links
+        run: |
+          npm run test:social-share
+          node Tests/NumericWeatherChartLinksTests.mjs
 
       - name: Test responsive layouts
         run: npm run test:responsive

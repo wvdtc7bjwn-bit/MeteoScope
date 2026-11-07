@@ -1,3 +1,4 @@
+import { getSnowDepthAxisMaximum, splitAmedasChartSegments } from "../amedasChart.js";
 import {
   AMEDAS_LEVELS_BY_METRIC,
   AMEDAS_METRICS,
@@ -1685,7 +1686,7 @@ export function setupEarthquakeSelector({
       validateDistributionRangeDraft(controls);
       return;
     }
-    if (target instanceof HTMLInputElement && target.dataset.earthquakeDistributionDate) {
+    if (target instanceof HTMLInputElement && target.hasAttribute("data-earthquake-distribution-date")) {
       const availableDates = getDistributionDates?.() ?? [];
       const dayOffset = availableDates.indexOf(target.value);
       if (dayOffset >= 0) {
@@ -5585,32 +5586,19 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
     : [];
   const chartMinimum = Math.min(...[minValue, ...normalValues].filter(Number.isFinite));
   const chartMaximum = Math.max(...[maxValue, ...normalValues].filter(Number.isFinite));
-  const min = isPrecipitation ? 0 : (Number.isFinite(chartMinimum) ? Math.floor(chartMinimum - 1) : 0);
+  const min = isPrecipitation || metric.id === "snow" ? 0 : (Number.isFinite(chartMinimum) ? Math.floor(chartMinimum - 1) : 0);
   const gustMax = metric.id === "wind"
     ? Math.max(...points.map((point) => point.gust).filter(Number.isFinite), Number.NEGATIVE_INFINITY)
     : Number.NEGATIVE_INFINITY;
-  const max = getAmedasDailyAxisMax(Math.max(Number(chartMaximum) || 0, gustMax), metric.id);
+  const max = metric.id === "snow"
+    ? getSnowDepthAxisMaximum(chartMaximum)
+    : getAmedasDailyAxisMax(Math.max(Number(chartMaximum) || 0, gustMax), metric.id);
   const span = Math.max(1, max - min);
   const xFor = (minute) => inset.left + (Math.max(0, Math.min(1440, minute)) / 1440) * plotWidth;
   const yFor = (value) => inset.top + ((max - value) / span) * plotHeight;
 
-  const buildSegments = (valueKey) => {
-    const segments = [];
-    let segment = [];
-    let previousMinute = null;
-    points.forEach((point) => {
-      const value = point[valueKey];
-      if (!Number.isFinite(value)) return;
-      if (previousMinute !== null && point.minute - previousMinute > 20 && segment.length) {
-        segments.push(segment);
-        segment = [];
-      }
-      segment.push(`${xFor(point.minute).toFixed(1)},${yFor(value).toFixed(1)}`);
-      previousMinute = point.minute;
-    });
-    if (segment.length) segments.push(segment);
-    return segments;
-  };
+  const buildSegments = (valueKey) => splitAmedasChartSegments(points, valueKey, metric.id)
+    .map((segment) => segment.map((point) => `${xFor(point.minute).toFixed(1)},${yFor(point[valueKey]).toFixed(1)}`));
   const segments = buildSegments("value");
 
   const grids = [min, min + span / 2, max].map((value) => {
@@ -5628,7 +5616,9 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
       const y = yFor(point.value);
       return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="2.2" height="${Math.max(1, inset.top + plotHeight - y).toFixed(1)}" rx="1.1"/>`;
     }).join("")
-    : segments.map((items) => `<polyline points="${items.join(" ")}"/>`).join("");
+    : segments.map((items) => metric.id === "snow" && items.length === 1
+      ? `<circle cx="${items[0].split(",")[0]}" cy="${items[0].split(",")[1]}" r="2"/>`
+      : `<polyline points="${items.join(" ")}"/>`).join("");
   const gustPaths = metric.id === "wind"
     ? buildSegments("gust").map((items) => `<polyline points="${items.join(" ")}"/>`).join("")
     : "";

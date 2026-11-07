@@ -463,7 +463,7 @@ assert.match(index, /maximum-scale=1/);
 assert.match(index, /user-scalable=no/);
 assert.match(styles, /html,\s*body\s*\{\s*touch-action:\s*pan-x pan-y;/);
 assert.match(index, /id="map-utility-menu-toggle"[\s\S]*?aria-controls="map-utility-actions"/u);
-assert.match(index, /id="map-utility-actions"[\s\S]*?id="disaster-quiz-button"[\s\S]*?id="weekly-weather-button"[\s\S]*?id="disaster-map-button"[\s\S]*?id="social-share-map-button"[\s\S]*?id="settings-button"/u);
+assert.match(index, /id="map-utility-actions"[\s\S]*?id="disaster-quiz-button"[\s\S]*?id="weekly-weather-button"[\s\S]*?id="disaster-map-button"[\s\S]*?id="settings-button"/u);
 assert.equal((index.match(/id="settings-button"/gu) ?? []).length, 1, "設定ボタンを機能メニュー内だけに置く");
 assert.match(index, /data-settings-filter[^>]*>[\s\S]*?data-settings-filter-clear/u);
 assert.match(index, /data-settings-open-group="settings-theme-group"[\s\S]*?data-settings-open-group="settings-push-group"/u);
