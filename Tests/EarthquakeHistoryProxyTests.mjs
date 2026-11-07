@@ -96,6 +96,28 @@ try {
   assert.equal(exact.limited,false,"ちょうど1000件は上限超過ではない");
   responsePayload={res:"検索条件を見直してください",str:[]};
   assert.equal((await query("&keyword=invalid-upstream")).status,400,"上流の検索入力エラーを障害へ変換しない");
+  let lagCalls = 0;
+  globalThis.fetch = async (url, init) => {
+    lagCalls += 1;
+    if (lagCalls === 1) return Response.json({ res: "現時点の震度データベースには 2026-09-28 より後のデータはありません　検索終了日時の設定を見直してください", str: [] });
+    assert.equal(init.body.getAll("dateTimeT[]")[0], "2026-09-28");
+    return Response.json({ res: [row], str: ["検索結果地震数 ： 1 地震"] });
+  };
+  const delayed = await query("&keyword=石川&sort=oldest");
+  const delayedPayload = await delayed.json();
+  assert.equal(delayed.status, 200);
+  assert.equal(delayedPayload.availableThrough, "2026-09-28");
+  assert.equal(delayedPayload.records.length, 1);
+  assert.equal(delayedPayload.totalMatched, null);
+  assert.equal(delayed.headers.get("cache-control"), "no-store");
+  assert.equal(lagCalls, 2);
+  lagCalls = 0;
+  const entirelyUnavailable = await onRequestGet({ request: new Request("https://meteoscope.test/api/earthquake-history?start=2026-09-29&end=2026-09-29") });
+  const unavailablePayload = await entirelyUnavailable.json();
+  assert.equal(entirelyUnavailable.status, 200);
+  assert.deepEqual(unavailablePayload.records, []);
+  assert.equal(unavailablePayload.availableThrough, "2026-09-28");
+  assert.equal(lagCalls, 1, "検索開始前までしか収録されていない場合は不正な再検索をしない");
   globalThis.fetch=async (url,init)=>new Promise((resolve,reject)=>init.signal.addEventListener("abort",()=>reject(init.signal.reason),{once:true}));
   const controller=new AbortController();
   const cancelled=onRequestGet({request:new Request("https://meteoscope.test/api/earthquake-history?start=2024-01-01&end=2024-01-02",{signal:controller.signal})});

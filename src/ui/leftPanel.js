@@ -6889,7 +6889,7 @@ function buildEarthquakeArchiveMarkup(data) {
     ? `<p class="earthquake-archive-list-note" role="status">通信障害のため保存データで代替：${snapshot.fallbackRanges.map((range) => `${escapeHtml(formatArchiveDate(range.startDate))} ${escapeHtml(range.startTime)}〜${escapeHtml(formatArchiveDate(range.endDate))} ${escapeHtml(range.endTime)}（更新 ${escapeHtml(formatArchiveDateTime(range.updatedAt))}）`).join("、")}</p>`
     : "";
   const missingNotice = snapshot?.unavailableRanges?.length
-    ? `<p class="earthquake-archive-list-note" role="alert">取得できていない期間：${snapshot.unavailableRanges.map((range) => `${escapeHtml(formatArchiveDate(range.startDate))}〜${escapeHtml(formatArchiveDate(range.endDate))}`).join("、")}。保存データの収録範囲外や取得失敗のため、全期間の検索は完了していません。</p>` : "";
+    ? `<p class="earthquake-archive-list-note" role="alert">取得できていない期間：${snapshot.unavailableRanges.map((range) => `${escapeHtml(formatArchiveDate(range.startDate))}〜${escapeHtml(formatArchiveDate(range.endDate))}${range.reason === "jma_not_yet_available" ? `（気象庁データは${escapeHtml(formatArchiveDate(range.availableThrough))}まで）` : ""}`).join("、")}。全期間の検索は完了していません。</p>` : "";
   const incompleteNotice = snapshot?.searchFinished && !snapshot.complete && !snapshot.cancelled && snapshot?.unsearchedRanges?.length
     ? `<p class="earthquake-archive-list-note" role="status">${snapshot.filters.nearby && snapshot.filters.sort === "newest"
       ? "新しい地震から最大1,000件を表示しています。これより古い期間は未取得です。"

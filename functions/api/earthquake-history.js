@@ -54,15 +54,33 @@ export async function onRequestGet(context) {
   }
   try {
     context.request.signal.throwIfAborted();
-    const response = await fetch(JMA_EARTHQUAKE_INTENSITY_API_URL, {
-      method: "POST",
-      headers: { accept: "application/json", referer: JMA_EARTHQUAKE_HISTORY_SOURCE_URL },
-      body: buildJmaIntensitySearchForm(startDate, endDate, startTime, endTime, conditions),
-      signal: AbortSignal.any([context.request.signal, AbortSignal.timeout(25_000)])
-    });
-    if (response.status === 400 || response.status === 422) return jsonResponse({ ok: false, error: "jma_invalid_search_conditions" }, 400);
-    if (!response.ok) throw new Error(`JMA returned HTTP ${response.status}`);
-    const payload = await response.json();
+    const queryJma = async (queryEndDate, queryEndTime) => {
+      const response = await fetch(JMA_EARTHQUAKE_INTENSITY_API_URL, {
+        method: "POST",
+        headers: { accept: "application/json", referer: JMA_EARTHQUAKE_HISTORY_SOURCE_URL },
+        body: buildJmaIntensitySearchForm(startDate, queryEndDate, startTime, queryEndTime, conditions),
+        signal: AbortSignal.any([context.request.signal, AbortSignal.timeout(25_000)])
+      });
+      if (response.status === 400 || response.status === 422) return null;
+      if (!response.ok) throw new Error(`JMA returned HTTP ${response.status}`);
+      return response.json();
+    };
+    let payload = await queryJma(endDate, endTime);
+    if (!payload) return jsonResponse({ ok: false, error: "jma_invalid_search_conditions" }, 400);
+    let availableThrough = null;
+    let upstreamQueryCount = 1;
+    const availabilityMessage = [typeof payload?.res === "string" ? payload.res : "", ...(Array.isArray(payload?.str) ? payload.str : [])].join("\n");
+    const reportedLatest = availabilityMessage.match(/(\d{4}-\d{2}-\d{2})\s*より後のデータはありません/u)?.[1];
+    if (reportedLatest && isJmaHistoryDate(reportedLatest) && reportedLatest < endDate) {
+      availableThrough = reportedLatest;
+      if (startDate > reportedLatest) {
+        payload = { res: [], str: [] };
+      } else {
+        payload = await queryJma(reportedLatest, "23:59");
+        upstreamQueryCount += 1;
+        if (!payload) return jsonResponse({ ok: false, error: "jma_invalid_search_conditions" }, 400);
+      }
+    }
     const candidates = Array.isArray(payload?.res) ? payload.res
       : typeof payload?.res === "string" && /検索結果地震数\s*[:：]\s*ありませんでした/u.test(payload.res) ? [] : null;
     if (!candidates) {
@@ -81,9 +99,10 @@ export async function onRequestGet(context) {
       ok: true, startDate, endDate, startTime, endTime, conditions,
       sourceUrl: JMA_EARTHQUAKE_HISTORY_SOURCE_URL,
       records: matchedRecords,
-      candidateCount: candidates.length, limited, limitExceeded, totalMatched: limited ? null : matchedRecords.length, upstreamQueryCount: 1
-    }, 200, `public, max-age=0, s-maxage=${CACHE_TTL_SECONDS}`);
-    if (cache) {
+      candidateCount: candidates.length, limited, limitExceeded, totalMatched: limited || availableThrough ? null : matchedRecords.length,
+      upstreamQueryCount, availableThrough
+    }, 200, availableThrough ? "no-store" : `public, max-age=0, s-maxage=${CACHE_TTL_SECONDS}`);
+    if (cache && !availableThrough) {
       const write = cache.put(cacheKey, result.clone()).catch((error) => console.warn("[earthquake-history-proxy] cache write failed", error));
       if (context.waitUntil) context.waitUntil(write);
       else await write;

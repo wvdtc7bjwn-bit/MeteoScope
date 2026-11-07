@@ -173,6 +173,12 @@ try {
   assert.equal(empty.totalMatched, 0);
   assert.equal(empty.complete, true);
   assert.equal(archiveCalls.length, 0, "0件でも保存データに切り替えない");
+  override = () => Response.json({ ok: true, records: [{ id: "20250101120000", ot: "2025/01/01 12:00", name: "試験地点", lat: "35", lon: "140", mag: "3.0", dep: "10 km", maxI: "震度2" }], availableThrough: "2025-01-01" });
+  const delayed = await searchEarthquakeHistory({ startDate: "2025-01-01", endDate: "2025-01-03" });
+  assert.equal(delayed.items.length, 1);
+  assert.equal(delayed.complete, false);
+  assert.deepEqual(delayed.unavailableRanges, [{ startDate: "2025-01-02", endDate: "2025-01-03", reason: "jma_not_yet_available", availableThrough: "2025-01-01" }]);
+  override = null;
   await assert.rejects(searchEarthquakeHistory({ startDate: "2025-02-30" }), /日付/);
 
   override = () => Response.json({ ok: false }, { status: 400 });

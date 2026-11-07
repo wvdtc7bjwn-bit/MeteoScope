@@ -158,6 +158,14 @@ export async function searchEarthquakeHistory(filters = {}, { onProgress, signal
       const payload = await loadLiveHistoryRange(range, normalized, signal);
       records = payload.records.flatMap(normalizeLiveHistoryRecord);
       scannedRecordCount += Number(payload.candidateCount ?? payload.records.length);
+      if (isJmaHistoryDate(payload.availableThrough) && payload.availableThrough < range.endDate) {
+        unavailableRanges.push({
+          startDate: maxDate(range.startDate, shiftDate(payload.availableThrough, 1)),
+          endDate: range.endDate,
+          reason: "jma_not_yet_available",
+          availableThrough: payload.availableThrough
+        });
+      }
       if (payload.limited) {
         limitExceeded ||= payload.limitExceeded === true;
         // Without a substring filter, the sorted upstream response already holds
@@ -290,8 +298,8 @@ async function loadLiveHistoryRange(range, conditions, signal) {
     query.set("nearbyRadiusKm", String(conditions.nearby.radiusKm));
   }
   const payload = await fetchJson(`${LIVE_SEARCH_ENDPOINT}?${query}`, {
-      ttlMs: 6 * 60 * 60 * 1000,
-      timeoutMs: 30_000,
+      ttlMs: 0,
+      timeoutMs: 55_000,
       retryCount: 0, signal, cancelUnderlying: true, staleIfError: false
     });
   if (!payload?.ok || !Array.isArray(payload.records)) {
