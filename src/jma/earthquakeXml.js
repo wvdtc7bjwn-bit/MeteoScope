@@ -1010,11 +1010,12 @@ function parseJmaCoordinate(value) {
 }
 
 function formatMagnitude(value, description) {
-  const numeric = Number(value);
+  const text = String(value ?? "").trim();
+  const numeric = text ? Number(text) : Number.NaN;
   if (Number.isFinite(numeric)) return `M${numeric.toFixed(1)}`;
   const match = String(description ?? "").match(/M\s*([0-9.]+)/i);
   if (match) return `M${match[1]}`;
-  return value ? String(value) : "--";
+  return text || "--";
 }
 
 function normalizeIntensity(value) {

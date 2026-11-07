@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { DOMParser } from "@xmldom/xmldom";
 
 import {
   formatEarthquakeDepthText,
@@ -7,7 +8,20 @@ import {
   getEarthquakeUnknownText,
   isEarthquakeReportUnderInvestigation
 } from "../src/earthquakeFormat.js";
-import { mergeEarthquakeReportsByPriority } from "../src/jma/earthquakeXml.js";
+import { mergeEarthquakeReportsByPriority, parseEarthquakeReport } from "../src/jma/earthquakeXml.js";
+
+globalThis.DOMParser = DOMParser;
+const parseMagnitudeReport = (magnitude, code = "VXSE51") => parseEarthquakeReport(
+  `<Report><Control><Title>震度速報</Title></Control><Head><EventID>20260808123456</EventID></Head><Body><Earthquake>${magnitude}</Earthquake></Body></Report>`,
+  { code, title: "震度速報", url: "https://example.test/report.xml" }
+);
+for (const magnitude of ["", "<Magnitude/>", "<Magnitude>  </Magnitude>"]) {
+  const parsed = parseMagnitudeReport(magnitude);
+  assert.equal(parsed.magnitude, "--");
+  assert.equal(formatEarthquakeMagnitude(parsed.magnitude, { prefix: true, unknownText: getEarthquakeUnknownText(parsed) }), "調査中");
+}
+assert.equal(parseMagnitudeReport("<Magnitude>0.0</Magnitude>", "VXSE53").magnitude, "M0.0", "実際に発表された0.0は保持する");
+assert.equal(parseMagnitudeReport('<Magnitude description="M 3.4"/>', "VXSE52").magnitude, "M3.4");
 
 function report(xmlCode, reportPriority, overrides = {}) {
   return {
