@@ -4648,6 +4648,7 @@ html[data-theme="light"] .upper-air-annotation-item p { color: #19344e; }
 }
 
 .settings-account-submit,
+.settings-account-action,
 .settings-account-actions > button,
 .settings-account-delete {
   min-height: 42px;
@@ -4684,6 +4685,7 @@ html[data-theme="light"] .upper-air-annotation-item p { color: #19344e; }
 }
 
 .settings-account-auth button:disabled,
+.settings-account-action:disabled,
 .settings-account-actions button:disabled {
   opacity: 0.55;
   cursor: wait;
@@ -15090,7 +15092,7 @@ html[data-theme="light"] .settings-account-consent a {
   color: #0874a5;
 }
 
-html[data-theme="light"] :is(.settings-account-submit, .settings-account-actions > button) {
+html[data-theme="light"] :is(.settings-account-submit, .settings-account-action, .settings-account-actions > button) {
   border-color: rgba(30, 135, 190, 0.3);
   color: #075f8a;
   background: rgba(86, 183, 242, 0.14);
