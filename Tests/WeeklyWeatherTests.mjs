@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { DOMParser } from "@xmldom/xmldom";
 import {
+  findForecastSource,
   findLatestForecastUrl,
   findLatestWeeklyForecastUrl
 } from "../functions/api/weekly-weather.js";
@@ -17,6 +18,7 @@ import {
 globalThis.DOMParser = DOMParser;
 const {
   buildWeeklyForecastRegionCatalog,
+  findShortTermStationCode,
   mergeWeeklyForecastWithShortTerm,
   parseWeeklyForecastXml,
   resolveJmaAreaPath,
@@ -29,6 +31,8 @@ const {
   isSupportedJmaWeeklyWeatherCode,
   renderWeeklyWeatherGlyph
 } = await import("../src/ui/weeklyWeatherGlyph.js");
+const { renderWeeklyWeatherIcon } = await import("../src/ui/weeklyWeatherIcon.js");
+const { WEEKLY_WEATHER_ICON_CODES } = await import("../src/ui/weeklyWeatherIconCodes.js");
 const {
   formatThreeHourlyWindSpeedRange,
   formatWeeklyWeatherDateLabel,
@@ -202,6 +206,22 @@ assert.equal(
   ),
   vpfdUrl
 );
+
+const sharedForecastUrl = "https://www.data.jma.go.jp/developer/xml/data/20261108014125_0_VPFW50_014100.xml";
+const sharedFeed = `<entry><id>${sharedForecastUrl}</id><link href="${sharedForecastUrl}"/></entry>`;
+const sharedMappings = JSON.stringify({
+  "014030": [{ srf: "014030", week: "014000", amedas: "19432" }, { srf: "014030", week: "014030", amedas: "20432" }],
+  "014100": [{ srf: "014020", week: "014000" }],
+  "015000": [{ srf: "015010", week: "015000" }]
+});
+assert.equal(findShortTermStationCode(JSON.parse(sharedMappings), "014030", "014030"), "20432");
+const sharedXml = `<Report><MeteorologicalInfos><Area><Name>釧路・根室・十勝地方</Name><Code>014000</Code></Area><WeatherCode>200</WeatherCode></MeteorologicalInfos></Report>`;
+const sharedFetch = async (url) => url.endsWith("week_area.json") ? sharedMappings
+  : url === sharedForecastUrl ? sharedXml : sharedFeed;
+assert.deepEqual(await findForecastSource("014030", "VPFW50", sharedFetch), { detailUrl: sharedForecastUrl, xml: sharedXml });
+assert.equal(await findForecastSource("015000", "VPFW50", sharedFetch), null);
+const unrelatedFetch = async (url) => url === sharedForecastUrl ? sharedXml.replace("014000", "019999") : sharedFetch(url);
+assert.equal(await findForecastSource("014030", "VPFW50", unrelatedFetch), null);
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
@@ -577,6 +597,10 @@ const officialWeatherCodes = [
 ].map(String);
 assert.deepEqual(Object.keys(JMA_WEEKLY_WEATHER_LABELS), officialWeatherCodes);
 for (const weatherCode of officialWeatherCodes) {
+  assert.ok(WEEKLY_WEATHER_ICON_CODES.has(weatherCode), `missing image for JMA code ${weatherCode}`);
+  const image = await readFile(new URL(`../public/data/weekly-weather-icons/${weatherCode}.png`, import.meta.url));
+  assert.equal(image.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
+  assert.match(renderWeeklyWeatherIcon(weatherCode), new RegExp(`/weekly-weather-icons/${weatherCode}\\.png`));
   assert.equal(isSupportedJmaWeeklyWeatherCode(weatherCode), true, `unsupported JMA code ${weatherCode}`);
   assert.ok(getJmaWeeklyWeatherLabel(weatherCode), `missing JMA label ${weatherCode}`);
   const classification = classifyWeeklyWeatherGlyph(weatherCode);
@@ -589,6 +613,11 @@ for (const weatherCode of officialWeatherCodes) {
   );
 }
 assert.equal(isSupportedJmaWeeklyWeatherCode("999"), false);
+assert.match(renderWeeklyWeatherIcon("999", "晴"), /weekly-weather-glyph/u);
+for (const [label, code] of [["晴れ", "100"], ["くもり", "200"], ["雨", "300"], ["雪", "400"]]) {
+  assert.match(renderWeeklyWeatherIcon("", label), new RegExp(`/weekly-weather-icons/${code}\\.png`));
+}
+assert.match(renderWeeklyWeatherIcon("", "雨のち雪"), /weekly-weather-glyph/u);
 
 const [index, app, styles, modal, glyph, viteConfig] = await Promise.all([
   readFile(new URL("../index.html", import.meta.url), "utf8"),
@@ -651,7 +680,7 @@ assert.match(styles, /\.weekly-weather-glyph-transition-arrow/u);
 assert.match(modal, /気象庁の最新予報/u);
 assert.match(modal, /fetchWeeklyForecastRegionCatalog/u);
 assert.match(modal, /fetchWeeklyForecastForRegion/u);
-assert.match(modal, /renderWeeklyWeatherGlyph\(day\.weatherCode, sourceWeatherLabel\)/u);
+assert.match(modal, /renderWeeklyWeatherIcon\(day\.weatherCode, sourceWeatherLabel\)/u);
 assert.match(modal, /getJmaWeeklyWeatherLabel\(day\.weatherCode\)/u);
 assert.doesNotMatch(modal, /forecast\/img/u);
 assert.match(glyph, /暴風雪/u);

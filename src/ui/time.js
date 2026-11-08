@@ -33,6 +33,7 @@ export function renderSevenSegmentClock(value) {
 export function startClock(elementId) {
   const element = document.getElementById(elementId);
   if (!element) return;
+  const face = element.querySelector(".clock-face") ?? element;
 
   let timerId = null;
   const update = () => {
@@ -43,7 +44,7 @@ export function startClock(elementId) {
       second: "2-digit",
       hour12: false
     }).format(now);
-    element.innerHTML = renderSevenSegmentClock(value) || value;
+    face.innerHTML = renderSevenSegmentClock(value) || value;
     const displayTime = document.getElementById("clock-display-time");
     if (displayTime) displayTime.textContent = value;
     const delay = Math.max(20, 1000 - (Date.now() % 1000) + 8);

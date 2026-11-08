@@ -19,6 +19,7 @@ import { setupOnboardingModal } from "./ui/onboardingModal.js";
 import { setupLegalConsentModal } from "./ui/legalConsentModal.js";
 import { openSettingsModal, refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
 import { startClock } from "./ui/time.js";
+import { createCurrentLocationWeather } from "./ui/currentLocationWeather.js";
 import { setupClockDisplayMode } from "./ui/clockDisplayMode.js";
 import { fetchRadarTimes, findLatestRadarObservationIndex, findRadarObservationFrameIndexAtTime } from "./jma/radar.js";
 import { selectTyphoonRadarFrame } from "./typhoonRadarOverlay.js";
@@ -485,6 +486,7 @@ export function createWeatherApp() {
   let lastEarthquakeRefreshStartedAt = 0;
   let tabControls = null;
   let currentLocationInfo = { status: "idle" };
+  const currentLocationWeather = createCurrentLocationWeather();
   let currentLocationMarkerVisible = true;
   let myAreas = loadMyAreas();
   let locationRadarTimeline = { status: "idle", points: [] };
@@ -565,7 +567,7 @@ export function createWeatherApp() {
         plateBoundary: earthquakePlateBoundaryVisible,
         plateDepthContours: earthquakePlateDepthContoursVisible
       },
-      presentation3d: earthquakeDistribution3DEnabled
+      presentation3d: earthquakeDistribution3DEnabled && earthquakeView === "distribution" && earthquakeSummaryPage === "earthquake"
     });
   }
 
@@ -1803,7 +1805,13 @@ if (layerId === "river") {
 
   function selectEarthquakeDistributionPresentation(presentation) {
     earthquakeDistribution3DEnabled = presentation === "3d";
-    if (activeTab !== "earthquake" || earthquakeView !== "distribution") return;
+    if (activeTab !== "earthquake") return;
+    if (earthquakeDistribution3DEnabled && (earthquakeView !== "distribution" || earthquakeSummaryPage !== "earthquake")) {
+      earthquakeSummaryPage = "earthquake";
+      selectEarthquakeView("distribution");
+      return;
+    }
+    if (earthquakeView !== "distribution") return;
     const tab = TABS.find((item) => item.id === "earthquake");
     updateCurrentView(tab, latestDataByTab.earthquake ?? {});
   }
@@ -3368,6 +3376,7 @@ if (layerId === "river") {
         status: "error",
         message: "このブラウザでは位置情報を利用できません。"
       };
+      currentLocationWeather.clear();
       refreshSettingsModalView();
       refreshActivePanel();
       return;
@@ -3390,6 +3399,7 @@ if (layerId === "river") {
         if (locationWatchId === null) startLocationWatch({ announceLoading: false });
       } catch (error) {
         currentLocationInfo = buildCurrentLocationError(error);
+        currentLocationWeather.clear();
         refreshSettingsModalView();
         refreshActivePanel();
       } finally {
@@ -3406,6 +3416,7 @@ if (layerId === "river") {
         status: "error",
         message: "このブラウザでは位置情報を利用できません。"
       };
+      currentLocationWeather.clear();
       refreshSettingsModalView();
       refreshActivePanel();
       return;
@@ -3433,6 +3444,7 @@ if (layerId === "river") {
           stopLocationWatch();
         }
         currentLocationInfo = buildCurrentLocationError(error);
+        currentLocationWeather.clear();
         refreshSettingsModalView();
         refreshActivePanel();
       },
@@ -3447,6 +3459,7 @@ if (layerId === "river") {
         status: "error",
         message: "現在地の座標を読み取れませんでした。"
       };
+      currentLocationWeather.clear();
       refreshSettingsModalView();
       refreshActivePanel();
       return;
@@ -3468,6 +3481,7 @@ if (layerId === "river") {
       const nextInfo = await resolveCurrentLocationInfo(coordinates, warningData);
       if (requestId !== locationResolveRequestId) return;
       currentLocationInfo = nextInfo;
+      void currentLocationWeather.refresh(nextInfo);
       lastResolvedLocation = {
         coordinates,
         resolvedAt: Date.now()
@@ -3479,6 +3493,7 @@ if (layerId === "river") {
     } catch (error) {
       if (requestId !== locationResolveRequestId) return;
       currentLocationInfo = buildCurrentLocationError(error);
+      currentLocationWeather.clear();
       refreshSettingsModalView();
       refreshActivePanel();
     }
@@ -3565,6 +3580,7 @@ if (layerId === "river") {
     if (autoRefreshTimer) window.clearInterval(autoRefreshTimer);
     autoRefreshTimer = window.setInterval(() => {
       refreshActiveTab({ force: true });
+      if (!document.hidden && currentLocationInfo.status === "found") void currentLocationWeather.refresh(currentLocationInfo);
     }, AUTO_REFRESH_INTERVAL_MS);
 
     if (lightningRefreshTimer) window.clearInterval(lightningRefreshTimer);
@@ -3579,6 +3595,7 @@ if (layerId === "river") {
     document.addEventListener("visibilitychange", () => {
       syncEarlyWarningRefreshTimer();
       if (!document.hidden) {
+        if (currentLocationInfo.status === "found") void currentLocationWeather.refresh(currentLocationInfo);
         if (activeTab === "warnings" && activeWarningView === "early") {
           void refreshWarningDetails({ includeEarlyWarnings: true });
         }

@@ -47,6 +47,11 @@ jobs:
       - name: Test current-location marker controls
         run: npm run test:location
 
+      - name: Test local weather and weekly forecasts
+        run: |
+          node Tests/CurrentLocationWeatherTests.mjs
+          npm run test:weekly-weather
+
       - name: Test AMeDAS observations
         run: npm run test:amedas
 

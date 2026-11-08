@@ -5,6 +5,7 @@ import {
 
 const SHORT_FEED_URL = "https://www.data.jma.go.jp/developer/xml/feed/regular.xml";
 const LONG_FEED_URL = "https://www.data.jma.go.jp/developer/xml/feed/regular_l.xml";
+const WEEK_AREA_URL = "https://www.jma.go.jp/bosai/forecast/const/week_area.json";
 const OFFICE_CODE_PATTERN = /^\d{6}$/u;
 const SUPPORTED_BULLETIN_CODES = new Set(["VPFW50", "VPFD51"]);
 const RESPONSE_HEADERS = {
@@ -36,9 +37,9 @@ export async function onRequest({ request }) {
   }
 
   try {
-    const detailUrl = await findLatestForecastUrl(officeCode, bulletinCode);
-    if (!detailUrl) return errorResponse("weekly_forecast_not_found", 404);
-    const xml = await fetchJmaText(detailUrl);
+    const source = await findForecastSource(officeCode, bulletinCode);
+    if (!source) return errorResponse("weekly_forecast_not_found", 404);
+    const { detailUrl, xml } = source;
     if (!isJmaForecastXml(xml)) {
       throw new Error(`Unexpected ${bulletinCode} response`);
     }
@@ -54,6 +55,37 @@ export async function onRequest({ request }) {
     console.error(`[weekly-weather] ${bulletinCode} lookup failed`, error);
     return errorResponse("jma_weekly_forecast_unavailable", 502);
   }
+}
+
+// Some JMA offices share a bulletin, for example Tokachi and Kushiro/Nemuro.
+// Only use a related bulletin when it contains one of the requested area's codes.
+export async function findForecastSource(officeCode, bulletinCode, fetchText = fetchJmaText) {
+  const ownUrl = await findLatestForecastUrl(officeCode, bulletinCode, fetchText);
+  if (ownUrl) return { detailUrl: ownUrl, xml: await fetchText(ownUrl) };
+
+  const mappings = JSON.parse(await fetchText(WEEK_AREA_URL));
+  const ownMappings = Array.isArray(mappings[officeCode]) ? mappings[officeCode] : [];
+  const sharedCodes = new Set(ownMappings.map((item) => String(item.week ?? "")).filter((code) => /^\d{6}$/u.test(code)));
+  if (!sharedCodes.size) return null;
+  const allowedCodes = new Set([
+    officeCode,
+    ...(bulletinCode === "VPFW50" ? sharedCodes : []),
+    ...ownMappings.map((item) => String(item.srf ?? ""))
+  ]);
+  for (const [otherOffice, entries] of Object.entries(mappings)) {
+    if (otherOffice === officeCode || !OFFICE_CODE_PATTERN.test(otherOffice) || !Array.isArray(entries)
+      || !entries.some((item) => sharedCodes.has(String(item.week ?? "")))) continue;
+    const detailUrl = await findLatestForecastUrl(otherOffice, bulletinCode, fetchText);
+    if (!detailUrl) continue;
+    const xml = await fetchText(detailUrl);
+    const areas = [...xml.matchAll(/<(?:\w+:)?Area\b[^>]*>([\s\S]*?)<\/(?:\w+:)?Area>/gu)];
+    const containsRequestedArea = areas.some((match) => {
+      const code = match[1].match(/<(?:\w+:)?Code\b[^>]*>\s*(\d{6})\s*<\/(?:\w+:)?Code>/u)?.[1];
+      return allowedCodes.has(code);
+    });
+    if (containsRequestedArea && isJmaForecastXml(xml)) return { detailUrl, xml };
+  }
+  return null;
 }
 
 export async function findLatestWeeklyForecastUrl(officeCode, fetchText = fetchJmaText) {

@@ -4,9 +4,9 @@ import {
   fetchWeeklyForecastRegionCatalog
 } from "../jma/weeklyForecastXml.js";
 import {
-  getJmaWeeklyWeatherLabel,
-  renderWeeklyWeatherGlyph
+  getJmaWeeklyWeatherLabel
 } from "./weeklyWeatherGlyph.js";
+import { renderWeeklyWeatherIcon } from "./weeklyWeatherIcon.js";
 import {
   getCurrentLanguage,
   localizeText
@@ -274,7 +274,7 @@ function renderDay(day, index, language = getCurrentLanguage(), threeHourlyForec
           ${reliability}
         </header>
         <div class="weekly-weather-icon">
-          ${renderWeeklyWeatherGlyph(day.weatherCode, sourceWeatherLabel)}
+          ${renderWeeklyWeatherIcon(day.weatherCode, sourceWeatherLabel)}
         </div>
         <strong class="weekly-weather-label">${escapeHtml(weatherLabel)}</strong>
         <div class="weekly-weather-temperature">${temperature}</div>
@@ -329,7 +329,7 @@ function renderThreeHourlyForecast(forecast, language) {
     <article class="weekly-weather-hourly-item" role="listitem">
       <time datetime="${escapeHtml(forecast.dateTime)}">${escapeHtml(formatThreeHourlyTime(forecast.dateTime, language))}</time>
       <div class="weekly-weather-hourly-main">
-        <div class="weekly-weather-hourly-icon">${renderWeeklyWeatherGlyph(forecast.weatherCode, sourceWeatherLabel)}</div>
+        <div class="weekly-weather-hourly-icon">${renderWeeklyWeatherIcon(forecast.weatherCode, sourceWeatherLabel)}</div>
         <p class="weekly-weather-hourly-temperature"><b>${escapeHtml(formatTemperature(forecast.temperature))}</b></p>
       </div>
       <strong class="weekly-weather-hourly-condition" title="${escapeHtml(localizeText(sourceWeatherLabel, language))}">${escapeHtml(localizeText(sourceWeatherLabel, language))}</strong>

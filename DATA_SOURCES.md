@@ -6,6 +6,8 @@
 
 ## 確認済み
 
+週間天気予報の天気アイコンは [ciscorn/jma-weather-images](https://github.com/ciscorn/jma-weather-images) の `output/*.png` を同梱しています。リポジトリ説明ではCC0とされています。天気コードに対応する画像をそのまま使用し、未対応コードは従来の表示に戻します。
+
 | 対象 | 提供者・取得URL | 条件 | MeteoScopeでの加工 |
 | --- | --- | --- | --- |
 | 気象庁JSON・XML・CSV・タイル | 気象庁。`https://www.jma.go.jp/bosai/`、`https://www.data.jma.go.jp/developer/xml/`、`https://www.data.jma.go.jp/stats/` | [気象庁ホームページ利用規約](https://www.jma.go.jp/jma/kishou/info/coment.html)。政府標準利用規約2.0相当の公共データ利用規約第1.0版。出典表示と、編集・加工した場合の明示が必要。国が作成したような態様での公表は禁止。第三者権利がある素材は別途確認が必要。 | 区域照合、XML/JSON解析、地図重ね合わせ、配色変換、ランキング、時系列整理、通知状態の差分比較。アプリ内と規約ページに非公式・加工内容・公式情報確認を表示する。 |

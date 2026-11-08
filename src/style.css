@@ -2155,6 +2155,19 @@ html[data-theme="light"] .settings-filter-empty {
   height: 52px;
 }
 
+.weekly-weather-image {
+  display: block;
+  width: 82px;
+  height: 52px;
+  max-width: 100%;
+  object-fit: contain;
+}
+.weekly-weather-hourly-icon .weekly-weather-image {
+  width: 36px;
+  height: 20px;
+  max-height: 100%;
+}
+
 .weekly-weather-glyph-main,
 .weekly-weather-glyph-accent {
   fill: none;
@@ -10536,6 +10549,68 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   height: 148px;
 }
 
+/* Earthquake map controls: keep labels and switch states legible. */
+#earthquake-layer-toggle:not(.collapsed) {
+  width: 230px;
+  height: 220px;
+}
+#earthquake-layer-toggle .weather-distribution-toggle-choices {
+  width: 174px;
+  height: 208px;
+  grid-template-rows: 28px repeat(4, minmax(44px, 1fr));
+  padding: 2px 4px;
+  background: #111f32;
+}
+#satellite-layer-toggle:not(.collapsed) { height: 132px; }
+#satellite-layer-toggle .weather-distribution-toggle-choices {
+  height: 120px;
+  grid-template-rows: 28px repeat(2, minmax(44px, 1fr));
+  padding: 2px 4px;
+  background: #111f32;
+}
+:is(#earthquake-layer-toggle, #satellite-layer-toggle) .weather-distribution-toggle-choices::before {
+  color: #b8c9d9;
+  font-size: 12px;
+  font-weight: 700;
+}
+:is(#earthquake-layer-toggle, #satellite-layer-toggle) .weather-distribution-toggle-choices button {
+  color: #e2edf6;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 4px;
+}
+:is(#earthquake-layer-toggle, #satellite-layer-toggle) .weather-distribution-toggle-choices button.active {
+  color: #ffffff;
+  box-shadow: none;
+  background: rgba(76, 151, 191, 0.2);
+}
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle) .weather-distribution-toggle-choices::before {
+  color: #4b6278;
+}
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle) .weather-distribution-toggle-choices {
+  background: #edf4fa;
+}
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle) .weather-distribution-toggle-choices button {
+  color: #263d54;
+  border-bottom-color: rgba(70, 95, 118, 0.17);
+}
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle) .weather-distribution-toggle-choices button.active {
+  color: #075a83;
+  background: rgba(39, 139, 190, 0.13);
+  box-shadow: none;
+}
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle) .weather-distribution-toggle-choices button::after {
+  border-color: #91a7ba;
+  background: #c5d3df;
+}
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle) .weather-distribution-toggle-choices button::before {
+  background: #ffffff;
+}
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle) .weather-distribution-toggle-choices button.active::after {
+  border-color: #087fb4;
+  background: #087fb4;
+}
+
 .weather-distribution-toggle-button {
   position: relative;
   z-index: 1;
@@ -11132,6 +11207,25 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   letter-spacing: 0;
   text-align: center;
 }
+
+.current-location-weather {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(110px, calc(100vw - 220px));
+  pointer-events: none;
+}
+.current-location-weather[hidden] { display: none; }
+.current-location-weather-icon { flex: none; width: 30px; height: 22px; display: grid; place-items: center; }
+.current-location-weather-icon :is(.weekly-weather-image, .weekly-weather-glyph) { width: 30px; height: 22px; }
+.current-location-weather-copy { display: grid; min-width: 0; gap: 1px; text-align: left; line-height: 1.15; }
+.current-location-weather-copy small { font-size: 9px; font-weight: 600; white-space: nowrap; }
+.current-location-weather-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 700; }
+#clock { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.clock-face { display: block; flex: none; width: 134px; line-height: 1; }
+@media (max-width: 800px) { .clock-face { width: 120px; } }
 
 .clock-seven-segment {
   display: inline-block;
@@ -22125,11 +22219,24 @@ html[data-theme="light"] .cloud-atlas-term-card p { color: #475c6c; }
   border-radius: 7px;
   text-align: left;
 }
-.map-utility-actions .disaster-map-open-button::before {
+.map-utility-actions > .disaster-map-open-button:not(.map-settings-open-button)::before {
+  display: none;
+}
+.map-utility-actions > .map-settings-open-button::before {
   grid-column: 1;
   grid-row: 1;
   justify-self: center;
 }
+.map-utility-icon {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: center;
+  width: 23px;
+  height: 23px;
+  color: #e6edf3;
+  flex: none;
+}
+html[data-theme="light"] .map-utility-icon { color: #293f52; }
 .map-utility-label {
   grid-column: 2;
   grid-row: 1;

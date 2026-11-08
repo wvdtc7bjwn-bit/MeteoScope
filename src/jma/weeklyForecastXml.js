@@ -24,7 +24,8 @@ export async function fetchWeeklyForecastForLocation(locationInfo) {
     municipalityName: locationInfo?.areaName,
     officeCode: target.officeCode,
     officeName: target.officeName,
-    stationCode: target.stationCode
+    stationCode: target.stationCode,
+    shortTermStationCode: findShortTermStationCode(weekAreaData, target.officeCode, target.forecastAreaCode)
   });
 }
 
@@ -35,11 +36,8 @@ export async function fetchWeeklyForecastForRegion(region) {
     throw new Error("選択した予報区域を確認できません。");
   }
 
-  const areaData = await fetchJson(JMA_ENDPOINTS.areaConst, {
-    ttlMs: WEEKLY_AREA_TTL_MS,
-    staleIfError: true
-  });
-  return fetchAndMergeForecasts(officeCode, buildRegionForecastContext(region, areaData));
+  const [areaData, weekAreaData] = await fetchWeeklyForecastAreaData();
+  return fetchAndMergeForecasts(officeCode, buildRegionForecastContext(region, areaData, weekAreaData));
 }
 
 export async function fetchWeeklyForecastsForOfficeRegions(office) {
@@ -47,10 +45,7 @@ export async function fetchWeeklyForecastsForOfficeRegions(office) {
   const regions = Array.isArray(office?.regions) ? office.regions : [];
   if (!/^\d{6}$/u.test(officeCode) || !regions.length) return [];
 
-  const areaData = await fetchJson(JMA_ENDPOINTS.areaConst, {
-    ttlMs: WEEKLY_AREA_TTL_MS,
-    staleIfError: true
-  });
+  const [areaData, weekAreaData] = await fetchWeeklyForecastAreaData();
   const sources = await fetchForecastSources(officeCode);
   const forecasts = [];
   for (const region of regions) {
@@ -61,7 +56,7 @@ export async function fetchWeeklyForecastsForOfficeRegions(office) {
           ...region,
           officeCode,
           officeName: office.officeName
-        }, areaData))
+        }, areaData, weekAreaData))
       });
     } catch (error) {
       console.warn("[MeteoScope] regional weekly forecast unavailable", error);
@@ -110,7 +105,7 @@ function parseAndMergeForecastSources({ weeklyXml, shortTermXml }, context) {
   try {
     return mergeWeeklyForecastWithShortTerm(
       weeklyForecast,
-      parseForecastXml(shortTermXml, context, "VPFD51")
+      parseForecastXml(shortTermXml, { ...context, stationCode: context.shortTermStationCode || context.stationCode }, "VPFD51")
     );
   } catch (error) {
     console.warn("[MeteoScope] latest VPFD51 could not be merged; using VPFW50 only", error);
@@ -118,7 +113,15 @@ function parseAndMergeForecastSources({ weeklyXml, shortTermXml }, context) {
   }
 }
 
-function buildRegionForecastContext(region, areaData) {
+export function findShortTermStationCode(weekAreaData, officeCode, forecastAreaCode) {
+  const mappings = weekAreaData?.[officeCode];
+  if (!Array.isArray(mappings)) return "";
+  const exactArea = mappings.find((item) => String(item?.srf ?? "") === forecastAreaCode
+    && String(item?.week ?? "") === forecastAreaCode);
+  return String(exactArea?.amedas ?? "");
+}
+
+function buildRegionForecastContext(region, areaData, weekAreaData) {
   const officeCode = String(region?.officeCode ?? "").trim();
   const areaCode = String(region?.areaCode ?? "").trim();
   const officeName = areaData?.offices?.[officeCode]?.name ?? String(region?.officeName ?? "");
@@ -135,7 +138,8 @@ function buildRegionForecastContext(region, areaData) {
     municipalityName: officeName,
     officeCode,
     officeName,
-    stationCode: String(region?.stationCode ?? "")
+    stationCode: String(region?.stationCode ?? ""),
+    shortTermStationCode: findShortTermStationCode(weekAreaData, officeCode, forecastAreaCode)
   };
 }
 
