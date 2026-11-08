@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createCurrentLocationWeather, findCurrentWeatherForecast } from "../src/ui/currentLocationWeather.js";
+import { createCurrentLocationWeather, findCurrentWeatherForecast, findCurrentLocationForecast } from "../src/ui/currentLocationWeather.js";
 import { startClock } from "../src/ui/time.js";
 
 const slots = { threeHourlyForecasts: [
@@ -11,6 +11,11 @@ assert.equal(findCurrentWeatherForecast(slots, Date.parse("2026-11-08T15:00:00+0
 assert.equal(findCurrentWeatherForecast(slots, Date.parse("2026-11-08T18:00:00+09:00")), null);
 assert.equal(findCurrentWeatherForecast({ threeHourlyForecasts: [] }), null);
 assert.equal(findCurrentWeatherForecast({ threeHourlyForecasts: [{ dateTime: "invalid", weather: "晴れ" }] }), null);
+const dailyFallback = { ...slots, days: [{ date: "2026-11-08", weather: "晴れ後くもり", weatherCode: "101" }] };
+assert.equal(findCurrentLocationForecast(dailyFallback, Date.parse("2026-11-08T15:00:00+09:00"))?.forecastType, "three-hourly");
+assert.equal(findCurrentLocationForecast(dailyFallback, Date.parse("2026-11-08T05:00:00+09:00"))?.weather, "晴れ後くもり");
+assert.equal(findCurrentLocationForecast(dailyFallback, Date.parse("2026-11-08T23:59:00+09:00"))?.forecastType, "daily");
+assert.equal(findCurrentLocationForecast(dailyFallback, Date.parse("2026-11-09T00:00:00+09:00")), null);
 const originalDocument = globalThis.document;
 const originalWindow = globalThis.window;
 const face = { innerHTML: "" };
@@ -26,11 +31,12 @@ globalThis.window = originalWindow;
 
 const icon = { innerHTML: "", hidden: false };
 const text = { textContent: "" };
+const label = { textContent: "" };
 const weather = {
   hidden: true,
   title: "",
   setAttribute() {},
-  querySelector: (selector) => selector.endsWith("-icon") ? icon : text
+  querySelector: (selector) => selector.endsWith("-icon") ? icon : selector.endsWith(" small") ? label : text
 };
 const clock = { setAttribute() {} };
 globalThis.document = { getElementById: (id) => id === "clock" ? clock : weather };
@@ -44,6 +50,12 @@ assert.equal(icon.hidden, true);
 await current.refresh({ status: "found", areaCode: "122010" });
 assert.equal(text.textContent, "晴れ");
 assert.equal(icon.hidden, false);
+const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+const daily = createCurrentLocationWeather({ fetchForecast: async () => ({ days: [{ date: today, weather: "くもり後雨" }] }) });
+await daily.refresh({ status: "found", areaCode: "122010" });
+assert.equal(text.textContent, "くもり後雨");
+assert.equal(label.textContent, "現在地・今日の予報");
+assert.match(weather.title, /今日の予報/u);
 const missing = createCurrentLocationWeather({ fetchForecast: async () => ({ threeHourlyForecasts: [] }) });
 await missing.refresh({ status: "found", areaCode: "122010" });
 assert.equal(text.textContent, "予報を取得できません");

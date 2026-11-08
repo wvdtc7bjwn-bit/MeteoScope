@@ -13,6 +13,14 @@ export function findCurrentWeatherForecast(forecast, now = Date.now()) {
   }) ?? null;
 }
 
+export function findCurrentLocationForecast(forecast, now = Date.now()) {
+  const hourly = findCurrentWeatherForecast(forecast, now);
+  if (hourly) return { ...hourly, forecastType: "three-hourly" };
+  const date = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(now));
+  const daily = (forecast?.days ?? []).find((day) => String(day.date ?? "").slice(0, 10) === date && String(day.weather ?? "").trim());
+  return daily ? { ...daily, forecastType: "daily" } : null;
+}
+
 export function createCurrentLocationWeather({ fetchForecast = fetchWeeklyForecastForLocation } = {}) {
   let requestId = 0;
   let locationKey = "";
@@ -23,14 +31,16 @@ export function createCurrentLocationWeather({ fetchForecast = fetchWeeklyForeca
 
   function render() {
     if (!element) return;
-    const slot = findCurrentWeatherForecast(forecast);
-    const message = slot ? slot.weather : unavailable;
+    const slot = findCurrentLocationForecast(forecast);
+    const message = slot ? slot.weather : (unavailable || (forecast ? "予報を取得できません" : ""));
     element.hidden = !message;
     if (!message) return;
     element.querySelector(".current-location-weather-icon").innerHTML = slot ? renderWeeklyWeatherIcon(slot.weatherCode, slot.weather) : "";
     element.querySelector(".current-location-weather-icon").hidden = !slot;
     element.querySelector(".current-location-weather-text").textContent = message;
-    element.title = slot ? `現在地付近の３時間予報：${message}` : message;
+    const label = element.querySelector(".current-location-weather-copy small");
+    if (label) label.textContent = slot?.forecastType === "daily" ? "現在地・今日の予報" : "現在地・予報";
+    element.title = slot ? `現在地付近の${slot.forecastType === "daily" ? "今日の予報" : "３時間予報"}：${message}` : message;
     element.setAttribute("aria-label", `${element.title}。週間天気予報を開く`);
   }
 
@@ -53,7 +63,7 @@ export function createCurrentLocationWeather({ fetchForecast = fetchWeeklyForeca
       pending = fetchForecast(location).then((result) => {
         if (id !== requestId) return;
         forecast = result;
-        unavailable = findCurrentWeatherForecast(result) ? "" : "予報を取得できません";
+        unavailable = findCurrentLocationForecast(result) ? "" : "予報を取得できません";
         render();
       }).catch((error) => {
         if (id !== requestId) return;
