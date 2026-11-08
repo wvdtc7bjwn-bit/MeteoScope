@@ -58,7 +58,7 @@ export function setupClockDisplayMode() {
 
   document.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
-    if (event.target.closest("#clock")) {
+    if (event.target.closest("#clock-display-button")) {
       void openClockDisplayMode();
       return;
     }
@@ -89,7 +89,7 @@ async function closeClockDisplayMode() {
   if (mode) mode.hidden = true;
   document.body.classList.remove("clock-display-mode-open");
   await releaseWakeLock();
-  document.getElementById("clock")?.focus();
+  document.getElementById("clock-display-button")?.focus();
 }
 
 async function syncClockDisplayMode() {

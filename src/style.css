@@ -11215,7 +11215,12 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle) 
   flex: 0 1 auto;
   min-width: 0;
   max-width: min(110px, calc(100vw - 220px));
-  pointer-events: none;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
 }
 .current-location-weather[hidden] { display: none; }
 .current-location-weather-icon { flex: none; width: 30px; height: 22px; display: grid; place-items: center; }
@@ -11225,6 +11230,20 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle) 
 .current-location-weather-copy small { font-size: 9px; font-weight: 600; white-space: nowrap; }
 .current-location-weather-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 700; }
 #clock { display: flex; align-items: center; justify-content: center; gap: 8px; }
+#clock-display-button {
+  display: block;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+#clock-display-button:focus-visible, .current-location-weather:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
 .clock-face { display: block; flex: none; width: 134px; line-height: 1; }
 @media (max-width: 800px) { .clock-face { width: 120px; } }
 

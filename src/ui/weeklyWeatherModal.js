@@ -33,6 +33,7 @@ export function setupWeeklyWeatherModal(options = {}) {
   if (!button || !modal) return;
 
   button.addEventListener("click", () => void openWeeklyWeatherModal());
+  document.getElementById("current-location-weather")?.addEventListener("click", () => void openWeeklyWeatherModal());
   regionSelect?.addEventListener("change", () => void loadWeeklyWeather());
   modal.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;

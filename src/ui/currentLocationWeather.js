@@ -20,20 +20,18 @@ export function createCurrentLocationWeather({ fetchForecast = fetchWeeklyForeca
   let pending = null;
   let unavailable = "";
   const element = document.getElementById("current-location-weather");
-  const clock = document.getElementById("clock");
 
   function render() {
     if (!element) return;
     const slot = findCurrentWeatherForecast(forecast);
     const message = slot ? slot.weather : unavailable;
     element.hidden = !message;
-    clock?.setAttribute("aria-label", message ? `現在地の天気 ${message}。時計表示モードを開く` : "時計表示モードを開く");
     if (!message) return;
     element.querySelector(".current-location-weather-icon").innerHTML = slot ? renderWeeklyWeatherIcon(slot.weatherCode, slot.weather) : "";
     element.querySelector(".current-location-weather-icon").hidden = !slot;
     element.querySelector(".current-location-weather-text").textContent = message;
     element.title = slot ? `現在地付近の３時間予報：${message}` : message;
-    element.setAttribute("aria-label", element.title);
+    element.setAttribute("aria-label", `${element.title}。週間天気予報を開く`);
   }
 
   return {

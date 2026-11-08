@@ -86,7 +86,9 @@ const [html, styles, appSource, moduleSource] = await Promise.all([
   fs.readFile(path.join(root, "src", "app.js"), "utf8"),
   fs.readFile(path.join(root, "src", "ui", "clockDisplayMode.js"), "utf8")
 ]);
-assert.match(html, /<button id="clock"[^>]*時計表示モード/u);
+assert.match(html, /<button id="clock-display-button"[^>]*時計表示モード/u);
+assert.match(html, /<button id="current-location-weather"[^>]*aria-controls="weekly-weather-modal"/u);
+assert.match(moduleSource, /closest\("#clock-display-button"\)/u);
 assert.match(html, /id="clock-display-mode"[\s\S]*id="clock-display-marquee-line"[\s\S]*id="clock-display-time"/u);
 assert.match(appSource, /setupClockDisplayMode\(\)/u);
 assert.match(moduleSource, /navigator\.wakeLock\.request\s*\(\s*"screen"\s*\)/u);
