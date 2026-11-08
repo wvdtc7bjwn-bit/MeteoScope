@@ -86,6 +86,11 @@ jobs:
       - name: Test initial map loading gates
         run: npm run test:startup
 
+      - name: Test world coastline geometry and lossless packing
+        run: |
+          node Tests/WorldLandFilterTests.mjs
+          node Tests/WorldGeometryPackingTests.mjs
+
       - name: Test legal consent gates
         run: npm run test:consent
 

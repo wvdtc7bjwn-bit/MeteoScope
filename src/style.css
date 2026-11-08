@@ -87,7 +87,7 @@
 
 html[data-theme="light"] {
   --glass-shell-background: rgba(242, 248, 253, 0.5);
-  --glass-shell-static-background: rgba(242, 248, 253, 0.88);
+  --glass-shell-static-background: rgba(242, 248, 253, 0.84);
   --glass-panel-background: rgba(244, 249, 253, 0.58);
   --glass-panel-strong-background: rgba(244, 249, 253, 0.72);
   --glass-card-background: rgba(246, 250, 253, 0.48);
@@ -22154,13 +22154,6 @@ html :is(#sidebar, #main-tabs, #mobile-context-dock, #map-legend, #map-utility-a
 }
 
 /* Keep light-theme map chrome stable across large and compact viewports. */
-html #map-utility-actions {
-  box-shadow: none !important;
-  filter: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
 html[data-theme="light"] #map-utility-actions {
   border-color: rgba(72, 99, 127, 0.18);
   background: #edf4fa !important;
@@ -22168,6 +22161,8 @@ html[data-theme="light"] #map-utility-actions {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+html[data-theme="light"] #map-legend { background: #edf4fa !important; }
 
 html[data-theme="light"] #map-utility-actions .disaster-map-open-button {
   border-color: rgba(72, 99, 127, 0.18);
@@ -22179,13 +22174,16 @@ html[data-theme="light"] .map-utility-menu-toggle[aria-expanded="true"] {
   box-shadow: none;
 }
 
-html[data-theme="light"] :is(#sidebar, #main-tabs, .mobile-context-dock, #map-legend) {
-  background: #edf4fa !important;
+html[data-theme="light"] :is(#sidebar, #main-tabs, .mobile-context-dock) {
+  background: var(--glass-shell-static-background) !important;
   box-shadow: none !important;
   filter: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
 }
+
+/* The navigation and summary use the same translucent surface. */
+#main-tabs::before { background: none; }
 
 html[data-theme="light"] :is(
   #map-utility-menu-toggle,

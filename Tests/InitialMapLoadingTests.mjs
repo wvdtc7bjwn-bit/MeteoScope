@@ -93,7 +93,7 @@ assert.match(app, /function startLocationWatchOnLaunch\(\)/);
 assert.match(app, /void startLocationWatchOnLaunch\(\)/);
 
 assert.match(weatherMap, /import\("\.\/data\/worldLandGeoJson\.js"\)/);
-assert.match(weatherMap, /import\("\.\/data\/worldCountriesGeoJson\.js"\)/);
+assert.doesNotMatch(weatherMap, /source: "world-countries"/);
 assert.doesNotMatch(weatherMap, /\bglyphs\s*:/);
 assert.match(weatherMap, /localIdeographFontFamily:/);
 assert.match(weatherMap, /data: JMA_ENDPOINTS\.warningMunicipalitiesMap/);

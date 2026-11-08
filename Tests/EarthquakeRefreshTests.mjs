@@ -4,7 +4,7 @@ import { EARTHQUAKE_REFRESH_INTERVAL_MS, JMA_ENDPOINTS } from "../src/config.js"
 import { fetchEarthquakeXmlList } from "../src/jma/earthquakeXml.js";
 import { fetchVolcanoXmlList } from "../src/jma/volcanoXml.js";
 
-assert.equal(EARTHQUAKE_REFRESH_INTERVAL_MS, 30000);
+assert.equal(EARTHQUAKE_REFRESH_INTERVAL_MS, 15000);
 const oldUrl = "https://example.test/old_VXSE53.xml";
 const newUrl = "https://example.test/new_VXSE53.xml";
 const entry = (url, time) => `<entry><id>${url}</id><title>震源・震度情報</title><updated>${time}</updated><link href="${url}"/></entry>`;
@@ -23,7 +23,7 @@ globalThis.fetch = async (url) => {
   url = String(url);
   requests.set(url, (requests.get(url) ?? 0) + 1);
   if (url === JMA_ENDPOINTS.earthquakeXmlFeed) {
-    return new Response(`<feed>${now >= 1700000030000 ? newEntry : ""}${oldEntry}</feed>`);
+    return new Response(`<feed>${now >= 1700000015000 ? newEntry : ""}${oldEntry}</feed>`);
   }
   if (url === JMA_ENDPOINTS.earthquakeXmlLongFeed) return new Response(`<feed>${oldEntry}</feed>`);
   if (url === oldUrl) return new Response(report("20261106080000", "2026-11-06T08:00:00+09:00"));
@@ -36,9 +36,9 @@ try {
   await fetchVolcanoXmlList();
   const first = await fetchEarthquakeXmlList();
   assert.equal(first.earthquakes[0].eventId, "20261106080000");
-  now += 29000;
+  now += 14000;
   await fetchEarthquakeXmlList();
-  assert.equal(requests.get(JMA_ENDPOINTS.earthquakeXmlFeed), 1, "30秒以内はフィードを再取得しない");
+  assert.equal(requests.get(JMA_ENDPOINTS.earthquakeXmlFeed), 1, "15秒以内はフィードを再取得しない");
   now += 1001;
   const refreshed = await fetchEarthquakeXmlList();
   assert.equal(refreshed.earthquakes[0].eventId, "20261106080100", "新しい地震情報を表示する");

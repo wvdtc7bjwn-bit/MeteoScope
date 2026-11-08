@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { getSnowDepthAxisMaximum, splitAmedasChartSegments } from "../src/amedasChart.js";
 import { buildAmedasPoints, fetchAmedasLatestTime, getAmedasSnowMapTime } from "../src/jma/amedas.js";
-import { JMA_ENDPOINTS } from "../src/config.js";
+import { AMEDAS_SNOW_LEVELS, JMA_ENDPOINTS, getAmedasObservationColor } from "../src/config.js";
+
+for (const [index, level] of AMEDAS_SNOW_LEVELS.entries()) {
+  assert.equal(getAmedasObservationColor("snow", level.min), level.color, `${level.label}の下限は凡例と同じ色`);
+  const next = AMEDAS_SNOW_LEVELS[index - 1];
+  if (next) assert.equal(getAmedasObservationColor("snow", next.min - 0.01), level.color, `${level.label}の上限直前も凡例と同じ色`);
+}
 
 assert.equal(getAmedasSnowMapTime("20261028083000"), "20261028080000");
 assert.equal(getAmedasSnowMapTime("20261028000000"), "20261028000000");

@@ -15,7 +15,7 @@ export const APP_BASE_URL = import.meta.env?.BASE_URL ?? "/";
 export const AUTO_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 export const AUTO_REFRESH_RESUME_THROTTLE_MS = 60 * 1000;
 export const WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
-export const EARTHQUAKE_REFRESH_INTERVAL_MS = 30 * 1000;
+export const EARTHQUAKE_REFRESH_INTERVAL_MS = 15 * 1000;
 export const STATIC_DATA_CACHE_TTL_MS = 60 * 60 * 1000;
 
 function publicAsset(path) {
@@ -224,7 +224,7 @@ export function getAmedasObservationColor(metricId, value, precipitationPeriodId
     ? getAmedasPrecipitationLevels(precipitationPeriodId)
     : AMEDAS_LEVELS_BY_METRIC[metricId];
   if (!levels) return "#d8e6f7";
-  if (metricId === "precipitation") return getDiscreteAmedasLevelColor(levels, value);
+  if (metricId === "precipitation" || metricId === "snow") return getDiscreteAmedasLevelColor(levels, value);
   return interpolateAmedasLevelColor(levels, value);
 }
 

@@ -1,5 +1,6 @@
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { prepareWorldMapData } from "./worldLandFilter.js";
 import {
   AMEDAS_METRICS,
   EARTHQUAKE_INTENSITY_LEVELS,
@@ -375,18 +376,6 @@ const MAP_THEME_COLORS = {
     volcanoBaseHaloWidth: 0
   }
 };
-const NATURAL_EARTH_JAPAN_MASK_BOUNDS = {
-  minLng: 122.0,
-  maxLng: 149.5,
-  minLat: 23.0,
-  maxLat: 46.5
-};
-const KOREAN_ISLANDS_NATURAL_EARTH_BOUNDS = {
-  minLng: 124.0,
-  maxLng: 131.2,
-  minLat: 33.0,
-  maxLat: 38.3
-};
 
 const EMPTY_GEOJSON = { type: "FeatureCollection", features: [] };
 let worldGeometryPromise = null;
@@ -623,19 +612,12 @@ export function createWeatherMap(elementId) {
 
   async function ensureWorldGeometryLoaded() {
     const landSource = map?.getSource("world-land");
-    const countriesSource = map?.getSource("world-countries");
-    if (!landSource?.setData || !countriesSource?.setData) return;
-    worldGeometryPromise ??= Promise.all([
-      import("./data/worldLandGeoJson.js"),
-      import("./data/worldCountriesGeoJson.js")
-    ]).then(([landModule, countryModule]) => ({
-      worldLand: buildWorldLandWithoutJapanData(landModule.worldLandGeoJson),
-      worldCountries: buildWorldCountriesWithoutJapanData(countryModule.worldCountriesGeoJson)
-    }));
+    if (!landSource?.setData) return;
+    worldGeometryPromise ??= import("./data/worldLandGeoJson.js")
+      .then((landModule) => prepareWorldMapData(landModule.worldLandGeoJson));
     try {
       const geometry = await worldGeometryPromise;
-      setGeoJsonSourceData(map?.getSource("world-land"), geometry.worldLand);
-      setGeoJsonSourceData(map?.getSource("world-countries"), geometry.worldCountries);
+      setGeoJsonSourceData(map?.getSource("world-land"), geometry);
     } catch (error) {
       worldGeometryPromise = null;
       console.warn("[MeteoScope] world geometry load failed", error);
@@ -2829,10 +2811,6 @@ function createBaseStyle(theme = "dark") {
         type: "geojson",
         data: EMPTY_GEOJSON
       },
-      "world-countries": {
-        type: "geojson",
-        data: EMPTY_GEOJSON
-      },
       [MUNICIPALITY_SOURCE_ID]: {
         type: "geojson",
         data: JMA_ENDPOINTS.warningMunicipalitiesMap,
@@ -2867,7 +2845,7 @@ function createBaseStyle(theme = "dark") {
       {
         id: "world-country-line",
         type: "line",
-        source: "world-countries",
+        source: "world-land",
         paint: {
           "line-color": colors.worldCountryLine,
           "line-width": [
@@ -3173,25 +3151,6 @@ function buildVolcanoIconColorExpression(theme) {
 
 function buildVolcanoLevelOneCondition() {
   return ["==", ["to-number", ["get", "level"], 0], 1];
-}
-
-function buildWorldLandWithoutJapanData(worldLandGeoJson) {
-  const data = cloneGeoJson(worldLandGeoJson);
-  data.features = data.features.filter((feature) => !isSmallNaturalEarthJapanFeature(feature));
-  return data;
-}
-
-function buildWorldCountriesWithoutJapanData(worldCountriesGeoJson) {
-  const data = cloneGeoJson(worldCountriesGeoJson);
-  data.features = data.features
-    .filter((feature) => String(feature?.properties?.ISO_A3 ?? "").toUpperCase() !== "JPN")
-    .map((feature) => removeNorthernTerritoryCountryParts(feature))
-    .filter(Boolean);
-  return data;
-}
-
-function cloneGeoJson(data) {
-  return JSON.parse(JSON.stringify(data));
 }
 
 function setupWindArrowImage(map) {
@@ -3643,92 +3602,6 @@ function addWeatherFrontSymbolLayer(map, options) {
   map.addLayer(layer);
 }
 
-function isSmallNaturalEarthJapanFeature(feature) {
-  const bounds = computeGeometryBounds(feature?.geometry);
-  if (!Number.isFinite(bounds.minLng)) return false;
-
-  const centerLng = (bounds.minLng + bounds.maxLng) / 2;
-  const centerLat = (bounds.minLat + bounds.maxLat) / 2;
-  const spanLng = bounds.maxLng - bounds.minLng;
-  const spanLat = bounds.maxLat - bounds.minLat;
-  const isJapanMainRange = centerLng >= 127.0;
-  const isSouthwestIslandsRange = centerLng >= 122.0 && centerLat <= 27.5;
-  const isKoreanIslandRange =
-    centerLng >= KOREAN_ISLANDS_NATURAL_EARTH_BOUNDS.minLng &&
-    centerLng <= KOREAN_ISLANDS_NATURAL_EARTH_BOUNDS.maxLng &&
-    centerLat >= KOREAN_ISLANDS_NATURAL_EARTH_BOUNDS.minLat &&
-    centerLat <= KOREAN_ISLANDS_NATURAL_EARTH_BOUNDS.maxLat &&
-    spanLng <= 1 &&
-    spanLat <= 0.5;
-
-  if (isKoreanIslandRange) return false;
-
-  return (
-    centerLng >= NATURAL_EARTH_JAPAN_MASK_BOUNDS.minLng &&
-    centerLng <= NATURAL_EARTH_JAPAN_MASK_BOUNDS.maxLng &&
-    centerLat >= NATURAL_EARTH_JAPAN_MASK_BOUNDS.minLat &&
-    centerLat <= NATURAL_EARTH_JAPAN_MASK_BOUNDS.maxLat &&
-    (isJapanMainRange || isSouthwestIslandsRange) &&
-    spanLng <= 18 &&
-    spanLat <= 14
-  );
-}
-
-function computeGeometryBounds(geometry) {
-  if (geometry?.type !== "GeometryCollection") {
-    return computeCoordinateBounds(geometry?.coordinates);
-  }
-
-  const bounds = {
-    minLng: Infinity,
-    maxLng: -Infinity,
-    minLat: Infinity,
-    maxLat: -Infinity
-  };
-
-  geometry.geometries?.forEach((child) => {
-    const childBounds = computeGeometryBounds(child);
-    if (Number.isFinite(childBounds.minLng)) {
-      bounds.minLng = Math.min(bounds.minLng, childBounds.minLng);
-      bounds.maxLng = Math.max(bounds.maxLng, childBounds.maxLng);
-      bounds.minLat = Math.min(bounds.minLat, childBounds.minLat);
-      bounds.maxLat = Math.max(bounds.maxLat, childBounds.maxLat);
-    }
-  });
-
-  return bounds;
-}
-
-function computeCoordinateBounds(coordinates) {
-  const bounds = {
-    minLng: Infinity,
-    maxLng: -Infinity,
-    minLat: Infinity,
-    maxLat: -Infinity
-  };
-
-  function walk(coords) {
-    if (!Array.isArray(coords)) return;
-
-    if (typeof coords[0] === "number" && typeof coords[1] === "number") {
-      const lng = Number(coords[0]);
-      const lat = Number(coords[1]);
-      if (Number.isFinite(lng) && Number.isFinite(lat)) {
-        bounds.minLng = Math.min(bounds.minLng, lng);
-        bounds.maxLng = Math.max(bounds.maxLng, lng);
-        bounds.minLat = Math.min(bounds.minLat, lat);
-        bounds.maxLat = Math.max(bounds.maxLat, lat);
-      }
-      return;
-    }
-
-    coords.forEach(walk);
-  }
-
-  walk(coordinates);
-  return bounds;
-}
-
 function updateRiverFloodLayer(map, mode, data = {}) {
   const source = map?.getSource(RIVER_FLOOD_SOURCE_ID);
   if (!source?.setData) return;
@@ -3950,39 +3823,6 @@ function waitForMapUpdateTurn() {
     }
     window.requestAnimationFrame(resolve);
   });
-}
-
-function removeNorthernTerritoryCountryParts(feature) {
-  const iso = String(feature?.properties?.ISO_A3 ?? "").toUpperCase();
-  const geometry = feature?.geometry;
-  if (iso !== "RUS" || !geometry) return feature;
-
-  if (geometry.type === "MultiPolygon") {
-    const coordinates = geometry.coordinates.filter((polygon) => !isNorthernTerritoryCountryPart(polygon));
-    if (coordinates.length === 0) return null;
-    return { ...feature, geometry: { ...geometry, coordinates } };
-  }
-  if (geometry.type === "Polygon" && isNorthernTerritoryCountryPart(geometry.coordinates)) {
-    return null;
-  }
-  return feature;
-}
-
-function isNorthernTerritoryCountryPart(polygon) {
-  const bounds = computeCoordinateBounds(polygon);
-  if (!Number.isFinite(bounds.minLng)) return false;
-  const centerLng = (bounds.minLng + bounds.maxLng) / 2;
-  const centerLat = (bounds.minLat + bounds.maxLat) / 2;
-  const spanLng = bounds.maxLng - bounds.minLng;
-  const spanLat = bounds.maxLat - bounds.minLat;
-  return (
-    centerLng >= 145.4 &&
-    centerLng <= 149.1 &&
-    centerLat >= 43.2 &&
-    centerLat <= 46.2 &&
-    spanLng <= 2.2 &&
-    spanLat <= 1.4
-  );
 }
 
 function setWarningHatchVisibility(map, visible) {
