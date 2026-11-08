@@ -1,4 +1,6 @@
 import { defineConfig } from "vite";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { onRequest as handleWeeklyWeatherRequest } from "./functions/api/weekly-weather.js";
 import { onRequestGet as handleEarthquakeHistoryRequest } from "./functions/api/earthquake-history.js";
 import { onRequestGet as handleEarthquakeHistoryEventRequest } from "./functions/api/earthquake-history-event.js";
@@ -9,8 +11,15 @@ import { buildGfsSubsetUrl, getLatestGfsCycle, parseGfsPointProfile, normalizeGf
 
 const cloudflareApiTarget = process.env.METEOSCOPE_API_TARGET || "https://meteoscope.pages.dev";
 
+function isLoopbackRequest(request) {
+  const host = String(request.headers.host ?? "").toLowerCase().replace(/:\d+$/u, "");
+  const address = String(request.socket?.remoteAddress ?? "");
+  return ["localhost", "127.0.0.1", "[::1]"].includes(host)
+    && ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(address);
+}
+
 export default defineConfig({
-  plugins: [localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localJmaUpperAirArchiveApi(), localUpperAirApi(), localGfsProfileApi()],
+  plugins: [localActiveFaultApi(), localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localJmaUpperAirArchiveApi(), localUpperAirApi(), localGfsProfileApi()],
   base: process.env.GITHUB_PAGES === "true" ? "/MeteoScope/" : "/",
   server: {
     proxy: {
@@ -47,6 +56,37 @@ export default defineConfig({
     }
   }
 });
+
+function localActiveFaultApi() {
+  return {
+    name: "meteoscope-local-active-fault-api",
+    configureServer(server) {
+      server.middlewares.use(async (request, response, next) => {
+        if (new URL(request.url ?? "/", "http://localhost").pathname !== "/api/local-active-fault") return next();
+        response.setHeader("Content-Type", "application/json; charset=utf-8");
+        response.setHeader("Cache-Control", "no-store");
+        if (!isLoopbackRequest(request)) {
+          response.statusCode = 403;
+          return response.end(JSON.stringify({ error: "localhost からのみ利用できます。" }));
+        }
+        if (request.method !== "GET") {
+          response.statusCode = 405;
+          return response.end(JSON.stringify({ error: "Method not allowed" }));
+        }
+        try {
+          const path = process.env.METEOSCOPE_LOCAL_GSJ_PATH || ".cache/early-access/active-fault.geojson";
+          const text = await readFile(resolve(path), "utf8");
+          const data = JSON.parse(text);
+          if (data?.type !== "FeatureCollection" || !Array.isArray(data.features)) throw new Error("Invalid GeoJSON");
+          return response.end(text);
+        } catch {
+          response.statusCode = 503;
+          return response.end(JSON.stringify({ error: "ローカルの産総研活断層データを読み込めません。METEOSCOPE_LOCAL_GSJ_PATH を設定してください。" }));
+        }
+      });
+    }
+  };
+}
 
 function localJmaDisasterCasesApi() {
   return localReadOnlyPagesApi("jma-disaster-cases", "/api/jma-disaster-cases", handleJmaDisasterCasesRequest);
@@ -203,8 +243,8 @@ function localUpperAirApi() {
           response.end(JSON.stringify({ error: "method_not_allowed" }));
           return;
         }
-        if (!request.headers["x-meteoscope-early-access"]) {
-          response.statusCode = 401;
+        if (!isLoopbackRequest(request)) {
+          response.statusCode = 403;
           response.setHeader("Content-Type", "application/json; charset=utf-8");
           response.end(JSON.stringify({ error: "early_access_required" }));
           return;
@@ -249,8 +289,8 @@ function localGfsProfileApi() {
           response.end(JSON.stringify({ error: "method_not_allowed" }));
           return;
         }
-        if (!request.headers["x-meteoscope-early-access"]) {
-          response.statusCode = 401;
+        if (!isLoopbackRequest(request)) {
+          response.statusCode = 403;
           response.setHeader("Content-Type", "application/json; charset=utf-8");
           response.end(JSON.stringify({ error: "early_access_required" }));
           return;

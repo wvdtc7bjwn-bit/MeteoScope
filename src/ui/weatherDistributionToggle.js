@@ -4,6 +4,7 @@ let updateWeatherDistributionToggle = () => {};
 let toggleWeatherDistributionToggle = () => {};
 let updateSatelliteLayerToggle = () => {};
 let updateEarthquakeLayerToggle = () => {};
+let updateCommonLayerToggle = () => {};
 
 function setupLayerChoiceToggle({
   key,
@@ -185,4 +186,21 @@ export function setupEarthquakeLayerToggle({ onLayerChange, onPresentationChange
 
 export function syncEarthquakeLayerToggle(options) {
   updateEarthquakeLayerToggle(options);
+}
+
+export function setupCommonLayerToggle() {
+  const controller = setupLayerChoiceToggle({
+    key: "common-layer",
+    rootId: "map-layer-toggle",
+    toggleId: "map-layer-toggle-button",
+    choicesId: "map-layer-toggle-choices",
+    choiceSelector: "[data-common-layer-choice]",
+    closedLabel: "地図のレイヤーを選択",
+    openLabel: "地図のレイヤーを閉じる"
+  });
+  if (controller) updateCommonLayerToggle = (visible) => controller.update({ visible });
+}
+
+export function syncCommonLayerToggle(visible) {
+  updateCommonLayerToggle(visible);
 }

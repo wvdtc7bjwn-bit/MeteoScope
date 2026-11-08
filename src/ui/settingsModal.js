@@ -8,7 +8,6 @@ let settingsOptions = {};
 let settingsSearchRequestId = 0;
 let settingsPdfStatusRequestId = 0;
 let selectedTabOrderId = null;
-let earlyAccessBusy = false;
 let settingsAccountRequestId = 0;
 let settingsAccount = null;
 let settingsAccountAvailable = false;
@@ -94,14 +93,8 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
-    if (event.target.closest("[data-settings-early-access-activate]")) {
-      void submitEarlyAccessCode();
-      return;
-    }
-
-    if (event.target.closest("[data-settings-early-access-deactivate]")) {
-      settingsOptions.onDeactivateEarlyAccess?.();
-      renderSettingsEarlyAccess();
+    if (event.target.closest("[data-settings-early-access-refresh]")) {
+      void settingsOptions.onRefreshEarlyAccess?.();
       return;
     }
 
@@ -520,17 +513,12 @@ function renderSettingsLanguage() {
 function renderSettingsEarlyAccess() {
   const state = settingsOptions.getState?.() ?? {};
   const access = state.earlyAccessState ?? {};
-  const form = document.getElementById("settings-early-access-form");
   const active = document.getElementById("settings-early-access-active");
   const status = document.getElementById("settings-early-access-status");
-  const button = document.getElementById("settings-early-access-activate");
   const features = document.getElementById("settings-early-access-features");
-  if (!form || !active || !status || !button) return;
-  form.hidden = Boolean(access.active);
+  if (!active || !status) return;
   active.hidden = !access.active;
   if (features) features.hidden = !access.active;
-  button.disabled = earlyAccessBusy || access.status === "checking";
-  button.textContent = button.disabled ? "確認中" : "認証";
   document.getElementById("settings-early-access-label").textContent = access.label || "認証済み";
   status.textContent = access.message || "";
   status.dataset.state = access.active ? "active" : access.status || "inactive";
@@ -700,20 +688,6 @@ function setSettingsAccountMessage(message, state = "") {
   if (!output) return;
   output.textContent = message;
   output.dataset.state = state;
-}
-
-async function submitEarlyAccessCode() {
-  if (earlyAccessBusy) return;
-  const input = document.getElementById("settings-early-access-code");
-  earlyAccessBusy = true;
-  renderSettingsEarlyAccess();
-  try {
-    const result = await settingsOptions.onActivateEarlyAccess?.(input?.value || "");
-    if (result?.active && input) input.value = "";
-  } finally {
-    earlyAccessBusy = false;
-    renderSettingsEarlyAccess();
-  }
 }
 
 function getSettingsTabs() {

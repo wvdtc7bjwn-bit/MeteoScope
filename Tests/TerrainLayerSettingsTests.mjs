@@ -31,13 +31,14 @@ assert.match(app, /onTerrainLayerChange: setTerrainLayerSettings/);
 assert.match(app, /function setupMapTerrainToggle\(\)/);
 assert.match(settingsModal, /function renderSettingsTerrain\(\)/);
 assert.match(index, /class="settings-group settings-terrain-group"/);
-assert.match(index, /id="clock"[\s\S]*?id="map-terrain-toggle"/);
+assert.match(index, /id="map-layer-toggle-choices"[\s\S]*?id="map-terrain-toggle"/);
+assert.equal((index.match(/data-map-terrain-toggle/g) ?? []).length, 4);
+assert.match(app, /querySelectorAll\("\[data-map-terrain-toggle\]"\)/);
 assert.doesNotMatch(index, /id="settings-terrain-toggle"/);
 assert.match(index, /data-settings-terrain-opacity="0\.32"/);
 assert.match(index, /data-settings-terrain-opacity="0\.48"/);
 assert.match(index, /data-settings-terrain-opacity="0\.64"/);
-assert.match(styles, /\.map-terrain-toggle\s*\{[\s\S]*?box-shadow:\s*none;/);
-assert.match(styles, /html\[data-theme="light"\] \.map-terrain-toggle\s*\{[\s\S]*?background:\s*rgba\(247, 251, 255, 0\.88\);/);
-assert.match(styles, /html\[data-theme="light"\] \.map-terrain-toggle\.is-enabled\s*\{[\s\S]*?background:\s*rgba\(20, 125, 191, 0\.94\);/);
+assert.match(styles, /#map-layer-toggle .weather-distribution-toggle-choices/);
+assert.match(styles, /html\[data-theme="light"\] #map-layer-toggle/);
 
 console.log("Terrain layer settings: OK");

@@ -12,7 +12,7 @@ import {
   temperatureForSaturationMixingRatio
 } from "../jma/upperAir.js";
 import maplibregl from "maplibre-gl";
-import { getEarlyAccessToken } from "./earlyAccess.js";
+import { accountAuthHeaders } from "./earlyAccess.js";
 import { buildModalLoadingState } from "./modalLoadingState.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -849,7 +849,7 @@ function renderLocked(body) {
   const title = document.createElement("strong");
   title.textContent = "アーリーアクセス機能です";
   const detail = document.createElement("p");
-  detail.textContent = "エマグラムは試験提供中です。設定でアーリーアクセスを有効にすると、気象庁の高層観測データを表示できます。";
+  detail.textContent = "エマグラムは試験提供中です。管理者に許可されたMeteoScopeアカウントでログインすると利用できます。";
   const settings = document.createElement("button");
   settings.type = "button";
   settings.textContent = "設定を開く";
@@ -923,9 +923,8 @@ async function loadObservation() {
   output.innerHTML = loading;
   const currentRequest = ++requestId;
   try {
-    const token = getEarlyAccessToken();
-    const response = await fetch(`/api/upper-air?station=${encodeURIComponent(selectedStationId)}`, {
-      headers: { Accept: "application/json", "X-MeteoScope-Early-Access": token }
+    const response = await fetch(`${globalThis.location?.hostname?.endsWith("github.io") ? "https://meteoscope.pages.dev" : ""}/api/upper-air?station=${encodeURIComponent(selectedStationId)}`, {
+      headers: { Accept: "application/json", ...accountAuthHeaders() }, credentials: "same-origin"
     });
     if (!response.ok) throw new Error(`upper-air request failed: ${response.status}`);
     const observation = await response.json();
@@ -955,9 +954,8 @@ async function loadModelProfile({ preserveMap = false } = {}) {
   output.replaceChildren(state);
   const currentRequest = ++requestId;
   try {
-    const token = getEarlyAccessToken();
-    const response = await fetch(`/api/gfs-profile?lat=${encodeURIComponent(selectedModelCoordinates.latitude)}&lon=${encodeURIComponent(selectedModelCoordinates.longitude)}`, {
-      headers: { Accept: "application/json", "X-MeteoScope-Early-Access": token }
+    const response = await fetch(`${globalThis.location?.hostname?.endsWith("github.io") ? "https://meteoscope.pages.dev" : ""}/api/gfs-profile?lat=${encodeURIComponent(selectedModelCoordinates.latitude)}&lon=${encodeURIComponent(selectedModelCoordinates.longitude)}`, {
+      headers: { Accept: "application/json", ...accountAuthHeaders() }, credentials: "same-origin"
     });
     if (!response.ok) throw new Error(`GFS profile request failed: ${response.status}`);
     const model = await response.json();

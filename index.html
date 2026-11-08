@@ -180,7 +180,6 @@
         </div>
         <button id="clock-display-close" class="clock-display-close" type="button" data-clock-display-close aria-label="時計表示モードを終了">終了</button>
       </section>
-      <button id="map-terrain-toggle" class="map-terrain-toggle" type="button" role="switch" aria-checked="false" aria-label="地形表示をONにする" data-map-terrain-toggle><span>地形</span><span class="map-terrain-toggle-state" aria-hidden="true">OFF</span></button>
       <button id="map-utility-menu-toggle" class="disaster-map-open-button map-utility-menu-toggle" type="button" aria-label="機能メニューを開く" title="機能メニュー" aria-expanded="false" aria-controls="map-utility-actions"></button>
       <div id="map-utility-actions" class="map-utility-actions" aria-label="機能メニュー" hidden>
         <button id="disaster-quiz-button" class="disaster-map-open-button disaster-quiz-open-button" type="button" aria-label="宇宙・気象クイズを開く" title="宇宙・気象クイズ"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 .7-1.5 1.2-1.5 2.5M12 17h.01"/></svg><span class="map-utility-label">宇宙・気象クイズ</span></button>
@@ -203,6 +202,7 @@
           <button type="button" data-weather-distribution-mode="weather" aria-pressed="false">天気</button>
           <button type="button" data-weather-distribution-mode="temperature" aria-pressed="false">気温</button>
           <button type="button" data-weather-distribution-mode="snowfall" aria-pressed="false">降雪量</button>
+          <button type="button" role="switch" aria-checked="false" data-map-terrain-toggle>地形</button>
         </div>
         <button id="weather-distribution-toggle-button" class="weather-distribution-toggle-button" type="button" aria-expanded="false" aria-controls="weather-distribution-toggle-choices" aria-label="天気分布予報の種類を選択" title="天気分布予報の種類を選択"></button>
       </section>
@@ -210,6 +210,7 @@
         <div id="satellite-layer-toggle-choices" class="weather-distribution-toggle-choices" data-layer-picker-title="重ねる情報" aria-hidden="true" hidden>
           <button type="button" data-satellite-layer="weather-chart" aria-pressed="false">天気図</button>
           <button type="button" data-satellite-layer="radar" aria-pressed="false">雨雲</button>
+          <button type="button" role="switch" aria-checked="false" data-map-terrain-toggle>地形</button>
         </div>
         <button id="satellite-layer-toggle-button" class="weather-distribution-toggle-button" type="button" aria-expanded="false" aria-controls="satellite-layer-toggle-choices" aria-label="雲画像に重ねるレイヤーを選択" title="雲画像に重ねるレイヤーを選択"></button>
       </section>
@@ -226,10 +227,17 @@
             <a href="https://www.mri-jma.go.jp/Dep/sei/fhirose/plate/PlateData.html" target="_blank" rel="noopener noreferrer">気象研究所データ（平面表示）の出典</a>
           </label>
           <button type="button" data-earthquake-distribution-presentation="3d" aria-pressed="false">震央の立体表示</button>
+          <button type="button" role="switch" aria-checked="false" data-map-terrain-toggle>地形</button>
         </div>
         <button id="earthquake-layer-toggle-button" class="weather-distribution-toggle-button" type="button" aria-expanded="false" aria-controls="earthquake-layer-toggle-choices" aria-label="地震地図のレイヤーを選択" title="地震地図のレイヤーを選択"></button>
       </section>
-      <button id="typhoon-radar-overlay-button" class="map-typhoon-radar-overlay-button" type="button" aria-label="台風情報の発表時刻の雨雲レーダを重ねる" title="台風情報の発表時刻の雨雲レーダを重ねる" aria-pressed="false" hidden></button>
+      <section id="map-layer-toggle" class="map-weather-distribution-toggle map-common-layer-toggle collapsed" aria-label="地図のレイヤー" hidden>
+        <div id="map-layer-toggle-choices" class="weather-distribution-toggle-choices" data-layer-picker-title="地図レイヤー" aria-hidden="true" hidden>
+          <button id="map-terrain-toggle" type="button" role="switch" aria-checked="false" data-map-terrain-toggle>地形</button>
+          <button id="typhoon-radar-overlay-button" type="button" aria-label="台風情報の発表時刻の雨雲レーダを重ねる" title="台風情報の発表時刻の雨雲レーダを重ねる" aria-pressed="false" hidden>雨雲レーダー</button>
+        </div>
+        <button id="map-layer-toggle-button" class="weather-distribution-toggle-button" type="button" aria-expanded="false" aria-controls="map-layer-toggle-choices" aria-label="地図のレイヤーを選択" title="地図のレイヤーを選択"></button>
+      </section>
       <div id="radar-overlay-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs radar-overlay-tabs" hidden></div>
       <div id="kikikuru-layer-tabs" class="kikikuru-layer-tabs map-kikikuru-tabs" hidden></div>
       <section id="map-legend" class="map-legend collapsed" aria-label="凡例">
@@ -347,15 +355,10 @@
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>アーリーアクセス</strong><small>開発中の機能</small></span></button>
             <div class="settings-group-content" hidden>
               <p class="settings-theme-help">開発中の機能を先行して利用できます。動作や表示は今後変更される場合があります。</p>
-              <div id="settings-early-access-form" class="settings-early-access-form">
-                <label for="settings-early-access-code">シリアルコード</label>
-                <div><input id="settings-early-access-code" type="text" placeholder="MS-XXXX-XXXX-XXXX" maxlength="24" autocomplete="off" autocapitalize="characters" spellcheck="false" />
-                  <button id="settings-early-access-activate" type="button" data-settings-early-access-activate>認証</button></div>
-              </div>
               <div id="settings-early-access-active" class="settings-early-access-active" hidden>
-              <div><strong>昨日グラフ・天気図7日履歴・活断層データ選択</strong><small id="settings-early-access-label">認証済み</small></div>
-                <button type="button" data-settings-early-access-deactivate>解除</button>
+                <div><strong>先行機能</strong><small id="settings-early-access-label">許可済み</small></div>
               </div>
+              <button type="button" class="settings-account-action" data-settings-early-access-refresh>利用状態を更新</button>
               <div id="settings-early-access-features" class="settings-early-access-features" hidden>
                 <div>
                   <strong>活断層データ</strong>
@@ -365,7 +368,7 @@
                   <button type="button" data-settings-active-fault-source="jshis" role="radio" aria-checked="false">現在（J-SHIS）</button>
                   <button type="button" data-settings-active-fault-source="gsj" role="radio" aria-checked="false">産総研（GSJ）</button>
                 </div>
-                <small>産総研を選ぶと、認証済み端末だけが保護された活断層データを必要時に読み込みます。データの一般公開は行いません。</small>
+                <small>産総研を選ぶと、許可されたアカウントだけが保護された活断層データを必要時に読み込みます。データの一般公開は行いません。</small>
                 <small id="settings-active-fault-source-status" class="settings-active-fault-source-status" role="status"></small>
               </div>
               <p id="settings-early-access-status" class="settings-early-access-status" role="status"></p>
@@ -497,7 +500,7 @@
                 <p><strong>2. 安全に関する注意</strong><br>表示内容の正確性、完全性、即時性、継続的な提供を保証するものではありません。通信障害、提供元の更新、データ処理などにより、遅延、欠落、誤差または表示不具合が生じる場合があります。避難や安全確保の判断では、気象庁、自治体、報道機関などの公式情報を必ず確認してください。</p>
                 <p><strong>3. 通知</strong><br>プッシュ通知は補助機能であり、端末、ブラウザ、通信環境、配信サービスの状態によって遅延または不達となる場合があります。通知だけに依存して安全に関する判断をしないでください。</p>
                 <p><strong>4. 防災マップと防災メモ</strong><br>利用者が読み込むPDF・画像および追加する目印・メモは、利用者自身の責任で管理してください。著作権その他の権利を侵害するデータを利用しないでください。端末やブラウザのデータを削除すると、保存内容が失われる場合があります。</p>
-                <p><strong>5. アーリーアクセス</strong><br>開発中の機能は、予告なく内容の変更、提供の中断または終了を行う場合があります。シリアルコードを第三者へ不正に譲渡、販売または共有しないでください。</p>
+                <p><strong>5. アーリーアクセス</strong><br>開発中の機能は、予告なく内容の変更、提供の中断または終了を行う場合があります。管理者が許可したMeteoScopeアカウントで利用できます。</p>
                 <p><strong>6. 禁止事項</strong><br>本アプリまたは提供元へ過度な負荷をかける行為、不正アクセス、機能の妨害、法令または第三者の権利を侵害する行為を禁止します。</p>
                 <p><strong>7. 免責と変更</strong><br>法令上認められる範囲で、本アプリの利用または利用不能により生じた損害について、開発者は責任を負いません。本規約および本アプリの内容は、必要に応じて変更する場合があります。</p>
                 <p><small>最終更新日: 2026年7月13日</small></p>
@@ -512,7 +515,7 @@
                 <p><strong>2. 位置情報</strong><br>端末の位置情報は、現在地の表示、現在地に対応する市区町村・予報区域・防災情報の照合、周辺情報の表示に使用します。緯度・経度そのものは本アプリのサーバーへ保存しません。Web版のお知らせ通知では、現在地や通知対象区域をサーバーへ送信しません。</p>
                 <p><strong>3. プッシュ通知</strong><br>Web版のお知らせ通知を有効にした場合、ブラウザのPush購読情報を管理者からのお知らせ配信のために保存します。Web版では気象警報・注意報をプッシュ通知せず、通知対象区域、通知設定、警報状態を保存しません。通知解除または購読が無効になった場合に削除し、配信にはブラウザやOSが利用するPush配信サービスを経由します。</p>
                 <p><strong>4. サポート・ご意見</strong><br>サポート・ご意見を送信した場合、入力本文、分類、対象機能、期待する結果、表示中のタブ、配色、表示言語、表示サイズ、送信時刻および対応状況を、サポート対応と改善内容の確認に使用してサーバーへ保存します。位置情報、氏名、住所、端末識別情報は送信しません。回答を希望して任意入力されたメールアドレスは、サポート回答の連絡先としてのみ保存・使用します。氏名、住所、連絡先などの個人情報や緊急情報は入力しないでください。受付番号と対応状況はこの端末に最大8件、送信から30日間保存され、期限後の次回表示または状況更新時に消去できます。</p>
-                <p><strong>5. アーリーアクセス</strong><br>シリアルコードの認証時には、コードを一方向変換した値、利用回数、認証日時、有効期限および発行された認証トークンに関する情報を保存します。入力したシリアルコードそのものを平文では保存しません。</p>
+                <p><strong>5. アーリーアクセス</strong><br>利用許可を管理するため、MeteoScopeアカウントに対応する許可状態を保存します。移行前の認証に関する記録が残っている場合があります。</p>
                 <p><strong>6. 端末内に保存する情報</strong><br>防災マップとして選択したPDF・画像、防災メモ、目印、マイエリア、外観や表示順などの設定は、原則としてブラウザのLocal StorageまたはIndexedDBへ保存されます。防災マップと防災メモは本アプリのサーバーへ送信しません。設定画面またはブラウザのサイトデータ削除により消去できます。</p>
                 <p><strong>7. 外部サービスへの通信</strong><br>気象・地震・地図などのデータ取得時には、気象庁、地図配信元その他の情報提供元へ通信します。また、アプリ配信、API、データ保存および通知処理にはCloudflareのサービスを利用します。通信時には、各提供元にIPアドレス、ブラウザ情報、アクセス日時などが送信される場合があります。</p>
                 <p><strong>8. 管理と変更</strong><br>保存情報は、機能提供、セキュリティ確保、不具合調査および不正利用防止に必要な範囲で取り扱います。本ポリシーは、機能や法令の変更に応じて更新する場合があります。</p>

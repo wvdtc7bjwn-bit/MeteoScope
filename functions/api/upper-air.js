@@ -1,23 +1,23 @@
 import { UPPER_AIR_STATIONS, parseUpperAirTemperatureHumidityHtml, parseUpperAirWindHtml } from "../../src/jma/upperAir.js";
-import { validateEarlyAccessToken } from "../_shared/earlyAccessAuth.js";
+import { getAccountEarlyAccess } from "../_shared/accountEarlyAccess.js";
 
 const JMA_UPPER_AIR_BASE = "https://www.data.jma.go.jp/stats/etrn/upper/view/daily_uth.php";
 const STATION_IDS = new Set(UPPER_AIR_STATIONS.map((station) => station.id));
 const RESPONSE_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
-  "Access-Control-Allow-Headers": "X-MeteoScope-Early-Access",
+  "Access-Control-Allow-Headers": "Authorization",
   "Content-Type": "application/json; charset=utf-8",
   "X-Content-Type-Options": "nosniff",
-  "Cache-Control": "public, max-age=300, s-maxage=900, stale-while-revalidate=3600"
+  "Cache-Control": "private, no-store"
 };
 
 export async function onRequest({ request, env }) {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: RESPONSE_HEADERS });
   if (request.method !== "GET" && request.method !== "HEAD") return errorResponse("method_not_allowed", 405);
   if (!env.NOTIFICATIONS_DB) return errorResponse("early_access_not_configured", 503);
-  const access = await validateEarlyAccessToken(env.NOTIFICATIONS_DB, request.headers.get("X-MeteoScope-Early-Access") ?? "");
-  if (!access.active) return errorResponse("early_access_required", 401);
+  const access = await getAccountEarlyAccess(request, env.NOTIFICATIONS_DB);
+  if (!access.active) return errorResponse("early_access_required", access.authenticated ? 403 : 401);
   const requestUrl = new URL(request.url);
   const station = requestUrl.searchParams.get("station")?.trim() ?? "47646";
   if (!STATION_IDS.has(station)) return errorResponse("station_not_supported", 400);

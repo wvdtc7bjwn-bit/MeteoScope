@@ -47,7 +47,8 @@ assert.deepEqual(accountPage.accounts[0], {
   username: "weather_user",
   displayName: "天気ユーザー",
   createdAt: "2026-07-17T00:00:00.000Z",
-  updatedAt: "2026-07-17T01:00:00.000Z"
+  updatedAt: "2026-07-17T01:00:00.000Z",
+  earlyAccessAllowed: false
 });
 assert.equal("password_hash" in accountPage.accounts[0], false);
 assert.equal(accountPage.nextOffset, null);
@@ -84,7 +85,7 @@ const deleteDb = {
 };
 const deletion = await deleteMeteoScopeAccount(deleteDb, accountID);
 assert.equal(deletion.account.displayName, "天気ユーザー");
-assert.equal(deletion.deletedRows, 11);
+assert.equal(deletion.deletedRows, 12);
 const accountDeleteSql = accountDeleteStatements.map((statement) => statement.sql).join("\n");
 for (const table of [
   "community_report_flags", "community_reports", "community_post_daily", "quiz_best_scores", "quiz_daily_scores",
@@ -93,6 +94,7 @@ for (const table of [
   assert.match(accountDeleteSql, new RegExp(`DELETE FROM ${table}`, "u"));
 }
 assert.match(accountDeleteSql, /early-access-activation:%/u);
+assert.match(accountDeleteSql, /early-access-account:/u);
 
 const currentSchemaStatements = [];
 const currentSchemaDb = {
@@ -114,7 +116,7 @@ const currentSchemaDb = {
   }
 };
 const currentSchemaDeletion = await deleteMeteoScopeAccount(currentSchemaDb, accountID);
-assert.equal(currentSchemaDeletion.deletedRows, 10);
+assert.equal(currentSchemaDeletion.deletedRows, 11);
 assert.doesNotMatch(currentSchemaStatements.map((statement) => statement.sql).join("\n"), /DELETE FROM quiz_best_scores/u);
 
 const pushDeleteBatches = [];
@@ -166,7 +168,7 @@ assert.match(adminRoute, /METEOSCOPE_ADMIN_SERVICE_TOKEN/u);
 assert.match(adminRoute, /route\.startsWith\("accounts\/"\) && method === "DELETE"/u);
 assert.match(adminRoute, /route\.startsWith\("push\/broadcasts\/"\) && method === "DELETE"/u);
 assert.match(adminRoute, /listAdminPushBroadcasts\(env, 50\)/u);
-assert.match(adminRoute, /deleteEarlyAccessActivationsForCode\(db, id\)/u);
+assert.match(adminRoute, /setAccountEarlyAccess\(db, id, payload.allowed\)/u);
 assert.match(adminPage, /id="admin-account-list"/u);
 assert.match(adminPage, /id="free-tier-monitoring"/u);
 assert.match(adminPage, /id="quota-metrics"/u);

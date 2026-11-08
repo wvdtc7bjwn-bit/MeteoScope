@@ -1,111 +1,52 @@
-const TOKEN_STORAGE_KEY = "meteoscope-early-access-token";
-const PENDING_RELEASE_STORAGE_KEY = "meteoscope-early-access-pending-release";
+import { getMeteoScopeAccountSessionToken } from "../domain/quizRankingClient.js";
+
 const ENDPOINT = globalThis.location?.hostname?.endsWith("github.io")
   ? "https://meteoscope.pages.dev/api/public/early-access"
   : "/api/public/early-access";
 
+export function accountAuthHeaders() {
+  const token = getMeteoScopeAccountSessionToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function validateEarlyAccess() {
-  await flushPendingRelease();
-  const token = readToken();
-  if (!token) return inactiveState("シリアルコードを入力して認証してください。");
+  if (import.meta.env?.DEV && ["localhost", "127.0.0.1", "[::1]"].includes(globalThis.location?.hostname)) {
+    return { status: "active", active: true, label: "ローカル開発", message: "localhostでは先行機能を利用できます。" };
+  }
   try {
-    const result = await requestAccess({ token });
-    if (!result.active) throw new Error(result.error || "認証の有効期限が切れています。");
-    return activeState(result);
+    const result = await requestAccess("status");
+    return { status: "active", active: true, label: "許可済み", message: "このアカウントはアーリーアクセスを利用できます。" };
   } catch (error) {
-    if (Number(error?.status) === 401) removeToken();
-    return inactiveState(error.message || "認証状態を確認できませんでした。");
+    return { status: "inactive", active: false, label: "", message: error.message || "認証状態を確認できませんでした。" };
   }
-}
-
-export async function activateEarlyAccess(serial) {
-  const code = String(serial || "").trim();
-  if (!code) return inactiveState("シリアルコードを入力してください。");
-  try {
-    const result = await requestAccess({ code });
-    if (!result.active || !result.token) throw new Error(result.error || "シリアルコードを認証できませんでした。");
-    writeToken(result.token);
-    return activeState(result);
-  } catch (error) {
-    return inactiveState(error.message || "シリアルコードを認証できませんでした。");
-  }
-}
-
-export function deactivateEarlyAccess() {
-  const token = readToken();
-  removeToken();
-  if (token) {
-    writePendingRelease(token);
-    void releasePendingToken(token);
-  }
-  return inactiveState("この端末のアーリーアクセスを解除しました。通信できなかった場合は次回起動時に再送します。Webアプリを削除する場合は先に解除してください。");
-}
-
-export function getEarlyAccessToken() {
-  return readToken();
 }
 
 export async function fetchEarlyAccessActiveFaultSegments() {
-  const token = readToken();
-  if (!token) throw new Error("産総研活断層データの取得にはアーリーアクセス認証が必要です。");
+  let data;
+  if (import.meta.env?.DEV && ["localhost", "127.0.0.1", "[::1]"].includes(globalThis.location?.hostname)) {
+    const response = await fetch("/api/local-active-fault", { cache: "no-store" });
+    data = await response.json();
+    if (!response.ok) throw new Error(data.error || "産総研活断層データを取得できませんでした。");
+  } else {
+    data = await requestAccess("active-fault", 20000);
+  }
+  if (data?.type !== "FeatureCollection" || !Array.isArray(data.features)) {
+    throw new Error("産総研活断層データの形式が正しくありません。");
+  }
+  return data;
+}
+
+async function requestAccess(action, timeout = 8000) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20000);
+  const timer = setTimeout(() => controller.abort(), timeout);
   try {
     const response = await fetch(ENDPOINT, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "active-fault", token }),
+      headers: { "Content-Type": "application/json", ...accountAuthHeaders() },
+      body: JSON.stringify({ action }),
+      credentials: "same-origin",
       signal: controller.signal,
       cache: "no-store"
-    });
-    const contentType = response.headers.get("Content-Type") ?? "";
-    if (!response.ok) {
-      const result = contentType.includes("json")
-        ? await response.json().catch(() => ({}))
-        : {};
-      const error = new Error(result.error || "産総研活断層データを取得できませんでした。");
-      error.status = response.status;
-      throw error;
-    }
-    const data = await response.json();
-    if (data?.type !== "FeatureCollection" || !Array.isArray(data.features)) {
-      throw new Error("産総研活断層データの形式が正しくありません。");
-    }
-    return data;
-  } catch (error) {
-    if (error?.name === "AbortError") throw new Error("産総研活断層データの取得がタイムアウトしました。");
-    throw error;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function flushPendingRelease() {
-  const token = readPendingRelease();
-  if (!token) return;
-  await releasePendingToken(token);
-}
-
-async function releasePendingToken(token) {
-  try {
-    await requestAccess({ action: "deactivate", token }, { keepalive: true });
-    if (readPendingRelease() === token) removePendingRelease();
-  } catch {
-    // Keep the token and retry the release when the app starts again.
-  }
-}
-
-async function requestAccess(payload, options = {}) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
-  try {
-    const response = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-      cache: "no-store",
-      keepalive: Boolean(options.keepalive)
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -113,6 +54,7 @@ async function requestAccess(payload, options = {}) {
       error.status = response.status;
       throw error;
     }
+    if (action === "status" && result.active !== true) throw new Error(result.error || "利用が許可されていません。");
     return result;
   } catch (error) {
     if (error?.name === "AbortError") throw new Error("認証サーバーが応答しませんでした。");
@@ -120,42 +62,4 @@ async function requestAccess(payload, options = {}) {
   } finally {
     clearTimeout(timer);
   }
-}
-
-function activeState(result) {
-  return {
-    status: "active",
-    active: true,
-    label: String(result.label || "アーリーアクセス"),
-    expiresAt: result.expiresAt || null,
-    message: "アーリーアクセスが有効です。Webアプリを削除する場合は、先に設定から解除してください。"
-  };
-}
-
-function inactiveState(message) {
-  return { status: "inactive", active: false, label: "", expiresAt: null, message };
-}
-
-function readToken() {
-  try { return localStorage.getItem(TOKEN_STORAGE_KEY) || ""; } catch { return ""; }
-}
-
-function writeToken(token) {
-  try { localStorage.setItem(TOKEN_STORAGE_KEY, token); } catch { /* Session remains active until reload. */ }
-}
-
-function removeToken() {
-  try { localStorage.removeItem(TOKEN_STORAGE_KEY); } catch { /* Ignore blocked storage. */ }
-}
-
-function readPendingRelease() {
-  try { return localStorage.getItem(PENDING_RELEASE_STORAGE_KEY) || ""; } catch { return ""; }
-}
-
-function writePendingRelease(token) {
-  try { localStorage.setItem(PENDING_RELEASE_STORAGE_KEY, token); } catch { /* Best-effort release still runs immediately. */ }
-}
-
-function removePendingRelease() {
-  try { localStorage.removeItem(PENDING_RELEASE_STORAGE_KEY); } catch { /* Ignore blocked storage. */ }
 }

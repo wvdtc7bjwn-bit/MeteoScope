@@ -6,11 +6,10 @@ import { readFile } from "node:fs/promises";
 if (!globalThis.crypto) globalThis.crypto = webcrypto;
 
 const { onRequest } = await import("../functions/api/public/early-access.js");
-const {
-  EARLY_ACCESS_ACTIVATION_PREFIX,
-  EARLY_ACCESS_CODES_KEY,
-  hashEarlyAccessValue
-} = await import("../functions/_shared/earlyAccessAuth.js");
+const { hashQuizToken } = await import("../functions/_shared/quizSecurity.js");
+const accountId = "11111111-1111-4111-8111-111111111111";
+const token = "protected-account-session";
+const sessionHash = await hashQuizToken(token);
 
 class FakeD1 {
   constructor(records = new Map()) { this.records = records; }
@@ -25,6 +24,9 @@ class FakeStatement {
   }
   bind(...values) { this.values = values; return this; }
   async first() {
+    if (this.sql.includes("FROM quiz_sessions")) {
+      return this.values[0] === sessionHash ? { id: accountId, display_name: "test" } : null;
+    }
     const value = this.db.records.get(String(this.values[0]));
     return value === undefined ? null : { value };
   }
@@ -54,15 +56,8 @@ const geojson = {
 };
 const compressed = gzipSync(Buffer.from(JSON.stringify(geojson)));
 const encoded = compressed.toString("base64");
-const token = "protected-active-fault-token";
-const activationKey = `${EARLY_ACCESS_ACTIVATION_PREFIX}${await hashEarlyAccessValue(token)}`;
 const db = new FakeD1(new Map([
-  [EARLY_ACCESS_CODES_KEY, JSON.stringify([{ id: "code-1", label: "test", uses: 1 }])],
-  [activationKey, JSON.stringify({
-    codeId: "code-1",
-    createdAt: new Date().toISOString(),
-    lastVerifiedAt: new Date().toISOString()
-  })],
+  [`early-access-account:${accountId}`, JSON.stringify({ allowed: true })],
   ["early-access-active-fault:manifest", JSON.stringify({
     encoding: "gzip-base64",
     chunkCount: 2
@@ -90,12 +85,7 @@ const restored = await authorized.json();
 assert.deepEqual(restored, geojson);
 
 const incompleteDb = new FakeD1(new Map([
-  [EARLY_ACCESS_CODES_KEY, JSON.stringify([{ id: "code-1", label: "test", uses: 1 }])],
-  [activationKey, JSON.stringify({
-    codeId: "code-1",
-    createdAt: new Date().toISOString(),
-    lastVerifiedAt: new Date().toISOString()
-  })],
+  [`early-access-account:${accountId}`, JSON.stringify({ allowed: true })],
   ["early-access-active-fault:manifest", JSON.stringify({
     encoding: "gzip-base64",
     chunkCount: 2
@@ -111,15 +101,15 @@ assert.equal(incomplete.status, 503);
 const earlyAccessClient = await readFile(new URL("../src/ui/earlyAccess.js", import.meta.url), "utf8");
 const weatherMapClient = await readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8");
 const configClient = await readFile(new URL("../src/config.js", import.meta.url), "utf8");
-assert.match(earlyAccessClient, /action:\s*"active-fault"/u);
+assert.match(earlyAccessClient, /requestAccess\("active-fault"/u);
 assert.match(weatherMapClient, /setGsjActiveFaultData/u);
 assert.doesNotMatch(configClient, /activefault_japan_segments|gsj-active-fault/u);
 
 function makeRequest(accessToken) {
   return new Request("https://meteoscope.pages.dev/api/public/early-access", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "active-fault", token: accessToken })
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ action: "active-fault" })
   });
 }
 

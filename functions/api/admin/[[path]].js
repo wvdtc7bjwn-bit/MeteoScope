@@ -2,8 +2,8 @@ import { readJson, writeJson, requireD1 } from "../../_shared/d1Store.js";
 import { readCloudflareFreeTierUsage } from "../../_shared/cloudflareFreeTierAnalytics.js";
 import { readQuizOperationalMetrics } from "../../_shared/quizMaintenance.js";
 import { readCommunityReportOperationalMetrics } from "../../_shared/communityReports.js";
-import { deleteMeteoScopeAccount, listMeteoScopeAccounts } from "../../_shared/adminManagement.js";
-import { deleteEarlyAccessActivationsForCode, reconcileEarlyAccessCodeUsage } from "../../_shared/earlyAccessAuth.js";
+import { deleteMeteoScopeAccount, listMeteoScopeAccounts, normalizeAccountID } from "../../_shared/adminManagement.js";
+import { setAccountEarlyAccess } from "../../_shared/accountEarlyAccess.js";
 import { invalidateAllQuizLeaderboardCaches } from "../../_shared/quizLeaderboardCache.js";
 import {
   deleteAdminPushBroadcast, listAdminPushBroadcasts, queueAdminPushBroadcast
@@ -15,7 +15,6 @@ import {
 const CONFIG_KEY = "app-config";
 const NOTICES_KEY = "app-notices";
 const FEEDBACK_KEY = "user-feedback";
-const EARLY_ACCESS_CODES_KEY = "early-access-codes";
 const PDF_OBJECT_KEY = "admin/disaster-map.pdf";
 const SESSION_COOKIE = "weather_viewer_admin";
 const SESSION_TTL_SECONDS = 60 * 60 * 8;
@@ -48,6 +47,8 @@ export async function onRequest({ request, env }) {
     if (route === "notices" && method === "GET") return await getNotices(env);
     if (route === "notices" && method === "PUT") return await putNotices(request, env);
     if (route === "accounts" && method === "GET") return await getAccounts(url, env);
+    const accountAccessRoute = route.match(/^accounts\/([^/]+)\/early-access$/u);
+    if (accountAccessRoute && method === "PUT") return await updateAccountEarlyAccess(request, env, accountAccessRoute[1]);
     if (route.startsWith("accounts/") && method === "DELETE") {
       return await deleteAccount(route.slice("accounts/".length), env);
     }
@@ -64,15 +65,6 @@ export async function onRequest({ request, env }) {
     }
     if (feedbackRoute && method === "DELETE") {
       return await deleteFeedback(env, decodeURIComponent(feedbackRoute[1]));
-    }
-    if (route === "early-access/codes" && method === "GET") return await getEarlyAccessCodes(env);
-    if (route === "early-access/codes" && method === "POST") return await createEarlyAccessCode(request, env);
-    const earlyAccessActivationsRoute = route.match(/^early-access\/codes\/([^/]+)\/activations$/u);
-    if (earlyAccessActivationsRoute && method === "DELETE") {
-      return await resetEarlyAccessActivations(decodeURIComponent(earlyAccessActivationsRoute[1]), env);
-    }
-    if (route.startsWith("early-access/codes/") && method === "DELETE") {
-      return await deleteEarlyAccessCode(decodeURIComponent(route.slice("early-access/codes/".length)), env);
     }
     if (route === "disaster-map" && method === "GET") return await getDisasterMapInfo(env);
     if (route === "disaster-map" && method === "POST") return await putDisasterMap(request, env);
@@ -232,6 +224,18 @@ async function getAccounts(url, env) {
   return json(result);
 }
 
+async function updateAccountEarlyAccess(request, env, rawAccountId) {
+  let id;
+  try { id = normalizeAccountID(rawAccountId); } catch { return json({ error: "アカウントIDが正しくありません。" }, { status: 400 }); }
+  const payload = await request.json().catch(() => null);
+  if (typeof payload?.allowed !== "boolean") return json({ error: "許可状態が正しくありません。" }, { status: 400 });
+  const db = requireDb(env);
+  const account = await db.prepare("SELECT id FROM quiz_accounts WHERE id = ?1").bind(id).first();
+  if (!account) return json({ error: "アカウントが見つかりません。" }, { status: 404 });
+  await setAccountEarlyAccess(db, id, payload.allowed);
+  return json({ accountId: id, allowed: payload.allowed });
+}
+
 async function deleteAccount(accountID, env) {
   const db = requireDb(env);
   try {
@@ -301,114 +305,6 @@ async function deleteFeedback(env, id) {
 
   await writeJson(env.NOTIFICATIONS_DB, FEEDBACK_KEY, next);
   return json({ ok: true, id });
-}
-
-async function getEarlyAccessCodes(env) {
-  const db = requireDb(env);
-  const value = await readJson(db, EARLY_ACCESS_CODES_KEY, []);
-  const codes = Array.isArray(value) ? value : [];
-  let changed = false;
-  for (const entry of codes) {
-    const usage = await reconcileEarlyAccessCodeUsage(db, entry.id);
-    if (Math.max(0, Number(entry.uses) || 0) === usage.activeUses) continue;
-    entry.uses = usage.activeUses;
-    changed = true;
-  }
-  if (changed) await writeJson(db, EARLY_ACCESS_CODES_KEY, codes);
-  return json({ codes: codes.map(publicEarlyAccessCode) });
-}
-
-async function createEarlyAccessCode(request, env) {
-  const db = requireDb(env);
-  try {
-    const payload = await request.json().catch(() => ({}));
-    const codes = await readJson(db, EARLY_ACCESS_CODES_KEY, []);
-    if (Array.isArray(codes) && codes.length >= 100) {
-      return json({ error: "発行済みコードが100件に達しています。不要なコードを失効してください。" }, { status: 400 });
-    }
-    const serial = generateSerialCode();
-    const expiresAt = normalizeExpiration(payload.expiresAt);
-    const maxUses = Math.min(10000, Math.max(1, Number.parseInt(payload.maxUses, 10) || 1));
-    const entry = {
-      id: generateEntryId(),
-      codeHash: await hashValue(normalizeSerial(serial)),
-      label: String(payload.label || "アーリーアクセス").trim().slice(0, 80) || "アーリーアクセス",
-      createdAt: new Date().toISOString(),
-      expiresAt,
-      maxUses,
-      uses: 0,
-      lastUsedAt: null
-    };
-    const nextCodes = [entry, ...(Array.isArray(codes) ? codes : [])];
-    await writeJson(db, EARLY_ACCESS_CODES_KEY, nextCodes);
-    return json({ serial, codes: nextCodes.map(publicEarlyAccessCode) }, { status: 201 });
-  } catch (error) {
-    if (error instanceof Response) return error;
-    console.error("[Admin API] early access serial generation failed", error);
-    const detail = error instanceof Error && error.message ? `: ${error.message}` : "";
-    return json({ error: `シリアルコードを保存できませんでした${detail}` }, { status: 503 });
-  }
-}
-
-async function deleteEarlyAccessCode(id, env) {
-  const db = requireDb(env);
-  const codes = await readJson(db, EARLY_ACCESS_CODES_KEY, []);
-  const nextCodes = (Array.isArray(codes) ? codes : []).filter((item) => item.id !== id);
-  if (nextCodes.length === codes.length) return json({ error: "対象のコードが見つかりません。" }, { status: 404 });
-  await writeJson(db, EARLY_ACCESS_CODES_KEY, nextCodes);
-  const removedActivations = await deleteEarlyAccessActivationsForCode(db, id);
-  return json({ codes: nextCodes.map(publicEarlyAccessCode), removedActivations });
-}
-
-async function resetEarlyAccessActivations(id, env) {
-  const db = requireDb(env);
-  const codes = await readJson(db, EARLY_ACCESS_CODES_KEY, []);
-  const entry = (Array.isArray(codes) ? codes : []).find((item) => item.id === id);
-  if (!entry) return json({ error: "対象のコードが見つかりません。" }, { status: 404 });
-  const removedActivations = await deleteEarlyAccessActivationsForCode(db, id);
-  entry.uses = 0;
-  await writeJson(db, EARLY_ACCESS_CODES_KEY, codes);
-  return json({ codes: codes.map(publicEarlyAccessCode), removedActivations });
-}
-
-function publicEarlyAccessCode(entry) {
-  return {
-    id: String(entry?.id || ""),
-    label: String(entry?.label || "アーリーアクセス"),
-    createdAt: entry?.createdAt || null,
-    expiresAt: entry?.expiresAt || null,
-    maxUses: Math.max(1, Number(entry?.maxUses) || 1),
-    uses: Math.max(0, Number(entry?.uses) || 0),
-    lastUsedAt: entry?.lastUsedAt || null
-  };
-}
-
-function normalizeExpiration(value) {
-  if (!value) return null;
-  const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp) || timestamp <= Date.now()) return null;
-  return new Date(timestamp).toISOString();
-}
-
-function generateSerialCode() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(12));
-  const value = [...bytes].map((byte) => alphabet[byte % alphabet.length]).join("");
-  return `MS-${value.slice(0, 4)}-${value.slice(4, 8)}-${value.slice(8, 12)}`;
-}
-
-function generateEntryId() {
-  const bytes = crypto.getRandomValues(new Uint8Array(16));
-  return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-function normalizeSerial(value) {
-  return String(value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-}
-
-async function hashValue(value) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 async function getDisasterMapInfo(env) {

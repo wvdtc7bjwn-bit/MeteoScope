@@ -204,25 +204,9 @@
           </section>
 
           <section id="early-access-management" class="admin-card admin-span-2">
-            <div class="admin-section-head">
-              <div class="admin-section-title">
-                <span class="admin-section-number">07</span>
-                <div><h2>アーリーアクセス</h2><p>シリアルコードの発行と失効</p></div>
-              </div>
-            </div>
-            <form id="early-access-form" class="admin-serial-form admin-inline-form">
-              <label class="admin-field"><span>管理用ラベル</span><input id="early-access-label" type="text" maxlength="80" placeholder="テスト利用者" /></label>
-              <label class="admin-field"><span>有効期限</span><input id="early-access-expires" type="datetime-local" /></label>
-              <label class="admin-field admin-field--compact"><span>利用台数</span><input id="early-access-max-uses" type="number" min="1" max="10000" value="1" /></label>
-              <button class="admin-primary-button" type="submit">シリアルを発行</button>
-            </form>
-            <p class="admin-muted">Webアプリ削除などで認証情報を失った場合は「利用枠をリセット」で即時解除できます。30日間認証確認のない端末枠は自動で解放されます。</p>
-            <div id="early-access-generated" class="admin-generated-serial" hidden>
-              <span>発行したシリアル</span><strong id="early-access-serial"></strong>
-              <button id="copy-early-access-serial" class="admin-small-button" type="button">コピー</button>
-              <small>D1へ保存しました。このコード自体は再表示できません。</small>
-            </div>
-            <div id="early-access-code-list" class="admin-serial-list"></div>
+            <div class="admin-section-head"><div class="admin-section-title"><span class="admin-section-number">07</span><div><h2>アーリーアクセス</h2><p>アカウント単位の利用許可</p></div></div></div>
+            <p class="admin-muted">アカウント一覧で利用を許可・解除できます。</p>
+            <a href="#account-management">アカウント一覧へ</a>
           </section>
 
           <section id="notice-management" class="admin-card admin-span-2">

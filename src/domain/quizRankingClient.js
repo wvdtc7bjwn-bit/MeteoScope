@@ -56,15 +56,24 @@ function accountPayload(values) {
 export const QuizRankingClient = Object.freeze({
   configuration: () => request("config"),
   account: () => request("account"),
-  register: (values) => request("register", { method: "POST", body: accountPayload(values) }),
-  login: (values) => request("login", { method: "POST", body: accountPayload(values) }),
+  async register(values) {
+    const result = await request("register", { method: "POST", body: accountPayload(values) });
+    globalThis.dispatchEvent?.(new Event("meteoscope:account-change"));
+    return result;
+  },
+  async login(values) {
+    const result = await request("login", { method: "POST", body: accountPayload(values) });
+    globalThis.dispatchEvent?.(new Event("meteoscope:account-change"));
+    return result;
+  },
   async logout() {
     try { await request("logout", { method: "POST", body: "{}" }); }
-    finally { saveToken(""); }
+    finally { saveToken(""); globalThis.dispatchEvent?.(new Event("meteoscope:account-change")); }
   },
   async deleteAccount(password) {
     const result = await request("account", { method: "DELETE", body: JSON.stringify({ password }) });
     saveToken("");
+    globalThis.dispatchEvent?.(new Event("meteoscope:account-change"));
     return result;
   },
   leaderboard: (difficulty) => request(`leaderboard?difficulty=${encodeURIComponent(difficulty)}`),

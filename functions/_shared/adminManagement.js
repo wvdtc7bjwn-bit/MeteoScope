@@ -10,9 +10,11 @@ export async function listMeteoScopeAccounts(db, options = {}) {
   const offset = Math.min(MAX_ACCOUNT_OFFSET, Math.max(0, Number.parseInt(options.offset, 10) || 0));
   const [accountsResult, totalRow] = await Promise.all([
     db.prepare(
-      `SELECT id, username_normalized, display_name, created_at, updated_at
-       FROM quiz_accounts
-       ORDER BY datetime(created_at) DESC, id ASC
+      `SELECT accounts.id, accounts.username_normalized, accounts.display_name, accounts.created_at, accounts.updated_at,
+              CASE WHEN json_valid(grants.value) AND json_extract(grants.value, '$.allowed') = 1 THEN 1 ELSE 0 END AS early_access_allowed
+       FROM quiz_accounts accounts
+       LEFT JOIN app_records grants ON grants.key = 'early-access-account:' || accounts.id
+       ORDER BY datetime(accounts.created_at) DESC, accounts.id ASC
        LIMIT ?1 OFFSET ?2`
     ).bind(limit, offset).all(),
     db.prepare("SELECT COUNT(*) AS total FROM quiz_accounts").first()
@@ -55,6 +57,7 @@ export async function deleteMeteoScopeAccount(db, accountID) {
     db.prepare("DELETE FROM quiz_challenges WHERE account_id = ?1").bind(id),
     db.prepare("DELETE FROM quiz_attempts WHERE account_id = ?1").bind(id),
     db.prepare("DELETE FROM quiz_sessions WHERE account_id = ?1").bind(id),
+    db.prepare("DELETE FROM app_records WHERE key = 'early-access-account:' || ?1").bind(id),
     db.prepare(
       `DELETE FROM app_records
        WHERE key LIKE 'early-access-activation:%'
@@ -84,7 +87,8 @@ function publicAccount(account) {
     username: String(account?.username_normalized || ""),
     displayName: String(account?.display_name || ""),
     createdAt: account?.created_at || null,
-    updatedAt: account?.updated_at || null
+    updatedAt: account?.updated_at || null,
+    earlyAccessAllowed: Number(account?.early_access_allowed) === 1
   };
 }
 

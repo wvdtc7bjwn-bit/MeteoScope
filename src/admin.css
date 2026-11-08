@@ -493,7 +493,7 @@ h3 { font-size: 15px; line-height: 1.4; }
 .admin-account-management-head > div { display: grid; gap: 2px; }
 .admin-account-management-head p { color: var(--admin-muted); font-size: 11px; }
 .admin-account-management-head > span { color: var(--admin-muted); font-size: 12px; font-weight: 600; }
-.admin-account-item { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto; gap: 16px; align-items: center; overflow: hidden; }
+.admin-account-item { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto auto; gap: 12px; align-items: center; overflow: hidden; }
 .admin-account-name, .admin-account-meta { display: grid; min-width: 0; gap: 3px; }
 .admin-account-name strong { overflow-wrap: anywhere; }
 .admin-account-name span, .admin-account-meta span, .admin-account-meta small { color: var(--admin-muted); font-size: 11px; overflow-wrap: anywhere; }

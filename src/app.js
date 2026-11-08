@@ -4,7 +4,7 @@ import { setupTabs } from "./ui/tabs.js";
 import { setupAmedasDailyChartToggle, setupAmedasPrecipitationPeriods, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { applyAmedasPrecipitationPeriod, DEFAULT_AMEDAS_PRECIPITATION_PERIOD, normalizeAmedasPrecipitationPeriod } from "./amedasPrecipitationPeriod.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
-import { setupEarthquakeLayerToggle, setupSatelliteLayerToggle, setupWeatherDistributionToggle, syncEarthquakeLayerToggle, syncSatelliteLayerToggle, syncWeatherDistributionToggle, toggleWeatherDistributionPicker } from "./ui/weatherDistributionToggle.js";
+import { setupCommonLayerToggle, setupEarthquakeLayerToggle, setupSatelliteLayerToggle, setupWeatherDistributionToggle, syncCommonLayerToggle, syncEarthquakeLayerToggle, syncSatelliteLayerToggle, syncWeatherDistributionToggle, toggleWeatherDistributionPicker } from "./ui/weatherDistributionToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
 import { setupWeeklyWeatherModal } from "./ui/weeklyWeatherModal.js";
@@ -77,7 +77,7 @@ import { setupRemoteConfig } from "./remoteConfig.js";
 import { setupTheme } from "./ui/theme.js";
 import { getCurrentLanguage, localizeText, setupLocale } from "./ui/locale.js";
 import { createMapStartupRecovery } from "./mapStartupRecovery.js";
-import { activateEarlyAccess, deactivateEarlyAccess, fetchEarlyAccessActiveFaultSegments, validateEarlyAccess } from "./ui/earlyAccess.js";
+import { fetchEarlyAccessActiveFaultSegments, validateEarlyAccess } from "./ui/earlyAccess.js";
 import { CommunityReportClient } from "./domain/communityReportClient.js";
 import { openCommunityReportModal, setupCommunityReportModal } from "./ui/communityReportModal.js";
 import { setupWorldTyphoonTargetModal, updateWorldTyphoonTargetPicker } from "./ui/worldTyphoonTargetModal.js";
@@ -368,6 +368,7 @@ export function createWeatherApp() {
   let selectedAmedasStationId = "";
   let earlyAccessState = { status: "checking", active: false, message: "認証状態を確認中です。" };
   let earlyAccessEnabled = false;
+  let earlyAccessRequestId = 0;
   let amedasDailyChartDayOffset = 0;
   let amedasDailyChart = { status: "idle", stationId: "", stationName: "", metricId: "", precipitationPeriod: activeAmedasPrecipitationPeriod, dayOffset: 0, data: null };
   let amedasDailyChartRequestId = 0;
@@ -553,6 +554,7 @@ export function createWeatherApp() {
 
   function renderLeftPanelState(tab, panelState) {
     updateLeftPanel(tab, panelState);
+    syncCommonLayerToggle(tab?.id !== "earthquake" && !(tab?.id === "radar" && (weatherDistributionMode || weatherChartSatelliteEnabled)));
     syncWeatherDistributionToggle({
       visible: tab?.id === "radar" && Boolean(weatherDistributionMode),
       activeMode: tab?.id === "radar" ? weatherDistributionMode : null
@@ -751,26 +753,13 @@ export function createWeatherApp() {
   }
 
   async function refreshEarlyAccess() {
-    earlyAccessState = await validateEarlyAccess();
-    earlyAccessEnabled = earlyAccessState.active;
+    const requestId = ++earlyAccessRequestId;
+    const result = await validateEarlyAccess();
+    if (requestId !== earlyAccessRequestId) return earlyAccessState;
+    earlyAccessState = result;
+    earlyAccessEnabled = result.active;
     applyEarlyAccessState();
-    return earlyAccessState;
-  }
-
-  async function authenticateEarlyAccess(code) {
-    earlyAccessState = { status: "checking", active: false, message: "シリアルコードを確認中です。" };
-    refreshSettingsModalView();
-    earlyAccessState = await activateEarlyAccess(code);
-    earlyAccessEnabled = earlyAccessState.active;
-    applyEarlyAccessState();
-    return earlyAccessState;
-  }
-
-  function releaseEarlyAccess() {
-    earlyAccessState = deactivateEarlyAccess();
-    earlyAccessEnabled = false;
-    applyEarlyAccessState();
-    return earlyAccessState;
+    return result;
   }
 
   function applyEarlyAccessState() {
@@ -1000,8 +989,9 @@ if (layerId === "river") {
               : "台風情報の発表時刻の雨雲レーダを重ねる");
 
     button.hidden = !visible;
+    document.getElementById("map-layer-toggle")?.classList.toggle("has-typhoon-radar", visible);
     button.disabled = overlay.status === "loading";
-    button.classList.toggle("is-active", overlay.visible);
+    button.classList.toggle("active", overlay.visible);
     button.classList.toggle("is-loading", overlay.status === "loading");
     button.classList.toggle("is-unavailable", overlay.status === "unavailable");
     button.setAttribute("aria-pressed", String(Boolean(overlay.enabled)));
@@ -3599,9 +3589,16 @@ if (layerId === "river") {
   }
 
   function startAutoRefresh() {
+    window.addEventListener("meteoscope:account-change", () => {
+      earlyAccessEnabled = false;
+      earlyAccessState = { status: "checking", active: false, message: "アカウントの権限を確認中です。" };
+      applyEarlyAccessState();
+      void refreshEarlyAccess();
+    });
     if (autoRefreshTimer) window.clearInterval(autoRefreshTimer);
     autoRefreshTimer = window.setInterval(() => {
       refreshActiveTab({ force: true });
+      if (!document.hidden) void refreshEarlyAccess();
       if (!document.hidden && currentLocationInfo.status === "found") void currentLocationWeather.refresh(currentLocationInfo);
     }, AUTO_REFRESH_INTERVAL_MS);
 
@@ -3617,6 +3614,7 @@ if (layerId === "river") {
     document.addEventListener("visibilitychange", () => {
       syncEarlyWarningRefreshTimer();
       if (!document.hidden) {
+        void refreshEarlyAccess();
         if (currentLocationInfo.status === "found") void currentLocationWeather.refresh(currentLocationInfo);
         if (activeTab === "warnings" && activeWarningView === "early") {
           void refreshWarningDetails({ includeEarlyWarnings: true });
@@ -3893,26 +3891,22 @@ if (layerId === "river") {
   }
 
   function setupMapTerrainToggle() {
-    const toggle = document.getElementById("map-terrain-toggle");
-    if (!toggle) return;
-    toggle.addEventListener("click", () => {
+    document.querySelectorAll("[data-map-terrain-toggle]").forEach((toggle) => toggle.addEventListener("click", () => {
       setTerrainLayerSettings({
         visible: terrainLayerSettings.visible !== true,
         opacity: terrainLayerSettings.opacity
       });
-    });
+    }));
     renderMapTerrainToggle();
   }
 
   function renderMapTerrainToggle() {
-    const toggle = document.getElementById("map-terrain-toggle");
-    if (!toggle) return;
     const enabled = terrainLayerSettings.visible === true;
-    toggle.classList.toggle("is-enabled", enabled);
-    toggle.setAttribute("aria-checked", String(enabled));
-    toggle.setAttribute("aria-label", `地形表示を${enabled ? "OFF" : "ON"}にする`);
-    const state = toggle.querySelector(".map-terrain-toggle-state");
-    if (state) state.textContent = enabled ? "ON" : "OFF";
+    document.querySelectorAll("[data-map-terrain-toggle]").forEach((toggle) => {
+      toggle.classList.toggle("active", enabled);
+      toggle.setAttribute("aria-checked", String(enabled));
+      toggle.setAttribute("aria-label", `地形表示を${enabled ? "OFF" : "ON"}にする`);
+    });
   }
 
   async function searchSettingsAreas(query) {
@@ -4164,6 +4158,7 @@ if (layerId === "river") {
       onDistributionRetry: refreshEarthquakeDistribution,
       getDistributionDates: () => earthquakeDistributionState.data?.availableDates ?? []
     });
+    setupCommonLayerToggle();
     setupEarthquakeMapLayerToggles({ onChange: setEarthquakeMapLayerVisible });
     setupEarthquakeLayerToggle({
       onLayerChange: setEarthquakeMapLayerVisible,
@@ -4237,8 +4232,7 @@ if (layerId === "river") {
       onTerrainLayerChange: setTerrainLayerSettings,
       onEarthquakeDistributionRecentXmlChange:
         setEarthquakeDistributionRecentXmlVisible,
-      onActivateEarlyAccess: authenticateEarlyAccess,
-      onDeactivateEarlyAccess: releaseEarlyAccess,
+      onRefreshEarlyAccess: refreshEarlyAccess,
       onEarlyAccessActiveFaultSourceChange: setEarlyAccessActiveFaultSource,
       onOpenGuide: onboarding.open,
       tabs: TABS,

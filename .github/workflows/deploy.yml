@@ -44,6 +44,11 @@ jobs:
       - name: Test disaster quiz catalog
         run: npm run test:quiz
 
+      - name: Test account-based early access
+        run: |
+          npm run test:early-access
+          npm run test:admin
+
       - name: Test current-location marker controls
         run: npm run test:location
 
