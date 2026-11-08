@@ -13,48 +13,54 @@ export function findCurrentWeatherForecast(forecast, now = Date.now()) {
   }) ?? null;
 }
 
-export function createCurrentLocationWeather() {
+export function createCurrentLocationWeather({ fetchForecast = fetchWeeklyForecastForLocation } = {}) {
   let requestId = 0;
   let locationKey = "";
   let forecast = null;
   let pending = null;
+  let unavailable = "";
   const element = document.getElementById("current-location-weather");
   const clock = document.getElementById("clock");
 
   function render() {
     if (!element) return;
     const slot = findCurrentWeatherForecast(forecast);
-    element.hidden = !slot;
-    clock?.setAttribute("aria-label", slot ? `現在地付近の３時間予報 ${slot.weather}。時計表示モードを開く` : "時計表示モードを開く");
-    if (!slot) return;
-    element.querySelector(".current-location-weather-icon").innerHTML = renderWeeklyWeatherIcon(slot.weatherCode, slot.weather);
-    element.querySelector(".current-location-weather-text").textContent = slot.weather;
-    element.title = `現在地付近の３時間予報：${slot.weather}`;
+    const message = slot ? slot.weather : unavailable;
+    element.hidden = !message;
+    clock?.setAttribute("aria-label", message ? `現在地の天気 ${message}。時計表示モードを開く` : "時計表示モードを開く");
+    if (!message) return;
+    element.querySelector(".current-location-weather-icon").innerHTML = slot ? renderWeeklyWeatherIcon(slot.weatherCode, slot.weather) : "";
+    element.querySelector(".current-location-weather-icon").hidden = !slot;
+    element.querySelector(".current-location-weather-text").textContent = message;
+    element.title = slot ? `現在地付近の３時間予報：${message}` : message;
     element.setAttribute("aria-label", element.title);
   }
 
   return {
-    clear() {
+    clear(message = "") {
       requestId += 1;
       locationKey = "";
       forecast = null;
       pending = null;
+      unavailable = message;
       render();
     },
     async refresh(location) {
       const key = location?.status === "found" ? String(location.areaCode ?? "") : "";
-      if (!key) { this.clear(); return; }
+      if (!key) { this.clear("現在地を取得できません"); return; }
       if (pending && key === locationKey) return pending;
-      if (key !== locationKey) { forecast = null; render(); }
+      if (key !== locationKey) { forecast = null; unavailable = ""; render(); }
       locationKey = key;
       const id = ++requestId;
-      pending = fetchWeeklyForecastForLocation(location).then((result) => {
+      pending = fetchForecast(location).then((result) => {
         if (id !== requestId) return;
         forecast = result;
+        unavailable = findCurrentWeatherForecast(result) ? "" : "予報を取得できません";
         render();
       }).catch((error) => {
         if (id !== requestId) return;
         forecast = null;
+        unavailable = "予報を取得できません";
         render();
         console.warn("[MeteoScope] current location forecast unavailable", error);
       }).finally(() => { if (id === requestId) pending = null; });

@@ -28,6 +28,7 @@ export const MAP_DATA_ENDPOINTS = {
   gsiHillshadeTiles: "https://cyberjapandata.gsi.go.jp/xyz/hillshademap/{z}/{x}/{y}.png",
   tectonicPlateBoundaries: publicAsset("data/usgs-plate-boundaries-japan.geojson"),
   slab2DepthContours: publicAsset("data/usgs-slab2-depth-contours-japan.geojson"),
+  mriPlateDepthContours: publicAsset("data/mri-jma-plate-depth-contours.geojson"),
   slab2Surface: publicAsset("data/usgs-slab2-surface-japan.geojson?v=20260720-7")
 };
 

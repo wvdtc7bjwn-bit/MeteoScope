@@ -401,6 +401,9 @@ export function createWeatherMap(elementId) {
   let gsjActiveFaultData = EMPTY_GEOJSON;
   let plateBoundaryVisible = true;
   let plateDepthContoursVisible = true;
+  let plateDepthSource = "slab2";
+  let plateDepthLoadGeneration = 0;
+  const plateDepthUrl = () => plateDepthSource === "mri" ? MAP_DATA_ENDPOINTS.mriPlateDepthContours : MAP_DATA_ENDPOINTS.slab2DepthContours;
   let warningAreasByCode = new Map();
   let mapInfoElement = null;
   let mapInfoConnectorElement = null;
@@ -674,6 +677,18 @@ export function createWeatherMap(elementId) {
     syncPlateDepthContourVisibility();
   }
 
+  function setPlateDepthSource(source) {
+    const next = source === "mri" ? "mri" : "slab2";
+    if (next === plateDepthSource) return;
+    plateDepthSource = next;
+    plateDepthLoadGeneration++;
+    plateDepth3DReady = false;
+    plateDepthSurface3DReady = false;
+    plateDepth3DLoadPromise = null;
+    map?.getSource(PLATE_DEPTH_SOURCE_ID)?.setData(plateDepthUrl());
+    syncPlateDepthContourVisibility();
+  }
+
   function syncActiveFaultVisibility() {
     if (!map?.getSource(SAMPLE_SOURCE_ID)) return;
     const shouldShow = activeMode === "earthquake" && activeFaultVisible;
@@ -833,7 +848,7 @@ export function createWeatherMap(elementId) {
     if (!map?.getSource(SAMPLE_SOURCE_ID)) return;
     const shouldShow = activeMode === "earthquake" && plateDepthContoursVisible;
     if (shouldShow) ensurePlateDepthContourLayers();
-    const wantsSpatialContours = shouldShow && hypocenter3DEnabled;
+    const wantsSpatialContours = shouldShow && hypocenter3DEnabled && plateDepthSource === "slab2";
     if (wantsSpatialContours && !plateDepth3DReady) void ensurePlateDepth3DData();
     const showSpatialContours = wantsSpatialContours
       && plateDepth3DLayerAvailable
@@ -851,10 +866,11 @@ export function createWeatherMap(elementId) {
 
   async function ensurePlateDepth3DData() {
     if (plateDepth3DReady || plateDepth3DLoadPromise) return plateDepth3DLoadPromise;
+    const generation = plateDepthLoadGeneration;
     const surfaceRequest = fetch(MAP_DATA_ENDPOINTS.slab2Surface, { cache: "force-cache" })
       .then(async (response) => {
         if (!response.ok) {
-          console.warn(`[MeteoScope] USGS Slab2 surface request failed: ${response.status}`);
+          console.warn(`[MeteoScope] Plate surface request failed: ${response.status}`);
           return null;
         }
         return response.json();
@@ -864,12 +880,13 @@ export function createWeatherMap(elementId) {
         return null;
       });
     plateDepth3DLoadPromise = Promise.all([
-      fetch(MAP_DATA_ENDPOINTS.slab2DepthContours, { cache: "force-cache" }),
+      fetch(plateDepthUrl(), { cache: "force-cache" }),
       surfaceRequest
     ])
       .then(async ([contourResponse, surface]) => {
         if (!contourResponse.ok) throw new Error(`USGS Slab2 contour request failed: ${contourResponse.status}`);
         const contours = await contourResponse.json();
+        if (generation !== plateDepthLoadGeneration) return;
         plateDepth3D.setData(contours);
         plateDepth3DReady = true;
         if (surface) {
@@ -879,7 +896,7 @@ export function createWeatherMap(elementId) {
         syncPlateDepthContourVisibility();
       })
       .catch((error) => {
-        plateDepth3DLoadPromise = null;
+        if (generation === plateDepthLoadGeneration) plateDepth3DLoadPromise = null;
         console.warn("[MeteoScope] プレート等深線の立体表示を準備できませんでした", error);
       });
     return plateDepth3DLoadPromise;
@@ -892,7 +909,7 @@ export function createWeatherMap(elementId) {
     const visibility = activeMode === "earthquake" && plateDepthContoursVisible ? "visible" : "none";
     map.addSource(PLATE_DEPTH_SOURCE_ID, {
       type: "geojson",
-      data: MAP_DATA_ENDPOINTS.slab2DepthContours
+      data: plateDepthUrl()
     });
     map.addLayer({
       id: PLATE_DEPTH_LINE_LAYER_ID,
@@ -2611,7 +2628,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setCommunityReports, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
 }
 
 function normalizeTerrainOpacity(value) {

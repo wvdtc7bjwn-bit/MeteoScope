@@ -445,6 +445,7 @@ export function createWeatherApp() {
   let earthquakeDistributionRequestId = 0;
   let earthquakeDistributionPlateDataState = { status: "idle", data: null, error: "" };
   let earthquakeDistributionPlateDataRequest = null;
+  let earthquakePlateDataGeneration = 0;
   let earthquakeDistributionAreaDrawing = false;
   let earthquakeArchiveFilters = {};
   let earthquakeArchiveState = { status: "idle", data: null, error: "" };
@@ -465,6 +466,7 @@ export function createWeatherApp() {
   let earlyAccessActiveFaultDataRequestId = 0;
   let earthquakePlateBoundaryVisible = loadEarthquakeLayerVisibility("plateBoundary");
   let earthquakePlateDepthContoursVisible = loadEarthquakeLayerVisibility("plateDepthContours");
+  let earthquakePlateDepthSource = (() => { try { return localStorage.getItem("meteoscope-plate-depth-source") === "mri" ? "mri" : "slab2"; } catch { return "slab2"; } })();
   let earthquakeEstimatedIntensityVisible = loadEarthquakeLayerVisibility("estimatedIntensity");
   let tideObservation = { status: "idle", station: null, points: [], rangeHours: 24 };
   let tideObservationRequest = null;
@@ -567,6 +569,7 @@ export function createWeatherApp() {
         plateBoundary: earthquakePlateBoundaryVisible,
         plateDepthContours: earthquakePlateDepthContoursVisible
       },
+      plateSource: earthquakePlateDepthSource,
       presentation3d: earthquakeDistribution3DEnabled && earthquakeView === "distribution" && earthquakeSummaryPage === "earthquake"
     });
   }
@@ -1537,9 +1540,11 @@ if (layerId === "river") {
   async function ensureEarthquakeDistributionPlateData() {
     if (earthquakeDistributionPlateDataState.data) return earthquakeDistributionPlateDataState.data;
     if (earthquakeDistributionPlateDataRequest) return earthquakeDistributionPlateDataRequest;
+    const generation = earthquakePlateDataGeneration;
+    const source = earthquakePlateDepthSource;
     earthquakeDistributionPlateDataState = { status: "loading", data: null, error: "" };
     earthquakeDistributionPlateDataRequest = Promise.all([
-      fetch(MAP_DATA_ENDPOINTS.slab2DepthContours, { cache: "force-cache" }),
+      fetch(source === "mri" ? MAP_DATA_ENDPOINTS.mriPlateDepthContours : MAP_DATA_ENDPOINTS.slab2DepthContours, { cache: "force-cache" }),
       fetch(MAP_DATA_ENDPOINTS.tectonicPlateBoundaries, { cache: "force-cache" })
     ])
       .then(async ([contoursResponse, boundariesResponse]) => {
@@ -1552,10 +1557,12 @@ if (layerId === "river") {
         };
       })
       .then((data) => {
+        if (generation !== earthquakePlateDataGeneration) return null;
         earthquakeDistributionPlateDataState = { status: "ok", data, error: "" };
         return data;
       })
       .catch((error) => {
+        if (generation !== earthquakePlateDataGeneration) return null;
         earthquakeDistributionPlateDataState = {
           status: "error",
           data: null,
@@ -1564,6 +1571,7 @@ if (layerId === "river") {
         return null;
       })
       .finally(() => {
+        if (generation !== earthquakePlateDataGeneration) return;
         earthquakeDistributionPlateDataRequest = null;
         if (activeTab === "earthquake" && earthquakeView === "distribution") {
           updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
@@ -1846,6 +1854,19 @@ if (layerId === "river") {
       const tab = TABS.find((item) => item.id === "earthquake");
       updateCurrentView(tab, latestDataByTab.earthquake ?? {});
     }
+  }
+
+  function setEarthquakePlateDepthSource(source) {
+    const next = source === "mri" ? "mri" : "slab2";
+    if (next === earthquakePlateDepthSource) return;
+    earthquakePlateDepthSource = next;
+    try { localStorage.setItem("meteoscope-plate-depth-source", next); } catch {}
+    earthquakePlateDataGeneration++;
+    earthquakeDistributionPlateDataRequest = null;
+    earthquakeDistributionPlateDataState = { status: "idle", data: null, error: "" };
+    weatherMap?.setPlateDepthSource(next);
+    if (earthquakeView === "distribution") void ensureEarthquakeDistributionPlateData();
+    if (activeTab === "earthquake") updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
   }
 
   function setEarthquakeMapLayerVisible(layerId, visible) {
@@ -2358,6 +2379,7 @@ if (layerId === "river") {
       distributionError: earthquakeDistributionState.error,
       distribution,
       distributionPlateData: earthquakeDistributionPlateDataState.data,
+      plateDepthSource: earthquakePlateDepthSource,
       distributionPlateDataStatus: earthquakeDistributionPlateDataState.status,
       distributionAreaDrawing: earthquakeDistributionAreaDrawing,
       distributionItems: distribution?.items ?? []
@@ -3376,7 +3398,7 @@ if (layerId === "river") {
         status: "error",
         message: "このブラウザでは位置情報を利用できません。"
       };
-      currentLocationWeather.clear();
+      currentLocationWeather.clear("位置情報を利用できません");
       refreshSettingsModalView();
       refreshActivePanel();
       return;
@@ -3399,7 +3421,7 @@ if (layerId === "river") {
         if (locationWatchId === null) startLocationWatch({ announceLoading: false });
       } catch (error) {
         currentLocationInfo = buildCurrentLocationError(error);
-        currentLocationWeather.clear();
+        currentLocationWeather.clear(Number(error?.code) === 1 ? "位置情報オフ" : "現在地を取得できません");
         refreshSettingsModalView();
         refreshActivePanel();
       } finally {
@@ -3416,7 +3438,7 @@ if (layerId === "river") {
         status: "error",
         message: "このブラウザでは位置情報を利用できません。"
       };
-      currentLocationWeather.clear();
+      currentLocationWeather.clear("位置情報を利用できません");
       refreshSettingsModalView();
       refreshActivePanel();
       return;
@@ -3444,7 +3466,7 @@ if (layerId === "river") {
           stopLocationWatch();
         }
         currentLocationInfo = buildCurrentLocationError(error);
-        currentLocationWeather.clear();
+        currentLocationWeather.clear(Number(error?.code) === 1 ? "位置情報オフ" : "現在地を取得できません");
         refreshSettingsModalView();
         refreshActivePanel();
       },
@@ -3459,7 +3481,7 @@ if (layerId === "river") {
         status: "error",
         message: "現在地の座標を読み取れませんでした。"
       };
-      currentLocationWeather.clear();
+      currentLocationWeather.clear("現在地を取得できません");
       refreshSettingsModalView();
       refreshActivePanel();
       return;
@@ -3493,7 +3515,7 @@ if (layerId === "river") {
     } catch (error) {
       if (requestId !== locationResolveRequestId) return;
       currentLocationInfo = buildCurrentLocationError(error);
-      currentLocationWeather.clear();
+      currentLocationWeather.clear("現在地を取得できません");
       refreshSettingsModalView();
       refreshActivePanel();
     }
@@ -3972,6 +3994,7 @@ if (layerId === "river") {
     void applyActiveFaultDataSource();
     weatherMap.setActiveFaultVisible(earthquakeActiveFaultVisible);
     weatherMap.setPlateBoundaryVisible(earthquakePlateBoundaryVisible);
+    weatherMap.setPlateDepthSource(earthquakePlateDepthSource);
     weatherMap.setPlateDepthContoursVisible(earthquakePlateDepthContoursVisible);
     weatherMap.setTheme(themeController.getResolvedTheme());
     weatherMap.setTerrainLayer(terrainLayerSettings);
@@ -4144,6 +4167,7 @@ if (layerId === "river") {
     setupEarthquakeMapLayerToggles({ onChange: setEarthquakeMapLayerVisible });
     setupEarthquakeLayerToggle({
       onLayerChange: setEarthquakeMapLayerVisible,
+      onPlateSourceChange: setEarthquakePlateDepthSource,
       onPresentationChange: selectEarthquakeDistributionPresentation
     });
     setupRadarControls({

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { findCurrentWeatherForecast } from "../src/ui/currentLocationWeather.js";
+import { createCurrentLocationWeather, findCurrentWeatherForecast } from "../src/ui/currentLocationWeather.js";
 import { startClock } from "../src/ui/time.js";
 
 const slots = { threeHourlyForecasts: [
@@ -23,4 +23,29 @@ assert.equal(button.innerHTML, "weather must remain", "clock ticks must preserve
 stopClock();
 globalThis.document = originalDocument;
 globalThis.window = originalWindow;
+
+const icon = { innerHTML: "", hidden: false };
+const text = { textContent: "" };
+const weather = {
+  hidden: true,
+  title: "",
+  setAttribute() {},
+  querySelector: (selector) => selector.endsWith("-icon") ? icon : text
+};
+const clock = { setAttribute() {} };
+globalThis.document = { getElementById: (id) => id === "clock" ? clock : weather };
+const current = createCurrentLocationWeather({ fetchForecast: async () => ({
+  threeHourlyForecasts: [{ dateTime: new Date(Date.now() - 60000).toISOString(), duration: "PT3H", weather: "晴れ", weatherCode: "100" }]
+}) });
+current.clear("位置情報が許可されていません");
+assert.equal(weather.hidden, false);
+assert.equal(text.textContent, "位置情報が許可されていません");
+assert.equal(icon.hidden, true);
+await current.refresh({ status: "found", areaCode: "122010" });
+assert.equal(text.textContent, "晴れ");
+assert.equal(icon.hidden, false);
+const missing = createCurrentLocationWeather({ fetchForecast: async () => ({ threeHourlyForecasts: [] }) });
+await missing.refresh({ status: "found", areaCode: "122010" });
+assert.equal(text.textContent, "予報を取得できません");
+globalThis.document = originalDocument;
 console.log("Current location weather tests passed");

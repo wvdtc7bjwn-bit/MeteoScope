@@ -139,7 +139,7 @@ assert.match(leftPanel, /深さ断面/u);
 assert.match(leftPanel, /深さ断面（km）/u);
 assert.match(leftPanel, /プレート境界そのものの断面ではありません/u);
 assert.match(leftPanel, /data-earthquake-distribution-show-plate-layers/u);
-assert.match(leftPanel, /Slab2プレート面/u);
+assert.match(leftPanel, /plateSource === "mri"/u);
 assert.match(leftPanel, /0km収束境界/u);
 assert.match(leftPanel, /内陸の浅い地震群のため、離れたプレート面の投影を省略しています/u);
 assert.match(leftPanel, /earthquake-analysis-section-loading/u);

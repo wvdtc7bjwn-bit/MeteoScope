@@ -218,6 +218,13 @@
           <button type="button" data-earthquake-map-layer="activeFault" aria-pressed="false">主要活断層</button>
           <button type="button" data-earthquake-map-layer="plateBoundary" aria-pressed="false">プレート境界</button>
           <button type="button" data-earthquake-map-layer="plateDepthContours" aria-pressed="false">プレート等深線</button>
+          <label class="earthquake-plate-source">等深線のデータ
+            <select id="earthquake-plate-source" aria-label="プレート等深線のデータ元">
+              <option value="slab2">USGS Slab2</option>
+              <option value="mri">気象研究所・弘瀬ほか</option>
+            </select>
+            <a href="https://www.mri-jma.go.jp/Dep/sei/fhirose/plate/PlateData.html" target="_blank" rel="noopener noreferrer">気象研究所データ（平面表示）の出典</a>
+          </label>
           <button type="button" data-earthquake-distribution-presentation="3d" aria-pressed="false">震央の立体表示</button>
         </div>
         <button id="earthquake-layer-toggle-button" class="weather-distribution-toggle-button" type="button" aria-expanded="false" aria-controls="earthquake-layer-toggle-choices" aria-label="地震地図のレイヤーを選択" title="地震地図のレイヤーを選択"></button>

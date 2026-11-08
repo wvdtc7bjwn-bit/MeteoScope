@@ -7093,6 +7093,7 @@ function buildEarthquakeDistributionMarkup(data) {
         hasArea,
         plateData: data.distributionPlateData,
         plateDataStatus: data.distributionPlateDataStatus,
+        plateSource: data.plateDepthSource,
         plateBoundaryVisible: data.plateBoundaryVisible === true,
         plateDepthContoursVisible: data.plateDepthContoursVisible === true
       })}
@@ -7342,7 +7343,7 @@ function buildEarthquakeDistributionAnalysisMarkup(snapshot, options) {
   const sectionAxisLabel = analysis.crossSection?.axisSource === "plate-boundary-axis"
     ? "近傍の収束境界から等深線を横切る方向"
     : analysis.crossSection?.axisSource === "plate-contour-axis"
-      ? "Slab2等深線を横切る方向"
+      ? "等深線を横切る方向"
       : "震源分布の主軸";
   const plateStatus = options.plateBoundaryVisible
     ? `プレート境界：地図に表示中${options.plateDepthContoursVisible ? "・等深線：表示中" : ""}`
@@ -7361,7 +7362,7 @@ function buildEarthquakeDistributionAnalysisMarkup(snapshot, options) {
       </div>
       ${buildSelectedEarthquakeDailyTrend(analysis.daily, selectionLabel)}
       ${options.hasArea
-        ? buildEarthquakeCrossSection(analysis.crossSection, options.plateDataStatus)
+        ? buildEarthquakeCrossSection(analysis.crossSection, options.plateDataStatus, options.plateSource)
         : '<div class="earthquake-analysis-section-empty">地図で範囲を囲って検索すると、震源分布とプレート等深線の向きから深さ断面を表示します。</div>'}
       <div class="earthquake-analysis-plate-status"><p class="earthquake-distribution-analysis-note">${escapeHtml(plateStatus)}。断面は${escapeHtml(selectionLabel)}内の${escapeHtml(sectionAxisLabel)}に沿う簡易表示で、プレート境界そのものの断面ではありません。</p>${plateAction}</div>
     </section>
@@ -7420,7 +7421,8 @@ function buildSelectedEarthquakeDailyTrend(daily, selectionLabel) {
   `;
 }
 
-function buildEarthquakeCrossSection(crossSection, plateDataStatus) {
+function buildEarthquakeCrossSection(crossSection, plateDataStatus, plateSource) {
+  const modelLabel = plateSource === "mri" ? "気象研究所・弘瀬ほか" : "Slab2";
   if (plateDataStatus === "loading") {
     return `
       <div class="earthquake-analysis-subhead"><strong>深さ断面</strong><span>準備中</span></div>
@@ -7468,20 +7470,21 @@ function buildEarthquakeCrossSection(crossSection, plateDataStatus) {
     const originMarkup = origin
       ? `<circle cx="${left + ((origin.distanceKm - crossSection.minDistanceKm) / xRange) * plotWidth}" cy="${top}" r="3.4" class="earthquake-analysis-plate-origin" style="stroke:${color}"><title>${escapeHtml(profile.plate)}の0km収束境界</title></circle>`
       : "";
-    return `<path d="${path}" class="earthquake-analysis-plate-line" style="stroke:${color}"><title>${escapeHtml(profile.plate)}（Slab2）</title></path>${originMarkup}`;
+    return `<path d="${path}" class="earthquake-analysis-plate-line" style="stroke:${color}"><title>${escapeHtml(profile.plate)}（${escapeHtml(modelLabel)}）</title></path>${originMarkup}`;
   }).join("");
   const usesProjectedPlateProfile = crossSection.plateProfileMethod === "nearby-projection";
   const plateLegend = plateProfiles.length
-    ? `<p class="earthquake-analysis-plate-legend"><span>${usesProjectedPlateProfile ? "破線：近傍のSlab2等深線を断面方向に投影・丸印：0km収束境界" : "破線：Slab2プレート面（20km等深線の交点を補間）・丸印：0km収束境界"}</span>${plateProfiles.map((profile, index) => `<span><i style="background:${["#ffcf57", "#b278ff", "#5ad8b2"][index % 3]}"></i>${escapeHtml(profile.plate)}</span>`).join("")}</p>`
+    ? `<p class="earthquake-analysis-plate-legend"><span>${usesProjectedPlateProfile ? "破線：近傍の等深線を断面方向に投影・丸印：0km収束境界" : "破線：プレート面（等深線の交点を補間）・丸印：0km収束境界"}</span>${plateProfiles.map((profile, index) => `<span><i style="background:${["#ffcf57", "#b278ff", "#5ad8b2"][index % 3]}"></i>${escapeHtml(profile.plate)}</span>`).join("")}</p>`
     : crossSection.plateProfileStatus === "shallow-inland"
       ? '<p class="earthquake-analysis-plate-legend">内陸の浅い地震群のため、離れたプレート面の投影を省略しています。</p>'
       : plateDataStatus === "loading"
       ? '<p class="earthquake-analysis-plate-legend">プレート面データを読み込み中です。</p>'
-      : '<p class="earthquake-analysis-plate-legend">この断面ではSlab2プレート面との交点を確認できません。</p>';
+      : '<p class="earthquake-analysis-plate-legend">この断面ではプレート面との交点を確認できません。</p>';
   return `
     <div class="earthquake-analysis-subhead"><strong>深さ断面（km）</strong><span>横断 約${Math.round(crossSection.spanKm)}km</span></div>
     <svg class="earthquake-distribution-chart earthquake-analysis-section-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="選択地震とプレート面の深さ断面">${grids}<text x="${left}" y="11" class="earthquake-chart-axis-text">浅い</text>${plateMarkup}${coordinates.map((point) => `<circle cx="${point.x}" cy="${point.y}" r="${point.radius}" class="earthquake-analysis-section-point"><title>深さ ${Math.round(point.depthKm)}km${point.magnitude === null ? "" : `・M${point.magnitude.toFixed(1)}`}</title></circle>`).join("")}</svg>
     ${plateLegend}
+    <p class="earthquake-analysis-plate-legend">等深線：${escapeHtml(modelLabel)}</p>
   `;
 }
 

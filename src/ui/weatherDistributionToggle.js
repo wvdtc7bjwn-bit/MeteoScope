@@ -149,7 +149,9 @@ export function syncSatelliteLayerToggle(options) {
   updateSatelliteLayerToggle(options);
 }
 
-export function setupEarthquakeLayerToggle({ onLayerChange, onPresentationChange }) {
+export function setupEarthquakeLayerToggle({ onLayerChange, onPresentationChange, onPlateSourceChange }) {
+  const sourceSelect = document.getElementById("earthquake-plate-source");
+  sourceSelect?.addEventListener("change", () => onPlateSourceChange?.(sourceSelect.value));
   const controller = setupLayerChoiceToggle({
     key: "earthquake-layer",
     rootId: "earthquake-layer-toggle",
@@ -170,12 +172,15 @@ export function setupEarthquakeLayerToggle({ onLayerChange, onPresentationChange
     }
   });
   if (!controller) return;
-  updateEarthquakeLayerToggle = ({ visible = false, layers = {}, presentation3d = false } = {}) => controller.update({
+  updateEarthquakeLayerToggle = ({ visible = false, layers = {}, presentation3d = false, plateSource = "slab2" } = {}) => {
+    if (sourceSelect) sourceSelect.value = plateSource;
+    controller.update({
     visible,
     isSelected: (choice) => choice.dataset.earthquakeMapLayer
       ? layers[choice.dataset.earthquakeMapLayer] === true
       : choice.dataset.earthquakeDistributionPresentation === "3d" && presentation3d
-  });
+    });
+  };
 }
 
 export function syncEarthquakeLayerToggle(options) {
