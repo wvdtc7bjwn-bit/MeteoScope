@@ -42,7 +42,7 @@ async function main() {
     ...card,
     observations
   }, {
-    format: "square",
+    format: "portrait",
     theme: "dark",
     language: "ja",
     japanGeoJson,

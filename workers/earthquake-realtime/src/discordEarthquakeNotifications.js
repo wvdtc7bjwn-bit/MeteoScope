@@ -478,7 +478,7 @@ async function renderDiscordCardImage({ db, browser, row, now }) {
     url.searchParams.set("event", String(row.event_id));
     const response = await browser.quickAction("screenshot", {
       url: url.href,
-      viewport: { width: 1080, height: 1080 },
+      viewport: { width: 1080, height: 1350 },
       screenshotOptions: { type: "png" },
       waitForSelector: { selector: "body[data-card-ready='true']", timeout: 15_000 },
       actionTimeout: 20_000
