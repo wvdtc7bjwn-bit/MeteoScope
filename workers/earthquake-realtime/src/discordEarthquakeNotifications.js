@@ -10,6 +10,9 @@ const DISCORD_FETCH_TIMEOUT_MS = 8_000;
 const DISCORD_MAX_ATTEMPTS = 8;
 const DISCORD_MAX_RETRY_MS = 60 * 60 * 1000;
 const METEOSCOPE_EARTHQUAKE_URL = "https://meteoscope.pages.dev/?tab=earthquake";
+const DISCORD_CARD_URL = "https://meteoscope.pages.dev/discord-earthquake-card.html";
+const DISCORD_CARD_FILENAME = "meteoscope-earthquake.png";
+const DISCORD_CARD_DAILY_LIMIT = 20;
 const VXSE53_CODE = "VXSE53";
 const DISCORD_ROLE_ID_PATTERN = /^\d{15,22}$/u;
 const DISCORD_INTENSITY_THRESHOLDS = [...EARTHQUAKE_INTENSITY_LEVELS]
@@ -114,7 +117,26 @@ export function buildDiscordEarthquakeWebhookPayload(report, roleConfig = null) 
       ].join("\n"),
       footer: { text: "気象庁 防災情報XML・MeteoScope" },
       timestamp: normalizeIsoTimestamp(report.reportTime)
-    }]
+    }],
+    _shareCard: {
+      type: "earthquake",
+      intensity: maximumIntensity,
+      intensityColor: getEarthquakeIntensityColor(report.maxIntensity),
+      eventTime: formatJstCardDateTime(report.originTime),
+      coordinates: report.longitude != null && report.latitude != null
+        && Number.isFinite(Number(report.longitude)) && Number.isFinite(Number(report.latitude))
+        ? [Number(report.longitude), Number(report.latitude)] : null,
+      hypocenter: place,
+      magnitude,
+      depth,
+      tsunami: formatTsunamiText(report.tsunamiText),
+      observations: (report.intensityStations ?? []).map((station) => ({
+        code: String(station.code ?? ""),
+        name: String(station.name ?? ""),
+        intensity: formatIntensity(station.intensity),
+        intensityColor: getEarthquakeIntensityColor(station.intensity)
+      }))
+    }
   };
 }
 
@@ -139,6 +161,21 @@ export function buildDiscordEarthquakeTestWebhookPayload(now = Date.now()) {
       timestamp: new Date(Number(now)).toISOString()
     }]
   };
+}
+
+export async function readDiscordEarthquakeCard(db, eventId) {
+  const id = String(eventId ?? "");
+  if (!/^\d{10,20}$/u.test(id)) return null;
+  const row = await db.prepare(`
+    SELECT payload_json FROM discord_earthquake_notifications WHERE event_id = ?
+  `).bind(id).first();
+  if (!row?.payload_json) return null;
+  try {
+    const payload = JSON.parse(row.payload_json);
+    return payload?._shareCard?.type === "earthquake" ? payload._shareCard : null;
+  } catch {
+    return null;
+  }
 }
 
 export async function sendDiscordEarthquakeTestNotification(env, options = {}) {
@@ -185,6 +222,42 @@ export async function sendDiscordEarthquakeTestNotification(env, options = {}) {
   }
 }
 
+export async function sendDiscordEarthquakePreviousTestNotification(env, row, options = {}) {
+  const webhookUrl = parseDiscordWebhookUrl(env?.DISCORD_EARTHQUAKE_WEBHOOK_URL);
+  if (!webhookUrl) return { ok: false, status: 503, error: "discord_webhook_not_configured" };
+  const now = Number(options.now ?? Date.now());
+  const image = await renderDiscordCardImage({
+    db: env.EQ_D1, browser: env.BROWSER, row, now
+  });
+  if (!image) return { ok: false, status: 503, error: "discord_test_image_unavailable" };
+  const payload = normalizeDiscordNotificationPayload(JSON.parse(row.payload_json));
+  payload.allowed_mentions = { parse: [] };
+  payload.content = `【TEST】過去の地震を使った画像付き通知テスト`;
+  payload.embeds[0].title = `【TEST】${payload.embeds[0].title}`;
+  payload.embeds[0].footer = { text: "MeteoScope・過去の地震によるテスト投稿" };
+  payload.embeds[0].image = { url: `attachment://${DISCORD_CARD_FILENAME}` };
+  const form = new FormData();
+  form.set("payload_json", JSON.stringify(payload));
+  form.set("files[0]", new Blob([image], { type: "image/png" }), DISCORD_CARD_FILENAME);
+  const url = new URL(webhookUrl);
+  url.searchParams.set("wait", "true");
+  try {
+    const response = await fetchWithTimeout(options.fetchImpl ?? fetch, url, {
+      method: "POST", body: form
+    });
+    const result = await readJsonSafely(response);
+    if (!response.ok) return { ok: false, status: response.status, error: `discord_http_${response.status}` };
+    if (!result?.id || !Array.isArray(result.attachments) || result.attachments.length === 0) {
+      return { ok: false, status: 502, error: "discord_test_attachment_missing" };
+    }
+    return { ok: true, status: 200, messageId: String(result.id),
+      eventId: String(row.event_id), sentAt: new Date(now).toISOString() };
+  } catch (error) {
+    return { ok: false, status: 502,
+      error: error?.name === "AbortError" ? "discord_timeout" : "discord_network_error" };
+  }
+}
+
 export async function deliverPendingDiscordEarthquakeNotifications(env, options = {}) {
   const db = env?.EQ_D1;
   if (!db) throw new Error("earthquake_database_unavailable");
@@ -209,6 +282,7 @@ export async function deliverPendingDiscordEarthquakeNotifications(env, options 
     stats.attempted += 1;
     const result = await deliverOneNotification({
       db,
+      browser: env?.BROWSER,
       fetchImpl,
       webhookUrl,
       row,
@@ -282,12 +356,11 @@ export function resolveDiscordEarthquakeRoleMentions(maxIntensity, roleConfig) {
     .filter(Boolean);
 }
 
-async function deliverOneNotification({ db, fetchImpl, webhookUrl, row, now }) {
+async function deliverOneNotification({ db, browser, fetchImpl, webhookUrl, row, now }) {
   const attempts = Math.max(0, Number(row.attempts) || 0);
   let payload;
   try {
     payload = JSON.parse(String(row.payload_json ?? ""));
-    payload = normalizeDiscordNotificationPayload(payload);
   }
   catch {
     await markPermanentFailure(db, row.event_id, attempts + 1, "payload_json_invalid", now);
@@ -306,11 +379,32 @@ async function deliverOneNotification({ db, fetchImpl, webhookUrl, row, now }) {
   }
 
   try {
-    const response = await fetchWithTimeout(fetchImpl, requestUrl, {
-      method,
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload)
+    const image = await renderDiscordCardImage({ db, browser, row, now });
+    const discordPayload = normalizeDiscordNotificationPayload(payload);
+    if (method === "PATCH") discordPayload.attachments = [];
+    let body;
+    let headers;
+    if (image) {
+      discordPayload.embeds[0].image = { url: `attachment://${DISCORD_CARD_FILENAME}` };
+      const form = new FormData();
+      form.set("payload_json", JSON.stringify(discordPayload));
+      form.set("files[0]", new Blob([image], { type: "image/png" }), DISCORD_CARD_FILENAME);
+      body = form;
+    } else {
+      headers = { "content-type": "application/json" };
+      body = JSON.stringify(discordPayload);
+    }
+    let response = await fetchWithTimeout(fetchImpl, requestUrl, {
+      method, headers, body
     });
+    if (image && [400, 413, 415].includes(response.status)) {
+      delete discordPayload.embeds[0].image;
+      response = await fetchWithTimeout(fetchImpl, requestUrl, {
+        method,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(discordPayload)
+      });
+    }
     const responseBody = await readJsonSafely(response);
     if (response.ok) {
       const returnedMessageId = messageId || String(responseBody?.id ?? "").trim();
@@ -359,7 +453,7 @@ function normalizeDiscordNotificationPayload(payload) {
     return payload;
   }
   return {
-    ...payload,
+    ...Object.fromEntries(Object.entries(payload).filter(([key]) => key !== "_shareCard")),
     content: normalizeDiscordPlainText(payload.content),
     embeds: payload.embeds.map((embed) => {
       if (!embed || typeof embed !== "object") return embed;
@@ -371,6 +465,35 @@ function normalizeDiscordNotificationPayload(payload) {
       };
     })
   };
+}
+
+async function renderDiscordCardImage({ db, browser, row, now }) {
+  if (!browser?.quickAction || !row.event_id) return null;
+  try {
+    const since = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+    const count = await db.prepare(`
+      SELECT COUNT(*) AS total FROM discord_earthquake_notifications
+      WHERE sent_at >= ? AND event_id <> ?
+    `).bind(since, row.event_id).first();
+    if (Number(count?.total ?? 0) >= DISCORD_CARD_DAILY_LIMIT) return null;
+    const url = new URL(DISCORD_CARD_URL);
+    url.searchParams.set("event", String(row.event_id));
+    const response = await browser.quickAction("screenshot", {
+      url: url.href,
+      viewport: { width: 1080, height: 1080 },
+      screenshotOptions: { type: "png" },
+      waitForSelector: { selector: "body[data-card-ready='true']", timeout: 15_000 },
+      actionTimeout: 20_000
+    });
+    if (!response?.ok || !String(response.headers.get("content-type") ?? "").includes("image/png")) {
+      return null;
+    }
+    const image = await response.arrayBuffer();
+    return image.byteLength > 0 && image.byteLength <= 8 * 1024 * 1024 ? image : null;
+  } catch (error) {
+    console.warn("[MeteoScope] Discord earthquake card unavailable", error?.message ?? error);
+    return null;
+  }
 }
 
 function normalizeDiscordPlainText(value) {
@@ -455,6 +578,17 @@ function formatJstShortDateTime(value) {
   const parts = JST_SHORT_DATE_TIME_FORMATTER.formatToParts(new Date(timestamp));
   const getPart = (type) => parts.find((part) => part.type === type)?.value || "";
   return `${getPart("month")}月${getPart("day")}日${getPart("hour")}:${getPart("minute")}`;
+}
+
+function formatJstCardDateTime(value) {
+  const timestamp = Date.parse(String(value ?? ""));
+  if (!Number.isFinite(timestamp)) return "時刻不明";
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false
+  }).formatToParts(new Date(timestamp));
+  const getPart = (type) => parts.find((part) => part.type === type)?.value || "";
+  return `${getPart("year")}/${getPart("month")}/${getPart("day")} ${getPart("hour")}:${getPart("minute")}`;
 }
 
 function formatIntensity(value) {

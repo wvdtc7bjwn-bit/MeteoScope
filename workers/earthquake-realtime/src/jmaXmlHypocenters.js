@@ -100,6 +100,18 @@ function readXmlTexts(source, localName) {
   ));
 }
 
+function readIntensityStations(observation) {
+  const pattern = new RegExp(
+    `<${XML_TAG_PREFIX}IntensityStation\\b[^>]*>([\\s\\S]*?)<\\/${XML_TAG_PREFIX}IntensityStation\\s*>`,
+    "giu"
+  );
+  return Array.from(String(observation ?? "").matchAll(pattern), (match) => ({
+    code: readXmlText(match[1], "Code"),
+    name: readXmlText(match[1], "Name"),
+    intensity: readXmlText(match[1], "Int")
+  })).filter((station) => station.intensity && (station.code || station.name));
+}
+
 function normalizeXmlText(value) {
   return decodeXmlEntities(String(value ?? "")
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/gu, "$1")
@@ -170,6 +182,7 @@ export function parseJmaXmlHypocenterReport(text, entry = {}) {
     reportPriority: getReportPriority(xmlCode),
     infoType,
     maxIntensity,
+    intensityStations: readIntensityStations(observation),
     tsunamiText,
     active: cancelled ? 0 : 1,
     ignored: !cancelled && !coordinate,

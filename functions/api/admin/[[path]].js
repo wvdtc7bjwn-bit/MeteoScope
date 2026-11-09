@@ -159,7 +159,7 @@ async function postDiscordTest(env) {
     return json({ error: "Discordテスト投稿の内部接続が未設定です。" }, { status: 503 });
   }
   const response = await env.HYPOCENTER_ARCHIVE.fetch(new Request(
-    "https://earthquake-worker.internal/api/earthquakes/internal/discord/test",
+    "https://earthquake-worker.internal/api/earthquakes/internal/discord/test-previous",
     {
       method: "POST",
       headers: {
@@ -175,7 +175,10 @@ async function postDiscordTest(env) {
   }
   return json({
     ok: true,
-    sentAt: payload.sentAt || new Date().toISOString()
+    sentAt: payload.sentAt || new Date().toISOString(),
+    eventId: payload.eventId,
+    messageId: payload.messageId,
+    imageAttached: payload.imageAttached === true
   });
 }
 

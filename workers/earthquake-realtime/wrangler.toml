@@ -2,6 +2,9 @@ name = "meteoscope-earthquake-realtime"
 main = "src/index.js"
 compatibility_date = "2026-07-15"
 
+[browser]
+binding = "BROWSER"
+
 [triggers]
 # Keep real-time XML ingestion and Discord delivery isolated from the heavier
 # daily-list maintenance so one job cannot exhaust the other's CPU budget.

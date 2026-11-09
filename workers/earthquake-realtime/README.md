@@ -7,6 +7,7 @@
 ## 公開API
 
 - `GET /api/earthquakes/distribution`
+- `GET /api/earthquakes/discord-card?event=...`（Discord通知の共有画像用データ）
 
 履歴、最新地震、観測点、WebSocketのAPIは廃止しました。
 
@@ -21,7 +22,9 @@
 
 ## Cloudflare設定
 
-`DMDATA_API_KEY` Secret、Durable Object binding、DM-D.S.S関連の変数は不要です。WorkerのD1 binding `EQ_D1`とCronだけを使用します。
+Discord通知の画像にはBrowser Runの`BROWSER` bindingを使用します。画像はWeb版と同じ地震共有カードから生成し、WebhookにPNGとして添付します。1日あたり最大20件まで画像を生成し、上限到達や画像生成失敗時はテキスト通知を送信します。Browser Runの無料枠はアカウント全体で1日10分のため、他の用途と共用する場合は利用状況を確認してください。
+
+`DMDATA_API_KEY` Secret、Durable Object binding、DM-D.S.S関連の変数は不要です。WorkerのD1 binding `EQ_D1`、Browser Run binding `BROWSER`、Cronを使用します。
 
 ## デプロイ
 

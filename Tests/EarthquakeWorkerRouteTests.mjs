@@ -26,6 +26,7 @@ import {
   isDiscordNotifiableEarthquakeReport,
   parseDiscordEarthquakeRoleIds,
   parseDiscordWebhookUrl,
+  readDiscordEarthquakeCard,
   resolveDiscordEarthquakeRoleMentions,
   sendDiscordEarthquakeTestNotification
 } from "../workers/earthquake-realtime/src/discordEarthquakeNotifications.js";
@@ -261,7 +262,11 @@ const report = parseJmaXmlHypocenterReport(`<?xml version="1.0" encoding="UTF-8"
         </Area></Hypocenter>
         <jmx_eb:Magnitude xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">2.8</jmx_eb:Magnitude>
       </Earthquake>
-      <Intensity><Observation><MaxInt>5-</MaxInt></Observation></Intensity>
+      <Intensity><Observation><MaxInt>5-</MaxInt>
+        <Pref><Name>熊本県</Name><Area><Name>熊本地方</Name><City><Name>熊本市</Name>
+          <IntensityStation><Name>熊本市中央区大江</Name><Code>4310100</Code><Int>5-</Int></IntensityStation>
+        </City></Area></Pref>
+      </Observation></Intensity>
       <Comments><ForecastComment><Text>この地震による津波の心配はありません。</Text></ForecastComment></Comments>
     </Body>
   </Report>`, reportEntry);
@@ -273,6 +278,7 @@ assert.equal(report.depthKm, 10);
 assert.equal(report.magnitude, 2.8);
 assert.equal(report.active, 1);
 assert.equal(report.maxIntensity, "5-");
+assert.deepEqual(report.intensityStations, [{ code: "4310100", name: "熊本市中央区大江", intensity: "5-" }]);
 assert.equal(report.tsunamiText, "この地震による津波の心配はありません。");
 assert.equal(
   isDiscordNotifiableEarthquakeReport(report),
@@ -323,6 +329,12 @@ assert.doesNotMatch(
 );
 assert.equal(discordPayload.embeds[0].fields, undefined);
 assert.equal(discordPayload.username, "MeteoScope");
+assert.equal(discordPayload._shareCard.type, "earthquake");
+assert.deepEqual(discordPayload._shareCard.observations[0], {
+  code: "4310100", name: "熊本市中央区大江", intensity: "5弱", intensityColor: "#f93904"
+});
+assert.equal(discordPayload._shareCard.eventTime, "2026/07/29 23:59");
+assert.deepEqual(discordPayload._shareCard.coordinates, [130.8, 32.7]);
 
 const discordRoleConfig = JSON.stringify({
   "1": "100000000000000001",
@@ -518,6 +530,11 @@ function createDiscordDeliveryDb(row) {
         async all() {
           return { results: row ? [row] : [] };
         },
+        async first() {
+          return /COUNT\(\*\)/u.test(sql)
+            ? { total: 0 }
+            : { payload_json: row?.payload_json ?? null };
+        },
         async run() {
           updates.push({ sql, bound });
           return { success: true };
@@ -526,6 +543,18 @@ function createDiscordDeliveryDb(row) {
     }
   };
 }
+
+assert.deepEqual(await readDiscordEarthquakeCard(createDiscordDeliveryDb({
+  payload_json: JSON.stringify(discordPayload)
+}), report.eventId), discordPayload._shareCard);
+assert.equal(await readDiscordEarthquakeCard(createDiscordDeliveryDb(null), "bad-id"), null);
+const cardResponse = await earthquakeWorkerHandler.fetch(
+  new Request(`https://worker.example/api/earthquakes/discord-card?event=${report.eventId}`),
+  { EQ_D1: createDiscordDeliveryDb({ payload_json: JSON.stringify(discordPayload) }) },
+  {}
+);
+assert.equal(cardResponse.status, 200);
+assert.deepEqual(await cardResponse.json(), discordPayload._shareCard);
 
 const deliveryCalls = [];
 const deliveryDb = createDiscordDeliveryDb({
@@ -586,6 +615,65 @@ const correctionDelivery = await deliverPendingDiscordEarthquakeNotifications({
 assert.equal(correctionDelivery.sent, 1);
 assert.equal(correctionCalls[0].init.method, "PATCH");
 assert.match(correctionCalls[0].url, /\/messages\/discord-message-1$/u);
+assert.deepEqual(JSON.parse(correctionCalls[0].init.body).attachments, []);
+
+const imageCalls = [];
+const imageDb = createDiscordDeliveryDb({
+  event_id: report.eventId,
+  payload_json: JSON.stringify(discordPayload),
+  discord_message_id: null,
+  attempts: 0
+});
+const imageDelivery = await deliverPendingDiscordEarthquakeNotifications({
+  EQ_D1: imageDb,
+  BROWSER: {
+    quickAction: async (name, options) => {
+      assert.equal(name, "screenshot");
+      assert.match(options.url, /discord-earthquake-card\.html\?event=/u);
+      return new Response(new Uint8Array([137, 80, 78, 71]), {
+        headers: { "content-type": "image/png" }
+      });
+    }
+  },
+  DISCORD_EARTHQUAKE_WEBHOOK_URL: "https://discord.com/api/webhooks/123/token"
+}, {
+  now: Date.parse("2026-07-30T00:05:00Z"),
+  fetchImpl: async (url, init) => {
+    imageCalls.push(init);
+    return Response.json({ id: "discord-image-message" });
+  }
+});
+assert.equal(imageDelivery.sent, 1);
+assert.equal(imageCalls[0].headers, undefined);
+assert.equal(imageCalls[0].body.get("files[0]").name, "meteoscope-earthquake.png");
+assert.equal(JSON.parse(imageCalls[0].body.get("payload_json")).embeds[0].image.url,
+  "attachment://meteoscope-earthquake.png");
+
+const imageFallbackCalls = [];
+const imageFallbackDelivery = await deliverPendingDiscordEarthquakeNotifications({
+  EQ_D1: createDiscordDeliveryDb({
+    event_id: report.eventId,
+    payload_json: JSON.stringify(discordPayload),
+    discord_message_id: null,
+    attempts: 0
+  }),
+  BROWSER: { quickAction: async () => new Response(new Uint8Array([137, 80, 78, 71]), {
+    headers: { "content-type": "image/png" }
+  }) },
+  DISCORD_EARTHQUAKE_WEBHOOK_URL: "https://discord.com/api/webhooks/123/token"
+}, {
+  now: Date.parse("2026-07-30T00:05:00Z"),
+  fetchImpl: async (_url, init) => {
+    imageFallbackCalls.push(init);
+    return imageFallbackCalls.length === 1
+      ? new Response("", { status: 400 })
+      : Response.json({ id: "discord-fallback-message" });
+  }
+});
+assert.equal(imageFallbackDelivery.sent, 1);
+assert.equal(imageFallbackCalls.length, 2);
+assert.equal(typeof imageFallbackCalls[1].body, "string");
+assert.equal(JSON.parse(imageFallbackCalls[1].body).embeds[0].image, undefined);
 
 const rateLimitedDb = createDiscordDeliveryDb({
   event_id: report.eventId,
