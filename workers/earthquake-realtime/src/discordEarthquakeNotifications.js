@@ -247,9 +247,7 @@ export async function sendDiscordEarthquakePreviousTestNotification(env, row, op
     });
     const result = await readJsonSafely(response);
     if (!response.ok) return { ok: false, status: response.status, error: `discord_http_${response.status}` };
-    if (!result?.id || !Array.isArray(result.attachments) || result.attachments.length === 0) {
-      return { ok: false, status: 502, error: "discord_test_attachment_missing" };
-    }
+    if (!result?.id) return { ok: false, status: 502, error: "discord_message_id_missing" };
     return { ok: true, status: 200, messageId: String(result.id),
       eventId: String(row.event_id), sentAt: new Date(now).toISOString() };
   } catch (error) {

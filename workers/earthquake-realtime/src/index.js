@@ -154,8 +154,7 @@ async function postDiscordPreviousTest(request, env) {
     discord_timeout: "Discordへの接続がタイムアウトしました。",
     discord_network_error: "Discordへ接続できませんでした。",
     discord_message_id_missing: "Discordから投稿結果を確認できませんでした。",
-    discord_test_image_unavailable: "地震の共有画像を生成できませんでした。",
-    discord_test_attachment_missing: "Discordで画像添付を確認できませんでした。"
+    discord_test_image_unavailable: "地震の共有画像を生成できませんでした。"
   };
   return jsonResponse({
     ok: false,
