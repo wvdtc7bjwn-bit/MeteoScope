@@ -608,6 +608,39 @@ assert.equal(
   "Discordのretry_afterを守って次回送信時刻を保存する"
 );
 
+const headerRetryDb = createDiscordDeliveryDb({
+  event_id: report.eventId,
+  payload_json: JSON.stringify(discordPayload),
+  discord_message_id: null,
+  attempts: 0
+});
+const headerRetryDelivery = await deliverPendingDiscordEarthquakeNotifications({
+  EQ_D1: headerRetryDb,
+  DISCORD_EARTHQUAKE_WEBHOOK_URL: "https://discord.com/api/webhooks/123/token"
+}, {
+  now: Date.parse("2026-07-30T00:07:00Z"),
+  fetchImpl: async () => new Response("", { status: 429, headers: { "Retry-After": "3" } })
+});
+assert.equal(headerRetryDelivery.retried, 1);
+assert.equal(Date.parse(headerRetryDb.updates.at(-1).bound[1]), Date.parse("2026-07-30T00:07:03Z"));
+
+const exhaustedRetryDb = createDiscordDeliveryDb({
+  event_id: report.eventId,
+  payload_json: JSON.stringify(discordPayload),
+  discord_message_id: null,
+  attempts: 7
+});
+const exhaustedRetryDelivery = await deliverPendingDiscordEarthquakeNotifications({
+  EQ_D1: exhaustedRetryDb,
+  DISCORD_EARTHQUAKE_WEBHOOK_URL: "https://discord.com/api/webhooks/123/token"
+}, {
+  now: Date.parse("2026-07-30T00:07:00Z"),
+  fetchImpl: async () => Response.json({}, { status: 503 })
+});
+assert.equal(exhaustedRetryDelivery.failed, 1);
+assert.equal(exhaustedRetryDelivery.retried, 0);
+assert.match(exhaustedRetryDb.updates.at(-1).sql, /status = 'failed'/u);
+
 const cancelled = parseJmaXmlHypocenterReport(`<?xml version="1.0" encoding="UTF-8"?>
   <Report xmlns="http://xml.kishou.go.jp/jmaxml1/">
     <Control><Status>通常</Status></Control>

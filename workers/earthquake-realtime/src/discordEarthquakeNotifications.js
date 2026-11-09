@@ -334,15 +334,14 @@ async function deliverOneNotification({ db, fetchImpl, webhookUrl, row, now }) {
       return "retried";
     }
     if (response.status === 429 || response.status >= 500) {
-      await markRetry(
+      return await markRetry(
         db,
         row.event_id,
         attempts + 1,
         errorCode,
         now,
-        responseBody?.retry_after
+        responseBody?.retry_after ?? response.headers.get("Retry-After")
       );
-      return "retried";
     }
     await markPermanentFailure(db, row.event_id, attempts + 1, errorCode, now);
     return "failed";
@@ -351,8 +350,7 @@ async function deliverOneNotification({ db, fetchImpl, webhookUrl, row, now }) {
     const errorCode = error?.name === "AbortError"
       ? "discord_timeout"
       : "discord_network_error";
-    await markRetry(db, row.event_id, attempts + 1, errorCode, now);
-    return "retried";
+    return await markRetry(db, row.event_id, attempts + 1, errorCode, now);
   }
 }
 
@@ -397,7 +395,7 @@ async function markDeletedMessageForRepost(db, eventId, attempts, now) {
 async function markRetry(db, eventId, attempts, errorCode, now, retryAfterSeconds = null) {
   if (attempts >= DISCORD_MAX_ATTEMPTS) {
     await markPermanentFailure(db, eventId, attempts, errorCode, now);
-    return;
+    return "failed";
   }
   const nextAttemptAt = new Date(
     now + computeDiscordRetryDelayMs(attempts, retryAfterSeconds)
@@ -414,6 +412,7 @@ async function markRetry(db, eventId, attempts, errorCode, now, retryAfterSecond
     new Date(now).toISOString(),
     eventId
   ).run();
+  return "retried";
 }
 
 async function markPermanentFailure(db, eventId, attempts, errorCode, now) {
