@@ -202,12 +202,12 @@ assert.match(
 );
 assert.match(
   app,
-  /const tabChanged = activeTab !== tab\.id;[\s\S]*?if \(tabChanged\) tabAutoFocusGeneration \+= 1;[\s\S]*?if \(cachedViewUpdated\) \{\s*if \(tabChanged\) scheduleTabAutoFocus\(tab\.id, autoFocusGeneration\);/,
+  /const tabChanged = activeTab !== tab\.id;[\s\S]*?if \(tabChanged\) tabAutoFocusGeneration \+= 1;[\s\S]*?if \(cachedViewUpdated\) \{\s*(?:if \(isTabDataFresh\(tab\.id\)\) restoreTyphoonRadarOverlay\(tab\);\s*)?if \(tabChanged\) scheduleTabAutoFocus\(tab\.id, autoFocusGeneration\);/,
   "cached typhoon and earthquake tabs must auto-focus only after a committed tab change"
 );
 assert.match(
   app,
-  /updateCurrentView\(tab, data, \{ deferPanel: true \}\);\s*if \(tabChanged\) scheduleTabAutoFocus\(tab\.id, autoFocusGeneration\);/,
+  /updateCurrentView\(tab, data, \{ deferPanel: true \}\);\s*(?:restoreTyphoonRadarOverlay\(tab\);\s*)?if \(tabChanged\) scheduleTabAutoFocus\(tab\.id, autoFocusGeneration\);/,
   "newly loaded typhoon and earthquake tabs must auto-focus after their first render"
 );
 assert.match(
