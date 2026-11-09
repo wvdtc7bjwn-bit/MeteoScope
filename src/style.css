@@ -10599,45 +10599,45 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   padding: 2px 4px;
   background: #111f32;
 }
-:is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle) .weather-distribution-toggle-choices::before {
+:is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle, #weather-distribution-toggle) .weather-distribution-toggle-choices::before {
   color: #b8c9d9;
   font-size: 12px;
   font-weight: 700;
 }
-:is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle) .weather-distribution-toggle-choices button {
+:is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle, #weather-distribution-toggle) .weather-distribution-toggle-choices button {
   color: #e2edf6;
   font-size: 13px;
   font-weight: 600;
   border-radius: 4px;
 }
-:is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle) .weather-distribution-toggle-choices button.active {
+:is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle, #weather-distribution-toggle) .weather-distribution-toggle-choices button.active {
   color: #ffffff;
   box-shadow: none;
   background: rgba(76, 151, 191, 0.2);
 }
-html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle) .weather-distribution-toggle-choices::before {
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle, #weather-distribution-toggle) .weather-distribution-toggle-choices::before {
   color: #4b6278;
 }
-html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle) .weather-distribution-toggle-choices {
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle, #weather-distribution-toggle) .weather-distribution-toggle-choices {
   background: #edf4fa;
 }
-html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle) .weather-distribution-toggle-choices button {
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle, #weather-distribution-toggle) .weather-distribution-toggle-choices button {
   color: #263d54;
   border-bottom-color: rgba(70, 95, 118, 0.17);
 }
-html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle) .weather-distribution-toggle-choices button.active {
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle, #weather-distribution-toggle) .weather-distribution-toggle-choices button.active {
   color: #075a83;
   background: rgba(39, 139, 190, 0.13);
   box-shadow: none;
 }
-html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle) .weather-distribution-toggle-choices button::after {
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle, #weather-distribution-toggle) .weather-distribution-toggle-choices button::after {
   border-color: #91a7ba;
   background: #c5d3df;
 }
-html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle) .weather-distribution-toggle-choices button::before {
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle, #weather-distribution-toggle) .weather-distribution-toggle-choices button::before {
   background: #ffffff;
 }
-html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle) .weather-distribution-toggle-choices button.active::after {
+html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle, #weather-distribution-toggle) .weather-distribution-toggle-choices button.active::after {
   border-color: #087fb4;
   background: #087fb4;
 }
@@ -15779,6 +15779,23 @@ html[data-theme="light"] .tsunami-area-row.level-advisory .tsunami-level-badge {
 .community-report-requirement button:focus-visible { outline: 2px solid #66c4f1; outline-offset: 2px; }
 html:not([data-early-access="active"]) :is([data-earthquake-view="history"], [data-earthquake-nearby-search], #upper-air-button) { display: none !important; }
 .community-report-form { display: grid; gap: 14px; }
+.community-report-form [hidden] { display: none !important; }
+.community-report-topic { padding-bottom: 10px !important; }
+.community-report-topic-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.community-report-topic-options label { position: relative; min-width: 0; cursor: pointer; }
+.community-report-topic-options input { position: absolute; opacity: 0; }
+.community-report-topic-options span {
+  display: block;
+  padding: 9px 4px;
+  border: 1px solid rgba(123, 155, 189, 0.36);
+  border-radius: 7px;
+  color: #cad9e8;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+.community-report-topic-options input:checked + span { border-color: #6db9dd; color: #eaf7ff; background: #214b68; }
+.community-report-topic-options input:focus-visible + span { outline: 2px solid #6db9dd; outline-offset: 2px; }
 .community-report-form > label,
 .community-report-form-grid label { display: grid; gap: 6px; color: #d8e4ef; font-size: 13px; font-weight: 800; }
 .community-report-form select,
@@ -15867,6 +15884,8 @@ html[data-theme="light"] .community-report-requirement p,
 html[data-theme="light"] .community-report-form > label,
 html[data-theme="light"] .community-report-form-grid label,
 html[data-theme="light"] .community-report-form legend { color: #29445e; }
+html[data-theme="light"] .community-report-topic-options span { border-color: #abc0d1; color: #29445e; }
+html[data-theme="light"] .community-report-topic-options input:checked + span { border-color: #3286ac; color: #164665; background: #d7edf8; }
 html[data-theme="light"] .community-report-requirement button { color: #164f75; border-color: #66849b; }
 html[data-theme="light"] .community-report-requirement button:hover { background: rgba(38, 103, 145, 0.1); }
 html[data-theme="light"] .community-report-location,
@@ -15913,6 +15932,7 @@ html[data-theme="light"] .community-report-status[data-state="success"] { color:
     border-radius: var(--modal-shell-radius);
   }
   .community-report-body { padding: 15px 16px 22px; }
+  .community-report-topic-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .community-report-form-grid { grid-template-columns: 1fr; }
   .community-report-requirement { align-items: flex-start; flex-direction: column; }
 }
@@ -22415,12 +22435,12 @@ html[data-theme="light"] .earthquake-plate-source a { color: #075b89; }
 /* Terrain is shared by the active map-layer picker. */
 #map-layer-toggle:not(.collapsed) { width: 230px; height: 88px; }
 #map-layer-toggle .weather-distribution-toggle-choices { width: 174px; height: 76px; grid-template-rows: 28px 44px; padding: 2px 4px; background: #111f32; }
-#map-layer-toggle.has-typhoon-radar:not(.collapsed) { height: 132px; }
-#map-layer-toggle.has-typhoon-radar .weather-distribution-toggle-choices { height: 120px; grid-template-rows: 28px repeat(2, 44px); }
+#map-layer-toggle:is(.has-typhoon-radar, .has-community-reports):not(.collapsed) { height: 132px; }
+#map-layer-toggle:is(.has-typhoon-radar, .has-community-reports) .weather-distribution-toggle-choices { height: 120px; grid-template-rows: 28px repeat(2, 44px); }
 #map-layer-toggle-choices button[hidden] { display: none !important; }
 #typhoon-radar-overlay-button:disabled { opacity: .55; cursor: wait; }
-#weather-distribution-toggle:not(.collapsed) { height: 176px; }
-#weather-distribution-toggle .weather-distribution-toggle-choices { height: 164px; grid-template-rows: 20px repeat(4, 36px); }
+#weather-distribution-toggle:not(.collapsed) { width: 230px; height: 220px; }
+#weather-distribution-toggle .weather-distribution-toggle-choices { width: 174px; height: 208px; grid-template-rows: 28px repeat(4, 44px); padding: 2px 4px; background: #111f32; }
 #satellite-layer-toggle:not(.collapsed) { height: 176px; }
 #satellite-layer-toggle .weather-distribution-toggle-choices { height: 164px; grid-template-rows: 28px repeat(3, 44px); }
 #weather-distribution-toggle .weather-distribution-toggle-choices button[data-map-terrain-toggle]::after { width: 24px; height: 14px; border-radius: 999px; border: 1px solid rgba(188, 213, 234, .28); background: rgba(118, 144, 170, .16); content: ""; }

@@ -16,6 +16,13 @@ import {
   roundCommunityCoordinate
 } from "../functions/_shared/communityReports.js";
 import { accountSessionToken } from "../functions/_shared/accountAuth.js";
+import { formatCommunityReportTemperature } from "../src/domain/communityReportFormatting.js";
+
+assert.equal(formatCommunityReportTemperature(null), "");
+assert.equal(formatCommunityReportTemperature(undefined), "");
+assert.equal(formatCommunityReportTemperature(""), "");
+assert.equal(formatCommunityReportTemperature(0), "0.0℃");
+assert.equal(formatCommunityReportTemperature(24.5), "24.5℃");
 
 assert.equal(COMMUNITY_REPORT_RETENTION_MS, 5 * 60 * 60 * 1000);
 assert.equal(COMMUNITY_REPORT_POST_COOLDOWN_MS, 5 * 60 * 1000);
@@ -46,7 +53,18 @@ assert.deepEqual(normalizeCommunityReportInput({
 assert.deepEqual(normalizeCommunityReportComment("  道路が 冠水しています\n注意  "), { comment: "道路が 冠水しています 注意" });
 assert.match(normalizeCommunityReportComment("https://example.com を確認").error, /URL/u);
 assert.match(normalizeCommunityReportComment("あ".repeat(81)).error, /80文字/u);
-assert.match(normalizeCommunityReportInput({ weather: "unknown" }).error, /天気/u);
+assert.match(normalizeCommunityReportInput({ weather: "unknown" }).error, /投稿内容/u);
+for (const weather of [
+  "cherry-buds", "cherry-start", "cherry-peak", "cherry-falling",
+  "autumn-start", "autumn-peak", "autumn-falling",
+  "snow-cover-start", "snow-cover-present", "snow-cover-melting"
+]) {
+  const report = normalizeCommunityReportInput({
+    weather, latitude: 35.68, longitude: 139.76, areaName: "千代田区"
+  });
+  assert.equal(report.weather, weather);
+  assert.equal(report.error, undefined);
+}
 assert.match(normalizeCommunityReportInput({ weather: "sunny", latitude: 1, longitude: 1, areaName: "x" }).error, /範囲外/u);
 assert.match(normalizeCommunityReportInput({
   weather: "sunny", latitude: 35, longitude: 139, areaName: "x",
@@ -177,18 +195,35 @@ assert.doesNotMatch(webClient, /getEarlyAccessToken|X-MeteoScope-Early-Access/u)
 assert.match(webModal, /roundReportCoordinate/u);
 assert.doesNotMatch(webModal, /validateEarlyAccess|community-report-access-required/u);
 assert.match(webModal, /data\.get\("comment"\)/u);
-assert.match(webModal, /input, select, textarea, button/u);
+assert.match(webModal, /setSubmitEnabled\(false\)/u);
+assert.match(webModal, /select\.disabled = !active/u);
+assert.doesNotMatch(webModal, /form\.querySelectorAll\("input, select, textarea, button"\)/u);
 assert.match(webMap, /community-report-cluster/u);
+assert.match(webMap, /formatCommunityReportTemperature\(report\.temperature\)/u);
+for (const label of ["桜・見頃", "紅葉・見頃", "積雪・雪が積もっている"]) {
+  assert.ok(webMap.includes(label), `${label} must appear on the map`);
+}
+assert.match(webMap, /community-report-seasonal-icon/u);
+for (const icon of ["community-cherry-petal", "community-maple-leaf", "community-snow-crystal"]) {
+  assert.ok(webMap.includes(icon), `${icon} must be registered`);
+}
+assert.doesNotMatch(webMap, /glyph: meta\.glyph|"text-field": \["get", "glyph"\]/u);
 assert.doesNotMatch(webMap, /community-report-label/u);
 assert.doesNotMatch(webMap, /shortLabel: meta\.short/u);
-assert.match(webMap, /4, 5, 8, 7\.5, 12, 9\.5/u);
+assert.match(webMap, /"circle-radius": \["interpolate", \["linear"\], \["zoom"\]/u);
 assert.match(webMap, /if \(!hitReport\) hideMapInfo\("community-report"\)/u);
 assert.doesNotMatch(webSummary, /mobile-dock-community-report-open/u);
 assert.match(webIndex, /data-community-report-open/u);
 assert.match(webIndex, /map-community-report-button/u);
+for (const topic of ["cherry", "autumn", "snow-cover"]) {
+  assert.ok(webIndex.includes(`data-community-topic="${topic}"`), `${topic} must be selectable`);
+}
 assert.match(webModal, /import \{ getCurrentLanguage, localizeText \} from "\.\/locale\.js";/u);
 assert.match(webModal, /Reporting area: Get your current location/u);
-assert.match(webModal, /comment\.placeholder = localizeText\("例：風が強く、傘が差しにくいです"\)/u);
+assert.match(webModal, /updateReportTopic\(event\.target\.value\)/u);
+assert.match(webModal, /"snow-cover": "snowCover"/u);
+assert.match(webModal, /cherry: "cherry"/u);
+assert.match(webModal, /例：風が強く、傘が差しにくいです/u);
 assert.match(webModal, /element\.textContent = localizeText\(message\)/u);
 assert.match(privacyPage, /5時間/u);
 assert.match(privacyPage, /約2km/u);

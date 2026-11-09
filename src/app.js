@@ -519,6 +519,7 @@ export function createWeatherApp() {
   let backgroundPrefetchStarted = false;
   let communityReports = [];
   let communityReportsRequest = null;
+  let communityReportsVisible = false;
   let scheduledMapRenderFrame = 0;
   let mapRenderGeneration = 0;
   let scheduledPanelRenderFrame = 0;
@@ -528,6 +529,7 @@ export function createWeatherApp() {
 
   function renderLeftPanelState(tab, panelState) {
     updateLeftPanel(tab, panelState);
+    renderCommunityReportLayerToggle();
     syncCommonLayerToggle(tab?.id !== "earthquake" && !(tab?.id === "radar" && (weatherDistributionMode || weatherChartSatelliteEnabled)));
     syncWeatherDistributionToggle({
       visible: tab?.id === "radar" && Boolean(weatherDistributionMode),
@@ -561,6 +563,8 @@ export function createWeatherApp() {
     }
     activeTab = tab.id;
     syncTyphoonRadarOverlayButton();
+    renderCommunityReportLayerToggle();
+    weatherMap?.setCommunityReportsVisible(communityReportsVisible && isRainRadarActive());
     syncEarlyWarningRefreshTimer();
     invalidateScheduledMapRender();
     invalidateScheduledPanelRender();
@@ -573,7 +577,7 @@ export function createWeatherApp() {
         stopWeatherChartPlayback();
       }
       weatherMap?.setMode(tab.id);
-      if (tab.id === "radar") void refreshCommunityReports();
+      if (communityReportsVisible && isRainRadarActive()) void refreshCommunityReports();
     } catch (error) {
       console.warn("[MeteoScope] tab map update failed", error);
     }
@@ -2872,6 +2876,9 @@ if (layerId === "river") {
       : (overlayId === "temperature-distribution"
         ? "temperature"
         : (overlayId === "snowfall-distribution" ? "snowfall" : null));
+    renderCommunityReportLayerToggle();
+    weatherMap?.setCommunityReportsVisible(communityReportsVisible && isRainRadarActive());
+    if (communityReportsVisible && isRainRadarActive()) void refreshCommunityReports();
     if (weatherChartEnabled || weatherChartSatelliteEnabled) {
       stopRadarPlayback();
       stopWeatherChartPlayback();
@@ -3270,7 +3277,7 @@ if (layerId === "river") {
         }
       }
       updateCurrentView(tab, latestDataByTab[tab.id]);
-      if (tab.id === "radar") await refreshCommunityReports();
+      if (communityReportsVisible && isRainRadarActive()) await refreshCommunityReports();
       if (tab.id === "typhoon") await refreshActiveWorldTyphoonForecasts();
       if (tab.id === "warnings") await refreshRiverFloodData({ force });
     } catch (error) {
@@ -3870,6 +3877,37 @@ if (layerId === "river") {
     renderMapTerrainToggle();
   }
 
+  function setupCommunityReportLayerToggle() {
+    document.querySelectorAll("[data-community-report-layer]").forEach((toggle) => {
+      toggle.addEventListener("click", () => {
+        communityReportsVisible = !communityReportsVisible;
+        weatherMap?.setCommunityReportsVisible(communityReportsVisible && isRainRadarActive());
+        renderCommunityReportLayerToggle();
+        if (communityReportsVisible && isRainRadarActive()) void refreshCommunityReports();
+      });
+    });
+    renderCommunityReportLayerToggle();
+  }
+
+  function isRainRadarActive() {
+    return activeTab === "radar"
+      && !weatherChartEnabled
+      && !weatherChartSatelliteEnabled
+      && !lightningEnabled
+      && !weatherDistributionMode;
+  }
+
+  function renderCommunityReportLayerToggle() {
+    const rainRadarActive = isRainRadarActive();
+    document.querySelectorAll("[data-community-report-layer]").forEach((toggle) => {
+      toggle.hidden = !rainRadarActive;
+      toggle.classList.toggle("active", communityReportsVisible);
+      toggle.setAttribute("aria-checked", String(communityReportsVisible));
+      toggle.setAttribute("aria-label", `投稿を${communityReportsVisible ? "非表示" : "表示"}にする`);
+    });
+    document.getElementById("map-layer-toggle")?.classList.toggle("has-community-reports", rainRadarActive);
+  }
+
   function renderMapTerrainToggle() {
     const enabled = terrainLayerSettings.visible === true;
     document.querySelectorAll("[data-map-terrain-toggle]").forEach((toggle) => {
@@ -3963,6 +4001,7 @@ if (layerId === "river") {
     weatherMap.setTheme(themeController.getResolvedTheme());
     weatherMap.setTerrainLayer(terrainLayerSettings);
     setupMapTerrainToggle();
+    setupCommunityReportLayerToggle();
     weatherMap.setCurrentLocationVisible(currentLocationMarkerVisible);
     themeController.subscribe(({ resolvedTheme }) => weatherMap?.setTheme(resolvedTheme));
     localeController.subscribe(() => {

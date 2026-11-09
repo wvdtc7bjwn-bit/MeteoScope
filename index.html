@@ -234,6 +234,7 @@
       <section id="map-layer-toggle" class="map-weather-distribution-toggle map-common-layer-toggle collapsed" aria-label="地図のレイヤー" hidden>
         <div id="map-layer-toggle-choices" class="weather-distribution-toggle-choices" data-layer-picker-title="地図レイヤー" aria-hidden="true" hidden>
           <button id="map-terrain-toggle" type="button" role="switch" aria-checked="false" data-map-terrain-toggle>地形</button>
+          <button type="button" role="switch" aria-checked="false" data-community-report-layer hidden>投稿</button>
           <button id="typhoon-radar-overlay-button" type="button" aria-label="台風情報の発表時刻の雨雲レーダを重ねる" title="台風情報の発表時刻の雨雲レーダを重ねる" aria-pressed="false" hidden>雨雲レーダー</button>
         </div>
         <button id="map-layer-toggle-button" class="weather-distribution-toggle-button" type="button" aria-expanded="false" aria-controls="map-layer-toggle-choices" aria-label="地図のレイヤーを選択" title="地図のレイヤーを選択"></button>
@@ -1042,19 +1043,53 @@
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-community-report-close>×</button>
         </header>
         <div class="community-report-body">
-          <p class="community-report-lead">近くの利用者へ、現在の天気や危険を共有します。正確な位置は保存せず、投稿は1日12回までです。</p>
+          <p class="community-report-lead">近くの利用者へ、天気や季節の景色、周辺の危険を共有できます。正確な位置は保存せず、投稿は1日12回までです。</p>
           <p id="community-report-location" class="community-report-location"></p>
           <div id="community-report-account-required" class="community-report-requirement" hidden>
             <p>MeteoScopeアカウントへのログインが必要です。</p>
             <button id="community-report-open-account" type="button">アカウント設定を開く</button>
           </div>
           <form id="community-report-form" class="community-report-form">
-            <label>現在の天気
+            <fieldset class="community-report-topic">
+              <legend>何を投稿しますか？</legend>
+              <div class="community-report-topic-options">
+                <label><input type="radio" name="topic" value="weather" checked /><span>天気</span></label>
+                <label><input type="radio" name="topic" value="cherry" /><span>桜</span></label>
+                <label><input type="radio" name="topic" value="autumn" /><span>紅葉</span></label>
+                <label><input type="radio" name="topic" value="snow-cover" /><span>積雪</span></label>
+              </div>
+            </fieldset>
+            <label data-community-topic="weather">現在の天気
               <select name="weather" required>
                 <option value="">選択してください</option>
                 <option value="sunny">晴れ</option><option value="cloudy">くもり</option>
                 <option value="light-rain">弱い雨</option><option value="heavy-rain">強い雨</option>
                 <option value="snow">雪</option><option value="thunder">雷</option><option value="fog">霧</option>
+              </select>
+            </label>
+            <label data-community-topic="cherry" hidden>桜の様子
+              <select name="cherry" disabled>
+                <option value="">選択してください</option>
+                <option value="cherry-buds">つぼみ</option>
+                <option value="cherry-start">咲き始め</option>
+                <option value="cherry-peak">見頃</option>
+                <option value="cherry-falling">散り始め</option>
+              </select>
+            </label>
+            <label data-community-topic="autumn" hidden>紅葉の様子
+              <select name="autumn" disabled>
+                <option value="">選択してください</option>
+                <option value="autumn-start">色づき始め</option>
+                <option value="autumn-peak">見頃</option>
+                <option value="autumn-falling">落葉が進む</option>
+              </select>
+            </label>
+            <label data-community-topic="snow-cover" hidden>積雪の様子
+              <select name="snowCover" disabled>
+                <option value="">選択してください</option>
+                <option value="snow-cover-start">積もり始め</option>
+                <option value="snow-cover-present">雪が積もっている</option>
+                <option value="snow-cover-melting">雪解け</option>
               </select>
             </label>
             <label>ひとこと（任意）

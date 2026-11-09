@@ -7,7 +7,10 @@ export const COMMUNITY_REPORT_ACCOUNT_DAILY_LIMIT = 12;
 export const COMMUNITY_REPORT_GLOBAL_DAILY_LIMIT = 2400;
 
 export const COMMUNITY_WEATHER_TYPES = Object.freeze([
-  "sunny", "cloudy", "light-rain", "heavy-rain", "snow", "thunder", "fog"
+  "sunny", "cloudy", "light-rain", "heavy-rain", "snow", "thunder", "fog",
+  "cherry-buds", "cherry-start", "cherry-peak", "cherry-falling",
+  "autumn-start", "autumn-peak", "autumn-falling",
+  "snow-cover-start", "snow-cover-present", "snow-cover-melting"
 ]);
 export const COMMUNITY_SENSATIONS = Object.freeze([
   "cold", "cool", "comfortable", "hot", "very-hot"
@@ -18,7 +21,7 @@ export const COMMUNITY_HAZARDS = Object.freeze([
 
 export function normalizeCommunityReportInput(payload) {
   const weather = String(payload?.weather ?? "");
-  if (!COMMUNITY_WEATHER_TYPES.includes(weather)) return { error: "天気の選択が正しくありません。" };
+  if (!COMMUNITY_WEATHER_TYPES.includes(weather)) return { error: "投稿内容の選択が正しくありません。" };
   const sensation = payload?.sensation == null || payload.sensation === "" ? null : String(payload.sensation);
   if (sensation && !COMMUNITY_SENSATIONS.includes(sensation)) return { error: "体感の選択が正しくありません。" };
   const hazards = [...new Set(Array.isArray(payload?.hazards) ? payload.hazards.map(String) : [])];

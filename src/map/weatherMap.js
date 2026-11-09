@@ -45,6 +45,7 @@ import {
   getHighestPriorityVolcanoReport
 } from "../jma/volcanoXml.js";
 import { groupHypocenterItemsByCoordinate } from "../domain/hypocenterDistribution.js";
+import { formatCommunityReportTemperature } from "../domain/communityReportFormatting.js";
 import { getRecoloredEstimatedIntensityImageData } from "../jma/estimatedIntensity.js";
 import {
   getVolcanoAshfallLevel,
@@ -292,7 +293,8 @@ const COMMUNITY_REPORT_SOURCE_ID = "community-weather-reports";
 const COMMUNITY_REPORT_LAYERS = [
   "community-report-cluster",
   "community-report-cluster-count",
-  "community-report-point"
+  "community-report-point",
+  "community-report-seasonal-icon"
 ];
 const MUNICIPALITY_FILL_LAYER_ID = "jma-municipality-fill";
 const MUNICIPALITY_FIX_FILL_LAYER_ID = "jma-municipality-fix-fill";
@@ -414,6 +416,7 @@ export function createWeatherMap(elementId) {
   let mapInfoOwner = null;
   let lastTyphoonForecastMode = null;
   let communityReports = [];
+  let communityReportsVisible = false;
   let currentLocationVisible = true;
   let hypocenterAreaPolygon = [];
   let hypocenterAreaOverlay = null;
@@ -2142,16 +2145,22 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     syncCommunityReportVisibility();
   }
 
+  function setCommunityReportsVisible(visible) {
+    communityReportsVisible = Boolean(visible);
+    syncCommunityReportVisibility();
+  }
+
   function syncCommunityReportVisibility() {
-    const visibility = activeMode === "radar" ? "visible" : "none";
+    const visibility = activeMode === "radar" && communityReportsVisible ? "visible" : "none";
     COMMUNITY_REPORT_LAYERS.forEach((layerID) => {
       if (map?.getLayer(layerID)) map.setLayoutProperty(layerID, "visibility", visibility);
     });
-    if (activeMode !== "radar") hideMapInfo("community-report");
+    if (visibility === "none") hideMapInfo("community-report");
   }
 
   function addCommunityReportLayers() {
-    const visibility = activeMode === "radar" ? "visible" : "none";
+    const visibility = activeMode === "radar" && communityReportsVisible ? "visible" : "none";
+    registerCommunityReportIcons(map);
     map.addLayer({
       id: "community-report-cluster",
       type: "circle",
@@ -2187,11 +2196,26 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       filter: ["!", ["has", "point_count"]],
       layout: { visibility },
       paint: {
-        "circle-color": ["case", [">", ["get", "hazardCount"], 0], "#e7792b", ["get", "color"]],
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 5, 8, 7.5, 12, 9.5],
+        "circle-color": ["case", ["all", [">", ["get", "hazardCount"], 0], ["==", ["get", "seasonalIcon"], ""]], "#e7792b", ["get", "color"]],
+        "circle-radius": ["interpolate", ["linear"], ["zoom"],
+          4, ["case", ["!=", ["get", "seasonalIcon"], ""], 7, 5],
+          8, ["case", ["!=", ["get", "seasonalIcon"], ""], 9, 7.5],
+          12, ["case", ["!=", ["get", "seasonalIcon"], ""], 11, 9.5]],
         "circle-stroke-color": "#f8fbff",
         "circle-stroke-width": 1.5,
         "circle-opacity": 0.95
+      }
+    });
+    map.addLayer({
+      id: "community-report-seasonal-icon",
+      type: "symbol",
+      source: COMMUNITY_REPORT_SOURCE_ID,
+      filter: ["all", ["!", ["has", "point_count"]], ["!=", ["get", "seasonalIcon"], ""]],
+      layout: {
+        visibility,
+        "icon-image": ["get", "seasonalIcon"],
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 4, 0.5, 8, 0.65, 12, 0.8],
+        "icon-allow-overlap": true
       }
     });
   }
@@ -2630,7 +2654,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
 }
 
 function normalizeTerrainOpacity(value) {
@@ -2670,10 +2694,12 @@ function createCommunityReportFeatureCollection(reports = []) {
         id: String(report.id || ""),
         displayName: String(report.displayName || ""),
         weatherLabel: meta.label,
+        categoryLabel: meta.category || "天気の投稿",
+        seasonalIcon: meta.icon || "",
         comment: String(report.comment || ""),
         color: meta.color,
         sensationLabel: communitySensationLabel(report.sensation),
-        temperatureText: Number.isFinite(Number(report.temperature)) ? `${Number(report.temperature).toFixed(1)}℃` : "",
+        temperatureText: formatCommunityReportTemperature(report.temperature),
         hazardsText: (Array.isArray(report.hazards) ? report.hazards : []).map(communityHazardLabel).filter(Boolean).join("・"),
         hazardCount: Array.isArray(report.hazards) ? report.hazards.length : 0,
         areaName: String(report.areaName || "現在地周辺"),
@@ -2693,7 +2719,7 @@ function buildCommunityReportPopup(properties = {}) {
     ? `<p class="community-popup-comment">${escapeHTML(properties.comment)}</p>`
     : "";
   return `<section class="community-map-popup">
-    <span>利用者の現在地投稿</span>
+    <span>${escapeHTML(properties.categoryLabel || "利用者の投稿")}</span>
     <strong>${escapeHTML(properties.weatherLabel || "天気")}</strong>
     <p>${escapeHTML(properties.areaName || "現在地周辺")}・${escapeHTML(properties.createdText || "")}</p>
     ${comment}${facts ? `<p>${facts}</p>` : ""}${hazard}
@@ -2709,8 +2735,81 @@ function communityWeatherMeta(value) {
     "heavy-rain": { label: "強い雨", color: "#165ea8" },
     snow: { label: "雪", color: "#8fbfd8" },
     thunder: { label: "雷", color: "#8064b8" },
-    fog: { label: "霧", color: "#6f9298" }
+    fog: { label: "霧", color: "#6f9298" },
+    "cherry-buds": { label: "桜・つぼみ", category: "季節の便り・桜", icon: "community-cherry-petal", color: "#a66c88" },
+    "cherry-start": { label: "桜・咲き始め", category: "季節の便り・桜", icon: "community-cherry-petal", color: "#bd6e91" },
+    "cherry-peak": { label: "桜・見頃", category: "季節の便り・桜", icon: "community-cherry-petal", color: "#cf668f" },
+    "cherry-falling": { label: "桜・散り始め", category: "季節の便り・桜", icon: "community-cherry-petal", color: "#a5778e" },
+    "autumn-start": { label: "紅葉・色づき始め", category: "季節の便り・紅葉", icon: "community-maple-leaf", color: "#b96832" },
+    "autumn-peak": { label: "紅葉・見頃", category: "季節の便り・紅葉", icon: "community-maple-leaf", color: "#b83e30" },
+    "autumn-falling": { label: "紅葉・落葉が進む", category: "季節の便り・紅葉", icon: "community-maple-leaf", color: "#865938" },
+    "snow-cover-start": { label: "積雪・積もり始め", category: "季節の便り・積雪", icon: "community-snow-crystal", color: "#4b9eba" },
+    "snow-cover-present": { label: "積雪・雪が積もっている", category: "季節の便り・積雪", icon: "community-snow-crystal", color: "#317ca4" },
+    "snow-cover-melting": { label: "積雪・雪解け", category: "季節の便り・積雪", icon: "community-snow-crystal", color: "#5a8f97" }
   })[value] || { label: "天気", color: "#457a99" };
+}
+
+function registerCommunityReportIcons(map) {
+  const size = 48;
+  for (const [imageId, shape] of [
+    ["community-cherry-petal", "petal"],
+    ["community-maple-leaf", "maple"],
+    ["community-snow-crystal", "snowflake"]
+  ]) {
+    if (map.hasImage(imageId)) continue;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const context = canvas.getContext("2d");
+    if (!context) continue;
+    context.scale(2, 2);
+    context.fillStyle = "#ffffff";
+    context.strokeStyle = "#ffffff";
+    context.lineJoin = "round";
+    context.lineCap = "round";
+    context.beginPath();
+    if (shape === "petal") {
+      context.moveTo(12, 21);
+      context.bezierCurveTo(8, 18, 4.5, 14, 4.5, 9);
+      context.bezierCurveTo(4.5, 5.5, 7, 4, 9.5, 4);
+      context.lineTo(12, 6);
+      context.lineTo(14.5, 4);
+      context.bezierCurveTo(17, 4, 19.5, 5.5, 19.5, 9);
+      context.bezierCurveTo(19.5, 14, 16, 18, 12, 21);
+      context.closePath();
+      context.fill();
+    } else if (shape === "maple") {
+      [[12, 2], [14, 7], [18, 4], [17.7, 8], [21.5, 9], [18.5, 12],
+        [20, 15], [14, 14.5], [13, 21], [11, 21], [10, 14.5], [4, 15],
+        [5.5, 12], [2.5, 9], [6.3, 8], [6, 4], [10, 7]].forEach(([x, y], index) => {
+        if (index === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      });
+      context.closePath();
+      context.fill();
+    } else {
+      context.lineWidth = 2;
+      for (let arm = 0; arm < 3; arm += 1) {
+        context.save();
+        context.translate(12, 12);
+        context.rotate(arm * Math.PI / 3);
+        context.beginPath();
+        context.moveTo(0, -9);
+        context.lineTo(0, 9);
+        context.moveTo(0, -5);
+        context.lineTo(-3, -7);
+        context.moveTo(0, -5);
+        context.lineTo(3, -7);
+        context.moveTo(0, 5);
+        context.lineTo(-3, 7);
+        context.moveTo(0, 5);
+        context.lineTo(3, 7);
+        context.stroke();
+        context.restore();
+      }
+    }
+    map.addImage(imageId, context.getImageData(0, 0, size, size), { pixelRatio: 2 });
+  }
 }
 
 function communitySensationLabel(value) {

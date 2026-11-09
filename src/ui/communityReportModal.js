@@ -6,6 +6,13 @@ let contextProvider = () => ({});
 let submittedHandler = () => {};
 let openAccountHandler = () => {};
 let initialized = false;
+const REPORT_TOPIC_FIELDS = Object.freeze({ weather: "weather", cherry: "cherry", autumn: "autumn", "snow-cover": "snowCover" });
+const REPORT_TOPIC_EXAMPLES = Object.freeze({
+  weather: "例：風が強く、傘が差しにくいです",
+  cherry: "例：公園の桜が咲き始めました",
+  autumn: "例：山の斜面が赤く色づいています",
+  "snow-cover": "例：屋根にうっすら雪が積もりました"
+});
 
 export function setupCommunityReportModal({ getContext, onSubmitted, onOpenAccount } = {}) {
   contextProvider = typeof getContext === "function" ? getContext : contextProvider;
@@ -18,6 +25,10 @@ export function setupCommunityReportModal({ getContext, onSubmitted, onOpenAccou
   });
   document.getElementById("community-report-form")?.addEventListener("submit", submitReport);
   document.getElementById("community-report-form")?.addEventListener("change", (event) => {
+    if (event.target?.name === "topic") {
+      updateReportTopic(event.target.value);
+      return;
+    }
     if (event.target?.name !== "hazards") return;
     const selected = document.querySelectorAll("#community-report-form input[name='hazards']:checked");
     if (selected.length <= 3) return;
@@ -32,6 +43,7 @@ export function setupCommunityReportModal({ getContext, onSubmitted, onOpenAccou
     closeCommunityReportModal();
     openAccountHandler();
   });
+  updateReportTopic("weather");
 }
 
 export async function openCommunityReportModal() {
@@ -41,7 +53,7 @@ export async function openCommunityReportModal() {
   modal.hidden = false;
   document.body.classList.add("modal-open");
   setStatus("利用条件を確認しています…", "checking");
-  setFormEnabled(false);
+  setSubmitEnabled(false);
   const location = contextProvider()?.currentLocation;
   renderLocation(location);
   let account = null;
@@ -59,7 +71,7 @@ export async function openCommunityReportModal() {
     setStatus("投稿するには現在地を取得してください。位置情報はサーバーで約2km単位に丸めます。", "error");
     return;
   }
-  setFormEnabled(true);
+  setSubmitEnabled(true);
   setStatus(
     getCurrentLanguage() === "en"
       ? `${account.displayName} can post. Reports disappear after 5 hours. Up to 12 reports per day.`
@@ -85,11 +97,13 @@ async function submitReport(event) {
     return;
   }
   const data = new FormData(form);
+  const topic = data.get("topic");
+  const observation = data.get(REPORT_TOPIC_FIELDS[topic] || "weather");
   submit.disabled = true;
   setStatus("投稿しています…", "checking");
   try {
     await CommunityReportClient.create({
-      weather: data.get("weather"),
+      weather: observation,
       comment: data.get("comment") || null,
       sensation: data.get("sensation") || null,
       temperature: data.get("temperature") || null,
@@ -100,6 +114,7 @@ async function submitReport(event) {
       areaName: location.areaName || "現在地周辺"
     });
     form.reset();
+    updateReportTopic("weather");
     const count = document.getElementById("community-report-comment-count");
     if (count) count.textContent = "0";
     setStatus("投稿しました。雨雲レーダー上に反映しました。", "success");
@@ -133,14 +148,30 @@ function renderLocation(location) {
 }
 
 function applyCommunityReportLocale() {
-  const comment = document.querySelector("#community-report-form textarea[name='comment']");
-  if (comment) comment.placeholder = localizeText("例：風が強く、傘が差しにくいです");
+  updateReportTopic(document.querySelector("#community-report-form input[name='topic']:checked")?.value || "weather");
 }
 
-function setFormEnabled(enabled) {
+function updateReportTopic(topic) {
   const form = document.getElementById("community-report-form");
   if (!form) return;
-  form.querySelectorAll("input, select, textarea, button").forEach((element) => { element.disabled = !enabled; });
+  form.querySelectorAll("[data-community-topic]").forEach((field) => {
+    const active = field.dataset.communityTopic === topic;
+    field.hidden = !active;
+    const select = field.querySelector("select");
+    if (select) {
+      select.disabled = !active;
+      select.required = active;
+    }
+  });
+  const comment = form.querySelector("textarea[name='comment']");
+  if (comment) comment.placeholder = localizeText(REPORT_TOPIC_EXAMPLES[topic] || REPORT_TOPIC_EXAMPLES.weather);
+}
+
+function setSubmitEnabled(enabled) {
+  const form = document.getElementById("community-report-form");
+  if (!form) return;
+  const submit = form.querySelector("button[type='submit']");
+  if (submit) submit.disabled = !enabled;
 }
 
 function setStatus(message, state) {
