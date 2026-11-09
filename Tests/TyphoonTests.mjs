@@ -673,7 +673,7 @@ assert.match(indexSource, /id="typhoon-radar-overlay-button"/);
 assert.match(indexSource, /id="world-typhoon-target-modal"/);
 assert.match(styleSource, /\.map-world-typhoon-target-button/);
 assert.match(indexSource, /id="map-layer-toggle-choices"[\s\S]*?id="typhoon-radar-overlay-button"/);
-assert.match(styleSource, /#map-layer-toggle\.has-typhoon-radar/);
+assert.match(styleSource, /#map-layer-toggle:is\(\.has-typhoon-radar, \.has-community-reports\)/);
 assert.match(appSource, /function toggleTyphoonRadarOverlay\(\)/);
 assert.match(appSource, /typhoonRadarOverlayStatus/);
 assert.match(mapSource, /typhoonBulletinRadarVisible/);

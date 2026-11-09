@@ -201,6 +201,7 @@ const EARTHQUAKE_DISTRIBUTION_RECENT_XML_STORAGE_KEY = "meteoscope-earthquake-di
 const AMEDAS_PRECIPITATION_PERIOD_STORAGE_KEY = "meteoscope-amedas-precipitation-period-v1";
 const TERRAIN_LAYER_SETTINGS_STORAGE_KEY = "meteoscope-terrain-layer-settings-v1";
 const TERRAIN_LAYER_SETTINGS_SESSION_KEY = "meteoscope-terrain-layer-settings-session-v1";
+const OPTIONAL_LAYER_VISIBILITY_STORAGE_PREFIX = "meteoscope-layer-visible-v1:";
 const TERRAIN_LAYER_OPACITY_OPTIONS = [0.32, 0.48, 0.64];
 const DEFAULT_TERRAIN_LAYER_SETTINGS = Object.freeze({ visible: false, opacity: 0.48 });
 
@@ -296,6 +297,25 @@ function saveEarthquakeLayerVisibility(layerId, visible) {
     localStorage.setItem(EARTHQUAKE_LAYER_VISIBILITY_STORAGE_KEYS[layerId], visible ? "1" : "0");
   } catch {
     // Storage can be unavailable in privacy-restricted environments.
+  }
+}
+
+function loadOptionalLayerVisibility(layerId, defaultVisible = false) {
+  try {
+    const stored = localStorage.getItem(`${OPTIONAL_LAYER_VISIBILITY_STORAGE_PREFIX}${layerId}`);
+    if (stored === "1") return true;
+    if (stored === "0") return false;
+  } catch {
+    // Keep the default when storage is unavailable.
+  }
+  return defaultVisible;
+}
+
+function saveOptionalLayerVisibility(layerId, visible) {
+  try {
+    localStorage.setItem(`${OPTIONAL_LAYER_VISIBILITY_STORAGE_PREFIX}${layerId}`, visible ? "1" : "0");
+  } catch {
+    // The layer still works for the current session.
   }
 }
 
@@ -404,7 +424,7 @@ export function createWeatherApp() {
   const volcanoLatestActivityRequests = new Map();
   let earthquakeView = "recent";
   let earthquakeNearbySearchActive = false;
-  let earthquakeDistribution3DEnabled = false;
+  let earthquakeDistribution3DEnabled = loadOptionalLayerVisibility("earthquake-3d");
   let earthquakeDistributionRecentXmlVisible =
     loadEarthquakeDistributionRecentXmlVisibility();
   let earthquakeDistributionFilters = {
@@ -486,8 +506,8 @@ export function createWeatherApp() {
   let activeWeatherChartFrameIndex = 0;
   let weatherChartSatelliteEnabled = false;
   let weatherChartSatelliteStatus = "idle";
-  let weatherChartSatelliteWeatherChartOverlayEnabled = false;
-  let weatherChartSatelliteRadarOverlayEnabled = false;
+  let weatherChartSatelliteWeatherChartOverlayEnabled = loadOptionalLayerVisibility("satellite-weather-chart");
+  let weatherChartSatelliteRadarOverlayEnabled = loadOptionalLayerVisibility("satellite-radar");
   let weatherChartSatelliteFrames = [];
   let weatherChartSatelliteLoadedAt = 0;
   let weatherChartSatelliteRequest = null;
@@ -504,7 +524,7 @@ export function createWeatherApp() {
   const weatherDistributionLoadedAtByMode = new Map();
   const weatherDistributionRequestsByMode = new Map();
   let weatherDistributionPlayTimer = null;
-  let typhoonRadarOverlayEnabled = false;
+  let typhoonRadarOverlayEnabled = loadOptionalLayerVisibility("typhoon-radar");
   let typhoonRadarOverlayStatus = "idle";
   const adminNoticePush = createAdminNoticePush({
     onChange: () => refreshSettingsModalView()
@@ -519,7 +539,7 @@ export function createWeatherApp() {
   let backgroundPrefetchStarted = false;
   let communityReports = [];
   let communityReportsRequest = null;
-  let communityReportsVisible = false;
+  let communityReportsVisible = loadOptionalLayerVisibility("community-reports");
   let scheduledMapRenderFrame = 0;
   let mapRenderGeneration = 0;
   let scheduledPanelRenderFrame = 0;
@@ -595,6 +615,7 @@ export function createWeatherApp() {
         console.warn("[MeteoScope] cached tab view update failed", error);
       }
       if (cachedViewUpdated) {
+        if (isTabDataFresh(tab.id)) restoreTyphoonRadarOverlay(tab);
         if (tabChanged) scheduleTabAutoFocus(tab.id, autoFocusGeneration);
         if (tab.id === "earthquake") {
           if (earthquakeContentMode === "volcano") void refreshVolcanoData();
@@ -656,6 +677,7 @@ export function createWeatherApp() {
         tabDataLoadedAt[tab.id] = Date.now();
       }
       updateCurrentView(tab, data, { deferPanel: true });
+      restoreTyphoonRadarOverlay(tab);
       if (tabChanged) scheduleTabAutoFocus(tab.id, autoFocusGeneration);
       if (tab.id === "warnings") void refreshRiverFloodData();
       scheduleBackgroundPrefetch(tab.id);
@@ -997,12 +1019,14 @@ if (layerId === "river") {
     const tab = TABS.find((item) => item.id === "typhoon");
     if (typhoonRadarOverlayEnabled) {
       typhoonRadarOverlayEnabled = false;
+      saveOptionalLayerVisibility("typhoon-radar", false);
       typhoonRadarOverlayStatus = "idle";
       updateCurrentView(tab, latestDataByTab.typhoon ?? {});
       return;
     }
 
     typhoonRadarOverlayEnabled = true;
+    saveOptionalLayerVisibility("typhoon-radar", true);
     typhoonRadarOverlayStatus = "loading";
     updateCurrentView(tab, latestDataByTab.typhoon ?? {});
     await refreshTyphoonRadarOverlayData();
@@ -1015,6 +1039,14 @@ if (layerId === "river") {
     const loadedAt = Number(tabDataLoadedAt[tabId]) || 0;
     const ttlMs = TAB_DATA_TTL_MS[tabId] ?? 60 * 1000;
     return loadedAt > 0 && Date.now() - loadedAt < ttlMs;
+  }
+
+  function restoreTyphoonRadarOverlay(tab) {
+    if (tab.id !== "typhoon" || !typhoonRadarOverlayEnabled || typhoonRadarOverlayStatus !== "idle") return;
+    typhoonRadarOverlayStatus = "loading";
+    void refreshTyphoonRadarOverlayData().then(() => {
+      if (activeTab === "typhoon") updateCurrentView(tab, latestDataByTab.typhoon ?? {});
+    });
   }
 
   async function refreshCachedTab(tab) {
@@ -1741,6 +1773,7 @@ if (layerId === "river") {
       return;
     }
     earthquakeDistribution3DEnabled = false;
+    saveOptionalLayerVisibility("earthquake-3d", false);
     const started = weatherMap?.startHypocenterAreaSelection((areaPolygon) => {
       earthquakeDistributionAreaDrawing = false;
       if (!Array.isArray(areaPolygon) || areaPolygon.length < 3) {
@@ -1781,6 +1814,7 @@ if (layerId === "river") {
 
   function selectEarthquakeDistributionPresentation(presentation) {
     earthquakeDistribution3DEnabled = presentation === "3d";
+    saveOptionalLayerVisibility("earthquake-3d", earthquakeDistribution3DEnabled);
     if (activeTab !== "earthquake") return;
     if (earthquakeDistribution3DEnabled && (earthquakeView !== "distribution" || earthquakeSummaryPage !== "earthquake")) {
       earthquakeSummaryPage = "earthquake";
@@ -2700,6 +2734,7 @@ if (layerId === "river") {
     if (!weatherChartSatelliteEnabled) return;
     if (layerId === "radar") {
       weatherChartSatelliteRadarOverlayEnabled = !weatherChartSatelliteRadarOverlayEnabled;
+      saveOptionalLayerVisibility("satellite-radar", weatherChartSatelliteRadarOverlayEnabled);
       refreshRadarPanel();
       return;
     }
@@ -2707,6 +2742,7 @@ if (layerId === "river") {
 
     weatherChartSatelliteWeatherChartOverlayEnabled = !weatherChartSatelliteWeatherChartOverlayEnabled;
     if (!weatherChartSatelliteWeatherChartOverlayEnabled) {
+      saveOptionalLayerVisibility("satellite-weather-chart", false);
       refreshRadarPanel();
       return;
     }
@@ -2718,6 +2754,7 @@ if (layerId === "river") {
       console.warn("[MeteoScope] satellite weather chart overlay load failed", error);
       weatherChartSatelliteWeatherChartOverlayEnabled = false;
     }
+    saveOptionalLayerVisibility("satellite-weather-chart", weatherChartSatelliteWeatherChartOverlayEnabled);
     refreshRadarPanel();
   }
 
@@ -2925,7 +2962,13 @@ if (layerId === "river") {
     if (overlayId === "satellite") {
       refreshRadarPanel();
       try {
-        await refreshWeatherChartSatelliteFrames();
+        const requests = [refreshWeatherChartSatelliteFrames()];
+        if (weatherChartSatelliteWeatherChartOverlayEnabled) requests.push(refreshWeatherChartData());
+        const results = await Promise.allSettled(requests);
+        if (results[0].status === "rejected") throw results[0].reason;
+        if (results[1]?.status === "rejected") {
+          console.warn("[MeteoScope] satellite weather chart overlay load failed", results[1].reason);
+        }
         if (weatherChartSatelliteEnabled) {
           activeWeatherChartSatelliteFrameIndex = Math.max(0, weatherChartSatelliteFrames.length - 1);
           weatherChartSatelliteStatus = "ok";
@@ -3881,6 +3924,7 @@ if (layerId === "river") {
     document.querySelectorAll("[data-community-report-layer]").forEach((toggle) => {
       toggle.addEventListener("click", () => {
         communityReportsVisible = !communityReportsVisible;
+        saveOptionalLayerVisibility("community-reports", communityReportsVisible);
         weatherMap?.setCommunityReportsVisible(communityReportsVisible && isRainRadarActive());
         renderCommunityReportLayerToggle();
         if (communityReportsVisible && isRainRadarActive()) void refreshCommunityReports();
