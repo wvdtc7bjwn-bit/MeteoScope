@@ -312,7 +312,7 @@
                   <label>アカウントID<input name="username" autocomplete="username" minlength="4" maxlength="24" pattern="[A-Za-z0-9_]+" required><small>半角英数字と_、4〜24文字。公開されません。</small></label>
                   <label>ランキング表示名<input name="displayName" autocomplete="nickname" minlength="2" maxlength="20" required><small>表示名と当日の合計得点・達成日はランキングで公開されます。</small></label>
                   <label>パスワード<input name="password" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label>
-                  <label class="settings-account-consent"><input name="consent" type="checkbox" required><span><a href="/privacy.html" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>に同意する</span></label>
+                  <label class="settings-account-consent"><input name="consent" type="checkbox" required><span><a href="privacy.html" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>に同意する</span></label>
                   <button class="settings-account-submit" type="submit">アカウントを作成</button>
                 </form>
               </div>
@@ -359,17 +359,15 @@
                 <div><strong>先行機能</strong><small id="settings-early-access-label">許可済み</small></div>
               </div>
               <button type="button" class="settings-account-action" data-settings-early-access-refresh>利用状態を更新</button>
-              <div id="settings-early-access-features" class="settings-early-access-features" hidden>
-                <div>
-                  <strong>活断層データ</strong>
-                  <span>地震タブの「活断層」で表示する情報源を選択します。</span>
-                </div>
-                <div id="settings-active-fault-source-options" class="settings-theme-options settings-active-fault-source-options" role="radiogroup" aria-label="活断層データ">
-                  <button type="button" data-settings-active-fault-source="jshis" role="radio" aria-checked="false">現在（J-SHIS）</button>
-                  <button type="button" data-settings-active-fault-source="gsj" role="radio" aria-checked="false">産総研（GSJ）</button>
-                </div>
-                <small>産総研を選ぶと、許可されたアカウントだけが保護された活断層データを必要時に読み込みます。データの一般公開は行いません。</small>
-                <small id="settings-active-fault-source-status" class="settings-active-fault-source-status" role="status"></small>
+              <div class="settings-early-access-features">
+                <strong>利用できる先行機能</strong>
+                <ul>
+                  <li>過去の地震と震源付近の地震の検索</li>
+                  <li>アメダス観測点の前日のグラフ</li>
+                  <li>過去7日分の天気図</li>
+                  <li>高層気象のエマグラムとGFS地点モデル</li>
+                </ul>
+                <small>公開版ではMeteoScopeアカウントへのログインと管理者の許可が必要です。</small>
               </div>
               <p id="settings-early-access-status" class="settings-early-access-status" role="status"></p>
             </div>
@@ -481,7 +479,7 @@
                 <p><strong>区域の形状</strong><br>市区町村境界、地震区域、都道府県境界は、気象庁の<a href="https://www.data.jma.go.jp/developer/gis.html" target="_blank" rel="noopener noreferrer">予報区等GISデータ</a>をGeoJSONへ変換し、区域コード・名称・表示用属性を付加して利用しています。原データには国土地理院の測量成果が使用されています。</p>
                 <p><strong>震度観測点</strong><br>気象庁の<a href="https://www.data.jma.go.jp/eqev/data/intens-st/" target="_blank" rel="noopener noreferrer">震度観測点</a>で公開されている、気象庁・地方公共団体・防災科研の観測点名称、表示用座標、所属区分を加工して利用しています。</p>
                 <p><strong>背景地図</strong><br><a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener noreferrer">国土地理院の地理院タイル（標準地図）</a>を背景として利用し、その上に気象・防災情報を重ねています。</p>
-                <p><strong>活断層</strong><br>通常表示には防災科学技術研究所の<a href="https://www.j-shis.bosai.go.jp/api-vectortile-majorfault" target="_blank" rel="noopener noreferrer">J-SHIS主要活断層帯（2022年版・最大ケース）</a>を利用しています。アーリーアクセスでは、<a href="https://gbank.gsj.jp/activefault/" target="_blank" rel="noopener noreferrer">産業技術総合研究所 地質調査総合センター「活断層データベース」</a>の活動セグメントをMeteoScopeがGeoJSONへ変換・表示用に加工したデータへ切り替えられます。</p>
+                <p><strong>活断層</strong><br>通常表示には防災科学技術研究所の<a href="https://www.j-shis.bosai.go.jp/api-vectortile-majorfault" target="_blank" rel="noopener noreferrer">J-SHIS主要活断層帯（2022年版・最大ケース）</a>を利用しています。管理者が個別に許可したアカウントでは、<a href="https://gbank.gsj.jp/activefault/" target="_blank" rel="noopener noreferrer">産業技術総合研究所 地質調査総合センター「活断層データベース」</a>の活動セグメントをMeteoScopeがGeoJSONへ変換・表示用に加工したデータを表示します。アカウントがない場合や許可されていない場合はJ-SHISを表示します。</p>
                 <p><strong>プレート境界</strong><br><a href="https://earthquake.usgs.gov/arcgis/rest/services/eq/map_plateboundaries/MapServer" target="_blank" rel="noopener noreferrer">U.S. Geological Survey（USGS）のTectonic Plate Boundaries</a>（境界モデル: Bird, 2003）から日本周辺を抽出し、収束境界・横ずれ境界・その他をMeteoScopeが配色して地震タブへ重ねています。境界線は科学モデルに基づく概略位置で、個別地点の危険度や断層位置を示すものではありません。</p>
                 <p><strong>プレート面・等深線</strong><br><a href="https://www.usgs.gov/data/slab2-a-comprehensive-subduction-zone-geometry-model" target="_blank" rel="noopener noreferrer">U.S. Geological Survey（USGS）のSlab2</a>から日本周辺の沈み込むプレート上面の深さを20km間隔で抽出し、浅い側を赤、深い側を青の連続色で地震タブへ重ねています。立体表示の面は、USGSの収束境界を0km側の端とし、隣接する等深線間をMeteoScopeが補間した概略表現です。距離が離れた箇所やデータの裏付けがない隙間には面を張りません。CC0の静的データを使用し、Web版で3D表示します。モデル値・補間表示であり、地下の境界位置や危険度を地点単位で確定するものではありません。</p>
                 <p><strong>指定河川の形状</strong><br><a href="https://www.arcgis.com/home/item.html?id=dd9f222b9b61428abd2d26414c10928f&amp;sublayer=0" target="_blank" rel="noopener noreferrer">ESRIジャパン「指定河川洪水予報河川および洪水予報河川」</a>を利用しています。原典は気象業務支援センターが公開する流路データと河川名対応表、気象庁の個別コード表です。MeteoScopeが気象庁XMLの発表情報と照合し、地図上の配色と表示を加工しています。</p>
@@ -495,32 +493,13 @@
           <section class="settings-group" data-settings-section="support">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>利用規約</strong><small>サービスの利用条件</small></span></button>
             <div class="settings-group-content" hidden>
-              <div class="settings-policy-copy">
-                <p><strong>1. 本アプリの位置づけ</strong><br>本アプリは、気象庁などが公開する防災・気象情報を閲覧しやすく表示するための補助ツールです。行政機関による公式な防災情報ではありません。</p>
-                <p><strong>2. 安全に関する注意</strong><br>表示内容の正確性、完全性、即時性、継続的な提供を保証するものではありません。通信障害、提供元の更新、データ処理などにより、遅延、欠落、誤差または表示不具合が生じる場合があります。避難や安全確保の判断では、気象庁、自治体、報道機関などの公式情報を必ず確認してください。</p>
-                <p><strong>3. 通知</strong><br>プッシュ通知は補助機能であり、端末、ブラウザ、通信環境、配信サービスの状態によって遅延または不達となる場合があります。通知だけに依存して安全に関する判断をしないでください。</p>
-                <p><strong>4. 防災マップと防災メモ</strong><br>利用者が読み込むPDF・画像および追加する目印・メモは、利用者自身の責任で管理してください。著作権その他の権利を侵害するデータを利用しないでください。端末やブラウザのデータを削除すると、保存内容が失われる場合があります。</p>
-                <p><strong>5. アーリーアクセス</strong><br>開発中の機能は、予告なく内容の変更、提供の中断または終了を行う場合があります。管理者が許可したMeteoScopeアカウントで利用できます。</p>
-                <p><strong>6. 禁止事項</strong><br>本アプリまたは提供元へ過度な負荷をかける行為、不正アクセス、機能の妨害、法令または第三者の権利を侵害する行為を禁止します。</p>
-                <p><strong>7. 免責と変更</strong><br>法令上認められる範囲で、本アプリの利用または利用不能により生じた損害について、開発者は責任を負いません。本規約および本アプリの内容は、必要に応じて変更する場合があります。</p>
-                <p><small>最終更新日: 2026年7月13日</small></p>
-              </div>
+              <div class="settings-policy-copy" data-settings-legal-document="terms" aria-live="polite"></div>
             </div>
           </section>
           <section class="settings-group" data-settings-section="support">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>プライバシーポリシー</strong><small>保存・通信する情報</small></span></button>
             <div class="settings-group-content" hidden>
-              <div class="settings-policy-copy">
-                <p><strong>1. 取得・利用する情報</strong><br>本アプリは、選択した外観、表示切替ボタンの順序、マイエリア、使い方ガイドの確認状態、通知設定、アーリーアクセス認証情報などを、機能提供と設定保持のために利用します。</p>
-                <p><strong>2. 位置情報</strong><br>端末の位置情報は、現在地の表示、現在地に対応する市区町村・予報区域・防災情報の照合、周辺情報の表示に使用します。緯度・経度そのものは本アプリのサーバーへ保存しません。Web版のお知らせ通知では、現在地や通知対象区域をサーバーへ送信しません。</p>
-                <p><strong>3. プッシュ通知</strong><br>Web版のお知らせ通知を有効にした場合、ブラウザのPush購読情報を管理者からのお知らせ配信のために保存します。Web版では気象警報・注意報をプッシュ通知せず、通知対象区域、通知設定、警報状態を保存しません。通知解除または購読が無効になった場合に削除し、配信にはブラウザやOSが利用するPush配信サービスを経由します。</p>
-                <p><strong>4. サポート・ご意見</strong><br>サポート・ご意見を送信した場合、入力本文、分類、対象機能、期待する結果、表示中のタブ、配色、表示言語、表示サイズ、送信時刻および対応状況を、サポート対応と改善内容の確認に使用してサーバーへ保存します。位置情報、氏名、住所、端末識別情報は送信しません。回答を希望して任意入力されたメールアドレスは、サポート回答の連絡先としてのみ保存・使用します。氏名、住所、連絡先などの個人情報や緊急情報は入力しないでください。受付番号と対応状況はこの端末に最大8件、送信から30日間保存され、期限後の次回表示または状況更新時に消去できます。</p>
-                <p><strong>5. アーリーアクセス</strong><br>利用許可を管理するため、MeteoScopeアカウントに対応する許可状態を保存します。移行前の認証に関する記録が残っている場合があります。</p>
-                <p><strong>6. 端末内に保存する情報</strong><br>防災マップとして選択したPDF・画像、防災メモ、目印、マイエリア、外観や表示順などの設定は、原則としてブラウザのLocal StorageまたはIndexedDBへ保存されます。防災マップと防災メモは本アプリのサーバーへ送信しません。設定画面またはブラウザのサイトデータ削除により消去できます。</p>
-                <p><strong>7. 外部サービスへの通信</strong><br>気象・地震・地図などのデータ取得時には、気象庁、地図配信元その他の情報提供元へ通信します。また、アプリ配信、API、データ保存および通知処理にはCloudflareのサービスを利用します。通信時には、各提供元にIPアドレス、ブラウザ情報、アクセス日時などが送信される場合があります。</p>
-                <p><strong>8. 管理と変更</strong><br>保存情報は、機能提供、セキュリティ確保、不具合調査および不正利用防止に必要な範囲で取り扱います。本ポリシーは、機能や法令の変更に応じて更新する場合があります。</p>
-                <p><small>最終更新日: 2026年8月9日</small></p>
-              </div>
+              <div class="settings-policy-copy" data-settings-legal-document="privacy" aria-live="polite"></div>
             </div>
           </section>
           <section class="settings-group" data-settings-section="support">
@@ -1001,7 +980,7 @@
                   <label>アカウントID<input name="username" autocomplete="username" minlength="4" maxlength="24" pattern="[A-Za-z0-9_]+" required><small>半角英数字と_、4〜24文字。公開されません。</small></label>
                   <label>ランキング表示名<input name="displayName" autocomplete="nickname" minlength="2" maxlength="20" required><small>表示名と当日の合計得点・達成日はランキングで公開されます。</small></label>
                   <label>パスワード<input name="password" type="password" autocomplete="new-password" minlength="10" maxlength="128" required></label>
-                  <label class="quiz-account-consent"><input name="consent" type="checkbox" required><span><a href="/privacy.html" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>に同意する</span></label>
+                  <label class="quiz-account-consent"><input name="consent" type="checkbox" required><span><a href="privacy.html" target="_blank" rel="noopener noreferrer">プライバシーポリシー</a>に同意する</span></label>
                   <button class="disaster-quiz-primary" type="submit">アカウントを作成</button>
                 </form>
               </div>

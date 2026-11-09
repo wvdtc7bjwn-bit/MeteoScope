@@ -71,7 +71,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", default="ifs-ens", choices=tuple(ECMWF_MODEL_CONFIGS))
     parser.add_argument("--ensemble-input", type=Path)
     parser.add_argument("--deterministic-input", type=Path)
-    parser.add_argument("--min-genesis-members", type=int, default=5)
+    parser.add_argument("--min-genesis-members", type=int, default=1)
     return parser.parse_args()
 
 

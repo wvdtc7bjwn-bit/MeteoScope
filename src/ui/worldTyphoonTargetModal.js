@@ -162,7 +162,7 @@ function buildOptionMarkup(option, selectedKeys, isEnglish) {
     >
       <span class="world-typhoon-target-option-copy">
         <strong>${escapeHtml(option.name)}</strong>
-        <small>${escapeHtml(kind)}・${escapeHtml(memberLabel)}</small>
+        <small>${escapeHtml(kind)}${option.kind === "genesis" ? "" : `・${escapeHtml(memberLabel)}`}</small>
       </span>
       <i aria-hidden="true"></i>
     </button>

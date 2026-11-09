@@ -3270,7 +3270,6 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
     const worldLoading = ["idle", "loading"].includes(worldStatus);
     const modelStates = data.worldForecastModelStates ?? [];
     const enabledModels = modelStates.filter((model) => model.enabled);
-    const candidateCount = enabledModels.reduce((total, model) => total + (model.candidates?.length ?? 0), 0);
     const title = enabledModels.length === 0
       ? "表示モデルを選択"
       : (worldLoading
@@ -3346,7 +3345,7 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
     return `
       <div class="mobile-dock-content mobile-dock-typhoon mobile-dock-typhoon-world" aria-busy="${worldLoading}">
         ${modeSwitch}
-        <div class="mobile-dock-world-model-toggles" role="group" aria-label="${escapeHtml(`${title}・${enabledModels.length}モデル・発達候補${candidateCount}件`)}">
+        <div class="mobile-dock-world-model-toggles" role="group" aria-label="${escapeHtml(`${title}・${enabledModels.length}モデル`)}">
           ${modelToggles}
         </div>
         ${timeControl}
@@ -5888,7 +5887,7 @@ function buildWorldTyphoonModelDetails(layer) {
         <div><dt>${isEnglish ? "Target" : "対象"}</dt><dd>${escapeHtml(system.name)}</dd></div>
         <div><dt>${isEnglish ? "Base time" : "基準時刻"}</dt><dd>${escapeHtml(formatWorldForecastTime(system.forecastBaseTime, isEnglish ? "en" : "ja"))}</dd></div>
         <div><dt>${isEnglish ? "Forecast range" : "予報期間"}</dt><dd>${escapeHtml(isEnglish ? `${Math.ceil(maxStep / 24)} days` : `${Math.ceil(maxStep / 24)}日`)}</dd></div>
-        <div><dt>${isEnglish ? "Members" : "メンバー"}</dt><dd>${escapeHtml(isEnglish ? `${system.memberCount}` : `${system.memberCount}本`)}</dd></div>
+        ${system.kind !== "genesis" ? `<div><dt>${isEnglish ? "Members" : "メンバー"}</dt><dd>${escapeHtml(isEnglish ? `${system.memberCount}` : `${system.memberCount}本`)}</dd></div>` : ""}
         <div><dt>${isEnglish ? "On map" : "地図に表示"}</dt><dd>${escapeHtml(isEnglish ? `${mapSystemCount} systems / ${mapTrackCount} tracks` : `${mapSystemCount}系統 / ${mapTrackCount}本`)}</dd></div>
       </dl>
       <footer class="typhoon-world-attribution">

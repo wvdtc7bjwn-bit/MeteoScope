@@ -197,8 +197,6 @@ const EARTHQUAKE_LAYER_VISIBILITY_STORAGE_KEYS = {
   plateDepthContours: "meteoscope-earthquake-plate-depth-contours-visible-v1",
   estimatedIntensity: "meteoscope-earthquake-estimated-intensity-visible-v1"
 };
-const EARLY_ACCESS_ACTIVE_FAULT_SOURCE_STORAGE_KEY =
-  "meteoscope-early-access-active-fault-source-v1";
 const EARTHQUAKE_DISTRIBUTION_RECENT_XML_STORAGE_KEY = "meteoscope-earthquake-distribution-recent-xml-v1";
 const AMEDAS_PRECIPITATION_PERIOD_STORAGE_KEY = "meteoscope-amedas-precipitation-period-v1";
 const TERRAIN_LAYER_SETTINGS_STORAGE_KEY = "meteoscope-terrain-layer-settings-v1";
@@ -296,27 +294,6 @@ function loadEarthquakeLayerVisibility(layerId) {
 function saveEarthquakeLayerVisibility(layerId, visible) {
   try {
     localStorage.setItem(EARTHQUAKE_LAYER_VISIBILITY_STORAGE_KEYS[layerId], visible ? "1" : "0");
-  } catch {
-    // Storage can be unavailable in privacy-restricted environments.
-  }
-}
-
-function loadEarlyAccessActiveFaultSource() {
-  try {
-    return localStorage.getItem(EARLY_ACCESS_ACTIVE_FAULT_SOURCE_STORAGE_KEY) === "gsj"
-      ? "gsj"
-      : "jshis";
-  } catch {
-    return "jshis";
-  }
-}
-
-function saveEarlyAccessActiveFaultSource(source) {
-  try {
-    localStorage.setItem(
-      EARLY_ACCESS_ACTIVE_FAULT_SOURCE_STORAGE_KEY,
-      source === "gsj" ? "gsj" : "jshis"
-    );
   } catch {
     // Storage can be unavailable in privacy-restricted environments.
   }
@@ -459,7 +436,6 @@ export function createWeatherApp() {
   let historicalEarthquakeDetailRequestId = 0;
   let earthquakeSummaryPage = "earthquake";
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
-  let earlyAccessActiveFaultSource = loadEarlyAccessActiveFaultSource();
   let earlyAccessActiveFaultDataState = { status: "idle", data: null, error: "" };
   let earlyAccessActiveFaultDataRequest = null;
   let earlyAccessActiveFaultDataRequestId = 0;
@@ -785,17 +761,7 @@ export function createWeatherApp() {
   }
 
   function getEffectiveActiveFaultSource() {
-    return earlyAccessEnabled && earlyAccessActiveFaultSource === "gsj" ? "gsj" : "jshis";
-  }
-
-  function setEarlyAccessActiveFaultSource(source) {
-    if (!earlyAccessEnabled) return getEffectiveActiveFaultSource();
-    earlyAccessActiveFaultSource = source === "gsj" ? "gsj" : "jshis";
-    saveEarlyAccessActiveFaultSource(earlyAccessActiveFaultSource);
-    void applyActiveFaultDataSource();
-    refreshSettingsModalView();
-    if (activeTab === "earthquake") refreshActivePanel();
-    return getEffectiveActiveFaultSource();
+    return earlyAccessEnabled && earlyAccessState.activeFaultSource === "gsj" ? "gsj" : "jshis";
   }
 
   async function applyActiveFaultDataSource() {
@@ -803,10 +769,8 @@ export function createWeatherApp() {
     if (source !== "gsj") {
       earlyAccessActiveFaultDataRequestId += 1;
       earlyAccessActiveFaultDataRequest = null;
-      if (!earlyAccessEnabled) {
-        earlyAccessActiveFaultDataState = { status: "idle", data: null, error: "" };
-        weatherMap?.setGsjActiveFaultData(null);
-      }
+      earlyAccessActiveFaultDataState = { status: "idle", data: null, error: "" };
+      weatherMap?.setGsjActiveFaultData(null);
       weatherMap?.setActiveFaultDataSource("jshis");
       return "jshis";
     }
@@ -2247,23 +2211,15 @@ if (layerId === "river") {
         error: forecastState.error,
         source: forecastState.data?.source ?? null,
         baseTime: forecastState.data?.forecastBaseTime ?? "",
-        systems: (forecastState.data?.systems ?? []).filter((system) => system.kind !== "genesis").map((system) => {
-          const clip = (points = []) => points.filter((point) => point.stepHours <= 120);
-          const controlPoints = clip(system.controlPoints);
-          const deterministicPoints = clip(system.deterministicPoints);
-          const members = (system.members ?? []).map((member) => { const points = clip(member.points); return { ...member, points, coordinates: points.map((point) => point.coordinates) }; });
-          return { ...system, controlPoints, controlCoordinates: controlPoints.map((point) => point.coordinates), deterministicPoints, deterministicCoordinates: deterministicPoints.map((point) => point.coordinates), members };
-        }),
+        systems: forecastState.data?.systems ?? [],
         candidates: [],
-        system: selectWorldTyphoonSystem({ systems: (forecastState.data?.systems ?? []).filter((system) => system.kind !== "genesis") }, selected)
+        system: selectWorldTyphoonSystem(forecastState.data, selected)
       };
     });
     const worldForecastTargets = worldForecastModelStates
       .filter((layer) => layer.enabled)
       .flatMap((layer) => {
-        const candidateIds = new Set(layer.candidates.map((candidate) => String(candidate.id)));
         return layer.systems
-          .filter((system) => system.kind !== "genesis" || candidateIds.has(String(system.id)))
           .map((system) => ({
             key: `${layer.id}::${system.id}`,
             modelId: layer.id,
@@ -2323,7 +2279,7 @@ if (layerId === "river") {
     const worldForecastLayers = enabledWorldForecastLayers.map((layer) => ({
       ...layer,
       forecastPositions: (layer.timelineSystems ?? []).flatMap((system) => {
-        return selectWorldTyphoonForecastPositions(system, worldForecastTime)
+        return (system.kind === "genesis" ? [] : selectWorldTyphoonForecastPositions(system, worldForecastTime))
           .map((forecastPosition) => ({ system, ...forecastPosition }));
       })
     }));
@@ -3889,8 +3845,6 @@ if (layerId === "river") {
       terrainLayerSettings,
       earthquakeDistributionRecentXmlVisible,
       earlyAccessEnabled,
-      earlyAccessActiveFaultSource,
-      earlyAccessActiveFaultDataState,
       earlyAccessState
     };
   }
@@ -4249,7 +4203,6 @@ if (layerId === "river") {
       onEarthquakeDistributionRecentXmlChange:
         setEarthquakeDistributionRecentXmlVisible,
       onRefreshEarlyAccess: refreshEarlyAccess,
-      onEarlyAccessActiveFaultSourceChange: setEarlyAccessActiveFaultSource,
       onOpenGuide: onboarding.open,
       tabs: TABS,
       getTabOrder: () => tabControls?.getOrder?.() ?? TABS.map((tab) => tab.id),

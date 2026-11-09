@@ -1852,8 +1852,8 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       },
       paint: {
         "line-color": ["coalesce", ["get", "color"], "#f3a33c"],
-        "line-opacity": 0.22,
-        "line-width": 0.9
+        "line-opacity": 0.34,
+        "line-width": 1
       }
     });
 
@@ -1868,8 +1868,8 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       },
       paint: {
         "line-color": ["coalesce", ["get", "color"], "#ff8c18"],
-        "line-opacity": 0.88,
-        "line-width": 2,
+        "line-opacity": 0.34,
+        "line-width": 1,
         "line-dasharray": [1.5, 1.25]
       }
     });
@@ -5220,12 +5220,8 @@ function formatWorldForecastCoordinates(latitude, longitude) {
 function buildWorldGenesisPopup(system, modelInfo = {}, source = {}) {
   const modelLabel = modelInfo.label ?? source.model ?? "各国予想";
   const licenceLabel = source.license ? ` / ${source.license}` : "";
-  const support = system.genesisProbability != null && Number.isFinite(Number(system.genesisProbability))
-    ? `発生確率 ${Math.round(Number(system.genesisProbability))}%`
-    : `アンサンブル支持 ${system.memberCount ?? 0}本`;
   return `
     <strong>熱帯擾乱の発達候補 ${escapePopup(system.name ?? "")}</strong><br>
-    <span>${escapePopup(support)}</span><br>
     <small>台風の発生を確定する情報ではありません。${escapePopup(`${modelLabel}${licenceLabel}`)}（加工済み）</small>
   `;
 }

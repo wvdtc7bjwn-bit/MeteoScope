@@ -57,7 +57,7 @@ const geojson = {
 const compressed = gzipSync(Buffer.from(JSON.stringify(geojson)));
 const encoded = compressed.toString("base64");
 const db = new FakeD1(new Map([
-  [`early-access-account:${accountId}`, JSON.stringify({ allowed: true })],
+  [`early-access-account:${accountId}`, JSON.stringify({ allowed: true, activeFaultSource: "gsj" })],
   ["early-access-active-fault:manifest", JSON.stringify({
     encoding: "gzip-base64",
     chunkCount: 2
@@ -73,6 +73,12 @@ const unauthorized = await onRequest({
 assert.equal(unauthorized.status, 401);
 assert.equal(unauthorized.headers.get("Cache-Control"), "no-store");
 
+const jshisOnlyDb = new FakeD1(new Map(db.records));
+jshisOnlyDb.records.set(`early-access-account:${accountId}`, JSON.stringify({ allowed: true }));
+const jshisOnly = await onRequest({ request: makeRequest(token), env: { NOTIFICATIONS_DB: jshisOnlyDb } });
+assert.equal(jshisOnly.status, 403);
+assert.equal(jshisOnly.headers.get("Cache-Control"), "no-store");
+
 const authorized = await onRequest({
   request: makeRequest(token),
   env: { NOTIFICATIONS_DB: db }
@@ -85,7 +91,7 @@ const restored = await authorized.json();
 assert.deepEqual(restored, geojson);
 
 const incompleteDb = new FakeD1(new Map([
-  [`early-access-account:${accountId}`, JSON.stringify({ allowed: true })],
+  [`early-access-account:${accountId}`, JSON.stringify({ allowed: true, activeFaultSource: "gsj" })],
   ["early-access-active-fault:manifest", JSON.stringify({
     encoding: "gzip-base64",
     chunkCount: 2
@@ -99,9 +105,14 @@ const incomplete = await onRequest({
 assert.equal(incomplete.status, 503);
 
 const earlyAccessClient = await readFile(new URL("../src/ui/earlyAccess.js", import.meta.url), "utf8");
+const appClient = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
+const indexHtml = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const weatherMapClient = await readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8");
 const configClient = await readFile(new URL("../src/config.js", import.meta.url), "utf8");
 assert.match(earlyAccessClient, /requestAccess\("active-fault"/u);
+assert.match(appClient, /earlyAccessState\.activeFaultSource === "gsj"/u);
+assert.doesNotMatch(appClient, /meteoscope-early-access-active-fault-source-v1/u);
+assert.doesNotMatch(indexHtml, /data-settings-active-fault-source/u);
 assert.match(weatherMapClient, /setGsjActiveFaultData/u);
 assert.doesNotMatch(configClient, /activefault_japan_segments|gsj-active-fault/u);
 

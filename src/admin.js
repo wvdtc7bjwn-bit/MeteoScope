@@ -154,6 +154,10 @@ function bindEvents() {
     const button = event.target.closest("[data-delete-account]");
     if (button) void deleteAccount(button.dataset.deleteAccount, button);
   });
+  elements.accountList?.addEventListener("change", (event) => {
+    const source = event.target.closest("[data-account-active-fault-source]");
+    if (source) void updateAccountActiveFaultSource(source.dataset.accountActiveFaultSource, source);
+  });
 }
 
 function showLogin() {
@@ -243,6 +247,12 @@ function renderAccounts() {
           <small>ID ${escapeHtml(account.id || "--")}</small>
         </div>
         <button class="admin-secondary-button" type="button" data-account-early-access="${escapeAttribute(account.id || "")}" aria-pressed="${account.earlyAccessAllowed ? "true" : "false"}">${account.earlyAccessAllowed ? "先行機能：許可中（解除）" : "先行機能を許可"}</button>
+        <label class="admin-account-fault-source">活断層データ
+          <select data-account-active-fault-source="${escapeAttribute(account.id || "")}" ${account.earlyAccessAllowed ? "" : "disabled"}>
+            <option value="jshis" ${account.activeFaultSource === "gsj" ? "" : "selected"}>J-SHIS</option>
+            <option value="gsj" ${account.activeFaultSource === "gsj" ? "selected" : ""}>産総研（GSJ）</option>
+          </select>
+        </label>
         <button class="admin-danger-button" type="button" data-delete-account="${escapeAttribute(account.id || "")}">完全に削除</button>
       </article>
     `).join("");
@@ -262,11 +272,30 @@ async function updateAccountEarlyAccess(accountID, button) {
       method: "PUT", body: { allowed: !account.earlyAccessAllowed }
     });
     account.earlyAccessAllowed = result.allowed === true;
+    if (!account.earlyAccessAllowed) account.activeFaultSource = "jshis";
     renderAccounts();
     setMessage(elements.dashboardMessage, account.earlyAccessAllowed ? "アーリーアクセスを許可しました。" : "アーリーアクセスの許可を解除しました。", "success");
   } catch (error) {
     button.disabled = false;
     setMessage(elements.dashboardMessage, error.message || "許可状態を変更できませんでした。", "error");
+  }
+}
+
+async function updateAccountActiveFaultSource(accountID, select) {
+  const account = currentAccounts.find((item) => item.id === accountID);
+  if (!account?.earlyAccessAllowed || select.disabled) return;
+  select.disabled = true;
+  try {
+    const result = await requestJson(`/accounts/${encodeURIComponent(accountID)}/active-fault-source`, {
+      method: "PUT", body: { source: select.value }
+    });
+    account.activeFaultSource = result.source;
+    renderAccounts();
+    setMessage(elements.dashboardMessage, result.source === "gsj" ? "産総研データを許可しました。" : "J-SHIS表示に変更しました。", "success");
+  } catch (error) {
+    select.value = account.activeFaultSource === "gsj" ? "gsj" : "jshis";
+    select.disabled = false;
+    setMessage(elements.dashboardMessage, error.message || "活断層データを変更できませんでした。", "error");
   }
 }
 

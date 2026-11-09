@@ -10,7 +10,9 @@ export async function onRequest({ request, env }) {
   const access = await getAccountEarlyAccess(request, env.NOTIFICATIONS_DB);
   if (!access.active) return withHeaders(response(access, access.authenticated ? 403 : 401), cors);
   const result = payload.action === "active-fault"
-    ? await getProtectedActiveFaultData(env.NOTIFICATIONS_DB)
+    ? access.activeFaultSource === "gsj"
+      ? await getProtectedActiveFaultData(env.NOTIFICATIONS_DB)
+      : response({ error: "このアカウントには産総研データの利用が許可されていません。" }, 403)
     : payload.action === "status" || !payload.action
       ? response(access)
       : response({ error: "未対応の操作です。" }, 400);

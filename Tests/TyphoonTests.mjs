@@ -656,7 +656,7 @@ assert.doesNotMatch(appSource, /getWorldTyphoonFocusCoordinates/);
 assert.match(appSource, /updateWorldTyphoonForecastPositions/);
 assert.match(appSource, /interpolateWorldTime:\s*true/);
 assert.match(appSource, /forecastPositions:/);
-assert.match(appSource, /system\.kind !== "genesis"/);
+assert.match(appSource, /systems:\s*forecastState\.data\?\.systems\s*\?\?\s*\[\]/);
 assert.match(appSource, /const worldForecastTargets = worldForecastModelStates/);
 assert.match(appSource, /selectedWorldForecastTargetKeys:\s*activeWorldTyphoonTargetKeys/);
 assert.match(appSource, /timelineSystems:\s*systems/);
@@ -748,7 +748,9 @@ assert.ok(
   panelSource.indexOf('if (tabId === "typhoon" && data?.worldForecastMode)')
     < panelSource.indexOf("function renderRadarControls")
 );
-assert.match(panelSource, /発達候補/);
+assert.match(mapSource, /熱帯擾乱の発達候補/);
+assert.doesNotMatch(appSource, /point\.stepHours\s*<=\s*120/);
+assert.doesNotMatch(mapSource.slice(mapSource.indexOf("function buildWorldGenesisPopup"), mapSource.indexOf("function formatTyphoonForecastCenter")), /発生確率|genesisProbability/);
 assert.match(workflowSource, /world-forecast-data/);
 assert.match(workflowSource, /world-typhoon-forecast-gefs\.json/);
 assert.match(workflowSource, /world-typhoon-forecast-ifs-hres\.json/);

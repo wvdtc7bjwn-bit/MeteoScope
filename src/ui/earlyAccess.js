@@ -11,11 +11,11 @@ export function accountAuthHeaders() {
 
 export async function validateEarlyAccess() {
   if (import.meta.env?.DEV && ["localhost", "127.0.0.1", "[::1]"].includes(globalThis.location?.hostname)) {
-    return { status: "active", active: true, label: "ローカル開発", message: "localhostでは先行機能を利用できます。" };
+    return { status: "active", active: true, label: "ローカル開発", activeFaultSource: "jshis", message: "localhostでは先行機能を利用できます。" };
   }
   try {
     const result = await requestAccess("status");
-    return { status: "active", active: true, label: "許可済み", message: "このアカウントはアーリーアクセスを利用できます。" };
+    return { status: "active", active: true, label: "許可済み", activeFaultSource: result.activeFaultSource === "gsj" ? "gsj" : "jshis", message: "このアカウントはアーリーアクセスを利用できます。" };
   } catch (error) {
     return { status: "inactive", active: false, label: "", message: error.message || "認証状態を確認できませんでした。" };
   }

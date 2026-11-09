@@ -30,13 +30,21 @@ const listDb = {
               password_hash: "must-not-leak",
               created_at: "2026-07-17T00:00:00.000Z",
               updated_at: "2026-07-17T01:00:00.000Z"
+            }, {
+              id: broadcastID,
+              username_normalized: "approved_user",
+              display_name: "許可ユーザー",
+              created_at: "2026-07-18T00:00:00.000Z",
+              updated_at: "2026-07-18T01:00:00.000Z",
+              early_access_allowed: 1,
+              active_fault_source: "gsj"
             }] };
           }
         };
       },
       async first() {
         assert.match(sql, /COUNT\(\*\) AS total FROM quiz_accounts/u);
-        return { total: 1 };
+        return { total: 2 };
       }
     };
   }
@@ -48,9 +56,12 @@ assert.deepEqual(accountPage.accounts[0], {
   displayName: "天気ユーザー",
   createdAt: "2026-07-17T00:00:00.000Z",
   updatedAt: "2026-07-17T01:00:00.000Z",
-  earlyAccessAllowed: false
+  earlyAccessAllowed: false,
+  activeFaultSource: "jshis"
 });
 assert.equal("password_hash" in accountPage.accounts[0], false);
+assert.equal(accountPage.accounts[1].activeFaultSource, "gsj");
+assert.equal(accountPage.accounts[1].earlyAccessAllowed, true);
 assert.equal(accountPage.nextOffset, null);
 
 const accountDeleteStatements = [];
@@ -169,6 +180,7 @@ assert.match(adminRoute, /route\.startsWith\("accounts\/"\) && method === "DELET
 assert.match(adminRoute, /route\.startsWith\("push\/broadcasts\/"\) && method === "DELETE"/u);
 assert.match(adminRoute, /listAdminPushBroadcasts\(env, 50\)/u);
 assert.match(adminRoute, /setAccountEarlyAccess\(db, id, payload.allowed\)/u);
+assert.match(adminRoute, /setAccountActiveFaultSource\(db, id, payload.source\)/u);
 assert.match(adminPage, /id="admin-account-list"/u);
 assert.match(adminPage, /id="free-tier-monitoring"/u);
 assert.match(adminPage, /id="quota-metrics"/u);
@@ -176,6 +188,7 @@ assert.match(adminPage, /管理者通知管理/u);
 assert.match(adminPage, /id="discord-test-button"/u);
 assert.doesNotMatch(adminPage, /earthquake-history-(?:update|stop)-button|GITHUB_ACTIONS_TOKEN/u);
 assert.match(adminScript, /data-delete-account/u);
+assert.match(adminScript, /data-account-active-fault-source/u);
 assert.match(adminScript, /data-delete-push-broadcast/u);
 assert.match(adminScript, /sendDiscordTestNotification/u);
 assert.doesNotMatch(adminScript, /dispatchEarthquakeHistoryUpdate|stopEarthquakeHistoryUpdate/u);

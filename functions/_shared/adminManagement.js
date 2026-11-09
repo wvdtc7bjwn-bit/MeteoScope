@@ -11,7 +11,9 @@ export async function listMeteoScopeAccounts(db, options = {}) {
   const [accountsResult, totalRow] = await Promise.all([
     db.prepare(
       `SELECT accounts.id, accounts.username_normalized, accounts.display_name, accounts.created_at, accounts.updated_at,
-              CASE WHEN json_valid(grants.value) AND json_extract(grants.value, '$.allowed') = 1 THEN 1 ELSE 0 END AS early_access_allowed
+              CASE WHEN json_valid(grants.value) AND json_extract(grants.value, '$.allowed') = 1 THEN 1 ELSE 0 END AS early_access_allowed,
+              CASE WHEN json_valid(grants.value) AND json_extract(grants.value, '$.allowed') = 1
+                     AND json_extract(grants.value, '$.activeFaultSource') = 'gsj' THEN 'gsj' ELSE 'jshis' END AS active_fault_source
        FROM quiz_accounts accounts
        LEFT JOIN app_records grants ON grants.key = 'early-access-account:' || accounts.id
        ORDER BY datetime(accounts.created_at) DESC, accounts.id ASC
@@ -88,7 +90,8 @@ function publicAccount(account) {
     displayName: String(account?.display_name || ""),
     createdAt: account?.created_at || null,
     updatedAt: account?.updated_at || null,
-    earlyAccessAllowed: Number(account?.early_access_allowed) === 1
+    earlyAccessAllowed: Number(account?.early_access_allowed) === 1,
+    activeFaultSource: Number(account?.early_access_allowed) === 1 && account?.active_fault_source === "gsj" ? "gsj" : "jshis"
   };
 }
 

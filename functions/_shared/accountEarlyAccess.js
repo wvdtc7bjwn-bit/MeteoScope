@@ -8,11 +8,24 @@ export async function getAccountEarlyAccess(request, db) {
   if (!auth) return { active: false, authenticated: false, error: "MeteoScopeアカウントにログインしてください。" };
   const grant = await readJson(db, `${PREFIX}${auth.account.id}`, null);
   return grant?.allowed === true
-    ? { active: true, authenticated: true, label: "許可済み" }
+    ? { active: true, authenticated: true, label: "許可済み", activeFaultSource: grant.activeFaultSource === "gsj" ? "gsj" : "jshis" }
     : { active: false, authenticated: true, error: "このアカウントにはアーリーアクセスが許可されていません。" };
 }
 
 export async function setAccountEarlyAccess(db, accountId, allowed) {
-  if (allowed) await writeJson(db, `${PREFIX}${accountId}`, { allowed: true });
+  if (allowed) {
+    const grant = await readJson(db, `${PREFIX}${accountId}`, null);
+    await writeJson(db, `${PREFIX}${accountId}`, {
+      allowed: true,
+      activeFaultSource: grant?.activeFaultSource === "gsj" ? "gsj" : "jshis"
+    });
+  }
   else await deleteJson(db, `${PREFIX}${accountId}`);
+}
+
+export async function setAccountActiveFaultSource(db, accountId, source) {
+  if (source !== "jshis" && source !== "gsj") throw new TypeError("Invalid active-fault source.");
+  const grant = await readJson(db, `${PREFIX}${accountId}`, null);
+  if (grant?.allowed !== true) throw new TypeError("Early access is not allowed for this account.");
+  await writeJson(db, `${PREFIX}${accountId}`, { allowed: true, activeFaultSource: source });
 }

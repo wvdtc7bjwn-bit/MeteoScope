@@ -3508,6 +3508,29 @@ html[data-theme="light"] .weekly-weather-issued strong {
   display: grid;
   gap: 8px;
   color: #dbe7ff;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.settings-policy-copy h2 {
+  margin: 16px 0 0;
+  color: #e8eef6;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.settings-policy-copy ul {
+  margin: 0;
+  padding-left: 1.35em;
+}
+
+.settings-policy-copy li + li {
+  margin-top: 6px;
+}
+
+.settings-policy-copy .meta {
+  color: #9db3d7;
+  font-size: 12px;
 }
 
 .settings-policy-copy a,
@@ -15018,6 +15041,14 @@ html[data-theme="light"] .settings-policy-copy {
   color: #334a62;
 }
 
+html[data-theme="light"] .settings-policy-copy h2 {
+  color: #1c3048;
+}
+
+html[data-theme="light"] .settings-policy-copy .meta {
+  color: #52667c;
+}
+
 html[data-theme="light"] .settings-group {
   border-color: rgba(66, 91, 120, 0.16);
   background: rgba(255, 255, 255, 0.66);
@@ -15634,26 +15665,17 @@ html[data-theme="light"] .tsunami-area-row.level-advisory .tsunami-level-badge {
   border-radius: 10px;
   background: rgba(7, 16, 34, 0.26);
 }
-.settings-early-access-features[hidden] { display: none; }
-.settings-early-access-features > div:first-child {
-  display: grid;
-  gap: 2px;
-}
 .settings-early-access-features strong {
   color: #e4edfb;
   font-size: 13px;
 }
-.settings-early-access-features span,
+.settings-early-access-features ul { margin: 0; padding-left: 1.4em; }
+.settings-early-access-features li { margin: 3px 0; color: var(--primary-text, #e4edfb); font-size: 12px; line-height: 1.5; }
 .settings-early-access-features small {
   color: var(--muted-text, #9aa8bd);
   font-size: 11px;
   line-height: 1.55;
 }
-.settings-active-fault-source-options {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.settings-active-fault-source-status[data-state="ready"] { color: #6ed5b0; }
-.settings-active-fault-source-status[data-state="error"] { color: #ff9b8f; }
 
 .radar-time-meta {
   display: flex;
@@ -15896,7 +15918,8 @@ html[data-theme="light"] .settings-early-access-features {
   background: rgba(230, 239, 247, 0.58);
 }
 html[data-theme="light"] .settings-early-access-features strong { color: #18324b; }
-html[data-theme="light"] .settings-early-access-features :is(span, small) { color: #5d748b; }
+html[data-theme="light"] .settings-early-access-features li { color: #18324b; }
+html[data-theme="light"] .settings-early-access-features small { color: #5d748b; }
 
 html[data-theme="light"] .settings-modal-header {
   border-bottom-color: var(--modal-shell-divider);

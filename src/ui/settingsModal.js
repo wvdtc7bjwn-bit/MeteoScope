@@ -1,3 +1,4 @@
+import { loadLegalDocumentMarkup } from "./legalConsentModal.js";
 import { getDefaultTabOrder, normalizeTabOrder } from "./tabOrder.js";
 import { QuizRankingClient } from "../domain/quizRankingClient.js";
 import { getCurrentLanguage } from "./locale.js";
@@ -95,15 +96,6 @@ export function setupSettingsModal(options = {}) {
 
     if (event.target.closest("[data-settings-early-access-refresh]")) {
       void settingsOptions.onRefreshEarlyAccess?.();
-      return;
-    }
-
-    const activeFaultSourceButton = event.target.closest("[data-settings-active-fault-source]");
-    if (activeFaultSourceButton) {
-      settingsOptions.onEarlyAccessActiveFaultSourceChange?.(
-        activeFaultSourceButton.dataset.settingsActiveFaultSource
-      );
-      renderSettingsEarlyAccess();
       return;
     }
 
@@ -276,7 +268,25 @@ function toggleSettingsGroup(toggle) {
   setSettingsGroupExpanded(group, expanded);
   if (expanded) {
     if (group.matches(".settings-changelog-group")) renderSettingsChangelog();
+    void renderSettingsLegalDocument(group);
     scrollSettingsGroupIntoView(group);
+  }
+}
+
+async function renderSettingsLegalDocument(group) {
+  const container = group.querySelector("[data-settings-legal-document]");
+  if (!container || container.dataset.rendered === "true" || container.dataset.loading === "true") return;
+  const kind = container.dataset.settingsLegalDocument;
+  if (!["terms", "privacy"].includes(kind)) return;
+  container.dataset.loading = "true";
+  container.textContent = "読み込み中…";
+  try {
+    container.innerHTML = await loadLegalDocumentMarkup(kind);
+    container.dataset.rendered = "true";
+  } catch {
+    container.textContent = "読み込めませんでした。接続を確認して、もう一度開いてください。";
+  } finally {
+    delete container.dataset.loading;
   }
 }
 
@@ -391,6 +401,7 @@ function openSettingsGroup(groupClass) {
   });
   setSettingsGroupExpanded(group, true);
   if (group.matches(".settings-changelog-group")) renderSettingsChangelog();
+  void renderSettingsLegalDocument(group);
   scrollSettingsGroupIntoView(group);
 }
 
@@ -515,43 +526,11 @@ function renderSettingsEarlyAccess() {
   const access = state.earlyAccessState ?? {};
   const active = document.getElementById("settings-early-access-active");
   const status = document.getElementById("settings-early-access-status");
-  const features = document.getElementById("settings-early-access-features");
   if (!active || !status) return;
   active.hidden = !access.active;
-  if (features) features.hidden = !access.active;
   document.getElementById("settings-early-access-label").textContent = access.label || "認証済み";
   status.textContent = access.message || "";
   status.dataset.state = access.active ? "active" : access.status || "inactive";
-  const activeFaultSource = state.earlyAccessActiveFaultSource === "gsj" ? "gsj" : "jshis";
-  document.querySelectorAll("[data-settings-active-fault-source]").forEach((sourceButton) => {
-    const selected = sourceButton.dataset.settingsActiveFaultSource === activeFaultSource;
-    sourceButton.classList.toggle("active", selected);
-    sourceButton.setAttribute("aria-checked", String(selected));
-  });
-  const activeFaultStatus = document.getElementById("settings-active-fault-source-status");
-  if (activeFaultStatus) {
-    const dataState = state.earlyAccessActiveFaultDataState ?? {};
-    const isEnglish = getCurrentLanguage() === "en";
-    const segmentCount = Number(dataState.data?.features?.length || 0);
-    activeFaultStatus.dataset.state = activeFaultSource === "gsj" ? dataState.status || "idle" : "idle";
-    activeFaultStatus.textContent = activeFaultSource !== "gsj"
-      ? isEnglish ? "Using the current J-SHIS display." : "現在のJ-SHIS表示を使用します。"
-      : dataState.status === "loading"
-        ? isEnglish
-          ? "Authenticating and loading GSJ data. J-SHIS remains visible until loading completes."
-          : "産総研データを認証・取得中です。取得完了まではJ-SHISを表示します。"
-        : dataState.status === "ready"
-          ? isEnglish
-            ? `GSJ data is displayed (${segmentCount.toLocaleString("en-US")} segments).`
-            : `産総研データを表示中です（${segmentCount.toLocaleString("ja-JP")}区間）。`
-          : dataState.status === "error"
-            ? isEnglish
-              ? `${dataState.error} Temporarily using the J-SHIS display.`
-              : `${dataState.error} J-SHIS表示へ一時的に戻しています。`
-            : isEnglish
-              ? "GSJ data is loaded when Active faults is enabled on the Earthquakes tab."
-              : "産総研データは地震タブで活断層表示時に取得します。";
-  }
 }
 
 async function renderSettingsAccount() {

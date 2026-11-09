@@ -3,7 +3,7 @@ import { readCloudflareFreeTierUsage } from "../../_shared/cloudflareFreeTierAna
 import { readQuizOperationalMetrics } from "../../_shared/quizMaintenance.js";
 import { readCommunityReportOperationalMetrics } from "../../_shared/communityReports.js";
 import { deleteMeteoScopeAccount, listMeteoScopeAccounts, normalizeAccountID } from "../../_shared/adminManagement.js";
-import { setAccountEarlyAccess } from "../../_shared/accountEarlyAccess.js";
+import { setAccountActiveFaultSource, setAccountEarlyAccess } from "../../_shared/accountEarlyAccess.js";
 import { invalidateAllQuizLeaderboardCaches } from "../../_shared/quizLeaderboardCache.js";
 import {
   deleteAdminPushBroadcast, listAdminPushBroadcasts, queueAdminPushBroadcast
@@ -49,6 +49,8 @@ export async function onRequest({ request, env }) {
     if (route === "accounts" && method === "GET") return await getAccounts(url, env);
     const accountAccessRoute = route.match(/^accounts\/([^/]+)\/early-access$/u);
     if (accountAccessRoute && method === "PUT") return await updateAccountEarlyAccess(request, env, accountAccessRoute[1]);
+    const activeFaultRoute = route.match(/^accounts\/([^/]+)\/active-fault-source$/u);
+    if (activeFaultRoute && method === "PUT") return await updateAccountActiveFaultSource(request, env, activeFaultRoute[1]);
     if (route.startsWith("accounts/") && method === "DELETE") {
       return await deleteAccount(route.slice("accounts/".length), env);
     }
@@ -234,6 +236,23 @@ async function updateAccountEarlyAccess(request, env, rawAccountId) {
   if (!account) return json({ error: "アカウントが見つかりません。" }, { status: 404 });
   await setAccountEarlyAccess(db, id, payload.allowed);
   return json({ accountId: id, allowed: payload.allowed });
+}
+
+async function updateAccountActiveFaultSource(request, env, rawAccountId) {
+  let id;
+  try { id = normalizeAccountID(rawAccountId); } catch { return json({ error: "アカウントIDが正しくありません。" }, { status: 400 }); }
+  const payload = await request.json().catch(() => null);
+  if (payload?.source !== "jshis" && payload?.source !== "gsj") return json({ error: "断層データの種類が正しくありません。" }, { status: 400 });
+  const db = requireDb(env);
+  const account = await db.prepare("SELECT id FROM quiz_accounts WHERE id = ?1").bind(id).first();
+  if (!account) return json({ error: "アカウントが見つかりません。" }, { status: 404 });
+  try {
+    await setAccountActiveFaultSource(db, id, payload.source);
+  } catch (error) {
+    if (error instanceof TypeError) return json({ error: "先行機能の利用を許可したアカウントのみ設定できます。" }, { status: 409 });
+    throw error;
+  }
+  return json({ accountId: id, source: payload.source });
 }
 
 async function deleteAccount(accountID, env) {

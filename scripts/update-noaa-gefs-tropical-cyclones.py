@@ -28,7 +28,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--tracker-root", default=NCEP_TRACKER_ROOT)
     parser.add_argument("--xml-input", type=Path)
     parser.add_argument("--genesis-input-dir", type=Path)
-    parser.add_argument("--min-genesis-probability", type=int, default=20)
+    parser.add_argument("--min-genesis-probability", type=int, default=0)
     return parser.parse_args()
 
 

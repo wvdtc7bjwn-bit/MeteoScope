@@ -1,4 +1,4 @@
-export const LEGAL_CONSENT_VERSION = "2026-08-09";
+export const LEGAL_CONSENT_VERSION = "2026-11-09";
 
 const STORAGE_KEY = "meteoscope-legal-consent-version";
 const DOCUMENTS = Object.freeze({
@@ -107,7 +107,7 @@ async function openDocument(kind, trigger) {
   documentBack.focus({ preventScroll: true });
 
   try {
-    const markup = await loadDocumentMarkup(kind);
+    const markup = await loadLegalDocumentMarkup(kind, { consentLinks: true });
     if (requestId !== documentRequestId || panel.dataset.legalConsentDocument !== kind) return;
     content.innerHTML = markup;
   } catch {
@@ -142,12 +142,14 @@ function closeDocument({ restoreFocus = true } = {}) {
   lastDocumentTrigger = null;
 }
 
-async function loadDocumentMarkup(kind) {
-  if (documentCache.has(kind)) return documentCache.get(kind);
+export async function loadLegalDocumentMarkup(kind, { consentLinks = false } = {}) {
+  const cacheKey = `${kind}:${consentLinks}`;
+  if (documentCache.has(cacheKey)) return documentCache.get(cacheKey);
   const documentDefinition = DOCUMENTS[kind];
   if (!documentDefinition) throw new Error("Unknown legal document");
 
-  const response = await fetch(new URL(documentDefinition.path, window.location.href));
+  const documentUrl = new URL(documentDefinition.path, window.location.href);
+  const response = await fetch(documentUrl);
   if (!response.ok) throw new Error(`Unable to load ${kind}`);
   const source = new DOMParser().parseFromString(await response.text(), "text/html");
   const main = source.querySelector("main");
@@ -157,18 +159,19 @@ async function loadDocumentMarkup(kind) {
   main.querySelectorAll("a").forEach((link) => {
     const href = link.getAttribute("href") || "";
     const linkedDocument = href.endsWith("terms.html") ? "terms" : href.endsWith("privacy.html") ? "privacy" : null;
-    if (linkedDocument) {
+    if (linkedDocument && consentLinks) {
       link.dataset.legalConsentDocument = linkedDocument;
       link.setAttribute("href", "#legal-consent-document");
       return;
     }
+    if (href && !href.startsWith("#")) link.href = new URL(href, documentUrl).href;
     if (/^https?:/i.test(href)) {
       link.target = "_blank";
       link.rel = "noopener noreferrer";
     }
   });
   const markup = main.innerHTML;
-  documentCache.set(kind, markup);
+  documentCache.set(cacheKey, markup);
   return markup;
 }
 

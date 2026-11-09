@@ -44,7 +44,10 @@ const request = (token, payload = { action: "status" }) => new Request("https://
 assert.equal((await onRequest({ request: request(""), env: { NOTIFICATIONS_DB: db } })).status, 401);
 assert.equal((await onRequest({ request: request("session-a"), env: { NOTIFICATIONS_DB: db } })).status, 403);
 await setAccountEarlyAccess(db, userA, true);
-assert.equal((await onRequest({ request: request("session-a"), env: { NOTIFICATIONS_DB: db } })).status, 200);
+const defaultAccess = await onRequest({ request: request("session-a"), env: { NOTIFICATIONS_DB: db } });
+assert.equal(defaultAccess.status, 200);
+assert.equal((await defaultAccess.json()).activeFaultSource, "jshis");
+assert.equal((await onRequest({ request: request("session-a", { action: "active-fault" }), env: { NOTIFICATIONS_DB: db } })).status, 403);
 assert.equal((await onRequest({ request: request("session-b"), env: { NOTIFICATIONS_DB: db } })).status, 403);
 assert.equal((await onRequest({ request: request("", { code: "MS-OLD-CODE" }), env: { NOTIFICATIONS_DB: db } })).status, 401);
 const cookie = new Request("https://meteoscope.pages.dev/api/public/early-access", { headers: { Cookie: "meteoscope_session=session-a" } });
@@ -56,7 +59,7 @@ for (const handler of [upperAir, gfs]) {
   assert.equal((await handler({ request: new Request("https://meteoscope.pages.dev/api/test", { headers: { Authorization: "Bearer session-a" } }), env: { NOTIFICATIONS_DB: db } })).status, 403);
 }
 const env = { NOTIFICATIONS_DB: db, ADMIN_PASSWORD: "test-password", ADMIN_SESSION_SECRET: "test-secret" };
-const adminRequest = (cookie, body) => new Request(`https://meteoscope.pages.dev/api/admin/accounts/${userA}/early-access`, {
+const adminRequest = (cookie, body, accountId = userA, action = "early-access") => new Request(`https://meteoscope.pages.dev/api/admin/accounts/${accountId}/${action}`, {
   method: "PUT", headers: { "Content-Type": "application/json", ...(cookie ? { Cookie: cookie } : {}) }, body: JSON.stringify(body)
 });
 assert.equal((await admin({ request: adminRequest("", { allowed: true }), env })).status, 401);
@@ -68,6 +71,15 @@ const adminCookie = login.headers.get("set-cookie").split(";")[0];
 assert.equal((await admin({ request: adminRequest(adminCookie, { allowed: "true" }), env })).status, 400);
 assert.equal((await admin({ request: adminRequest(adminCookie, { allowed: true }), env })).status, 200);
 assert.equal((await onRequest({ request: request("session-a"), env })).status, 200);
+assert.equal((await admin({ request: adminRequest("", { source: "gsj" }, userA, "active-fault-source"), env })).status, 401);
+assert.equal((await admin({ request: adminRequest(adminCookie, { source: "unknown" }, userA, "active-fault-source"), env })).status, 400);
+assert.equal((await admin({ request: adminRequest(adminCookie, { source: "gsj" }, userB, "active-fault-source"), env })).status, 409);
+assert.equal((await admin({ request: adminRequest(adminCookie, { source: "gsj" }, userA, "active-fault-source"), env })).status, 200);
+assert.equal((await getAccountEarlyAccess(cookie, db)).activeFaultSource, "gsj");
+await setAccountEarlyAccess(db, userA, true);
+assert.equal((await getAccountEarlyAccess(cookie, db)).activeFaultSource, "gsj");
+assert.equal((await admin({ request: adminRequest(adminCookie, { source: "jshis" }, userA, "active-fault-source"), env })).status, 200);
+assert.equal((await getAccountEarlyAccess(cookie, db)).activeFaultSource, "jshis");
 assert.equal((await admin({ request: adminRequest(adminCookie, { allowed: false }), env })).status, 200);
 assert.equal((await onRequest({ request: request("session-a"), env })).status, 403);
 console.log("Account-based early access tests passed.");
