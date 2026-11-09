@@ -46,7 +46,7 @@ export function startClock(elementId) {
     }).format(now);
     face.innerHTML = renderSevenSegmentClock(value) || value;
     const displayTime = document.getElementById("clock-display-time");
-    if (displayTime) displayTime.textContent = value;
+    if (displayTime) displayTime.innerHTML = renderSevenSegmentClock(value) || value;
     const delay = Math.max(20, 1000 - (Date.now() % 1000) + 8);
     timerId = window.setTimeout(update, delay);
   };
