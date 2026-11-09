@@ -1836,8 +1836,8 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       },
       paint: {
         "line-color": ["coalesce", ["get", "color"], "#008c54"],
-        "line-opacity": 0.98,
-        "line-width": 3.4
+        "line-opacity": 0.34,
+        "line-width": 1
       }
     });
 
@@ -5073,7 +5073,6 @@ function createWorldTyphoonFeatures(
 ) {
   const features = [];
   const style = WORLD_TYPHOON_MODEL_STYLES[modelInfo.id] ?? WORLD_TYPHOON_MODEL_STYLES.ecmwf;
-  const palette = style.palette;
   const controlColor = style.control;
   const genesisEnsembleColor = style.genesisEnsemble;
   const genesisControlColor = style.genesisControl;
@@ -5083,10 +5082,10 @@ function createWorldTyphoonFeatures(
     ? buildWorldGenesisPopup(system, modelInfo, source)
     : null;
   const memberLineGroups = new Map();
-  (system?.members ?? []).forEach((member, index) => {
+  (system?.members ?? []).forEach((member) => {
     const duplicatesControl = isWorldTyphoonControlMember(system, member);
     if (duplicatesControl || member.coordinates?.length < 2) return;
-    const color = isGenesis ? genesisEnsembleColor : palette[index % palette.length];
+    const color = isGenesis ? genesisEnsembleColor : controlColor;
     const lineGroup = memberLineGroups.get(color) ?? [];
     lineGroup.push(...splitLineAtAntimeridian(member.coordinates));
     memberLineGroups.set(color, lineGroup);
@@ -5198,12 +5197,7 @@ function buildWorldTyphoonPositionPopup(
   trackLabel = ""
 ) {
   const [longitude, latitude] = position.coordinates ?? [];
-  const pressure = Number(position.pressureHpa);
-  const wind = Number(position.windMs);
-  const details = [
-    Number.isFinite(pressure) ? `中心気圧 ${Math.round(pressure)}hPa` : "",
-    Number.isFinite(wind) ? `最大風速 ${wind.toFixed(1)}m/s` : ""
-  ].filter(Boolean).join(" / ");
+  const details = "";
   const modelLabel = modelInfo.label ?? source.model ?? "各国予想";
   const licenceLabel = source.license ? ` / ${source.license}` : "";
   return `
@@ -5226,7 +5220,7 @@ function formatWorldForecastCoordinates(latitude, longitude) {
 function buildWorldGenesisPopup(system, modelInfo = {}, source = {}) {
   const modelLabel = modelInfo.label ?? source.model ?? "各国予想";
   const licenceLabel = source.license ? ` / ${source.license}` : "";
-  const support = Number.isFinite(Number(system.genesisProbability))
+  const support = system.genesisProbability != null && Number.isFinite(Number(system.genesisProbability))
     ? `発生確率 ${Math.round(Number(system.genesisProbability))}%`
     : `アンサンブル支持 ${system.memberCount ?? 0}本`;
   return `

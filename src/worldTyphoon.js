@@ -312,54 +312,10 @@ function selectForecastTrackPosition(forecastBaseTime, points, validTime) {
     || targetTime > timedPoints.at(-1).pointTime
   ) return null;
 
-  const upperIndex = timedPoints.findIndex(({ pointTime }) => pointTime >= targetTime);
-  const upper = timedPoints[Math.max(0, upperIndex)];
-  const lower = timedPoints[Math.max(0, upperIndex - 1)] ?? upper;
-  if (!lower?.point?.coordinates || !upper?.point?.coordinates) return null;
-  const duration = upper.pointTime - lower.pointTime;
-  const ratio = duration > 0 ? (targetTime - lower.pointTime) / duration : 0;
-  const basePoint = ratio < 0.5 ? lower.point : upper.point;
-  return {
-    ...basePoint,
-    coordinates: interpolateForecastCoordinates(
-      lower.point.coordinates,
-      upper.point.coordinates,
-      ratio
-    ),
-    stepHours: interpolateForecastNumber(lower.point.stepHours, upper.point.stepHours, ratio),
-    pressureHpa: interpolateForecastNumber(lower.point.pressureHpa, upper.point.pressureHpa, ratio),
-    windMs: interpolateForecastNumber(lower.point.windMs, upper.point.windMs, ratio),
-    validTime: new Date(targetTime).toISOString()
-  };
+  const match = timedPoints.find(({ pointTime }) => pointTime === targetTime);
+  return match ? { ...match.point, validTime: new Date(targetTime).toISOString() } : null;
 }
 
-function interpolateForecastCoordinates(from, to, ratio) {
-  const fromLongitude = Number(from?.[0]);
-  const toLongitude = Number(to?.[0]);
-  const fromLatitude = Number(from?.[1]);
-  const toLatitude = Number(to?.[1]);
-  let longitudeDelta = toLongitude - fromLongitude;
-  if (longitudeDelta > 180) longitudeDelta -= 360;
-  if (longitudeDelta < -180) longitudeDelta += 360;
-  let longitude = fromLongitude + longitudeDelta * ratio;
-  if (longitude > 180) longitude -= 360;
-  if (longitude < -180) longitude += 360;
-  return [
-    roundCoordinate(longitude),
-    roundCoordinate(fromLatitude + (toLatitude - fromLatitude) * ratio)
-  ];
-}
-
-function interpolateForecastNumber(from, to, ratio) {
-  const fromNumber = Number(from);
-  const toNumber = Number(to);
-  if (Number.isFinite(fromNumber) && Number.isFinite(toNumber)) {
-    return Math.round((fromNumber + (toNumber - fromNumber) * ratio) * 10) / 10;
-  }
-  if (Number.isFinite(fromNumber)) return fromNumber;
-  if (Number.isFinite(toNumber)) return toNumber;
-  return null;
-}
 
 function normalizeWorldSystem(system) {
   const id = String(system?.id ?? "").trim();
@@ -397,7 +353,7 @@ function normalizeWorldSystem(system) {
     memberCount: Number.isFinite(Number(system?.memberCount))
       ? Number(system.memberCount)
       : members.length,
-    genesisProbability: Number.isFinite(Number(system?.genesisProbability))
+    genesisProbability: system?.genesisProbability != null && Number.isFinite(Number(system.genesisProbability))
       ? Number(system.genesisProbability)
       : null,
     members,

@@ -190,7 +190,7 @@ export function updateLeftPanel(tab, state = {}) {
           ? getWeatherDistributionLabel(state.weatherDistributionMode)
           : (tab.id === "radar" && state.lightningEnabled
           ? "雷"
-          : (tab.id === "typhoon" && state.data?.worldForecastMode ? "各国予想" : tab.label)))));
+          : (tab.id === "typhoon" && state.data?.worldForecastMode ? "海外モデル資料" : tab.label)))));
   setText("mode-label", modeLabel);
   document.getElementById("mode-label")?.classList.toggle("mode-label-warning", tab.id === "warnings");
   setText("panel-title", buildPanelTitle(tab, state));
@@ -1822,7 +1822,7 @@ function buildDescription(tab, state) {
       const enabledLabels = (state.data?.worldForecastLayers ?? [])
         .map((layer) => layer.modelInfo?.shortLabel)
         .filter(Boolean);
-      const modelLabel = enabledLabels.join("・") || "各国予想";
+      const modelLabel = enabledLabels.join("・") || "海外モデル資料";
       const isEnglish = getCurrentLanguage() === "en";
       if (["idle", "loading"].includes(state.data?.worldForecastStatus)) {
         return isEnglish
@@ -1836,7 +1836,7 @@ function buildDescription(tab, state) {
       }
       return isEnglish
         ? `${modelLabel} track distributions and tropical-disturbance candidates that may develop into typhoons. This is not an official JMA typhoon track forecast.`
-        : `${modelLabel}の進路分布と、台風に発達する可能性がある熱帯擾乱候補です。気象庁の公式な台風進路予報ではありません。`;
+        : `${modelLabel}の計算結果です。大きな誤差があり得ます。防災行動は気象庁の情報を基に判断してください。`;
     }
     if (state.status === "loading") return "台風データを取得中です。";
     if (state.status === "error") return "台風データを取得できませんでした。";
@@ -1883,7 +1883,7 @@ function buildDescription(tab, state) {
 
 function buildPanelTitle(tab, state) {
   if (tab.id !== "typhoon") return tab.title;
-  if (state.data?.worldForecastMode) return "各国予想";
+  if (state.data?.worldForecastMode) return "海外モデル資料";
   if (state.status === "loading") return "台風データ取得中";
   const name = state.data?.details?.name;
   return name && name !== "未取得" ? name : "台風名 未取得";
@@ -2037,7 +2037,7 @@ function renderLegend(tabId, amedasMetricId, warningView = "status", data = null
   const title = document.querySelector("#legend-toggle span");
   if (title) {
     title.textContent = isCountryForecast
-      ? localizeText("各国予想の凡例")
+      ? localizeText("海外モデル資料の凡例")
       : (isWeatherChart ? localizeText("天気図の凡例") : (isWeatherDistribution ? localizeText("凡例") : localizeText("凡例")));
   }
 
@@ -3262,7 +3262,7 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
   const modeSwitch = `
     <div class="mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented mobile-dock-typhoon-mode" role="group" aria-label="台風進路の表示">
       <button type="button" class="mobile-dock-action${forecastMode === "jma" ? " active" : ""}" data-mobile-dock-control data-typhoon-forecast-mode="jma" aria-pressed="${forecastMode === "jma"}">気象庁</button>
-      <button type="button" class="mobile-dock-action${forecastMode === "world" ? " active" : ""}" data-mobile-dock-control data-typhoon-forecast-mode="world" aria-pressed="${forecastMode === "world"}">各国予想</button>
+      <button type="button" class="mobile-dock-action${forecastMode === "world" ? " active" : ""}" data-mobile-dock-control data-typhoon-forecast-mode="world" aria-pressed="${forecastMode === "world"}">海外モデル</button>
     </div>
   `;
   if (forecastMode === "world") {
@@ -3274,8 +3274,8 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
     const title = enabledModels.length === 0
       ? "表示モデルを選択"
       : (worldLoading
-      ? "各国予想を取得中"
-      : (worldStatus === "error" ? "各国予想を取得できません" : "各国予想"));
+      ? "海外モデル資料を取得中"
+      : (worldStatus === "error" ? "海外モデル資料を取得できません" : "海外モデル資料"));
     const modelToggles = modelStates.map((model) => {
       const modelLabel = model.modelInfo?.shortLabel ?? model.id;
       return `
@@ -3321,7 +3321,7 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
           data-mobile-dock-control
           data-world-typhoon-time-slider
           data-world-typhoon-times="${escapeHtml(JSON.stringify(forecastTimes))}"
-          aria-label="各国予想の予報時刻"
+          aria-label="海外モデル資料の予報時刻"
           aria-valuetext="${escapeHtml(formatWorldForecastTime(selectedForecastTime))}"
         >`,
         { compact: true }
@@ -3339,8 +3339,8 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
     ` : `
       <div class="mobile-dock-world-time-control is-empty" aria-busy="${worldLoading}">
         ${worldLoading
-          ? buildMobileDockLoadingStatus("各国予想を読み込み中")
-          : `<span>${escapeHtml(localizeText(worldStatus === "error" ? "各国予想を取得できません" : "予報時刻はありません"))}</span>`}
+          ? buildMobileDockLoadingStatus("海外モデル資料を読み込み中")
+          : `<span>${escapeHtml(localizeText(worldStatus === "error" ? "海外モデル資料を取得できません" : "予報時刻はありません"))}</span>`}
       </div>
     `;
     return `
@@ -3427,18 +3427,6 @@ function getWorldForecastMaxStep(system) {
       (member.points ?? []).map((point) => Number(point.stepHours) || 0)
     )
   );
-}
-
-function formatWorldCandidateSupport(candidate, language = getCurrentLanguage()) {
-  const probability = Number(candidate?.genesisProbability);
-  if (Number.isFinite(probability)) {
-    return language === "en"
-      ? `Development probability ${Math.round(probability)}%`
-      : `発生確率 ${Math.round(probability)}%`;
-  }
-  return language === "en"
-    ? `${candidate?.memberCount ?? 0} members`
-    : `${candidate?.memberCount ?? 0}本支持`;
 }
 
 function normalizeSummaryValue(value) {
@@ -5823,7 +5811,7 @@ function buildWorldTyphoonModelDetails(layer) {
           <i aria-hidden="true"></i>
           <h3>${escapeHtml(modelLabel)}</h3>
         </header>
-        <div class="typhoon-empty"><strong>${isEnglish ? "Loading global forecast..." : "各国予想を取得中です。"}</strong></div>
+        <div class="typhoon-empty"><strong>${isEnglish ? "Loading global forecast..." : "海外モデル資料を取得中です。"}</strong></div>
       </section>
     `;
   }
@@ -5835,7 +5823,7 @@ function buildWorldTyphoonModelDetails(layer) {
           <h3>${escapeHtml(modelLabel)}</h3>
         </header>
         <div class="typhoon-empty">
-          <strong>${isEnglish ? "Global forecast is unavailable." : "各国予想を取得できませんでした。"}</strong>
+          <strong>${isEnglish ? "Global forecast is unavailable." : "海外モデル資料を取得できませんでした。"}</strong>
           <span>${escapeHtml(layer.error ?? "")}</span>
         </div>
       </section>
@@ -5843,7 +5831,6 @@ function buildWorldTyphoonModelDetails(layer) {
   }
 
   const system = layer.system;
-  const candidates = layer.candidates ?? [];
   if (!system) {
     return `
       <section class="typhoon-world-model-detail" style="--world-model-color: ${escapeHtml(modelColor)}">
@@ -5851,7 +5838,7 @@ function buildWorldTyphoonModelDetails(layer) {
           <i aria-hidden="true"></i>
           <h3>${escapeHtml(modelLabel)}</h3>
         </header>
-        <div class="typhoon-empty"><strong>${isEnglish ? "No matching global forecast track is available." : "対象となる各国予想進路はありません。"}</strong></div>
+        <div class="typhoon-empty"><strong>${isEnglish ? "No matching global forecast track is available." : "対象となる海外モデル資料進路はありません。"}</strong></div>
       </section>
     `;
   }
@@ -5867,24 +5854,13 @@ function buildWorldTyphoonModelDetails(layer) {
   const termsUrl = source.termsUrl ?? (isNoaaModel
     ? "https://www.weather.gov/disclaimer"
     : "https://apps.ecmwf.int/datasets/licences/general/");
-  const candidateExplanation = isDeterministicModel
-    ? (isEnglish
-      ? "This is a single deterministic forecast and does not provide an ensemble-based development probability."
-      : "単一の決定論予報です。アンサンブルに基づく発生確率はありません。")
-    : isNoaaModel
-    ? (isEnglish
-      ? "Candidates with at least 20% development probability in the NCEP ensemble tracker. This is not confirmation that a typhoon will form."
-      : "NCEPのensemble trackerが示す発生確率20%以上の候補です。台風発生の確定情報ではありません。")
-    : (isEnglish
-      ? "Leading candidates supported by at least 20 ensemble members. This is not a development probability or confirmation that a typhoon will form."
-      : "20本以上のアンサンブルメンバーが支持する上位候補です。発生確率や台風発生の確定情報ではありません。");
   const forecastExplanation = isDeterministicModel
     ? (isEnglish
       ? "A reference track from one numerical forecast. This is not an official JMA typhoon track forecast."
-      : "単一の数値予報による参考進路です。気象庁の公式な台風進路予報ではありません。")
+      : "数値予報モデルの計算結果を示す参考資料です。誤差が大きい場合があります。防災行動は気象庁の情報を基に判断してください。")
     : (isEnglish
       ? "Reference information showing numerical forecast spread. This is not an official JMA typhoon track forecast."
-      : "数値予報のばらつきを示す参考情報です。気象庁の公式な台風進路予報ではありません。");
+      : "数値予報モデルの計算結果を示す参考資料です。誤差が大きい場合があります。防災行動は気象庁の情報を基に判断してください。");
   const mapSystems = layer.systems ?? [];
   const mapSystemCount = mapSystems.filter((mapSystem) =>
     (mapSystem.members ?? []).some((member) => member.coordinates?.length >= 2)
@@ -5915,25 +5891,6 @@ function buildWorldTyphoonModelDetails(layer) {
         <div><dt>${isEnglish ? "Members" : "メンバー"}</dt><dd>${escapeHtml(isEnglish ? `${system.memberCount}` : `${system.memberCount}本`)}</dd></div>
         <div><dt>${isEnglish ? "On map" : "地図に表示"}</dt><dd>${escapeHtml(isEnglish ? `${mapSystemCount} systems / ${mapTrackCount} tracks` : `${mapSystemCount}系統 / ${mapTrackCount}本`)}</dd></div>
       </dl>
-      <section class="typhoon-world-candidates">
-        <div class="typhoon-world-candidates-head">
-          <h4>${isEnglish ? "Development candidates" : "発達候補"}</h4>
-          <span>${escapeHtml(isEnglish ? `${candidates.length} items` : `${candidates.length}件`)}</span>
-        </div>
-        <p>${escapeHtml(candidateExplanation)}</p>
-        ${candidates.length ? `
-          <table class="typhoon-world-candidate-list">
-            <thead>
-              <tr><th scope="col">${isEnglish ? "Candidate" : "候補名"}</th><th scope="col">${isEnglish ? "Support" : "支持状況"}</th></tr>
-            </thead>
-            <tbody>
-              ${candidates.slice(0, 6).map((candidate) => `
-                <tr><th scope="row">${escapeHtml(candidate.name)}</th><td>${escapeHtml(formatWorldCandidateSupport(candidate, isEnglish ? "en" : "ja"))}</td></tr>
-              `).join("")}
-            </tbody>
-          </table>
-        ` : ""}
-      </section>
       <footer class="typhoon-world-attribution">
         <p><strong>${isEnglish ? "Reference" : "参考情報"}</strong>${escapeHtml(forecastExplanation)}</p>
         <p><strong>${isEnglish ? "Source" : "出典"}</strong>${escapeHtml(source.attribution ?? modelLabel)}${isEnglish ? " (processed)" : "（加工済み）"}</p>
@@ -5964,7 +5921,7 @@ function renderTyphoonDetails(tab, state) {
     const layers = state.data?.worldForecastLayers ?? [];
     root.innerHTML = layers.length
       ? layers.map(buildWorldTyphoonModelDetails).join("")
-      : `<div class="typhoon-empty"><strong>表示する各国予想モデルを選択してください。</strong></div>`;
+      : `<div class="typhoon-empty"><strong>表示する海外モデル資料モデルを選択してください。</strong></div>`;
     return;
   }
 

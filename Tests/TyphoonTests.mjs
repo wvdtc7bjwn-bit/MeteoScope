@@ -492,26 +492,7 @@ assert.deepEqual(
     validTime: "2026-07-25T06:00:00.000Z"
   }
 );
-assert.deepEqual(
-  selectWorldTyphoonForecastPosition(timelineSystem, "2026-07-25T03:00:00.000Z"),
-  {
-    coordinates: [141, 21],
-    stepHours: 3,
-    pressureHpa: 996,
-    windMs: 15,
-    validTime: "2026-07-25T03:00:00.000Z"
-  }
-);
-assert.deepEqual(
-  selectWorldTyphoonForecastPosition({
-    forecastBaseTime: "2026-07-25T00:00:00.000Z",
-    controlPoints: [
-      { coordinates: [179, 10], stepHours: 0 },
-      { coordinates: [-179, 12], stepHours: 6 }
-    ]
-  }, "2026-07-25T03:00:00.000Z")?.coordinates,
-  [180, 11]
-);
+assert.equal(selectWorldTyphoonForecastPosition(timelineSystem, "2026-07-25T03:00:00.000Z"), null);
 assert.equal(
   selectWorldTyphoonForecastPosition(timelineSystem, "2026-07-25T12:00:00.000Z"),
   null
@@ -606,11 +587,11 @@ const [
 assert.match(appSource, /setupTyphoonForecastModeControls/);
 assert.match(panelSource, /data-typhoon-forecast-mode="jma"/);
 assert.match(panelSource, /data-typhoon-forecast-mode="world"/);
-assert.match(panelSource, />各国予想<\/button>/);
+assert.match(panelSource, />海外モデル<\/button>/);
 assert.match(panelSource, /data-world-typhoon-model-toggle=/);
 assert.match(panelSource, /--world-model-color:/);
 assert.match(panelSource, /data-world-typhoon-time-slider/);
-assert.match(panelSource, /各国予想の予報時刻/);
+assert.match(panelSource, /海外モデル資料の予報時刻/);
 assert.match(panelSource, /interpolateWeatherTimelineTime/);
 assert.match(panelSource, /選択時刻の予想位置/);
 assert.match(panelSource, /基準メンバーの進路/);
@@ -643,7 +624,7 @@ assert.match(mobileTyphoonSummarySource, /transitionStatus \?[^\n]*mobile-dock-t
 assert.doesNotMatch(mobileTyphoonSummarySource, /systemType|種別/u,
   "要約バーには台風・熱帯低気圧の種別を表示しない");
 assert.match(mapSource, /function updateTyphoonLayers\(mode, data\)[\s\S]*?lastTyphoonForecastMode !== nextTyphoonForecastMode[\s\S]*?hideMapInfo\("typhoon"\)/,
-  "気象庁と各国予想を切り替えたとき、前モードの地図カードを閉じる");
+  "気象庁と海外モデル資料を切り替えたとき、前モードの地図カードを閉じる");
 assert.match(appSource, /function collectTyphoonFocusCircleCoordinates\(circles = \[\]\)/);
 assert.match(appSource, /function collectTyphoonStormWarningShapeCoordinates\(shape\)/);
 assert.match(
@@ -675,7 +656,7 @@ assert.doesNotMatch(appSource, /getWorldTyphoonFocusCoordinates/);
 assert.match(appSource, /updateWorldTyphoonForecastPositions/);
 assert.match(appSource, /interpolateWorldTime:\s*true/);
 assert.match(appSource, /forecastPositions:/);
-assert.match(appSource, /systems:\s*forecastState\.data\?\.systems\s*\?\?\s*\[\]/);
+assert.match(appSource, /system\.kind !== "genesis"/);
 assert.match(appSource, /const worldForecastTargets = worldForecastModelStates/);
 assert.match(appSource, /selectedWorldForecastTargetKeys:\s*activeWorldTyphoonTargetKeys/);
 assert.match(appSource, /timelineSystems:\s*systems/);
@@ -684,7 +665,7 @@ assert.match(targetModalSource, /selectedKeys:\s*\[\]/);
 assert.match(targetModalSource, /selectedKeys\.includes\(option\.key\)/);
 assert.match(targetModalSource, /data-world-typhoon-target-key/);
 assert.match(targetModalSource, /\"対象選択\"/);
-assert.match(targetModalSource, /\"各国予想\"/);
+assert.match(targetModalSource, /\"海外モデル資料\"/);
 assert.match(targetModalSource, /\"すべての対象を表示\"/);
 assert.doesNotMatch(targetModalSource, /縺|繧|蜷|蟇|雎|譛|鬚|莠|逋|蜿/);
 assert.match(indexSource, /id="world-typhoon-target-button"/);
@@ -709,7 +690,7 @@ assert.match(styleSource, /\.map-info-connector\s*\{/);
 assert.match(panelSource, /mobile-dock-horizontal-swipe/);
 assert.match(panelSource, /地図に表示/);
 assert.match(panelSource, /<dl class="typhoon-world-summary">/);
-assert.match(panelSource, /<table class="typhoon-world-candidate-list">/);
+assert.doesNotMatch(panelSource, /<table class="typhoon-world-candidate-list">/);
 assert.match(panelSource, /<section class="typhoon-analysis-panel" aria-label="台風の解析値">/);
 assert.match(panelSource, /class="typhoon-analysis-primary"/);
 assert.match(panelSource, /class="typhoon-analysis-classification" aria-label="台風の大きさと強さ"/);
@@ -739,9 +720,7 @@ assert.match(panelSource, /\$\{positionMarkup\}\s*<dl class="typhoon-analysis-mo
 assert.match(styleSource, /\.typhoon-analysis-position\s*,\s*\.typhoon-analysis-movement/);
 assert.match(styleSource, /\.typhoon-analysis-primary[\s\S]*grid-template-columns:\s*repeat\(3/);
 assert.match(styleSource, /\.typhoon-analysis-classification\s*\{[\s\S]*display:\s*flex/);
-assert.match(panelSource, /Development candidates/);
 assert.match(panelSource, /Forecast range/);
-assert.match(panelSource, /Development probability/);
 assert.match(
   panelSource,
   /track distributions and tropical-disturbance candidates that may develop into typhoons/

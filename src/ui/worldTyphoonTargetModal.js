@@ -79,13 +79,13 @@ function renderPicker() {
   if (!body) return;
   const isEnglish = getCurrentLanguage() === "en";
   if (title) title.textContent = isEnglish ? "Select targets" : "対象選択";
-  if (kicker) kicker.textContent = isEnglish ? "Global forecasts" : "各国予想";
+  if (kicker) kicker.textContent = isEnglish ? "Global forecasts" : "海外モデル資料";
   const button = document.getElementById("world-typhoon-target-button");
   if (button) {
     const selectedCount = pickerState.selectedKeys.length;
     const label = isEnglish
       ? `Select global forecast targets${selectedCount ? ` (${selectedCount} selected)` : ""}`
-      : `各国予想の対象を選択${selectedCount ? `（${selectedCount}件選択中）` : ""}`;
+      : `海外モデル資料の対象を選択${selectedCount ? `（${selectedCount}件選択中）` : ""}`;
     button.setAttribute("aria-label", label);
     button.title = isEnglish ? "Select targets" : "対象選択";
   }

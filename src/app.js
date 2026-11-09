@@ -34,7 +34,6 @@ import {
   formatWorldTyphoonSystemLabel,
   getWorldTyphoonModel,
   selectWorldTyphoonForecastPositions,
-  selectWorldTyphoonGenesisSystems,
   selectWorldTyphoonSystem
 } from "./worldTyphoon.js";
 import {
@@ -386,8 +385,7 @@ export function createWeatherApp() {
     "ifs-hres",
     "aifs-ens",
     "aifs-single",
-    "gefs",
-    "gefs-mean"
+    "gefs"
   ];
   const activeWorldTyphoonModels = {
     ecmwf: true,
@@ -767,6 +765,15 @@ export function createWeatherApp() {
     document.dispatchEvent(new CustomEvent("meteoscope:early-access-change"));
     void applyActiveFaultDataSource();
     refreshWeatherChartAccessMode();
+    if (!earlyAccessEnabled && (earthquakeView === "history" || earthquakeNearbySearchActive)) {
+      earthquakeArchiveRequestId += 1;
+      earthquakeArchiveAbortController?.abort();
+      earthquakeArchiveAbortController = null;
+      earthquakeArchiveState = { status: "idle", data: null, error: "" };
+      earthquakeNearbySearchActive = false;
+      earthquakeView = "recent";
+      if (activeTab === "earthquake") updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+    }
     if (!earlyAccessEnabled && amedasDailyChartDayOffset === 1) {
       amedasDailyChartDayOffset = 0;
       const selectedPoint = findAmedasStation(selectedAmedasStationId);
@@ -1236,6 +1243,7 @@ if (layerId === "river") {
   }
 
   function searchNearbyEarthquakes(earthquakeId) {
+    if (!earlyAccessEnabled) return;
     const earthquake = latestDataByTab.earthquake?.earthquakes?.find((item) => String(item.id) === String(earthquakeId));
     const coordinates = earthquake?.coordinates?.map(Number);
     if (!earthquake || !Array.isArray(coordinates) || coordinates.length !== 2 || !coordinates.every(Number.isFinite)) return;
@@ -1509,6 +1517,7 @@ if (layerId === "river") {
 
   function selectEarthquakeView(view) {
     if (!["recent", "distribution", "history"].includes(view)) return;
+    if (view === "history" && !earlyAccessEnabled) return;
     earthquakeNearbySearchActive = false;
     if (view !== "distribution" && earthquakeDistributionAreaDrawing) {
       weatherMap?.cancelHypocenterAreaDrawing();
@@ -1575,6 +1584,7 @@ if (layerId === "river") {
   }
 
   async function refreshEarthquakeArchive(filters = earthquakeArchiveFilters) {
+    if (!earlyAccessEnabled) return;
     if (earthquakeArchiveRenderFrame !== null) cancelAnimationFrame(earthquakeArchiveRenderFrame);
     earthquakeArchiveRenderFrame = null;
     earthquakeArchiveAbortController?.abort();
@@ -2237,9 +2247,15 @@ if (layerId === "river") {
         error: forecastState.error,
         source: forecastState.data?.source ?? null,
         baseTime: forecastState.data?.forecastBaseTime ?? "",
-        systems: forecastState.data?.systems ?? [],
-        candidates: selectWorldTyphoonGenesisSystems(forecastState.data),
-        system: selectWorldTyphoonSystem(forecastState.data, selected)
+        systems: (forecastState.data?.systems ?? []).filter((system) => system.kind !== "genesis").map((system) => {
+          const clip = (points = []) => points.filter((point) => point.stepHours <= 120);
+          const controlPoints = clip(system.controlPoints);
+          const deterministicPoints = clip(system.deterministicPoints);
+          const members = (system.members ?? []).map((member) => { const points = clip(member.points); return { ...member, points, coordinates: points.map((point) => point.coordinates) }; });
+          return { ...system, controlPoints, controlCoordinates: controlPoints.map((point) => point.coordinates), deterministicPoints, deterministicCoordinates: deterministicPoints.map((point) => point.coordinates), members };
+        }),
+        candidates: [],
+        system: selectWorldTyphoonSystem({ systems: (forecastState.data?.systems ?? []).filter((system) => system.kind !== "genesis") }, selected)
       };
     });
     const worldForecastTargets = worldForecastModelStates
@@ -2281,7 +2297,7 @@ if (layerId === "river") {
           ...layer,
           systems,
           timelineSystems: systems,
-          system: selectedWorldForecastTargets.length ? systems[0] ?? null : layer.system
+          system: systems.find((system) => system.id === layer.system?.id) ?? systems[0] ?? null
         };
       });
     const worldForecastTimes = buildWorldTyphoonTimeline(enabledWorldForecastLayers);

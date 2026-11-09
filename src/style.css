@@ -6041,7 +6041,7 @@ html[data-theme="light"] .settings-changelog-entry li::marker {
 
 .typhoon-world-summary {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 0;
   border-block: 1px solid var(--line);
 }
@@ -6055,24 +6055,30 @@ html[data-theme="light"] .settings-changelog-entry li::marker {
   min-height: 55px;
   padding: 8px 10px;
   border-inline-end: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.typhoon-world-summary > div:nth-child(2n) {
+  border-inline-end: 0;
 }
 
 .typhoon-world-summary > div:last-child {
+  grid-column: 1 / -1;
   border-inline-end: 0;
+  border-bottom: 0;
 }
 
 .typhoon-world-summary dt,
 .typhoon-world-attribution p {
   color: var(--type-date-color);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .typhoon-world-summary dt,
 .typhoon-world-summary dd {
-  overflow: hidden;
   margin: 0;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 .typhoon-world-summary dd {
@@ -13012,8 +13018,10 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
 
   .mobile-dock-world-model-toggles {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 3px;
+    width: 83.333%;
+    margin-inline: auto;
     min-width: 0;
     height: 18px;
   }
@@ -15713,16 +15721,11 @@ html[data-theme="light"] .tsunami-area-row.level-advisory .tsunami-level-badge {
 .community-report-requirement {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 11px 12px;
-  border: 1px solid rgba(172, 133, 67, 0.42);
-  border-radius: 9px;
-  background: rgba(112, 78, 30, 0.2);
+  flex-wrap: wrap;
+  gap: 8px 14px;
 }
 .community-report-requirement[hidden] { display: none; }
-.community-report-requirement p { margin: 0; color: #ead7b2; font-size: 13px; }
-.community-report-requirement button,
+.community-report-requirement p { margin: 0; color: #c2d0df; font-size: 13px; line-height: 1.5; }
 .community-report-submit {
   border: 1px solid rgba(112, 158, 198, 0.48);
   border-radius: 9px;
@@ -15732,7 +15735,21 @@ html[data-theme="light"] .tsunami-area-row.level-advisory .tsunami-level-badge {
   font-weight: 800;
   cursor: pointer;
 }
-.community-report-requirement button { flex: 0 0 auto; min-height: 34px; padding: 6px 10px; font-size: 12px; }
+.community-report-requirement button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid #66829c;
+  border-radius: 6px;
+  color: #e6f2fc;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.community-report-requirement button:hover { background: rgba(145, 176, 203, 0.14); }
+.community-report-requirement button:focus-visible { outline: 2px solid #66c4f1; outline-offset: 2px; }
+html:not([data-early-access="active"]) :is([data-earthquake-view="history"], [data-earthquake-nearby-search], #upper-air-button) { display: none !important; }
 .community-report-form { display: grid; gap: 14px; }
 .community-report-form > label,
 .community-report-form-grid label { display: grid; gap: 6px; color: #d8e4ef; font-size: 13px; font-weight: 800; }
@@ -15818,9 +15835,12 @@ html[data-theme="light"] .community-report-open {
   background: rgba(224, 235, 245, 0.86);
 }
 html[data-theme="light"] .community-report-lead,
+html[data-theme="light"] .community-report-requirement p,
 html[data-theme="light"] .community-report-form > label,
 html[data-theme="light"] .community-report-form-grid label,
 html[data-theme="light"] .community-report-form legend { color: #29445e; }
+html[data-theme="light"] .community-report-requirement button { color: #164f75; border-color: #66849b; }
+html[data-theme="light"] .community-report-requirement button:hover { background: rgba(38, 103, 145, 0.1); }
 html[data-theme="light"] .community-report-location,
 html[data-theme="light"] .community-hazard-options label {
   border-color: rgba(62, 92, 122, 0.22);
@@ -15866,7 +15886,7 @@ html[data-theme="light"] .community-report-status[data-state="success"] { color:
   }
   .community-report-body { padding: 15px 16px 22px; }
   .community-report-form-grid { grid-template-columns: 1fr; }
-  .community-report-requirement { align-items: stretch; flex-direction: column; }
+  .community-report-requirement { align-items: flex-start; flex-direction: column; }
 }
 .settings-early-access-status[data-state="active"] { color: #55b7d8; }
 
