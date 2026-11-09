@@ -205,6 +205,7 @@ Cloudflare Analyticsは請求や上限判定の確定値ではないため、画
 2,400回を上限とし、無料枠と他機能の余裕を保護します。日次回数カウンターと全体カウンターは2日で削除します。
 投稿権限はアーリーアクセス端末認証と分離しており、ログイン済みの全MeteoScopeアカウントで利用できます。
 Web版は表示中の地図範囲を最大100件取得し、不要な再取得を抑制します。
+近接する投稿はクラスタを押すと個別に読めます。ログイン中の投稿者は自分の投稿を地図から削除できます。
 
 APIは`GET/POST /api/community/reports`、`DELETE /api/community/reports/:id`、
 `POST /api/community/reports/:id/flag`です。GitHub Pages版は許可済みCORSでCloudflare Pages APIを使用します。

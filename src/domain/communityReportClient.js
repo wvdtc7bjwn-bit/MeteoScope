@@ -50,7 +50,11 @@ export const CommunityReportClient = Object.freeze({
     reportListCache.clear();
     return result;
   },
-  remove: (reportID) => request(`reports/${encodeURIComponent(reportID)}`, { method: "DELETE" }),
+  remove: async (reportID) => {
+    const result = await request(`reports/${encodeURIComponent(reportID)}`, { method: "DELETE" });
+    reportListCache.clear();
+    return result;
+  },
   flag: (reportID, reason = "misleading") => request(`reports/${encodeURIComponent(reportID)}/flag`, {
     method: "POST",
     body: JSON.stringify({ reason })

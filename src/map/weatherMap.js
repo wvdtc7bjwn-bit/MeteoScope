@@ -417,6 +417,7 @@ export function createWeatherMap(elementId) {
   let lastTyphoonForecastMode = null;
   let communityReports = [];
   let communityReportsVisible = false;
+  let communityReportDeleteHandler = null;
   let currentLocationVisible = true;
   let hypocenterAreaPolygon = [];
   let hypocenterAreaOverlay = null;
@@ -2150,6 +2151,10 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     syncCommunityReportVisibility();
   }
 
+  function setCommunityReportDeleteHandler(handler) {
+    communityReportDeleteHandler = typeof handler === "function" ? handler : null;
+  }
+
   function syncCommunityReportVisibility() {
     const visibility = activeMode === "radar" && communityReportsVisible ? "visible" : "none";
     COMMUNITY_REPORT_LAYERS.forEach((layerID) => {
@@ -2226,9 +2231,19 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       const feature = event.features?.[0];
       const clusterID = feature?.properties?.cluster_id;
       const source = map.getSource(COMMUNITY_REPORT_SOURCE_ID);
-      if (clusterID == null || !source?.getClusterExpansionZoom) return;
-      const zoom = await source.getClusterExpansionZoom(clusterID).catch(() => Math.min(map.getZoom() + 2, 12));
-      map.easeTo({ center: feature.geometry.coordinates, zoom, duration: 500 });
+      if (clusterID == null || !source?.getClusterLeaves) return;
+      try {
+        const count = Number(feature.properties.point_count) || 0;
+        const reports = await source.getClusterLeaves(clusterID, count, 0);
+        if (activeMode !== "radar" || !communityReportsVisible) return;
+        showMapInfo(
+          "community-report",
+          event.lngLat,
+          buildCommunityReportClusterPopup(reports)
+        );
+      } catch (error) {
+        console.warn("[MeteoScope] community report cluster could not be opened", error);
+      }
     });
     map.on("click", "community-report-point", (event) => {
       if (activeMode !== "radar") return;
@@ -2356,6 +2371,21 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     mapInfoElement = document.createElement("div");
     mapInfoElement.className = "map-info-popup";
     mapInfoElement.hidden = true;
+    mapInfoElement.addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-community-report-delete]");
+      if (!button || !communityReportDeleteHandler) return;
+      event.stopPropagation();
+      if (!window.confirm("この投稿を削除しますか？")) return;
+      button.disabled = true;
+      button.textContent = "削除中…";
+      try {
+        await communityReportDeleteHandler(button.dataset.communityReportDelete);
+        hideMapInfo("community-report");
+      } catch (error) {
+        button.textContent = error.message || "削除できませんでした。再試行";
+        button.disabled = false;
+      }
+    });
     map.getContainer().appendChild(mapInfoElement);
     map.on("move", positionMapInfo);
     map.on("resize", positionMapInfo);
@@ -2654,7 +2684,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
 }
 
 function normalizeTerrainOpacity(value) {
@@ -2692,6 +2722,7 @@ function createCommunityReportFeatureCollection(reports = []) {
       geometry: { type: "Point", coordinates: [longitude, latitude] },
       properties: {
         id: String(report.id || ""),
+        isOwn: report.isOwn === true,
         displayName: String(report.displayName || ""),
         weatherLabel: meta.label,
         categoryLabel: meta.category || "天気の投稿",
@@ -2724,7 +2755,16 @@ function buildCommunityReportPopup(properties = {}) {
     <p>${escapeHTML(properties.areaName || "現在地周辺")}・${escapeHTML(properties.createdText || "")}</p>
     ${comment}${facts ? `<p>${facts}</p>` : ""}${hazard}
     <small>${escapeHTML(properties.displayName || "MeteoScope利用者")} / 約2km単位の位置</small>
+    ${properties.isOwn === true && properties.id ? `<button type="button" class="community-popup-delete" data-community-report-delete="${escapeHTML(properties.id)}">投稿を削除</button>` : ""}
   </section>`;
+}
+
+function buildCommunityReportClusterPopup(features = []) {
+  const reports = features.map((feature) => feature?.properties).filter(Boolean);
+  return `<div class="community-report-cluster-popup">
+    <p class="community-report-cluster-heading">この付近の投稿 ${reports.length}件</p>
+    <div class="community-report-cluster-list">${reports.map(buildCommunityReportPopup).join("")}</div>
+  </div>`;
 }
 
 function communityWeatherMeta(value) {

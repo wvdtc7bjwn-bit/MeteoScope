@@ -12,6 +12,7 @@ import {
   insertCommunityReportWithQuota,
   normalizeCommunityReportInput,
   normalizeCommunityReportComment,
+  publicCommunityReport,
   readCommunityReportOperationalMetrics,
   roundCommunityCoordinate
 } from "../functions/_shared/communityReports.js";
@@ -23,6 +24,8 @@ assert.equal(formatCommunityReportTemperature(undefined), "");
 assert.equal(formatCommunityReportTemperature(""), "");
 assert.equal(formatCommunityReportTemperature(0), "0.0℃");
 assert.equal(formatCommunityReportTemperature(24.5), "24.5℃");
+assert.equal(publicCommunityReport({ is_own: 1 }).isOwn, true);
+assert.equal(publicCommunityReport({ is_own: 0 }).isOwn, false);
 
 assert.equal(COMMUNITY_REPORT_RETENTION_MS, 5 * 60 * 60 * 1000);
 assert.equal(COMMUNITY_REPORT_POST_COOLDOWN_MS, 5 * 60 * 1000);
@@ -188,9 +191,11 @@ assert.match(route, /POST_COOLDOWN_MS/u);
 assert.match(route, /COMMUNITY_REPORT_ACCOUNT_DAILY_LIMIT/u);
 assert.match(route, /COMMUNITY_REPORT_GLOBAL_DAILY_LIMIT/u);
 assert.match(route, /insertCommunityReportWithQuota/u);
+assert.match(route, /DELETE FROM community_reports WHERE id = \?1 AND account_id = \?2/u);
 assert.doesNotMatch(route, /console\.(?:log|error).*token/iu);
 assert.match(webClient, /REPORT_LIST_CACHE_TTL_MS = 60 \* 1000/u);
 assert.match(webClient, /limit = 100/u);
+assert.match(webClient, /reportListCache\.clear\(\);\s*return result;\s*\},\s*flag:/u);
 assert.doesNotMatch(webClient, /getEarlyAccessToken|X-MeteoScope-Early-Access/u);
 assert.match(webModal, /roundReportCoordinate/u);
 assert.doesNotMatch(webModal, /validateEarlyAccess|community-report-access-required/u);
@@ -199,6 +204,8 @@ assert.match(webModal, /setSubmitEnabled\(false\)/u);
 assert.match(webModal, /select\.disabled = !active/u);
 assert.doesNotMatch(webModal, /form\.querySelectorAll\("input, select, textarea, button"\)/u);
 assert.match(webMap, /community-report-cluster/u);
+assert.match(webMap, /getClusterLeaves\(clusterID, count, 0\)/u);
+assert.match(webMap, /properties\.isOwn === true && properties\.id/u);
 assert.match(webMap, /formatCommunityReportTemperature\(report\.temperature\)/u);
 for (const label of ["桜・見頃", "紅葉・見頃", "積雪・雪が積もっている"]) {
   assert.ok(webMap.includes(label), `${label} must appear on the map`);

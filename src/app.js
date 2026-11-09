@@ -3993,6 +3993,12 @@ if (layerId === "river") {
 
   function start() {
     weatherMap = createWeatherMap("map");
+    weatherMap.setCommunityReportDeleteHandler(async (reportID) => {
+      await CommunityReportClient.remove(reportID);
+      communityReports = communityReports.filter((report) => report.id !== reportID);
+      weatherMap.setCommunityReports(communityReports);
+      await refreshCommunityReports({ force: true });
+    });
     void applyActiveFaultDataSource();
     weatherMap.setActiveFaultVisible(earthquakeActiveFaultVisible);
     weatherMap.setPlateBoundaryVisible(earthquakePlateBoundaryVisible);
