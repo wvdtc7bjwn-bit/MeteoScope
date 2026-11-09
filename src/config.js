@@ -7,7 +7,9 @@ export {
   getEarthquakeIntensityLabel,
   getEarthquakeIntensityLevel,
   getEarthquakeIntensityRank,
-  getEarthquakeIntensityTextClass
+  getEarthquakeIntensityTextClass,
+  formatEarthquakeIntensityMarkerText,
+  getEarthquakeIntensityMarkerTextColor
 } from "./earthquakeIntensity.js";
 
 export const APP_NAME = "MeteoScope";

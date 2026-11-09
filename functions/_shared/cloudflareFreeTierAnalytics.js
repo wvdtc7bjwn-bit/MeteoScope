@@ -8,7 +8,8 @@ export const CLOUDFLARE_FREE_TIER_LIMITS = Object.freeze({
   d1RowsRead: 5_000_000,
   d1RowsWritten: 100_000,
   d1StorageBytes: 5_000_000_000,
-  d1DatabaseStorageBytes: 500_000_000
+  d1DatabaseStorageBytes: 500_000_000,
+  browserRunMilliseconds: 600_000
 });
 
 export const EARTHQUAKE_D1_STORAGE_THRESHOLDS = Object.freeze({
@@ -70,6 +71,19 @@ const D1_QUERY = `query MeteoScopeD1Usage($accountTag: string!, $start: Date, $e
   }
 }`;
 
+const BROWSER_RUN_QUERY = `query MeteoScopeBrowserRunUsage($accountTag: string!, $date: Date) {
+  viewer {
+    accounts(filter: { accountTag: $accountTag }) {
+      browserRenderingBrowserTimeUsageAdaptiveGroups(
+        limit: 1000
+        filter: { date_geq: $date, date_leq: $date }
+      ) {
+        sum { totalSessionDurationMs }
+      }
+    }
+  }
+}`;
+
 export async function readCloudflareFreeTierUsage(env, options = {}) {
   const accountID = String(env.CLOUDFLARE_ACCOUNT_ID ?? "").trim();
   const token = String(
@@ -94,7 +108,8 @@ export async function readCloudflareFreeTierUsage(env, options = {}) {
     limits: { ...CLOUDFLARE_FREE_TIER_LIMITS },
     workers: unavailableMetric("Cloudflare Analytics用の環境変数が未設定です。"),
     durableObjects: unavailableMetric("Cloudflare Analytics用の環境変数が未設定です。"),
-    d1: unavailableMetric("Cloudflare Analytics用の環境変数が未設定です。")
+    d1: unavailableMetric("Cloudflare Analytics用の環境変数が未設定です。"),
+    browserRun: unavailableMetric("Cloudflare Analytics用の環境変数が未設定です。")
   };
 
   if (!accountID || !token) {
@@ -120,7 +135,8 @@ export async function readCloudflareFreeTierUsage(env, options = {}) {
       start: dateUtc,
       end: dateUtc
     }),
-    readD1Storage(fetchImpl, headers, accountID)
+    readD1Storage(fetchImpl, headers, accountID),
+    queryGraphql(fetchImpl, headers, BROWSER_RUN_QUERY, commonVariables)
   ]);
 
   const workersGroups = fulfilledValue(results[0]);
@@ -128,6 +144,7 @@ export async function readCloudflareFreeTierUsage(env, options = {}) {
   const durableDurationGroups = fulfilledValue(results[2]);
   const d1Groups = fulfilledValue(results[3]);
   const d1Storage = fulfilledValue(results[4]);
+  const browserRunGroups = fulfilledValue(results[5]);
 
   const workers = workersGroups
     ? sumGroups(workersGroups, ["requests", "errors", "subrequests"])
@@ -139,6 +156,13 @@ export async function readCloudflareFreeTierUsage(env, options = {}) {
     ? sumGroups(durableDurationGroups, ["duration", "fatalInternalErrors"])
     : null;
   const d1Rows = d1Groups ? sumGroups(d1Groups, ["rowsRead", "rowsWritten"]) : null;
+  const browserRun = browserRunGroups
+    ? sumGroups(browserRunGroups, ["totalSessionDurationMs"])
+    : null;
+
+  base.browserRun = browserRun
+    ? { available: true, milliseconds: browserRun.totalSessionDurationMs }
+    : unavailableMetric(resultError(results[5]));
 
   base.workers = workers
     ? {
@@ -192,7 +216,7 @@ export async function readCloudflareFreeTierUsage(env, options = {}) {
     );
   }
 
-  const sections = [base.workers, base.durableObjects, base.d1];
+  const sections = [base.workers, base.durableObjects, base.d1, base.browserRun];
   base.available = sections.some((section) => section.available || section.partial);
   base.partial = sections.some((section) => !section.available || section.partial);
   return base;

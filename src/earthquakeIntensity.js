@@ -35,3 +35,20 @@ export function getEarthquakeIntensityTextClass(value) {
   if (rank === 0) return "is-bright-text";
   return rank >= 5 ? "is-bright-text" : "is-dark-text";
 }
+
+export function normalizeEarthquakeIntensityCode(value) {
+  return String(value ?? "").trim().replace(/^震度/u, "")
+    .replace("弱", "-").replace("強", "+")
+    .replace("⁻", "-").replace("⁺", "+");
+}
+
+export function formatEarthquakeIntensityMarkerText(value) {
+  const code = normalizeEarthquakeIntensityCode(value);
+  if (!code || code.includes("未入電") || code.includes("不明")) return "";
+  return code;
+}
+
+export function getEarthquakeIntensityMarkerTextColor(value) {
+  const rank = getEarthquakeIntensityRank(normalizeEarthquakeIntensityCode(value));
+  return rank === 0 || rank >= 5 ? "#f8fbff" : "#07162b";
+}

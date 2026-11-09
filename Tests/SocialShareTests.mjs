@@ -15,6 +15,10 @@ import {
   getSocialSharePayload,
   setSocialSharePayload
 } from "../src/socialShareState.js";
+import {
+  formatEarthquakeIntensityMarkerText,
+  getEarthquakeIntensityMarkerTextColor
+} from "../src/earthquakeIntensity.js";
 
 const [indexSource, appSource, leftPanelSource, styleSource] = await Promise.all([
   readFile(new URL("../index.html", import.meta.url), "utf8"),
@@ -60,6 +64,16 @@ assert.equal(
   formatEarthquakeObservationShareLabel("5弱", ["薩摩川内市", "鹿児島空港"], 2, "en"),
   "Intensity 5- · Satsumasendai City, Kagoshima Airport +2 more"
 );
+assert.equal(formatEarthquakeIntensityMarkerText("震度5弱"), "5-");
+assert.equal(formatEarthquakeIntensityMarkerText("6強"), "6+");
+assert.equal(formatEarthquakeIntensityMarkerText("5"), "5");
+assert.equal(getEarthquakeIntensityMarkerTextColor("1"), "#07162b");
+assert.equal(getEarthquakeIntensityMarkerTextColor("2"), "#07162b");
+assert.equal(getEarthquakeIntensityMarkerTextColor("5弱"), "#f8fbff");
+assert.equal(
+  formatEarthquakeObservationShareLabel("5弱", ["薩摩川内市"], 0, "ja"),
+  "震度5-  薩摩川内市"
+);
 
 globalThis.HTMLCanvasElement ??= class {};
 class MockCanvas extends HTMLCanvasElement {
@@ -81,7 +95,7 @@ class MockCanvas extends HTMLCanvasElement {
       fill() {},
       fillRect() {},
       fillText: (text, x, y, maxWidth) => {
-        this.drawnText.push({ text: String(text), x, y, maxWidth });
+        this.drawnText.push({ text: String(text), x, y, maxWidth, color: this.context.fillStyle });
       },
       lineTo() {},
       measureText(text) {
@@ -103,6 +117,23 @@ class MockCanvas extends HTMLCanvasElement {
     return type === "2d" ? this.context : null;
   }
 }
+
+const earthquakeCanvas = new MockCanvas();
+renderSocialShareCard(earthquakeCanvas, {
+  type: "earthquake",
+  intensity: "5弱",
+  intensityColor: "#f93904",
+  eventTime: "2026/11/09 03:15",
+  coordinates: [139, 35],
+  hypocenter: "テスト震央",
+  observations: [
+    { intensity: "2", intensityColor: "#13b605", coordinates: [138.5, 35], name: "地点A" },
+    { intensity: "5弱", intensityColor: "#f93904", coordinates: [139.5, 35], name: "地点B" }
+  ]
+}, { format: "portrait", theme: "dark", language: "ja" });
+assert.ok(earthquakeCanvas.drawnText.some(({ text, color }) => text === "2" && color === "#07162b"));
+assert.ok(earthquakeCanvas.drawnText.some(({ text, color }) => text === "5-" && color === "#f8fbff"));
+assert.ok(earthquakeCanvas.drawnText.some(({ text, color }) => text === "5-" && color === "#ffffff"));
 
 const englishSharePayloads = [
   {

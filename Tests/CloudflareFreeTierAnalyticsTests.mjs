@@ -53,6 +53,12 @@ const fetchImpl = async (url, options = {}) => {
       { sum: { rowsRead: 3_528, rowsWritten: 291 } }
     ]);
   }
+  if (body.query.includes("browserRenderingBrowserTimeUsageAdaptiveGroups")) {
+    return graphqlResponse("browserRenderingBrowserTimeUsageAdaptiveGroups", [
+      { sum: { totalSessionDurationMs: 87_500 } },
+      { sum: { totalSessionDurationMs: 12_500 } }
+    ]);
+  }
   throw new Error("unexpected GraphQL query");
 };
 
@@ -92,6 +98,7 @@ assert.deepEqual(usage.d1.earthquakeDatabase, {
   storageBytes: 3_969_024
 });
 assert.equal(usage.d1.earthquakeStorageStatus.level, "ok");
+assert.equal(usage.browserRun.milliseconds, 100_000);
 assert.equal(classifyEarthquakeD1Storage(99_999_999).level, "ok");
 assert.equal(classifyEarthquakeD1Storage(100_000_000).level, "notice");
 assert.equal(classifyEarthquakeD1Storage(200_000_000).level, "warning");
@@ -102,7 +109,7 @@ assert.deepEqual(EARTHQUAKE_D1_STORAGE_THRESHOLDS, {
   dangerBytes: 350_000_000
 });
 assert.deepEqual(usage.limits, CLOUDFLARE_FREE_TIER_LIMITS);
-assert.equal(calls.length, 5);
+assert.equal(calls.length, 6);
 assert.equal(calls.every((call) => call.authorization === "Bearer analytics-secret"), true);
 assert.equal(JSON.stringify(usage).includes("analytics-secret"), false);
 
@@ -135,6 +142,8 @@ const partial = await readCloudflareFreeTierUsage({
       ? "workersInvocationsAdaptive"
       : body.query.includes("durableObjectsInvocationsAdaptiveGroups")
         ? "durableObjectsInvocationsAdaptiveGroups"
+        : body.query.includes("browserRenderingBrowserTimeUsageAdaptiveGroups")
+          ? "browserRenderingBrowserTimeUsageAdaptiveGroups"
         : "d1AnalyticsAdaptiveGroups";
     return graphqlResponse(field, []);
   }

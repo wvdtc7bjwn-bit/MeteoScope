@@ -530,7 +530,8 @@ function renderCloudflareQuota(usage) {
     quotaMetric("D1読取行数", usage.d1?.rowsRead, limits.d1RowsRead, "rows"),
     quotaMetric("D1書込行数", usage.d1?.rowsWritten, limits.d1RowsWritten, "rows"),
     quotaMetric("D1保存容量", usage.d1?.storageBytes, limits.d1StorageBytes, "bytes", usage.d1?.databaseCount == null ? "" : `${formatInteger(usage.d1.databaseCount)}データベース合計`),
-    earthquakeStorage
+    earthquakeStorage,
+    quotaMetric("Browser Run", usage.browserRun?.milliseconds, limits.browserRunMilliseconds, "browserTime", "アカウント全体・当日概算")
   ];
   const availableMetrics = metrics.filter((metric) => metric.available);
   const maximumPercent = availableMetrics.length
@@ -632,6 +633,7 @@ function renderQuotaMetric(metric) {
 }
 
 function formatQuotaAmount(value, format) {
+  if (format === "browserTime") return `${(value / 60_000).toFixed(1)}分`;
   if (format === "bytes") return formatBytes(value);
   if (format === "duration") return `${new Intl.NumberFormat("ja-JP", { maximumFractionDigits: 1 }).format(value)} GB-s`;
   if (format === "rows") return `${formatInteger(value)}行`;

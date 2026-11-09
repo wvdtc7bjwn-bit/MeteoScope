@@ -8,6 +8,8 @@ import {
   getAmedasObservationColor,
   getEarthquakeIntensityColor,
   getEarthquakeIntensityRank,
+  formatEarthquakeIntensityMarkerText,
+  getEarthquakeIntensityMarkerTextColor,
   JMA_ENDPOINTS,
   KIKIKURU_ELEMENTS,
   MAP_DATA_ENDPOINTS
@@ -3270,11 +3272,11 @@ function setupEarthquakeStationIntensityMarkerImage(map) {
     context.lineWidth = 3;
     context.stroke();
     if (level.value !== "unknown") {
-      context.fillStyle = getMapIntensityTextColor(level.value);
+      context.fillStyle = getEarthquakeIntensityMarkerTextColor(level.value);
       context.font = `600 ${level.value.length > 1 ? 30 : 38}px sans-serif`;
       context.textAlign = "center";
       context.textBaseline = "middle";
-      context.fillText(formatMapIntensityText(level.value), size / 2, size / 2, 48);
+      context.fillText(formatEarthquakeIntensityMarkerText(level.value), size / 2, size / 2, 48);
     }
     map.addImage(imageId, context.getImageData(0, 0, size, size));
   }
@@ -4784,8 +4786,8 @@ function createEarthquakeAreaIntensityMarkers(features) {
         properties: {
           color: getEarthquakeIntensityColor(intensity),
           markerType: "earthquake-area-intensity",
-          intensityText: formatMapIntensityText(intensity),
-          textColor: getMapIntensityTextColor(intensity),
+          intensityText: formatEarthquakeIntensityMarkerText(intensity),
+          textColor: getEarthquakeIntensityMarkerTextColor(intensity),
           sortKey: getEarthquakeIntensityRank(intensity),
           popup: feature.properties?.popup ?? ""
         }
@@ -4850,19 +4852,9 @@ function getPolygonRingCentroid(ring) {
   };
 }
 
-function formatMapIntensityText(value) {
-  const text = String(value ?? "").trim();
-  if (!text || text.includes("未入電") || text.includes("不明")) return "";
-  return text.replace("-", "⁻").replace("+", "⁺");
-}
-
 function getStationIntensityKey(value) {
   const key = String(value ?? "");
   return EARTHQUAKE_INTENSITY_LEVELS.some((level) => level.value === key) ? key : "unknown";
-}
-
-function getMapIntensityTextColor(value) {
-  return getEarthquakeIntensityRank(value) >= 5 ? "#f8fbff" : "#07162b";
 }
 
 function getEarthquakeMapView(data) {

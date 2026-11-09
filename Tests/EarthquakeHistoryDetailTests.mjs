@@ -130,7 +130,7 @@ assert.match(stationIntensityLayer, /"icon-image": \["concat", EARTHQUAKE_STATIO
 assert.match(stationIntensityLayer, /"icon-allow-overlap": true/u);
 assert.match(stationIntensityLayer, /"icon-ignore-placement": true/u);
 assert.doesNotMatch(stationIntensityLayer, /"text-field"/u, "震度の数字をアイコンと一緒に描き、手前の丸が奥の数字を覆う");
-assert.match(map, /context\.fillText\(formatMapIntensityText\(level\.value\)/u);
+assert.match(map, /context\.fillText\(formatEarthquakeIntensityMarkerText\(level\.value\)/u);
 assert.match(map, /eventDetail\.event\?\.intensityAreaFeatures/u);
 assert.match(map, /const historicalAreaMarkers = createEarthquakeAreaIntensityMarkers/u);
 assert.match(map, /"text-color": "#e3342f"/u);

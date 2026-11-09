@@ -1,4 +1,10 @@
-import { getEarthquakeIntensityRank } from "./earthquakeIntensity.js";
+import {
+  formatEarthquakeIntensityMarkerText,
+  getEarthquakeIntensityMarkerTextColor,
+  getEarthquakeIntensityRank,
+  getEarthquakeIntensityTextClass,
+  normalizeEarthquakeIntensityCode
+} from "./earthquakeIntensity.js";
 import { getCurrentLanguage, localizeText } from "./ui/locale.js";
 import {
   buildStormWarningAreaLineSegments,
@@ -670,7 +676,9 @@ function drawEarthquakeCard(
   roundedRect(context, intensityX, intensityY, intensitySize, intensitySize, landscape ? 14 : 18);
   context.fillStyle = payload.intensityColor || theme.accent;
   context.fill();
-  context.fillStyle = getReadableTextColor(payload.intensityColor || theme.accent);
+  context.fillStyle = getEarthquakeIntensityTextClass(
+    normalizeEarthquakeIntensityCode(payload.intensity)
+  ) === "is-bright-text" ? "#ffffff" : "#000000";
   context.textAlign = "center";
   context.font = `700 ${landscape ? 14 : 18}px ${FONT_FAMILY}`;
   context.fillText(
@@ -682,7 +690,8 @@ function drawEarthquakeCard(
   context.font = `900 ${landscape ? 50 : 70}px ${FONT_FAMILY}`;
   context.textBaseline = "middle";
   context.fillText(
-    language === "en" ? formatShareIntensity(payload.intensity) : (payload.intensity ?? "--"),
+    language === "en" ? formatShareIntensity(payload.intensity)
+      : (formatEarthquakeIntensityMarkerText(payload.intensity) || "--"),
     intensityX + intensitySize / 2,
     intensityY + intensitySize * 0.64
   );
@@ -839,11 +848,11 @@ function drawEarthquakeMap(context, box, theme, geoJson, coordinates, observatio
     context.arc(x, y, radius, 0, Math.PI * 2);
     context.fill();
     context.stroke();
-    context.fillStyle = getReadableTextColor(observation.intensityColor || theme.accent);
+    context.fillStyle = getEarthquakeIntensityMarkerTextColor(observation.intensity);
     context.font = `800 ${Math.max(8, radius * 1.05)}px ${FONT_FAMILY}`;
     context.textAlign = "center";
     context.textBaseline = "middle";
-    context.fillText(String(observation.intensity ?? "--").replace(/^震度/u, ""), x, y + 0.5);
+    context.fillText(formatEarthquakeIntensityMarkerText(observation.intensity) || "--", x, y + 0.5);
   });
 
   if (Number.isFinite(longitude) && Number.isFinite(latitude)) {
@@ -1617,16 +1626,11 @@ export function formatEarthquakeObservationShareLabel(
     const suffix = remainder > 0 ? ` +${remainder} more` : "";
     return `Intensity ${formatShareIntensity(normalizedIntensity)} · ${localizedNames.join(", ")}${suffix}`;
   }
-  return `震度${normalizedIntensity}  ${names.join("・")}${remainder > 0 ? ` ほか${remainder}地点` : ""}`;
+  return `震度${formatEarthquakeIntensityMarkerText(normalizedIntensity) || normalizedIntensity}  ${names.join("・")}${remainder > 0 ? ` ほか${remainder}地点` : ""}`;
 }
 
 function getSocialShareIntensityRank(value) {
-  const normalized = String(value ?? "")
-    .trim()
-    .replace(/^震度/u, "")
-    .replace("弱", "-")
-    .replace("強", "+");
-  return getEarthquakeIntensityRank(normalized);
+  return getEarthquakeIntensityRank(normalizeEarthquakeIntensityCode(value));
 }
 
 function formatShareIntensity(value) {
@@ -1690,14 +1694,4 @@ function drawFittedText(context, value, x, y, maxWidth) {
     shortened = shortened.slice(0, -1);
   }
   context.fillText(`${shortened}…`, x, y);
-}
-
-function getReadableTextColor(color) {
-  const match = String(color ?? "").match(/^#([\da-f]{6})$/i);
-  if (!match) return "#ffffff";
-  const value = Number.parseInt(match[1], 16);
-  const red = (value >> 16) & 255;
-  const green = (value >> 8) & 255;
-  const blue = value & 255;
-  return (red * 299 + green * 587 + blue * 114) / 1000 > 155 ? "#10243b" : "#ffffff";
 }

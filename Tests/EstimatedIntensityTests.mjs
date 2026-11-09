@@ -104,7 +104,8 @@ assert.match(mapSource, /maxzoom:\s*6\.5/u);
 assert.match(mapSource, /minzoom:\s*6\.5/u);
 assert.match(mapSource, /markerType:\s*"earthquake-area-intensity"/u);
 assert.match(mapSource, /markerType:\s*"earthquake-station"/u);
-assert.match(mapSource, /text\.includes\("未入電"\)/u);
+assert.match(mapSource, /formatEarthquakeIntensityMarkerText\(intensity\)/u);
+assert.match(read("src", "earthquakeIntensity.js"), /code\.includes\("未入電"\)/u);
 
 const panelSource = read("src", "ui", "leftPanel.js");
 assert.match(panelSource, /\["estimatedIntensity",\s*"推計震度"/u);
