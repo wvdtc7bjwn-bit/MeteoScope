@@ -394,6 +394,8 @@ const amedasFeatureCollectionCache = new WeakMap();
 export function createWeatherMap(elementId) {
   let map = null;
   let pendingRender = null;
+  let lastRenderedMode = null;
+  let lastRenderedData = null;
   let modeApplyPending = false;
   let activeMode = "radar";
   let activeEew = null;
@@ -965,12 +967,16 @@ export function createWeatherMap(elementId) {
       pendingRender = { mode, data };
       return;
     }
+    lastRenderedMode = mode;
+    lastRenderedData = data;
     if (mode === "earthquake" && data?.historicalEarthquakeDetailVisible === true) {
       hideMapInfo("earthquake-distribution");
     }
 
     const source = map.getSource(SAMPLE_SOURCE_ID);
-    const areaVisible = mode === "earthquake" && data?.earthquakeMapView === "distribution";
+    const areaVisible = mode === "earthquake"
+      && !activeEew
+      && data?.earthquakeMapView === "distribution";
     for (const layerId of [HYPOCENTER_AREA_FILL_LAYER_ID, HYPOCENTER_AREA_LINE_LAYER_ID]) {
       if (map.getLayer(layerId)) {
         map.setLayoutProperty(layerId, "visibility", areaVisible ? "visible" : "none");
@@ -997,6 +1003,7 @@ export function createWeatherMap(elementId) {
 
   function syncTsunamiBlink(mode, collection) {
     const hasTsunami = mode === "earthquake"
+      && !activeEew
       && (collection?.features ?? []).some((feature) => (
         feature?.properties?.tsunamiLevel
         || ["tsunami-coastal", "tsunami-offshore"].includes(feature?.properties?.markerType)
@@ -2195,6 +2202,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
 
   function updateHypocenter3D(mode, data = {}) {
     const enabled = mode === "earthquake"
+      && !activeEew
       && getEarthquakeMapView(data) === "distribution"
       && data.distribution3DEnabled === true;
     hypocenter3D.setData(
@@ -2774,6 +2782,17 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     EEW_LAYER_IDS.forEach((layerId) => {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
     });
+    SAMPLE_LAYERS.forEach((layerId) => {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible ? "none" : "visible");
+    });
+    const areaVisible = !visible
+      && activeMode === "earthquake"
+      && lastRenderedMode === "earthquake"
+      && lastRenderedData?.earthquakeMapView === "distribution";
+    for (const layerId of [HYPOCENTER_AREA_FILL_LAYER_ID, HYPOCENTER_AREA_LINE_LAYER_ID]) {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", areaVisible ? "visible" : "none");
+    }
+    updateHypocenter3D(activeMode, lastRenderedData ?? {});
   }
 
   function setTheme(theme) {
