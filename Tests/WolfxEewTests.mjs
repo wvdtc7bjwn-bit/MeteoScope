@@ -8,6 +8,10 @@ import {
   normalizeWolfxEew
 } from "../src/eew/wolfxEew.js";
 import { getWaveDistancesByJma2001 } from "../src/eew/jma2001TravelTime.js";
+import {
+  buildEewForecastAreaFeatureCollection,
+  createEewForecastAreaSignature
+} from "../src/eew/eewForecastAreas.js";
 
 const BASE_TIME = Date.parse("2026-11-10T12:00:00+09:00");
 
@@ -62,6 +66,38 @@ function makeEew(overrides = {}) {
   assert.equal(normalized.magnitude, 5.4, "旧フィールド Magunitude を維持する");
   assert.equal(normalized.depth, null, "空の深さを0kmにしない");
   assert.equal(normalized.coordinates, null, "欠損座標を0度にしない");
+}
+
+{
+  const areaGeoJson = {
+    type: "FeatureCollection",
+    features: [
+      { type: "Feature", geometry: { type: "Polygon", coordinates: [] }, properties: { code: "310", name: "茨城県北部" } },
+      { type: "Feature", geometry: { type: "Polygon", coordinates: [] }, properties: { code: "311", name: "茨城県南部" } }
+    ]
+  };
+  const warning = normalizeWolfxEew(makeEew({
+    isWarn: true,
+    WarnArea: [
+      { Code: "310", Chiiki: "茨城県北部", Shindo1: "4", Shindo2: "5弱" },
+      { Code: "311", Chiiki: "茨城県南部", Shindo1: "4", Shindo2: "4" }
+    ]
+  }), { receivedAt: BASE_TIME });
+  assert.equal(warning.warnAreas[0].code, "310", "WolfxのEEW予報区コードを保持する");
+
+  const colored = buildEewForecastAreaFeatureCollection(areaGeoJson, [warning]);
+  assert.equal(colored.features.length, 2, "警報で予想震度がある区域だけを地図化する");
+  assert.equal(colored.features[0].properties.intensity, "5-", "予想震度範囲の上限を代表色にする");
+  assert.equal(colored.features[0].properties.intensityRange, "4～5-");
+  assert.equal(colored.features[0].properties.color, "#f93904", "アプリ共通の震度色を使う");
+  assert.match(createEewForecastAreaSignature([warning]), /茨城県北部/u);
+
+  const forecastOnly = { ...warning, isWarn: false };
+  assert.equal(
+    buildEewForecastAreaFeatureCollection(areaGeoJson, [forecastOnly]).features.length,
+    2,
+    "EEW予報でも区域別の予想震度があれば塗り分ける"
+  );
 }
 
 {

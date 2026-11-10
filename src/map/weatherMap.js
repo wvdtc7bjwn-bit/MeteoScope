@@ -58,6 +58,10 @@ import {
 } from "../typhoonGeometry.js";
 import { getEarlyWarningColor, getWarningColor } from "../warningMapColors.js";
 import { mergeRiverFloodWarningsIntoGroups } from "../warningRiverMerge.js";
+import {
+  buildEewForecastAreaFeatureCollection,
+  createEewForecastAreaSignature
+} from "../eew/eewForecastAreas.js";
 
 const MODE_CLASS = {
   radar: "mode-radar",
@@ -72,14 +76,17 @@ const HYPOCENTER_AREA_SOURCE_ID = "hypocenter-area-selection";
 const HYPOCENTER_AREA_FILL_LAYER_ID = "hypocenter-area-selection-fill";
 const HYPOCENTER_AREA_LINE_LAYER_ID = "hypocenter-area-selection-line";
 const EEW_SOURCE_ID = "wolfx-emergency-earthquake-warning";
-const EEW_LAYER_IDS = ["eew-wave-fill", "eew-wave-line", "eew-wave-label", "eew-hypocenter", "eew-hypocenter-cross"];
+const EEW_AREA_SOURCE_ID = "wolfx-eew-forecast-areas";
+const EEW_AREA_FILL_LAYER_ID = "eew-forecast-area-fill";
+const EEW_AREA_LINE_LAYER_ID = "eew-forecast-area-line";
+const EEW_LAYER_IDS = [EEW_AREA_FILL_LAYER_ID, EEW_AREA_LINE_LAYER_ID, "eew-wave-fill", "eew-wave-line", "eew-wave-label", "eew-hypocenter", "eew-hypocenter-cross"];
 const EEW_P_WAVE_COLOR = "#1769c2";
 const EEW_S_WAVE_COLOR = "#ff6a3d";
 let jma2001WaveDistanceCalculator = null;
 let jma2001WaveDistanceLoadPromise = null;
 const SAMPLE_LAYERS = ["sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
-const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "sample-tsunami-coastal", "sample-cross", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line"];
+const EARTHQUAKE_INTERACTIVE_LAYERS = [EEW_AREA_FILL_LAYER_ID, "sample-circle", "sample-tsunami-coastal", "sample-cross", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line"];
 const TSUNAMI_BLINK_INTERVAL_MS = 1800;
 const TSUNAMI_DIMMED_OPACITY_FACTOR = 0.38;
 const EARTHQUAKE_STATION_RADIUS = 10;
@@ -403,6 +410,9 @@ export function createWeatherMap(elementId) {
   let modeApplyPending = false;
   let activeMode = "radar";
   let activeEews = [];
+  let eewAreaSignature = "";
+  let eewAreaLoadGeneration = 0;
+  let eewAreaGeometryPromise = null;
   let activeTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
   let terrainLayerVisible = false;
   let terrainLayerOpacity = DEFAULT_TERRAIN_OPACITY;
@@ -494,6 +504,7 @@ export function createWeatherMap(elementId) {
     map.on("load", () => {
       revealInitialGeometryLayers(map);
       setupSampleLayers();
+      syncEewForecastAreas({ force: true });
       applyMapTheme(map, activeTheme);
       syncTerrainLayer();
       setMode(activeMode);
@@ -1130,6 +1141,10 @@ export function createWeatherMap(elementId) {
       type: "geojson",
       data: createEmptyFeatureCollection()
     });
+    map.addSource(EEW_AREA_SOURCE_ID, {
+      type: "geojson",
+      data: createEmptyFeatureCollection()
+    });
     map.addSource(TYPHOON_SOURCE_ID, {
       type: "geojson",
       data: createEmptyFeatureCollection()
@@ -1178,6 +1193,27 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "line-color": "#43c8ff",
         "line-width": 2.5,
         "line-dasharray": [1.5, 1]
+      }
+    });
+    map.addLayer({
+      id: EEW_AREA_FILL_LAYER_ID,
+      type: "fill",
+      source: EEW_AREA_SOURCE_ID,
+      layout: { visibility: "none" },
+      paint: {
+        "fill-color": ["get", "color"],
+        "fill-opacity": ["coalesce", ["get", "fillOpacity"], 0.46]
+      }
+    });
+    map.addLayer({
+      id: EEW_AREA_LINE_LAYER_ID,
+      type: "line",
+      source: EEW_AREA_SOURCE_ID,
+      layout: { visibility: "none", "line-join": "round" },
+      paint: {
+        "line-color": ["get", "color"],
+        "line-width": ["coalesce", ["get", "lineWidth"], 1.5],
+        "line-opacity": 0.96
       }
     });
     map.addLayer({
@@ -2779,7 +2815,51 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     ));
     const source = map?.getSource(EEW_SOURCE_ID);
     if (source?.setData) source.setData(createEewFeatureCollection(activeEews));
+    syncEewForecastAreas();
     syncEewVisibility();
+  }
+
+  function syncEewForecastAreas({ force = false } = {}) {
+    const nextSignature = createEewForecastAreaSignature(activeEews);
+    if (!force && nextSignature === eewAreaSignature) return;
+    eewAreaSignature = nextSignature;
+    const generation = ++eewAreaLoadGeneration;
+    const source = map?.getSource(EEW_AREA_SOURCE_ID);
+    if (!nextSignature) {
+      source?.setData?.(createEmptyFeatureCollection());
+      return;
+    }
+
+    loadEewAreaGeometry().then((areaGeoJson) => {
+      if (generation !== eewAreaLoadGeneration || nextSignature !== eewAreaSignature) return;
+      const featureCollection = buildEewForecastAreaFeatureCollection(areaGeoJson, activeEews);
+      featureCollection.features = featureCollection.features.map((feature) => ({
+        ...feature,
+        properties: {
+          ...(feature.properties ?? {}),
+          popup: `<strong>${escapePopup(feature.properties?.areaName ?? "EEW予報区")}</strong><br>予想震度 ${escapePopup(feature.properties?.intensityRange ?? feature.properties?.intensity ?? "不明")}<br><small>緊急地震速報（予報・警報）の予測値</small>`
+        }
+      }));
+      map?.getSource(EEW_AREA_SOURCE_ID)?.setData?.(featureCollection);
+    }).catch((error) => {
+      if (generation !== eewAreaLoadGeneration) return;
+      console.warn("[MeteoScope] EEW forecast-area geometry load failed", error);
+    });
+  }
+
+  function loadEewAreaGeometry() {
+    if (!eewAreaGeometryPromise) {
+      eewAreaGeometryPromise = fetch(JMA_ENDPOINTS.earthquakeAreas, { cache: "force-cache" })
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        })
+        .catch((error) => {
+          eewAreaGeometryPromise = null;
+          throw error;
+        });
+    }
+    return eewAreaGeometryPromise;
   }
 
   function syncEewVisibility() {

@@ -140,6 +140,7 @@ export function normalizeWolfxEew(payload, { receivedAt = Date.now(), transport 
     },
     warnAreas: Array.isArray(payload.WarnArea)
       ? payload.WarnArea.slice(0, 200).map((area) => ({
+        code: cleanText(area?.Code, "", 20),
         name: cleanText(area?.Chiiki),
         from: normalizeIntensity(area?.Shindo1),
         to: normalizeIntensity(area?.Shindo2),
