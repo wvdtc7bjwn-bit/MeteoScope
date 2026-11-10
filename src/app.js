@@ -599,6 +599,22 @@ export function createWeatherApp() {
       ?? null;
   }
 
+  function syncEewConnectionIndicator() {
+    const indicator = document.getElementById("eew-connection-indicator");
+    if (!indicator) return;
+    const status = String(eewState.connection?.status ?? "stopped");
+    indicator.hidden = !earlyAccessEnabled;
+    const connected = status === "connected";
+    const label = connected
+      ? "Wolfx接続中"
+      : status === "connecting"
+        ? "Wolfxへ接続中"
+        : "Wolfx接続異常";
+    indicator.dataset.state = connected ? "connected" : "error";
+    indicator.setAttribute("aria-label", label);
+    indicator.title = label;
+  }
+
   function handleEewUpdate(snapshot) {
     const nextState = snapshot && typeof snapshot === "object"
       ? snapshot
@@ -610,6 +626,7 @@ export function createWeatherApp() {
       connection: nextState.connection ?? { status: "stopped" },
       updatedAt: nextState.updatedAt ?? null
     };
+    syncEewConnectionIndicator();
     if (!eewState.activeEvents.some((eew) => eew.eventId === selectedEewEventId)) {
       selectedEewEventId = eewState.activeEvents[0]?.eventId ?? "";
     }
@@ -625,6 +642,7 @@ export function createWeatherApp() {
   }
 
   function syncEewEarlyAccess() {
+    syncEewConnectionIndicator();
     if (earlyAccessEnabled) {
       eewClient?.start();
       return;
@@ -4144,6 +4162,7 @@ if (layerId === "river") {
       onStatus: (status) => recordDiagnostic("eew-connection", status),
       onDiagnostic: (diagnostic) => recordDiagnostic("eew-diagnostic", diagnostic)
     });
+    syncEewEarlyAccess();
     window.addEventListener("pagehide", () => {
       eewClient?.stop({ clear: false });
       if (eewWaveTimer) window.clearInterval(eewWaveTimer);

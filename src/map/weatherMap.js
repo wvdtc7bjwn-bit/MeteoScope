@@ -73,6 +73,8 @@ const HYPOCENTER_AREA_FILL_LAYER_ID = "hypocenter-area-selection-fill";
 const HYPOCENTER_AREA_LINE_LAYER_ID = "hypocenter-area-selection-line";
 const EEW_SOURCE_ID = "wolfx-emergency-earthquake-warning";
 const EEW_LAYER_IDS = ["eew-wave-fill", "eew-wave-line", "eew-wave-label", "eew-hypocenter", "eew-hypocenter-cross"];
+let jma2001WaveDistanceCalculator = null;
+let jma2001WaveDistanceLoadPromise = null;
 const SAMPLE_LAYERS = ["sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
 const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "sample-tsunami-coastal", "sample-cross", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line"];
@@ -4674,14 +4676,15 @@ function createEewFeatureCollection(events, now = Date.now()) {
     });
     if (!eew.canRenderWaves || !Number.isFinite(originTimestamp) || !Number.isFinite(depthKm)) return;
     const elapsedSeconds = Math.max(0, (now - originTimestamp) / 1000);
+    const waveDistances = getJma2001WaveDistances(depthKm, elapsedSeconds);
+    if (!waveDistances) return;
+    const { pDistanceKm, sDistanceKm } = waveDistances;
     const waveDefinitions = [
-      { type: "P", velocity: 7, label: "P波（概算）" },
-      { type: "S", velocity: 4, label: "S波（概算）" }
+      { type: "P", surfaceRadiusKm: pDistanceKm, label: "P波（JMA2001概算）" },
+      { type: "S", surfaceRadiusKm: sDistanceKm, label: "S波（JMA2001概算）" }
     ];
 
-    waveDefinitions.forEach(({ type, velocity, label }) => {
-      const travelDistanceKm = velocity * elapsedSeconds;
-      const surfaceRadiusKm = Math.sqrt(Math.max(0, travelDistanceKm ** 2 - depthKm ** 2));
+    waveDefinitions.forEach(({ type, surfaceRadiusKm, label }) => {
       if (surfaceRadiusKm < 1 || surfaceRadiusKm > 2_500) return;
       features.push({
         type: "Feature",
@@ -4697,6 +4700,27 @@ function createEewFeatureCollection(events, now = Date.now()) {
   });
 
   return { type: "FeatureCollection", features };
+}
+
+function getJma2001WaveDistances(depthKm, elapsedSeconds) {
+  if (jma2001WaveDistanceCalculator) {
+    return jma2001WaveDistanceCalculator(depthKm, elapsedSeconds);
+  }
+
+  if (!jma2001WaveDistanceLoadPromise) {
+    jma2001WaveDistanceLoadPromise = import("../eew/jma2001TravelTime.js")
+      .then((module) => {
+        jma2001WaveDistanceCalculator = module.getWaveDistancesByJma2001;
+        return jma2001WaveDistanceCalculator;
+      })
+      .catch((error) => {
+        console.warn("[MeteoScope] JMA2001 travel-time table load failed", error);
+        jma2001WaveDistanceLoadPromise = null;
+        return null;
+      });
+  }
+
+  return null;
 }
 
 function createGeodesicCircle(center, radiusKm, steps = 96) {

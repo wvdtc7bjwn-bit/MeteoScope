@@ -11234,6 +11234,42 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
   line-height: 1;
   cursor: pointer;
 }
+
+.eew-connection-indicator {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: #ef3d35;
+  box-shadow: 0 0 0 2px rgba(239, 61, 53, 0.14), 0 0 8px rgba(239, 61, 53, 0.72);
+}
+
+.eew-connection-indicator[hidden] {
+  display: none;
+}
+
+.eew-connection-indicator[data-state="connected"] {
+  background: #25c565;
+  box-shadow: 0 0 0 2px rgba(37, 197, 101, 0.14), 0 0 8px rgba(37, 197, 101, 0.7);
+}
+
+.eew-connection-indicator[data-state="error"] {
+  animation: eew-connection-alert 1.4s ease-in-out infinite;
+}
+
+@keyframes eew-connection-alert {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.22; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eew-connection-indicator[data-state="error"] {
+    animation: none;
+  }
+}
+
 #clock-display-button:focus-visible, .current-location-weather:focus-visible {
   outline: 2px solid currentColor;
   outline-offset: 3px;
@@ -14870,6 +14906,10 @@ html[data-theme="light"] #clock {
   color: #13243a;
   background: rgba(252, 254, 255, 0.84);
   box-shadow: 0 10px 26px rgba(64, 84, 109, 0.14);
+}
+
+html[data-theme="light"] .eew-connection-indicator {
+  border-color: rgba(255, 255, 255, 0.94);
 }
 
 html[data-theme="light"] .disaster-map-open-button {

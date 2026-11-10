@@ -7,8 +7,24 @@ import {
   isWolfxEewActive,
   normalizeWolfxEew
 } from "../src/eew/wolfxEew.js";
+import { getWaveDistancesByJma2001 } from "../src/eew/jma2001TravelTime.js";
 
 const BASE_TIME = Date.parse("2026-11-10T12:00:00+09:00");
+
+{
+  const exact = getWaveDistancesByJma2001(0, 0.831);
+  assert.equal(exact.pDistanceKm, 4, "JMA2001走時表の一致点をそのまま使用する");
+
+  const interpolated = getWaveDistancesByJma2001(0, (0.416 + 0.831) / 2);
+  assert.ok(Math.abs(interpolated.pDistanceKm - 3) < 1e-9, "走時表の間は距離を線形補間する");
+
+  const invalid = getWaveDistancesByJma2001(50, Number.NaN);
+  assert.deepEqual(invalid, { pDistanceKm: 0, sDistanceKm: 0 }, "不正な経過時間では円を広げない");
+
+  const deep = getWaveDistancesByJma2001(999, 10);
+  const clamped = getWaveDistancesByJma2001(700, 10);
+  assert.deepEqual(deep, clamped, "走時表の範囲外の深さは700kmへ制限する");
+}
 
 function makeEew(overrides = {}) {
   return {
