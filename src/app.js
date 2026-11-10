@@ -464,6 +464,7 @@ export function createWeatherApp() {
   };
   let selectedEewEventId = "";
   let eewWaveTimer = 0;
+  let eewWaveAnimationGeneration = 0;
   let eewClient = null;
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
   let earlyAccessActiveFaultDataState = { status: "idle", data: null, error: "" };
@@ -582,15 +583,39 @@ export function createWeatherApp() {
     });
   }
 
-  function syncEewWaveAnimation() {
-    if (eewWaveTimer) window.clearInterval(eewWaveTimer);
+  function stopEewWaveAnimation() {
+    eewWaveAnimationGeneration += 1;
+    if (!eewWaveTimer) return;
+    window.cancelAnimationFrame?.(eewWaveTimer);
+    window.clearTimeout(eewWaveTimer);
     eewWaveTimer = 0;
+  }
+
+  function requestEewWaveFrame(callback) {
+    if (typeof window.requestAnimationFrame === "function") {
+      return window.requestAnimationFrame(callback);
+    }
+    return window.setTimeout(() => callback(window.performance?.now?.() ?? Date.now()), 33);
+  }
+
+  function syncEewWaveAnimation() {
+    stopEewWaveAnimation();
     const drawableEvents = eewState.activeEvents.filter((eew) => !eew.isCancel);
     weatherMap?.setEmergencyEarthquakeWarnings(drawableEvents);
     if (!drawableEvents.some((eew) => eew.canRenderWaves)) return;
-    eewWaveTimer = window.setInterval(() => {
-      weatherMap?.setEmergencyEarthquakeWarnings(drawableEvents);
-    }, 1_000);
+
+    const generation = eewWaveAnimationGeneration;
+    const frameInterval = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? 250 : 33;
+    let previousFrameTime = 0;
+    const animate = (frameTime) => {
+      if (generation !== eewWaveAnimationGeneration) return;
+      if (!previousFrameTime || frameTime - previousFrameTime >= frameInterval) {
+        weatherMap?.setEmergencyEarthquakeWarnings(drawableEvents);
+        previousFrameTime = frameTime;
+      }
+      eewWaveTimer = requestEewWaveFrame(animate);
+    };
+    eewWaveTimer = requestEewWaveFrame(animate);
   }
 
   function getSelectedEew() {
@@ -4165,8 +4190,7 @@ if (layerId === "river") {
     syncEewEarlyAccess();
     window.addEventListener("pagehide", () => {
       eewClient?.stop({ clear: false });
-      if (eewWaveTimer) window.clearInterval(eewWaveTimer);
-      eewWaveTimer = 0;
+      stopEewWaveAnimation();
     });
     window.addEventListener("pageshow", () => {
       if (earlyAccessEnabled) {

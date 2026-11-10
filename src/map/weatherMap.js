@@ -73,6 +73,8 @@ const HYPOCENTER_AREA_FILL_LAYER_ID = "hypocenter-area-selection-fill";
 const HYPOCENTER_AREA_LINE_LAYER_ID = "hypocenter-area-selection-line";
 const EEW_SOURCE_ID = "wolfx-emergency-earthquake-warning";
 const EEW_LAYER_IDS = ["eew-wave-fill", "eew-wave-line", "eew-wave-label", "eew-hypocenter", "eew-hypocenter-cross"];
+const EEW_P_WAVE_COLOR = "#1769c2";
+const EEW_S_WAVE_COLOR = "#ff6a3d";
 let jma2001WaveDistanceCalculator = null;
 let jma2001WaveDistanceLoadPromise = null;
 const SAMPLE_LAYERS = ["sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
@@ -1185,8 +1187,8 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       filter: ["==", ["get", "featureType"], "wave"],
       layout: { visibility: "none" },
       paint: {
-        "fill-color": ["match", ["get", "waveType"], "P", "#36bffa", "#ff6a3d"],
-        "fill-opacity": ["match", ["get", "waveType"], "P", 0.045, 0.065]
+        "fill-color": ["match", ["get", "waveType"], "P", EEW_P_WAVE_COLOR, EEW_S_WAVE_COLOR],
+        "fill-opacity": ["match", ["get", "waveType"], "P", 0.055, 0.065]
       }
     });
     map.addLayer({
@@ -1196,8 +1198,8 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       filter: ["==", ["get", "featureType"], "wave"],
       layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
       paint: {
-        "line-color": ["match", ["get", "waveType"], "P", "#36bffa", "#ff6a3d"],
-        "line-width": ["match", ["get", "waveType"], "P", 2.2, 2.8],
+        "line-color": ["match", ["get", "waveType"], "P", EEW_P_WAVE_COLOR, EEW_S_WAVE_COLOR],
+        "line-width": ["match", ["get", "waveType"], "P", 2.6, 2.8],
         "line-opacity": 0.96
       }
     });
@@ -1215,7 +1217,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "text-ignore-placement": true
       },
       paint: {
-        "text-color": ["match", ["get", "waveType"], "P", "#36bffa", "#ff6a3d"],
+        "text-color": ["match", ["get", "waveType"], "P", EEW_P_WAVE_COLOR, EEW_S_WAVE_COLOR],
         "text-halo-color": "rgba(5, 9, 20, 0.92)",
         "text-halo-width": 1.8
       }

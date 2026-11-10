@@ -600,6 +600,26 @@ assert.match(
 );
 assert.match(panel, /mobile-dock-earthquake-status-line[\s\S]*?mobile-dock-earthquake-headline[\s\S]*?mobile-dock-earthquake-fact-values/);
 assert.match(
+  panel,
+  /mobile-dock-eew-header[\s\S]*?mobile-dock-eew-meta[\s\S]*?mobile-dock-eew-title[\s\S]*?mobile-dock-eew-kind[\s\S]*?mobile-dock-eew-report[\s\S]*?mobile-dock-eew-time/
+);
+assert.match(panel, /mobile-dock-eew-headline[\s\S]*?mobile-dock-eew-facts/);
+assert.match(panel, /mobile-dock-eew-supporting/);
+assert.match(panel, /return formatWarningTime\(text, includeYear\);/);
+assert.match(panel, /function formatWarningTime\(value, includeYear = false\)[\s\S]*?timeZone:\s*"Asia\/Tokyo"/);
+assert.match(
+  app,
+  /function syncEewWaveAnimation\(\)[\s\S]*?frameInterval[\s\S]*?33[\s\S]*?requestEewWaveFrame\(animate\)/
+);
+assert.doesNotMatch(
+  app,
+  /eewWaveTimer\s*=\s*window\.setInterval\([\s\S]{0,180}?1_000/
+);
+assert.match(weatherMap, /const EEW_P_WAVE_COLOR = "#1769c2";/);
+assert.match(weatherMap, /"line-color": \["match", \["get", "waveType"\], "P", EEW_P_WAVE_COLOR, EEW_S_WAVE_COLOR\]/);
+assert.match(styles, /\.mobile-dock-eew-content\s*\{[\s\S]*?display:\s*grid;/);
+assert.match(styles, /\.mobile-dock-eew-meta\s*\{[\s\S]*?display:\s*flex;/);
+assert.match(
   styles,
   /\.mobile-dock-earthquake-text\s*\{[\s\S]*?grid-template-rows:\s*11px\s+minmax\(0,\s*1fr\);/
 );

@@ -3475,6 +3475,7 @@ function buildEarthquakeMobileContextMarkup(
       ? "取消報"
       : (eew.isFinal ? "最終報" : `第${Math.max(1, Number(eew.serial) || 1)}報`);
     const warningLabel = isCancellation ? "取消" : (eew.isWarn ? "警報" : "予報");
+    const warningClass = isCancellation ? "is-cancel" : (eew.isWarn ? "is-warning" : "is-forecast");
     const connectionLabel = eewConnection?.status && eewConnection.status !== "connected"
       ? "受信状態を再確認中"
       : "";
@@ -3492,27 +3493,39 @@ function buildEarthquakeMobileContextMarkup(
         `).join("")}
       </div>
     ` : "";
+    const affectedAreas = areaNames.length
+      ? `対象 ${areaNames.slice(0, 3).join("・")}${areaNames.length > 3 ? `ほか${areaNames.length - 3}地域` : ""}`
+      : "";
+    const supportingText = eew.uncertaintyLabel
+      ? `${eew.uncertaintyLabel}。到達円は表示していません。`
+      : (connectionLabel || affectedAreas);
+    const supportingClass = eew.uncertaintyLabel
+      ? "is-notice"
+      : (connectionLabel ? "is-connection" : "is-areas");
     const primaryMarkup = `
-      ${eventSwitchMarkup || buildEarthquakeMobileViewSwitch("recent")}
+      <div class="mobile-dock-eew-header${eventSwitchMarkup ? " has-events" : ""}">
+        <div class="mobile-dock-eew-meta">
+          <span class="mobile-dock-eew-title">緊急地震速報</span>
+          <span class="mobile-dock-eew-kind ${warningClass}">${escapeHtml(warningLabel)}</span>
+          <span class="mobile-dock-eew-report">${escapeHtml(statusLabel)}</span>
+          <time class="mobile-dock-eew-time">発表 ${escapeHtml(formatMobileEarthquakeTime(eew.announcedTime))}</time>
+        </div>
+        ${eventSwitchMarkup}
+      </div>
       <div class="mobile-dock-earthquake-main mobile-dock-eew-main" role="alert" aria-live="assertive">
         <em class="mobile-dock-earthquake-intensity mobile-dock-eew-intensity ${intensityTextClass}">
           <small>${isCancellation ? "速報" : "予想最大"}</small>
           <span>${escapeHtml(isCancellation ? "取消" : (eew.maxIntensity || "?"))}</span>
         </em>
-        <div class="mobile-dock-earthquake-text">
-          <div class="mobile-dock-earthquake-status-line">
-            <span class="mobile-dock-earthquake-status-label mobile-dock-eew-status">緊急地震速報（${escapeHtml(warningLabel)}）</span>
-            <span class="mobile-dock-earthquake-time">${escapeHtml(statusLabel)} ${escapeHtml(formatMobileEarthquakeTime(eew.announcedTime))}</span>
-          </div>
-          <div class="mobile-dock-earthquake-headline">
+        <div class="mobile-dock-eew-content">
+          <div class="mobile-dock-eew-headline">
             <strong>${escapeHtml(eew.hypocenter || "震源調査中")}</strong>
-            <div class="mobile-dock-earthquake-facts"${isCancellation ? " hidden" : ""}>
-              <span class="mobile-dock-earthquake-fact-values">${escapeHtml(`${magnitude}/${depth}`)}</span>
-            </div>
           </div>
-          ${areaNames.length ? `<p class="mobile-dock-eew-areas">対象 ${escapeHtml(areaNames.slice(0, 3).join("・"))}${areaNames.length > 3 ? `ほか${areaNames.length - 3}地域` : ""}</p>` : ""}
-          ${eew.uncertaintyLabel ? `<p class="mobile-dock-eew-notice">${escapeHtml(eew.uncertaintyLabel)}。到達円は表示していません。</p>` : ""}
-          ${connectionLabel ? `<p class="mobile-dock-eew-connection">${escapeHtml(connectionLabel)}</p>` : ""}
+          <div class="mobile-dock-eew-facts"${isCancellation ? " hidden" : ""}>
+            <span>${escapeHtml(magnitude)}</span>
+            <span>${escapeHtml(depth)}</span>
+          </div>
+          ${supportingText ? `<p class="mobile-dock-eew-supporting ${supportingClass}">${escapeHtml(supportingText)}</p>` : ""}
         </div>
       </div>
     `;
@@ -3906,10 +3919,13 @@ function formatMobileEarthquakeTime(value, includeYear = false) {
   const text = String(value ?? "").trim().replace(/頃$/u, "");
   if (!text || text === "--") return "--";
   const match = text.match(/(?:(\d{4})\/)?(\d{1,2})\/(\d{1,2})\s+(\d{1,2}:\d{2})/u);
-  if (!match) return text;
-  const date = `${match[2].padStart(2, "0")}/${match[3].padStart(2, "0")}`;
-  const year = includeYear && match[1] ? `${match[1]}/` : "";
-  return `${year}${date} ${match[4]}`;
+  if (match) {
+    const date = `${match[2].padStart(2, "0")}/${match[3].padStart(2, "0")}`;
+    const year = includeYear && match[1] ? `${match[1]}/` : "";
+    return `${year}${date} ${match[4]}`;
+  }
+
+  return formatWarningTime(text, includeYear);
 }
 
 function getTyphoonStatusPresentation(transitionStatus, systemType) {
@@ -8033,11 +8049,12 @@ function cssEscape(value) {
   return String(value).replace(/["\\]/g, "\\$&");
 }
 
-function formatWarningTime(value) {
+function formatWarningTime(value, includeYear = false) {
   if (!value) return "--";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
   const parts = new Intl.DateTimeFormat("ja-JP", {
+    ...(includeYear ? { year: "numeric" } : {}),
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
@@ -8046,5 +8063,6 @@ function formatWarningTime(value) {
     timeZone: "Asia/Tokyo"
   }).formatToParts(date);
   const getPart = (type) => parts.find((part) => part.type === type)?.value ?? "00";
-  return `${getPart("month")}/${getPart("day")} ${getPart("hour")}:${getPart("minute")}`;
+  const year = includeYear ? `${getPart("year")}/` : "";
+  return `${year}${getPart("month")}/${getPart("day")} ${getPart("hour")}:${getPart("minute")}`;
 }
