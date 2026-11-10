@@ -79,9 +79,28 @@ const EEW_SOURCE_ID = "wolfx-emergency-earthquake-warning";
 const EEW_AREA_SOURCE_ID = "wolfx-eew-forecast-areas";
 const EEW_AREA_FILL_LAYER_ID = "eew-forecast-area-fill";
 const EEW_AREA_LINE_LAYER_ID = "eew-forecast-area-line";
-const EEW_LAYER_IDS = [EEW_AREA_FILL_LAYER_ID, EEW_AREA_LINE_LAYER_ID, "eew-wave-fill", "eew-wave-line", "eew-wave-label", "eew-hypocenter", "eew-hypocenter-cross"];
+const EEW_LAYER_IDS = [EEW_AREA_FILL_LAYER_ID, EEW_AREA_LINE_LAYER_ID, "eew-wave-fill", "eew-wave-line", "eew-wave-label", "eew-hypocenter-cross"];
 const EEW_P_WAVE_COLOR = "#1769c2";
 const EEW_S_WAVE_COLOR = "#ff6a3d";
+const EEW_HYPOCENTER_BLINK_INTERVAL_MS = 1800;
+const EEW_HYPOCENTER_DIMMED_OPACITY = 0.24;
+const HYPOCENTER_CROSS_TEXT_SIZE = [
+  "interpolate",
+  ["linear"],
+  ["zoom"],
+  4,
+  24,
+  8,
+  34,
+  10,
+  42
+];
+const HYPOCENTER_CROSS_PAINT = {
+  "text-color": "#e3342f",
+  "text-halo-color": "#b8860b",
+  "text-halo-width": 2.4,
+  "text-halo-blur": 0.4
+};
 let jma2001WaveDistanceCalculator = null;
 let jma2001WaveDistanceLoadPromise = null;
 const SAMPLE_LAYERS = ["sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
@@ -419,6 +438,8 @@ export function createWeatherMap(elementId) {
   let terrainSyncPending = false;
   let tsunamiBlinkTimer = 0;
   let tsunamiBlinkVisible = true;
+  let eewHypocenterBlinkTimer = 0;
+  let eewHypocenterBlinkVisible = true;
   let activeFaultVisible = true;
   let activeFaultDataSource = "jshis";
   let gsjActiveFaultData = EMPTY_GEOJSON;
@@ -1259,19 +1280,6 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       }
     });
     map.addLayer({
-      id: "eew-hypocenter",
-      type: "circle",
-      source: EEW_SOURCE_ID,
-      filter: ["==", ["get", "featureType"], "hypocenter"],
-      layout: { visibility: "none" },
-      paint: {
-        "circle-color": "#ff4438",
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 6, 8, 9],
-        "circle-stroke-color": "#f7c948",
-        "circle-stroke-width": 2.5
-      }
-    });
-    map.addLayer({
       id: "eew-hypocenter-cross",
       type: "symbol",
       source: EEW_SOURCE_ID,
@@ -1280,14 +1288,14 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         visibility: "none",
         "text-field": "×",
         "text-font": ["Noto Sans JP"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 3, 18, 8, 26],
+        "text-size": HYPOCENTER_CROSS_TEXT_SIZE,
         "text-allow-overlap": true,
         "text-ignore-placement": true
       },
       paint: {
-        "text-color": "#ffffff",
-        "text-halo-color": "rgba(5, 9, 20, 0.72)",
-        "text-halo-width": 1
+        ...HYPOCENTER_CROSS_PAINT,
+        "text-opacity": 1,
+        "text-opacity-transition": { duration: 1400, delay: 0 }
       }
     });
     map.addLayer({
@@ -1646,26 +1654,13 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       layout: {
         "text-field": "×",
       "text-font": ["Noto Sans JP"],
-        "text-size": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          4,
-          24,
-          8,
-          34,
-          10,
-          42
-        ],
+        "text-size": HYPOCENTER_CROSS_TEXT_SIZE,
         "text-allow-overlap": true,
         "text-ignore-placement": true,
         "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
       },
       paint: {
-        "text-color": "#e3342f",
-        "text-halo-color": "#b8860b",
-        "text-halo-width": 2.4,
-        "text-halo-blur": 0.4
+        ...HYPOCENTER_CROSS_PAINT
       }
     });
 
@@ -2868,6 +2863,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     EEW_LAYER_IDS.forEach((layerId) => {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
     });
+    syncEewHypocenterBlink(visible);
     SAMPLE_LAYERS.forEach((layerId) => {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible ? "none" : "visible");
     });
@@ -2879,6 +2875,35 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", areaVisible ? "visible" : "none");
     }
     updateHypocenter3D(activeMode, lastRenderedData ?? {});
+  }
+
+  function syncEewHypocenterBlink(visible) {
+    const prefersReducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true;
+    if (!visible || prefersReducedMotion) {
+      if (eewHypocenterBlinkTimer) window.clearInterval(eewHypocenterBlinkTimer);
+      eewHypocenterBlinkTimer = 0;
+      eewHypocenterBlinkVisible = true;
+      setEewHypocenterOpacity(1);
+      return;
+    }
+    if (eewHypocenterBlinkTimer) return;
+
+    eewHypocenterBlinkVisible = true;
+    setEewHypocenterOpacity(1);
+    eewHypocenterBlinkTimer = window.setInterval(() => {
+      if (!map?.isStyleLoaded?.() || document.hidden) return;
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches === true) {
+        syncEewHypocenterBlink(false);
+        return;
+      }
+      eewHypocenterBlinkVisible = !eewHypocenterBlinkVisible;
+      setEewHypocenterOpacity(eewHypocenterBlinkVisible ? 1 : EEW_HYPOCENTER_DIMMED_OPACITY);
+    }, EEW_HYPOCENTER_BLINK_INTERVAL_MS);
+  }
+
+  function setEewHypocenterOpacity(opacity) {
+    if (!map?.isStyleLoaded?.() || !map.getLayer("eew-hypocenter-cross")) return;
+    map.setPaintProperty("eew-hypocenter-cross", "text-opacity", opacity);
   }
 
   function setTheme(theme) {

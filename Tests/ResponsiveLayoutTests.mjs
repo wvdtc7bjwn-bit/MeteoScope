@@ -617,6 +617,10 @@ assert.doesNotMatch(
 );
 assert.match(weatherMap, /const EEW_P_WAVE_COLOR = "#1769c2";/);
 assert.match(weatherMap, /"line-color": \["match", \["get", "waveType"\], "P", EEW_P_WAVE_COLOR, EEW_S_WAVE_COLOR\]/);
+assert.match(weatherMap, /const HYPOCENTER_CROSS_PAINT = \{[\s\S]*?"text-color": "#e3342f"[\s\S]*?"text-halo-color": "#b8860b"/);
+assert.match(weatherMap, /id: "eew-hypocenter-cross"[\s\S]{0,700}?\.\.\.HYPOCENTER_CROSS_PAINT[\s\S]{0,200}?"text-opacity-transition": \{ duration: 1400, delay: 0 \}/);
+assert.match(weatherMap, /function syncEewHypocenterBlink\(visible\)[\s\S]*?EEW_HYPOCENTER_BLINK_INTERVAL_MS/);
+assert.doesNotMatch(weatherMap, /id: "eew-hypocenter",\s*\n\s*type: "circle"/);
 assert.match(styles, /\.mobile-dock-eew-content\s*\{[\s\S]*?display:\s*grid;/);
 assert.match(styles, /\.mobile-dock-eew-meta\s*\{[\s\S]*?display:\s*flex;/);
 assert.match(

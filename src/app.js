@@ -42,6 +42,7 @@ import {
   EARTHQUAKE_XML_DETAIL_FETCH_INCREMENT,
   EARTHQUAKE_XML_INITIAL_DETAIL_FETCH_LIMIT,
   EARTHQUAKE_XML_MAX_DETAIL_FETCH_LIMIT,
+  attachEarthquakeMapDataList,
   fetchEarthquakeXmlList
 } from "./jma/earthquakeXml.js";
 import { fetchTideObservationSeries, fetchTideStationCatalog } from "./jma/tideLevel.js";
@@ -87,6 +88,11 @@ import { setupMapUtilityMenu } from "./ui/mapUtilityMenu.js";
 import { getSocialSharePayload } from "./socialShareState.js";
 import { recordDiagnostic } from "./runtimeDiagnostics.js";
 import { createWolfxEewClient } from "./eew/wolfxEew.js";
+import {
+  createRealtimeEarthquakeClient,
+  mergeRealtimeEarthquakes,
+  shouldTemporarilyShowEarthquakeInfo
+} from "./earthquake/realtimeEarthquake.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -466,6 +472,15 @@ export function createWeatherApp() {
   let eewWaveTimer = 0;
   let eewWaveAnimationGeneration = 0;
   let eewClient = null;
+  let realtimeEarthquakeClient = null;
+  let realtimeEarthquakeState = {
+    earthquakes: [],
+    connection: { status: "stopped", source: "" },
+    updatedAt: null
+  };
+  let realtimeEarthquakeUpdateId = 0;
+  let earthquakeInfoOverrideUntil = 0;
+  let earthquakeInfoOverrideTimer = 0;
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
   let earlyAccessActiveFaultDataState = { status: "idle", data: null, error: "" };
   let earlyAccessActiveFaultDataRequest = null;
@@ -591,6 +606,28 @@ export function createWeatherApp() {
     eewWaveTimer = 0;
   }
 
+  function isEarthquakeInfoOverrideActive() {
+    return earthquakeInfoOverrideUntil > Date.now();
+  }
+
+  function getDisplayedEewEvents() {
+    return isEarthquakeInfoOverrideActive() ? [] : eewState.activeEvents;
+  }
+
+  function scheduleEarthquakeInfoOverride() {
+    earthquakeInfoOverrideUntil = Date.now() + 10_000;
+    if (earthquakeInfoOverrideTimer) window.clearTimeout(earthquakeInfoOverrideTimer);
+    earthquakeInfoOverrideTimer = window.setTimeout(() => {
+      earthquakeInfoOverrideTimer = 0;
+      earthquakeInfoOverrideUntil = 0;
+      syncEewWaveAnimation();
+      if (activeTab === "earthquake" && earthquakeContentMode === "earthquake") {
+        const tab = TABS.find((item) => item.id === "earthquake");
+        if (tab) updateCurrentView(tab, latestDataByTab.earthquake ?? {});
+      }
+    }, 10_050);
+  }
+
   function requestEewWaveFrame(callback) {
     if (typeof window.requestAnimationFrame === "function") {
       return window.requestAnimationFrame(callback);
@@ -600,7 +637,7 @@ export function createWeatherApp() {
 
   function syncEewWaveAnimation() {
     stopEewWaveAnimation();
-    const drawableEvents = eewState.activeEvents.filter((eew) => !eew.isCancel);
+    const drawableEvents = getDisplayedEewEvents().filter((eew) => !eew.isCancel);
     weatherMap?.setEmergencyEarthquakeWarnings(drawableEvents);
     if (!drawableEvents.some((eew) => eew.canRenderWaves)) return;
 
@@ -619,9 +656,54 @@ export function createWeatherApp() {
   }
 
   function getSelectedEew() {
-    return eewState.activeEvents.find((eew) => eew.eventId === selectedEewEventId)
-      ?? eewState.activeEvents[0]
+    const displayedEvents = getDisplayedEewEvents();
+    return displayedEvents.find((eew) => eew.eventId === selectedEewEventId)
+      ?? displayedEvents[0]
       ?? null;
+  }
+
+  async function handleRealtimeEarthquakeUpdate(snapshot) {
+    const updateId = ++realtimeEarthquakeUpdateId;
+    const incoming = snapshot?.incoming ?? null;
+    const normalizedItems = Array.isArray(snapshot?.earthquakes) ? snapshot.earthquakes : [];
+    realtimeEarthquakeState = {
+      earthquakes: normalizedItems,
+      connection: snapshot?.connection ?? { status: "error", source: "" },
+      updatedAt: snapshot?.updatedAt ?? null
+    };
+    recordDiagnostic("earthquake-realtime-connection", realtimeEarthquakeState.connection);
+
+    if (incoming && shouldTemporarilyShowEarthquakeInfo(incoming) && eewState.activeEvents.length) {
+      scheduleEarthquakeInfoOverride();
+      earthquakeView = "recent";
+      earthquakeSummaryPage = "earthquake";
+      showMobileEarthquakeSummaryPage("earthquake");
+    }
+
+    const current = latestDataByTab.earthquake ?? {};
+    const nextData = await mergeEarthquakeRealtimeData(current, normalizedItems);
+    if (updateId !== realtimeEarthquakeUpdateId) return;
+    const earthquakes = nextData.earthquakes;
+    latestDataByTab.earthquake = nextData;
+    if (!activeEarthquakeId && earthquakes.length) activeEarthquakeId = String(earthquakes[0].id ?? "");
+    syncEewWaveAnimation();
+    if (activeTab === "earthquake" && earthquakeContentMode === "earthquake") {
+      const tab = TABS.find((item) => item.id === "earthquake");
+      if (tab) updateCurrentView(tab, latestDataByTab.earthquake);
+    }
+  }
+
+  async function mergeEarthquakeRealtimeData(data = {}, realtimeItems = realtimeEarthquakeState.earthquakes) {
+    const merged = mergeRealtimeEarthquakes(data.earthquakes ?? [], realtimeItems);
+    const earthquakes = await attachEarthquakeMapDataList(merged);
+    return {
+      ...data,
+      earthquakes,
+      realtimeConnection: realtimeEarthquakeState.connection,
+      realtimeUpdatedAt: realtimeEarthquakeState.updatedAt,
+      hasEarthquakes: earthquakes.length > 0,
+      summary: earthquakes.length ? `地震情報 ${earthquakes.length} 件` : data.summary
+    };
   }
 
   function syncEewConnectionIndicator() {
@@ -2530,7 +2612,7 @@ if (layerId === "river") {
         plateDepthContoursVisible: earthquakePlateDepthContoursVisible,
         estimatedIntensityVisible: earthquakeEstimatedIntensityVisible,
         eew: getSelectedEew(),
-        eewEvents: eewState.activeEvents,
+        eewEvents: getDisplayedEewEvents(),
         eewConnection: eewState.connection
       };
     }
@@ -2555,7 +2637,7 @@ if (layerId === "river") {
       earthquakeHistoryLoadingMore,
       earthquakeHistoryLoadMoreError,
       eew: getSelectedEew(),
-      eewEvents: eewState.activeEvents,
+      eewEvents: getDisplayedEewEvents(),
       eewConnection: eewState.connection,
       selectedEarthquake: selected,
       latestTime: selected.reportTime ?? data.latestTime,
@@ -3264,6 +3346,7 @@ if (layerId === "river") {
     if (inFlight) return inFlight;
 
     const request = loaders[tabId]()
+      .then((data) => tabId === "earthquake" ? mergeEarthquakeRealtimeData(data) : data)
       .finally(() => {
         loadRequestsByTab.delete(tabId);
       });
@@ -3482,7 +3565,7 @@ if (layerId === "river") {
 
     earthquakeRefreshRequest = loadTabData("earthquake")
       .then((nextData) => {
-        const earthquakes = nextData?.earthquakes ?? [];
+        const earthquakes = nextData.earthquakes;
         const nextLatestId = String(earthquakes[0]?.id ?? "");
         const selectedStillExists = earthquakes.some((earthquake) =>
           String(earthquake.id) === selectedIdAtStart
@@ -3754,6 +3837,7 @@ if (layerId === "river") {
     document.addEventListener("visibilitychange", () => {
       syncEarlyWarningRefreshTimer();
       if (!document.hidden) {
+        void realtimeEarthquakeClient?.refresh();
         void refreshEarlyAccess();
         if (currentLocationInfo.status === "found") void currentLocationWeather.refresh(currentLocationInfo);
         if (activeTab === "warnings" && activeWarningView === "early") {
@@ -3790,7 +3874,9 @@ if (layerId === "river") {
       } finally {
         scheduleEarthquakeRefresh();
       }
-    }, EARTHQUAKE_REFRESH_INTERVAL_MS);
+    }, realtimeEarthquakeState.connection.status === "connected"
+      ? 60 * 1000
+      : EARTHQUAKE_REFRESH_INTERVAL_MS);
   }
 
   function scheduleBackgroundPrefetch(excludeTabId) {
@@ -4187,12 +4273,20 @@ if (layerId === "river") {
       onStatus: (status) => recordDiagnostic("eew-connection", status),
       onDiagnostic: (diagnostic) => recordDiagnostic("eew-diagnostic", diagnostic)
     });
+    realtimeEarthquakeClient = createRealtimeEarthquakeClient({
+      onUpdate: (snapshot) => void handleRealtimeEarthquakeUpdate(snapshot),
+      onStatus: (status) => recordDiagnostic("earthquake-realtime-status", status)
+    });
+    realtimeEarthquakeClient.start();
     syncEewEarlyAccess();
     window.addEventListener("pagehide", () => {
       eewClient?.stop({ clear: false });
+      realtimeEarthquakeClient?.stop({ clear: false });
       stopEewWaveAnimation();
     });
     window.addEventListener("pageshow", () => {
+      realtimeEarthquakeClient?.start();
+      void realtimeEarthquakeClient?.refresh();
       if (earlyAccessEnabled) {
         eewClient?.start();
         eewClient?.refresh();
