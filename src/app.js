@@ -1,7 +1,7 @@
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, MAP_DATA_ENDPOINTS, TABS, WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasDailyChartToggle, setupAmedasPrecipitationPeriods, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasDailyChartToggle, setupAmedasPrecipitationPeriods, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, showMobileEarthquakeSummaryPage, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { applyAmedasPrecipitationPeriod, DEFAULT_AMEDAS_PRECIPITATION_PERIOD, normalizeAmedasPrecipitationPeriod } from "./amedasPrecipitationPeriod.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupCommonLayerToggle, setupEarthquakeLayerToggle, setupSatelliteLayerToggle, setupWeatherDistributionToggle, syncCommonLayerToggle, syncEarthquakeLayerToggle, syncSatelliteLayerToggle, syncWeatherDistributionToggle, toggleWeatherDistributionPicker } from "./ui/weatherDistributionToggle.js";
@@ -86,6 +86,7 @@ import { setupEarthquakeLongPressHint } from "./ui/earthquakeLongPressHint.js";
 import { setupMapUtilityMenu } from "./ui/mapUtilityMenu.js";
 import { getSocialSharePayload } from "./socialShareState.js";
 import { recordDiagnostic } from "./runtimeDiagnostics.js";
+import { createWolfxEewClient } from "./eew/wolfxEew.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -455,6 +456,9 @@ export function createWeatherApp() {
   let historicalEarthquakeDetailController = null;
   let historicalEarthquakeDetailRequestId = 0;
   let earthquakeSummaryPage = "earthquake";
+  let activeEew = null;
+  let eewWaveTimer = 0;
+  let eewClient = null;
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
   let earlyAccessActiveFaultDataState = { status: "idle", data: null, error: "" };
   let earlyAccessActiveFaultDataRequest = null;
@@ -570,6 +574,39 @@ export function createWeatherApp() {
       plateSource: earthquakePlateDepthSource,
       presentation3d: earthquakeDistribution3DEnabled && earthquakeView === "distribution" && earthquakeSummaryPage === "earthquake"
     });
+  }
+
+  function syncEewWaveAnimation() {
+    if (eewWaveTimer) window.clearInterval(eewWaveTimer);
+    eewWaveTimer = 0;
+    weatherMap?.setEmergencyEarthquakeWarning(activeEew);
+    if (!activeEew) return;
+    eewWaveTimer = window.setInterval(() => {
+      weatherMap?.setEmergencyEarthquakeWarning(activeEew);
+    }, 500);
+  }
+
+  function handleEewUpdate(eew) {
+    if (eew && !earlyAccessEnabled) return;
+    activeEew = eew;
+    syncEewWaveAnimation();
+    if (eew) {
+      earthquakeView = "recent";
+      earthquakeSummaryPage = "earthquake";
+      showMobileEarthquakeSummaryPage("earthquake");
+    }
+    if (activeTab !== "earthquake" || earthquakeContentMode !== "earthquake") return;
+    const tab = TABS.find((item) => item.id === "earthquake");
+    if (tab) updateCurrentView(tab, latestDataByTab.earthquake ?? {});
+  }
+
+  function syncEewEarlyAccess() {
+    if (earlyAccessEnabled) {
+      eewClient?.start();
+      return;
+    }
+    eewClient?.stop();
+    if (activeEew) handleEewUpdate(null);
   }
 
   async function selectTab(tabId) {
@@ -765,6 +802,7 @@ export function createWeatherApp() {
   function applyEarlyAccessState() {
     document.documentElement.dataset.earlyAccess = earlyAccessEnabled ? "active" : "inactive";
     document.dispatchEvent(new CustomEvent("meteoscope:early-access-change"));
+    syncEewEarlyAccess();
     void applyActiveFaultDataSource();
     refreshWeatherChartAccessMode();
     if (!earlyAccessEnabled && (earthquakeView === "history" || earthquakeNearbySearchActive)) {
@@ -2416,7 +2454,8 @@ if (layerId === "river") {
         activeFaultSource: getEffectiveActiveFaultSource(),
         plateBoundaryVisible: earthquakePlateBoundaryVisible,
         plateDepthContoursVisible: earthquakePlateDepthContoursVisible,
-        estimatedIntensityVisible: earthquakeEstimatedIntensityVisible
+        estimatedIntensityVisible: earthquakeEstimatedIntensityVisible,
+        eew: activeEew
       };
     }
 
@@ -2439,6 +2478,7 @@ if (layerId === "river") {
       earthquakeHistoryVisibleCount,
       earthquakeHistoryLoadingMore,
       earthquakeHistoryLoadMoreError,
+      eew: activeEew,
       selectedEarthquake: selected,
       latestTime: selected.reportTime ?? data.latestTime,
       updatedAt: selected.reportTime ?? data.updatedAt
@@ -4064,6 +4104,20 @@ if (layerId === "river") {
       showInitialMapLoadingError();
       return;
     }
+    eewClient = createWolfxEewClient({
+      onUpdate: handleEewUpdate,
+      onStatus: (status) => recordDiagnostic("eew-connection", { status })
+    });
+    window.addEventListener("pagehide", () => {
+      eewClient?.stop();
+      if (eewWaveTimer) window.clearInterval(eewWaveTimer);
+      eewWaveTimer = 0;
+    });
+    window.addEventListener("pageshow", (event) => {
+      if (!event.persisted) return;
+      if (earlyAccessEnabled) eewClient?.start();
+      syncEewWaveAnimation();
+    });
     tabControls = setupTabs({ onChange: selectTab, tabs: TABS });
     const earthquakeTabButton = document.querySelector('.tab-button[data-tab="earthquake"]');
     const earthquakeLongPressHint = setupEarthquakeLongPressHint(earthquakeTabButton);

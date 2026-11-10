@@ -844,6 +844,12 @@ export function setupMobileEarthquakeSummarySwipe({ onChange } = {}) {
   });
 }
 
+export function showMobileEarthquakeSummaryPage(page = "earthquake") {
+  if (!["earthquake", "tsunami", "tide"].includes(page)) return;
+  mobileEarthquakeSummaryPage = page;
+  applyMobileEarthquakeSummaryPage(document.getElementById("mobile-context-dock"), { animate: false });
+}
+
 export function setupTideObservationControls({ onRangeChange, onClose } = {}) {
   ["mobile-context-dock", "earthquake-list"].forEach((rootId) => {
     const root = document.getElementById(rootId);
@@ -2867,7 +2873,8 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
       state.data?.tsunami,
       state.data?.tsunamiStatus,
       state.data?.tideObservation,
-      state.status
+      state.status,
+      state.data?.eew
     );
   }
   return buildMobileContextMarkup(tab.label ?? "情報", "詳細情報", "開く");
@@ -3438,8 +3445,51 @@ function buildEarthquakeMobileContextMarkup(
   tsunami,
   tsunamiStatus,
   tideObservation,
-  status = "ok"
+  status = "ok",
+  eew = null
 ) {
+  if (eew) {
+    const intensityColor = getEarthquakeIntensityColor(eew.maxIntensity);
+    const intensityTextClass = getEarthquakeIntensityTextClass(eew.maxIntensity);
+    const magnitude = Number.isFinite(Number(eew.magnitude)) ? `M${Number(eew.magnitude).toFixed(1)}` : "M調査中";
+    const depth = Number.isFinite(Number(eew.depth)) ? `深さ${Number(eew.depth)}km` : "深さ調査中";
+    const areaNames = (eew.warnAreas ?? []).map((area) => area.name).filter(Boolean);
+    const statusLabel = eew.isFinal ? "最終報" : `第${Math.max(1, Number(eew.serial) || 1)}報`;
+    const warningLabel = eew.isWarn ? "警報" : "予報";
+    const primaryMarkup = `
+      ${buildEarthquakeMobileViewSwitch("recent")}
+      <div class="mobile-dock-earthquake-main mobile-dock-eew-main" role="alert" aria-live="assertive">
+        <em class="mobile-dock-earthquake-intensity mobile-dock-eew-intensity ${intensityTextClass}">
+          <small>予想最大</small>
+          <span>${escapeHtml(eew.maxIntensity || "?")}</span>
+        </em>
+        <div class="mobile-dock-earthquake-text">
+          <div class="mobile-dock-earthquake-status-line">
+            <span class="mobile-dock-earthquake-status-label mobile-dock-eew-status">緊急地震速報（${escapeHtml(warningLabel)}）</span>
+            <span class="mobile-dock-earthquake-time">${escapeHtml(statusLabel)} ${escapeHtml(formatMobileEarthquakeTime(eew.announcedTime))}</span>
+          </div>
+          <div class="mobile-dock-earthquake-headline">
+            <strong>${escapeHtml(eew.hypocenter || "震源調査中")}</strong>
+            <div class="mobile-dock-earthquake-facts">
+              <span class="mobile-dock-earthquake-fact-values">${escapeHtml(`${magnitude}/${depth}`)}</span>
+            </div>
+          </div>
+          ${areaNames.length ? `<p class="mobile-dock-eew-areas">対象 ${escapeHtml(areaNames.slice(0, 3).join("・"))}${areaNames.length > 3 ? `ほか${areaNames.length - 3}地域` : ""}</p>` : ""}
+        </div>
+      </div>
+    `;
+    return buildMobileEarthquakeSummaryCarousel({
+      containerClass: "mobile-dock-content mobile-dock-earthquake mobile-dock-earthquake-carousel is-eew-active",
+      containerStyle: `--mobile-earthquake-intensity-bg: ${escapeHtml(intensityColor)};`,
+      primaryAriaLabel: "緊急地震速報",
+      primaryDotLabel: "緊急地震速報",
+      primaryMarkup,
+      earthquake,
+      tsunami,
+      tsunamiStatus,
+      tideObservation
+    });
+  }
   if (!earthquake) {
     const isLoading = status === "loading";
     const statusText = status === "error"

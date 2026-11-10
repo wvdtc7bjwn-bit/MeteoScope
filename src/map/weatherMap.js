@@ -71,6 +71,8 @@ const SAMPLE_SOURCE_ID = "weather-samples";
 const HYPOCENTER_AREA_SOURCE_ID = "hypocenter-area-selection";
 const HYPOCENTER_AREA_FILL_LAYER_ID = "hypocenter-area-selection-fill";
 const HYPOCENTER_AREA_LINE_LAYER_ID = "hypocenter-area-selection-line";
+const EEW_SOURCE_ID = "wolfx-emergency-earthquake-warning";
+const EEW_LAYER_IDS = ["eew-wave-fill", "eew-wave-line", "eew-wave-label", "eew-hypocenter", "eew-hypocenter-cross"];
 const SAMPLE_LAYERS = ["sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
 const EARTHQUAKE_INTERACTIVE_LAYERS = ["sample-circle", "sample-tsunami-coastal", "sample-cross", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line"];
@@ -394,6 +396,7 @@ export function createWeatherMap(elementId) {
   let pendingRender = null;
   let modeApplyPending = false;
   let activeMode = "radar";
+  let activeEew = null;
   let activeTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
   let terrainLayerVisible = false;
   let terrainLayerOpacity = DEFAULT_TERRAIN_OPACITY;
@@ -526,6 +529,7 @@ export function createWeatherMap(elementId) {
     syncPlateBoundaryVisibility();
     syncActiveFaultVisibility();
     syncCommunityReportVisibility();
+    syncEewVisibility();
     if (activeMode !== "earthquake") updateHypocenter3DPresentation(false);
     if (mode === "typhoon") void ensureWorldGeometryLoaded();
   }
@@ -1111,6 +1115,10 @@ export function createWeatherMap(elementId) {
       type: "geojson",
       data: createEmptyFeatureCollection()
     });
+    map.addSource(EEW_SOURCE_ID, {
+      type: "geojson",
+      data: createEmptyFeatureCollection()
+    });
     map.addSource(TYPHOON_SOURCE_ID, {
       type: "geojson",
       data: createEmptyFeatureCollection()
@@ -1159,6 +1167,80 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "line-color": "#43c8ff",
         "line-width": 2.5,
         "line-dasharray": [1.5, 1]
+      }
+    });
+    map.addLayer({
+      id: "eew-wave-fill",
+      type: "fill",
+      source: EEW_SOURCE_ID,
+      filter: ["==", ["get", "featureType"], "wave"],
+      layout: { visibility: "none" },
+      paint: {
+        "fill-color": ["match", ["get", "waveType"], "P", "#36bffa", "#ff6a3d"],
+        "fill-opacity": ["match", ["get", "waveType"], "P", 0.045, 0.065]
+      }
+    });
+    map.addLayer({
+      id: "eew-wave-line",
+      type: "line",
+      source: EEW_SOURCE_ID,
+      filter: ["==", ["get", "featureType"], "wave"],
+      layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": ["match", ["get", "waveType"], "P", "#36bffa", "#ff6a3d"],
+        "line-width": ["match", ["get", "waveType"], "P", 2.2, 2.8],
+        "line-opacity": 0.96
+      }
+    });
+    map.addLayer({
+      id: "eew-wave-label",
+      type: "symbol",
+      source: EEW_SOURCE_ID,
+      filter: ["==", ["get", "featureType"], "wave-label"],
+      layout: {
+        visibility: "none",
+        "text-field": ["get", "label"],
+        "text-font": ["Noto Sans JP"],
+        "text-size": 12,
+        "text-allow-overlap": true,
+        "text-ignore-placement": true
+      },
+      paint: {
+        "text-color": ["match", ["get", "waveType"], "P", "#36bffa", "#ff6a3d"],
+        "text-halo-color": "rgba(5, 9, 20, 0.92)",
+        "text-halo-width": 1.8
+      }
+    });
+    map.addLayer({
+      id: "eew-hypocenter",
+      type: "circle",
+      source: EEW_SOURCE_ID,
+      filter: ["==", ["get", "featureType"], "hypocenter"],
+      layout: { visibility: "none" },
+      paint: {
+        "circle-color": "#ff4438",
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 6, 8, 9],
+        "circle-stroke-color": "#f7c948",
+        "circle-stroke-width": 2.5
+      }
+    });
+    map.addLayer({
+      id: "eew-hypocenter-cross",
+      type: "symbol",
+      source: EEW_SOURCE_ID,
+      filter: ["==", ["get", "featureType"], "hypocenter"],
+      layout: {
+        visibility: "none",
+        "text-field": "×",
+        "text-font": ["Noto Sans JP"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 3, 18, 8, 26],
+        "text-allow-overlap": true,
+        "text-ignore-placement": true
+      },
+      paint: {
+        "text-color": "#ffffff",
+        "text-halo-color": "rgba(5, 9, 20, 0.72)",
+        "text-halo-width": 1
       }
     });
     map.addLayer({
@@ -2679,12 +2761,27 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     map?.dragPan.enable();
   }
 
+  function setEmergencyEarthquakeWarning(eew) {
+    activeEew = eew && Array.isArray(eew.coordinates) ? eew : null;
+    const source = map?.getSource(EEW_SOURCE_ID);
+    if (source?.setData) source.setData(createEewFeatureCollection(activeEew));
+    syncEewVisibility();
+  }
+
+  function syncEewVisibility() {
+    if (!map?.getSource(EEW_SOURCE_ID)) return;
+    const visible = activeMode === "earthquake" && Boolean(activeEew);
+    EEW_LAYER_IDS.forEach((layerId) => {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+    });
+  }
+
   function setTheme(theme) {
     activeTheme = theme === "light" ? "light" : "dark";
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarning, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
 }
 
 function normalizeTerrainOpacity(value) {
@@ -4535,6 +4632,50 @@ function createEmptyFeatureCollection() {
     type: "FeatureCollection",
     features: []
   };
+}
+
+function createEewFeatureCollection(eew, now = Date.now()) {
+  if (!eew || !Array.isArray(eew.coordinates) || eew.coordinates.length !== 2) return createEmptyFeatureCollection();
+  const [longitude, latitude] = eew.coordinates.map(Number);
+  const originTimestamp = Date.parse(eew.originTime ?? "");
+  const depthKm = Math.max(0, Number(eew.depth) || 0);
+  if (![longitude, latitude, originTimestamp].every(Number.isFinite)) return createEmptyFeatureCollection();
+  const elapsedSeconds = Math.max(0, (now - originTimestamp) / 1000);
+  const waveDefinitions = [
+    { type: "P", velocity: 7, label: "P波（概算）" },
+    { type: "S", velocity: 4, label: "S波（概算）" }
+  ];
+  const features = [{
+    type: "Feature",
+    geometry: { type: "Point", coordinates: [longitude, latitude] },
+    properties: { featureType: "hypocenter" }
+  }];
+
+  waveDefinitions.forEach(({ type, velocity, label }) => {
+    const travelDistanceKm = velocity * elapsedSeconds;
+    const surfaceRadiusKm = Math.sqrt(Math.max(0, travelDistanceKm ** 2 - depthKm ** 2));
+    if (surfaceRadiusKm < 1 || surfaceRadiusKm > 2_500) return;
+    features.push({
+      type: "Feature",
+      geometry: { type: "Polygon", coordinates: [createGeodesicCircle([longitude, latitude], surfaceRadiusKm)] },
+      properties: { featureType: "wave", waveType: type }
+    });
+    features.push({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: destinationPoint([longitude, latitude], surfaceRadiusKm, 0) },
+      properties: { featureType: "wave-label", waveType: type, label }
+    });
+  });
+
+  return { type: "FeatureCollection", features };
+}
+
+function createGeodesicCircle(center, radiusKm, steps = 96) {
+  const coordinates = Array.from({ length: steps }, (_, index) => (
+    destinationPoint(center, radiusKm, index * (360 / steps))
+  ));
+  coordinates.push(coordinates[0]);
+  return coordinates;
 }
 
 function createSampleFeatureCollection(mode, data = {}) {
