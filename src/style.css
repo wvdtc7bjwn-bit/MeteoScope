@@ -12853,6 +12853,41 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
     gap: 1px;
   }
 
+  .mobile-dock-eew-switch {
+    display: flex;
+    gap: 4px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .mobile-dock-eew-switch::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mobile-dock-eew-switch button {
+    flex: 0 0 auto;
+    max-width: 150px;
+    min-height: 24px;
+    padding: 4px 9px;
+    overflow: hidden;
+    border: 1px solid rgba(174, 205, 234, 0.2);
+    border-radius: 5px;
+    color: rgba(220, 233, 246, 0.76);
+    font: inherit;
+    font-size: 9px;
+    font-weight: 850;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: rgba(18, 43, 69, 0.72);
+  }
+
+  .mobile-dock-eew-switch button.active {
+    border-color: #ff8068;
+    color: #fff;
+    background: rgba(128, 41, 30, 0.78);
+  }
+
   .mobile-dock-eew-status {
     color: #ff8068;
   }
@@ -12867,6 +12902,24 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
     line-height: 10px;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .mobile-dock-eew-notice,
+  .mobile-dock-eew-connection {
+    margin: 0;
+    color: #ffd0c7;
+    font-size: 8px;
+    font-weight: 800;
+    line-height: 10px;
+  }
+
+  .mobile-dock-eew-connection-banner {
+    margin: 0;
+    color: #ffd0a3;
+    font-size: 9px;
+    font-weight: 850;
+    line-height: 1.2;
+    text-align: center;
   }
 
   .mobile-dock-earthquake-empty-state {
@@ -17239,6 +17292,22 @@ html[data-theme="light"] .mobile-dock-earthquake-intensity {
 
 html[data-theme="light"] .mobile-dock-eew-areas {
   color: rgba(35, 62, 87, 0.72);
+}
+
+html[data-theme="light"] .mobile-dock-eew-switch button {
+  border-color: rgba(43, 71, 100, 0.22);
+  color: #36536c;
+  background: rgba(231, 239, 247, 0.94);
+}
+
+html[data-theme="light"] .mobile-dock-eew-switch button.active {
+  border-color: #b93f2d;
+  color: #fff;
+  background: #b93f2d;
+}
+
+html[data-theme="light"] :is(.mobile-dock-eew-notice, .mobile-dock-eew-connection, .mobile-dock-eew-connection-banner) {
+  color: #9a3628;
 }
 
 html[data-theme="light"] :is(.weather-chart-controls, .weather-chart-status, .weather-chart-head) {

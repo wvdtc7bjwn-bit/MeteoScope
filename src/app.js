@@ -456,7 +456,13 @@ export function createWeatherApp() {
   let historicalEarthquakeDetailController = null;
   let historicalEarthquakeDetailRequestId = 0;
   let earthquakeSummaryPage = "earthquake";
-  let activeEew = null;
+  let eewState = {
+    activeEvents: [],
+    recentEvents: [],
+    connection: { status: "stopped", lastConnectedAt: null, lastMessageAt: null },
+    updatedAt: null
+  };
+  let selectedEewEventId = "";
   let eewWaveTimer = 0;
   let eewClient = null;
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
@@ -579,18 +585,36 @@ export function createWeatherApp() {
   function syncEewWaveAnimation() {
     if (eewWaveTimer) window.clearInterval(eewWaveTimer);
     eewWaveTimer = 0;
-    weatherMap?.setEmergencyEarthquakeWarning(activeEew);
-    if (!activeEew) return;
+    const drawableEvents = eewState.activeEvents.filter((eew) => !eew.isCancel);
+    weatherMap?.setEmergencyEarthquakeWarnings(drawableEvents);
+    if (!drawableEvents.some((eew) => eew.canRenderWaves)) return;
     eewWaveTimer = window.setInterval(() => {
-      weatherMap?.setEmergencyEarthquakeWarning(activeEew);
-    }, 500);
+      weatherMap?.setEmergencyEarthquakeWarnings(drawableEvents);
+    }, 1_000);
   }
 
-  function handleEewUpdate(eew) {
-    if (eew && !earlyAccessEnabled) return;
-    activeEew = eew;
+  function getSelectedEew() {
+    return eewState.activeEvents.find((eew) => eew.eventId === selectedEewEventId)
+      ?? eewState.activeEvents[0]
+      ?? null;
+  }
+
+  function handleEewUpdate(snapshot) {
+    const nextState = snapshot && typeof snapshot === "object"
+      ? snapshot
+      : { activeEvents: [], recentEvents: [], connection: { status: "stopped" }, updatedAt: null };
+    if (nextState.activeEvents?.length && !earlyAccessEnabled) return;
+    eewState = {
+      activeEvents: Array.isArray(nextState.activeEvents) ? nextState.activeEvents : [],
+      recentEvents: Array.isArray(nextState.recentEvents) ? nextState.recentEvents : [],
+      connection: nextState.connection ?? { status: "stopped" },
+      updatedAt: nextState.updatedAt ?? null
+    };
+    if (!eewState.activeEvents.some((eew) => eew.eventId === selectedEewEventId)) {
+      selectedEewEventId = eewState.activeEvents[0]?.eventId ?? "";
+    }
     syncEewWaveAnimation();
-    if (eew) {
+    if (eewState.activeEvents.length) {
       earthquakeView = "recent";
       earthquakeSummaryPage = "earthquake";
       showMobileEarthquakeSummaryPage("earthquake");
@@ -606,7 +630,14 @@ export function createWeatherApp() {
       return;
     }
     eewClient?.stop();
-    if (activeEew) handleEewUpdate(null);
+    if (eewState.activeEvents.length || eewState.connection.status !== "stopped") handleEewUpdate(null);
+  }
+
+  function selectEewEvent(eventId) {
+    if (!eewState.activeEvents.some((eew) => eew.eventId === eventId)) return;
+    selectedEewEventId = eventId;
+    const tab = TABS.find((item) => item.id === "earthquake");
+    if (tab && activeTab === "earthquake") updateCurrentView(tab, latestDataByTab.earthquake ?? {});
   }
 
   async function selectTab(tabId) {
@@ -2455,7 +2486,9 @@ if (layerId === "river") {
         plateBoundaryVisible: earthquakePlateBoundaryVisible,
         plateDepthContoursVisible: earthquakePlateDepthContoursVisible,
         estimatedIntensityVisible: earthquakeEstimatedIntensityVisible,
-        eew: activeEew
+        eew: getSelectedEew(),
+        eewEvents: eewState.activeEvents,
+        eewConnection: eewState.connection
       };
     }
 
@@ -2478,7 +2511,9 @@ if (layerId === "river") {
       earthquakeHistoryVisibleCount,
       earthquakeHistoryLoadingMore,
       earthquakeHistoryLoadMoreError,
-      eew: activeEew,
+      eew: getSelectedEew(),
+      eewEvents: eewState.activeEvents,
+      eewConnection: eewState.connection,
       selectedEarthquake: selected,
       latestTime: selected.reportTime ?? data.latestTime,
       updatedAt: selected.reportTime ?? data.updatedAt
@@ -4106,16 +4141,19 @@ if (layerId === "river") {
     }
     eewClient = createWolfxEewClient({
       onUpdate: handleEewUpdate,
-      onStatus: (status) => recordDiagnostic("eew-connection", { status })
+      onStatus: (status) => recordDiagnostic("eew-connection", status),
+      onDiagnostic: (diagnostic) => recordDiagnostic("eew-diagnostic", diagnostic)
     });
     window.addEventListener("pagehide", () => {
-      eewClient?.stop();
+      eewClient?.stop({ clear: false });
       if (eewWaveTimer) window.clearInterval(eewWaveTimer);
       eewWaveTimer = 0;
     });
-    window.addEventListener("pageshow", (event) => {
-      if (!event.persisted) return;
-      if (earlyAccessEnabled) eewClient?.start();
+    window.addEventListener("pageshow", () => {
+      if (earlyAccessEnabled) {
+        eewClient?.start();
+        eewClient?.refresh();
+      }
       syncEewWaveAnimation();
     });
     tabControls = setupTabs({ onChange: selectTab, tabs: TABS });
@@ -4182,6 +4220,7 @@ if (layerId === "river") {
       ?.addEventListener("click", () => void toggleTyphoonRadarOverlay());
     setupEarthquakeSelector({
       onChange: selectEarthquake,
+      onEewSelect: selectEewEvent,
       onNearbySearch: searchNearbyEarthquakes,
       onNearbyClear: closeNearbyEarthquakeSearch,
       onHistoryLoadMore: loadMoreEarthquakeHistory,

@@ -398,7 +398,7 @@ export function createWeatherMap(elementId) {
   let lastRenderedData = null;
   let modeApplyPending = false;
   let activeMode = "radar";
-  let activeEew = null;
+  let activeEews = [];
   let activeTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
   let terrainLayerVisible = false;
   let terrainLayerOpacity = DEFAULT_TERRAIN_OPACITY;
@@ -975,7 +975,7 @@ export function createWeatherMap(elementId) {
 
     const source = map.getSource(SAMPLE_SOURCE_ID);
     const areaVisible = mode === "earthquake"
-      && !activeEew
+      && activeEews.length === 0
       && data?.earthquakeMapView === "distribution";
     for (const layerId of [HYPOCENTER_AREA_FILL_LAYER_ID, HYPOCENTER_AREA_LINE_LAYER_ID]) {
       if (map.getLayer(layerId)) {
@@ -1003,7 +1003,7 @@ export function createWeatherMap(elementId) {
 
   function syncTsunamiBlink(mode, collection) {
     const hasTsunami = mode === "earthquake"
-      && !activeEew
+      && activeEews.length === 0
       && (collection?.features ?? []).some((feature) => (
         feature?.properties?.tsunamiLevel
         || ["tsunami-coastal", "tsunami-offshore"].includes(feature?.properties?.markerType)
@@ -2202,7 +2202,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
 
   function updateHypocenter3D(mode, data = {}) {
     const enabled = mode === "earthquake"
-      && !activeEew
+      && activeEews.length === 0
       && getEarthquakeMapView(data) === "distribution"
       && data.distribution3DEnabled === true;
     hypocenter3D.setData(
@@ -2769,16 +2769,18 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     map?.dragPan.enable();
   }
 
-  function setEmergencyEarthquakeWarning(eew) {
-    activeEew = eew && Array.isArray(eew.coordinates) ? eew : null;
+  function setEmergencyEarthquakeWarnings(events = []) {
+    activeEews = (Array.isArray(events) ? events : [events]).filter((eew) => (
+      eew && !eew.isCancel
+    ));
     const source = map?.getSource(EEW_SOURCE_ID);
-    if (source?.setData) source.setData(createEewFeatureCollection(activeEew));
+    if (source?.setData) source.setData(createEewFeatureCollection(activeEews));
     syncEewVisibility();
   }
 
   function syncEewVisibility() {
     if (!map?.getSource(EEW_SOURCE_ID)) return;
-    const visible = activeMode === "earthquake" && Boolean(activeEew);
+    const visible = activeMode === "earthquake" && activeEews.length > 0;
     EEW_LAYER_IDS.forEach((layerId) => {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
     });
@@ -2800,7 +2802,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarning, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarnings, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
 }
 
 function normalizeTerrainOpacity(value) {
@@ -4653,36 +4655,44 @@ function createEmptyFeatureCollection() {
   };
 }
 
-function createEewFeatureCollection(eew, now = Date.now()) {
-  if (!eew || !Array.isArray(eew.coordinates) || eew.coordinates.length !== 2) return createEmptyFeatureCollection();
-  const [longitude, latitude] = eew.coordinates.map(Number);
-  const originTimestamp = Date.parse(eew.originTime ?? "");
-  const depthKm = Math.max(0, Number(eew.depth) || 0);
-  if (![longitude, latitude, originTimestamp].every(Number.isFinite)) return createEmptyFeatureCollection();
-  const elapsedSeconds = Math.max(0, (now - originTimestamp) / 1000);
-  const waveDefinitions = [
-    { type: "P", velocity: 7, label: "P波（概算）" },
-    { type: "S", velocity: 4, label: "S波（概算）" }
-  ];
-  const features = [{
-    type: "Feature",
-    geometry: { type: "Point", coordinates: [longitude, latitude] },
-    properties: { featureType: "hypocenter" }
-  }];
-
-  waveDefinitions.forEach(({ type, velocity, label }) => {
-    const travelDistanceKm = velocity * elapsedSeconds;
-    const surfaceRadiusKm = Math.sqrt(Math.max(0, travelDistanceKm ** 2 - depthKm ** 2));
-    if (surfaceRadiusKm < 1 || surfaceRadiusKm > 2_500) return;
+function createEewFeatureCollection(events, now = Date.now()) {
+  const features = [];
+  (Array.isArray(events) ? events : [events]).forEach((eew) => {
+    if (!eew || !Array.isArray(eew.coordinates) || eew.coordinates.length !== 2) return;
+    const [longitude, latitude] = eew.coordinates.map(Number);
+    const originTimestamp = Date.parse(eew.originTime ?? "");
+    const depthKm = Number(eew.depth);
+    if (![longitude, latitude].every(Number.isFinite)) return;
     features.push({
       type: "Feature",
-      geometry: { type: "Polygon", coordinates: [createGeodesicCircle([longitude, latitude], surfaceRadiusKm)] },
-      properties: { featureType: "wave", waveType: type }
+      geometry: { type: "Point", coordinates: [longitude, latitude] },
+      properties: {
+        featureType: "hypocenter",
+        eventId: eew.eventId,
+        uncertain: Boolean(eew.isAssumption || eew.isPlum)
+      }
     });
-    features.push({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: destinationPoint([longitude, latitude], surfaceRadiusKm, 0) },
-      properties: { featureType: "wave-label", waveType: type, label }
+    if (!eew.canRenderWaves || !Number.isFinite(originTimestamp) || !Number.isFinite(depthKm)) return;
+    const elapsedSeconds = Math.max(0, (now - originTimestamp) / 1000);
+    const waveDefinitions = [
+      { type: "P", velocity: 7, label: "P波（概算）" },
+      { type: "S", velocity: 4, label: "S波（概算）" }
+    ];
+
+    waveDefinitions.forEach(({ type, velocity, label }) => {
+      const travelDistanceKm = velocity * elapsedSeconds;
+      const surfaceRadiusKm = Math.sqrt(Math.max(0, travelDistanceKm ** 2 - depthKm ** 2));
+      if (surfaceRadiusKm < 1 || surfaceRadiusKm > 2_500) return;
+      features.push({
+        type: "Feature",
+        geometry: { type: "Polygon", coordinates: [createGeodesicCircle([longitude, latitude], surfaceRadiusKm)] },
+        properties: { featureType: "wave", waveType: type, eventId: eew.eventId }
+      });
+      features.push({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: destinationPoint([longitude, latitude], surfaceRadiusKm, 0) },
+        properties: { featureType: "wave-label", waveType: type, label, eventId: eew.eventId }
+      });
     });
   });
 

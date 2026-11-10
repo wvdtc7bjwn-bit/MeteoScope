@@ -1440,6 +1440,7 @@ export function setupTyphoonForecastModeControls({ onChange, onModelToggle, onTi
 
 export function setupEarthquakeSelector({
   onChange,
+  onEewSelect,
   onHistoryLoadMore,
   onVolcanoClear,
   onVolcanoBulletinSelect,
@@ -1489,6 +1490,13 @@ export function setupEarthquakeSelector({
 
   const handleClick = (event) => {
     if (!(event.target instanceof Element)) return;
+    const eewEventButton = event.target.closest("[data-eew-event-id]");
+    if (eewEventButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      onEewSelect?.(eewEventButton.dataset.eewEventId);
+      return;
+    }
     const volcanoClearButton = event.target.closest("[data-volcano-clear-selection]");
     if (volcanoClearButton) {
       event.preventDefault();
@@ -2874,7 +2882,9 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
       state.data?.tsunamiStatus,
       state.data?.tideObservation,
       state.status,
-      state.data?.eew
+      state.data?.eew,
+      state.data?.eewEvents,
+      state.data?.eewConnection
     );
   }
   return buildMobileContextMarkup(tab.label ?? "情報", "詳細情報", "開く");
@@ -3446,22 +3456,48 @@ function buildEarthquakeMobileContextMarkup(
   tsunamiStatus,
   tideObservation,
   status = "ok",
-  eew = null
+  eew = null,
+  eewEvents = [],
+  eewConnection = null
 ) {
+  const eewConnectionNotice = eewConnection?.status
+    && !["connected", "stopped"].includes(eewConnection.status)
+    ? `<p class="mobile-dock-eew-connection-banner" role="status">EEW受信を再接続中</p>`
+    : "";
   if (eew) {
-    const intensityColor = getEarthquakeIntensityColor(eew.maxIntensity);
+    const isCancellation = eew.isCancel === true;
+    const intensityColor = isCancellation ? "#64748b" : getEarthquakeIntensityColor(eew.maxIntensity);
     const intensityTextClass = getEarthquakeIntensityTextClass(eew.maxIntensity);
     const magnitude = Number.isFinite(Number(eew.magnitude)) ? `M${Number(eew.magnitude).toFixed(1)}` : "M調査中";
     const depth = Number.isFinite(Number(eew.depth)) ? `深さ${Number(eew.depth)}km` : "深さ調査中";
     const areaNames = (eew.warnAreas ?? []).map((area) => area.name).filter(Boolean);
-    const statusLabel = eew.isFinal ? "最終報" : `第${Math.max(1, Number(eew.serial) || 1)}報`;
-    const warningLabel = eew.isWarn ? "警報" : "予報";
+    const statusLabel = isCancellation
+      ? "取消報"
+      : (eew.isFinal ? "最終報" : `第${Math.max(1, Number(eew.serial) || 1)}報`);
+    const warningLabel = isCancellation ? "取消" : (eew.isWarn ? "警報" : "予報");
+    const connectionLabel = eewConnection?.status && eewConnection.status !== "connected"
+      ? "受信状態を再確認中"
+      : "";
+    const eventSwitchMarkup = eewEvents.length > 1 ? `
+      <div class="mobile-dock-eew-switch" role="tablist" aria-label="発表中の緊急地震速報">
+        ${eewEvents.map((event, index) => `
+          <button
+            type="button"
+            role="tab"
+            data-mobile-dock-control
+            data-eew-event-id="${escapeHtml(event.eventId)}"
+            class="${event.eventId === eew.eventId ? "active" : ""}"
+            aria-selected="${event.eventId === eew.eventId ? "true" : "false"}"
+          >${escapeHtml(event.hypocenter || `速報${index + 1}`)}</button>
+        `).join("")}
+      </div>
+    ` : "";
     const primaryMarkup = `
-      ${buildEarthquakeMobileViewSwitch("recent")}
+      ${eventSwitchMarkup || buildEarthquakeMobileViewSwitch("recent")}
       <div class="mobile-dock-earthquake-main mobile-dock-eew-main" role="alert" aria-live="assertive">
         <em class="mobile-dock-earthquake-intensity mobile-dock-eew-intensity ${intensityTextClass}">
-          <small>予想最大</small>
-          <span>${escapeHtml(eew.maxIntensity || "?")}</span>
+          <small>${isCancellation ? "速報" : "予想最大"}</small>
+          <span>${escapeHtml(isCancellation ? "取消" : (eew.maxIntensity || "?"))}</span>
         </em>
         <div class="mobile-dock-earthquake-text">
           <div class="mobile-dock-earthquake-status-line">
@@ -3470,11 +3506,13 @@ function buildEarthquakeMobileContextMarkup(
           </div>
           <div class="mobile-dock-earthquake-headline">
             <strong>${escapeHtml(eew.hypocenter || "震源調査中")}</strong>
-            <div class="mobile-dock-earthquake-facts">
+            <div class="mobile-dock-earthquake-facts"${isCancellation ? " hidden" : ""}>
               <span class="mobile-dock-earthquake-fact-values">${escapeHtml(`${magnitude}/${depth}`)}</span>
             </div>
           </div>
           ${areaNames.length ? `<p class="mobile-dock-eew-areas">対象 ${escapeHtml(areaNames.slice(0, 3).join("・"))}${areaNames.length > 3 ? `ほか${areaNames.length - 3}地域` : ""}</p>` : ""}
+          ${eew.uncertaintyLabel ? `<p class="mobile-dock-eew-notice">${escapeHtml(eew.uncertaintyLabel)}。到達円は表示していません。</p>` : ""}
+          ${connectionLabel ? `<p class="mobile-dock-eew-connection">${escapeHtml(connectionLabel)}</p>` : ""}
         </div>
       </div>
     `;
@@ -3498,7 +3536,7 @@ function buildEarthquakeMobileContextMarkup(
     const primaryMarkup = `
       ${buildEarthquakeMobileViewSwitch("recent")}
       <div class="mobile-dock-earthquake-empty-state${isLoading ? " is-loading" : ""}" role="${status === "error" ? "alert" : "status"}" aria-live="polite" aria-busy="${isLoading}">
-        ${isLoading ? buildMobileDockLoadingStatus("地震情報を読み込み中") : escapeHtml(statusText)}
+        ${eewConnectionNotice || (isLoading ? buildMobileDockLoadingStatus("地震情報を読み込み中") : escapeHtml(statusText))}
       </div>
     `;
     return buildMobileEarthquakeSummaryCarousel({
@@ -3543,6 +3581,7 @@ function buildEarthquakeMobileContextMarkup(
         <div class="mobile-dock-earthquake-status-line">
           <span class="mobile-dock-earthquake-status-label">最新</span>
           <time class="mobile-dock-earthquake-time">${escapeHtml(time)}</time>
+          ${eewConnectionNotice}
           ${Array.isArray(earthquake?.coordinates) && earthquake.coordinates.length === 2
             ? `<button type="button" class="earthquake-nearby-search-button is-compact" data-mobile-dock-control data-earthquake-nearby-search="${escapeHtml(earthquake.id)}">近傍検索</button>` : ""}
         </div>
