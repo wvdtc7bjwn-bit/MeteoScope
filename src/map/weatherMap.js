@@ -4788,8 +4788,8 @@ function createEewFeatureCollection(events, now = Date.now()) {
     if (!waveDistances) return;
     const { pDistanceKm, sDistanceKm } = waveDistances;
     const waveDefinitions = [
-      { type: "P", surfaceRadiusKm: pDistanceKm, label: "P波（JMA2001概算）" },
-      { type: "S", surfaceRadiusKm: sDistanceKm, label: "S波（JMA2001概算）" }
+      { type: "P", surfaceRadiusKm: pDistanceKm, label: "P波" },
+      { type: "S", surfaceRadiusKm: sDistanceKm, label: "S波" }
     ];
 
     waveDefinitions.forEach(({ type, surfaceRadiusKm, label }) => {

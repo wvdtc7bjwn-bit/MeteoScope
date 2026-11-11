@@ -3481,11 +3481,9 @@ function buildEarthquakeMobileContextMarkup(
     const statusLabel = isCancellation
       ? "取消報"
       : (eew.isFinal ? "最終報" : `第${Math.max(1, Number(eew.serial) || 1)}報`);
-    const warningLabel = isCancellation ? "取消" : (eew.isWarn ? "警報" : "予報");
+    const reportKind = isCancellation ? "取消" : (eew.isWarn ? "警報" : "予報");
+    const warningLabel = eew.isLocalTest ? `テスト・${reportKind}` : reportKind;
     const warningClass = isCancellation ? "is-cancel" : (eew.isWarn ? "is-warning" : "is-forecast");
-    const connectionLabel = eewConnection?.status && eewConnection.status !== "connected"
-      ? "受信状態を再確認中"
-      : "";
     const eventSwitchMarkup = eewEvents.length > 1 ? `
       <div class="mobile-dock-eew-switch" role="tablist" aria-label="発表中の緊急地震速報">
         ${eewEvents.map((event, index) => `
@@ -3504,21 +3502,14 @@ function buildEarthquakeMobileContextMarkup(
       ? `対象 ${areaNames.slice(0, 3).join("・")}${areaNames.length > 3 ? `ほか${areaNames.length - 3}地域` : ""}`
       : "";
     const detectionText = eew.isOnePointDetection ? "1点検知と確認された速報" : "";
-    const waveNotice = eew.canRenderWaves ? "P・S波はJMA2001走時表による概算" : "";
-    const receivedText = eew.receivedAt
-      ? `Wolfx受信 ${formatMobileEarthquakeTime(eew.receivedAt)}`
-      : "Wolfx受信時刻不明";
     const supportingText = [
       eew.uncertaintyLabel ? `${eew.uncertaintyLabel}。到達円は表示していません` : "",
       detectionText,
-      connectionLabel,
-      affectedAreas,
-      waveNotice,
-      receivedText
+      affectedAreas
     ].filter(Boolean).join("・");
     const supportingClass = eew.uncertaintyLabel
       ? "is-notice"
-      : (connectionLabel ? "is-connection" : "is-areas");
+      : "is-areas";
     const primaryMarkup = `
       <div class="mobile-dock-eew-header${eventSwitchMarkup ? " has-events" : ""}">
         <div class="mobile-dock-eew-meta">

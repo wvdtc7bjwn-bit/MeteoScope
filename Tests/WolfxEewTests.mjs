@@ -13,8 +13,38 @@ import {
   createEewForecastAreaSignature
 } from "../src/eew/eewForecastAreas.js";
 import { parseJstDateTime } from "../src/utils/jstDateTime.js";
+import {
+  createLocalEewTestEvent,
+  isLocalEewTestEnvironment
+} from "../src/eew/localEewTest.js";
 
 const BASE_TIME = Date.parse("2026-11-10T12:00:00+09:00");
+
+assert.equal(isLocalEewTestEnvironment({ hostname: "localhost" }), true);
+assert.equal(isLocalEewTestEnvironment({ hostname: "127.0.0.1" }), true);
+assert.equal(isLocalEewTestEnvironment({ hostname: "::1" }), true);
+assert.equal(isLocalEewTestEnvironment({ hostname: "meteoscope.pages.dev" }), false);
+assert.equal(createLocalEewTestEvent("none", { now: BASE_TIME }), null);
+
+{
+  const forecast = createLocalEewTestEvent("forecast", { now: BASE_TIME });
+  const warning = createLocalEewTestEvent("warning", { now: BASE_TIME });
+  const onePoint = createLocalEewTestEvent("one-point", { now: BASE_TIME });
+  const plum = createLocalEewTestEvent("plum", { now: BASE_TIME });
+  const assumption = createLocalEewTestEvent("assumption", { now: BASE_TIME });
+  const final = createLocalEewTestEvent("final", { now: BASE_TIME });
+  const cancellation = createLocalEewTestEvent("cancel", { now: BASE_TIME });
+  assert.equal(forecast.isLocalTest, true, "ローカルテスト速報を明示する");
+  assert.equal(forecast.isWarn, false, "予報シナリオを生成する");
+  assert.equal(warning.isWarn, true, "警報シナリオを生成する");
+  assert.equal(onePoint.isOnePointDetection, true, "1点検知シナリオは明示情報から判定する");
+  assert.equal(plum.methodType, "plum", "PLUM法シナリオを生成する");
+  assert.equal(plum.canRenderWaves, false, "PLUM法テストでは到達円を描かない");
+  assert.equal(assumption.methodType, "assumption", "仮定震源要素シナリオを生成する");
+  assert.equal(assumption.canRenderWaves, false, "仮定震源要素では到達円を描かない");
+  assert.equal(final.isFinal, true, "最終報シナリオを生成する");
+  assert.equal(cancellation.isCancel, true, "取消報シナリオを生成する");
+}
 
 assert.equal(parseJstDateTime("2026/11/10 05:21"), "2026-11-09T20:21:00.000Z", "秒なしの日時も日本時間として解釈する");
 assert.equal(parseJstDateTime("2026-11-10T05:21:30"), "2026-11-09T20:21:30.000Z", "端末タイムゾーンに依存しない");

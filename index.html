@@ -228,6 +228,19 @@
           </label>
           <button type="button" data-earthquake-distribution-presentation="3d" aria-pressed="false">震央の立体表示</button>
           <button type="button" role="switch" aria-checked="false" data-map-terrain-toggle>地形</button>
+          <label id="local-eew-test-controls" class="local-eew-test-controls" hidden>EEW動作テスト
+            <select id="local-eew-test-scenario" aria-label="ローカルEEW動作テストの種類">
+              <option value="none">停止</option>
+              <option value="forecast">予報</option>
+              <option value="warning">警報</option>
+              <option value="one-point">1点検知</option>
+              <option value="plum">PLUM法</option>
+              <option value="assumption">仮定震源要素</option>
+              <option value="final">最終報</option>
+              <option value="cancel">取消報</option>
+            </select>
+            <small>localhost専用・実際の発表ではありません</small>
+          </label>
         </div>
         <button id="earthquake-layer-toggle-button" class="weather-distribution-toggle-button" type="button" aria-expanded="false" aria-controls="earthquake-layer-toggle-choices" aria-label="地震地図のレイヤーを選択" title="地震地図のレイヤーを選択"></button>
       </section>

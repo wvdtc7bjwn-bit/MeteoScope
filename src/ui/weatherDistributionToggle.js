@@ -150,9 +150,24 @@ export function syncSatelliteLayerToggle(options) {
   updateSatelliteLayerToggle(options);
 }
 
-export function setupEarthquakeLayerToggle({ onLayerChange, onPresentationChange, onPlateSourceChange }) {
+export function setupEarthquakeLayerToggle({
+  onLayerChange,
+  onPresentationChange,
+  onPlateSourceChange,
+  onEewTestChange,
+  localEewTestEnabled = false
+}) {
+  const root = document.getElementById("earthquake-layer-toggle");
   const sourceSelect = document.getElementById("earthquake-plate-source");
+  const localEewTestControls = document.getElementById("local-eew-test-controls");
+  const localEewTestSelect = document.getElementById("local-eew-test-scenario");
   sourceSelect?.addEventListener("change", () => onPlateSourceChange?.(sourceSelect.value));
+  root?.classList.toggle("has-local-eew-test", localEewTestEnabled);
+  if (localEewTestControls) localEewTestControls.hidden = !localEewTestEnabled;
+  localEewTestSelect?.addEventListener("change", () => {
+    if (!localEewTestEnabled) return;
+    onEewTestChange?.(localEewTestSelect.value);
+  });
   const controller = setupLayerChoiceToggle({
     key: "earthquake-layer",
     rootId: "earthquake-layer-toggle",
