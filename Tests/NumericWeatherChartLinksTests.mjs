@@ -18,7 +18,11 @@ assert.ok(modalSource.includes("export function setupNumericWeatherChartModal"))
 assert.ok(modalSource.includes("export function openNumericWeatherChartModal"));
 assert.ok(styleSource.includes(".numeric-weather-chart-open-button::before"));
 assert.ok(styleSource.includes(".numeric-weather-chart-panel"));
-assert.ok(styleSource.includes(".numeric-weather-chart-panel {\n  width: min(760px, calc(100vw - 28px));\n  max-height: min(84dvh, 760px);\n  padding: 0;"));
+const panelStyle = styleSource.match(/\n\.numeric-weather-chart-panel\s*\{([^}]+)\}/)?.[1] ?? "";
+assert.match(panelStyle, /width: min\(760px, calc\(100vw - 28px\)\)/);
+assert.match(panelStyle, /max-height: min\(90dvh, 800px\)/);
+assert.match(panelStyle, /overflow: hidden/);
+assert.match(panelStyle, /padding: 0/);
 assert.ok(styleSource.includes(".numeric-weather-chart-body {\n  min-height: 0;\n  flex: 1 1 auto;\n  display: flex;\n  flex-direction: column;"));
 assert.ok(styleSource.includes(".numeric-weather-chart-group {\n  flex: 0 0 auto;\n  display: grid;\n  gap: 8px;\n  min-height: 58px;"));
 
