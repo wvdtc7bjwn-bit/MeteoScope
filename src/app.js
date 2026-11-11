@@ -770,9 +770,15 @@ export function createWeatherApp() {
     if (tab && activeTab === "earthquake") updateCurrentView(tab, latestDataByTab.earthquake ?? {});
   }
 
-  function selectLocalEewTestScenario(scenario) {
+  let localEewTransitionTimer = null;
+  function selectLocalEewTestScenario(scenario, step = 0) {
     if (!localEewTestEnabled) return;
-    localEewTestEvent = createLocalEewTestEvent(scenario);
+    clearTimeout(localEewTransitionTimer);
+    localEewTransitionTimer = null;
+    localEewTestEvent = createLocalEewTestEvent(scenario, { step });
+    if (scenario.startsWith("transition-") && step === 0) {
+      localEewTransitionTimer = setTimeout(() => selectLocalEewTestScenario(scenario, 1), 5000);
+    }
     const displayedEvents = getDisplayedEewEvents();
     selectedEewEventId = displayedEvents[0]?.eventId ?? "";
     syncEewAlertIndicator();

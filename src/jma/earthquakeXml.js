@@ -7,6 +7,7 @@ import {
   STATIC_DATA_CACHE_TTL_MS
 } from "../config.js";
 import { fetchJson, fetchText, parseJmaTime } from "./jmaClient.js";
+import { buildHistoricalIntensityAreaFeatures } from "./earthquakeHistoryDetail.js";
 import {
   attachIntensityStationCoordinates,
   buildEmptyStationLookup,
@@ -709,14 +710,29 @@ function parseIntensityStations(observation) {
   }).sort((a, b) => b.rank - a.rank || String(a.code).localeCompare(String(b.code), "ja"));
 }
 
-function attachEarthquakeMapData(earthquake, areaLookup, stationLookup) {
+export function attachEarthquakeMapData(earthquake, areaLookup, stationLookup) {
   if (!earthquake) return earthquake;
   const intensityStations = attachIntensityStationCoordinates(earthquake.intensityStations ?? [], stationLookup);
-  const intensityAreaFeatures = buildIntensityAreaFeatures(earthquake.intensityAreas ?? [], areaLookup);
+  const reportedFeatures = buildIntensityAreaFeatures(earthquake.intensityAreas ?? [], areaLookup);
+  // P2P detailed reports may contain stations only. Reuse the historical
+  // observation aggregation rather than interpreting station codes as areas.
+  const geometries = [...new Set([...areaLookup.values()].flat())];
+  const observedFeatures = buildHistoricalIntensityAreaFeatures(intensityStations, { features: geometries });
+  const observedByCode = new Map(observedFeatures.map((feature) => [normalizeAreaCode(feature.properties.areaCode), feature]));
+  const reportedCodes = new Set();
+  const intensityAreaFeatures = reportedFeatures.map((feature) => {
+    const code = normalizeAreaCode(feature.properties.areaCode || feature.properties.code);
+    reportedCodes.add(code);
+    const observed = observedByCode.get(code);
+    return observed && getEarthquakeIntensityRank(observed.properties.intensity) > getEarthquakeIntensityRank(feature.properties.intensity)
+      ? { ...feature, properties: { ...feature.properties, ...observed.properties, popup: buildEarthquakeAreaPopup({ areaName: observed.properties.areaName, intensityLabel: observed.properties.intensityLabel }) } }
+      : feature;
+  });
+  intensityAreaFeatures.push(...observedFeatures.filter((feature) => !reportedCodes.has(normalizeAreaCode(feature.properties.areaCode))));
   return {
     ...earthquake,
     intensityStations,
-    intensityAreaFeatures
+    intensityAreaFeatures: areaLookup.size ? intensityAreaFeatures : (earthquake.intensityAreaFeatures ?? [])
   };
 }
 
@@ -732,7 +748,7 @@ export function buildIntensityAreaFeatures(areas, areaLookup) {
       geometry: feature.geometry,
       properties: {
         ...(feature.properties ?? {}),
-        areaCode: area.code,
+        areaCode: code || normalizeAreaCode(feature.properties?.code),
         areaName: area.areaName || feature.properties?.name || area.code,
         prefecture: area.prefecture || "",
         intensity: area.intensity,

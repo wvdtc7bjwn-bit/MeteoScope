@@ -234,6 +234,16 @@
               <option value="forecast">予報</option>
               <option value="warning">警報</option>
               <option value="one-point">1点検知</option>
+              <option value="level">レベル法</option>
+              <option value="ipf-multiple">IPF法・複数点</option>
+              <option value="mixed">通常方式・PLUM併用</option>
+              <option value="accuracy-unknown">震源精度不明</option>
+              <option value="magnitude-unknown">M不明</option>
+              <option value="depth-unknown">深さ不明</option>
+              <option value="intensity-unknown">予測震度未発表</option>
+              <option value="transition-one">1点→複数点（5秒後）</option>
+              <option value="transition-assumption">仮定→通常震源（5秒後）</option>
+              <option value="transition-mixed">通常→PLUM併用（5秒後）</option>
               <option value="plum">PLUM法</option>
               <option value="assumption">仮定震源要素</option>
               <option value="final">最終報</option>
@@ -733,7 +743,7 @@
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="過去の災害事例を閉じる" data-jma-disaster-archive-close>×</button>
         </header>
         <div class="jma-disaster-archive-body">
-          <p class="jma-disaster-archive-intro">気象庁が公開する主な気象災害のアーカイブです。事例と時刻を選ぶと、当時の防災気象情報を気象庁のページで確認できます。<span>掲載されている事例のみ表示します。</span></p>
+          <p class="jma-disaster-archive-intro">事例を開いて時刻を選ぶと、当時の防災気象情報を気象庁のページで確認できます。<span>気象庁が公開している事例のみ掲載しています。</span></p>
           <label class="jma-disaster-archive-search" for="jma-disaster-archive-search">
             <span class="sr-only">災害事例を検索</span>
             <input id="jma-disaster-archive-search" type="search" inputmode="search" autocomplete="off" placeholder="災害名・年を検索">
@@ -847,7 +857,7 @@
         <header class="settings-modal-header">
           <div>
             <span class="settings-modal-kicker">気象庁 高層気象観測</span>
-            <h2 id="upper-air-title">高層解析ワークスペース</h2>
+            <h2 id="upper-air-title">高層気象（エマグラム）</h2>
           </div>
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-upper-air-close>×</button>
         </header>

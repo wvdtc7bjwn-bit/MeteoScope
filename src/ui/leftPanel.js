@@ -3473,8 +3473,8 @@ function buildEarthquakeMobileContextMarkup(
     const hasDepth = eew.depth !== null && eew.depth !== undefined
       && String(eew.depth).trim() !== "" && Number.isFinite(Number(eew.depth));
     const assumptionSuffix = eew.isAssumption ? "（仮定）" : "";
-    const magnitude = hasMagnitude ? `M${Number(eew.magnitude).toFixed(1)}${assumptionSuffix}` : "M調査中";
-    const depth = hasDepth
+    const magnitude = eew.isAssumption ? "M仮定値" : eew.hypocenterMethod === "level" ? "M調査中" : hasMagnitude ? `M${Number(eew.magnitude).toFixed(1)}${assumptionSuffix}` : "M調査中";
+    const depth = eew.isAssumption ? "深さ仮定値" : eew.hypocenterMethod === "level" ? "深さ調査中" : hasDepth
       ? `${Number(eew.depth) === 0 ? "ごく浅い" : `深さ${Number(eew.depth)}km`}${assumptionSuffix}`
       : "深さ調査中";
     const areaNames = (eew.warnAreas ?? []).map((area) => area.name).filter(Boolean);
@@ -3503,7 +3503,7 @@ function buildEarthquakeMobileContextMarkup(
       : "";
     const detectionText = eew.isOnePointDetection ? "1点検知と確認された速報" : "";
     const supportingText = [
-      eew.uncertaintyLabel ? `${eew.uncertaintyLabel}。到達円は表示していません` : "",
+      eew.uncertaintyLabel || "",
       detectionText,
       affectedAreas
     ].filter(Boolean).join("・");

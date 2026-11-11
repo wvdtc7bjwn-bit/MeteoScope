@@ -14,6 +14,7 @@ let settingsAccount = null;
 let settingsAccountAvailable = false;
 let settingsAccountBusy = false;
 let settingsAccountMode = "login";
+const settingsGroupAnimations = new WeakMap();
 
 export function setupSettingsModal(options = {}) {
   settingsOptions = options;
@@ -346,9 +347,41 @@ function renderSettingsChangelog() {
 function setSettingsGroupExpanded(group, expanded) {
   const toggle = group.querySelector("[data-settings-group-toggle]");
   const content = group.querySelector(".settings-group-content");
+  const previous = settingsGroupAnimations.get(group);
+  const startHeight = group.getBoundingClientRect().height;
+  if (previous) {
+    cancelAnimationFrame(previous.frame);
+    previous.animation?.cancel();
+    settingsGroupAnimations.delete(group);
+  }
+  group.style.removeProperty("overflow");
   group.classList.toggle("is-expanded", expanded);
   toggle?.setAttribute("aria-expanded", expanded ? "true" : "false");
-  if (content) content.hidden = !expanded;
+  if (!content) return;
+  content.inert = !expanded;
+  content.hidden = !expanded;
+  if (!group.animate || !startHeight || group.hidden
+    || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+
+  // Measure after lazy content (such as the changelog) has been rendered.
+  const state = { frame: 0, animation: null };
+  settingsGroupAnimations.set(group, state);
+  state.frame = requestAnimationFrame(() => {
+    if (settingsGroupAnimations.get(group) !== state) return;
+    const endHeight = group.getBoundingClientRect().height;
+    content.hidden = false;
+    group.style.overflow = "hidden";
+    state.animation = group.animate([
+      { height: `${startHeight}px` },
+      { height: `${endHeight}px` }
+    ], { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+    state.animation.onfinish = () => {
+      if (settingsGroupAnimations.get(group) !== state) return;
+      content.hidden = !expanded;
+      group.style.removeProperty("overflow");
+      settingsGroupAnimations.delete(group);
+    };
+  });
 }
 
 function normalizeSettingsFilter(value) {
@@ -362,7 +395,10 @@ function filterSettingsGroups(value) {
   let visibleCount = 0;
 
   modal.querySelectorAll(".settings-group").forEach((group) => {
-    const searchableText = group.querySelector(".settings-group-title-copy")?.textContent ?? "";
+    const searchableText = [
+      group.querySelector(".settings-group-title-copy")?.textContent ?? "",
+      ...Array.from(group.querySelectorAll(".settings-group-content label, .settings-theme-help"), (element) => element.textContent ?? "")
+    ].join(" ");
     const matches = !query || normalizeSettingsFilter(searchableText).includes(query);
     group.hidden = !matches;
     if (!matches) setSettingsGroupExpanded(group, false);
@@ -408,7 +444,7 @@ function openSettingsGroup(groupClass) {
 function scrollSettingsGroupIntoView(group) {
   requestAnimationFrame(() => {
     group.scrollIntoView({
-      block: "nearest",
+      block: "start",
       behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
     });
   });

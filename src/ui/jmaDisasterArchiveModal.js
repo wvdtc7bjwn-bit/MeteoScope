@@ -153,7 +153,7 @@ function setStatus(status, state, message) {
   if (!status) return;
   status.dataset.state = state;
   status.textContent = message;
-  status.hidden = false;
+  status.hidden = state === "ready";
   const retry = document.getElementById("jma-disaster-archive-retry");
   if (retry) retry.hidden = state !== "error";
   const externalLink = document.getElementById("jma-disaster-archive-official-link");

@@ -38,29 +38,55 @@ function normalizeIntensity(value) {
 }
 
 function getMethodMetadata(payload, { isAssumption = false } = {}) {
-  const methodText = [payload.CodeType, payload.Accuracy?.Epicenter, payload.Accuracy?.Depth, payload.OriginalText]
-    .map((value) => String(value ?? ""))
-    .join(" ");
-  const hasPlumEvidence = asBoolean(payload.isPlum ?? payload.isPLUM ?? payload.PLUM)
-    || /\bPLUM(?:法)?\b/iu.test(methodText);
-  const hasMixedEvidence = hasPlumEvidence && /(混在|併用|IPF.*PLUM|PLUM.*IPF)/iu.test(methodText);
+  // Wolfx Accuracyは説明文字列。数値コードや未定義のisPlumを解釈しない。
+  const descriptions = [payload.Accuracy?.Epicenter, payload.Accuracy?.Depth]
+    .map((value) => String(value ?? "").normalize("NFKC").trim());
+  const statements = String(payload.OriginalText ?? "").normalize("NFKC").split(/[。\n]/u).map(s => s.trim());
+  const hasMixedEvidence = statements.some(s => /^(?:通常方式|IPF法)とPLUM法を併用(?:した(?:情報|速報)|による速報)?$/u.test(s));
+  const hasPlumEvidence = hasMixedEvidence || statements.some(s => /^PLUM法(?:のみ)?による(?:緊急地震速報|震度予測)(?:[（(](?:予報|警報)[）)])?$/u.test(s));
+  const level = descriptions.some(s => /^(?:P波|S波|P波\/S波)レベル(?:越え|法)$/u.test(s));
+  const ipf = descriptions.some(s => /^IPF法\([1-4]点\)$/u.test(s));
+  const ipfOne = descriptions.some(s => s === "IPF法(1点)");
+  const reliable = descriptions.length === 2 && descriptions.every(s => /^(?:IPF法\([2-4]点\)|着未着法|EPOS|防災科研システム)$/u.test(s));
   const type = hasMixedEvidence
     ? "mixed"
     : hasPlumEvidence
       ? "plum"
       : isAssumption
         ? "assumption"
-        : "normal";
-  return { type, hasPlumEvidence };
+        : level ? "level" : ipf ? "normal" : "unknown";
+  return { type, hasPlumEvidence, ipfOne,
+    hypocenterMethod: isAssumption ? "assumption" : level ? "level" : ipf ? (ipfOne ? "ipf-one-point" : "ipf") : "unknown",
+    intensityMethod: hasMixedEvidence ? "mixed" : hasPlumEvidence ? "plum" : "unknown",
+    reliability: isAssumption ? "assumed" : level || ipfOne ? "low" : reliable ? "usable" : "unknown" };
 }
 
 function getDetectionPointMetadata(payload) {
   // Wolfxの公開フィールドには観測点数がないため、存在しない独自フィールドは推測しない。
   // 原文が明示的に1観測点と述べている場合だけ確定扱いにする。
-  if (/(?:1|１)(?:つの)?観測点/iu.test(String(payload.OriginalText ?? ""))) {
-    return { pointCount: 1, isOnePoint: true, status: "confirmed" };
+  const text = String(payload.OriginalText ?? "").normalize("NFKC");
+  const mentions = [...text.matchAll(/(?<![\d.])(\d+)(?:つの)?観測点(?!数)/gu)];
+  const counts = new Set();
+  let negatedOne = false;
+  for (const match of mentions) {
+    const count = Number(match[1]);
+    const suffix = text.slice(match.index + match[0].length);
+    if (/^\s*(?:で(?:は|も)?な(?:い|く)|ではありません|ではなく|以外|未満)/u.test(suffix)) {
+      if (count === 1) negatedOne = true;
+      continue;
+    }
+    if (Number.isSafeInteger(count) && count > 0) counts.add(count);
   }
-  return { pointCount: null, isOnePoint: false, status: "unknown" };
+  // 複数の異なる記述や否定との矛盾は、観測点数を確定する根拠にしない。
+  if (counts.size === 1 && !(negatedOne && counts.has(1))) {
+    const pointCount = [...counts][0];
+    return { pointCount, isOnePoint: pointCount === 1,
+      status: pointCount === 1 ? "confirmed" : "not-one-point", evidence: "original-text" };
+  }
+  if (negatedOne && counts.size === 0) {
+    return { pointCount: null, isOnePoint: false, status: "not-one-point", evidence: "original-text" };
+  }
+  return { pointCount: null, isOnePoint: false, status: "unknown", evidence: "insufficient-data" };
 }
 
 function getReportTimestamp(eew) {
@@ -127,9 +153,13 @@ export function normalizeWolfxEew(payload, { receivedAt = Date.now(), transport 
   const isAssumption = asBoolean(payload.isAssumption);
   const method = getMethodMetadata(payload, { isAssumption });
   const detection = getDetectionPointMetadata(payload);
+  if (method.ipfOne && detection.status === "unknown") {
+    Object.assign(detection, { pointCount: 1, isOnePoint: true, status: "confirmed", evidence: "accuracy-description" });
+  }
   const isPlum = method.hasPlumEvidence;
   const coordinates = latitude !== null && longitude !== null ? [longitude, latitude] : null;
-  const canRenderWaves = Boolean(coordinates && originTime && depth !== null && method.type === "normal");
+  const canRenderWaves = Boolean(!isCancel && !isAssumption && coordinates && originTime && depth !== null
+    && method.reliability === "usable" && method.type !== "plum" && !detection.isOnePoint);
 
   return {
     source: "Wolfx JMA EEW",
@@ -158,8 +188,13 @@ export function normalizeWolfxEew(payload, { receivedAt = Date.now(), transport 
         name: cleanText(area?.Chiiki),
         from: normalizeIntensity(area?.Shindo1),
         to: normalizeIntensity(area?.Shindo2),
-        arrivalTime: parseJstDateTime(area?.Time),
-        arrived: asBoolean(area?.Arrive),
+        announcedTime: parseJstDateTime(area?.Time),
+        arrivalTime: null,
+        arrived: area?.Arrive == null ? null : asBoolean(area.Arrive),
+        intensityMethod: "unknown",
+        methodEvidence: "insufficient-data",
+        source: "Wolfx JMA EEW",
+        isWarning: area?.Type === "警報" ? true : area?.Type === "予報" ? false : null,
         type: cleanText(area?.Type)
       })).filter((area) => area.name)
       : [],
@@ -170,15 +205,21 @@ export function normalizeWolfxEew(payload, { receivedAt = Date.now(), transport 
     isAssumption,
     isPlum,
     methodType: method.type,
+    hypocenterMethod: method.hypocenterMethod,
+    intensityMethod: method.intensityMethod,
+    hypocenterReliability: method.reliability,
     detectionPointCount: detection.pointCount,
     onePointDetectionStatus: detection.status,
+    onePointDetectionEvidence: detection.evidence,
     isOnePointDetection: detection.isOnePoint,
     canRenderWaves,
     uncertaintyLabel: method.type === "mixed"
       ? `通常方式とPLUM法を併用した情報${isAssumption ? "・仮定震源要素を使用" : ""}`
       : method.type === "plum"
         ? `PLUM法による情報${isAssumption ? "・仮定震源要素を使用" : "（震源要素が確定していません）"}`
-        : (isAssumption ? "仮定震源要素を使用" : ""),
+        : (isAssumption ? "仮定震源要素を使用・実際の震源ではありません" : method.hypocenterMethod === "level"
+          ? "観測点で揺れを検知・震源調査中" : method.reliability === "low" || detection.isOnePoint
+            ? "初期解析・震源や規模が大きく変わる可能性があります" : ""),
     receivedAt: new Date(receivedAt).toISOString()
   };
 }

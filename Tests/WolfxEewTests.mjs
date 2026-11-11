@@ -20,6 +20,47 @@ import {
 
 const BASE_TIME = Date.parse("2026-11-10T12:00:00+09:00");
 
+for (const scenario of ["level", "accuracy-unknown", "depth-unknown", "one-point", "plum", "assumption"]) {
+  assert.equal(createLocalEewTestEvent(scenario, { now: BASE_TIME }).canRenderWaves, false, scenario);
+}
+assert.equal(createLocalEewTestEvent("mixed", { now: BASE_TIME }).canRenderWaves, true);
+for (const scenario of ["transition-one", "transition-assumption", "transition-mixed"]) {
+  const first = createLocalEewTestEvent(scenario, { now: BASE_TIME, step: 0 });
+  const second = createLocalEewTestEvent(scenario, { now: BASE_TIME + 5000, step: 1 });
+  assert.equal(first.eventId, second.eventId);
+  assert.ok(second.serial > first.serial);
+  assert.equal(second.canRenderWaves, true);
+  assert.equal(second.isAssumption, false);
+}
+for (const OriginalText of ["PLUM法とは揺れから予測する手法です", "PLUM法を使用していません"]) {
+  assert.equal(normalizeWolfxEew({ EventID: "negative", OriginalText, isPlum: true }).isPlum, false);
+}
+{
+  const region = normalizeWolfxEew({ EventID: "regions", WarnArea: [{ Chiiki: "茨城県北部", Type: "警報", Time: "2026/11/10 12:00:00" }] }).warnAreas[0];
+  assert.equal(region.intensityMethod, "unknown");
+  assert.equal(region.arrivalTime, null);
+  assert.equal(region.isWarning, true);
+  assert.ok(region.announcedTime);
+}
+
+for (const [originalText, expected] of [
+  ["1観測点", "confirmed"], ["１観測点", "confirmed"],
+  ["1つの観測点", "confirmed"], ["11観測点", "not-one-point"],
+  ["21観測点", "not-one-point"], ["101観測点", "not-one-point"],
+  ["1観測点ではない", "not-one-point"], ["1観測点ではありません", "not-one-point"],
+  ["2観測点", "not-one-point"], ["記載なし", "unknown"],
+  ["1観測点、続いて2観測点", "unknown"]
+]) {
+  const event = normalizeWolfxEew({ EventID: "detection-test", OriginalText: originalText });
+  assert.equal(event.onePointDetectionStatus, expected, originalText);
+  assert.equal(event.isOnePointDetection, expected === "confirmed", originalText);
+}
+
+for (const code of [1, 2, 3, 4, 9, "独自の説明1", null]) {
+  const event = normalizeWolfxEew({ EventID: "accuracy-test", Accuracy: { Epicenter: code } });
+  assert.equal(event.onePointDetectionStatus, "unknown", "精度コードだけで観測点数を断定しない");
+}
+
 assert.equal(isLocalEewTestEnvironment({ hostname: "localhost" }), true);
 assert.equal(isLocalEewTestEnvironment({ hostname: "127.0.0.1" }), true);
 assert.equal(isLocalEewTestEnvironment({ hostname: "::1" }), true);
@@ -141,7 +182,7 @@ function makeEew(overrides = {}) {
   assert.equal(assumption.canRenderWaves, false, "仮定震源要素では到達円を描かない");
   assert.match(assumption.uncertaintyLabel, /仮定震源/);
 
-  const plum = normalizeWolfxEew(makeEew({ isPlum: true }), { receivedAt: BASE_TIME });
+  const plum = normalizeWolfxEew(makeEew({ OriginalText: "PLUM法による緊急地震速報" }), { receivedAt: BASE_TIME });
   assert.equal(plum.isPlum, true);
   assert.equal(plum.methodType, "plum");
   assert.equal(plum.canRenderWaves, false, "PLUM法では到達円を描かない");
@@ -160,7 +201,7 @@ function makeEew(overrides = {}) {
 }
 
 {
-  const surface = normalizeWolfxEew(makeEew({ Depth: 0 }), { receivedAt: BASE_TIME });
+  const surface = normalizeWolfxEew(makeEew({ Depth: 0, Accuracy: { Epicenter: "IPF法(3点)", Depth: "IPF法(3点)" } }), { receivedAt: BASE_TIME });
   assert.equal(surface.depth, 0, "正当な深さ0kmを欠損値と区別する");
   assert.equal(surface.canRenderWaves, true);
 }

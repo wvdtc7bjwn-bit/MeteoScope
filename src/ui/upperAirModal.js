@@ -257,11 +257,11 @@ function buildAnalysisWorkspace(profile, identity, { windAvailable, sourceName }
   const heading = document.createElement("div");
   heading.className = "upper-air-workspace-heading";
   const title = document.createElement("h3");
-  title.textContent = "同期解析";
+  title.textContent = "鉛直分布";
   const help = document.createElement("p");
   help.textContent = windAvailable
-    ? `${sourceName}の同一プロファイルから表示。気圧面を選ぶとエマグラムと風 hodograph の選択が連動します。`
-    : `${sourceName}の気温・湿度を表示中です。風データがないため hodograph は利用できません。`;
+    ? "グラフの点を選ぶと、同じ気圧面の気温・露点・風を確認できます。"
+    : `${sourceName}の気温・湿度を表示しています。風のデータはありません。`;
   heading.append(title, help);
   const grid = document.createElement("div");
   grid.className = "upper-air-workspace-grid";

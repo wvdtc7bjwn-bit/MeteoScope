@@ -175,7 +175,7 @@ function renderNumericWeatherChartLinks() {
 
   const intro = document.createElement("p");
   intro.className = "numeric-weather-chart-intro";
-  intro.textContent = "気象庁の高層天気図を過去の保存用資料から探せます。下には現在の実況・予報天気図のリンクを掲載しています。";
+  intro.textContent = "気象庁の資料を開きます。日時を指定するか、下の実況・予報から選んでください。";
   body.append(intro);
 
   const archivePicker = createUpperAirArchivePicker();

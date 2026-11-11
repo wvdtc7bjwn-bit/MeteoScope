@@ -36,7 +36,7 @@ export function createUpperAirArchivePicker() {
   const title = document.createElement("h3");
   title.textContent = "過去の高層天気図を探す";
   const description = document.createElement("p");
-  description.textContent = "気象庁の保存用天気図から、年月・気圧面・日付を指定できます。新しい月は公開後に追加されます。";
+  description.textContent = "公開済みの保存用天気図から選択できます。";
   const controls = document.createElement("div");
   controls.className = "numeric-weather-archive-controls";
   const month = createSelect("年月");

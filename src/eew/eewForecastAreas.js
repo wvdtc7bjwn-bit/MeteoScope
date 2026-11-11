@@ -42,7 +42,10 @@ export function buildEewForecastAreaFeatureCollection(areaGeoJson, events = []) 
         intensity,
         intensityRange: formatForecastRange(area),
         rank,
-        eventId: String(event.eventId ?? "")
+        eventId: String(event.eventId ?? ""),
+        intensityMethod: area.intensityMethod ?? "unknown",
+        methodEvidence: area.methodEvidence ?? "insufficient-data",
+        source: area.source ?? event.source ?? ""
       };
       forecastByName.set(nameKey, forecast);
       const areaCode = String(area?.code ?? "").trim();
@@ -83,7 +86,8 @@ export function createEewForecastAreaSignature(events = []) {
       area?.code ?? "",
       normalizeEewAreaName(area?.name),
       area?.from ?? "",
-      area?.to ?? ""
+      area?.to ?? "",
+      area?.intensityMethod ?? "unknown"
     ].join(":")))
     .sort()
     .join("|");

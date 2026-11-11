@@ -6,9 +6,33 @@ import {
   shouldTemporarilyShowEarthquakeInfo
 } from "../src/earthquake/realtimeEarthquake.js";
 import {
+  attachEarthquakeMapData,
   buildEarthquakeAreaLookup,
   buildIntensityAreaFeatures
 } from "../src/jma/earthquakeXml.js";
+import { buildStationCoordinateLookup } from "../src/jma/earthquakeStationLookup.js";
+
+{
+  const areas = buildEarthquakeAreaLookup({ features: [{
+    type: "Feature", properties: { code: "310", name: "茨城県北部" },
+    geometry: { type: "Polygon", coordinates: [[[140, 36], [141, 36], [141, 37], [140, 37], [140, 36]]] }
+  }] });
+  const stations = buildStationCoordinateLookup([
+    { name: "水戸市金町", longitude: 140.5, latitude: 36.5 },
+    { name: "日立市役所", longitude: 140.6, latitude: 36.6 }
+  ]);
+  const event = normalizeP2pEarthquake({ code: 551, id: "station-only", points: [
+    { addr: "水戸市金町", scale: 20 }, { addr: "日立市役所", scale: 40 }
+  ] });
+  const mapped = attachEarthquakeMapData(event, areas, stations);
+  assert.equal(mapped.intensityAreaFeatures.length, 1, "観測点のみのP2P情報も区域を色付けする");
+  assert.equal(mapped.intensityAreaFeatures[0].properties.intensity, "4", "区域内の最大観測震度を使う");
+  assert.deepEqual(attachEarthquakeMapData(mapped, areas, stations).intensityAreaFeatures, mapped.intensityAreaFeatures, "履歴の再処理で色付けを失わない");
+  assert.deepEqual(attachEarthquakeMapData(mapped, new Map(), stations).intensityAreaFeatures, mapped.intensityAreaFeatures, "区域データ取得失敗で既存の色付けを消さない");
+  const prompt = { ...event, intensityAreas: [{ code: "310", areaName: "茨城県北部", intensity: "3", rank: 3 }] };
+  assert.equal(attachEarthquakeMapData(prompt, areas, stations).intensityAreaFeatures[0].properties.intensity, "4", "続報の観測点で区域最大震度を更新する");
+  assert.equal(attachEarthquakeMapData({ intensityStations: [] }, areas, stations).intensityAreaFeatures.length, 0, "別の地震へ色付けを引き継がない");
+}
 
 assert.equal(normalizeRealtimeIntensity(45), "5-");
 assert.equal(normalizeRealtimeIntensity("6強"), "6+");

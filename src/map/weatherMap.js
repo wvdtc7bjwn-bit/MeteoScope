@@ -79,7 +79,7 @@ const EEW_SOURCE_ID = "wolfx-emergency-earthquake-warning";
 const EEW_AREA_SOURCE_ID = "wolfx-eew-forecast-areas";
 const EEW_AREA_FILL_LAYER_ID = "eew-forecast-area-fill";
 const EEW_AREA_LINE_LAYER_ID = "eew-forecast-area-line";
-const EEW_LAYER_IDS = [EEW_AREA_FILL_LAYER_ID, EEW_AREA_LINE_LAYER_ID, "eew-wave-fill", "eew-wave-line", "eew-wave-label", "eew-hypocenter-cross"];
+const EEW_LAYER_IDS = [EEW_AREA_FILL_LAYER_ID, EEW_AREA_LINE_LAYER_ID, "eew-wave-fill", "eew-wave-line", "eew-hypocenter-cross"];
 const EEW_P_WAVE_COLOR = "#1769c2";
 const EEW_S_WAVE_COLOR = "#ff6a3d";
 const EEW_HYPOCENTER_BLINK_INTERVAL_MS = 1800;
@@ -1258,25 +1258,6 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "line-color": ["match", ["get", "waveType"], "P", EEW_P_WAVE_COLOR, EEW_S_WAVE_COLOR],
         "line-width": ["match", ["get", "waveType"], "P", 2.6, 2.8],
         "line-opacity": 0.96
-      }
-    });
-    map.addLayer({
-      id: "eew-wave-label",
-      type: "symbol",
-      source: EEW_SOURCE_ID,
-      filter: ["==", ["get", "featureType"], "wave-label"],
-      layout: {
-        visibility: "none",
-        "text-field": ["get", "label"],
-        "text-font": ["Noto Sans JP"],
-        "text-size": 12,
-        "text-allow-overlap": true,
-        "text-ignore-placement": true
-      },
-      paint: {
-        "text-color": ["match", ["get", "waveType"], "P", EEW_P_WAVE_COLOR, EEW_S_WAVE_COLOR],
-        "text-halo-color": "rgba(5, 9, 20, 0.92)",
-        "text-halo-width": 1.8
       }
     });
     map.addLayer({
@@ -4768,7 +4749,8 @@ function createEmptyFeatureCollection() {
 function createEewFeatureCollection(events, now = Date.now()) {
   const features = [];
   (Array.isArray(events) ? events : [events]).forEach((eew) => {
-    if (!eew || !Array.isArray(eew.coordinates) || eew.coordinates.length !== 2) return;
+    if (!eew || eew.isCancel || !Array.isArray(eew.coordinates) || eew.coordinates.length !== 2) return;
+    if (eew.coordinates.some(value => value == null || String(value).trim() === "")) return;
     const [longitude, latitude] = eew.coordinates.map(Number);
     const originTimestamp = Date.parse(eew.originTime ?? "");
     const depthKm = Number(eew.depth);
@@ -4779,7 +4761,8 @@ function createEewFeatureCollection(events, now = Date.now()) {
       properties: {
         featureType: "hypocenter",
         eventId: eew.eventId,
-        uncertain: Boolean(eew.isAssumption || eew.isPlum)
+        uncertain: Boolean(eew.isAssumption),
+        reliability: eew.hypocenterReliability ?? "unknown"
       }
     });
     if (!eew.canRenderWaves || !Number.isFinite(originTimestamp) || !Number.isFinite(depthKm)) return;
@@ -4788,21 +4771,16 @@ function createEewFeatureCollection(events, now = Date.now()) {
     if (!waveDistances) return;
     const { pDistanceKm, sDistanceKm } = waveDistances;
     const waveDefinitions = [
-      { type: "P", surfaceRadiusKm: pDistanceKm, label: "P波" },
-      { type: "S", surfaceRadiusKm: sDistanceKm, label: "S波" }
+      { type: "P", surfaceRadiusKm: pDistanceKm },
+      { type: "S", surfaceRadiusKm: sDistanceKm }
     ];
 
-    waveDefinitions.forEach(({ type, surfaceRadiusKm, label }) => {
+    waveDefinitions.forEach(({ type, surfaceRadiusKm }) => {
       if (surfaceRadiusKm < 1 || surfaceRadiusKm > 2_500) return;
       features.push({
         type: "Feature",
         geometry: { type: "Polygon", coordinates: [createGeodesicCircle([longitude, latitude], surfaceRadiusKm)] },
         properties: { featureType: "wave", waveType: type, eventId: eew.eventId }
-      });
-      features.push({
-        type: "Feature",
-        geometry: { type: "Point", coordinates: destinationPoint([longitude, latitude], surfaceRadiusKm, 0) },
-        properties: { featureType: "wave-label", waveType: type, label, eventId: eew.eventId }
       });
     });
   });
