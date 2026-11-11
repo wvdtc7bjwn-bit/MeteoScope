@@ -5,6 +5,10 @@ import {
   normalizeRealtimeIntensity,
   shouldTemporarilyShowEarthquakeInfo
 } from "../src/earthquake/realtimeEarthquake.js";
+import {
+  buildEarthquakeAreaLookup,
+  buildIntensityAreaFeatures
+} from "../src/jma/earthquakeXml.js";
 
 assert.equal(normalizeRealtimeIntensity(45), "5-");
 assert.equal(normalizeRealtimeIntensity("6強"), "6+");
@@ -30,6 +34,22 @@ assert.equal(scalePrompt.depth, null);
 assert.equal(scalePrompt.magnitude, "--");
 assert.equal(scalePrompt.intensityAreas[0].areaName, "茨城県北部");
 assert.equal(shouldTemporarilyShowEarthquakeInfo(scalePrompt), true);
+
+{
+  const geometry = { type: "Polygon", coordinates: [[[140, 36], [141, 36], [141, 37], [140, 36]]] };
+  const areaLookup = buildEarthquakeAreaLookup({
+    type: "FeatureCollection",
+    features: [{
+      type: "Feature",
+      geometry,
+      properties: { code: "310", name: "茨城県北部" }
+    }]
+  });
+  const features = buildIntensityAreaFeatures(scalePrompt.intensityAreas, areaLookup);
+  assert.equal(features.length, 1, "コードを持たないP2P区域も区域名から地図形状へ対応付ける");
+  assert.deepEqual(features[0].geometry, geometry);
+  assert.equal(features[0].properties.intensity, "3");
+}
 
 const detail = normalizeP2pEarthquake({
   code: 551,

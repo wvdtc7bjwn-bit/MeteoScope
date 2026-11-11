@@ -12,8 +12,13 @@ import {
   buildEewForecastAreaFeatureCollection,
   createEewForecastAreaSignature
 } from "../src/eew/eewForecastAreas.js";
+import { parseJstDateTime } from "../src/utils/jstDateTime.js";
 
 const BASE_TIME = Date.parse("2026-11-10T12:00:00+09:00");
+
+assert.equal(parseJstDateTime("2026/11/10 05:21"), "2026-11-09T20:21:00.000Z", "秒なしの日時も日本時間として解釈する");
+assert.equal(parseJstDateTime("2026-11-10T05:21:30"), "2026-11-09T20:21:30.000Z", "端末タイムゾーンに依存しない");
+assert.equal(parseJstDateTime(""), null);
 
 {
   const exact = getWaveDistancesByJma2001(0, 0.831);
@@ -108,7 +113,26 @@ function makeEew(overrides = {}) {
 
   const plum = normalizeWolfxEew(makeEew({ isPlum: true }), { receivedAt: BASE_TIME });
   assert.equal(plum.isPlum, true);
+  assert.equal(plum.methodType, "plum");
   assert.equal(plum.canRenderWaves, false, "PLUM法では到達円を描かない");
+
+  const mixed = normalizeWolfxEew(makeEew({ isPlum: true, OriginalText: "IPF法とPLUM法を併用" }), { receivedAt: BASE_TIME });
+  assert.equal(mixed.methodType, "mixed", "混合方式はPLUM単独と区別する");
+  assert.equal(mixed.canRenderWaves, false, "混合方式で独自の到達円を描かない");
+
+  const unknownPointCount = normalizeWolfxEew(makeEew(), { receivedAt: BASE_TIME });
+  assert.equal(unknownPointCount.onePointDetectionStatus, "unknown", "第1報だけで1点検知と推測しない");
+  assert.equal(unknownPointCount.isOnePointDetection, false);
+
+  const onePoint = normalizeWolfxEew(makeEew({ OriginalText: "1観測点のデータによる解析" }), { receivedAt: BASE_TIME });
+  assert.equal(onePoint.onePointDetectionStatus, "confirmed", "明示された観測点数だけで1点検知を識別する");
+  assert.equal(onePoint.isOnePointDetection, true);
+}
+
+{
+  const surface = normalizeWolfxEew(makeEew({ Depth: 0 }), { receivedAt: BASE_TIME });
+  assert.equal(surface.depth, 0, "正当な深さ0kmを欠損値と区別する");
+  assert.equal(surface.canRenderWaves, true);
 }
 
 {
@@ -184,11 +208,19 @@ function makeEew(overrides = {}) {
   }
 
   const snapshots = [];
+  const pageListeners = new Map();
+  const windowRef = {
+    addEventListener(type, listener) { pageListeners.set(type, listener); },
+    removeEventListener(type, listener) {
+      if (pageListeners.get(type) === listener) pageListeners.delete(type);
+    }
+  };
   const client = createWolfxEewClient({
     WebSocketImpl: FakeWebSocket,
     now: () => BASE_TIME,
     fetchImpl: async () => ({ ok: true, json: async () => makeEew({ Serial: 1 }) }),
     onUpdate: (snapshot) => snapshots.push(snapshot),
+    windowRef,
     documentRef: { addEventListener() {}, removeEventListener() {}, visibilityState: "visible" }
   });
   client.start();
@@ -203,7 +235,12 @@ function makeEew(overrides = {}) {
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(client.getLatest().serial, 2, "WebSocketの新報をHTTPの旧報で上書きしない");
   assert.equal(snapshots.some((snapshot) => snapshot.connection.status === "connected"), true);
+  pageListeners.get("pagehide")?.();
+  assert.equal(client.getSnapshot().connection.status, "suspended", "ページ非表示時は接続とタイマーを停止する");
+  pageListeners.get("pageshow")?.();
+  assert.equal(FakeWebSocket.instances.length, 2, "ページ復帰時に新しい世代の接続を開始する");
   client.stop();
+  assert.equal(pageListeners.size, 0, "停止時にページライフサイクルの購読を解除する");
 }
 
 console.log("Wolfx EEW tests passed");

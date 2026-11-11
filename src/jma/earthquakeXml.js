@@ -720,9 +720,13 @@ function attachEarthquakeMapData(earthquake, areaLookup, stationLookup) {
   };
 }
 
-function buildIntensityAreaFeatures(areas, areaLookup) {
+export function buildIntensityAreaFeatures(areas, areaLookup) {
   return areas.flatMap((area) => {
-    const features = areaLookup.get(normalizeAreaCode(area.code)) ?? [];
+    const code = normalizeAreaCode(area.code);
+    const nameKey = normalizeEarthquakeAreaName(area.areaName);
+    const features = (code ? areaLookup.get(code) : null)
+      ?? (nameKey ? areaLookup.get(`name:${nameKey}`) : null)
+      ?? [];
     return features.map((feature, index) => ({
       type: "Feature",
       geometry: feature.geometry,
@@ -916,15 +920,29 @@ function normalizeTsunamiStationName(value) {
   return String(value ?? "").normalize("NFKC").replace(/\s+/gu, "").trim();
 }
 
-function buildEarthquakeAreaLookup(geoJson) {
+export function buildEarthquakeAreaLookup(geoJson) {
   const lookup = new Map();
   (geoJson?.features ?? []).forEach((feature) => {
     const code = normalizeAreaCode(feature?.properties?.code ?? feature?.properties?.areaCode);
-    if (!code) return;
-    if (!lookup.has(code)) lookup.set(code, []);
-    lookup.get(code).push(feature);
+    const nameKey = normalizeEarthquakeAreaName(feature?.properties?.name ?? feature?.properties?.areaName);
+    if (code) {
+      if (!lookup.has(code)) lookup.set(code, []);
+      lookup.get(code).push(feature);
+    }
+    if (nameKey) {
+      const lookupKey = `name:${nameKey}`;
+      if (!lookup.has(lookupKey)) lookup.set(lookupKey, []);
+      lookup.get(lookupKey).push(feature);
+    }
   });
   return lookup;
+}
+
+function normalizeEarthquakeAreaName(value) {
+  return String(value ?? "")
+    .normalize("NFKC")
+    .replace(/[\s\u3000]+/gu, "")
+    .trim();
 }
 
 async function loadStationCoordinateLookup() {

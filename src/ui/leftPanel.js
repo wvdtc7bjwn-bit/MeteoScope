@@ -3468,8 +3468,15 @@ function buildEarthquakeMobileContextMarkup(
     const isCancellation = eew.isCancel === true;
     const intensityColor = isCancellation ? "#64748b" : getEarthquakeIntensityColor(eew.maxIntensity);
     const intensityTextClass = getEarthquakeIntensityTextClass(eew.maxIntensity);
-    const magnitude = Number.isFinite(Number(eew.magnitude)) ? `M${Number(eew.magnitude).toFixed(1)}` : "M調査中";
-    const depth = Number.isFinite(Number(eew.depth)) ? `深さ${Number(eew.depth)}km` : "深さ調査中";
+    const hasMagnitude = eew.magnitude !== null && eew.magnitude !== undefined
+      && String(eew.magnitude).trim() !== "" && Number.isFinite(Number(eew.magnitude));
+    const hasDepth = eew.depth !== null && eew.depth !== undefined
+      && String(eew.depth).trim() !== "" && Number.isFinite(Number(eew.depth));
+    const assumptionSuffix = eew.isAssumption ? "（仮定）" : "";
+    const magnitude = hasMagnitude ? `M${Number(eew.magnitude).toFixed(1)}${assumptionSuffix}` : "M調査中";
+    const depth = hasDepth
+      ? `${Number(eew.depth) === 0 ? "ごく浅い" : `深さ${Number(eew.depth)}km`}${assumptionSuffix}`
+      : "深さ調査中";
     const areaNames = (eew.warnAreas ?? []).map((area) => area.name).filter(Boolean);
     const statusLabel = isCancellation
       ? "取消報"
@@ -3496,9 +3503,19 @@ function buildEarthquakeMobileContextMarkup(
     const affectedAreas = areaNames.length
       ? `対象 ${areaNames.slice(0, 3).join("・")}${areaNames.length > 3 ? `ほか${areaNames.length - 3}地域` : ""}`
       : "";
-    const supportingText = eew.uncertaintyLabel
-      ? `${eew.uncertaintyLabel}。到達円は表示していません。`
-      : (connectionLabel || affectedAreas);
+    const detectionText = eew.isOnePointDetection ? "1点検知と確認された速報" : "";
+    const waveNotice = eew.canRenderWaves ? "P・S波はJMA2001走時表による概算" : "";
+    const receivedText = eew.receivedAt
+      ? `Wolfx受信 ${formatMobileEarthquakeTime(eew.receivedAt)}`
+      : "Wolfx受信時刻不明";
+    const supportingText = [
+      eew.uncertaintyLabel ? `${eew.uncertaintyLabel}。到達円は表示していません` : "",
+      detectionText,
+      connectionLabel,
+      affectedAreas,
+      waveNotice,
+      receivedText
+    ].filter(Boolean).join("・");
     const supportingClass = eew.uncertaintyLabel
       ? "is-notice"
       : (connectionLabel ? "is-connection" : "is-areas");
@@ -3525,7 +3542,7 @@ function buildEarthquakeMobileContextMarkup(
             <span>${escapeHtml(magnitude)}</span>
             <span>${escapeHtml(depth)}</span>
           </div>
-          ${supportingText ? `<p class="mobile-dock-eew-supporting ${supportingClass}">${escapeHtml(supportingText)}</p>` : ""}
+          ${supportingText ? `<p class="mobile-dock-eew-supporting ${supportingClass}" title="${escapeHtml(supportingText)}">${escapeHtml(supportingText)}</p>` : ""}
         </div>
       </div>
     `;

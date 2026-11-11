@@ -1,3 +1,5 @@
+import { parseJstDateTime } from "../utils/jstDateTime.js";
+
 const WOLFX_EEW_WEBSOCKET_URL = "wss://ws-api.wolfx.jp/jma_eew";
 const WOLFX_EEW_HTTP_URL = "https://api.wolfx.jp/jma_eew.json";
 
@@ -12,16 +14,6 @@ const RECONNECT_MIN_MS = 2_000;
 const RECONNECT_MAX_MS = 30_000;
 const HEARTBEAT_INTERVAL_MS = 45_000;
 const CONNECTION_STALE_MS = 95_000;
-
-function parseWolfxTime(value) {
-  const text = String(value ?? "").trim();
-  if (!text) return null;
-  const normalized = /^\d{4}[/-]\d{1,2}[/-]\d{1,2}[ T]\d{1,2}:\d{2}:\d{2}$/.test(text)
-    ? `${text.replaceAll("/", "-").replace(" ", "T")}+09:00`
-    : text;
-  const timestamp = Date.parse(normalized);
-  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
-}
 
 function asBoolean(value) {
   return value === true || value === 1 || String(value).toLowerCase() === "true";
@@ -45,10 +37,30 @@ function normalizeIntensity(value) {
   return ["1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"].includes(normalized) ? normalized : "";
 }
 
-function detectPlum(payload) {
-  if (asBoolean(payload.isPlum ?? payload.isPLUM ?? payload.PLUM)) return true;
-  return [payload.CodeType, payload.Accuracy?.Epicenter, payload.Accuracy?.Depth, payload.OriginalText]
-    .some((value) => /\bPLUM\b/i.test(String(value ?? "")));
+function getMethodMetadata(payload, { isAssumption = false } = {}) {
+  const methodText = [payload.CodeType, payload.Accuracy?.Epicenter, payload.Accuracy?.Depth, payload.OriginalText]
+    .map((value) => String(value ?? ""))
+    .join(" ");
+  const hasPlumEvidence = asBoolean(payload.isPlum ?? payload.isPLUM ?? payload.PLUM)
+    || /\bPLUM(?:法)?\b/iu.test(methodText);
+  const hasMixedEvidence = hasPlumEvidence && /(混在|併用|IPF.*PLUM|PLUM.*IPF)/iu.test(methodText);
+  const type = hasMixedEvidence
+    ? "mixed"
+    : hasPlumEvidence
+      ? "plum"
+      : isAssumption
+        ? "assumption"
+        : "normal";
+  return { type, hasPlumEvidence };
+}
+
+function getDetectionPointMetadata(payload) {
+  // Wolfxの公開フィールドには観測点数がないため、存在しない独自フィールドは推測しない。
+  // 原文が明示的に1観測点と述べている場合だけ確定扱いにする。
+  if (/(?:1|１)(?:つの)?観測点/iu.test(String(payload.OriginalText ?? ""))) {
+    return { pointCount: 1, isOnePoint: true, status: "confirmed" };
+  }
+  return { pointCount: null, isOnePoint: false, status: "unknown" };
 }
 
 function getReportTimestamp(eew) {
@@ -104,8 +116,8 @@ export function normalizeWolfxEew(payload, { receivedAt = Date.now(), transport 
   const eventId = cleanText(payload.EventID, "", 80);
   if (!eventId) return null;
 
-  const announcedTime = parseWolfxTime(payload.AnnouncedTime);
-  const originTime = parseWolfxTime(payload.OriginTime);
+  const announcedTime = parseJstDateTime(payload.AnnouncedTime);
+  const originTime = parseJstDateTime(payload.OriginTime);
   const latitude = asFiniteNumber(payload.Latitude, { min: -90, max: 90 });
   const longitude = asFiniteNumber(payload.Longitude, { min: -180, max: 180 });
   const depth = asFiniteNumber(payload.Depth, { min: 0, max: 1_000 });
@@ -113,9 +125,11 @@ export function normalizeWolfxEew(payload, { receivedAt = Date.now(), transport 
   const magnitude = rawMagnitude !== null && rawMagnitude > 0 ? rawMagnitude : null;
   const isCancel = asBoolean(payload.isCancel);
   const isAssumption = asBoolean(payload.isAssumption);
-  const isPlum = detectPlum(payload);
+  const method = getMethodMetadata(payload, { isAssumption });
+  const detection = getDetectionPointMetadata(payload);
+  const isPlum = method.hasPlumEvidence;
   const coordinates = latitude !== null && longitude !== null ? [longitude, latitude] : null;
-  const canRenderWaves = Boolean(coordinates && originTime && depth !== null && !isAssumption && !isPlum);
+  const canRenderWaves = Boolean(coordinates && originTime && depth !== null && method.type === "normal");
 
   return {
     source: "Wolfx JMA EEW",
@@ -144,7 +158,7 @@ export function normalizeWolfxEew(payload, { receivedAt = Date.now(), transport 
         name: cleanText(area?.Chiiki),
         from: normalizeIntensity(area?.Shindo1),
         to: normalizeIntensity(area?.Shindo2),
-        arrivalTime: parseWolfxTime(area?.Time),
+        arrivalTime: parseJstDateTime(area?.Time),
         arrived: asBoolean(area?.Arrive),
         type: cleanText(area?.Type)
       })).filter((area) => area.name)
@@ -155,10 +169,16 @@ export function normalizeWolfxEew(payload, { receivedAt = Date.now(), transport 
     isTraining: asBoolean(payload.isTraining) || /訓練|練習/.test(cleanText(payload.Title)),
     isAssumption,
     isPlum,
+    methodType: method.type,
+    detectionPointCount: detection.pointCount,
+    onePointDetectionStatus: detection.status,
+    isOnePointDetection: detection.isOnePoint,
     canRenderWaves,
-    uncertaintyLabel: isPlum
-      ? "PLUM法による情報（震源要素が確定していません）"
-      : (isAssumption ? "仮定震源要素を使用" : ""),
+    uncertaintyLabel: method.type === "mixed"
+      ? `通常方式とPLUM法を併用した情報${isAssumption ? "・仮定震源要素を使用" : ""}`
+      : method.type === "plum"
+        ? `PLUM法による情報${isAssumption ? "・仮定震源要素を使用" : "（震源要素が確定していません）"}`
+        : (isAssumption ? "仮定震源要素を使用" : ""),
     receivedAt: new Date(receivedAt).toISOString()
   };
 }
@@ -289,6 +309,7 @@ export function createWolfxEewClient({
   let reconnectDelay = RECONNECT_MIN_MS;
   let snapshotAbortController = null;
   let connectionStatus = "stopped";
+  let connectionDetail = "";
   let lastConnectedAt = null;
   let lastMessageAt = null;
 
@@ -297,7 +318,7 @@ export function createWolfxEewClient({
   const setIntervalRef = windowRef?.setInterval?.bind(windowRef) ?? globalThis.setInterval;
   const clearIntervalRef = windowRef?.clearInterval?.bind(windowRef) ?? globalThis.clearInterval;
 
-  const connectionSnapshot = () => ({ status: connectionStatus, lastConnectedAt, lastMessageAt });
+  const connectionSnapshot = () => ({ status: connectionStatus, detail: connectionDetail, lastConnectedAt, lastMessageAt });
 
   function emit() {
     onUpdate?.(store.getSnapshot(connectionSnapshot()));
@@ -306,6 +327,7 @@ export function createWolfxEewClient({
 
   function setStatus(status, detail = "") {
     connectionStatus = status;
+    connectionDetail = detail;
     onStatus?.({ status, detail, lastConnectedAt, lastMessageAt });
     emit();
   }
@@ -466,6 +488,24 @@ export function createWolfxEewClient({
     if (documentRef?.visibilityState === "visible") refresh();
   }
 
+  function handlePageHide() {
+    if (stopped) return;
+    socketGeneration += 1;
+    snapshotAbortController?.abort();
+    snapshotAbortController = null;
+    clearTimers();
+    const closingSocket = socket;
+    socket = null;
+    try { closingSocket?.close(); } catch { /* no-op */ }
+    setStatus("suspended", "page hidden");
+  }
+
+  function handlePageShow() {
+    if (stopped) return;
+    connect();
+    requestLatest({ includeHttp: true });
+  }
+
   function start() {
     if (!stopped) {
       refresh();
@@ -473,6 +513,8 @@ export function createWolfxEewClient({
     }
     stopped = false;
     documentRef?.addEventListener?.("visibilitychange", handleVisibilityChange);
+    windowRef?.addEventListener?.("pagehide", handlePageHide);
+    windowRef?.addEventListener?.("pageshow", handlePageShow);
     connect();
   }
 
@@ -493,6 +535,8 @@ export function createWolfxEewClient({
     stopped = true;
     socketGeneration += 1;
     documentRef?.removeEventListener?.("visibilitychange", handleVisibilityChange);
+    windowRef?.removeEventListener?.("pagehide", handlePageHide);
+    windowRef?.removeEventListener?.("pageshow", handlePageShow);
     snapshotAbortController?.abort();
     snapshotAbortController = null;
     clearTimers();

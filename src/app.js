@@ -479,8 +479,6 @@ export function createWeatherApp() {
     updatedAt: null
   };
   let realtimeEarthquakeUpdateId = 0;
-  let earthquakeInfoOverrideUntil = 0;
-  let earthquakeInfoOverrideTimer = 0;
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
   let earlyAccessActiveFaultDataState = { status: "idle", data: null, error: "" };
   let earlyAccessActiveFaultDataRequest = null;
@@ -606,26 +604,8 @@ export function createWeatherApp() {
     eewWaveTimer = 0;
   }
 
-  function isEarthquakeInfoOverrideActive() {
-    return earthquakeInfoOverrideUntil > Date.now();
-  }
-
   function getDisplayedEewEvents() {
-    return isEarthquakeInfoOverrideActive() ? [] : eewState.activeEvents;
-  }
-
-  function scheduleEarthquakeInfoOverride() {
-    earthquakeInfoOverrideUntil = Date.now() + 10_000;
-    if (earthquakeInfoOverrideTimer) window.clearTimeout(earthquakeInfoOverrideTimer);
-    earthquakeInfoOverrideTimer = window.setTimeout(() => {
-      earthquakeInfoOverrideTimer = 0;
-      earthquakeInfoOverrideUntil = 0;
-      syncEewWaveAnimation();
-      if (activeTab === "earthquake" && earthquakeContentMode === "earthquake") {
-        const tab = TABS.find((item) => item.id === "earthquake");
-        if (tab) updateCurrentView(tab, latestDataByTab.earthquake ?? {});
-      }
-    }, 10_050);
+    return eewState.activeEvents;
   }
 
   function requestEewWaveFrame(callback) {
@@ -639,10 +619,14 @@ export function createWeatherApp() {
     stopEewWaveAnimation();
     const drawableEvents = getDisplayedEewEvents().filter((eew) => !eew.isCancel);
     weatherMap?.setEmergencyEarthquakeWarnings(drawableEvents);
-    if (!drawableEvents.some((eew) => eew.canRenderWaves)) return;
+    if (
+      activeTab !== "earthquake"
+      || document.visibilityState === "hidden"
+      || !drawableEvents.some((eew) => eew.canRenderWaves)
+    ) return;
 
     const generation = eewWaveAnimationGeneration;
-    const frameInterval = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? 250 : 33;
+    const frameInterval = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ? 250 : 100;
     let previousFrameTime = 0;
     const animate = (frameTime) => {
       if (generation !== eewWaveAnimationGeneration) return;
@@ -673,12 +657,9 @@ export function createWeatherApp() {
     };
     recordDiagnostic("earthquake-realtime-connection", realtimeEarthquakeState.connection);
 
-    if (incoming && shouldTemporarilyShowEarthquakeInfo(incoming) && eewState.activeEvents.length) {
-      scheduleEarthquakeInfoOverride();
-      earthquakeView = "recent";
-      earthquakeSummaryPage = "earthquake";
-      showMobileEarthquakeSummaryPage("earthquake");
-    }
+    // 確定した地震情報は最近の地震へ統合するが、発表中のEEWと波面表示は隠さない。
+    // 利用者はEEW要約内の通常地震情報ページから確定情報へ移動できる。
+    const hasIncomingEarthquakeInfo = incoming && shouldTemporarilyShowEarthquakeInfo(incoming);
 
     const current = latestDataByTab.earthquake ?? {};
     const nextData = await mergeEarthquakeRealtimeData(current, normalizedItems);
@@ -686,6 +667,11 @@ export function createWeatherApp() {
     const earthquakes = nextData.earthquakes;
     latestDataByTab.earthquake = nextData;
     if (!activeEarthquakeId && earthquakes.length) activeEarthquakeId = String(earthquakes[0].id ?? "");
+    if (hasIncomingEarthquakeInfo && !eewState.activeEvents.length) {
+      earthquakeView = "recent";
+      earthquakeSummaryPage = "earthquake";
+      showMobileEarthquakeSummaryPage("earthquake");
+    }
     syncEewWaveAnimation();
     if (activeTab === "earthquake" && earthquakeContentMode === "earthquake") {
       const tab = TABS.find((item) => item.id === "earthquake");
@@ -722,6 +708,18 @@ export function createWeatherApp() {
     indicator.title = label;
   }
 
+  function syncEewAlertIndicator() {
+    const button = document.querySelector('.tab-button[data-tab="earthquake"]');
+    if (!button) return;
+    const isActive = earlyAccessEnabled && eewState.activeEvents.some((eew) => !eew.isCancel);
+    button.classList.toggle("has-eew-alert", isActive);
+    if (isActive) {
+      button.dataset.eewAlert = "緊急地震速報発表中";
+    } else {
+      delete button.dataset.eewAlert;
+    }
+  }
+
   function handleEewUpdate(snapshot) {
     const nextState = snapshot && typeof snapshot === "object"
       ? snapshot
@@ -734,6 +732,7 @@ export function createWeatherApp() {
       updatedAt: nextState.updatedAt ?? null
     };
     syncEewConnectionIndicator();
+    syncEewAlertIndicator();
     if (!eewState.activeEvents.some((eew) => eew.eventId === selectedEewEventId)) {
       selectedEewEventId = eewState.activeEvents[0]?.eventId ?? "";
     }
@@ -750,6 +749,7 @@ export function createWeatherApp() {
 
   function syncEewEarlyAccess() {
     syncEewConnectionIndicator();
+    syncEewAlertIndicator();
     if (earlyAccessEnabled) {
       eewClient?.start();
       return;
@@ -3836,6 +3836,7 @@ if (layerId === "river") {
 
     document.addEventListener("visibilitychange", () => {
       syncEarlyWarningRefreshTimer();
+      syncEewWaveAnimation();
       if (!document.hidden) {
         void realtimeEarthquakeClient?.refresh();
         void refreshEarlyAccess();

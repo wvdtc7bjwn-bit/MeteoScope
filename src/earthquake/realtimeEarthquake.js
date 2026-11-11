@@ -1,3 +1,5 @@
+import { parseJstDateTime } from "../utils/jstDateTime.js";
+
 const P2P_HISTORY_URL = "https://api.p2pquake.net/v2/history?codes=551&limit=20";
 const P2P_WEBSOCKET_URL = "wss://api.p2pquake.net/v2/ws";
 const HISTORY_LIMIT = 50;
@@ -37,16 +39,6 @@ function finiteNumber(value, { min = -Infinity, max = Infinity } = {}) {
   if (value === null || value === undefined || String(value).trim() === "") return null;
   const numeric = Number(value);
   return Number.isFinite(numeric) && numeric >= min && numeric <= max ? numeric : null;
-}
-
-function parseJstTime(value) {
-  const text = cleanText(value);
-  if (!text) return null;
-  const normalized = /^\d{4}[/-]\d{1,2}[/-]\d{1,2}[ T]\d{1,2}:\d{2}(?::\d{2})?$/.test(text)
-    ? `${text.replaceAll("/", "-").replace(" ", "T")}${text.length <= 16 ? ":00" : ""}+09:00`
-    : text;
-  const timestamp = Date.parse(normalized);
-  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null;
 }
 
 function formatJstTime(value) {
@@ -119,8 +111,8 @@ function normalizeP2pPoints(points) {
 export function normalizeP2pEarthquake(payload) {
   if (!payload || typeof payload !== "object" || Number(payload.code) !== 551) return null;
   const issueType = cleanText(payload.issue?.type, "Other", 40);
-  const issueTimeRaw = parseJstTime(payload.issue?.time) ?? parseJstTime(payload.time);
-  const originTimeRaw = parseJstTime(payload.earthquake?.time);
+  const issueTimeRaw = parseJstDateTime(payload.issue?.time) ?? parseJstDateTime(payload.time);
+  const originTimeRaw = parseJstDateTime(payload.earthquake?.time);
   const latitude = finiteNumber(payload.earthquake?.hypocenter?.latitude, { min: -90, max: 90 });
   const longitude = finiteNumber(payload.earthquake?.hypocenter?.longitude, { min: -180, max: 180 });
   const depth = finiteNumber(payload.earthquake?.hypocenter?.depth, { min: 0, max: 1_000 });
@@ -274,6 +266,7 @@ export function createRealtimeEarthquakeClient({
   let p2pSocket = null;
   let reconnectTimer = null;
   let reconnectAttempt = 0;
+  let historyAbortController = null;
   let connection = { status: "stopped", source: "", lastMessageAt: null, error: "" };
   let earthquakes = [];
   const seenP2pIds = new Set();
@@ -297,14 +290,22 @@ export function createRealtimeEarthquakeClient({
     emit(incoming);
   };
 
-  async function fetchP2pHistory() {
+  async function fetchP2pHistory(expectedGeneration = generation) {
     if (!fetchImpl) throw new Error("fetch unavailable");
-    const response = await fetchImpl(P2P_HISTORY_URL, { cache: "no-store" });
-    if (!response.ok) throw new Error(`P2P history HTTP ${response.status}`);
-    const payload = await response.json();
-    const items = (Array.isArray(payload) ? payload : []).map(normalizeP2pEarthquake).filter(Boolean);
-    for (const entry of Array.isArray(payload) ? payload : []) if (entry?.id) seenP2pIds.add(String(entry.id));
-    accept(items);
+    historyAbortController?.abort();
+    const controller = new AbortController();
+    historyAbortController = controller;
+    try {
+      const response = await fetchImpl(P2P_HISTORY_URL, { cache: "no-store", signal: controller.signal });
+      if (!response.ok) throw new Error(`P2P history HTTP ${response.status}`);
+      const payload = await response.json();
+      if (!running || expectedGeneration !== generation) return;
+      const items = (Array.isArray(payload) ? payload : []).map(normalizeP2pEarthquake).filter(Boolean);
+      for (const entry of Array.isArray(payload) ? payload : []) if (entry?.id) seenP2pIds.add(String(entry.id));
+      accept(items);
+    } finally {
+      if (historyAbortController === controller) historyAbortController = null;
+    }
   }
 
   function closeSocket(socket) {
@@ -334,7 +335,7 @@ export function createRealtimeEarthquakeClient({
       if (!running || generation !== expectedGeneration || socket !== p2pSocket) return;
       reconnectAttempt = 0;
       setStatus({ status: "connected", source: "p2p", error: "" });
-      void fetchP2pHistory().catch(() => {});
+      void fetchP2pHistory(expectedGeneration).catch(() => {});
     };
     socket.onmessage = (event) => {
       if (!running || generation !== expectedGeneration || socket !== p2pSocket) return;
@@ -361,14 +362,17 @@ export function createRealtimeEarthquakeClient({
 
   async function refresh() {
     if (!running) return;
+    const expectedGeneration = generation;
     try {
-      await fetchP2pHistory();
+      await fetchP2pHistory(expectedGeneration);
+      if (!running || generation !== expectedGeneration) return;
       if (p2pSocket?.readyState !== 1) {
         closeSocket(p2pSocket);
         p2pSocket = null;
         connectP2p(generation);
       }
     } catch (error) {
+      if (error?.name === "AbortError" || !running || generation !== expectedGeneration) return;
       if (!p2pSocket) connectP2p(generation);
       connection = { ...connection, error: cleanText(error?.message, "再取得に失敗") };
       emit();
@@ -383,12 +387,14 @@ export function createRealtimeEarthquakeClient({
     running = true;
     generation += 1;
     connectP2p(generation);
-    void fetchP2pHistory().catch(() => {});
+    void fetchP2pHistory(generation).catch(() => {});
   }
 
   function stop({ clear = false } = {}) {
     running = false;
     generation += 1;
+    historyAbortController?.abort();
+    historyAbortController = null;
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
     closeSocket(p2pSocket);

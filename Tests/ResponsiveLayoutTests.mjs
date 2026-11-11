@@ -609,8 +609,13 @@ assert.match(panel, /return formatWarningTime\(text, includeYear\);/);
 assert.match(panel, /function formatWarningTime\(value, includeYear = false\)[\s\S]*?timeZone:\s*"Asia\/Tokyo"/);
 assert.match(
   app,
-  /function syncEewWaveAnimation\(\)[\s\S]*?frameInterval[\s\S]*?33[\s\S]*?requestEewWaveFrame\(animate\)/
+  /function syncEewWaveAnimation\(\)[\s\S]*?frameInterval[\s\S]*?100[\s\S]*?requestEewWaveFrame\(animate\)/
 );
+assert.match(app, /activeTab !== "earthquake"[\s\S]*?document\.visibilityState === "hidden"/);
+assert.doesNotMatch(app, /scheduleEarthquakeInfoOverride|earthquakeInfoOverrideUntil/);
+assert.match(app, /\.tab-button\[data-tab="earthquake"\]/);
+assert.match(app, /has-eew-alert/);
+assert.match(app, /確定した地震情報は最近の地震へ統合するが、発表中のEEWと波面表示は隠さない/);
 assert.doesNotMatch(
   app,
   /eewWaveTimer\s*=\s*window\.setInterval\([\s\S]{0,180}?1_000/

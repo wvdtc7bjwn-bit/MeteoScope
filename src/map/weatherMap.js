@@ -1286,7 +1286,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       filter: ["==", ["get", "featureType"], "hypocenter"],
       layout: {
         visibility: "none",
-        "text-field": "×",
+        "text-field": ["case", ["==", ["get", "uncertain"], true], "◌", "×"],
         "text-font": ["Noto Sans JP"],
         "text-size": HYPOCENTER_CROSS_TEXT_SIZE,
         "text-allow-overlap": true,
@@ -1294,6 +1294,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       },
       paint: {
         ...HYPOCENTER_CROSS_PAINT,
+        "text-color": ["case", ["==", ["get", "uncertain"], true], "#f2b84b", "#e3342f"],
         "text-opacity": 1,
         "text-opacity-transition": { duration: 1400, delay: 0 }
       }
