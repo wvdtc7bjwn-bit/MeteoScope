@@ -4,6 +4,9 @@ import { getEarthquakeIntensityColor, getEarthquakeIntensityRank } from "../eart
 
 const EVENT_ENDPOINT = "/api/earthquake-history-event";
 const AREA_BOUNDARY_SNAP_TOLERANCE_KM = 5;
+// Static area geometry is shared across reports; never rescan every vertex
+// for each earthquake in the recent-history list. Intensities remain per-call.
+const geometryBoundsCache = new WeakMap();
 
 export async function fetchEarthquakeHistoryEvent(eventId, { signal } = {}) {
   const id = normalizeEarthquakeHistoryEventId(eventId);
@@ -33,6 +36,7 @@ export async function fetchEarthquakeHistoryEvent(eventId, { signal } = {}) {
 }
 
 export function buildHistoricalIntensityAreaFeatures(stations = [], geoJson = null) {
+  if (!stations.length) return [];
   const areaGroups = new Map();
   const areaFeatures = (geoJson?.features ?? []).flatMap((feature) => {
     const areaCode = String(feature?.properties?.code ?? feature?.properties?.areaCode ?? "").trim();
@@ -152,6 +156,7 @@ function combineAreaGeometries(geometries) {
 
 function getGeometryBounds(geometry) {
   if (!["Polygon", "MultiPolygon"].includes(geometry?.type)) return null;
+  if (geometryBoundsCache.has(geometry)) return geometryBoundsCache.get(geometry);
   const bounds = [Infinity, Infinity, -Infinity, -Infinity];
   const visit = (coordinates) => {
     if (!Array.isArray(coordinates)) return;
@@ -165,7 +170,9 @@ function getGeometryBounds(geometry) {
     coordinates.forEach(visit);
   };
   visit(geometry.coordinates);
-  return bounds.every(Number.isFinite) ? bounds : null;
+  const result = bounds.every(Number.isFinite) ? bounds : null;
+  geometryBoundsCache.set(geometry, result);
+  return result;
 }
 
 function geometryContainsCoordinate(geometry, coordinate) {

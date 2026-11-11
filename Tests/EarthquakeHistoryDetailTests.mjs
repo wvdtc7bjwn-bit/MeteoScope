@@ -7,6 +7,27 @@ import {
 } from "../src/jma/earthquakeHistoryDetail.js";
 import { getEarthquakeIntensityRank } from "../src/earthquakeIntensity.js";
 
+// Geometry bounds are reusable, but each report must get its own intensity.
+let coordinateReads = 0;
+const sharedGeometry = {
+  type: "Polygon",
+  get coordinates() {
+    coordinateReads += 1;
+    return [[[130, 32], [131, 32], [131, 33], [130, 33], [130, 32]]];
+  }
+};
+const sharedAreas = { features: [{ properties: { code: "test" }, geometry: sharedGeometry }] };
+const outsideStation = [{ coordinates: [140, 40], intensity: "1" }];
+assert.deepEqual(buildHistoricalIntensityAreaFeatures(outsideStation, sharedAreas), []);
+const readsAfterFirst = coordinateReads;
+assert.deepEqual(buildHistoricalIntensityAreaFeatures(outsideStation, sharedAreas), []);
+assert.equal(coordinateReads, readsAfterFirst, "unchanged geometry bounds must not be scanned again");
+const high = buildHistoricalIntensityAreaFeatures([{ coordinates: [130.5, 32.5], intensity: "6+" }], sharedAreas);
+const low = buildHistoricalIntensityAreaFeatures([{ coordinates: [130.5, 32.5], intensity: "1" }], sharedAreas);
+assert.equal(high[0].properties.intensity, "6+");
+assert.equal(low[0].properties.intensity, "1");
+assert.deepEqual(buildHistoricalIntensityAreaFeatures([], sharedAreas), []);
+
 assert.equal(normalizeEarthquakeHistoryEventId("20240101161022"), "20240101161022");
 assert.equal(normalizeEarthquakeHistoryEventId("20240101161022<script>"), "");
 const event = normalizeEarthquakeHistoryEvent({

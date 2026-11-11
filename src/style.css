@@ -22807,7 +22807,24 @@ html[data-theme="light"] #map-layer-toggle .weather-distribution-toggle-choices 
 html[data-theme="light"] #map-layer-toggle .weather-distribution-toggle-choices button.active { color: #075a83; background: rgba(39,139,190,.13); }
 
 /* Shared modal presentation. Feature layouts and semantic state colors stay local. */
+.warning-modal {
+  --modal-frame-width: 960px;
+  --modal-frame-height: 800px;
+  --modal-frame-top: max(16px, env(safe-area-inset-top, 0px));
+  --modal-frame-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  --modal-frame-left: max(16px, env(safe-area-inset-left, 0px));
+  --modal-frame-right: max(16px, env(safe-area-inset-right, 0px));
+  padding: var(--modal-frame-top) var(--modal-frame-right) var(--modal-frame-bottom) var(--modal-frame-left) !important;
+}
 .warning-modal .warning-modal-panel {
+  /* One frame for every feature, including their legacy breakpoint rules. */
+  box-sizing: border-box;
+  width: min(var(--modal-frame-width), calc(100vw - var(--modal-frame-left) - var(--modal-frame-right))) !important;
+  height: min(var(--modal-frame-height), calc(100dvh - var(--modal-frame-top) - var(--modal-frame-bottom))) !important;
+  max-width: 100% !important;
+  max-height: calc(100dvh - var(--modal-frame-top) - var(--modal-frame-bottom)) !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
   --modal-surface: #101b2b;
   --modal-control-surface: #15263a;
   --modal-control-border: #40556d;
@@ -22857,6 +22874,7 @@ html[data-theme="light"] .warning-modal .warning-modal-panel {
   box-shadow: none;
 }
 .warning-modal .warning-modal-panel > [class$="-body"] {
+  flex: 1 1 auto;
   padding-inline: 18px;
   min-height: 0;
   overscroll-behavior: contain;

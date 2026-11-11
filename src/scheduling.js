@@ -17,3 +17,28 @@ export function chunkItems(items, size) {
   }
   return chunks;
 }
+
+// Let the selected control paint before preparing a potentially large map.
+// The timeout also releases callers when rAF is suspended in a hidden page.
+export function yieldAfterPaint() {
+  if (typeof globalThis.requestAnimationFrame !== "function" || globalThis.document?.hidden) {
+    return yieldToMainThread();
+  }
+  return new Promise((resolve) => {
+    let frame = 0;
+    let task = 0;
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      globalThis.cancelAnimationFrame?.(frame);
+      globalThis.clearTimeout(task);
+      globalThis.clearTimeout(fallback);
+      resolve();
+    };
+    const fallback = globalThis.setTimeout(finish, 100);
+    frame = globalThis.requestAnimationFrame(() => {
+      task = globalThis.setTimeout(finish, 0);
+    });
+  });
+}

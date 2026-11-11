@@ -77,9 +77,8 @@ export function setupTabs({ onChange, tabs = [] }) {
     if (!tabId) return;
     const changed = setActiveButton(tabId);
     if (!changed && !force) return;
-    // selectTab commits the URL, map mode and panel state synchronously before
-    // its first await. Invoke it in the same release/click event as the visual
-    // commit so a later gesture cannot cancel the application-side switch.
+    // Commit navigation immediately; selectTab defers expensive map work until
+    // the selected control paints and discards superseded navigation requests.
     const result = onChange?.(tabId);
     if (result && typeof result.catch === "function") {
       result.catch((error) => console.error("[MeteoScope] tab change failed", error));

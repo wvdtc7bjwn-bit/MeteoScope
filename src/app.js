@@ -81,7 +81,7 @@ import { fetchEarlyAccessActiveFaultSegments, validateEarlyAccess } from "./ui/e
 import { CommunityReportClient } from "./domain/communityReportClient.js";
 import { openCommunityReportModal, setupCommunityReportModal } from "./ui/communityReportModal.js";
 import { setupWorldTyphoonTargetModal, updateWorldTyphoonTargetPicker } from "./ui/worldTyphoonTargetModal.js";
-import { yieldToMainThread } from "./scheduling.js";
+import { yieldToMainThread, yieldAfterPaint } from "./scheduling.js";
 import { setupLongPressButton } from "./ui/longPressButton.js";
 import { setupEarthquakeLongPressHint } from "./ui/earthquakeLongPressHint.js";
 import { setupMapUtilityMenu } from "./ui/mapUtilityMenu.js";
@@ -811,11 +811,15 @@ export function createWeatherApp() {
     invalidateScheduledPanelRender();
     syncActiveTabToUrl(tab.id);
     tabControls?.setActiveButton(tab.id);
+    const requestId = ++activeLoadRequestId;
+    await yieldAfterPaint();
+    if (requestId !== activeLoadRequestId || activeTab !== tab.id) return;
     try {
       if (tab.id !== "radar") {
         stopRadarPlayback();
         stopLightningPlayback();
         stopWeatherChartPlayback();
+        stopWeatherDistributionPlayback();
       }
       weatherMap?.setMode(tab.id);
       if (communityReportsVisible && isRainRadarActive()) void refreshCommunityReports();
@@ -823,7 +827,6 @@ export function createWeatherApp() {
       console.warn("[MeteoScope] tab map update failed", error);
     }
 
-    const requestId = ++activeLoadRequestId;
     const cachedData = tab.id === "earthquake" && earthquakeContentMode === "volcano"
       ? volcanoData
       : latestDataByTab[tab.id];
@@ -2252,6 +2255,9 @@ if (layerId === "river") {
   }
 
   function updateCurrentView(tab, data, options = {}) {
+    // Background fetches may complete after navigation. Keep their cached data,
+    // but do not rebuild or replace the panel belonging to the active tab.
+    if (!tab || tab.id !== activeTab) return;
     const displayData = buildDisplayData(tab, data);
     updateWorldTyphoonTargetPicker({
       visible: tab.id === "typhoon" && Boolean(displayData.worldForecastMode),

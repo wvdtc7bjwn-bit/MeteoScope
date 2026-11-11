@@ -8,6 +8,7 @@ import {
 } from "../config.js";
 import { fetchJson, fetchText, parseJmaTime } from "./jmaClient.js";
 import { buildHistoricalIntensityAreaFeatures } from "./earthquakeHistoryDetail.js";
+import { yieldToMainThread } from "../scheduling.js";
 import {
   attachIntensityStationCoordinates,
   buildEmptyStationLookup,
@@ -143,11 +144,16 @@ export async function attachEarthquakeMapDataList(earthquakes) {
       return buildEmptyStationLookup();
     })
   ]);
-  return (earthquakes ?? []).map((earthquake) => attachEarthquakeMapData(
-    earthquake,
-    areaLookup,
-    stationLookup
-  ));
+  const result = [];
+  let sliceStarted = performance.now();
+  for (const earthquake of earthquakes ?? []) {
+    result.push(attachEarthquakeMapData(earthquake, areaLookup, stationLookup));
+    if (performance.now() - sliceStarted >= 8) {
+      await yieldToMainThread();
+      sliceStarted = performance.now();
+    }
+  }
+  return result;
 }
 
 async function fetchEarthquakeFeeds() {
