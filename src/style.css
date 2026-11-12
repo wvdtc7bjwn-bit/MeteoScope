@@ -7411,9 +7411,10 @@ focal-mechanism summary:focus-visible { outline: 2px solid #369bc6; outline-offs
 .focal-mechanism-body section + section { border-top: 1px solid rgba(137, 170, 220, 0.28); margin-top: 16px; }
 .focal-mechanism-body h4 { margin: 10px 0 8px; font-size: 14px; }
 .focal-mechanism-body p { margin: 8px 0; font-size: 12px; }
-.focal-mechanism-body img { display: block; width: min(100%, 200px); height: auto; margin: 12px auto; background: white; border-radius: 2px; }
+.focal-mechanism-body :is(img, canvas) { display: block; width: min(100%, 200px); aspect-ratio: 1; height: auto; object-fit: contain; margin: 12px auto; }
+.focal-mechanism-body img { background: white; border-radius: 2px; }
 .focal-mechanism-body figure { margin: 12px 0; }
-.focal-mechanism-body canvas { display: block; width: min(100%, 200px); height: auto; margin: auto; }
+.focal-mechanism-body canvas { margin: auto; }
 .focal-mechanism-body figcaption { margin-top: 8px; font-size: 12px; }
 .focal-mechanism-body table { width: 100%; max-width: 420px; border-collapse: collapse; margin: 10px auto; font-size: 12px; font-variant-numeric: tabular-nums; }
 .focal-mechanism-body :is(th, td) { padding: 6px; text-align: center; border-bottom: 1px solid rgba(137, 170, 220, 0.28); }

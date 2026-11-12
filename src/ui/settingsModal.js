@@ -261,16 +261,10 @@ function toggleSettingsGroup(toggle) {
   const group = toggle.closest(".settings-group");
   if (!group) return;
   const expanded = toggle.getAttribute("aria-expanded") !== "true";
-  if (expanded) {
-    document.querySelectorAll("#settings-modal .settings-group.is-expanded").forEach((otherGroup) => {
-      if (otherGroup !== group) setSettingsGroupExpanded(otherGroup, false);
-    });
-  }
   setSettingsGroupExpanded(group, expanded);
   if (expanded) {
     if (group.matches(".settings-changelog-group")) renderSettingsChangelog();
     void renderSettingsLegalDocument(group);
-    scrollSettingsGroupIntoView(group);
   }
 }
 

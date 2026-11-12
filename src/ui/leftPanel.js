@@ -1,3 +1,4 @@
+import { updateHistorySelection } from "./historySelection.js";
 import { renderFocalMechanism } from "./focalMechanism.js";
 import { getSnowDepthAxisMaximum, splitAmedasChartSegments } from "../amedasChart.js";
 import {
@@ -6147,6 +6148,8 @@ function renderTyphoonDetails(tab, state) {
   `;
 }
 
+const historyListMarkup = new WeakMap();
+
 function renderEarthquakeList(tab, state) {
   const root = document.getElementById("earthquake-list");
   if (!root) return;
@@ -6160,12 +6163,14 @@ function renderEarthquakeList(tab, state) {
   root.hidden = !isEarthquake;
   root.classList.remove("is-distribution-view", "is-history-view");
   if (!isEarthquake) {
+    historyListMarkup.delete(root);
     setSocialSharePayload("earthquake", null);
     root.innerHTML = "";
     return;
   }
 
   if (state.earthquakeContentMode === "volcano" || state.data?.earthquakeContentMode === "volcano") {
+    historyListMarkup.delete(root);
     setSocialSharePayload("earthquake", null);
     renderVolcanoList(state, render);
     return;
@@ -6174,7 +6179,10 @@ function renderEarthquakeList(tab, state) {
   const view = state.data?.earthquakeView ?? "recent";
   const viewChanged = root.dataset.earthquakeView !== view;
   root.dataset.earthquakeView = view;
-  if (viewChanged) root.scrollTop = 0;
+  if (viewChanged) {
+    root.scrollTop = 0;
+    historyListMarkup.delete(root);
+  }
   root.classList.toggle("is-distribution-view", view === "distribution");
   root.classList.toggle("is-history-view", view === "history");
   const viewToggle = buildEarthquakeViewToggle(view);
@@ -6226,7 +6234,8 @@ function renderEarthquakeList(tab, state) {
   } else {
     setSocialSharePayload("earthquake", null);
   }
-  const renderDetailPages = (earthquakeMarkup) => render(`
+  const renderDetailPages = (earthquakeMarkup) => {
+    const markup = `
     <div class="earthquake-detail-mode" data-mobile-earthquake-detail="earthquake">
       ${earthquakeMarkup}
     </div>
@@ -6240,11 +6249,20 @@ function renderEarthquakeList(tab, state) {
     <div class="earthquake-detail-mode tide-dedicated-detail" data-mobile-earthquake-detail="tide">
       ${buildTideObservationDedicatedDetailMarkup(state.data?.tideObservation)}
     </div>
-  `);
+  `;
+    if (view === "history" && historyListMarkup.get(root) === markup) return;
+    render(markup);
+    if (view === "history") historyListMarkup.set(root, markup);
+  };
 
   if (view === "history") {
     setSocialSharePayload("earthquake", null);
-    renderDetailPages(`${viewToggle}${buildEarthquakeArchiveMarkup(state.data ?? {})}`);
+    const data = state.data ?? {};
+    // Selection/detail responses do not change the search results. Keep their
+    // DOM, focused button and loaded mechanism instead of rebuilding the list.
+    const markup = `${viewToggle}${buildEarthquakeArchiveMarkup({ ...data, selectedHistoricalEarthquakeId: "" })}`;
+    renderDetailPages(markup);
+    updateHistorySelection(root, data.selectedHistoricalEarthquakeId, data.earthquakeArchive?.items ?? []);
     return;
   }
 

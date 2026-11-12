@@ -100,7 +100,7 @@ assert.match(weatherMap, /data: JMA_ENDPOINTS\.warningMunicipalitiesMap/);
 assert.match(weatherMap, /data: JMA_ENDPOINTS\.prefecturesMap/);
 
 assert.match(main, /navigator\.serviceWorker\.register\("\/sw\.js", \{ updateViaCache: "none" \}\)/);
-assert.match(main, /navigator\.serviceWorker\.addEventListener\("controllerchange"[\s\S]*?window\.location\.reload\(\)/);
+assert.doesNotMatch(main, /window\.location\.reload\(\)/, "worker activation must preserve the running document");
 assert.match(main, /registration\.update\(\)\.catch/);
 assert.match(serviceWorker, /request\.mode === "navigate"[\s\S]*?url\.pathname === "\/" \|\| url\.pathname === "\/index\.html"/);
 assert.match(serviceWorker, /url\.pathname\.startsWith\("\/assets\/"\)/);

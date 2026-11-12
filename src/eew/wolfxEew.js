@@ -40,14 +40,14 @@ function normalizeIntensity(value) {
 function getMethodMetadata(payload, { isAssumption = false } = {}) {
   // Wolfx Accuracyは説明文字列。数値コードや未定義のisPlumを解釈しない。
   const descriptions = [payload.Accuracy?.Epicenter, payload.Accuracy?.Depth]
-    .map((value) => String(value ?? "").normalize("NFKC").trim());
+    .map((value) => String(value ?? "").normalize("NFKC").replace(/\s+/gu, ""));
   const statements = String(payload.OriginalText ?? "").normalize("NFKC").split(/[。\n]/u).map(s => s.trim());
   const hasMixedEvidence = statements.some(s => /^(?:通常方式|IPF法)とPLUM法を併用(?:した(?:情報|速報)|による速報)?$/u.test(s));
   const hasPlumEvidence = hasMixedEvidence || statements.some(s => /^PLUM法(?:のみ)?による(?:緊急地震速報|震度予測)(?:[（(](?:予報|警報)[）)])?$/u.test(s));
   const level = descriptions.some(s => /^(?:P波|S波|P波\/S波)レベル(?:越え|法)$/u.test(s));
-  const ipf = descriptions.some(s => /^IPF法\([1-4]点\)$/u.test(s));
+  const ipf = descriptions.some(s => /^IPF法\((?:[1-4]点|5点以上)\)$/u.test(s));
   const ipfOne = descriptions.some(s => s === "IPF法(1点)");
-  const reliable = descriptions.length === 2 && descriptions.every(s => /^(?:IPF法\([2-4]点\)|着未着法|EPOS|防災科研システム)$/u.test(s));
+  const reliable = descriptions.length === 2 && descriptions.every(s => /^(?:IPF法\((?:[2-4]点|5点以上)\)|着未着法|EPOS|防災科研システム)$/u.test(s));
   const type = hasMixedEvidence
     ? "mixed"
     : hasPlumEvidence

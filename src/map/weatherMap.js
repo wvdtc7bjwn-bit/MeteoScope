@@ -2750,6 +2750,8 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
 
   function resize() {
     map?.resize();
+    // Resume may leave the canvas compositor stale even at the same size.
+    map?.triggerRepaint();
   }
 
   function getVisibleBounds() {

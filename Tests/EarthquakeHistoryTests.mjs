@@ -376,7 +376,7 @@ assert.match(app, /function closeNearbyEarthquakeSearch\(\)\s*\{[\s\S]*?earthqua
   "近傍条件解除後は条件を消して通常の過去地震検索を再実行する");
 assert.doesNotMatch(panel, /if \(state\.data\?\.earthquakeNearbySearchActive\) \{\s*root\.hidden = true;/u,
   "詳細パネルを手動で開いた際に近傍検索結果を空にしない");
-assert.match(panel, /if \(view === "history"\) \{[\s\S]*?buildEarthquakeArchiveMarkup\(state\.data \?\? \{\}\)/u,
+assert.match(panel, /if \(view === "history"\) \{[\s\S]*?buildEarthquakeArchiveMarkup\(\{ \.\.\.data, selectedHistoricalEarthquakeId: "" \}\)/u,
   "過去の地震タブを開くと検索条件と結果を詳細パネルに表示する");
 assert.match(app, /radiusKm: 50/u);
 assert.match(panel, /data-next-visible-count/u);

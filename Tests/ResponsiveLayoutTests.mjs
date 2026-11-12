@@ -963,7 +963,7 @@ assert.match(
 );
 assert.match(
   panel,
-  /const renderDetailPages = \(earthquakeMarkup\) => render\([\s\S]*?data-mobile-earthquake-detail="earthquake"[\s\S]*?data-mobile-earthquake-detail="tsunami"[\s\S]*?data-mobile-earthquake-detail="tide"/
+  /const renderDetailPages = \(earthquakeMarkup\) => \{[\s\S]*?data-mobile-earthquake-detail="earthquake"[\s\S]*?data-mobile-earthquake-detail="tsunami"[\s\S]*?data-mobile-earthquake-detail="tide"/
 );
 assert.match(
   panel,

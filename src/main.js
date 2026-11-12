@@ -9,12 +9,8 @@ app.start();
 
 function registerAppServiceWorker() {
   if (!("serviceWorker" in navigator) || !window.isSecureContext) return;
-  let reloadingForServiceWorkerUpdate = false;
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (reloadingForServiceWorkerUpdate) return;
-    reloadingForServiceWorkerUpdate = true;
-    window.location.reload();
-  });
+  // Keep the current document alive when a worker activates (including resume).
+  // New navigations load the latest HTML; hashed assets keep this session valid.
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" })
       .then((registration) => registration.update().catch((error) => {

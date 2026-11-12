@@ -3887,6 +3887,7 @@ if (layerId === "river") {
       syncEarlyWarningRefreshTimer();
       syncEewWaveAnimation();
       if (!document.hidden) {
+        weatherMap?.resize();
         void realtimeEarthquakeClient?.refresh();
         void refreshEarlyAccess();
         if (currentLocationInfo.status === "found") void currentLocationWeather.refresh(currentLocationInfo);
@@ -4335,6 +4336,7 @@ if (layerId === "river") {
       stopEewWaveAnimation();
     });
     window.addEventListener("pageshow", () => {
+      weatherMap?.resize();
       realtimeEarthquakeClient?.start();
       void realtimeEarthquakeClient?.refresh();
       if (earlyAccessEnabled) {

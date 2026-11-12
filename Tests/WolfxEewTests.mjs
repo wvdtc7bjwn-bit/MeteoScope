@@ -20,6 +20,25 @@ import {
 
 const BASE_TIME = Date.parse("2026-11-10T12:00:00+09:00");
 
+// Wolfx HTTP response checked 2026-11-12: Accuracy contains spaced IPF labels.
+// https://api.wolfx.jp/jma_eew.json (event 20261111125704)
+for (const label of ["IPF 法（5 点以上）", "IPF法(5点以上)", "IPF 法（3 点）"]) {
+  const payload = { EventID: "ipf-format", OriginTime: "2026/11/10 11:59:30",
+    AnnouncedTime: "2026/11/10 12:00:00", Latitude: 36.3, Longitude: 141.7,
+    Depth: 30, Magnitude: 4.5, Accuracy: { Epicenter: label, Depth: label }, isFinal: true };
+  const event = normalizeWolfxEew(payload, { receivedAt: BASE_TIME });
+  assert.equal(event.hypocenterReliability, "usable", label);
+  assert.equal(event.canRenderWaves, true, label);
+  const waves = getWaveDistancesByJma2001(event.depth, 30);
+  assert.ok(waves.pDistanceKm > waves.sDistanceKm && waves.sDistanceKm > 0);
+  for (const invalid of ["IPF 法（1 点）", "IPF法(6点)", "不明", ""]) {
+    const excluded = normalizeWolfxEew({ ...payload, Accuracy: { Epicenter: invalid, Depth: invalid } });
+    assert.equal(excluded.canRenderWaves, false, invalid);
+  }
+  assert.equal(normalizeWolfxEew({ ...payload, isAssumption: true }).canRenderWaves, false);
+  assert.equal(normalizeWolfxEew({ ...payload, Depth: null }).canRenderWaves, false);
+}
+
 for (const scenario of ["level", "accuracy-unknown", "depth-unknown", "one-point", "plum", "assumption"]) {
   assert.equal(createLocalEewTestEvent(scenario, { now: BASE_TIME }).canRenderWaves, false, scenario);
 }
