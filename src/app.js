@@ -91,8 +91,7 @@ import { createWolfxEewClient } from "./eew/wolfxEew.js";
 import { createLocalEewTestEvent, isLocalEewTestEnvironment } from "./eew/localEewTest.js";
 import {
   createRealtimeEarthquakeClient,
-  mergeRealtimeEarthquakes,
-  shouldTemporarilyShowEarthquakeInfo
+  mergeRealtimeEarthquakes
 } from "./earthquake/realtimeEarthquake.js";
 
 const loaders = {
@@ -653,7 +652,6 @@ export function createWeatherApp() {
 
   async function handleRealtimeEarthquakeUpdate(snapshot) {
     const updateId = ++realtimeEarthquakeUpdateId;
-    const incoming = snapshot?.incoming ?? null;
     const normalizedItems = Array.isArray(snapshot?.earthquakes) ? snapshot.earthquakes : [];
     realtimeEarthquakeState = {
       earthquakes: normalizedItems,
@@ -664,24 +662,44 @@ export function createWeatherApp() {
 
     // 確定した地震情報は最近の地震へ統合するが、発表中のEEWと波面表示は隠さない。
     // 利用者はEEW要約内の通常地震情報ページから確定情報へ移動できる。
-    const hasIncomingEarthquakeInfo = incoming && shouldTemporarilyShowEarthquakeInfo(incoming);
-
     const current = latestDataByTab.earthquake ?? {};
     const nextData = await mergeEarthquakeRealtimeData(current, normalizedItems);
     if (updateId !== realtimeEarthquakeUpdateId) return;
     const earthquakes = nextData.earthquakes;
+    const previousEarthquakes = latestDataByTab.earthquake?.earthquakes ?? [];
     latestDataByTab.earthquake = nextData;
     if (!activeEarthquakeId && earthquakes.length) activeEarthquakeId = String(earthquakes[0].id ?? "");
-    if (hasIncomingEarthquakeInfo && !eewState.activeEvents.length) {
-      earthquakeView = "recent";
-      earthquakeSummaryPage = "earthquake";
-      showMobileEarthquakeSummaryPage("earthquake");
-    }
+    followLatestEarthquakeUpdate(previousEarthquakes, earthquakes);
     syncEewWaveAnimation();
     if (activeTab === "earthquake" && earthquakeContentMode === "earthquake") {
       const tab = TABS.find((item) => item.id === "earthquake");
       if (tab) updateCurrentView(tab, latestDataByTab.earthquake);
     }
+  }
+
+  function followLatestEarthquakeUpdate(previousItems, nextItems) {
+    const previous = previousItems?.[0];
+    const latest = nextItems?.[0];
+    if (!previous || !latest) return;
+    const eventTime = (item) => Date.parse(item.eventTimeRaw || item.reportTimeRaw || "");
+    const reportTime = (item) => Date.parse(item.reportTimeRaw || "");
+    // 接続状態の通知・同一電文の再取得・古い履歴の追加では閲覧を中断しない。
+    const newerEvent = eventTime(latest) > eventTime(previous);
+    const newerReport = eventTime(latest) === eventTime(previous)
+      && reportTime(latest) > reportTime(previous);
+    if (!newerEvent && !newerReport) return;
+    activeEarthquakeId = String(latest.id ?? "");
+    collapsedEarthquakeId = "";
+    if (earthquakeContentMode !== "earthquake") return;
+    cancelEarthquakeArchiveAreaDrawing();
+    if (earthquakeDistributionAreaDrawing) {
+      weatherMap?.cancelHypocenterAreaDrawing();
+      earthquakeDistributionAreaDrawing = false;
+    }
+    earthquakeNearbySearchActive = false;
+    earthquakeView = "recent";
+    earthquakeSummaryPage = "earthquake";
+    showMobileEarthquakeSummaryPage("earthquake");
   }
 
   async function mergeEarthquakeRealtimeData(data = {}, realtimeItems = realtimeEarthquakeState.earthquakes) {
@@ -1998,7 +2016,6 @@ if (layerId === "river") {
     if (!earthquakeArchiveAreaDrawing) return;
     weatherMap?.cancelHypocenterAreaDrawing();
     earthquakeArchiveAreaDrawing = false;
-    document.getElementById("earthquake-area-search-tools")?.remove();
   }
 
   function startEarthquakeArchiveAreaSearch(filters) {
@@ -2020,21 +2037,8 @@ if (layerId === "river") {
     });
     if (!started) return;
     earthquakeArchiveAreaDrawing = true;
+    updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
     window.dispatchEvent(new CustomEvent("sidebar-drawer-state", { detail: "peek" }));
-    const tools = document.createElement("div");
-    tools.id = "earthquake-area-search-tools";
-    const label = document.createElement("span");
-    label.textContent = "地図をなぞって震央の検索範囲を囲む";
-    const cancel = document.createElement("button");
-    cancel.type = "button";
-    cancel.textContent = "中止";
-    cancel.addEventListener("click", () => {
-      cancelEarthquakeArchiveAreaDrawing();
-      updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
-      window.dispatchEvent(new CustomEvent("sidebar-drawer-state", { detail: "full" }));
-    });
-    tools.append(label, cancel);
-    document.body.append(tools);
   }
 
   function startEarthquakeDistributionAreaSearch() {
@@ -2049,6 +2053,8 @@ if (layerId === "river") {
     saveOptionalLayerVisibility("earthquake-3d", false);
     const started = weatherMap?.startHypocenterAreaSelection((areaPolygon) => {
       earthquakeDistributionAreaDrawing = false;
+      if (activeTab !== "earthquake" || earthquakeView !== "distribution") return;
+      window.dispatchEvent(new CustomEvent("sidebar-drawer-state", { detail: "full" }));
       if (!Array.isArray(areaPolygon) || areaPolygon.length < 3) {
         updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
         return;
@@ -2058,6 +2064,7 @@ if (layerId === "river") {
     if (!started) return;
     earthquakeDistributionAreaDrawing = true;
     updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+    window.dispatchEvent(new CustomEvent("sidebar-drawer-state", { detail: "peek" }));
   }
 
   function clearEarthquakeDistributionAreaSearch() {
@@ -3676,7 +3683,9 @@ if (layerId === "river") {
           activeEarthquakeId = selectedIdAtStart;
         }
 
+        const previousEarthquakes = latestDataByTab.earthquake?.earthquakes ?? [];
         latestDataByTab.earthquake = nextData;
+        followLatestEarthquakeUpdate(previousEarthquakes, earthquakes);
         if (activeTab === "earthquake") {
           const tab = TABS.find((item) => item.id === "earthquake");
           updateCurrentView(tab, nextData);

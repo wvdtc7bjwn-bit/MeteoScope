@@ -199,17 +199,19 @@ console.log("Earthquake shape and point separation tests passed");
 // ordinary reconciliation waits. Explicit refreshes and realtime are separate.
 let settleFocus;
 let refreshCalls = 0;
+const refreshErrors = [];
 const refreshCtx = vm.createContext({
   tabAutoFocusSettled: new Promise(resolve => { settleFocus = resolve; }),
   activeTab: 'earthquake', document: { hidden: false },
   earthquakeRefreshRequest: null, lastEarthquakeRefreshStartedAt: 0,
   EARTHQUAKE_REFRESH_INTERVAL_MS: 15000, latestDataByTab: { earthquake: { earthquakes: [] } },
-  activeEarthquakeId: '', TABS: [{id:'earthquake'}], console,
+  activeEarthquakeId: '', TABS: [{id:'earthquake'}], console: { warn: (...args) => refreshErrors.push(args) },
   loadTabData: async () => { refreshCalls++; return { earthquakes: [{id:'new'}] }; },
   updateCurrentView: noop
 });
 const refreshStart = source.indexOf('  async function refreshEarthquakeData(');
 const refreshEnd = source.indexOf('  async function locateCurrentPosition()', refreshStart);
+vm.runInContext(source.slice(source.indexOf('  function followLatestEarthquakeUpdate('), source.indexOf('  async function mergeEarthquakeRealtimeData(')), refreshCtx);
 vm.runInContext(source.slice(refreshStart, refreshEnd), refreshCtx);
 const refreshWaiting = refreshCtx.refreshEarthquakeData();
 assert.equal(refreshCalls, 0, 'expired XML refresh must wait until camera movement ends');
@@ -222,6 +224,7 @@ refreshCtx.tabAutoFocusSettled = Promise.resolve();
 refreshCtx.activeTab = 'radar';
 await refreshCtx.refreshEarthquakeData();
 assert.equal(refreshCalls, 2, 'leaving during the wait cancels background reconciliation');
+assert.deepEqual(refreshErrors, [], 'refresh must not silently catch missing dependencies');
 
 const focusPaints = [];
 const focused = [];

@@ -2807,12 +2807,17 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     hypocenterAreaOverlay = overlay;
     const points = [];
     let drawing = false;
+    let activePointerId = null;
+    const screenPoint = (event) => {
+      const rect = overlay.getBoundingClientRect();
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    };
 
     const updateShape = () => {
       shape.setAttribute("points", points.map((point) => `${point.x},${point.y}`).join(" "));
     };
     const finish = (event) => {
-      if (!drawing) return;
+      if (hypocenterAreaOverlay !== overlay || !drawing || event.pointerId !== activePointerId) return;
       drawing = false;
       overlay.releasePointerCapture?.(event.pointerId);
       map.dragPan.enable();
@@ -2832,24 +2837,28 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       onComplete?.(polygon);
     };
     overlay.addEventListener("pointerdown", (event) => {
+      if (hypocenterAreaOverlay !== overlay || drawing || event.button !== 0) return;
       event.preventDefault();
+      activePointerId = event.pointerId;
       drawing = true;
       points.length = 0;
-      points.push({ x: event.offsetX, y: event.offsetY });
+      points.push(screenPoint(event));
       overlay.setPointerCapture?.(event.pointerId);
       map.dragPan.disable();
       updateShape();
     });
     overlay.addEventListener("pointermove", (event) => {
-      if (!drawing) return;
-      const next = { x: event.offsetX, y: event.offsetY };
+      if (hypocenterAreaOverlay !== overlay || !drawing || event.pointerId !== activePointerId) return;
+      const next = screenPoint(event);
       const previous = points.at(-1);
       if (previous && Math.hypot(next.x - previous.x, next.y - previous.y) < 5) return;
       points.push(next);
       updateShape();
     });
     overlay.addEventListener("pointerup", finish);
-    overlay.addEventListener("pointercancel", () => {
+    overlay.addEventListener("pointercancel", (event) => {
+      if (hypocenterAreaOverlay !== overlay || !drawing || event.pointerId !== activePointerId) return;
+      drawing = false;
       cancelHypocenterAreaDrawing();
       onComplete?.([]);
     });

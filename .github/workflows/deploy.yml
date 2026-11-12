@@ -63,12 +63,14 @@ jobs:
       - name: Test historical earthquake search and request cancellation
         run: |
           node Tests/EarthquakeRefreshTests.mjs
+          node Tests/LatestEarthquakeFollowTests.mjs
           node Tests/HypocenterDistributionRangeTests.mjs
           node Tests/EarthquakeHistoryDetailTests.mjs
           node Tests/EstimatedIntensityTests.mjs
           node Tests/EstimatedIntensityVisibilityTests.mjs
           node Tests/EarthquakeHistoryProxyTests.mjs
           node Tests/EarthquakeHistoryTests.mjs
+          node --test Tests/FocalMechanismTests.mjs Tests/UsgsFocalMechanismTests.mjs
           npm run test:resilience
 
       - name: Test warning areas

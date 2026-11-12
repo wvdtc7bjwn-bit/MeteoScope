@@ -1,0 +1,165 @@
+{
+  "type": "Feature",
+  "id": "us7000twt0",
+  "geometry": {
+    "type": "Point",
+    "coordinates": [
+      137.5969,
+      34.8969,
+      37.07
+    ]
+  },
+  "properties": {
+    "time": 1794067475288,
+    "place": "8 km E of Shinshiro, Japan",
+    "types": ",dyfi,ground-failure,losspager,moment-tensor,origin,phase-data,shakemap,",
+    "products": {
+      "moment-tensor": [
+        {
+          "indexid": 28784237,
+          "indexTime": 1794417366060,
+          "id": "urn:usgs-product:us:moment-tensor:us_7000twt0_mww:1794417323040",
+          "type": "moment-tensor",
+          "code": "us_7000twt0_mww",
+          "source": "us",
+          "updateTime": 1794417323040,
+          "status": "UPDATE",
+          "properties": {
+            "beachball-source": "us",
+            "depth": "35",
+            "derived-depth": "30.5",
+            "derived-eventtime": "2026-11-07T16:04:42.1Z",
+            "derived-latitude": "34.8987",
+            "derived-longitude": "137.5988",
+            "derived-magnitude": "5.5",
+            "derived-magnitude-type": "Mww",
+            "evaluation-status": "confirmed",
+            "eventParametersPublicID": "quakeml:us.anss.org/eventparameters/7000twt0/1794417328",
+            "eventsource": "us",
+            "eventsourcecode": "7000twt0",
+            "eventtime": "2026-11-07T16:04:35.1Z",
+            "latitude": "34.8987",
+            "longitude": "137.5988",
+            "n-axis-azimuth": "318",
+            "n-axis-length": "1.31447E+16",
+            "n-axis-plunge": "32",
+            "nodal-plane-1-dip": "41.13",
+            "nodal-plane-1-rake": "-37",
+            "nodal-plane-1-strike": "182.97",
+            "nodal-plane-2-dip": "66.68",
+            "nodal-plane-2-rake": "-124.9",
+            "nodal-plane-2-strike": "302.55",
+            "p-axis-azimuth": "169",
+            "p-axis-length": "-2.57368E+17",
+            "p-axis-plunge": "54",
+            "pdl-client-version": "Version 3.6.0 2026-08-20",
+            "percent-double-couple": "0.8979",
+            "quakeml-publicid": "quakeml:us.anss.org/focalmechanism/7000twt0/mww",
+            "review-status": "reviewed",
+            "scalar-moment": "2.51E+17",
+            "sourcetime-decaytime": "0",
+            "sourcetime-duration": "1",
+            "sourcetime-risetime": "1",
+            "sourcetime-type": "unknown",
+            "t-axis-azimuth": "57",
+            "t-axis-length": "2.44223E+17",
+            "t-axis-plunge": "15",
+            "tensor-mpp": "1.6263E+17",
+            "tensor-mrp": "-2.221E+16",
+            "tensor-mrr": "-1.5069E+17",
+            "tensor-mrt": "1.5615E+17",
+            "tensor-mtp": "-1.162E+17",
+            "tensor-mtt": "-1.194E+16"
+          },
+          "preferredWeight": 218,
+          "contents": {
+            "contents.xml": {
+              "contentType": "application/xml",
+              "lastModified": 1794417330000,
+              "length": 195,
+              "url": "https://earthquake.usgs.gov/product/moment-tensor/us_7000twt0_mww/us/1794417323040/contents.xml",
+              "sha256": "ABhLiaqdYWmIak24eD/csBAWouBShhatD9bUzLNEZFk="
+            },
+            "quakeml.xml": {
+              "contentType": "application/xml",
+              "lastModified": 1794417323000,
+              "length": 11472,
+              "url": "https://earthquake.usgs.gov/product/moment-tensor/us_7000twt0_mww/us/1794417323040/quakeml.xml",
+              "sha256": "TQ+qgEkGmpaV/j75oA7hZpuJGtsAg/6djPQZs1RL54s="
+            }
+          }
+        },
+        {
+          "indexid": 28784238,
+          "indexTime": 1794417366646,
+          "id": "urn:usgs-product:us:moment-tensor:us_7000twt0_mwb:1794417323040",
+          "type": "moment-tensor",
+          "code": "us_7000twt0_mwb",
+          "source": "us",
+          "updateTime": 1794417323040,
+          "status": "UPDATE",
+          "properties": {
+            "beachball-source": "us",
+            "depth": "57",
+            "derived-depth": "34",
+            "derived-eventtime": "2026-11-07T16:04:37.4Z",
+            "derived-latitude": "34.8787",
+            "derived-longitude": "137.6280",
+            "derived-magnitude": "5.5",
+            "derived-magnitude-type": "Mwb",
+            "evaluation-status": "confirmed",
+            "eventParametersPublicID": "quakeml:us.anss.org/eventparameters/7000twt0/1794417328",
+            "eventsource": "us",
+            "eventsourcecode": "7000twt0",
+            "eventtime": "2026-11-07T16:04:37.4Z",
+            "latitude": "34.8787",
+            "longitude": "137.6280",
+            "n-axis-azimuth": "340",
+            "n-axis-length": "-9.49261E+16",
+            "n-axis-plunge": "22",
+            "nodal-plane-1-dip": "43.82",
+            "nodal-plane-1-rake": "-57.57",
+            "nodal-plane-1-strike": "184.78",
+            "nodal-plane-2-dip": "54.24",
+            "nodal-plane-2-rake": "-117.23",
+            "nodal-plane-2-strike": "323.42",
+            "p-axis-azimuth": "176",
+            "p-axis-length": "-1.3425E+17",
+            "p-axis-plunge": "67",
+            "pdl-client-version": "Version 3.6.0 2026-08-20",
+            "percent-double-couple": "0.1716",
+            "quakeml-publicid": "quakeml:us.anss.org/focalmechanism/7000twt0/mwb",
+            "review-status": "reviewed",
+            "scalar-moment": "1.99E+17",
+            "t-axis-azimuth": "72",
+            "t-axis-length": "2.29176E+17",
+            "t-axis-plunge": "6",
+            "tensor-mpp": "1.9672E+17",
+            "tensor-mrp": "-2.881E+16",
+            "tensor-mrr": "-1.2541E+17",
+            "tensor-mrt": "2.336E+16",
+            "tensor-mtp": "-9.299E+16",
+            "tensor-mtt": "-7.13E+16"
+          },
+          "preferredWeight": 159,
+          "contents": {
+            "contents.xml": {
+              "contentType": "application/xml",
+              "lastModified": 1794417330000,
+              "length": 195,
+              "url": "https://earthquake.usgs.gov/product/moment-tensor/us_7000twt0_mwb/us/1794417323040/contents.xml",
+              "sha256": "ABhLiaqdYWmIak24eD/csBAWouBShhatD9bUzLNEZFk="
+            },
+            "quakeml.xml": {
+              "contentType": "application/xml",
+              "lastModified": 1794417323000,
+              "length": 15186,
+              "url": "https://earthquake.usgs.gov/product/moment-tensor/us_7000twt0_mwb/us/1794417323040/quakeml.xml",
+              "sha256": "WSfZuaH4HK6Z2k2pdAmzSpNsZgLGYwuDKwq1J176Oio="
+            }
+          }
+        }
+      ]
+    }
+  }
+}

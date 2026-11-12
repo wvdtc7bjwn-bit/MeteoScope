@@ -1,0 +1,95 @@
+{
+  "properties": {
+    "time": 1704093009476,
+    "products": {
+      "moment-tensor": [
+        {
+          "indexid": 24445483,
+          "indexTime": 1710020338279,
+          "id": "urn:usgs-product:us:moment-tensor:us_6000m0xl_mww:1710020297040",
+          "type": "moment-tensor",
+          "code": "us_6000m0xl_mww",
+          "source": "us",
+          "updateTime": 1710020297040,
+          "status": "UPDATE",
+          "properties": {
+            "beachball-source": "us",
+            "depth": "10",
+            "derived-depth": "15.5",
+            "derived-eventtime": "2024-01-01T07:10:39.3Z",
+            "derived-latitude": "37.4881",
+            "derived-longitude": "137.1197",
+            "derived-magnitude": "7.5",
+            "derived-magnitude-type": "Mww",
+            "evaluation-status": "reviewed",
+            "eventParametersPublicID": "quakeml:us.anss.org/eventparameters/6000m0xl/1710020305",
+            "eventsource": "us",
+            "eventsourcecode": "6000m0xl",
+            "eventtime": "2024-01-01T07:10:09.7Z",
+            "latitude": "37.4881",
+            "longitude": "137.2457",
+            "n-axis-azimuth": "220",
+            "n-axis-length": "2.826E+19",
+            "n-axis-plunge": "8",
+            "nodal-plane-1-dip": "41.32",
+            "nodal-plane-1-rake": "102.5",
+            "nodal-plane-1-strike": "49.23",
+            "nodal-plane-2-dip": "49.86",
+            "nodal-plane-2-rake": "79.22",
+            "nodal-plane-2-strike": "212.78",
+            "p-axis-azimuth": "310",
+            "p-axis-length": "-2.39587E+20",
+            "p-axis-plunge": "4",
+            "pdl-client-version": "Version 2.9.1 2023-05-15",
+            "percent-double-couple": "0.7641",
+            "quakeml-publicid": "quakeml:us.anss.org/focalmechanism/6000m0xl/mww",
+            "review-status": "reviewed",
+            "scalar-moment": "2.27E+20",
+            "sourcetime-decaytime": "14.04",
+            "sourcetime-duration": "28.08",
+            "sourcetime-risetime": "14.04",
+            "sourcetime-type": "triangle",
+            "t-axis-azimuth": "68",
+            "t-axis-length": "2.11327E+20",
+            "t-axis-plunge": "81",
+            "tensor-mpp": "-1.2211E+20",
+            "tensor-mrp": "-4.231E+19",
+            "tensor-mrr": "2.0504E+20",
+            "tensor-mrt": "-2.01E+18",
+            "tensor-mtp": "-1.3312E+20",
+            "tensor-mtt": "-8.293E+19"
+          },
+          "preferredWeight": 218,
+          "contents": {
+            "contents.xml": {
+              "contentType": "application/xml",
+              "lastModified": 1710020333000,
+              "length": 195,
+              "url": "https://earthquake.usgs.gov/product/moment-tensor/us_6000m0xl_mww/us/1710020297040/contents.xml",
+              "sha256": "ABhLiaqdYWmIak24eD/csBAWouBShhatD9bUzLNEZFk="
+            },
+            "quakeml.xml": {
+              "contentType": "application/xml",
+              "lastModified": 1710020297000,
+              "length": 22667,
+              "url": "https://earthquake.usgs.gov/product/moment-tensor/us_6000m0xl_mww/us/1710020297040/quakeml.xml",
+              "sha256": "9xckqGefCFzh1ckOj/DlLV7Igx3ma8kyaw3XHtKta+0="
+            }
+          }
+        }
+      ]
+    },
+    "place": "2024 Noto Peninsula, Japan Earthquake",
+    "types": ",dyfi,earthquake-name,finite-fault,general-text,ground-failure,impact-link,impact-text,internal-origin,losspager,moment-tensor,origin,phase-data,shakemap,"
+  },
+  "geometry": {
+    "type": "Point",
+    "coordinates": [
+      137.271,
+      37.4874,
+      10
+    ]
+  },
+  "id": "us6000m0xl",
+  "type": "Feature"
+}

@@ -22916,31 +22916,30 @@ html[data-theme="light"] .warning-modal .warning-modal-panel {
   .warning-modal .warning-modal-panel > [class$="-body"] { padding-inline: 14px; }
 }
 
-
-#earthquake-area-search-tools {
-  position: fixed;
-  z-index: 500;
-  top: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: max-content;
-  max-width: calc(100vw - 24px);
+focal-mechanism .focal-mechanism-source-switch {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border: 1px solid #64748b;
-  border-radius: 8px;
-  background: #0f1e31;
-  color: #f1f5f9;
-  font-size: 14px;
+  gap: 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--modal-control-border, #40556d);
 }
-#earthquake-area-search-tools button {
-  flex-shrink: 0;
-  min-height: 40px;
-  padding: 4px 12px;
-  border: 1px solid currentColor;
-  border-radius: 4px;
+focal-mechanism .focal-mechanism-source-switch button {
+  flex: 1;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
   background: transparent;
   color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
+focal-mechanism .focal-mechanism-source-switch button[aria-pressed="true"] {
+  border-bottom-color: currentColor;
+  font-weight: 700;
+}
+focal-mechanism .focal-mechanism-source-switch button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -3px;
+}
+focal-mechanism .focal-mechanism-source-panel[hidden] { display: none; }

@@ -1,8 +1,10 @@
+import { loadUsgsMechanism, tensorAmplitude, mechanismPlaneLine } from '../earthquake/usgsFocalMechanism.js';
 import { mechanismEvent, mechanismMonths, matchMechanism, mechanismLinks, MECHANISM_TYPES, MECHANISM_ROOT } from "../earthquake/focalMechanism.js";
 import { doubleCoupleAmplitude } from "../earthquake/focalMechanismArchive.js";
 
 const cache = new Map();
 const openedEvents = new Set();
+const selectedSources = new Map();
 let manifestPromise;
 async function archiveManifest() {
   if (!manifestPromise) manifestPromise = fetch(`${import.meta.env.BASE_URL}data/focal-mechanism/manifest.json`, { signal: AbortSignal.timeout(15000) })
@@ -46,19 +48,35 @@ function archiveDiagram(record) {
   const canvas = document.createElement("canvas");
   canvas.width = 320; canvas.height = 320;
   canvas.setAttribute("role", "img");
-  canvas.setAttribute("aria-label", "下半球等積投影の発震機構図。上が北、右が東。黒は押し、白は引き。");
+  canvas.setAttribute("aria-label", `下半球等積投影の発震機構図。上が北、右が東。${record.usgs ? "青" : "黒"}は押し、白は引き。`);
   const context = canvas.getContext("2d");
   if (!context) return textElement("p", "図を描画できません。節面の角度をご確認ください。");
   const pixels = context.createImageData(320, 320);
   for (let y = 0; y < 320; y++) for (let x = 0; x < 320; x++) {
-    const value = doubleCoupleAmplitude(record.planes[0], (x + .5 - 160)/150, (y + .5 - 160)/150);
+    const value = record.tensor
+      ? tensorAmplitude(record.tensor, (x + .5 - 160)/150, (y + .5 - 160)/150)
+      : doubleCoupleAmplitude(record.planes[0], (x + .5 - 160)/150, (y + .5 - 160)/150);
     if (value === null) continue;
     const index = (y*320+x)*4, shade = value >= 0 ? 20 : 255;
-    pixels.data.set([shade,shade,shade,255], index);
+    pixels.data.set(record.usgs && value >= 0 ? [107,163,255,255] : [shade,shade,shade,255], index);
   }
   context.putImageData(pixels,0,0);
   context.strokeStyle = "#555"; context.lineWidth = 1.5; context.beginPath(); context.arc(160,160,150,0,Math.PI*2); context.stroke();
-  figure.append(canvas, textElement("figcaption", "北 ↑ ・東 → ／ 黒：押し、白：引き。気象庁の節面データからMeteoScopeが描画したダブルカップル成分（下半球等積投影）です。"));
+  if (record.usgs) {
+    context.save();
+    context.beginPath(); context.arc(160,160,150,0,Math.PI*2); context.clip();
+    context.strokeStyle = "#607080"; context.lineWidth = 0.8;
+    for (const plane of record.planes) {
+      context.beginPath();
+      mechanismPlaneLine(plane).forEach((point,index) => context[index ? "lineTo" : "moveTo"](160+150*point.x,160+150*point.y));
+      context.stroke();
+    }
+    context.fillStyle = "#111"; context.font = "20px sans-serif";
+    context.textAlign = "center"; context.textBaseline = "middle";
+    for (const axis of record.axes ?? []) context.fillText(axis.name,160+150*axis.x,160+150*axis.y);
+    context.restore();
+  }
+  figure.append(canvas, textElement("figcaption", `北 ↑ ・東 → ／ ${record.usgs ? "青" : "黒"}：押し、白：引き。${record.usgs ? "USGS" : "気象庁"}の${record.tensor ? "モーメントテンソルから描画（全成分）" : "節面データから描画（ダブルカップル成分）"}。下半球等積投影。`));
   return figure;
 }
 
@@ -70,7 +88,7 @@ if (globalThis.customElements && !customElements.get("focal-mechanism")) {
       this.hidden = true;
       const eventKey = `${this.dataset.time}:${this.dataset.lon}:${this.dataset.lat}`;
       const details = document.createElement("details");
-      details.append(textElement("summary", "発震機構（気象庁）"));
+      details.append(textElement("summary", "発震機構"));
       const body = document.createElement("div");
       body.className = "focal-mechanism-body";
       details.append(body);
@@ -83,21 +101,47 @@ if (globalThis.customElements && !customElements.get("focal-mechanism")) {
         }
         busy = true;
         body.setAttribute("aria-busy", "true");
-        body.replaceChildren(textElement("p", "気象庁の解析結果を確認しています…"));
+        body.replaceChildren(textElement("p", "解析結果を確認しています…"));
         const time = Number(this.dataset.time);
         const event = { originTime: new Date(time).toISOString(), coordinates: [Number(this.dataset.lon), Number(this.dataset.lat)] };
-        const results = await Promise.all(Object.entries(MECHANISM_TYPES).map(async ([type, definition]) => {
+        const results = await Promise.all([...Object.entries(MECHANISM_TYPES).map(async ([type, definition]) => {
           try {
             const pages = await Promise.all(mechanismMonths(time).map(month => catalogue(month, type)));
             const match = matchMechanism(pages.flatMap(page => page.records), event);
             return { type, definition, archiveOnly: pages.every(page => page.archiveOnly), ...match };
           } catch { return { type, definition, status: "error" }; }
-        }));
+        }), loadUsgsMechanism(event).then(record => ({
+          type: "usgs", definition: { label: record?.label ?? "USGS" }, status: record ? "matched" : "missing", record
+        })).catch(() => ({ type: "usgs", definition: { label: "USGS" }, status: "error" }))]);
         busy = false;
         if (!this.isConnected) return;
         body.removeAttribute("aria-busy");
         body.replaceChildren();
         this.hidden = !results.some(result => result.status === "matched" || result.status === "error");
+        const switcher = document.createElement("div");
+        switcher.className = "focal-mechanism-source-switch";
+        switcher.setAttribute("role", "group");
+        switcher.setAttribute("aria-label", "発震機構の情報源");
+        const panels = new Map();
+        const buttons = new Map();
+        const selectSource = (key) => {
+          for (const [id, panel] of panels) panel.hidden = id !== key;
+          for (const [id, button] of buttons) button.setAttribute("aria-pressed", String(id === key));
+          if (selectedSources.size >= 40) selectedSources.delete(selectedSources.keys().next().value);
+          selectedSources.set(eventKey, key);
+        };
+        body.append(switcher);
+        for (const [key, label] of [["jma", "気象庁"], ["usgs", "USGS"]]) {
+          const panel = document.createElement("div");
+          panel.className = "focal-mechanism-source-panel";
+          panel.setAttribute("role", "region");
+          panel.setAttribute("aria-label", `${label}の発震機構`);
+          const button = textElement("button", label);
+          button.type = "button";
+          button.addEventListener("click", () => selectSource(key));
+          panels.set(key, panel); buttons.set(key, button);
+          switcher.append(button); body.append(panel);
+        }
         for (const result of results) {
           if (result.status !== "matched" && result.status !== "error") continue;
           const section = document.createElement("section");
@@ -106,7 +150,7 @@ if (globalThis.customElements && !customElements.get("focal-mechanism")) {
             section.append(textElement("p", result.status === "error" ? "取得できませんでした。時間をおいて再試行してください。" : result.archiveOnly ? "この期間は確定CMTデータを表示しています。初動解の過去資料は対象外です。" : result.status === "ambiguous" ? "近い時刻・位置に複数の解析結果があり、自動照合できません。" : "公開一覧に一致する解析結果がありません。未掲載・公開対象外の場合があります。"));
           } else {
             const record = result.record;
-            const links = record.archive ? { source: "https://www.data.jma.go.jp/eqev/data/bulletin/cmt.html" } : mechanismLinks(result.type, record.id);
+            const links = record.usgs ? { source: record.source } : record.archive ? { source: "https://www.data.jma.go.jp/eqev/data/bulletin/cmt.html" } : mechanismLinks(result.type, record.id);
             if (!links) continue;
             if (record.archive) section.append(archiveDiagram(record));
             else {
@@ -118,24 +162,32 @@ if (globalThis.customElements && !customElements.get("focal-mechanism")) {
             section.append(image);
             }
             const origin = new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", dateStyle: "short", timeStyle: "medium" }).format(new Date(record.time));
-            section.append(textElement("p", `解析対象：${origin}（日本時間） ${record.place}${record.mw !== null ? ` / Mw ${record.mw.toFixed(1)}` : ""}`));
+            section.append(textElement("p", `解析対象：${origin}（日本時間） ${record.place}${record.mw !== null ? ` / ${record.magnitudeType ?? "Mw"} ${record.mw.toFixed(1)}` : ""}`));
+            if (record.usgs) {
+              section.append(textElement("p", `出典：USGS。${record.review === "reviewed" || record.review === "manual" ? "確認済みの解析" : "確認状態未確定の解析"}。`));
+              if (record.centroidTime !== null) section.append(textElement("p", `セントロイド時刻：${new Intl.DateTimeFormat("ja-JP", { timeZone: "Asia/Tokyo", dateStyle: "short", timeStyle: "medium" }).format(new Date(record.centroidTime))}（日本時間）${record.centroidDepth !== null ? ` ／ 深さ${record.centroidDepth}km` : ""}`));
+            }
             const table = document.createElement("table");
             table.append(textElement("caption", "節面の角度（°）"));
             const head = document.createElement("tr");
             for (const title of ["節面", "走向", "傾斜", "すべり角"]) { const th = textElement("th", title); th.scope = "col"; head.append(th); }
             table.append(head);
             record.planes.forEach((plane, index) => { const row = document.createElement("tr"); for (const value of [index + 1, ...plane]) row.append(textElement("td", String(value))); table.append(row); });
-            section.append(table);
-            const link = textElement("a", "気象庁の詳細・原図を開く ↗");
+            if (record.planes.length) section.append(table);
+            const link = textElement("a", record.usgs ? "USGSの解析結果を開く ↗" : "気象庁の詳細・原図を開く ↗");
             link.href = links.source; link.target = "_blank"; link.rel = "noopener noreferrer";
             section.append(link);
           }
-          body.append(section);
+          panels.get(result.type === "usgs" ? "usgs" : "jma").append(section);
         }
-        body.append(textElement("p", "出典：気象庁。解析結果の掲載には数日かかり、後日修正される場合があります。2つの節面だけでは実際の断層面は特定できません。"));
+        for (const panel of panels.values()) {
+          if (!panel.childElementCount) panel.append(textElement("p", "一致する解析結果は公開されていません。"));
+        }
+        selectSource(selectedSources.get(eventKey) ?? (results.some(r => r.type !== "usgs" && r.status === "matched") ? "jma" : "usgs"));
+        body.append(textElement("p", "解析結果は機関ごとに異なり、未掲載・後日修正の場合があります。2つの節面だけでは実際の断層面は特定できません。"));
         const source = textElement("a", "発震機構の公開一覧 ↗");
         source.href = `${MECHANISM_ROOT}index.html`; source.target = "_blank"; source.rel = "noopener noreferrer";
-        body.append(source);
+        panels.get("jma").append(source);
         loaded = !results.some(result => result.status === "error");
         if (!loaded) { const retry = textElement("button", "再読み込み"); retry.type = "button"; retry.addEventListener("click", load); body.append(retry); }
         details.open = openedEvents.has(eventKey);
