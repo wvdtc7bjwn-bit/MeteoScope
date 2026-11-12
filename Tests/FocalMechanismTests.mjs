@@ -71,4 +71,3 @@ test("API validation, unavailable month, upstream failure and parsing", async ()
     assert.equal(response.status,200); assert.equal((await response.json()).records.length,1);
   } finally { globalThis.fetch=original; }
 });
-
