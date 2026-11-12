@@ -366,6 +366,14 @@ export function parseVolcanoReport(text, entry = {}) {
   const volcanoInfo = getElements(body, "VolcanoInfo").find((element) =>
     String(element.getAttribute("type") ?? "").includes("対象火山")
   ) ?? getFirst(body, "VolcanoInfo");
+  // Nationwide monthly summaries list many volcanoes; their shared prose must
+  // never be assigned to the first listed volcano as an individual bulletin.
+  const targetCodes = new Set(getElements(volcanoInfo, "Area")
+    .map((target) => getText(getFirstChild(target, "Code")))
+    .filter(Boolean));
+  if (getText(getFirstChild(head, "EventID")) === "900"
+    || /全国の活火山/u.test(getText(getFirstChild(head, "Title")))
+    || targetCodes.size > 1) return null;
   const item = getFirst(volcanoInfo, "Item");
   const area = getElements(item, "Area").find((element) => getFirstChild(element, "Coordinate"))
     ?? getFirst(item, "Area")

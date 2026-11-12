@@ -14,6 +14,7 @@ import {
   normalizeVolcanoAscii,
   parseVolcanoSeismicCountTable,
   parseVolcanoCoordinate,
+  parseVolcanoReport,
   parseVolcanoPolygon,
   selectVolcanoFeedEntries,
   volcanoAlertLevel
@@ -617,3 +618,39 @@ assert.match(volcanoParser, /export function groupVolcanoPolygonRings/);
 assert.match(volcanoParser, /targetAreas: entry\.code === "VFVO50" \? parseVolcanoTargetAreas\(body\) : \[\]/);
 
 console.log("Volcano tests passed");
+
+// Reduced structure from JMA VFVO51 20261110070006_0_VFVO51_010000.xml:
+// EventID 900, nationwide title and multiple target volcanoes.
+const { DOMParser: XmlParser } = await import("@xmldom/xmldom");
+const previousParser = globalThis.DOMParser;
+globalThis.DOMParser = class {
+  parseFromString(text, type) {
+    const doc = new XmlParser().parseFromString(text, type);
+    doc.querySelector = () => null;
+    const adapt = node => {
+      if (node.getElementsByTagNameNS) {
+        const getElements = node.getElementsByTagNameNS.bind(node);
+        node.getElementsByTagNameNS = (...args) => Array.from(getElements(...args));
+      }
+      Object.defineProperty(node, "children", { get: () => Array.from(node.childNodes ?? []).filter(child => child.nodeType === 1) });
+      for (const child of Array.from(node.childNodes ?? [])) adapt(child);
+    };
+    adapt(doc);
+    return doc;
+  }
+};
+try {
+  const bulletin = (eventId, title, codes) => `<Report><Head><Title>${title}</Title><EventID>${eventId}</EventID><ReportDateTime>2026-11-10T16:00:00+09:00</ReportDateTime></Head><Body><VolcanoInfo type="対象火山"><Item><Kind><Name>レベル3（入山規制）</Name><Code>13</Code></Kind><Areas>${codes.map(code => `<Area><Name>火山${code}</Name><Code>${code}</Code><Coordinate>+31.59+130.66/</Coordinate></Area>`).join("")}</Areas></Item></VolcanoInfo><VolcanoInfoContent><VolcanoActivity>活動の本文</VolcanoActivity></VolcanoInfoContent></Body></Report>`;
+  assert.equal(parseVolcanoReport(bulletin("900", "火山名 全国の活火山 火山の状況に関する解説情報", ["506", "108"])), null);
+  assert.equal(parseVolcanoReport(bulletin("", "火山名 全国の活火山", ["506"])), null);
+  assert.equal(parseVolcanoReport(bulletin("", "複数火山の情報", ["506", "108"])), null);
+  for (const code of ["506", "108"]) {
+    const report = parseVolcanoReport(bulletin(code, "個別火山情報", [code]), { code: "VFVO51" });
+    assert.equal(report.volcanoCode, code);
+    assert.equal(report.activity, "活動の本文");
+    assert.equal(report.level, 3);
+  }
+} finally {
+  globalThis.DOMParser = previousParser;
+}
+console.log("Volcano bulletin scope tests passed");
