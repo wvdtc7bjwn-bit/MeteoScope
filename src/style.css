@@ -22915,3 +22915,32 @@ html[data-theme="light"] .warning-modal .warning-modal-panel {
   .warning-modal .warning-modal-panel > .settings-modal-header { padding: 12px 14px; }
   .warning-modal .warning-modal-panel > [class$="-body"] { padding-inline: 14px; }
 }
+
+
+#earthquake-area-search-tools {
+  position: fixed;
+  z-index: 500;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid #64748b;
+  border-radius: 8px;
+  background: #0f1e31;
+  color: #f1f5f9;
+  font-size: 14px;
+}
+#earthquake-area-search-tools button {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 4px 12px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+}

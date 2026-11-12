@@ -1033,7 +1033,12 @@ export function createWeatherMap(elementId) {
     const source = map.getSource(SAMPLE_SOURCE_ID);
     const areaVisible = mode === "earthquake"
       && activeEews.length === 0
-      && data?.earthquakeMapView === "distribution";
+      && ["distribution", "history"].includes(data?.earthquakeMapView);
+    const areaPolygon = data?.earthquakeMapView === "history"
+      ? data?.earthquakeArchiveFilters?.areaPolygon : data?.distributionFilters?.areaPolygon;
+    if (JSON.stringify(hypocenterAreaPolygon) !== JSON.stringify(areaPolygon ?? [])) {
+      setHypocenterAreaSelection(areaPolygon ?? []);
+    }
     for (const layerId of [HYPOCENTER_AREA_FILL_LAYER_ID, HYPOCENTER_AREA_LINE_LAYER_ID]) {
       if (map.getLayer(layerId)) {
         map.setLayoutProperty(layerId, "visibility", areaVisible ? "visible" : "none");
@@ -2795,7 +2800,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     const container = map.getContainer();
     const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     overlay.classList.add("hypocenter-area-draw-overlay");
-    overlay.setAttribute("aria-label", "震央分布の検索範囲を囲む");
+    overlay.setAttribute("aria-label", "地震の検索範囲を囲む");
     const shape = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
     overlay.append(shape);
     container.append(overlay);
@@ -2844,7 +2849,10 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       updateShape();
     });
     overlay.addEventListener("pointerup", finish);
-    overlay.addEventListener("pointercancel", finish);
+    overlay.addEventListener("pointercancel", () => {
+      cancelHypocenterAreaDrawing();
+      onComplete?.([]);
+    });
     return true;
   }
 
@@ -2928,7 +2936,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     const areaVisible = !visible
       && activeMode === "earthquake"
       && lastRenderedMode === "earthquake"
-      && lastRenderedData?.earthquakeMapView === "distribution";
+      && ["distribution", "history"].includes(lastRenderedData?.earthquakeMapView);
     for (const layerId of [HYPOCENTER_AREA_FILL_LAYER_ID, HYPOCENTER_AREA_LINE_LAYER_ID]) {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", areaVisible ? "visible" : "none");
     }
@@ -4322,7 +4330,7 @@ function updateEstimatedIntensityLayer(map, mode, data = {}) {
   const images = earthquake?.estimatedIntensity?.images ?? [];
   const shouldShow = mode === "earthquake"
     && data?.earthquakeContentMode !== "volcano"
-    && getEarthquakeMapView(data) !== "distribution"
+    && getEarthquakeMapView(data) === "recent"
     && data?.estimatedIntensityVisible !== false
     && images.length > 0;
   const key = images.length > 0
@@ -4344,7 +4352,7 @@ function updateEstimatedIntensityLayer(map, mode, data = {}) {
 
   removeEstimatedIntensityLayers(map, current?.entries ?? []);
   estimatedIntensityLayerStateByMap.delete(map);
-  if (!key || images.length === 0) return;
+  if (!shouldShow || !key || images.length === 0) return;
 
   const state = { key, entries: [], visible: shouldShow };
   estimatedIntensityLayerStateByMap.set(map, state);

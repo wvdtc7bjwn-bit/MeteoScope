@@ -1,3 +1,4 @@
+import { pointInPolygon } from "./hypocenterDistribution.js";
 import { fetchJson } from "./jmaClient.js";
 import { normalizeHistoricalEpicenterName } from "./historicalEpicenterNames.js";
 import {
@@ -170,7 +171,7 @@ export async function searchEarthquakeHistory(filters = {}, { onProgress, signal
         limitExceeded ||= payload.limitExceeded === true;
         // Without a substring filter, the sorted upstream response already holds
         // the globally selected first 1000. More date queries cannot improve it.
-        const children = normalized.keyword || normalized.nearby ? splitHistoryRange(range) : [];
+        const children = normalized.keyword || normalized.nearby || normalized.areaPolygon.length ? splitHistoryRange(range) : [];
         if (children.length && normalized.nearby && normalized.sort === "newest") pending.unshift(...children.reverse());
         else if (children.length) pending.push(...children);
         else unresolvedRanges.push(range);
@@ -241,6 +242,7 @@ function recordMatchesHistorySearch(record, filters, range) {
   if (Number(filters.minMagnitude) > 0 && (!Number.isFinite(record.magnitude) || record.magnitude < Number(filters.minMagnitude))) return false;
   if (filters.maxDepth !== "all" && (!Number.isFinite(record.depthKm) || record.depthKm > Number(filters.maxDepth))) return false;
   if (filters.nearby && !isCoordinateWithinRadius(record.coordinates, [filters.nearby.longitude, filters.nearby.latitude], filters.nearby.radiusKm)) return false;
+  if (filters.areaPolygon.length && (!Array.isArray(record.coordinates) || !pointInPolygon(record.coordinates, filters.areaPolygon))) return false;
   return !filters.keyword || record.place.toLocaleLowerCase("ja-JP").includes(filters.keyword.toLocaleLowerCase("ja-JP"));
 }
 
@@ -260,7 +262,8 @@ export function normalizeEarthquakeHistoryFilters(filters) {
     startDate: minDate(maxDate(startDate, EARTHQUAKE_HISTORY_EARLIEST_DATE), latestDate),
     endDate: minDate(endDate, latestDate),
     ...conditions,
-    nearby: conditions.nearby
+    nearby: conditions.nearby,
+    areaPolygon: normalizeHistoryAreaPolygon(filters.areaPolygon)
   };
 }
 
@@ -378,4 +381,20 @@ function shiftDate(date, offset) {
   const [year, month, day] = String(date).split("-").map(Number);
   const timestamp = Date.UTC(year, month - 1, day) + offset * 86_400_000;
   return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+
+function normalizeHistoryAreaPolygon(value) {
+  if (value == null || (Array.isArray(value) && value.length === 0)) return [];
+  if (!Array.isArray(value) || value.length < 3 || value.length > 200
+    || value.some((point) => !Array.isArray(point) || point.length !== 2
+      || !point.every(Number.isFinite) || Math.abs(point[0]) > 180 || Math.abs(point[1]) > 90)) {
+    throw new TypeError("検索範囲を地図上で囲み直してください");
+  }
+  const area = value.reduce((sum, point, i) => {
+    const next = value[(i + 1) % value.length];
+    return sum + point[0] * next[1] - next[0] * point[1];
+  }, 0);
+  if (Math.abs(area) < 1e-10) throw new TypeError("検索範囲を地図上で囲み直してください");
+  return value.map((point) => [...point]);
 }

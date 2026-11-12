@@ -178,7 +178,23 @@ try {
   assert.equal(delayed.items.length, 1);
   assert.equal(delayed.complete, false);
   assert.deepEqual(delayed.unavailableRanges, [{ startDate: "2025-01-02", endDate: "2025-01-03", reason: "jma_not_yet_available", availableThrough: "2025-01-01" }]);
+  const areaPolygon = [[139, 34], [141, 34], [141, 36], [139, 36]];
+  const insideArea = await searchEarthquakeHistory({ startDate: "2025-01-01", endDate: "2025-01-01", areaPolygon });
+  assert.equal(insideArea.items.length, 1, "囲み内の震央を取得する");
+  const outsideArea = await searchEarthquakeHistory({ startDate: "2025-01-01", endDate: "2025-01-01", areaPolygon: [[130,30],[131,30],[131,31],[130,31]] });
+  assert.equal(outsideArea.items.length, 0, "囲み外の震央は除外する");
+  const onEdge = await searchEarthquakeHistory({ startDate: "2025-01-01", endDate: "2025-01-01", areaPolygon: [[140,35],[141,35],[141,36],[140,36]] });
+  assert.equal(onEdge.items.length, 1, "囲みの境界にある震央も含める");
+  const noMagnitudeMatch = await searchEarthquakeHistory({ startDate: "2025-01-01", endDate: "2025-01-01", areaPolygon, minMagnitude: "4" });
+  assert.equal(noMagnitudeMatch.items.length, 0, "規模の条件を併用する");
+  for (const invalid of [[[null,34],[141,34],[141,36]], [[139,34],[140,35],[141,36]]]) {
+    assert.throws(() => normalizeEarthquakeHistoryFilters({ areaPolygon: invalid }), /検索範囲/);
+  }
   override = null;
+  liveCalls = [];
+  const areaLimited = await searchEarthquakeHistory({ startDate: "2025-01-01", endDate: "2025-12-31", areaPolygon });
+  assert.ok(liveCalls.length > 1, "候補1000件の上限時は期間を分割して囲み内の震央を探す");
+  assert.ok(areaLimited.items.every(r => r.coordinates[0] >= 139 && r.coordinates[0] <= 141 && r.coordinates[1] >= 34 && r.coordinates[1] <= 36));
   await assert.rejects(searchEarthquakeHistory({ startDate: "2025-02-30" }), /日付/);
 
   override = () => Response.json({ ok: false }, { status: 400 });

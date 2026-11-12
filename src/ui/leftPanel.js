@@ -1451,6 +1451,8 @@ export function setupEarthquakeSelector({
   onViewChange,
   onArchiveFilterChange,
   onArchiveSearch,
+  onArchiveAreaSearch,
+  onArchiveAreaClear,
   onArchiveListMore,
   onArchiveSelect,
   onArchiveDetailBack,
@@ -1539,6 +1541,18 @@ export function setupEarthquakeSelector({
     const archiveRetryButton = event.target.closest("[data-earthquake-archive-retry]");
     if (archiveRetryButton) {
       onArchiveRetry?.();
+      return;
+    }
+    const areaButton = event.target.closest("[data-earthquake-archive-area-search], [data-earthquake-archive-area-clear]");
+    if (areaButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      const form = areaButton.closest("form");
+      if (form instanceof HTMLFormElement) {
+        const filters = readArchiveSearchFilters(form);
+        if (areaButton.hasAttribute("data-earthquake-archive-area-clear")) onArchiveAreaClear?.(filters);
+        else onArchiveAreaSearch?.(filters);
+      }
       return;
     }
     const archiveSearchButton = event.target.closest("[data-earthquake-archive-search]");
@@ -6948,6 +6962,7 @@ function buildEarthquakeArchiveMarkup(data) {
       </div>
       <label class="earthquake-archive-keyword"><span>震央地名</span><input type="search" name="keyword" value="${escapeHtml(filters.keyword ?? "")}" maxlength="40" placeholder="例：能登、宮城県沖"></label>
       ${nearby ? `<div class="earthquake-nearby-context"><span>震源近傍：北緯${Number(nearby.latitude).toFixed(3)}°・東経${Number(nearby.longitude).toFixed(3)}°</span><label><span>半径</span><select name="nearbyRadiusKm">${[10, 25, 50, 100, 200, 300].map((radius) => `<option value="${radius}"${Number(nearby.radiusKm) === radius ? " selected" : ""}>${radius} km</option>`).join("")}</select></label><input type="hidden" name="nearbyLat" value="${escapeHtml(nearby.latitude)}"><input type="hidden" name="nearbyLon" value="${escapeHtml(nearby.longitude)}"><button type="button" data-earthquake-nearby-clear>近傍条件を解除</button></div>` : ""}
+      ${buildDistributionAreaControls(Boolean(filters.areaPolygon?.length), data.earthquakeArchiveAreaDrawing === true, "archive")}
       <button type="button" class="earthquake-archive-search-button" data-earthquake-archive-search>${loading ? "この条件で再検索" : "この条件で検索"}</button>
       <p>気象庁の震度データベースを検索します。通信障害時は、保存データで代替した期間と更新日時を表示します。</p>
     </form>
@@ -6982,7 +6997,7 @@ function buildEarthquakeArchiveMarkup(data) {
   const incompleteNotice = snapshot?.searchFinished && !snapshot.complete && !snapshot.cancelled && snapshot?.unsearchedRanges?.length
     ? `<p class="earthquake-archive-list-note" role="status">${snapshot.filters.nearby && snapshot.filters.sort === "newest"
       ? "新しい地震から最大1,000件を表示しています。これより古い期間は未取得です。"
-      : `${snapshot.limitExceeded ? snapshot.filters.keyword ? "部分一致を適用する前の候補が気象庁の上限1,000件を超えています。" : "検索結果が上限の1,000件を超えています。" : "取得上限に達しました。"}未取得の地震があります（総件数は未確定）。${snapshot.filters.keyword ? `部分一致の追加取得は候補${snapshot.acquisitionLimit.toLocaleString("ja-JP")}件・64回まで。並び順は取得済み分に適用しています。` : "選択した並び順の先頭1,000件を表示しています。"}期間や条件を絞って再検索してください。`}</p>` : "";
+      : `${snapshot.limitExceeded ? (snapshot.filters.keyword || snapshot.filters.areaPolygon?.length) ? "範囲・地名条件を適用する前の候補が気象庁の上限1,000件を超えています。" : "検索結果が上限の1,000件を超えています。" : "取得上限に達しました。"}未取得の地震があります（総件数は未確定）。${(snapshot.filters.keyword || snapshot.filters.areaPolygon?.length) ? `範囲・地名条件の追加取得は候補${snapshot.acquisitionLimit.toLocaleString("ja-JP")}件・64回まで。並び順は取得済み分に適用しています。` : "選択した並び順の先頭1,000件を表示しています。"}期間や条件を絞って再検索してください。`}</p>` : "";
   const cancelledNotice = snapshot?.cancelled ? `<p class="earthquake-archive-list-note" role="status">条件変更のため検索を中断しました。取得済み分を表示しています。</p>` : "";
   const resultHead = `
     <div class="earthquake-archive-result-head" role="status">
@@ -7230,19 +7245,19 @@ function buildDistributionRangeControls(
   `;
 }
 
-function buildDistributionAreaControls(hasArea, areaDrawing) {
+function buildDistributionAreaControls(hasArea, areaDrawing, scope = "distribution") {
   return `
     <div class="earthquake-distribution-area-controls">
       <div class="earthquake-distribution-area-actions">
         <button
           type="button"
           class="earthquake-distribution-area-search${areaDrawing ? " is-drawing" : ""}"
-          data-earthquake-distribution-area-search
+          data-earthquake-${scope}-area-search
           aria-pressed="${areaDrawing ? "true" : "false"}"
         >${areaDrawing ? "範囲選択を中止" : hasArea ? "囲み直す" : "囲って検索"}</button>
-        ${hasArea ? '<button type="button" class="earthquake-distribution-area-clear" data-earthquake-distribution-area-clear>範囲解除</button>' : ""}
+        ${hasArea ? `<button type="button" class="earthquake-distribution-area-clear" data-earthquake-${scope}-area-clear>範囲解除</button>` : ""}
       </div>
-      <p>${hasArea ? "地図上の囲み範囲だけを表示しています。" : "囲って検索すると、地図上で指定した範囲だけに絞れます。"}</p>
+      <p>${areaDrawing ? "地図を指やマウスでなぞって、震央の検索範囲を囲んでください。" : hasArea ? "地図上の囲み範囲内の震央を検索します。" : "囲って検索すると、地図上で指定した範囲だけに絞れます。"}</p>
     </div>
   `;
 }

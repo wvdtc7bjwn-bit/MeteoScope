@@ -244,6 +244,9 @@ export function pointInPolygon(point, polygon) {
     const [xi, yi] = polygon[index] ?? [];
     const [xj, yj] = polygon[previous] ?? [];
     if (![xi, yi, xj, yj].every(Number.isFinite)) continue;
+    const cross = (x - xi) * (yj - yi) - (y - yi) * (xj - xi);
+    if (Math.abs(cross) < 1e-10 && x >= Math.min(xi, xj) && x <= Math.max(xi, xj)
+      && y >= Math.min(yi, yj) && y <= Math.max(yi, yj)) return true;
     const intersects = yi > y !== yj > y
       && x < (xj - xi) * (y - yi) / (yj - yi) + xi;
     if (intersects) inside = !inside;

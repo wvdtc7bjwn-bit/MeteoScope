@@ -412,6 +412,10 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     setDrawerState("full");
   });
 
+  window.addEventListener("sidebar-drawer-state", (event) => {
+    if (["peek", "full"].includes(event.detail)) setDrawerState(event.detail);
+  });
+
   window.addEventListener("resize", () => {
     applyTransform();
     notifyLayoutChange();

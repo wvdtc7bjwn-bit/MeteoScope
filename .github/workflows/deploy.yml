@@ -66,6 +66,7 @@ jobs:
           node Tests/HypocenterDistributionRangeTests.mjs
           node Tests/EarthquakeHistoryDetailTests.mjs
           node Tests/EstimatedIntensityTests.mjs
+          node Tests/EstimatedIntensityVisibilityTests.mjs
           node Tests/EarthquakeHistoryProxyTests.mjs
           node Tests/EarthquakeHistoryTests.mjs
           npm run test:resilience

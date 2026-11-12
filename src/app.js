@@ -452,6 +452,7 @@ export function createWeatherApp() {
   let earthquakePlateDataGeneration = 0;
   let earthquakeDistributionAreaDrawing = false;
   let earthquakeArchiveFilters = {};
+  let earthquakeArchiveAreaDrawing = false;
   let earthquakeArchiveState = { status: "idle", data: null, error: "" };
   let earthquakeArchiveRequestId = 0;
   let earthquakeArchiveAbortController = null;
@@ -798,6 +799,7 @@ export function createWeatherApp() {
     const switchStartedAt = performance.now();
     const tab = TABS.find((item) => item.id === tabId) ?? TABS[0];
     const tabChanged = activeTab !== tab.id;
+    if (tabChanged && earthquakeArchiveAreaDrawing) cancelEarthquakeArchiveAreaDrawing();
     if (tabChanged) tabAutoFocusGeneration += 1;
     const autoFocusGeneration = tabAutoFocusGeneration;
     if (activeTab === "warnings" && tab.id !== "warnings" && warningDetailsRequest?.abortOnTabChange) {
@@ -994,6 +996,7 @@ export function createWeatherApp() {
     void applyActiveFaultDataSource();
     refreshWeatherChartAccessMode();
     if (!earlyAccessEnabled && (earthquakeView === "history" || earthquakeNearbySearchActive)) {
+      cancelEarthquakeArchiveAreaDrawing();
       earthquakeArchiveRequestId += 1;
       earthquakeArchiveAbortController?.abort();
       earthquakeArchiveAbortController = null;
@@ -1745,6 +1748,7 @@ if (layerId === "river") {
     if (!["recent", "distribution", "history"].includes(view)) return;
     if (view === "history" && !earlyAccessEnabled) return;
     earthquakeNearbySearchActive = false;
+    if (view !== "history") cancelEarthquakeArchiveAreaDrawing();
     if (view !== "distribution" && earthquakeDistributionAreaDrawing) {
       weatherMap?.cancelHypocenterAreaDrawing();
       earthquakeDistributionAreaDrawing = false;
@@ -1988,6 +1992,49 @@ if (layerId === "river") {
       const tab = TABS.find((item) => item.id === "earthquake");
       updateCurrentView(tab, latestDataByTab.earthquake ?? {});
     }
+  }
+
+  function cancelEarthquakeArchiveAreaDrawing() {
+    if (!earthquakeArchiveAreaDrawing) return;
+    weatherMap?.cancelHypocenterAreaDrawing();
+    earthquakeArchiveAreaDrawing = false;
+    document.getElementById("earthquake-area-search-tools")?.remove();
+  }
+
+  function startEarthquakeArchiveAreaSearch(filters) {
+    if (!earlyAccessEnabled || activeTab !== "earthquake" || earthquakeView !== "history") return;
+    if (earthquakeArchiveAreaDrawing) {
+      cancelEarthquakeArchiveAreaDrawing();
+      updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+      return;
+    }
+    const searchFilters = { ...earthquakeArchiveFilters, ...filters };
+    const started = weatherMap?.startHypocenterAreaSelection((areaPolygon) => {
+      cancelEarthquakeArchiveAreaDrawing();
+      window.dispatchEvent(new CustomEvent("sidebar-drawer-state", { detail: "full" }));
+      if (areaPolygon.length >= 3 && earlyAccessEnabled && activeTab === "earthquake" && earthquakeView === "history") {
+        void refreshEarthquakeArchive({ ...searchFilters, areaPolygon, nearby: null });
+      } else {
+        updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+      }
+    });
+    if (!started) return;
+    earthquakeArchiveAreaDrawing = true;
+    window.dispatchEvent(new CustomEvent("sidebar-drawer-state", { detail: "peek" }));
+    const tools = document.createElement("div");
+    tools.id = "earthquake-area-search-tools";
+    const label = document.createElement("span");
+    label.textContent = "地図をなぞって震央の検索範囲を囲む";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.textContent = "中止";
+    cancel.addEventListener("click", () => {
+      cancelEarthquakeArchiveAreaDrawing();
+      updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
+      window.dispatchEvent(new CustomEvent("sidebar-drawer-state", { detail: "full" }));
+    });
+    tools.append(label, cancel);
+    document.body.append(tools);
   }
 
   function startEarthquakeDistributionAreaSearch() {
@@ -2625,6 +2672,7 @@ if (layerId === "river") {
       distributionItems: distribution?.items ?? []
     };
     const archiveData = {
+      earthquakeArchiveAreaDrawing,
       earthquakeArchiveFilters,
       earthquakeArchiveStatus: earthquakeArchiveState.status,
       earthquakeArchiveError: earthquakeArchiveState.error,
@@ -4490,6 +4538,11 @@ if (layerId === "river") {
       onDistributionPresentationChange: selectEarthquakeDistributionPresentation,
       onDistributionFilterChange: updateEarthquakeDistributionFilters,
       onDistributionRangeModeChange: selectEarthquakeDistributionRangeMode,
+      onArchiveAreaSearch: startEarthquakeArchiveAreaSearch,
+      onArchiveAreaClear: (filters) => {
+        cancelEarthquakeArchiveAreaDrawing();
+        void refreshEarthquakeArchive({ ...filters, areaPolygon: [] });
+      },
       onDistributionAreaSearch: startEarthquakeDistributionAreaSearch,
       onDistributionAreaClear: clearEarthquakeDistributionAreaSearch,
       onDistributionPlateLayersShow: () => {

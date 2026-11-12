@@ -56,6 +56,8 @@ const context = vm.createContext({
   performance, console, TABS: [{ id: "radar" }, { id: "earthquake" }, { id: "amedas" }],
   activeTab: "radar", tabAutoFocusGeneration: 0, activeLoadRequestId: 0,
   warningDetailsRequest: null, communityReportsVisible: false,
+  earthquakeArchiveAreaDrawing: true,
+  cancelEarthquakeArchiveAreaDrawing: () => { context.earthquakeArchiveAreaDrawing = false; },
   yieldAfterPaint: () => new Promise((resolve) => pending.push(resolve)),
   weatherMap: { setMode: (mode) => modes.push(mode), setCommunityReportsVisible: noop },
   tabControls: { setActiveButton: noop },
@@ -67,6 +69,7 @@ const context = vm.createContext({
 });
 vm.runInContext(`${source.slice(start, end)} return requestId; }`, context);
 const first = context.selectTab("earthquake");
+assert.equal(context.earthquakeArchiveAreaDrawing, false, "tab changes cancel the active history drawing");
 const second = context.selectTab("amedas");
 assert.deepEqual(modes, [], "map preparation must yield before running");
 pending.shift()();
@@ -140,6 +143,8 @@ const renderCtx = vm.createContext({
   SAMPLE_SOURCE_ID: 'samples', SAMPLE_LAYERS: ['sample-fill'],
   HYPOCENTER_AREA_FILL_LAYER_ID: 'area-fill', HYPOCENTER_AREA_LINE_LAYER_ID: 'area-line',
   EMPTY_GEOJSON: { type: 'FeatureCollection', features: [] },
+  hypocenterAreaPolygon: [],
+  setHypocenterAreaSelection: polygon => { renderCtx.hypocenterAreaPolygon = polygon; },
   activeEews: [], activeMode: 'earthquake', sampleDataMode: null, recentEarthquakeCollectionCache: null,
   lastRenderedMode: null, lastRenderedData: null, buildEarthquakePopup: event => event.id,
   getEarthquakeMapView: data => data.earthquakeMapView ?? 'recent',
@@ -261,3 +266,11 @@ const removeWait = cameraCtx.whenCameraIdle();
 cameraListeners.get('remove')(); await removeWait;
 assert.equal(cameraListeners.size, 0, 'map disposal also releases waiters');
 console.log('Delayed tab return and camera lifecycle tests passed');
+
+const polygon = [[139,34],[141,34],[141,36],[139,36]];
+renderCtx.renderData("earthquake", {earthquakeMapView:"history",earthquakeArchiveFilters:{areaPolygon:polygon}});
+assert.deepEqual(renderCtx.hypocenterAreaPolygon, polygon);
+renderCtx.renderData("earthquake", {earthquakeMapView:"distribution",distributionFilters:{areaPolygon:[]}});
+assert.equal(renderCtx.hypocenterAreaPolygon.length, 0, "history polygon must not leak into distribution");
+renderCtx.renderData("earthquake", {earthquakeMapView:"history",earthquakeArchiveFilters:{areaPolygon:polygon}});
+assert.deepEqual(renderCtx.hypocenterAreaPolygon, polygon, "returning to history restores its boundary");
