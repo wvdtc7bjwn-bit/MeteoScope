@@ -42,6 +42,26 @@ let earthquakeAreaLookupPromise = null;
 let tsunamiAreaLookupPromise = null;
 let tsunamiStationLookupPromise = null;
 let stationCoordinateLookupPromise = null;
+const xmlEarthquakeMapCache = new Map();
+const earthquakeObservationMapCache = new WeakMap();
+const earthquakeAreaGeometryCache = new WeakMap();
+const EMPTY_INTENSITY_OBSERVATIONS = Object.freeze([]);
+
+function attachCachedXmlEarthquakeMapData(earthquake, areaLookup, stationLookup) {
+  const key = earthquake.eventKey;
+  const signature = JSON.stringify(earthquake);
+  const cached = xmlEarthquakeMapCache.get(key);
+  if (cached?.signature === signature && cached.areaLookup === areaLookup && cached.stationLookup === stationLookup) {
+    return cached.value;
+  }
+  const value = attachEarthquakeMapData(earthquake, areaLookup, stationLookup);
+  xmlEarthquakeMapCache.delete(key);
+  xmlEarthquakeMapCache.set(key, { signature, areaLookup, stationLookup, value });
+  while (xmlEarthquakeMapCache.size > EARTHQUAKE_HISTORY_DISPLAY_LIMIT) {
+    xmlEarthquakeMapCache.delete(xmlEarthquakeMapCache.keys().next().value);
+  }
+  return value;
+}
 
 export async function fetchEarthquakeXmlList({
   earthquakeDetailFetchLimit = EARTHQUAKE_XML_INITIAL_DETAIL_FETCH_LIMIT
@@ -93,12 +113,18 @@ export async function fetchEarthquakeXmlList({
     .filter((result) => result.status === "fulfilled" && result.value)
     .map((result) => result.value);
   const tsunamiReportsByEventId = mergeTsunamiReportsByEventId(tsunamiReports);
-  const earthquakesWithMapData = baseEarthquakes.map((earthquake) => ({
-    ...attachEarthquakeMapData(earthquake, areaLookup, stationLookup),
-    tsunamiReport: tsunamiReportsByEventId.get(
-      normalizeEarthquakeEventId(earthquake.eventId)
-    ) ?? null
-  }));
+  const earthquakesWithMapData = [];
+  let mapSliceStarted = performance.now();
+  for (const earthquake of baseEarthquakes) {
+    earthquakesWithMapData.push({
+      ...attachCachedXmlEarthquakeMapData(earthquake, areaLookup, stationLookup),
+      tsunamiReport: tsunamiReportsByEventId.get(normalizeEarthquakeEventId(earthquake.eventId)) ?? null
+    });
+    if (performance.now() - mapSliceStarted >= 8) {
+      await yieldToMainThread();
+      mapSliceStarted = performance.now();
+    }
+  }
   const earthquakes = attachEstimatedIntensityData(
     earthquakesWithMapData,
     estimatedIntensityCatalog
@@ -718,11 +744,21 @@ function parseIntensityStations(observation) {
 
 export function attachEarthquakeMapData(earthquake, areaLookup, stationLookup) {
   if (!earthquake) return earthquake;
-  const intensityStations = attachIntensityStationCoordinates(earthquake.intensityStations ?? [], stationLookup);
-  const reportedFeatures = buildIntensityAreaFeatures(earthquake.intensityAreas ?? [], areaLookup);
+  const inputStations = earthquake.intensityStations ?? EMPTY_INTENSITY_OBSERVATIONS;
+  const inputAreas = earthquake.intensityAreas ?? EMPTY_INTENSITY_OBSERVATIONS;
+  const cached = earthquakeObservationMapCache.get(inputStations)?.get(inputAreas);
+  if (areaLookup.size && cached?.areaLookup === areaLookup && cached.stationLookup === stationLookup) {
+    return { ...earthquake, ...cached.data };
+  }
+  const intensityStations = attachIntensityStationCoordinates(inputStations, stationLookup);
+  const reportedFeatures = buildIntensityAreaFeatures(inputAreas, areaLookup);
   // P2P detailed reports may contain stations only. Reuse the historical
   // observation aggregation rather than interpreting station codes as areas.
-  const geometries = [...new Set([...areaLookup.values()].flat())];
+  let geometries = earthquakeAreaGeometryCache.get(areaLookup);
+  if (!geometries) {
+    geometries = [...new Set([...areaLookup.values()].flat())];
+    earthquakeAreaGeometryCache.set(areaLookup, geometries);
+  }
   const observedFeatures = buildHistoricalIntensityAreaFeatures(intensityStations, { features: geometries });
   const observedByCode = new Map(observedFeatures.map((feature) => [normalizeAreaCode(feature.properties.areaCode), feature]));
   const reportedCodes = new Set();
@@ -735,11 +771,20 @@ export function attachEarthquakeMapData(earthquake, areaLookup, stationLookup) {
       : feature;
   });
   intensityAreaFeatures.push(...observedFeatures.filter((feature) => !reportedCodes.has(normalizeAreaCode(feature.properties.areaCode))));
-  return {
-    ...earthquake,
+  const data = {
     intensityStations,
     intensityAreaFeatures: areaLookup.size ? intensityAreaFeatures : (earthquake.intensityAreaFeatures ?? [])
   };
+  if (areaLookup.size) {
+    // Merged reports keep observation arrays. Cache only map data so new report
+    // times, magnitudes and tsunami text still come from the latest report.
+    for (const stations of [inputStations, intensityStations]) {
+      let entries = earthquakeObservationMapCache.get(stations);
+      if (!entries) earthquakeObservationMapCache.set(stations, entries = new WeakMap());
+      entries.set(inputAreas, { areaLookup, stationLookup, data });
+    }
+  }
+  return { ...earthquake, ...data };
 }
 
 export function buildIntensityAreaFeatures(areas, areaLookup) {

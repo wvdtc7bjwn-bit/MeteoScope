@@ -72,6 +72,25 @@ const MODE_CLASS = {
 };
 
 const SAMPLE_SOURCE_ID = "weather-samples";
+const EARTHQUAKE_SHAPE_SOURCE_ID = "earthquake-shapes";
+const EARTHQUAKE_SHAPE_LAYERS = new Set(["sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed"]);
+const earthquakeCollectionPartsCache = new WeakMap();
+
+function splitEarthquakeCollection(collection) {
+  let parts = earthquakeCollectionPartsCache.get(collection);
+  if (!parts) {
+    const points = [], shapes = [];
+    for (const feature of collection.features) {
+      (feature.geometry?.type === "Point" ? points : shapes).push(feature);
+    }
+    parts = {
+      points: { type: "FeatureCollection", features: points },
+      shapes: { type: "FeatureCollection", features: shapes }
+    };
+    earthquakeCollectionPartsCache.set(collection, parts);
+  }
+  return parts;
+}
 const HYPOCENTER_AREA_SOURCE_ID = "hypocenter-area-selection";
 const HYPOCENTER_AREA_FILL_LAYER_ID = "hypocenter-area-selection-fill";
 const HYPOCENTER_AREA_LINE_LAYER_ID = "hypocenter-area-selection-line";
@@ -429,6 +448,8 @@ export function createWeatherMap(elementId) {
   let modeApplyPending = false;
   let activeMode = "radar";
   let activeEews = [];
+  let sampleDataMode = null;
+  let recentEarthquakeCollectionCache = null;
   let eewAreaSignature = "";
   let eewAreaLoadGeneration = 0;
   let eewAreaGeometryPromise = null;
@@ -1018,8 +1039,40 @@ export function createWeatherMap(elementId) {
         map.setLayoutProperty(layerId, "visibility", areaVisible ? "visible" : "none");
       }
     }
-    const collection = createSampleFeatureCollection(mode, data);
-    setGeoJsonSourceData(source, collection);
+    let collection = EMPTY_GEOJSON;
+    if (mode === "earthquake" || mode === "amedas") {
+      if (mode === "earthquake" && getEarthquakeMapView(data) === "recent"
+        && data?.earthquakeContentMode !== "volcano") {
+        const earthquake = data.selectedEarthquake
+          ?? data.earthquakes?.find((item) => String(item.id) === String(data.selectedEarthquakeId ?? ""))
+          ?? data.earthquakes?.[0];
+        const inputs = [
+          earthquake?.id, earthquake?.coordinates, earthquake?.intensityStations,
+          earthquake?.intensityAreaFeatures, Boolean(earthquake?.estimatedIntensity?.images?.length),
+          earthquake ? buildEarthquakePopup(earthquake) : "",
+          data.tsunami?.mapFeatures, data.tideStationsVisible,
+          data.tideStationsVisible ? data.tideStations : null,
+          data.tideStationsVisible ? data.selectedTideStationCode : null
+        ];
+        if (recentEarthquakeCollectionCache?.inputs.every((value, index) => value === inputs[index])) {
+          collection = recentEarthquakeCollectionCache.collection;
+        } else {
+          collection = createSampleFeatureCollection(mode, data);
+          recentEarthquakeCollectionCache = { inputs, collection };
+        }
+      } else {
+        collection = createSampleFeatureCollection(mode, data);
+      }
+      if (mode === "earthquake") {
+        const parts = splitEarthquakeCollection(collection);
+        setGeoJsonSourceData(map.getSource(EARTHQUAKE_SHAPE_SOURCE_ID), parts.shapes);
+        setGeoJsonSourceData(source, parts.points);
+      } else {
+        setGeoJsonSourceData(source, collection);
+      }
+      sampleDataMode = mode;
+    }
+    syncSampleVisibility();
     syncTsunamiBlink(mode, collection);
     updateHypocenter3D(mode, data);
     const typhoonCollection = updateTyphoonLayers(mode, data);
@@ -1111,6 +1164,19 @@ export function createWeatherMap(elementId) {
     });
   }
 
+  function whenCameraIdle() {
+    if (!map?.isMoving()) return Promise.resolve();
+    return new Promise((resolve) => {
+      const finish = () => {
+        map.off("moveend", finish);
+        map.off("remove", finish);
+        resolve();
+      };
+      map.on("moveend", finish);
+      map.on("remove", finish);
+    });
+  }
+
   function flyToLocation(coordinates, options = {}) {
     if (!map || !Array.isArray(coordinates)) return;
     const minZoom = Number.isFinite(options.minZoom) ? options.minZoom : 8.2;
@@ -1154,6 +1220,7 @@ export function createWeatherMap(elementId) {
       type: "geojson",
       data: createSampleFeatureCollection(activeMode)
     });
+    map.addSource(EARTHQUAKE_SHAPE_SOURCE_ID, { type: "geojson", data: EMPTY_GEOJSON });
     map.addSource(HYPOCENTER_AREA_SOURCE_ID, {
       type: "geojson",
       data: createEmptyFeatureCollection()
@@ -1354,7 +1421,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     map.addLayer({
       id: "sample-fill",
       type: "fill",
-      source: SAMPLE_SOURCE_ID,
+      source: EARTHQUAKE_SHAPE_SOURCE_ID,
       filter: ["all", ["==", ["geometry-type"], "Polygon"], ["!", ["has", "tsunamiLevel"]]],
       paint: {
         "fill-color": ["get", "color"],
@@ -1365,7 +1432,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     map.addLayer({
       id: "sample-tsunami-area-fill",
       type: "fill",
-      source: SAMPLE_SOURCE_ID,
+      source: EARTHQUAKE_SHAPE_SOURCE_ID,
       filter: ["all", ["==", ["geometry-type"], "Polygon"], ["has", "tsunamiLevel"]],
       paint: {
         "fill-color": ["get", "color"],
@@ -1377,7 +1444,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     map.addLayer({
       id: "sample-line",
       type: "line",
-      source: SAMPLE_SOURCE_ID,
+      source: EARTHQUAKE_SHAPE_SOURCE_ID,
       filter: ["all",
         ["any", ["==", ["geometry-type"], "Polygon"], ["==", ["geometry-type"], "LineString"]],
         ["!", ["has", "tsunamiLevel"]],
@@ -1393,7 +1460,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     map.addLayer({
       id: "sample-tsunami-area-line",
       type: "line",
-      source: SAMPLE_SOURCE_ID,
+      source: EARTHQUAKE_SHAPE_SOURCE_ID,
       filter: ["all",
         ["any", ["==", ["geometry-type"], "Polygon"], ["==", ["geometry-type"], "LineString"]],
         ["has", "tsunamiLevel"]
@@ -1409,7 +1476,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     map.addLayer({
       id: "sample-line-dashed",
       type: "line",
-      source: SAMPLE_SOURCE_ID,
+      source: EARTHQUAKE_SHAPE_SOURCE_ID,
       filter: ["all", ["==", ["geometry-type"], "LineString"], ["==", ["get", "lineStyle"], "dashed"]],
       paint: {
         "line-color": ["get", "color"],
@@ -2652,9 +2719,9 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         type: "FeatureCollection",
         features: createTyphoonFeatures(data)
       }
-      : createEmptyFeatureCollection();
+      : EMPTY_GEOJSON;
 
-    source.setData(collection);
+    setGeoJsonSourceData(source, collection);
     TYPHOON_LAYERS.forEach((layerId) => {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", mode === "typhoon" ? "visible" : "none");
     });
@@ -2839,6 +2906,15 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     return eewAreaGeometryPromise;
   }
 
+  function syncSampleVisibility() {
+    const visible = activeMode === sampleDataMode
+      && !(activeMode === "earthquake" && activeEews.length > 0);
+    SAMPLE_LAYERS.forEach((layerId) => {
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility",
+        visible && (!EARTHQUAKE_SHAPE_LAYERS.has(layerId) || activeMode === "earthquake") ? "visible" : "none");
+    });
+  }
+
   function syncEewVisibility() {
     if (!map?.getSource(EEW_SOURCE_ID)) return;
     const visible = activeMode === "earthquake" && activeEews.length > 0;
@@ -2846,9 +2922,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
     });
     syncEewHypocenterBlink(visible);
-    SAMPLE_LAYERS.forEach((layerId) => {
-      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible ? "none" : "visible");
-    });
+    syncSampleVisibility();
     const areaVisible = !visible
       && activeMode === "earthquake"
       && lastRenderedMode === "earthquake"
@@ -2893,7 +2967,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarnings, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarnings, whenCameraIdle, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
 }
 
 function normalizeTerrainOpacity(value) {
@@ -5217,7 +5291,12 @@ function createEarthquakeAreaIntensityMarkers(features) {
   return [...markersByArea.values()].map((entry) => entry.feature);
 }
 
+// Administrative geometry is immutable; keep the expensive vertex scan across
+// tab switches without retaining old datasets once their geometry is released.
+const earthquakeAreaAnchorCache = new WeakMap();
 function getEarthquakeAreaIntensityAnchor(geometry) {
+  if (!geometry || typeof geometry !== "object") return null;
+  if (earthquakeAreaAnchorCache.has(geometry)) return earthquakeAreaAnchorCache.get(geometry);
   const rings = geometry?.type === "Polygon"
     ? [geometry.coordinates?.[0]]
     : geometry?.type === "MultiPolygon"
@@ -5228,6 +5307,7 @@ function getEarthquakeAreaIntensityAnchor(geometry) {
     const candidate = getPolygonRingCentroid(ring);
     if (candidate && (!largest || candidate.area > largest.area)) largest = candidate;
   }
+  earthquakeAreaAnchorCache.set(geometry, largest);
   return largest;
 }
 

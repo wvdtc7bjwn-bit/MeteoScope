@@ -25,6 +25,13 @@ import { buildStationCoordinateLookup } from "../src/jma/earthquakeStationLookup
     { addr: "水戸市金町", scale: 20 }, { addr: "日立市役所", scale: 40 }
   ] });
   const mapped = attachEarthquakeMapData(event, areas, stations);
+  const reused = attachEarthquakeMapData({ ...mapped, magnitude: "5.0", reportTimeRaw: "new" }, areas, stations);
+  assert.equal(reused.intensityAreaFeatures, mapped.intensityAreaFeatures, "同一観測データの区域集計を再実行しない");
+  assert.equal(reused.intensityStations, mapped.intensityStations);
+  assert.equal(reused.magnitude, "5.0", "地図キャッシュで新しい報を上書きしない");
+  assert.equal(reused.reportTimeRaw, "new");
+  assert.notEqual(attachEarthquakeMapData({ ...event, intensityStations: [...event.intensityStations] }, areas, stations).intensityAreaFeatures, mapped.intensityAreaFeatures, "更新された観測データを再集計する");
+  assert.notEqual(attachEarthquakeMapData(mapped, new Map(areas), stations).intensityAreaFeatures, mapped.intensityAreaFeatures, "区域データ更新時は再集計する");
   assert.equal(mapped.intensityAreaFeatures.length, 1, "観測点のみのP2P情報も区域を色付けする");
   assert.equal(mapped.intensityAreaFeatures[0].properties.intensity, "4", "区域内の最大観測震度を使う");
   assert.deepEqual(attachEarthquakeMapData(mapped, areas, stations).intensityAreaFeatures, mapped.intensityAreaFeatures, "履歴の再処理で色付けを失わない");

@@ -1,3 +1,4 @@
+import { renderFocalMechanism } from "./focalMechanism.js";
 import { getSnowDepthAxisMaximum, splitAmedasChartSegments } from "../amedasChart.js";
 import {
   AMEDAS_LEVELS_BY_METRIC,
@@ -6297,7 +6298,7 @@ function renderEarthquakeList(tab, state) {
     const unknownText = getEarthquakeUnknownText(earthquake);
     const magnitude = formatEarthquakeMagnitude(earthquake.magnitude, { prefix: true, unknownText });
     const depthText = formatEarthquakeDepthText(earthquake.depth, { compact: true, unknownText });
-    const observations = buildEarthquakeObservationRows(earthquake);
+    const observations = isExpanded ? buildEarthquakeObservationRows(earthquake) : [];
     const observationsId = `earthquake-observations-${index}`;
     const tsunamiState = getEarthquakeTsunamiState(
       earthquake,
@@ -6327,6 +6328,7 @@ function renderEarthquakeList(tab, state) {
         </button>
         ${Array.isArray(earthquake.coordinates) && earthquake.coordinates.length === 2
           ? `<button type="button" class="earthquake-nearby-search-button" data-mobile-dock-control data-earthquake-nearby-search="${escapeHtml(earthquake.id)}">この震源の近傍を検索</button>` : ""}
+        ${isExpanded ? renderFocalMechanism(earthquake) : ""}
         ${isExpanded ? renderEarthquakeObservations(observations, observationsId, { showShareButton: true }) : ""}
         ${isExpanded ? renderEarthquakeTsunamiDetails(tsunamiState) : ""}
       </article>
@@ -6997,6 +6999,7 @@ function buildEarthquakeArchiveMarkup(data) {
           ${summaryMarkup}
         </button>
         ${item.sourceUrl ? `<a href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noopener noreferrer" aria-label="気象庁でこの地震を確認">↗</a>` : ""}
+        ${active ? renderFocalMechanism(item) : ""}
       </article>
     `;
   }).join("");

@@ -1,3 +1,4 @@
+import { onRequest as handleFocalMechanismRequest } from "./functions/api/jma-focal-mechanism.js";
 import { defineConfig } from "vite";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -19,7 +20,7 @@ function isLoopbackRequest(request) {
 }
 
 export default defineConfig({
-  plugins: [localActiveFaultApi(), localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localJmaUpperAirArchiveApi(), localUpperAirApi(), localGfsProfileApi()],
+  plugins: [localReadOnlyPagesApi("jma-focal-mechanism", "/api/jma-focal-mechanism", handleFocalMechanismRequest), localActiveFaultApi(), localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localJmaUpperAirArchiveApi(), localUpperAirApi(), localGfsProfileApi()],
   base: process.env.GITHUB_PAGES === "true" ? "/MeteoScope/" : "/",
   server: {
     fs: { deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "**/.cache/early-access/**"] },

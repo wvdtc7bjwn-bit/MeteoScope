@@ -7396,16 +7396,33 @@ html[data-theme="light"] .settings-changelog-entry li::marker {
   transition: border-color 150ms ease, background-color 150ms ease, transform 150ms ease;
 }
 
-.earthquake-archive-item.active {
-  border-color: rgba(83, 184, 239, 0.84);
-  background: rgba(38, 137, 201, 0.26);
-  box-shadow: 0 8px 18px rgba(10, 79, 122, 0.2);
+focal-mechanism {
+  display: block;
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(137, 170, 220, 0.28);
+  color: inherit;
 }
+focal-mechanism summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
+focal-mechanism[hidden] { display: none; }
+focal-mechanism summary:focus-visible { outline: 2px solid #369bc6; outline-offset: 3px; }
+.focal-mechanism-body { font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
+.focal-mechanism-body section + section { border-top: 1px solid rgba(137, 170, 220, 0.28); margin-top: 16px; }
+.focal-mechanism-body h4 { margin: 10px 0 8px; font-size: 14px; }
+.focal-mechanism-body p { margin: 8px 0; font-size: 12px; }
+.focal-mechanism-body img { display: block; width: min(100%, 200px); height: auto; margin: 12px auto; background: white; border-radius: 2px; }
+.focal-mechanism-body figure { margin: 12px 0; }
+.focal-mechanism-body canvas { display: block; width: min(100%, 200px); height: auto; margin: auto; }
+.focal-mechanism-body figcaption { margin-top: 8px; font-size: 12px; }
+.focal-mechanism-body table { width: 100%; max-width: 420px; border-collapse: collapse; margin: 10px auto; font-size: 12px; font-variant-numeric: tabular-nums; }
+.focal-mechanism-body :is(th, td) { padding: 6px; text-align: center; border-bottom: 1px solid rgba(137, 170, 220, 0.28); }
+.focal-mechanism-body a { color: #78c9fa; }
+html[data-theme="light"] .focal-mechanism-body a { color: #17658a; }
+.focal-mechanism-body button { display: block; margin-top: 12px; padding: 8px 16px; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 4px; }
 
 .earthquake-archive-item > a { display: grid; width: 38px; place-items: center; border-left: 1px solid rgba(137, 170, 220, 0.18); color: #78c9fa; font-size: 17px; text-decoration: none; }
 .earthquake-archive-item > a:is(:hover, :focus-visible) { background: rgba(83, 184, 239, 0.14); color: #c0eeff; outline: none; }
-.earthquake-archive-item > button:is(:hover, :focus-visible) { background: rgba(101, 183, 232, 0.11); outline: none; }
-.earthquake-archive-item > button:focus-visible { box-shadow: inset 0 0 0 2px rgba(119, 212, 255, 0.9); }
 .earthquake-archive-list-note { padding: 9px 2px 2px; text-align: center; }
 
 .earthquake-distribution-control-card {
@@ -8264,7 +8281,8 @@ html[data-theme="light"] .settings-changelog-entry li::marker {
   pointer-events: none;
 }
 
-.earthquake-history-item {
+.earthquake-history-item,
+.earthquake-archive-item {
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
@@ -14886,6 +14904,7 @@ html[data-theme="light"] :is(
   .typhoon-detail-item,
   .typhoon-empty,
   .earthquake-history-item,
+  .earthquake-archive-item,
   .earthquake-observation-list,
   .amedas-temperature-chart,
   .amedas-ranking
@@ -14903,6 +14922,7 @@ html[data-theme="light"] :is(
   .typhoon-select-button,
   .typhoon-detail-item,
   .earthquake-history-item,
+  .earthquake-archive-item,
   .earthquake-observation-list,
   .amedas-temperature-chart,
   .amedas-ranking
@@ -14917,6 +14937,7 @@ html[data-theme="light"] :is(
   .typhoon-select-button,
   .typhoon-detail-item,
   .earthquake-history-item,
+  .earthquake-archive-item,
   .earthquake-observation-list,
   .amedas-temperature-chart,
   .amedas-ranking
@@ -15440,7 +15461,7 @@ html[data-theme="light"] .warning-empty {
   background: rgba(218, 228, 239, 0.62);
 }
 
-html[data-theme="light"] :is(.earthquake-history-item, .earthquake-observation-list) {
+html[data-theme="light"] :is(.earthquake-history-item, .earthquake-archive-item, .earthquake-observation-list) {
   border-color: rgba(72, 100, 132, 0.2);
   background: rgba(246, 250, 255, 0.96);
   box-shadow:
@@ -15518,14 +15539,9 @@ html[data-theme="light"] .earthquake-distribution-panel {
   border-color: transparent;
   background: transparent;
 }
-html[data-theme="light"] :is(.earthquake-archive-search, .earthquake-archive-item) {
+html[data-theme="light"] .earthquake-archive-search {
   border-color: rgba(72, 100, 132, 0.16);
   background: rgba(246, 250, 255, 0.9);
-}
-html[data-theme="light"] .earthquake-archive-item.active {
-  border-color: rgba(36, 139, 201, 0.42);
-  background: rgba(215, 240, 255, 0.98);
-  box-shadow: 0 8px 18px rgba(54, 111, 149, 0.13);
 }
 html[data-theme="light"] .earthquake-archive-search :is(input, select) {
   border-color: rgba(72, 100, 132, 0.22);
@@ -15534,18 +15550,7 @@ html[data-theme="light"] .earthquake-archive-search :is(input, select) {
 }
 html[data-theme="light"] :is(.earthquake-archive-head strong, .earthquake-archive-result-head strong) { color: #20364e; }
 html[data-theme="light"] :is(.earthquake-archive-head span, .earthquake-archive-search p, .earthquake-archive-list-note) { color: #536b82; }
-html[data-theme="light"] .earthquake-archive-item {
-  border-color: rgba(72, 100, 132, 0.18);
-  background: rgba(250, 253, 255, 0.97);
-  box-shadow: 0 5px 14px rgba(54, 111, 149, 0.08);
-}
-html[data-theme="light"] .earthquake-archive-item.active {
-  border-color: rgba(36, 139, 201, 0.52);
-  background: rgba(215, 240, 255, 0.98);
-  box-shadow: 0 8px 18px rgba(54, 111, 149, 0.13);
-}
 html[data-theme="light"] .earthquake-archive-item > a { border-color: rgba(72, 100, 132, 0.14); color: #2985ba; }
-html[data-theme="light"] .earthquake-archive-item > button:is(:hover, :focus-visible),
 html[data-theme="light"] .earthquake-archive-item > a:is(:hover, :focus-visible) { background: rgba(101, 183, 232, 0.13); }
 html[data-theme="light"] .earthquake-archive-search-button { color: #15668f; background: rgba(101, 183, 232, 0.17); }
 html[data-theme="light"] .earthquake-nearby-search-button { border-color: rgba(63, 126, 165, 0.25); background: rgba(101, 183, 232, 0.12); color: #245875; }
@@ -21144,6 +21149,7 @@ html[data-theme="light"] :is(
   .typhoon-detail-item,
   .typhoon-empty,
   .earthquake-history-item,
+  .earthquake-archive-item,
   .earthquake-observation-list,
   .earthquake-distribution-control-card,
   .amedas-temperature-chart,
@@ -21171,6 +21177,7 @@ html[data-theme="light"] :is(
   .typhoon-detail-item,
   .typhoon-empty,
   .earthquake-history-item,
+  .earthquake-archive-item,
   .earthquake-observation-list,
   .earthquake-distribution-control-card,
   .amedas-temperature-chart,

@@ -573,6 +573,7 @@ export function createWeatherApp() {
   let scheduledPanelRenderNextFrame = 0;
   let panelRenderGeneration = 0;
   let tabAutoFocusGeneration = 0;
+  let tabAutoFocusSettled = Promise.resolve();
 
   function renderLeftPanelState(tab, panelState) {
     updateLeftPanel(tab, panelState);
@@ -2161,13 +2162,20 @@ if (layerId === "river") {
 
   function scheduleTabAutoFocus(tabId, generation) {
     if (tabId !== "typhoon" && tabId !== "earthquake") return;
-    window.requestAnimationFrame(() => {
+    tabAutoFocusSettled = (async () => {
+      // Prepare the cached map before moving the camera. Otherwise large
+      // geometry transfers start in the middle of the focus animation.
+      await yieldAfterPaint();
+      await yieldAfterPaint();
       if (generation !== tabAutoFocusGeneration || activeTab !== tabId) return;
       if (tabId === "typhoon") {
         focusSelectedTyphoon({ includeWorldForecast: true });
-        return;
+      } else if (earthquakeContentMode === "earthquake") {
+        focusSelectedEarthquake();
       }
-      if (earthquakeContentMode === "earthquake") focusSelectedEarthquake();
+      await weatherMap?.whenCameraIdle();
+    })().catch((error) => {
+      console.warn("[MeteoScope] tab focus failed", error);
     });
   }
 
@@ -2339,8 +2347,12 @@ if (layerId === "river") {
   function scheduleMapRender(tabId, displayData) {
     const generation = ++mapRenderGeneration;
     if (scheduledMapRenderFrame) window.cancelAnimationFrame(scheduledMapRenderFrame);
-    scheduledMapRenderFrame = window.requestAnimationFrame(() => {
+    scheduledMapRenderFrame = window.requestAnimationFrame(async () => {
       scheduledMapRenderFrame = 0;
+      if (generation !== mapRenderGeneration || activeTab !== tabId) return;
+      // Earthquake polygons can be large. Let the deferred summary panel paint
+      // before preparing them, and discard work superseded during that yield.
+      if (tabId === "earthquake") await yieldAfterPaint();
       if (generation !== mapRenderGeneration || activeTab !== tabId) return;
       weatherMap?.renderData(tabId, displayData);
     });
@@ -3582,6 +3594,9 @@ if (layerId === "river") {
   }
 
   async function refreshEarthquakeData({ force = false } = {}) {
+    // Periodic XML reconciliation must not compete with a return-to-tab camera
+    // animation. Realtime earthquake/EEW callbacks remain independent.
+    if (!force) await tabAutoFocusSettled;
     if (activeTab !== "earthquake") return latestDataByTab.earthquake;
     if (document.hidden && !force) return latestDataByTab.earthquake;
     if (earthquakeRefreshRequest) return earthquakeRefreshRequest;
