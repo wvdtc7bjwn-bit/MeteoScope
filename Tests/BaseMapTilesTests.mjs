@@ -62,3 +62,8 @@ for (const key of keys) {
 assert.ok(checked > 0);
 assert.equal(new Set(manifest.tiles).size, manifest.tiles.length);
 console.log(`Base-map tile compatibility: ${checked} features checked`);
+
+// Pages concatenates matching headers. Detach the generic data policy first.
+const headers = await readFile(new URL("../public/_headers", import.meta.url), "utf8");
+assert.ok(headers.indexOf("/data/*") < headers.indexOf("/data/base-map-tiles/*"));
+assert.match(headers, /\/data\/base-map-tiles\/\*\s*\n  ! Cache-Control\s*\n  Cache-Control: public, max-age=31536000, immutable/);
