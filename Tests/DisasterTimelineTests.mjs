@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
@@ -79,7 +80,7 @@ assert.match(buildDisasterTimelineMarkup([]), /該当する災害がありませ
 const [html, appSource, css] = await Promise.all([
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/style.css", import.meta.url), "utf8")
+  readStylesheet(new URL("../src/style.css", import.meta.url))
 ]);
 
 assert.match(html, /id="map-utility-actions"[\s\S]*id="disaster-timeline-button"/);

@@ -1,0 +1,1017 @@
+/* Unified translucent glass system. Keep semantic colors (warnings, observed
+   intensities, radar scales) on their own elements; this layer only defines
+   the material used by app chrome, sheets, controls, and neutral cards. */
+:is(
+  #sidebar,
+  #sidebar.drawer-open,
+  #main-tabs,
+  .mobile-context-dock,
+  .warning-modal-panel,
+  .hypocenter-date-wheel-sheet,
+  .map-legend,
+  .map-utility-actions,
+  .maplibregl-popup-content,
+  .map-info-popup,
+  .earthquake-long-press-hint,
+  .remote-notice-ticker
+),
+html[data-theme="light"] :is(
+  #sidebar,
+  #sidebar.drawer-open,
+  #main-tabs,
+  .mobile-context-dock,
+  .warning-modal-panel,
+  .hypocenter-date-wheel-sheet,
+  .map-legend,
+  .map-utility-actions,
+  .maplibregl-popup-content,
+  .map-info-popup,
+  .earthquake-long-press-hint,
+  .remote-notice-ticker
+) {
+  border-color: var(--glass-border);
+  background: var(--glass-panel-background);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+}
+
+:is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock),
+html[data-theme="light"] :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock) {
+  background: var(--glass-shell-background);
+  box-shadow: var(--glass-shell-shadow);
+}
+
+/* Chrome's emulated-device compositor can leave a diffuse halo around fixed,
+   blurred layers. Use an opaque enough static glass surface for the connected
+   mobile controls so every tab renders without the residual shadow. */
+@media (max-width: 800px) and (orientation: portrait),
+  (orientation: landscape) and (max-height: 800px),
+  (min-width: 801px) and (max-width: 1366px) {
+  :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock),
+  html[data-theme="light"] :is(#sidebar, #sidebar.drawer-open, #main-tabs, .mobile-context-dock) {
+    background: var(--glass-shell-static-background);
+    filter: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+:is(.warning-modal-panel, .hypocenter-date-wheel-sheet),
+html[data-theme="light"] :is(.warning-modal-panel, .hypocenter-date-wheel-sheet) {
+  background: var(--glass-panel-strong-background);
+}
+
+:is(
+  .map-utility-menu-toggle,
+  .map-locate-button,
+  .map-community-report-button,
+  .map-weather-distribution-toggle,
+
+  .map-world-typhoon-target-button,
+  .map-settings-open-button,
+  .disaster-map-open-button,
+  .warning-modal-close,
+  #clock,
+  #map-attribution
+),
+html[data-theme="light"] :is(
+  .map-utility-menu-toggle,
+  .map-locate-button,
+  .map-community-report-button,
+  .map-weather-distribution-toggle,
+
+  .map-world-typhoon-target-button,
+  .map-settings-open-button,
+  .disaster-map-open-button,
+  .warning-modal-close,
+  #clock,
+  #map-attribution
+) {
+  border-color: var(--glass-border-soft);
+  background: var(--glass-compact-background);
+  box-shadow: var(--glass-shadow-soft);
+  backdrop-filter: var(--glass-filter-compact);
+  -webkit-backdrop-filter: var(--glass-filter-compact);
+}
+
+/* Apply the same stable composition to the map's fixed controls. Otherwise
+   their individual backdrop layers leave grey halos in device emulation. */
+@media (max-width: 800px) and (orientation: portrait),
+  (orientation: landscape) and (max-height: 800px),
+  (min-width: 801px) and (max-width: 1366px) {
+  :is(
+    .map-legend,
+    .map-utility-actions,
+    .map-utility-menu-toggle,
+    .map-locate-button,
+    .map-community-report-button,
+    .map-weather-distribution-toggle,
+
+    .map-world-typhoon-target-button,
+    .map-settings-open-button,
+    .disaster-map-open-button,
+    #clock,
+    #map-attribution
+  ),
+  html[data-theme="light"] :is(
+    .map-legend,
+    .map-utility-actions,
+    .map-utility-menu-toggle,
+    .map-locate-button,
+    .map-community-report-button,
+    .map-weather-distribution-toggle,
+
+    .map-world-typhoon-target-button,
+    .map-settings-open-button,
+    .disaster-map-open-button,
+    #clock,
+    #map-attribution
+  ) {
+    background: var(--glass-shell-static-background);
+    box-shadow: none;
+    filter: none !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  /* These elements animate independently when their menus open and close.
+     A blur filter leaves an old compositor tile behind in landscape WebKit. */
+  :is(.map-utility-actions, .map-utility-actions .disaster-map-open-button, .map-legend, .map-legend .legend-list) {
+    filter: none !important;
+    will-change: auto;
+  }
+}
+
+/* The legend and utility rail have open/closed variants with more specific
+   styles. Their ids keep the static mobile surface intact in either state. */
+@media (max-width: 800px) and (orientation: portrait),
+  (orientation: landscape) and (max-height: 800px),
+  (min-width: 801px) and (max-width: 1366px) {
+  :is(#map-legend, #map-utility-actions) {
+    background: var(--glass-shell-static-background) !important;
+    box-shadow: var(--glass-shell-shadow) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* Modal panels are rendered above several independently composited map and
+   page layers. On mobile, blur and exterior elevation can leave a visible
+   raster seam around those layers, so use the same solid glass treatment as
+   the navigation. The backdrop still keeps its semantic dimming color. */
+@media (max-width: 800px) and (orientation: portrait),
+  (orientation: landscape) and (max-height: 800px),
+  (min-width: 801px) and (max-width: 1366px) {
+  :is(
+    .warning-modal-panel,
+    .hypocenter-date-wheel-sheet,
+    .maplibregl-popup-content,
+    .map-info-popup,
+    .earthquake-long-press-hint,
+    .remote-notice-ticker,
+    .remote-notice-card
+  ) {
+    background: var(--glass-shell-static-background) !important;
+    box-shadow: var(--glass-shell-shadow) !important;
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .warning-modal-backdrop {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  :is(.warning-modal-close, .settings-modal-close) {
+    background: var(--glass-shell-static-background) !important;
+    box-shadow: var(--glass-shell-shadow) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Modal content reuses neutral cards from several features. Keep their
+     structure, but remove each card's exterior elevation on mobile. */
+  .warning-modal-panel :is(.settings-group, [class*="-card"], [class*="-sheet"]) {
+    box-shadow: var(--glass-shell-shadow) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* Segmented controls sit directly on the map or a translucent sheet. Their
+   tracks and moving indicators must not create separate blurred layers. */
+@media (max-width: 800px) and (orientation: portrait),
+  (orientation: landscape) and (max-height: 800px),
+  (min-width: 801px) and (max-width: 1366px) {
+  :is(
+    .mobile-dock-action-row,
+    .mobile-dock-chip-grid,
+    .amedas-sub-tabs.mobile-dock-segmented,
+    .amedas-precipitation-period-tabs,
+    .hypocenter-presentation-switch,
+    .amedas-chart-period-toggle,
+    .amedas-ranking-toggle
+  ),
+  html[data-theme="light"] :is(
+    .mobile-dock-action-row,
+    .mobile-dock-chip-grid,
+    .amedas-sub-tabs.mobile-dock-segmented,
+    .amedas-precipitation-period-tabs,
+    .hypocenter-presentation-switch,
+    .amedas-chart-period-toggle,
+    .amedas-ranking-toggle
+  ) {
+    background: var(--glass-shell-static-background);
+    box-shadow: var(--glass-shell-shadow);
+    filter: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .mobile-dock-segmented::before,
+  html[data-theme="light"] .mobile-dock-segmented::before {
+    box-shadow: var(--glass-shell-shadow);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Repeated cards deliberately avoid per-card backdrop filters so large lists
+   keep their existing scroll performance while sharing the same material. */
+:is(
+  .radar-time-controls,
+  .current-location-card,
+  .location-insight-panel,
+  .warning-detail-prefecture,
+  .warning-detail-area,
+  .warning-modal-warning,
+  .typhoon-select-button,
+  .typhoon-detail-item,
+  .typhoon-empty,
+  .earthquake-history-item,
+  .earthquake-archive-item,
+  .earthquake-observation-list,
+  .earthquake-distribution-control-card,
+  .amedas-temperature-chart,
+  .amedas-ranking,
+  .weekly-weather-day,
+  .weekly-weather-hourly-panel,
+  .settings-group,
+  .quiz-account-card,
+  .river-station-card,
+  .volcano-report-card,
+  .volcano-history-item,
+  .social-share-preview-shell,
+  .disaster-dashboard-list,
+  .disaster-dashboard-risk-list,
+  .disaster-map-annotation-panel
+),
+html[data-theme="light"] :is(
+  .radar-time-controls,
+  .current-location-card,
+  .location-insight-panel,
+  .warning-detail-prefecture,
+  .warning-detail-area,
+  .warning-modal-warning,
+  .typhoon-select-button,
+  .typhoon-detail-item,
+  .typhoon-empty,
+  .earthquake-history-item,
+  .earthquake-archive-item,
+  .earthquake-observation-list,
+  .earthquake-distribution-control-card,
+  .amedas-temperature-chart,
+  .amedas-ranking,
+  .weekly-weather-day,
+  .weekly-weather-hourly-panel,
+  .settings-group,
+  .quiz-account-card,
+  .river-station-card,
+  .volcano-report-card,
+  .volcano-history-item,
+  .social-share-preview-shell,
+  .disaster-dashboard-list,
+  .disaster-dashboard-risk-list,
+  .disaster-map-annotation-panel
+) {
+  border-color: var(--glass-border-soft);
+  background: var(--glass-card-background);
+  box-shadow: var(--glass-shadow-soft);
+}
+
+.remote-notice-card,
+html[data-theme="light"] .remote-notice-card {
+  background: var(--glass-panel-background);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-filter-compact);
+  -webkit-backdrop-filter: var(--glass-filter-compact);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass-shell-background: rgba(7, 16, 34, 0.94);
+    --glass-panel-background: rgba(9, 21, 40, 0.96);
+    --glass-panel-strong-background: rgba(8, 19, 36, 0.98);
+    --glass-compact-background: rgba(8, 19, 36, 0.94);
+  }
+
+  html[data-theme="light"] {
+    --glass-shell-background: rgba(243, 248, 253, 0.96);
+    --glass-panel-background: rgba(244, 249, 253, 0.97);
+    --glass-panel-strong-background: rgba(244, 249, 253, 0.98);
+    --glass-compact-background: rgba(246, 250, 253, 0.96);
+  }
+}
+
+/* Warning detail views */
+.mode-label.mode-label-warning {
+  margin-bottom: 10px;
+  overflow: hidden;
+  font-size: clamp(13px, 1.25vw, 16px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warning-view-tabs.mobile-dock-segmented {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  min-height: 42px;
+  margin: 0 0 12px;
+  padding: 3px;
+  border: 1px solid var(--glass-border-soft);
+  border-radius: 999px;
+  background: var(--glass-compact-background);
+  box-shadow: none;
+  backdrop-filter: var(--glass-filter-compact);
+  -webkit-backdrop-filter: var(--glass-filter-compact);
+}
+
+.warning-view-tabs[hidden] {
+  display: none;
+}
+
+.warning-view-tabs .mobile-dock-action {
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: none;
+}
+
+.warning-view-tabs .mobile-dock-action.active {
+  color: var(--segmented-active-label);
+}
+
+.warning-detail-list {
+  display: block;
+  gap: 0;
+  padding: 0;
+  overflow: hidden auto;
+  border: 1px solid var(--glass-border-soft);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--glass-panel-background) 54%, transparent);
+  box-shadow: none;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.warning-detail-list::-webkit-scrollbar {
+  display: none;
+}
+
+.warning-detail-list.is-entering > * {
+  animation: warning-detail-enter 0.22s cubic-bezier(0.22, 0.8, 0.24, 1) both;
+}
+
+@keyframes warning-detail-enter {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.warning-prefecture-groups {
+  display: block;
+}
+
+.warning-prefecture-group {
+  --warning-group-color: #718399;
+  border-bottom: 1px solid var(--glass-border-soft);
+  background: transparent;
+}
+
+.warning-prefecture-group:last-child {
+  border-bottom: 0;
+}
+
+.warning-prefecture-group-emergency,
+.warning-prefecture-group-danger { --warning-group-color: #b400ff; }
+.warning-prefecture-group-warning { --warning-group-color: #ff2b12; }
+.warning-prefecture-group-advisory { --warning-group-color: #fff000; }
+.warning-prefecture-group-high { --warning-group-color: #ff6b73; }
+.warning-prefecture-group-middle { --warning-group-color: #ffc8b8; }
+
+.warning-prefecture-toggle {
+  display: grid;
+  grid-template-columns: 4px minmax(0, 1fr) auto 12px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 60px;
+  padding: 9px 13px 9px 11px;
+  border: 0;
+  border-radius: 0;
+  color: var(--text-main);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.16s ease;
+}
+
+@media (hover: hover) {
+  .warning-prefecture-toggle:hover {
+    background: color-mix(in srgb, var(--glass-compact-background) 58%, transparent);
+  }
+}
+
+.warning-prefecture-toggle:focus-visible {
+  outline: 2px solid #56b7f2;
+  outline-offset: -3px;
+}
+
+.warning-prefecture-marker {
+  width: 4px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--warning-group-color);
+}
+
+.warning-prefecture-group-emergency .warning-prefecture-marker {
+  background:
+    repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.92) 0 4px, transparent 4px 8px),
+    #b400ff;
+}
+
+.warning-prefecture-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.warning-prefecture-copy > strong {
+  overflow: hidden;
+  color: var(--type-info-title-color);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warning-prefecture-copy > small {
+  overflow: hidden;
+  color: var(--text-soft);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.warning-prefecture-count {
+  color: var(--text-soft);
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.warning-prefecture-chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  color: var(--text-soft);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform 0.22s cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+.warning-prefecture-group.is-open .warning-prefecture-toggle {
+  background: color-mix(in srgb, var(--glass-compact-background) 78%, transparent);
+}
+
+.warning-prefecture-group.is-open .warning-prefecture-chevron {
+  transform: rotate(225deg) translate(-1px, -1px);
+}
+
+.warning-prefecture-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.25s cubic-bezier(0.22, 0.8, 0.24, 1),
+    opacity 0.16s ease;
+}
+
+.warning-prefecture-body-inner {
+  min-height: 0;
+  overflow: hidden;
+  border-top: 1px solid transparent;
+}
+
+.warning-prefecture-group.is-open .warning-prefecture-body {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.warning-prefecture-group.is-open .warning-prefecture-body-inner {
+  border-top-color: var(--glass-border-soft);
+}
+
+.warning-detail-list .warning-area-row {
+  grid-template-columns: minmax(82px, 0.66fr) minmax(0, 1.34fr);
+  gap: 10px;
+  margin: 0;
+  padding: 10px 13px 10px 15px;
+  border: 0;
+  border-bottom: 1px solid var(--glass-border-soft);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--glass-panel-strong-background) 38%, transparent);
+  transition: background 0.14s ease, box-shadow 0.14s ease;
+}
+
+.warning-detail-list .warning-area-row:last-child {
+  border-bottom: 0;
+}
+
+.warning-detail-list .warning-area-row.selected {
+  background: rgba(86, 183, 242, 0.12);
+  box-shadow: inset 3px 0 0 #56b7f2;
+}
+
+.warning-detail-list .warning-area-row > strong {
+  padding-top: 2px;
+  font-size: 12px;
+}
+
+.warning-detail-list .warning-badges {
+  gap: 4px;
+}
+
+.warning-detail-list .warning-badge {
+  min-height: 18px;
+  padding: 2px 6px 3px;
+  border-radius: 6px;
+  box-shadow: none;
+  font-size: 9px;
+  letter-spacing: 0;
+}
+
+.warning-detail-list .warning-empty {
+  min-height: 92px;
+  margin: 0;
+  border: 1px solid var(--glass-border-soft);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.warning-detail-list .river-flood-list {
+  gap: 0;
+}
+
+.warning-detail-list .river-flood-row {
+  min-height: 64px;
+  padding: 11px 13px;
+  border: 0;
+  border-bottom: 1px solid var(--glass-border-soft);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  transition: background 0.15s ease;
+}
+
+@media (hover: hover) {
+  .warning-detail-list .river-flood-row:hover {
+    background: color-mix(in srgb, var(--glass-compact-background) 64%, transparent);
+  }
+}
+
+.warning-kikikuru-panel {
+  display: grid;
+  gap: 10px;
+  padding: 10px 3px;
+  border: 0;
+  border-bottom: 1px solid var(--glass-border-soft);
+  border-radius: 0;
+  background: transparent;
+}
+
+.warning-kikikuru-layer-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.warning-kikikuru-layer-head strong {
+  color: var(--type-info-title-color);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.warning-kikikuru-layer-head small,
+.warning-kikikuru-panel p {
+  color: var(--text-soft);
+  font-size: 10px;
+}
+
+.warning-kikikuru-panel p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.warning-kikikuru-layer-switch.mobile-dock-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: 40px;
+  padding: 3px;
+  border: 1px solid var(--glass-border-soft);
+  border-radius: 999px;
+  background: var(--glass-compact-background);
+}
+
+.warning-kikikuru-layer-switch .mobile-dock-action {
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.warning-kikikuru-layer-switch .mobile-dock-action.active {
+  color: var(--segmented-active-label);
+}
+
+html[data-theme="light"] .warning-detail-list .warning-empty {
+  background: rgba(255, 255, 255, 0.42);
+}
+
+html[data-theme="light"] .warning-detail-list {
+  border-color: rgba(68, 94, 123, 0.18);
+  background: rgba(248, 251, 254, 0.52);
+}
+
+html[data-theme="light"] .warning-prefecture-group {
+  border-bottom-color: rgba(68, 94, 123, 0.14);
+}
+
+html[data-theme="light"] .warning-prefecture-group.is-open .warning-prefecture-toggle {
+  background: rgba(222, 232, 242, 0.52);
+}
+
+html[data-theme="light"] .warning-detail-list .warning-area-row {
+  border-bottom-color: rgba(68, 94, 123, 0.12);
+  background: rgba(255, 255, 255, 0.46);
+}
+
+html[data-theme="light"] .warning-detail-list .warning-area-row:nth-child(odd) {
+  background: rgba(244, 248, 252, 0.56);
+}
+
+@media (max-width: 600px) {
+  .mode-label.mode-label-warning {
+    font-size: clamp(12px, 3.5vw, 15px);
+  }
+
+  .warning-view-tabs.mobile-dock-segmented {
+    min-height: 40px;
+  }
+
+  .warning-view-tabs .mobile-dock-action {
+    min-height: 32px;
+    font-size: 10px;
+  }
+
+  .warning-detail-list {
+    max-height: min(360px, calc(100dvh - 330px));
+    margin-bottom: 10px;
+  }
+
+  .warning-prefecture-toggle {
+    min-height: 58px;
+    padding-inline: 10px;
+  }
+
+  .warning-prefecture-copy > strong {
+    font-size: 12px;
+  }
+
+  .warning-prefecture-copy > small {
+    font-size: 9px;
+  }
+
+  .warning-detail-list .warning-area-row {
+    grid-template-columns: minmax(76px, 0.64fr) minmax(0, 1.36fr);
+    padding-inline: 12px;
+  }
+}
+
+@media (max-height: 570px) and (orientation: landscape) {
+  .warning-view-tabs.mobile-dock-segmented {
+    margin-bottom: 8px;
+  }
+
+  .warning-detail-list {
+    max-height: calc(100dvh - 214px);
+  }
+}
+
+/* Dashboard is an information sheet, not part of the app-wide glass material. */
+.disaster-dashboard-modal .warning-modal-backdrop {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.disaster-dashboard-modal .warning-modal-panel.disaster-dashboard-panel,
+html[data-theme="light"] .disaster-dashboard-modal .warning-modal-panel.disaster-dashboard-panel {
+  border-color: var(--dashboard-line);
+  background: var(--dashboard-surface);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.disaster-dashboard-modal .disaster-dashboard-header,
+.disaster-dashboard-modal .disaster-dashboard-body {
+  background: var(--dashboard-surface);
+}
+
+.disaster-dashboard-modal .disaster-dashboard-header h2 {
+  font-size: clamp(20px, 3vw, 24px);
+  letter-spacing: 0;
+}
+
+.disaster-dashboard-modal .disaster-dashboard-overview,
+.disaster-dashboard-modal .disaster-dashboard-group {
+  border-radius: 2px;
+  box-shadow: none;
+}
+
+.disaster-dashboard-modal .disaster-dashboard-group > h3 {
+  background: var(--dashboard-surface);
+}
+
+.disaster-dashboard-modal .disaster-dashboard-section-body,
+.disaster-dashboard-modal .disaster-dashboard-location-bar {
+  background: transparent;
+}
+
+.disaster-dashboard-modal .disaster-dashboard-refresh-button {
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Shared modal loading state: same quiet rotating ring as the map startup loader. */
+.modal-loading-state {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 12px;
+  padding: 28px 20px;
+  color: #f4f8ff;
+  text-align: center;
+}
+
+.modal-loading-state.is-compact {
+  min-height: 96px;
+  padding: 16px;
+}
+
+.modal-loading-state.is-inline {
+  min-height: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  justify-items: start;
+  gap: 10px;
+  text-align: left;
+}
+
+.modal-loading-indicator {
+  display: block;
+  width: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  box-sizing: border-box;
+  border: 3px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  color: rgba(226, 237, 248, 0.82);
+  animation: modal-loading-spin 0.8s linear infinite;
+}
+
+.modal-loading-state.is-compact .modal-loading-indicator {
+  width: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  height: 26px;
+  min-height: 26px;
+  max-height: 26px;
+  border-width: 2.5px;
+}
+
+.modal-loading-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.modal-loading-copy strong {
+  color: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.modal-loading-copy small {
+  color: rgba(226, 237, 248, 0.7);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+html[data-theme="light"] .modal-loading-indicator {
+  color: rgba(65, 86, 108, 0.72);
+}
+
+html[data-theme="light"] .modal-loading-state {
+  color: #142338;
+}
+
+html[data-theme="light"] .modal-loading-copy small {
+  color: #5a6f85;
+}
+
+html[data-theme="light"] .feedback-intro { color: #2f4b66; }
+html[data-theme="light"] .feedback-field span { color: #506b84; }
+html[data-theme="light"] :is(.feedback-field select, .feedback-field textarea, .feedback-field input) {
+  border-color: rgba(68, 101, 134, 0.24);
+  background: rgba(255, 255, 255, 0.82);
+  color: #19344d;
+}
+html[data-theme="light"] :is(.feedback-context, .feedback-ticket, .feedback-recent) {
+  border-color: rgba(68, 101, 134, 0.2);
+  background: rgba(244, 249, 253, 0.84);
+}
+html[data-theme="light"] :is(.feedback-context strong, .feedback-ticket > span, .feedback-recent-head strong, .feedback-recent-item strong) { color: #17334d; }
+html[data-theme="light"] :is(.feedback-context span, .feedback-ticket p, .feedback-recent time, .feedback-note, .feedback-status, .feedback-recent-item p) { color: #4c6680; }
+html[data-theme="light"] .feedback-ticket strong { color: #0d6c9a; }
+html[data-theme="light"] .feedback-recent-head button {
+  border-color: rgba(48, 126, 173, 0.28);
+  background: rgba(79, 168, 207, 0.12);
+  color: #176387;
+}
+
+@keyframes modal-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-loading-indicator,
+  .disaster-map-page-shell.is-loading::before {
+    animation-duration: 1.6s;
+  }
+}
+
+/* Radar weather-distribution picker: the collapsed map control expands with
+   the same frosted-glass motion used by the map legend. */
+html[data-theme="light"] .weather-distribution-toggle-button {
+  border-color: rgba(67, 91, 118, 0.14);
+}
+
+html[data-theme="light"] .weather-distribution-toggle-button::before {
+  background: #243d58;
+}
+
+html[data-theme="light"] .weather-distribution-toggle-choices {
+  border-color: rgba(67, 91, 118, 0.14);
+  background: rgba(80, 107, 135, 0.07);
+}
+
+html[data-theme="light"] .weather-distribution-toggle-choices button {
+  color: rgba(39, 64, 88, 0.76);
+}
+
+html[data-theme="light"] .weather-distribution-toggle-choices button.active {
+  color: #0b709d;
+  background: rgba(73, 171, 219, 0.15);
+  box-shadow: inset 0 0 0 1px rgba(34, 146, 200, 0.18);
+}
+
+@media (max-width: 800px) {
+  .map-weather-distribution-toggle {
+    right: 17px;
+    bottom: max(
+      calc(var(--mobile-sidebar-visible-height, 48dvh) + 122px),
+      calc(max(0px, env(safe-area-inset-bottom)) + 272px)
+    );
+  }
+
+  .mobile-drawer-open .map-weather-distribution-toggle {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+@media (orientation: landscape), (min-width: 801px) {
+  .map-weather-distribution-toggle,
+  .map-weather-distribution-toggle.map-earthquake-layer-toggle {
+    top: auto;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: var(--shared-map-controls-bottom);
+    align-items: flex-end;
+  }
+
+  /* Keep posting below the picker, including when its choices expand upward. */
+  .map-community-report-button {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: calc(var(--shared-map-controls-bottom) - 54px);
+  }
+
+  .mobile-drawer-open .map-weather-distribution-toggle {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+/* iPad-sized viewports use static surfaces in both orientations. Remove even
+   inset elevation from shared shells; geometry and semantic colors stay intact. */
+@media (min-width: 768px) and (max-width: 1366px) {
+  :root,
+  html[data-theme="light"] {
+    --glass-shell-shadow: none;
+    --glass-shadow: none;
+    --glass-shadow-soft: none;
+  }
+
+  .map-weather-distribution-toggle {
+    align-items: flex-end;
+    transform-origin: right bottom;
+  }
+
+  .map-weather-distribution-toggle .weather-distribution-toggle-choices,
+  .map-weather-distribution-toggle.collapsed .weather-distribution-toggle-choices {
+    filter: none;
+  }
+
+  :is(.map-weather-distribution-toggle, .map-weather-distribution-toggle.is-open),
+  html[data-theme="light"] :is(.map-weather-distribution-toggle, .map-weather-distribution-toggle.is-open) {
+    box-shadow: none;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 800px) and (orientation: portrait) {
+  .map-weather-distribution-toggle {
+    bottom: max(
+      calc(var(--mobile-sidebar-visible-height, 48dvh) + 70px),
+      calc(max(0px, env(safe-area-inset-bottom)) + 220px)
+    );
+  }
+
+  .map-community-report-button {
+    bottom: max(
+      calc(var(--mobile-sidebar-visible-height, 48dvh) + 16px),
+      calc(max(0px, env(safe-area-inset-bottom)) + 166px)
+    );
+  }
+}
+

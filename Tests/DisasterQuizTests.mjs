@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -56,7 +57,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [html, appSource, styleSource] = await Promise.all([
   fs.readFile(path.join(root, "index.html"), "utf8"),
   fs.readFile(path.join(root, "src", "app.js"), "utf8"),
-  fs.readFile(path.join(root, "src", "style.css"), "utf8")
+  readStylesheet(path.join(root, "src", "style.css"))
 ]);
 assert.match(html, /id="disaster-quiz-button"[\s\S]*id="weekly-weather-button"[\s\S]*id="disaster-map-button"/u);
 assert.match(html, /id="disaster-quiz-modal"/u);

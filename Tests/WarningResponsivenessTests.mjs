@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { getRiverFloodLevelLabel, isRiverFloodReportActive, normalizeRiverWarningText, resolveRiverFloodLevel } from "../src/jma/riverFlood.js";
@@ -29,14 +30,14 @@ import {
 } from "../src/warningOutlookTime.js";
 
 const [appSource, warningsSource, leftPanelSource, weatherMapSource, warningGeometryFixes, riverFloodGeometrySource, indexSource, styleSource] = await Promise.all([
-  readFile(new URL("../src/app.js", import.meta.url), "utf8"),
+  Promise.all([readFile(new URL("../src/app.js", import.meta.url), "utf8"), readFile(new URL("../src/app/refreshedData.js", import.meta.url), "utf8")]).then((parts) => parts.join("\n")),
   readFile(new URL("../src/jma/warnings.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
   readFile(new URL("../public/data/jma-weather-warning-municipality-fixes.geojson", import.meta.url), "utf8"),
   readFile(new URL("../public/data/jma-designated-river-geometry.geojson", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
-  readFile(new URL("../src/style.css", import.meta.url), "utf8")
+  readStylesheet(new URL("../src/style.css", import.meta.url))
 ]);
 
 const warningGeometryFixCollection = JSON.parse(warningGeometryFixes);
@@ -599,7 +600,7 @@ assert.match(
 );
 assert.match(
   leftPanelSource,
-  /function buildRiverBulletinTextMarkup\(report = \{\}\)[\s\S]*?Check the original JMA bulletin[\s\S]*?気象庁発表原文を確認/
+  /function buildRiverBulletinTextMarkup\(report = \{\}\)[\s\S]*?localizeWarningDataText[\s\S]*?気象庁発表原文を確認[\s\S]*?詳細な発表本文は気象庁の原文で確認してください。/
 );
 assert.match(
   leftPanelSource,

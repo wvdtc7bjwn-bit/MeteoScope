@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
@@ -101,7 +102,7 @@ const hypocenter3DLayer = await readFile(new URL("src/map/hypocenter3DLayer.js",
 const plateDepth3DLayer = await readFile(new URL("src/map/plateDepth3DLayer.js", root), "utf8");
 const plateDepthSurface3DLayer = await readFile(new URL("src/map/plateDepthSurface3DLayer.js", root), "utf8");
 const panel = await readFile(new URL("src/ui/leftPanel.js", root), "utf8");
-const style = await readFile(new URL("src/style.css", root), "utf8");
+const style = await readStylesheet(new URL("src/style.css", root));
 const layerToggle = await readFile(new URL("src/ui/weatherDistributionToggle.js", root), "utf8");
 assert.match(index, /プレート境界: USGS/u);
 assert.match(index, /境界モデル: Bird, 2003/u);

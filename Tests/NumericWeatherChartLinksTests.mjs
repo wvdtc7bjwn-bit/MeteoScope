@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { numericWeatherChartGroups } from "../src/ui/numericWeatherChartModal.js";
@@ -5,7 +6,7 @@ import { numericWeatherChartGroups } from "../src/ui/numericWeatherChartModal.js
 const [indexSource, appSource, rawStyleSource, modalSource] = await Promise.all([
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/style.css", import.meta.url), "utf8"),
+  readStylesheet(new URL("../src/style.css", import.meta.url)),
   readFile(new URL("../src/ui/numericWeatherChartModal.js", import.meta.url), "utf8")
 ]);
 const styleSource = rawStyleSource.replaceAll("\r\n", "\n");

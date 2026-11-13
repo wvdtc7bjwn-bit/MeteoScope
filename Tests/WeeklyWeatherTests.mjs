@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { DOMParser } from "@xmldom/xmldom";
@@ -622,7 +623,7 @@ assert.match(renderWeeklyWeatherIcon("", "雨のち雪"), /weekly-weather-glyph/
 const [index, app, styles, modal, glyph, viteConfig] = await Promise.all([
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/style.css", import.meta.url), "utf8"),
+  readStylesheet(new URL("../src/style.css", import.meta.url)),
   readFile(new URL("../src/ui/weeklyWeatherModal.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/weeklyWeatherGlyph.js", import.meta.url), "utf8"),
   readFile(new URL("../vite.config.js", import.meta.url), "utf8")

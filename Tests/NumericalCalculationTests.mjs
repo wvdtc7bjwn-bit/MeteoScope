@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
@@ -156,7 +157,7 @@ const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
 const source = await readFile(new URL("../src/ui/numericalCalculationModal.js", import.meta.url), "utf8");
 const app = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
 const css = await readFile(new URL("../src/ui/numericalCalculation.css", import.meta.url), "utf8");
-const sharedCss = await readFile(new URL("../src/style.css", import.meta.url), "utf8");
+const sharedCss = await readStylesheet(new URL("../src/style.css", import.meta.url));
 const workspaceStack = Number(css.match(/#numerical-calculation-modal\s*\{[^}]*z-index:\s*(\d+)/)?.[1]);
 const tickerStack = Number(sharedCss.match(/\.remote-notice-ticker\s*\{[^}]*z-index:\s*(\d+)/)?.[1]);
 assert.ok(workspaceStack > tickerStack, "お知らせテロップが計算画面の見出しや閉じる操作を覆わない");

@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -82,7 +83,7 @@ assert.equal(formatNationwideForecastDate(dayBoundaryResults, afterNineteen), "9
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const [html, styles, appSource, moduleSource] = await Promise.all([
   fs.readFile(path.join(root, "index.html"), "utf8"),
-  fs.readFile(path.join(root, "src", "style.css"), "utf8"),
+  readStylesheet(path.join(root, "src", "style.css")),
   fs.readFile(path.join(root, "src", "app.js"), "utf8"),
   fs.readFile(path.join(root, "src", "ui", "clockDisplayMode.js"), "utf8")
 ]);

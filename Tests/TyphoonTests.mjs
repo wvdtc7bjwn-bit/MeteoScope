@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
@@ -572,10 +573,10 @@ const [
   noaaScriptSource,
   ledgerSource
 ] = await Promise.all([
-  readFile(new URL("../src/app.js", import.meta.url), "utf8"),
+  Promise.all([readFile(new URL("../src/app.js", import.meta.url), "utf8"), readFile(new URL("../src/app/focusCoordinates.js", import.meta.url), "utf8")]).then((parts) => parts.join("\n")),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/style.css", import.meta.url), "utf8"),
+  Promise.all([readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"), readFile(new URL("../src/map/typhoonFeatures.js", import.meta.url), "utf8")]).then((parts) => parts.join("\n")),
+  readStylesheet(new URL("../src/style.css", import.meta.url)),
   readFile(new URL("../src/ui/worldTyphoonTargetModal.js", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/worldTyphoon.js", import.meta.url), "utf8"),

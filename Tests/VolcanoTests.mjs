@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
@@ -461,8 +462,8 @@ const [config, map, app, panel, style, volcanoParser, longPressHint, viteConfig]
   readFile(new URL("../src/config.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/style.css", import.meta.url), "utf8"),
+  Promise.all([readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"), readFile(new URL("../src/ui/panels/volcanoPanel.js", import.meta.url), "utf8")]).then((parts) => parts.join("\n")),
+  readStylesheet(new URL("../src/style.css", import.meta.url)),
   readFile(new URL("../src/jma/volcanoXml.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/earthquakeLongPressHint.js", import.meta.url), "utf8"),
   readFile(new URL("../vite.config.js", import.meta.url), "utf8")

@@ -24,14 +24,14 @@ GitHub PagesのCIも同じコマンドを使用します。個別の`test:*`は�
 | 対象 | 入口・主な配置 | 責務 |
 | --- | --- | --- |
 | 起動・復帰 | `src/main.js`、`src/runtimeDiagnostics.js` | 起動、サービスワーカー、通信状態・診断 |
-| アプリ制御 | `src/app.js` | タブ選択、取得タイミング、表示状態の調整 |
+| アプリ制御 | `src/app.js`、`src/app/` | タブ選択、取得タイミング。`focusCoordinates.js`は表示範囲、`refreshedData.js`は更新データ統合 |
 | データ取得 | `src/jma/`、`src/earthquake/` | 気象・地震・津波・火山の取得と正規化 |
 | EEW | `src/eew/` | 受信、イベント管理、走時表、自動フォーカス |
-| 地図 | `src/map/weatherMap.js`、`src/map/` | MapLibre、レイヤー、カメラ、地理データ |
-| 表示 | `src/ui/leftPanel.js`、`src/ui/*Modal.js` | 地震・気象のパネル、各モーダル |
+| 地図 | `src/map/weatherMap.js`、`src/map/` | MapLibre、レイヤー、カメラ。`typhoonFeatures.js`は台風図形・ポップアップの生成 |
+| 表示 | `src/ui/leftPanel.js`、`src/ui/panels/`、`src/ui/*Modal.js` | パネルと操作の接続。`volcanoPanel.js`は火山詳細・警戒レベルの描画 |
 | 設定保存 | `src/preferences/mapPreferences.js` | 地形・地震・追加レイヤー・アメダス降水期間の保存 |
 | 共通変換 | `src/utils/` | JSTの時刻処理、HTMLエスケープ |
-| 配色・配置 | `src/style.css` | 共通・機能別・画面サイズ別スタイル |
+| 配色・配置 | `src/style.css`、`src/styles/` | エントリーのimport順で共通・機能別・画面サイズ別スタイルを適用 |
 | アカウント | `src/domain/`、`src/ui/earlyAccess.js` | アカウントと先行機能の利用判定 |
 | 共有画像 | `src/socialShareCard.js`、`src/ui/socialShareModal.js` | 画像生成と共有UI |
 | サーバー処理 | `functions/`、`workers/`、`migrations/` | 既存API・認証・永続データ |
@@ -72,9 +72,24 @@ URLの許可判定、CSS、JavaScript文字列のエスケープは別の処理�
 重複していたHTML変換を共有しました。通信頻度、API、サーバー資源、認証、
 UIのDOM構造、CSSの適用順序、地図の描画アルゴリズムは変更していません。
 
-`app.js`、`leftPanel.js`、`weatherMap.js`、`style.css`はまだ大きなファイルです。
-今後は機能単位で依存関係とテストを用意して分離し、一括で書き換えない方針です。
-ソース文字列の配置だけを検証している既存テストは、処理を移動する際に参照先を更新し、
-併せて実際の入力・出力を確認するテストを追加してください。
+さらに、アプリの表示範囲計算・更新データ統合、火山パネル、台風図形を分離しました。
+各モジュールは元ファイルへ逆方向のimportをせず、共有状態の二重保持を避けています。
+通信・認証・タイマー・カメラ操作の制御は既存の入口が担当します。
+
+### スタイルの編集
+
+`src/style.css`は11ファイルを順序付きで読み込む入口です。
+`src/styles/01-`から`11-`の番号はカスケード順序であり、後方の互換ルールも含みます。
+機能名が同じでも画面サイズ別・配色別のルールが複数ファイルに存在する場合があります。
+既存セレクターを検索し、適用順序を確認してから編集してください。
+ファイルの並べ替えや単純な重複削除は避けます。
+相対URLを追加するときは各CSSファイルからのパスで指定します。
+
+ソース構造を調べる既存テストでは、分割したモジュールも明示的に読み込み、
+CSSは`Tests/helpers/readStylesheet.mjs`でimport順に展開しています。
+元の検証条件を維持し、挙動は`ExtractedModuleBehaviorTests.mjs`でも確認します。
+分割時は関数本体・CSSの展開結果とビルド出力を変更前と比較してください。
+引き続き大きいアプリ制御と地図のクロージャーは、状態と非同期処理の所有者を
+明確にできる機能単位で分離します。
 
 コミット・本番公開は利用者の指示がある場合に実施します。

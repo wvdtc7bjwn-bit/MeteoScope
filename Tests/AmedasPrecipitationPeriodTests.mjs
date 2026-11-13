@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
@@ -63,7 +64,7 @@ const [appSource, amedasSource, panelSource, mapSource, styleSource, indexSource
   readFile(new URL("../src/jma/amedas.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
   readFile(new URL("../src/map/weatherMap.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/style.css", import.meta.url), "utf8"),
+  readStylesheet(new URL("../src/style.css", import.meta.url)),
   readFile(new URL("../index.html", import.meta.url), "utf8")
 ]);
 

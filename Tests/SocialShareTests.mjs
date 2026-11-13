@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
@@ -24,7 +25,7 @@ const [indexSource, appSource, leftPanelSource, styleSource] = await Promise.all
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/style.css", import.meta.url), "utf8")
+  readStylesheet(new URL("../src/style.css", import.meta.url))
 ]);
 
 assert.deepEqual(SOCIAL_SHARE_FORMATS.portrait, {

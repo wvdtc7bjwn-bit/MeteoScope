@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
@@ -5,7 +6,7 @@ const [changelog, settingsModal, index, styles] = await Promise.all([
   readFile(new URL("../CHANGELOG.md", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/settingsModal.js", import.meta.url), "utf8"),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
-  readFile(new URL("../src/style.css", import.meta.url), "utf8")
+  readStylesheet(new URL("../src/style.css", import.meta.url))
 ]);
 
 const dateHeadings = [...changelog.matchAll(/^## (\d{4}-\d{2}-\d{2})$/gm)].map((match) => match[1]);

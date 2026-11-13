@@ -1,9 +1,10 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { groupMobileTsunamiAreas } from "../src/ui/mobileTsunamiTicker.js";
 
 const [styles, index, panel, app, weatherMap, panelToggle, tabs, time, mapUtilityMenu, legendToggle, remoteConfig, settingsModal] = await Promise.all([
-  readFile(new URL("../src/style.css", import.meta.url), "utf8"),
+  readStylesheet(new URL("../src/style.css", import.meta.url)),
   readFile(new URL("../index.html", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8"),
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),

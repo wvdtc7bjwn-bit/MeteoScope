@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { buildOnboardingPhraseMarkup } from "../src/ui/onboardingModal.js";
@@ -12,7 +13,7 @@ assert.equal(
   '<span class="onboarding-phrase">&lt;strong class=&quot;unsafe&quot;&gt;</span><span class="onboarding-phrase">&amp; test</span>'
 );
 
-const style = await readFile(new URL("../src/style.css", import.meta.url), "utf8");
+const style = await readStylesheet(new URL("../src/style.css", import.meta.url));
 assert.match(style, /\.onboarding-phrase\s*\{[^}]*white-space:\s*nowrap;/s);
 assert.match(style, /\.onboarding-copy h3\s*\{[^}]*flex-wrap:\s*wrap;/s);
 assert.match(style, /\.onboarding-copy p\s*\{[^}]*flex-wrap:\s*wrap;/s);

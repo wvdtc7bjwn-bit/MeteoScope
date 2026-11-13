@@ -1,3 +1,4 @@
+import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
@@ -6,7 +7,7 @@ const [html, app, consentModule, settingsModule, styles, terms, privacy] = await
   readFile(new URL("../src/app.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/legalConsentModal.js", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/settingsModal.js", import.meta.url), "utf8"),
-  readFile(new URL("../src/style.css", import.meta.url), "utf8"),
+  readStylesheet(new URL("../src/style.css", import.meta.url)),
   readFile(new URL("../public/terms.html", import.meta.url), "utf8"),
   readFile(new URL("../public/privacy.html", import.meta.url), "utf8")
 ]);
