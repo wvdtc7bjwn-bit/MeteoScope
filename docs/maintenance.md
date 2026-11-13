@@ -33,6 +33,7 @@ GitHub PagesのCIも同じコマンドを使用します。個別の`test:*`は�
 | 共通変換 | `src/utils/` | JSTの時刻処理、HTMLエスケープ |
 | 配色・配置 | `src/style.css`、`src/styles/` | エントリーのimport順で共通・機能別・画面サイズ別スタイルを適用 |
 | アカウント | `src/domain/`、`src/ui/earlyAccess.js` | アカウントと先行機能の利用判定 |
+| 警報AIチャット | `src/ui/warningChatModal.js`、`src/ai/`、`functions/_shared/warningChat*.js` | 既存EA認証・気象庁資料・改訂確認・無料枠の予約上限。[設定と検証](warning-chat.md) |
 | 共有画像 | `src/socialShareCard.js`、`src/ui/socialShareModal.js` | 画像生成と共有UI |
 | サーバー処理 | `functions/`、`workers/`、`migrations/` | 既存API・認証・永続データ |
 | データ作成 | `scripts/`、`data/`、`public/data/` | データ更新・加工。通常のテストとは別に実行 |

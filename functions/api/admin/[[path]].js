@@ -1,5 +1,6 @@
 import { readJson, writeJson, requireD1 } from "../../_shared/d1Store.js";
 import { readCloudflareFreeTierUsage } from "../../_shared/cloudflareFreeTierAnalytics.js";
+import { readWarningChatOperationalMetrics } from "../../_shared/warningChatQuota.js";
 import { readQuizOperationalMetrics } from "../../_shared/quizMaintenance.js";
 import { readCommunityReportOperationalMetrics } from "../../_shared/communityReports.js";
 import { deleteMeteoScopeAccount, listMeteoScopeAccounts, normalizeAccountID } from "../../_shared/adminManagement.js";
@@ -183,7 +184,10 @@ async function postDiscordTest(env) {
 }
 
 async function quota(env) {
-  return json({ usage: await readCloudflareFreeTierUsage(env) });
+  const [usage, warningChat] = await Promise.all([
+    readCloudflareFreeTierUsage(env), readWarningChatOperationalMetrics(env)
+  ]);
+  return json({ usage, warningChat });
 }
 
 async function getConfig(env) {

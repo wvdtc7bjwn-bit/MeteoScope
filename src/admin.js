@@ -1,5 +1,6 @@
 import { escapeHtmlStringPadded as escapeHtml } from "./utils/html.js";
 import { setupLocale } from "./ui/locale.js";
+import { renderWarningChatUsage } from "./ui/adminWarningChatUsage.js";
 
 const API_BASE = "/api/admin";
 const DEFAULT_CONFIG = {
@@ -32,6 +33,7 @@ const elements = {
   quotaPeriodLabel: document.getElementById("quota-period-label"),
   quotaMetrics: document.getElementById("quota-metrics"),
   quotaNote: document.getElementById("quota-note"),
+  warningChatMetrics: document.getElementById("warning-chat-metrics"),
   quizMetricsList: document.getElementById("quiz-metrics-list"),
   accountList: document.getElementById("admin-account-list"),
   accountCount: document.getElementById("admin-account-count"),
@@ -186,6 +188,7 @@ async function refreshDashboard() {
   ]);
   renderStatus(status);
   renderCloudflareQuota(quota.usage || {});
+  renderWarningChatUsage(elements.warningChatMetrics, quota.warningChat);
   currentConfig = normalizeConfig(config.config);
   currentNotices = Array.isArray(notices.notices) ? notices.notices : [];
   currentFeedback = Array.isArray(feedback.feedback) ? feedback.feedback : [];
@@ -475,6 +478,7 @@ async function refreshCloudflareQuota() {
   try {
     const response = await requestJson("/quota");
     renderCloudflareQuota(response.usage || {});
+    renderWarningChatUsage(elements.warningChatMetrics, response.warningChat);
     setMessage(elements.dashboardMessage, "Cloudflare無料枠の使用量を更新しました。", "success");
   } catch (error) {
     if (elements.quotaOverallStatus) elements.quotaOverallStatus.textContent = "取得失敗";

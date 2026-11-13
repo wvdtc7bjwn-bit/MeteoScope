@@ -1,4 +1,4 @@
-export const LEGAL_CONSENT_VERSION = "2026-11-09";
+export const LEGAL_CONSENT_VERSION = "2026-11-13";
 
 const STORAGE_KEY = "meteoscope-legal-consent-version";
 const DOCUMENTS = Object.freeze({

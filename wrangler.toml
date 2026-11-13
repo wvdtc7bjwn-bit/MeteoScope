@@ -6,6 +6,13 @@ pages_build_output_dir = "dist"
 CLOUDFLARE_ACCOUNT_ID = "2a2eb25e3aa9744a586a8fa1165f6724"
 QUIZ_ATTEMPT_RETENTION_DAYS = "15"
 QUIZ_LEADERBOARD_CACHE_SECONDS = "60"
+# Workers Free verified in the dashboard on 2026-11-13. Keep this account Free;
+# the API also enforces its fixed daily and per-account inference limits.
+WARNING_CHAT_ENABLED = "true"
+WARNING_CHAT_DAILY_LIMIT = "40"
+
+[ai]
+binding = "AI"
 
 [[d1_databases]]
 binding = "NOTIFICATIONS_DB"

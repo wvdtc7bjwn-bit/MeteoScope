@@ -3,6 +3,7 @@ import { defineConfig } from "vite";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { onRequest as handleWeeklyWeatherRequest } from "./functions/api/weekly-weather.js";
+import { loadWarningChatContext } from "./functions/_shared/warningChatContext.js";
 import { onRequestGet as handleEarthquakeHistoryRequest } from "./functions/api/earthquake-history.js";
 import { onRequestGet as handleEarthquakeHistoryEventRequest } from "./functions/api/earthquake-history-event.js";
 import { onRequest as handleJmaDisasterCasesRequest } from "./functions/api/jma-disaster-cases.js";
@@ -20,7 +21,7 @@ function isLoopbackRequest(request) {
 }
 
 export default defineConfig({
-  plugins: [baseMapPreloadHints(), localReadOnlyPagesApi("jma-focal-mechanism", "/api/jma-focal-mechanism", handleFocalMechanismRequest), localActiveFaultApi(), localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localJmaUpperAirArchiveApi(), localUpperAirApi(), localGfsProfileApi()],
+  plugins: [baseMapPreloadHints(), localWarningChatApi(), localReadOnlyPagesApi("jma-focal-mechanism", "/api/jma-focal-mechanism", handleFocalMechanismRequest), localActiveFaultApi(), localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localJmaUpperAirArchiveApi(), localUpperAirApi(), localGfsProfileApi()],
   base: process.env.GITHUB_PAGES === "true" ? "/MeteoScope/" : "/",
   server: {
     fs: { deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "**/.cache/early-access/**"] },
@@ -59,6 +60,32 @@ export default defineConfig({
     }
   }
 });
+
+// Local development can inspect official sources, but never bypasses the server
+// account/budget checks to invoke AI or silently proxies chat into production.
+function localWarningChatApi() {
+  return {
+    name: "meteoscope-local-warning-chat-api",
+    configureServer(server) {
+      server.middlewares.use(async (request, response, next) => {
+        const url = new URL(request.url ?? "/", "http://localhost");
+        if (url.pathname !== "/api/warning-chat") return next();
+        response.setHeader("Content-Type", "application/json; charset=utf-8");
+        response.setHeader("Cache-Control", "no-store");
+        if (!isLoopbackRequest(request)) { response.statusCode = 403; return response.end(JSON.stringify({ error: "localhostからのみ利用できます。" })); }
+        if (request.method !== "GET") { response.statusCode = 503; return response.end(JSON.stringify({ error: "ローカルではAIを呼び出しません。Workers AIの設定後に、認証と利用上限を備えたAPIで検証してください。" })); }
+        try {
+          const areaCode = url.searchParams.get("areaCode");
+          const result = areaCode ? { context: await loadWarningChatContext(areaCode) } : { configured: false };
+          response.end(JSON.stringify(result));
+        } catch {
+          response.statusCode = 503;
+          response.end(JSON.stringify({ error: "気象庁の最新情報を確認できませんでした。" }));
+        }
+      });
+    }
+  };
+}
 
 function localActiveFaultApi() {
   return {

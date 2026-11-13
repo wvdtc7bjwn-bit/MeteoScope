@@ -28,6 +28,7 @@ import { setupCommonLayerToggle, setupEarthquakeLayerToggle, setupSatelliteLayer
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
 import { setupWeeklyWeatherModal } from "./ui/weeklyWeatherModal.js";
+import { setupWarningChatModal } from "./ui/warningChatModal.js";
 import { setupNumericWeatherChartModal } from "./ui/numericWeatherChartModal.js";
 import { setupUpperAirModal } from "./ui/upperAirModal.js";
 import { setupCloudClassificationModal } from "./ui/cloudClassificationModal.js";
@@ -4583,6 +4584,11 @@ if (layerId === "river") {
     setupWeeklyWeatherModal({
       getCurrentLocation: () => currentLocationInfo,
       requestCurrentLocation: () => requestAndFocusCurrentPosition({ announceLoading: true, setBusy: true })
+    });
+    setupWarningChatModal({
+      isEarlyAccessEnabled: () => earlyAccessEnabled,
+      getCurrentLocation: () => currentLocationInfo,
+      onOpenAccount: openSettingsModal
     });
     setupNumericWeatherChartModal();
     setupCloudClassificationModal();

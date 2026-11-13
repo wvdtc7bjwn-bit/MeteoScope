@@ -23,7 +23,7 @@ assert.match(html, /id="legal-consent-privacy" type="checkbox"/);
 assert.match(html, /data-legal-consent-accept disabled/);
 assert.doesNotMatch(html, /legal-consent-modal[\s\S]{0,500}data-legal-consent-close/);
 
-assert.match(consentModule, /LEGAL_CONSENT_VERSION = "2026-11-09"/);
+assert.match(consentModule, /LEGAL_CONSENT_VERSION = "2026-11-13"/);
 assert.match(consentModule, /termsConsent\.checked && privacyConsent\.checked/);
 assert.match(consentModule, /localStorage\.setItem\(STORAGE_KEY, LEGAL_CONSENT_VERSION\)/);
 assert.match(consentModule, /#app > :not\(#legal-consent-modal\)/);
@@ -35,8 +35,8 @@ assert.match(settingsModule, /import \{ loadLegalDocumentMarkup \} from "\.\/leg
 assert.match(settingsModule, /container\.innerHTML = await loadLegalDocumentMarkup\(kind\)/);
 assert.match(html, /data-settings-legal-document="terms"/);
 assert.match(html, /data-settings-legal-document="privacy"/);
-assert.match(terms, /最終更新日：2026年11月9日/);
-assert.match(privacy, /最終更新日：2026年11月9日/);
+assert.match(terms, /最終更新日：2026年11月13日/);
+assert.match(privacy, /最終更新日：2026年11月13日/);
 assert.doesNotMatch(terms, /GEFS平均/);
 assert.match(consentModule, /function openDocument\(kind, trigger\)/);
 assert.match(consentModule, /function closeDocument/);
