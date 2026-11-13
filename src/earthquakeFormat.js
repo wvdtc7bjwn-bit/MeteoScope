@@ -1,18 +1,31 @@
-const EARTHQUAKE_INVESTIGATION_XML_CODES = new Set(["VXSE51", "VXSE52"]);
-
-export function isEarthquakeReportUnderInvestigation(earthquake) {
-  return EARTHQUAKE_INVESTIGATION_XML_CODES.has(
-    String(earthquake?.xmlCode ?? "").trim().toUpperCase()
-  );
+// 配信元ごとの数値優先度を直接比較しない。
+export function getEarthquakeReportStage(earthquake) {
+  const code = String(earthquake?.xmlCode ?? "").toUpperCase();
+  if (code === "VXSE51") return 10;
+  if (code === "VXSE52") return 20;
+  if (code === "VXSE53") return 30;
+  if (earthquake?.issueType === "ScalePrompt") return 10;
+  if (earthquake?.issueType === "Destination") return 20;
+  if (["ScaleAndDestination", "DetailScale"].includes(earthquake?.issueType)) return 30;
+  return 0;
 }
 
-export function getEarthquakeUnknownText(earthquake, fallback = "不明") {
+export function isEarthquakeReportUnderInvestigation(earthquake) {
+  return [10, 20].includes(getEarthquakeReportStage(earthquake));
+}
+
+export function getEarthquakeUnknownText(earthquake, fallback = "調査中") {
   return isEarthquakeReportUnderInvestigation(earthquake) ? "調査中" : fallback;
 }
 
-export function formatEarthquakeHypocenterText(earthquake, fallback = "震源調査中") {
+export function isKnownEarthquakeHypocenter(value) {
+  const text = String(value ?? "").trim();
+  return Boolean(text) && !/^(?:--|-|不明|未確認|調査中|震源調査中|震央調査中)$/u.test(text);
+}
+
+export function formatEarthquakeHypocenterText(earthquake, fallback = "調査中") {
   const text = String(earthquake?.hypocenterName ?? "").trim();
-  if (text && !/^(?:--|-|不明|未確認|震源調査中|震央調査中)$/u.test(text)) return text;
+  if (isKnownEarthquakeHypocenter(text)) return text;
   return getEarthquakeUnknownText(earthquake, fallback);
 }
 

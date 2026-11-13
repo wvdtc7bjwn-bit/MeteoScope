@@ -2875,14 +2875,15 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     const earthquakes = state.data?.earthquakes ?? [];
     const earthquake = state.data?.selectedEarthquake ?? earthquakes[0];
     return buildEarthquakeMobileContextMarkup(
-      earthquake,
+      state.data?.eewSummaryOverride ?? earthquake,
       state.data?.tsunami,
       state.data?.tsunamiStatus,
       state.data?.tideObservation,
       state.status,
-      state.data?.eew,
+      state.data?.eewSummaryOverride ? null : state.data?.eew,
       state.data?.eewEvents,
-      state.data?.eewConnection
+      state.data?.eewConnection,
+      Boolean(state.data?.eewSummaryOverride)
     );
   }
   return buildMobileContextMarkup(tab.label ?? "情報", "詳細情報", "開く");
@@ -3456,7 +3457,8 @@ function buildEarthquakeMobileContextMarkup(
   status = "ok",
   eew = null,
   eewEvents = [],
-  eewConnection = null
+  eewConnection = null,
+  isInfoOverride = false
 ) {
   const eewConnectionNotice = eewConnection?.status
     && !["connected", "stopped"].includes(eewConnection.status)
@@ -3598,7 +3600,7 @@ function buildEarthquakeMobileContextMarkup(
       </em>
       <div class="mobile-dock-earthquake-text">
         <div class="mobile-dock-earthquake-status-line">
-          <span class="mobile-dock-earthquake-status-label">最新</span>
+          <span class="mobile-dock-earthquake-status-label">${escapeHtml(isInfoOverride ? earthquake?.reportTitle || "地震情報" : "最新")}</span>
           <time class="mobile-dock-earthquake-time">${escapeHtml(time)}</time>
           ${eewConnectionNotice}
           ${Array.isArray(earthquake?.coordinates) && earthquake.coordinates.length === 2
@@ -7338,13 +7340,13 @@ function getEarthquakeTsunamiMetricText(state) {
     return state?.label === "解除" ? "解除" : "津波の心配なし";
   }
   if (state?.level === "unknown" || state?.level === "unavailable") {
-    return state?.label === "調査中" ? "調査中" : "不明";
+    return "調査中";
   }
   if (state?.level === "forecast") return "若干の海面変動";
-  return state?.label || "不明";
+  return state?.label || "調査中";
 }
 
-function formatEarthquakeUnknownMetric(value, unknownText = "不明") {
+function formatEarthquakeUnknownMetric(value, unknownText = "調査中") {
   const text = String(value ?? "").trim();
   return !text || /^(?:--|-|不明|未確認|震度不明)$/u.test(text) ? unknownText : text;
 }

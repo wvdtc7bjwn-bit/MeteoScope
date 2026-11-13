@@ -111,8 +111,12 @@ import { createWolfxEewClient } from "./eew/wolfxEew.js";
 import { createLocalEewTestEvent, isLocalEewTestEnvironment } from "./eew/localEewTest.js";
 import {
   createRealtimeEarthquakeClient,
-  mergeRealtimeEarthquakes
+  mergeRealtimeEarthquakes,
+  reconcileEarthquakeSources,
+  isConfirmedEarthquakeReport,
+  isNewEarthquakeReport
 } from "./earthquake/realtimeEarthquake.js";
+import { createEarthquakeSummaryOverride } from "./earthquake/summaryOverride.js";
 
 const loaders = {
   radar: fetchRadarTimes,
@@ -359,6 +363,11 @@ export function createWeatherApp() {
     updatedAt: null
   };
   let realtimeEarthquakeUpdateId = 0;
+  const earthquakeSummaryOverride = createEarthquakeSummaryOverride({
+    onExpire: () => {
+      if (activeTab === "earthquake") refreshActivePanel();
+    }
+  });
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
   let earlyAccessActiveFaultDataState = { status: "idle", data: null, error: "" };
   let earlyAccessActiveFaultDataRequest = null;
@@ -529,6 +538,7 @@ export function createWeatherApp() {
 
   async function handleRealtimeEarthquakeUpdate(snapshot) {
     const updateId = ++realtimeEarthquakeUpdateId;
+    const wasConnected = realtimeEarthquakeState.connection.status === "connected";
     const normalizedItems = Array.isArray(snapshot?.earthquakes) ? snapshot.earthquakes : [];
     realtimeEarthquakeState = {
       earthquakes: normalizedItems,
@@ -536,10 +546,22 @@ export function createWeatherApp() {
       updatedAt: snapshot?.updatedAt ?? null
     };
     recordDiagnostic("earthquake-realtime-connection", realtimeEarthquakeState.connection);
+    if (wasConnected && ["error", "disconnected"].includes(realtimeEarthquakeState.connection.status)) {
+      void refreshEarthquakeTabData({ force: true, refreshOpenDistribution: false });
+    }
 
-    // 確定した地震情報は最近の地震へ統合するが、発表中のEEWと波面表示は隠さない。
-    // 利用者はEEW要約内の通常地震情報ページから確定情報へ移動できる。
     const current = latestDataByTab.earthquake ?? {};
+    const incoming = snapshot?.incoming;
+    const isNewReport = incoming && isNewEarthquakeReport(incoming, current.earthquakes ?? []);
+    if (isNewReport && getDisplayedEewEvents().some((event) => !event.isCancel)) {
+      if (earthquakeSummaryOverride.accept(incoming, current.earthquakes ?? []) && activeTab === "earthquake") {
+        refreshActivePanel();
+      }
+    }
+    // 確定震度の入電でXMLを照合。震度速報・震源情報ではXML取得を追加しない。
+    if (isNewReport && isConfirmedEarthquakeReport(incoming)) {
+      void refreshEarthquakeTabData({ force: true, refreshOpenDistribution: false });
+    }
     const nextData = await mergeEarthquakeRealtimeData(current, normalizedItems);
     if (updateId !== realtimeEarthquakeUpdateId) return;
     const earthquakes = nextData.earthquakes;
@@ -579,9 +601,23 @@ export function createWeatherApp() {
     showMobileEarthquakeSummaryPage("earthquake");
   }
 
-  async function mergeEarthquakeRealtimeData(data = {}, realtimeItems = realtimeEarthquakeState.earthquakes) {
-    const merged = mergeRealtimeEarthquakes(data.earthquakes ?? [], realtimeItems);
+  async function mergeEarthquakeRealtimeData(data = {}, realtimeItems = realtimeEarthquakeState.earthquakes, { fromXml = false } = {}) {
+    const previousData = latestDataByTab.earthquake;
+    const revision = realtimeEarthquakeUpdateId;
+    const previousItems = previousData?.earthquakes ?? [];
+    const merged = fromXml
+      ? reconcileEarthquakeSources(data.earthquakes, previousItems, realtimeItems, realtimeEarthquakeState.connection)
+      : mergeRealtimeEarthquakes(previousItems, mergeRealtimeEarthquakes(data.earthquakes ?? [], realtimeItems));
     const earthquakes = await attachEarthquakeMapDataList(merged);
+    // 地図データの非同期準備中に届いた続報・接続状態を取りこぼさない。
+    if (revision !== realtimeEarthquakeUpdateId || previousData !== latestDataByTab.earthquake) {
+      return mergeEarthquakeRealtimeData(data, realtimeEarthquakeState.earthquakes, { fromXml });
+    }
+    if (fromXml && realtimeEarthquakeState.connection.status !== "connected"
+      && getDisplayedEewEvents().some((event) => !event.isCancel)) {
+      const incoming = merged.find((item) => isNewEarthquakeReport(item, previousItems));
+      if (incoming) earthquakeSummaryOverride.accept(incoming, previousItems);
+    }
     return {
       ...data,
       earthquakes,
@@ -1446,6 +1482,7 @@ if (layerId === "river") {
       }
       return nextData;
     })()
+      .then((nextData) => mergeEarthquakeRealtimeData(nextData, undefined, { fromXml: true }))
       .then((nextData) => {
         latestDataByTab.earthquake = nextData;
         earthquakeHistoryVisibleCount = Math.min(
@@ -2606,6 +2643,7 @@ if (layerId === "river") {
         plateBoundaryVisible: earthquakePlateBoundaryVisible,
         plateDepthContoursVisible: earthquakePlateDepthContoursVisible,
         estimatedIntensityVisible: earthquakeEstimatedIntensityVisible,
+        eewSummaryOverride: getDisplayedEewEvents().length ? earthquakeSummaryOverride.get() : null,
         eew: getSelectedEew(),
         eewEvents: getDisplayedEewEvents(),
         eewConnection: eewState.connection
@@ -2631,6 +2669,7 @@ if (layerId === "river") {
       earthquakeHistoryVisibleCount,
       earthquakeHistoryLoadingMore,
       earthquakeHistoryLoadMoreError,
+      eewSummaryOverride: getDisplayedEewEvents().length ? earthquakeSummaryOverride.get() : null,
       eew: getSelectedEew(),
       eewEvents: getDisplayedEewEvents(),
       eewConnection: eewState.connection,
@@ -3341,7 +3380,7 @@ if (layerId === "river") {
     if (inFlight) return inFlight;
 
     const request = loaders[tabId]()
-      .then((data) => tabId === "earthquake" ? mergeEarthquakeRealtimeData(data) : data)
+      .then((data) => tabId === "earthquake" ? mergeEarthquakeRealtimeData(data, undefined, { fromXml: true }) : data)
       .finally(() => {
         loadRequestsByTab.delete(tabId);
       });
@@ -3546,7 +3585,7 @@ if (layerId === "river") {
     // Periodic XML reconciliation must not compete with a return-to-tab camera
     // animation. Realtime earthquake/EEW callbacks remain independent.
     if (!force) await tabAutoFocusSettled;
-    if (activeTab !== "earthquake") return latestDataByTab.earthquake;
+    if (activeTab !== "earthquake" && !force) return latestDataByTab.earthquake;
     if (document.hidden && !force) return latestDataByTab.earthquake;
     if (earthquakeRefreshRequest) return earthquakeRefreshRequest;
 
@@ -4286,6 +4325,7 @@ if (layerId === "river") {
       eewClient?.stop({ clear: false });
       realtimeEarthquakeClient?.stop({ clear: false });
       stopEewWaveAnimation();
+      earthquakeSummaryOverride.clear();
     });
     window.addEventListener("pageshow", () => {
       weatherMap?.resize();

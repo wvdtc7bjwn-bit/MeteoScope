@@ -83,7 +83,7 @@ assert.equal(isEarthquakeReportUnderInvestigation(vxse52), true);
 assert.equal(isEarthquakeReportUnderInvestigation(vxse53), false);
 assert.equal(getEarthquakeUnknownText(vxse51), "調査中");
 assert.equal(getEarthquakeUnknownText(vxse52), "調査中");
-assert.equal(getEarthquakeUnknownText(vxse53), "不明");
+assert.equal(getEarthquakeUnknownText(vxse53), "調査中");
 
 assert.equal(formatEarthquakeHypocenterText(vxse51), "調査中");
 assert.equal(formatEarthquakeMagnitude(null, { prefix: true, unknownText: "調査中" }), "調査中");
@@ -104,7 +104,7 @@ assert.equal(afterVxse53[0].magnitude, "M3.2");
 assert.equal(afterVxse53[0].depth, 12);
 assert.equal(afterVxse53[0].maxIntensity, "3");
 assert.equal(afterVxse53[0].tsunamiComment, "この地震による津波の心配はありません。");
-assert.equal(getEarthquakeUnknownText(afterVxse53[0]), "不明");
+assert.equal(getEarthquakeUnknownText(afterVxse53[0]), "調査中");
 
 const reversedArrivalOrder = mergeEarthquakeReportsByPriority([vxse53, vxse52, vxse51]);
 assert.equal(reversedArrivalOrder[0].xmlCode, "VXSE53", "priority must not depend on feed order");

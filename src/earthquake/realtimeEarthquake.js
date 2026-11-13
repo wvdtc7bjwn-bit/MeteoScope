@@ -1,4 +1,5 @@
 import { parseJstDateTime } from "../utils/jstDateTime.js";
+import { getEarthquakeReportStage, isKnownEarthquakeHypocenter } from "../earthquakeFormat.js";
 
 const P2P_HISTORY_URL = "https://api.p2pquake.net/v2/history?codes=551&limit=20";
 const P2P_WEBSOCKET_URL = "wss://api.p2pquake.net/v2/ws";
@@ -169,7 +170,7 @@ function numericMagnitude(value) {
   return finiteNumber(cleanText(value).replace(/^M\s*/i, ""), { min: 0, max: 10.5 });
 }
 
-function isSameEarthquake(left, right) {
+export function isSameEarthquake(left, right) {
   if (!left || !right) return false;
   if (left.eventKey && right.eventKey && left.eventKey === right.eventKey) return true;
   const leftTime = dateMs(left.eventTimeRaw);
@@ -185,7 +186,7 @@ function isSameEarthquake(left, right) {
   const coordinateMatch = Math.abs(leftCoordinates[0] - rightCoordinates[0]) <= 0.051
     && Math.abs(leftCoordinates[1] - rightCoordinates[1]) <= 0.051;
   const nameMatch = cleanText(left.hypocenterName) === cleanText(right.hypocenterName)
-    && cleanText(left.hypocenterName) !== "震源調査中";
+    && isKnownEarthquakeHypocenter(left.hypocenterName);
   const leftDepth = finiteNumber(left.depth, { min: 0, max: 1_000 });
   const rightDepth = finiteNumber(right.depth, { min: 0, max: 1_000 });
   const depthMatch = leftDepth !== null && rightDepth !== null && Math.abs(leftDepth - rightDepth) <= 1;
@@ -197,16 +198,18 @@ function isSameEarthquake(left, right) {
 }
 
 function completeness(item) {
-  return [item.coordinates, item.hypocenterName && item.hypocenterName !== "震源調査中", item.magnitude && item.magnitude !== "--", item.maxIntensity, item.intensityStations?.length, item.intensityAreas?.length].filter(Boolean).length;
+  return [item.coordinates, isKnownEarthquakeHypocenter(item.hypocenterName), item.magnitude && item.magnitude !== "--", item.maxIntensity, item.intensityStations?.length, item.intensityAreas?.length].filter(Boolean).length;
 }
 
 function sourcePriority(item) {
-  return item?.source === "xml" ? 3 : item?.source === "p2p" ? 2 : 1;
+  return item?.source === "xml" || item?.xmlCode ? 3 : item?.source === "p2p" ? 2 : 1;
 }
 
 function choosePrimary(left, right) {
-  const reportDelta = (left.reportPriority ?? 0) - (right.reportPriority ?? 0);
+  const reportDelta = getEarthquakeReportStage(left) - getEarthquakeReportStage(right);
   if (reportDelta) return reportDelta > 0 ? left : right;
+  const timeDelta = dateMs(left.reportTimeRaw) - dateMs(right.reportTimeRaw);
+  if (timeDelta) return timeDelta > 0 ? left : right;
   const completenessDelta = completeness(left) - completeness(right);
   if (completenessDelta) return completenessDelta > 0 ? left : right;
   const sourceDelta = sourcePriority(left) - sourcePriority(right);
@@ -223,6 +226,9 @@ function mergeEarthquake(left, right) {
     id: primary.id || fallback.id,
     eventId: primary.eventId || fallback.eventId,
     eventKey: primary.eventKey || fallback.eventKey,
+    xmlCode: primary.xmlCode ?? "",
+    issueType: primary.issueType ?? "",
+    hypocenterName: isKnownEarthquakeHypocenter(primary.hypocenterName) ? primary.hypocenterName : fallback.hypocenterName,
     coordinates: primary.coordinates ?? fallback.coordinates,
     depth: primary.depth ?? fallback.depth,
     magnitude: primary.magnitude && primary.magnitude !== "--" ? primary.magnitude : fallback.magnitude,
@@ -238,6 +244,28 @@ function mergeEarthquake(left, right) {
   };
 }
 
+export function reconcileEarthquakeSources(xmlItems, currentItems, realtimeItems, connection) {
+  // P2P正常時はXMLの震度速報・震源情報を採用せず、確定震度のみ照合する。
+  // 接続断時はXMLの全段階を利用する。取得済みの新報は必ず保持する。
+  const allowedXml = (xmlItems ?? []).filter((item) =>
+    connection?.status !== "connected" || getEarthquakeReportStage(item) >= 30
+  );
+  return mergeRealtimeEarthquakes(
+    mergeRealtimeEarthquakes(currentItems, allowedXml), realtimeItems
+  );
+}
+
+export function isConfirmedEarthquakeReport(item) {
+  return getEarthquakeReportStage(item) === 30;
+}
+
+export function isNewEarthquakeReport(item, previousItems) {
+  const previous = previousItems.find((entry) => isSameEarthquake(entry, item));
+  return !previous || (choosePrimary(previous, item) === item
+    && (getEarthquakeReportStage(item) > getEarthquakeReportStage(previous)
+      || dateMs(item.reportTimeRaw) > dateMs(previous.reportTimeRaw)));
+}
+
 export function mergeRealtimeEarthquakes(baseEarthquakes = [], realtimeEarthquakes = [], limit = HISTORY_LIMIT) {
   const merged = [];
   for (const item of [...realtimeEarthquakes, ...baseEarthquakes].filter(Boolean)) {
@@ -251,7 +279,7 @@ export function mergeRealtimeEarthquakes(baseEarthquakes = [], realtimeEarthquak
 }
 
 export function shouldTemporarilyShowEarthquakeInfo(earthquake) {
-  return ["ScalePrompt", "Destination", "ScaleAndDestination", "DetailScale"].includes(earthquake?.issueType);
+  return [10, 20].includes(getEarthquakeReportStage(earthquake));
 }
 
 export function createRealtimeEarthquakeClient({
@@ -356,6 +384,7 @@ export function createRealtimeEarthquakeClient({
       if (socket !== p2pSocket) return;
       p2pSocket = null;
       if (!running) return;
+      setStatus({ status: "disconnected", source: "p2p", error: "P2P接続断" });
       scheduleReconnect(expectedGeneration);
     };
   }

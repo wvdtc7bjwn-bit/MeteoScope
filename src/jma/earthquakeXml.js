@@ -287,6 +287,7 @@ export function parseEarthquakeReport(text, entry) {
     eventId,
     eventKey: eventKey || id,
     reportPriority,
+    source: "xml",
     xmlCode: entry.code,
     title,
     reportTitle,

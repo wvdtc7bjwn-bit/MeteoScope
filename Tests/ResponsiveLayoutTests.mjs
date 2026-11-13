@@ -616,7 +616,7 @@ assert.match(app, /activeTab !== "earthquake"[\s\S]*?document\.visibilityState =
 assert.doesNotMatch(app, /scheduleEarthquakeInfoOverride|earthquakeInfoOverrideUntil/);
 assert.match(app, /\.tab-button\[data-tab="earthquake"\]/);
 assert.match(app, /has-eew-alert/);
-assert.match(app, /確定した地震情報は最近の地震へ統合するが、発表中のEEWと波面表示は隠さない/);
+assert.match(panel, /state\.data\?\.eewSummaryOverride \? null : state\.data\?\.eew/, "10秒切替は要約だけに適用する");
 assert.doesNotMatch(
   app,
   /eewWaveTimer\s*=\s*window\.setInterval\([\s\S]{0,180}?1_000/
