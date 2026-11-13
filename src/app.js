@@ -1,3 +1,4 @@
+import { createEewAutoFocus } from "./eew/eewAutoFocus.js";
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, MAP_DATA_ENDPOINTS, TABS, WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
@@ -463,6 +464,7 @@ export function createWeatherApp() {
   let historicalEarthquakeDetailController = null;
   let historicalEarthquakeDetailRequestId = 0;
   let earthquakeSummaryPage = "earthquake";
+  const eewAutoFocus = createEewAutoFocus();
   let eewState = {
     activeEvents: [],
     recentEvents: [],
@@ -770,6 +772,7 @@ export function createWeatherApp() {
     if (activeTab !== "earthquake" || earthquakeContentMode !== "earthquake") return;
     const tab = TABS.find((item) => item.id === "earthquake");
     if (tab) updateCurrentView(tab, latestDataByTab.earthquake ?? {});
+    focusEewOnce();
   }
 
   function syncEewEarlyAccess() {
@@ -811,6 +814,7 @@ export function createWeatherApp() {
     if (activeTab !== "earthquake" || earthquakeContentMode !== "earthquake") return;
     const tab = TABS.find((item) => item.id === "earthquake");
     if (tab) updateCurrentView(tab, latestDataByTab.earthquake ?? {});
+    focusEewOnce();
   }
 
   async function selectTab(tabId) {
@@ -2196,6 +2200,17 @@ if (layerId === "river") {
     });
   }
 
+  function focusEewOnce() {
+    if (activeTab !== "earthquake" || earthquakeContentMode !== "earthquake"
+      || (!earlyAccessEnabled && !localEewTestEvent) || !weatherMap
+      || document.hidden) return;
+    eewAutoFocus.focus(getDisplayedEewEvents(), (coordinates) => {
+      weatherMap.flyToLocation(coordinates, {
+        zoom: 6, duration: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : 850
+      });
+    });
+  }
+
   function focusSelectedEarthquake() {
     const earthquakes = latestDataByTab.earthquake?.earthquakes ?? [];
     const selected = earthquakes.find((earthquake) => String(earthquake.id) === String(activeEarthquakeId)) ?? earthquakes[0];
@@ -2224,8 +2239,12 @@ if (layerId === "river") {
       if (generation !== tabAutoFocusGeneration || activeTab !== tabId) return;
       if (tabId === "typhoon") {
         focusSelectedTyphoon({ includeWorldForecast: true });
-      } else if (earthquakeContentMode === "earthquake") {
-        focusSelectedEarthquake();
+      } else if (earthquakeContentMode === "earthquake"
+        && earthquakeView === "recent"
+        && !earthquakeNearbySearchActive
+        && earthquakeSummaryPage === "earthquake") {
+        if (getDisplayedEewEvents().some((event) => !event.isCancel)) focusEewOnce();
+        else focusSelectedEarthquake();
       }
       await weatherMap?.whenCameraIdle();
     })().catch((error) => {
@@ -4206,6 +4225,7 @@ if (layerId === "river") {
       languagePreference: localeController.getPreference(),
       terrainLayerSettings,
       earthquakeDistributionRecentXmlVisible,
+      eewAutoFocusEnabled: eewAutoFocus.enabled,
       earlyAccessEnabled,
       earlyAccessState
     };
@@ -4637,6 +4657,7 @@ if (layerId === "river") {
       onTerrainLayerChange: setTerrainLayerSettings,
       onEarthquakeDistributionRecentXmlChange:
         setEarthquakeDistributionRecentXmlVisible,
+      onEewAutoFocusChange: (enabled) => eewAutoFocus.setEnabled(enabled),
       onRefreshEarlyAccess: refreshEarlyAccess,
       onOpenGuide: onboarding.open,
       tabs: TABS,

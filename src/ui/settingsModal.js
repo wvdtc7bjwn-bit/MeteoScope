@@ -75,6 +75,13 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    if (event.target.closest("[data-settings-eew-auto-focus]")) {
+      const state = settingsOptions.getState?.() ?? {};
+      settingsOptions.onEewAutoFocusChange?.(state.eewAutoFocusEnabled === false);
+      renderSettingsEarthquake();
+      return;
+    }
+
     if (event.target.closest("[data-settings-earthquake-recent-xml-toggle]")) {
       const state = settingsOptions.getState?.() ?? {};
       settingsOptions.onEarthquakeDistributionRecentXmlChange?.(
@@ -245,6 +252,14 @@ function resetSettingsGroups() {
 }
 
 function renderSettingsEarthquake() {
+  const focusButton = document.getElementById("settings-eew-auto-focus");
+  if (focusButton) {
+    const state = settingsOptions.getState?.() ?? {};
+    const enabled = state.eewAutoFocusEnabled !== false;
+    focusButton.closest(".settings-switch-row").hidden = !state.earlyAccessEnabled;
+    focusButton.classList.toggle("is-enabled", enabled);
+    focusButton.setAttribute("aria-checked", String(enabled));
+  }
   const button = document.getElementById("settings-earthquake-recent-xml-toggle");
   if (!button) return;
   const state = settingsOptions.getState?.() ?? {};

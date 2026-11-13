@@ -466,8 +466,17 @@
             </div>
           </section>
           <section class="settings-group settings-earthquake-group" data-settings-section="display">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>地震情報</strong><small>震央分布の表示</small></span></button>
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>地震情報</strong><small>震央分布・速報の表示</small></span></button>
             <div class="settings-group-content" hidden>
+              <div class="settings-switch-row" hidden>
+                <div class="settings-switch-copy">
+                  <strong>EEW自動フォーカス</strong>
+                  <span>地震タブで速報の震源へ一度だけ移動します。移動中も地図を操作できます。</span>
+                </div>
+                <button id="settings-eew-auto-focus" class="settings-switch" type="button" role="switch" aria-checked="true" aria-label="EEW自動フォーカス" data-settings-eew-auto-focus>
+                  <span class="settings-switch-thumb" aria-hidden="true"></span>
+                </button>
+              </div>
               <div class="settings-switch-row">
                 <div class="settings-switch-copy">
                   <strong>当日・前日の有感地震</strong>

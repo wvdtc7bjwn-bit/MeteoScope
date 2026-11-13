@@ -76,6 +76,9 @@ jobs:
       - name: Test warning areas
         run: npm run test:warnings
 
+      - name: Test EEW reception and auto focus
+        run: npm run test:eew
+
       - name: Test sharing and upper-air links
         run: |
           npm run test:social-share

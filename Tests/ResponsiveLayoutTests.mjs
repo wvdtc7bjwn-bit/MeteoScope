@@ -212,7 +212,7 @@ assert.match(
 );
 assert.match(
   app,
-  /function scheduleTabAutoFocus\(tabId, generation\)[\s\S]*?generation !== tabAutoFocusGeneration \|\| activeTab !== tabId[\s\S]*?focusSelectedTyphoon\(\{ includeWorldForecast: true \}\)[\s\S]*?earthquakeContentMode === "earthquake"\)\s*\{\s*focusSelectedEarthquake\(\);/,
+  /function scheduleTabAutoFocus\(tabId, generation\)[\s\S]*?generation !== tabAutoFocusGeneration \|\| activeTab !== tabId[\s\S]*?focusSelectedTyphoon\(\{ includeWorldForecast: true \}\)[\s\S]*?earthquakeContentMode === "earthquake"[\s\S]*?earthquakeView === "recent"[\s\S]*?focusEewOnce\(\);\s*else focusSelectedEarthquake\(\);/,
   "stale tab focus callbacks must not move the map after another tab is selected"
 );
 assert.match(

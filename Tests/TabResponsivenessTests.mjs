@@ -231,8 +231,10 @@ const focused = [];
 let releaseCamera;
 const focusCtx = vm.createContext({
   tabAutoFocusSettled: Promise.resolve(), tabAutoFocusGeneration: 1, activeTab: 'earthquake',
-  earthquakeContentMode: 'earthquake', console,
+  earthquakeContentMode: 'earthquake', earthquakeView: 'recent',
+  earthquakeNearbySearchActive: false, earthquakeSummaryPage: 'earthquake', console,
   yieldAfterPaint: () => new Promise(resolve => focusPaints.push(resolve)),
+  getDisplayedEewEvents: () => [],
   focusSelectedEarthquake: () => focused.push('earthquake'),
   focusSelectedTyphoon: () => focused.push('typhoon'),
   weatherMap: { whenCameraIdle: () => new Promise(resolve => { releaseCamera = resolve; }) }
@@ -253,6 +255,33 @@ focusCtx.tabAutoFocusGeneration = 2; focusCtx.activeTab = 'radar';
 focusPaints.shift()(); await new Promise(setImmediate);
 focusPaints.shift()(); await focusCtx.tabAutoFocusSettled;
 assert.equal(focused.length, 1, 'cancelled navigation cannot move the camera');
+
+// Return to the earthquake tab while browsing a non-recent view, including
+// changing modes during the deferred paint: never focus the latest earthquake.
+focusCtx.activeTab = 'earthquake';
+focusCtx.weatherMap = { whenCameraIdle: async () => {} };
+for (const view of ['distribution', 'history']) {
+  focusCtx.earthquakeView = 'recent';
+  focusCtx.scheduleTabAutoFocus('earthquake', 2);
+  focusPaints.shift()(); await new Promise(setImmediate);
+  focusCtx.earthquakeView = view;
+  focusPaints.shift()(); await focusCtx.tabAutoFocusSettled;
+  assert.equal(focused.length, 1, `${view} must preserve its camera on return`);
+}
+focusCtx.earthquakeView = 'recent';
+for (const page of ['tsunami', 'tide']) {
+  focusCtx.earthquakeSummaryPage = page;
+  focusCtx.scheduleTabAutoFocus('earthquake', 2);
+  focusPaints.shift()(); await new Promise(setImmediate);
+  focusPaints.shift()(); await focusCtx.tabAutoFocusSettled;
+  assert.equal(focused.length, 1, `${page} must not focus the latest earthquake`);
+}
+focusCtx.earthquakeSummaryPage = 'earthquake';
+focusCtx.earthquakeNearbySearchActive = true;
+focusCtx.scheduleTabAutoFocus('earthquake', 2);
+focusPaints.shift()(); await new Promise(setImmediate);
+focusPaints.shift()(); await focusCtx.tabAutoFocusSettled;
+assert.equal(focused.length, 1, 'nearby history search must preserve its camera');
 
 const cameraListeners = new Map();
 const cameraCtx = vm.createContext({map: {
