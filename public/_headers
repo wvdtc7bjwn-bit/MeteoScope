@@ -28,3 +28,6 @@
 
 /api/public/config
   Cache-Control: no-store
+
+/data/base-map-tiles/*
+  Cache-Control: public, max-age=31536000, immutable

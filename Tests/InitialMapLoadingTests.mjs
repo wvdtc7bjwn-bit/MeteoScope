@@ -110,7 +110,8 @@ assert.match(weatherMap, /import\("\.\/data\/worldLandGeoJson\.js"\)/);
 assert.doesNotMatch(weatherMap, /source: "world-countries"/);
 assert.doesNotMatch(weatherMap, /\bglyphs\s*:/);
 assert.match(weatherMap, /localIdeographFontFamily:/);
-assert.match(weatherMap, /data: JMA_ENDPOINTS\.warningMunicipalitiesMap/);
+assert.match(weatherMap, /\[MUNICIPALITY_SOURCE_ID\]: createMunicipalitySource\(\)/);
+assert.match(await readFile(new URL("../src/map/baseMapTiles.js", import.meta.url), "utf8"), /data: JMA_ENDPOINTS\.warningMunicipalitiesMap/);
 assert.match(weatherMap, /data: JMA_ENDPOINTS\.prefecturesMap/);
 
 assert.match(main, /navigator\.serviceWorker\.register\("\/sw\.js", \{ updateViaCache: "none" \}\)/);

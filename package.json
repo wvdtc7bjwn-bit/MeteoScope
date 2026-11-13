@@ -60,7 +60,8 @@
     "data:build:warning-map": "node scripts/build-warning-geometry-fixes.mjs",
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy dist --project-name meteoscope",
     "deploy:earthquake-worker": "node scripts/deploy-earthquake-worker.mjs",
-    "data:update:focal-mechanism": "node scripts/build-focal-mechanism-archive.mjs"
+    "data:update:focal-mechanism": "node scripts/build-focal-mechanism-archive.mjs",
+    "data:build:base-map-tiles": "node scripts/build-base-map-tiles.mjs"
   },
   "dependencies": {
     "maplibre-gl": "^5.24.0",
@@ -72,6 +73,8 @@
     "adm-zip": "^0.6.0",
     "postcss": "^8.5.18",
     "shapefile": "^0.6.6",
-    "vite": "^6.4.3"
+    "vite": "^6.4.3",
+    "@maplibre/geojson-vt": "6.1.0",
+    "@maplibre/vt-pbf": "4.3.2"
   }
 }

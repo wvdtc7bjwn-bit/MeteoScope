@@ -20,7 +20,7 @@ function isLoopbackRequest(request) {
 }
 
 export default defineConfig({
-  plugins: [localReadOnlyPagesApi("jma-focal-mechanism", "/api/jma-focal-mechanism", handleFocalMechanismRequest), localActiveFaultApi(), localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localJmaUpperAirArchiveApi(), localUpperAirApi(), localGfsProfileApi()],
+  plugins: [baseMapPreloadHints(), localReadOnlyPagesApi("jma-focal-mechanism", "/api/jma-focal-mechanism", handleFocalMechanismRequest), localActiveFaultApi(), localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localJmaUpperAirArchiveApi(), localUpperAirApi(), localGfsProfileApi()],
   base: process.env.GITHUB_PAGES === "true" ? "/MeteoScope/" : "/",
   server: {
     fs: { deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "**/.cache/early-access/**"] },
@@ -331,6 +331,19 @@ function localGfsProfileApi() {
           response.end(JSON.stringify({ error: "noaa_gfs_unavailable" }));
         }
       });
+    }
+  };
+}
+
+// GeoJSON preloads would waste bandwidth when testing the pre-tiled map.
+function baseMapPreloadHints() {
+  let vectorEnabled = false;
+  return {
+    name: "meteoscope-base-map-preload-hints",
+    configResolved(config) { vectorEnabled = config.env.VITE_MAP_GEOMETRY === "vector"; },
+    transformIndexHtml(html) {
+      if (!vectorEnabled) return html;
+      return html.replace(/<link rel="preload" as="fetch" href="[^"<>]*data\/(?:jma-weather-warning-municipalities-map|japan-prefectures-map)\.geojson" crossorigin\s*\/>/g, "");
     }
   };
 }

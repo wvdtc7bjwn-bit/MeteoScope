@@ -1,3 +1,4 @@
+import { VECTOR_BASE_MAP_ENABLED, registerBaseMapProtocol, createMunicipalitySource, baseMapSourceLayer, municipalityStateTarget } from "./baseMapTiles.js";
 import {
   formatTyphoonForecastCenter,
   buildTyphoonPopup,
@@ -540,6 +541,7 @@ export function createWeatherMap(elementId) {
   }
 
   function initialize() {
+    registerBaseMapProtocol(maplibregl);
     map = new maplibregl.Map({
       container: elementId,
       center: [DEFAULT_VIEW.center[1], DEFAULT_VIEW.center[0]],
@@ -1417,6 +1419,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       id: WARNING_HATCH_LAYER_ID,
       type: "fill",
       source: MUNICIPALITY_SOURCE_ID,
+        ...baseMapSourceLayer("municipalities"),
       filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
       layout: { visibility: "none" },
       paint: {
@@ -3269,20 +3272,15 @@ function createBaseStyle(theme = "dark") {
         type: "geojson",
         data: EMPTY_GEOJSON
       },
-      [MUNICIPALITY_SOURCE_ID]: {
-        type: "geojson",
-        data: JMA_ENDPOINTS.warningMunicipalitiesMap,
-        promoteId: "code"
-      },
+      [MUNICIPALITY_SOURCE_ID]: createMunicipalitySource(),
       [MUNICIPALITY_FIX_SOURCE_ID]: {
         type: "geojson",
         data: JMA_ENDPOINTS.warningMunicipalityFixes,
         promoteId: "code"
       },
-      [PREFECTURE_SOURCE_ID]: {
-        type: "geojson",
-        data: JMA_ENDPOINTS.prefecturesMap
-      },
+      ...(!VECTOR_BASE_MAP_ENABLED ? { [PREFECTURE_SOURCE_ID]: {
+        type: "geojson", data: JMA_ENDPOINTS.prefecturesMap
+      } } : {}),
     },
     layers: [
       {
@@ -3324,6 +3322,7 @@ function createBaseStyle(theme = "dark") {
         id: MUNICIPALITY_FILL_LAYER_ID,
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
+        ...baseMapSourceLayer("municipalities"),
         filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
         layout: { visibility: "none" },
         paint: {
@@ -3347,6 +3346,7 @@ function createBaseStyle(theme = "dark") {
         id: WARNING_OVERLAY_LAYER_ID,
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
+        ...baseMapSourceLayer("municipalities"),
         filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
         layout: { visibility: "none" },
         paint: {
@@ -3370,6 +3370,7 @@ function createBaseStyle(theme = "dark") {
         id: WARNING_EARLY_OVERLAY_LAYER_ID,
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
+        ...baseMapSourceLayer("municipalities"),
         filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
         layout: { visibility: "none" },
         paint: {
@@ -3393,6 +3394,7 @@ function createBaseStyle(theme = "dark") {
         id: WARNING_CLICK_LAYER_ID,
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
+        ...baseMapSourceLayer("municipalities"),
         filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
         layout: { visibility: "none" },
         paint: {
@@ -3414,6 +3416,7 @@ function createBaseStyle(theme = "dark") {
         id: MUNICIPALITY_LINE_LAYER_ID,
         type: "line",
         source: MUNICIPALITY_SOURCE_ID,
+        ...baseMapSourceLayer("municipalities"),
         filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
         layout: { visibility: "none" },
         paint: {
@@ -3476,7 +3479,8 @@ function createBaseStyle(theme = "dark") {
       {
         id: "japan-prefecture-line",
         type: "line",
-        source: PREFECTURE_SOURCE_ID,
+        source: VECTOR_BASE_MAP_ENABLED ? MUNICIPALITY_SOURCE_ID : PREFECTURE_SOURCE_ID,
+        ...baseMapSourceLayer("prefectures"),
         layout: {
           visibility: "none",
           "line-cap": "round",
@@ -4240,10 +4244,7 @@ async function updateWarningFeatureStates(map, activeAreas, warningView = "statu
       yieldFrame: waitForMapUpdateTurn,
       isCurrent: () => cache.generations[channel] === generation,
       apply: (operation) => {
-        const feature = {
-          source: warningGeometryFixCodeSet.has(operation.areaCode) ? MUNICIPALITY_FIX_SOURCE_ID : MUNICIPALITY_SOURCE_ID,
-          id: operation.areaCode
-        };
+        const feature = municipalityStateTarget(operation.areaCode, warningGeometryFixCodeSet.has(operation.areaCode));
         if (operation.type === "remove") {
           map.removeFeatureState(feature, stateKey);
           currentLevels.delete(operation.areaCode);
