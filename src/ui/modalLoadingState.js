@@ -1,3 +1,4 @@
+import { escapeHtmlPadded as escapeHtml } from "../utils/html.js";
 export function buildModalLoadingState({
   title,
   detail = "",
@@ -19,13 +20,4 @@ export function buildModalLoadingState({
       </span>
     </div>
   `;
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll("\"", "&quot;")
-    .replaceAll("'", "&#039;");
 }

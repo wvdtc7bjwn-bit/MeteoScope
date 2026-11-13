@@ -1,3 +1,4 @@
+import { escapeHtml } from "../utils/html.js";
 import { getCurrentLanguage, localizeText } from "./locale.js";
 import { formatRadarIntensityBand } from "../location/radarTimeline.js";
 import {
@@ -683,13 +684,4 @@ function formatTime(value, language) {
     minute: "2-digit",
     hour12: false
   }).format(date);
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }

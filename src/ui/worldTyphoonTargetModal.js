@@ -1,3 +1,4 @@
+import { escapeHtmlPadded as escapeHtml } from "../utils/html.js";
 import { getCurrentLanguage } from "./locale.js";
 import { buildModalLoadingState } from "./modalLoadingState.js";
 
@@ -167,13 +168,4 @@ function buildOptionMarkup(option, selectedKeys, isEnglish) {
       <i aria-hidden="true"></i>
     </button>
   `;
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }

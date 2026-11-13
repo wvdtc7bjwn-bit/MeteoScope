@@ -1,3 +1,4 @@
+import { escapeHtmlPadded as escapeHtml } from "../utils/html.js";
 import {
   DISASTER_TIMELINE_CATEGORIES,
   DISASTER_TIMELINE_EVENTS,
@@ -126,13 +127,4 @@ export function renderDisasterTimeline() {
 
   if (count) count.textContent = `${events.length}件`;
   results.innerHTML = buildDisasterTimelineMarkup(events);
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }

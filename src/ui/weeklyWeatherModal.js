@@ -1,3 +1,4 @@
+import { escapeHtmlPadded as escapeHtml } from "../utils/html.js";
 import {
   fetchWeeklyForecastForLocation,
   fetchWeeklyForecastForRegion,
@@ -494,13 +495,4 @@ function renderState(body, title, message, loading = false, retry = false) {
 
 function formatTemperature(value) {
   return Number.isFinite(value) ? `${value}°` : "－";
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll("\"", "&quot;")
-    .replaceAll("'", "&#039;");
 }

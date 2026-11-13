@@ -1,3 +1,4 @@
+import { escapeHtml } from "../utils/html.js";
 import {
   getEarthquakeIntensityColor,
   getEarthquakeIntensityLabel,
@@ -1135,14 +1136,6 @@ function buildEarthquakeAreaPopup(area) {
   `;
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 function getAncestor(node, localName) {
   let current = node?.parentElement ?? node?.parentNode ?? null;

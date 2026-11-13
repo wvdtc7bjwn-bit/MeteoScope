@@ -71,7 +71,8 @@ for (const field of ["precipitation10m", "precipitation1h", "precipitation3h", "
   assert.match(amedasSource, new RegExp(field));
 }
 assert.match(appSource, /applyAmedasPrecipitationPeriod/);
-assert.match(appSource, /AMEDAS_PRECIPITATION_PERIOD_STORAGE_KEY/);
+assert.match(appSource, /loadAmedasPrecipitationPeriod/);
+assert.match(await readFile(new URL("../src/preferences/mapPreferences.js", import.meta.url), "utf8"), /AMEDAS_PRECIPITATION_PERIOD_STORAGE_KEY/);
 assert.match(panelSource, /setupAmedasPrecipitationPeriods/);
 assert.match(panelSource, /mobile-dock-amedas-period-cycle/);
 assert.match(panelSource, /前24時間降水量（移動合計）/);

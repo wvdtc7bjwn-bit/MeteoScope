@@ -1,3 +1,4 @@
+import { escapeHtmlString as escapeMarkup } from "../utils/html.js";
 const STORAGE_KEY = "meteoscope-onboarding-v1";
 
 const PAGES = [
@@ -80,14 +81,6 @@ export function buildOnboardingPhraseMarkup(phrases) {
     .join("");
 }
 
-function escapeMarkup(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 let initialized = false;
 let currentPage = 0;

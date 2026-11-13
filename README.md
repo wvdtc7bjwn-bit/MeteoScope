@@ -12,6 +12,12 @@ https://wvdtc7bjwn-bit.github.io/MeteoScope/
 Cloudflare Pages へ移行する場合は、Cloudflare が発行する `*.pages.dev` の URL でも公開できます。
 Pages プロジェクト名を `meteoscope` にした場合の標準 URL は `https://meteoscope.pages.dev/` です。
 
+## 開発・保守
+
+- [構成と変更時の確認手順](docs/maintenance.md)
+- `npm test` ですべての回帰テスト、`npm run build` で本番用ビルドを検証します。
+- 個別の `test:*` コマンドも引き続き利用できます。
+
 ## 主な機能
 
 - 雨雲レーダー

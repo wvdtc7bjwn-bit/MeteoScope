@@ -1,3 +1,4 @@
+import { escapeHtml as escapeHTML, escapeHtml as escapeMapInfoHtml, escapeHtmlString as escapePopup } from "../utils/html.js";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { prepareWorldMapData } from "./worldLandFilter.js";
@@ -3162,11 +3163,6 @@ function communityHazardLabel(value) {
   return ({ "flooded-road": "道路冠水", "strong-wind": "強風", "poor-visibility": "視界不良", thunder: "雷", slippery: "路面凍結・滑りやすい" })[value] || "";
 }
 
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/gu, (character) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
-  })[character]);
-}
 
 function buildJshisMajorFaultPopup(properties = {}) {
   const faultName = formatMapInfoTitle(properties.LTENAME || "主要活断層帯");
@@ -3208,14 +3204,6 @@ function formatJshisProbability(value) {
   return `${percent.toFixed(digits).replace(/\.?0+$/u, "")}%`;
 }
 
-function escapeMapInfoHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
 
 function getFocusOffset(options = {}) {
   if (options.offset) return options.offset;
@@ -6680,14 +6668,3 @@ function getWindArrowRotation(value) {
 function formatAmedasValue(value) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
-
-function escapePopup(value) {
-  return String(value).replace(/[&<>'"]/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "'": "&#39;",
-    '"': "&quot;"
-  }[char]));
-}
-

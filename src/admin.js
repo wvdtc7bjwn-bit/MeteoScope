@@ -1,3 +1,4 @@
+import { escapeHtmlStringPadded as escapeHtml } from "./utils/html.js";
 import { setupLocale } from "./ui/locale.js";
 
 const API_BASE = "/api/admin";
@@ -1057,14 +1058,6 @@ function setMessage(element, text, type = "") {
   element.className = `admin-message ${type}`.trim();
 }
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
 
 function escapeAttribute(value) {
   return escapeHtml(value).replaceAll("`", "&#096;");

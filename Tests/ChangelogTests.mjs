@@ -24,7 +24,7 @@ assert.match(index, /class="settings-group settings-changelog-group"[\s\S]*?id="
 assert.match(settingsModal, /import changelogMarkdown from "\.\.\/\.\.\/CHANGELOG\.md\?raw"/);
 assert.match(settingsModal, /function renderSettingsChangelog\(\)/);
 assert.match(settingsModal, /group\.matches\("\.settings-changelog-group"\)\) renderSettingsChangelog\(\)/);
-assert.match(settingsModal, /function escapeHtml\(value\)[\s\S]*?replace\(\/\[&<>'"\]\/g/);
+assert.match(settingsModal, /import \{ escapeHtml \} from "\.\.\/utils\/html\.js"/);
 assert.match(settingsModal, /const content = escapeHtml\(item\[1\]\.trim\(\)\)/, "表示前に既存のHTMLエスケープ関数を使う");
 assert.match(styles, /html\[data-theme="light"\] \.settings-changelog-entry\s*\{[\s\S]*?background:/);
 assert.match(styles, /html\[data-theme="light"\] \.settings-changelog-entry h3\s*\{[\s\S]*?color:/);

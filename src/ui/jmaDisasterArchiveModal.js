@@ -1,3 +1,4 @@
+import { escapeHtmlPadded as escapeHtml } from "../utils/html.js";
 import { parseJmaDisasterArchive } from "../jma/disasterArchive.js";
 
 let initialized = false;
@@ -158,13 +159,4 @@ function setStatus(status, state, message) {
   if (retry) retry.hidden = state !== "error";
   const externalLink = document.getElementById("jma-disaster-archive-official-link");
   if (externalLink) externalLink.hidden = state !== "error";
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }

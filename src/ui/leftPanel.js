@@ -1,3 +1,4 @@
+import { escapeHtmlString as escapeHtml } from "../utils/html.js";
 import { updateHistorySelection } from "./historySelection.js";
 import { renderFocalMechanism } from "./focalMechanism.js";
 import { getSnowDepthAxisMaximum, splitAmedasChartSegments } from "../amedasChart.js";
@@ -8078,15 +8079,6 @@ function setPanelTimeVisible(isVisible) {
   if (element) element.hidden = !isVisible;
 }
 
-function escapeHtml(value) {
-  return String(value).replace(/[&<>'"]/g, (char) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "'": "&#39;",
-    '"': "&quot;"
-  }[char]));
-}
 
 function cssEscape(value) {
   if (window.CSS?.escape) return window.CSS.escape(value);
