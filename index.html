@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <!-- Match MapLibre's initial same-origin GeoJSON requests before its worker starts. -->
+  <link rel="preload" as="fetch" href="%BASE_URL%data/jma-weather-warning-municipalities-map.geojson" crossorigin />
+  <link rel="preload" as="fetch" href="%BASE_URL%data/japan-prefectures-map.geojson" crossorigin />
+  <link rel="preload" as="fetch" href="%BASE_URL%data/jma-weather-warning-municipality-fixes.geojson" crossorigin />
   <meta name="theme-color" content="#050914" />
   <meta name="application-name" content="MeteoScope" />
   <title>MeteoScope</title>

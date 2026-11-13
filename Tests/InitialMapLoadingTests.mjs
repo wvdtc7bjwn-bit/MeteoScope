@@ -18,6 +18,20 @@ assert.match(html, /<html lang="ja" class="app-initializing">/);
 assert.match(html, /html\.app-initializing #app\s*{\s*visibility: hidden;/);
 assert.match(html, /id="app-startup-loader"[^>]*role="status"/);
 
+// Fetch hints must use exactly the same paths as the initial map sources.
+const config = await readFile(new URL("../src/config.js", import.meta.url), "utf8");
+const hints = [...html.matchAll(/<link rel="preload" as="fetch" href="%BASE_URL%([^"<>]+)" crossorigin\s*\/>/g)].map((match) => match[1]);
+assert.deepEqual(hints, [
+  "data/jma-weather-warning-municipalities-map.geojson",
+  "data/japan-prefectures-map.geojson",
+  "data/jma-weather-warning-municipality-fixes.geojson"
+]);
+assert.equal(new Set(hints).size, hints.length);
+for (const path of hints) {
+  assert.ok(config.includes(`publicAsset("${path}")`), `Preload must match map endpoint: ${path}`);
+}
+assert.ok(html.indexOf('rel="preload"') < html.indexOf('<script'));
+
 const appleTouchIcon = html.match(/<link rel="apple-touch-icon"[^>]*>/)?.[0] ?? "";
 assert.match(appleTouchIcon, /href="%BASE_URL%icons\/icon-180\.png\?v=20260808-4"/);
 assert.doesNotMatch(appleTouchIcon, /data-(?:system-theme|light|dark)-/);
