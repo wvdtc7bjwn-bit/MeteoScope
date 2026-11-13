@@ -32,9 +32,14 @@ export function applyMunicipalityGeometryFixes(collection, fixes, expectedCodes 
   if (applied.size !== expected.size) throw new Error("A geometry fix has no matching municipality");
   return { ...collection, features };
 }
+// Git checkouts use different line endings on Windows and Linux. Newlines do
+// not change JSON geometry, and must not change input hashes or tile URLs.
+export function getBaseMapInputHash(text) {
+  return createHash("sha256").update(text.replaceAll("\r\n", "\n")).digest("hex");
+}
 export function getBaseMapBuildVersion(inputTexts, buildOptions) {
   const hash = createHash("sha256").update(JSON.stringify(buildOptions));
-  for (const [name, text] of Object.entries(inputTexts)) hash.update(name).update("\0").update(text).update("\0");
+  for (const [name, text] of Object.entries(inputTexts)) hash.update(name).update("\0").update(text.replaceAll("\r\n", "\n")).update("\0");
   return hash.digest("hex").slice(0, 12);
 }
 export function createBaseMapIndexes(collections) {
@@ -58,7 +63,7 @@ export async function buildBaseMapTiles() {
   for (const [name, file] of Object.entries(files)) {
     const text = await readFile(new URL(`../public/data/${file}`, import.meta.url), "utf8");
     inputTexts[name] = text;
-    inputHashes[name] = createHash("sha256").update(text).digest("hex");
+    inputHashes[name] = getBaseMapInputHash(text);
     collections[name] = JSON.parse(text);
   }
   collections.municipalities = applyMunicipalityGeometryFixes(collections.municipalities, collections.municipalityFixes);
