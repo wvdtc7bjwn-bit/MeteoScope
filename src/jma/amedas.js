@@ -330,6 +330,7 @@ export function buildAmedasPoints(observations, stations, snowObservations = obs
     return [{
       id: stationId,
       name: station.kjName ?? station.enName ?? stationId,
+      nameEn: station.enName ?? null,
       coordinates,
       values: {
         temperature: readObservedValue(observation.temp),

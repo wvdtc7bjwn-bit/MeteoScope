@@ -1,8 +1,21 @@
 import { TIDE_STATION_NAME_TRANSLATIONS } from "./tideStationNamesEn.js";
+import { UI_EN_TRANSLATIONS, COMPACT_EN_TRANSLATIONS, CLOCK_EN_TRANSLATIONS } from "./localeUiEn.js";
+import { translateDynamicUiEn } from "./localeDynamicEn.js";
+import { SCIENCE_EN_TRANSLATIONS } from "./localeScienceEn.js";
+import { CALCULATION_EN_TRANSLATIONS } from "./localeCalculationEn.js";
+import { DISASTER_TIMELINE_EVENTS } from "../domain/disasterTimeline.js";
+import { DISASTER_TIMELINE_EN } from "../domain/disasterTimelineEn.js";
+
+const AMEDAS_COMPACT_LABELS = Object.freeze({ "気温": "Temp", "降水量": "Rain", "風速": "Wind", "湿度": "Humidity", "気圧": "Pressure", "積雪量": "Snow" });
+
+const DISASTER_EN_TRANSLATIONS = new Map(DISASTER_TIMELINE_EVENTS.flatMap((event) => {
+  const english = DISASTER_TIMELINE_EN.get(event.id);
+  return english ? [[event.title, english.title], [event.summary, english.summary]] : [];
+}));
 
 const LANGUAGE_STORAGE_KEY = "meteoscope-language";
 const LANGUAGE_VALUES = new Set(["ja", "en"]);
-const TRANSLATABLE_ATTRIBUTES = ["aria-label", "title", "placeholder", "alt"];
+const TRANSLATABLE_ATTRIBUTES = ["aria-label", "aria-description", "aria-valuetext", "title", "placeholder", "alt", "data-layer-picker-title"];
 const SKIPPED_ELEMENTS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "CODE", "PRE"]);
 const PLACE_NAME_DATA_URL = "/data/gsi-place-names-romaji.json";
 const AMEDAS_STATION_DATA_URL = "https://www.jma.go.jp/bosai/amedas/const/amedastable.json";
@@ -2060,13 +2073,20 @@ function applyLocale() {
 }
 
 function translateCore(core) {
-  const exact = VOLCANO_NAME_TRANSLATIONS.get(core)
+  if (!containsJapaneseText(core)) return core;
+  const exact = UI_EN_TRANSLATIONS.get(core.replace(/\s+/gu, " "))
+    ?? SCIENCE_EN_TRANSLATIONS.get(core.replace(/\s+/gu, " "))
+    ?? CALCULATION_EN_TRANSLATIONS.get(core.replace(/\s+/gu, " "))
+    ?? DISASTER_EN_TRANSLATIONS.get(core.replace(/\s+/gu, " "))
+    ?? VOLCANO_NAME_TRANSLATIONS.get(core)
     ?? TIDE_STATION_NAME_TRANSLATIONS.get(core)
     ?? EXACT_TRANSLATIONS.get(core)
     ?? STATIC_UI_TRANSLATIONS.get(core)
     ?? DYNAMIC_UI_TRANSLATIONS.get(core)
     ?? ADMIN_TRANSLATIONS.get(core);
   if (exact) return exact;
+  const dynamic = translateDynamicUiEn(core, translateCore);
+  if (dynamic !== null) return dynamic;
 
   // Translate JMA office names as a unit so the generic place-name pass cannot
   // leave mixed labels such as "Nara Region気象台".
@@ -2482,7 +2502,6 @@ function translateOfficialPlaceNames(value) {
     if (value.endsWith("都") || value.endsWith("道")) return exactAdministrativeArea;
     return `${exactAdministrativeArea} Prefecture`;
   }
-  if (!placeNames.size) return value;
   const exact = placeNames.get(value);
   if (exact) return formatOfficialPlaceName(value, exact);
 
@@ -2493,6 +2512,7 @@ function translateOfficialPlaceNames(value) {
     if (remainder === "沖") return `off ${prefecturePrefix[1]}`;
     return joinPrefectureAndPlace(prefecturePrefix[1], translatePlaceExpression(remainder));
   }
+  if (!placeNames.size) return value;
 
   const municipality = findMunicipalityPrefix(value);
   if (municipality && value.length > municipality.japanese.length) {
@@ -2554,6 +2574,8 @@ function translatePlaceExpression(value) {
   const suffix = suffixes.find(([japanese]) => value.endsWith(japanese));
   const stem = suffix ? value.slice(0, -suffix[0].length) : value;
   const parts = stem.split(/[・･]/u).filter(Boolean).map((part) => {
+    const areaDescription = UI_EN_TRANSLATIONS.get(part);
+    if (areaDescription) return areaDescription;
     const exact = placeNames.get(part);
     if (exact) return formatOfficialPlaceName(part, exact);
     const translated = translateOfficialPlaceNames(part);
@@ -2774,7 +2796,10 @@ function translateTextNode(node) {
   const current = node.nodeValue ?? "";
   let state = textStates.get(node);
   if (!state || (current !== state.source && current !== state.translated)) {
-    state = { source: current, translated: localizeText(current, "en") };
+    const compact = parent.closest("#amedas-sub-tabs") ? AMEDAS_COMPACT_LABELS[current.trim()]
+      : parent.closest(".mobile-dock-mode-switch") ? COMPACT_EN_TRANSLATIONS.get(current.trim())
+      : parent.matches(".current-location-weather-copy small") ? CLOCK_EN_TRANSLATIONS.get(current.trim()) : null;
+    state = { source: current, translated: compact ?? localizeText(current, "en") };
     textStates.set(node, state);
   }
   const next = preference === "en" ? state.translated : state.source;
@@ -2782,12 +2807,12 @@ function translateTextNode(node) {
 }
 
 function translateElementAttributes(element) {
-  if (shouldSkip(element)) return;
+  if (shouldSkip(element, true)) return;
   for (const attribute of TRANSLATABLE_ATTRIBUTES) translateAttribute(element, attribute);
 }
 
 function translateAttribute(element, attribute) {
-  if (!(element instanceof Element) || shouldSkip(element) || !element.hasAttribute(attribute)) return;
+  if (!(element instanceof Element) || shouldSkip(element, true) || !element.hasAttribute(attribute)) return;
   const current = element.getAttribute(attribute) ?? "";
   let states = attributeStates.get(element);
   if (!states) {
@@ -2803,8 +2828,8 @@ function translateAttribute(element, attribute) {
   if (current !== next) element.setAttribute(attribute, next);
 }
 
-function shouldSkip(element) {
-  return SKIPPED_ELEMENTS.has(element.tagName)
+function shouldSkip(element, attributes = false) {
+  return (SKIPPED_ELEMENTS.has(element.tagName) && !(attributes && element.tagName === "TEXTAREA"))
     || element.isContentEditable
     || Boolean(element.closest("[data-i18n-ignore]"));
 }

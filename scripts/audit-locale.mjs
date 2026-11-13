@@ -13,7 +13,7 @@ for (const target of targets) {
     const text = String(match[1] ?? "").replace(/\s+/gu, " ").trim();
     if (text.includes("${") || text.startsWith("}") || /^(?:disabled\s+)?(?:title|aria-label)=/u.test(text)) continue;
     if (!text || !/[ぁ-んァ-ヶ一-龯]/u.test(text)) continue;
-    if (localizeText(text, "en") !== text) continue;
+    if (!/[ぁ-んァ-ヶ一-龯]/u.test(localizeText(text, "en"))) continue;
     const list = unresolved.get(text) ?? [];
     list.push(target);
     unresolved.set(text, list);

@@ -1425,7 +1425,7 @@ html[data-theme="light"] .river-affected-cities span {
     top: max(10px, env(safe-area-inset-top));
     right: max(10px, env(safe-area-inset-right));
     min-width: 142px;
-    padding: 8px 11px;
+    padding: 6px 11px;
     border-radius: 11px;
     font-size: 19px;
   }

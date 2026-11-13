@@ -7,6 +7,7 @@ const availableTiles = new Set(manifest.tiles);
 const registered = new WeakSet();
 
 export function createBaseMapTileLoader(fetcher = globalThis.fetch, origin = globalThis.location?.origin) {
+  let firstRequest = true;
   return async ({ url }, abortController) => {
     const match = /^meteoscope-basemap:\/\/tiles\/(\d+)\/(\d+)\/(\d+)\.pbf$/.exec(url);
     if (!match) throw new Error("Invalid base-map tile URL");
@@ -16,6 +17,7 @@ export function createBaseMapTileLoader(fetcher = globalThis.fetch, origin = glo
     const key = `${z}/${x}/${y}`;
     // Empty ocean tiles require no HTTP requests and must not produce 404s.
     if (!availableTiles.has(key)) return { data: new ArrayBuffer(0) };
+    if (firstRequest) { globalThis.performance?.mark("meteoscope:map:first-tile-request"); firstRequest = false; }
     const target = new URL(`${APP_BASE_URL}data/base-map-tiles/${manifest.version}/${key}.pbf`, origin);
     const response = await fetcher(target.href, { signal: abortController?.signal, credentials: "same-origin" });
     if (!response.ok) throw new Error(`Base-map tile request failed: ${response.status}`);
@@ -38,7 +40,7 @@ export function baseMapSourceLayer(name, vector = VECTOR_BASE_MAP_ENABLED) {
 }
 export function municipalityStateTarget(areaCode, corrected, vector = VECTOR_BASE_MAP_ENABLED) {
   return {
-    source: corrected ? "jma-weather-warning-municipality-fixes" : "jma-weather-warning-municipalities",
-    ...(vector && !corrected ? { sourceLayer: "municipalities" } : {}), id: areaCode
+    source: corrected && !vector ? "jma-weather-warning-municipality-fixes" : "jma-weather-warning-municipalities",
+    ...(vector ? { sourceLayer: "municipalities" } : {}), id: areaCode
   };
 }

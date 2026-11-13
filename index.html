@@ -134,12 +134,12 @@
         <div id="current-location-card" class="current-location-card" hidden></div>
         <div id="warning-location-insight-panel" class="location-insight-panel" hidden></div>
         <div id="amedas-sub-tabs" class="amedas-sub-tabs mobile-dock-segmented" hidden>
-          <button class="amedas-sub-button active" data-amedas-metric="temperature">気温</button>
-          <button class="amedas-sub-button" data-amedas-metric="precipitation">降水量</button>
-          <button class="amedas-sub-button" data-amedas-metric="wind">風速</button>
-          <button class="amedas-sub-button" data-amedas-metric="humidity">湿度</button>
-          <button class="amedas-sub-button" data-amedas-metric="pressure">気圧</button>
-          <button class="amedas-sub-button" data-amedas-metric="snow">積雪量</button>
+          <button class="amedas-sub-button active" data-amedas-metric="temperature" aria-label="気温" title="気温">気温</button>
+          <button class="amedas-sub-button" data-amedas-metric="precipitation" aria-label="降水量" title="降水量">降水量</button>
+          <button class="amedas-sub-button" data-amedas-metric="wind" aria-label="風速" title="風速">風速</button>
+          <button class="amedas-sub-button" data-amedas-metric="humidity" aria-label="湿度" title="湿度">湿度</button>
+          <button class="amedas-sub-button" data-amedas-metric="pressure" aria-label="気圧" title="気圧">気圧</button>
+          <button class="amedas-sub-button" data-amedas-metric="snow" aria-label="積雪量" title="積雪量">積雪量</button>
         </div>
         <div id="amedas-precipitation-periods" class="amedas-precipitation-period-tabs mobile-dock-segmented" hidden></div>
         <div id="warning-detail-list" class="warning-detail-list" hidden></div>
@@ -178,7 +178,7 @@
 
     <main id="map-area">
       <div id="map"></div>
-      <div id="clock"><button id="warning-chat-button" type="button" aria-label="警報についてAIに質問する" title="警報について聞く（先行機能）" aria-haspopup="dialog" aria-controls="warning-chat-modal" aria-expanded="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H10l-6 4V4Z"/><path d="M8 8h8M8 12h5"/></svg></button><button id="current-location-weather" class="current-location-weather" type="button" aria-label="週間天気予報を開く" aria-haspopup="dialog" aria-controls="weekly-weather-modal" hidden><span class="current-location-weather-icon" aria-hidden="true"></span><span class="current-location-weather-copy"><small>現在地・予報</small><span class="current-location-weather-text"></span></span></button><button id="clock-display-button" type="button" aria-label="時計表示モードを開く" title="時計表示モード"><span class="clock-face"></span></button><span id="eew-connection-indicator" class="eew-connection-indicator" role="status" aria-label="Wolfx未接続" title="Wolfx未接続" hidden></span></div>
+      <div id="clock"><button id="warning-chat-button" type="button" aria-label="気象・地震・津波についてAIに質問する" title="防災チャット（先行機能）" aria-haspopup="dialog" aria-controls="warning-chat-modal" aria-expanded="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H10l-6 4V4Z"/><path d="M8 8h8M8 12h5"/></svg></button><button id="current-location-weather" class="current-location-weather" type="button" aria-label="週間天気予報を開く" aria-haspopup="dialog" aria-controls="weekly-weather-modal" hidden><span class="current-location-weather-icon" aria-hidden="true"></span><span class="current-location-weather-copy"><small>現在地・予報</small><span class="current-location-weather-text"></span></span></button><button id="clock-display-button" type="button" aria-label="時計表示モードを開く" title="時計表示モード"><span class="clock-face"></span></button><span id="eew-connection-indicator" class="eew-connection-indicator" role="status" aria-label="Wolfx未接続" title="Wolfx未接続" hidden></span></div>
       <section id="clock-display-mode" class="clock-display-mode" aria-label="全国天気・時計表示モード" hidden>
         <div id="clock-display-board" class="clock-display-board">
           <p class="clock-display-label">NATIONAL WEATHER · JMA</p>
@@ -395,7 +395,7 @@
                 <strong>利用できる先行機能</strong>
                 <ul>
                   <li>緊急地震速報とP波・S波の概算表示</li>
-                  <li>気象庁の警報について質問できるAIチャット</li>
+                  <li>気象庁の気象・地震・津波情報について質問できるAIチャット</li>
                   <li>過去の地震と震源付近の地震の検索</li>
                   <li>アメダス観測点の前日のグラフ</li>
                   <li>過去7日分の天気図</li>
@@ -803,24 +803,28 @@
     <div id="warning-chat-modal" class="warning-modal warning-chat-modal" hidden>
       <section class="warning-modal-panel warning-chat-panel" role="dialog" aria-modal="true" aria-labelledby="warning-chat-title">
         <header class="settings-modal-header">
-          <div class="warning-chat-title-row"><h2 id="warning-chat-title">警報チャット</h2><span>AI · 先行機能</span></div>
+          <div class="warning-chat-title-row"><h2 id="warning-chat-title">防災チャット</h2><span>AI · 先行機能</span></div>
           <div class="warning-chat-header-actions"><button id="warning-chat-info" type="button" aria-label="チャットの使い方と利用条件" aria-expanded="false" aria-controls="warning-chat-help"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10v7M12 6.5v1"/></svg></button><button id="warning-chat-close" class="warning-modal-close" type="button" aria-label="チャットを閉じる">×</button></div>
         </header>
         <div class="warning-chat-toolbar">
+          <select id="warning-chat-topic" aria-label="質問する情報"></select>
           <details id="warning-chat-settings" name="warning-chat-tools" class="warning-chat-settings">
             <summary aria-label="対象地域と回答言語を変更"><strong id="warning-chat-selection">地域を確認しています…</strong><span aria-hidden="true">⌄</span></summary>
             <div class="warning-chat-controls">
-            <label>都道府県<select id="warning-chat-prefecture"></select></label>
-            <label>市区町村<select id="warning-chat-area"></select></label>
-            <label>回答する言語 / Language<select id="warning-chat-language"></select></label>
+            <label id="warning-chat-prefecture-label">都道府県<select id="warning-chat-prefecture"></select></label>
+            <label id="warning-chat-area-label">市区町村<select id="warning-chat-area"></select></label>
+            <label id="warning-chat-language-label">回答する言語 / Language<select id="warning-chat-language"></select></label>
+            <label id="warning-chat-event-label" hidden>対象の地震<select id="warning-chat-event"></select></label>
+            <label id="warning-chat-forecast-area-label" hidden>津波予報区<select id="warning-chat-forecast-area"></select></label>
             </div>
           </details>
           <details id="warning-chat-official" name="warning-chat-tools" class="warning-chat-official"><summary>出典</summary><div class="warning-chat-source-body"><button id="warning-chat-refresh" type="button">気象庁の情報を更新</button><section id="warning-chat-evidence" aria-label="回答の根拠となる気象庁の情報"></section></div></details>
-          <details id="warning-chat-help" name="warning-chat-tools" class="warning-chat-help" hidden><summary>このチャットについて</summary><div><p class="warning-chat-meta">気象庁の気象警報・注意報と時系列情報をもとにAIが説明します。解除時刻や安全を保証するものではありません。重要な判断は最新の公式発表で確認してください。</p><p class="warning-chat-meta">1人1日3回・全体40回まで（日本時間9時リセット）。失敗した質問も上限に含む場合があります。会話は画面を閉じると消去します。河川の氾濫情報・自治体の避難情報・避難経路は対象外です。</p><button id="warning-chat-account" type="button">アカウント設定</button><button id="warning-chat-privacy" type="button">AI送信の確認を変更</button><a href="https://www.jma.go.jp/bosai/warning/" target="_blank" rel="noopener noreferrer">気象庁の発表を確認 ↗</a><a href="privacy.html" target="_blank" rel="noopener noreferrer">プライバシーポリシー ↗</a></div></details>
+          <details id="warning-chat-help" name="warning-chat-tools" class="warning-chat-help" hidden><summary>このチャットについて</summary><div><p class="warning-chat-meta">気象庁の気象警報・注意報、地震情報、津波警報・予報をもとにAIが説明します。解除時刻や安全を保証するものではありません。重要な判断は最新の公式発表で確認してください。</p><p class="warning-chat-meta">1人1日10回（日本時間9時リセット）。全体の回数上限はなく、AIの無料利用枠に応じて自動停止します。失敗した質問も上限に含む場合があります。会話は画面を閉じると消去します。河川の氾濫情報・自治体の避難情報・避難経路は対象外です。地震予知や独自の津波到達予測は行いません。</p><button id="warning-chat-account" type="button">アカウント設定</button><button id="warning-chat-privacy" type="button">AI送信の確認を変更</button><a href="https://www.jma.go.jp/bosai/warning/" target="_blank" rel="noopener noreferrer">気象庁の発表を確認 ↗</a><a href="privacy.html" target="_blank" rel="noopener noreferrer">プライバシーポリシー ↗</a></div></details>
         </div>
+        <button id="warning-chat-subject" class="warning-chat-subject" type="button" aria-label="質問対象を確認・変更" hidden disabled><small id="warning-chat-subject-label">対象の地震</small><span id="warning-chat-subject-text">対象を確認しています…</span><span class="warning-chat-subject-change">変更</span></button>
         <div class="warning-chat-body">
           <p id="warning-chat-empty" class="warning-chat-empty">何に気をつければいい？</p>
-          <div id="warning-chat-messages" role="log" aria-label="質問と回答" aria-live="polite"></div>
+          <div id="warning-chat-messages" role="log" aria-label="質問と回答" aria-live="polite" data-i18n-ignore></div>
           <div id="warning-chat-questions" aria-label="質問例"></div>
         </div>
         <div class="warning-chat-composer">

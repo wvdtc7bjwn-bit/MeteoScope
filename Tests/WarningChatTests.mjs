@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { DatabaseSync } from "node:sqlite";
-import { WARNING_CHAT_MODEL, WARNING_CHAT_LIMITS, normalizeWarningChatInput } from "../src/ai/warningChatPolicy.js";
-import { reserveWarningChatQuota, warningChatDay } from "../functions/_shared/warningChatQuota.js";
+import { WARNING_CHAT_MODEL, WARNING_CHAT_LIMITS, warningChatQuestions, normalizeWarningChatInput } from "../src/ai/warningChatPolicy.js";
+import { reserveWarningChatQuota, recordWarningChatInferenceUsage, readWarningChatOperationalMetrics, stopWarningChatForDay, isWarningChatAllocationError, warningChatDailyLimit, warningChatDay } from "../functions/_shared/warningChatQuota.js";
 import { loadWarningChatContext, fetchWarningChatJson } from "../functions/_shared/warningChatContext.js";
 import { buildWarningChatMessages, parseWarningChatAnswer } from "../functions/_shared/warningChatAnswer.js";
 import { hashQuizToken } from "../functions/_shared/quizSecurity.js";
@@ -51,7 +51,14 @@ function makeDb() {
   };
 }
 
-assert.equal(WARNING_CHAT_LIMITS.daily * WARNING_CHAT_LIMITS.reservedNeurons, 8000);
+assert.equal(WARNING_CHAT_LIMITS.daily, null);
+assert.equal(WARNING_CHAT_LIMITS.dailyNeurons, 10000);
+assert.equal(warningChatQuestions()[0], "現在発表中の警報・注意報は？");
+assert.equal(warningChatQuestions({ topic: "earthquake", areaName: "千代田区" })[1], "最新の地震で千代田区の観測震度は？");
+assert.ok(warningChatQuestions({ topic: "earthquake", eventId: "20261113194233" }).every((question) => question.startsWith("選択した地震")));
+assert.ok(warningChatQuestions({ topic: "tsunami", eventId: "20261106193937" }).every((question) => question.startsWith("選択した津波情報")));
+assert.equal(warningChatDailyLimit("none"), null);
+assert.equal(warningChatDailyLimit("invalid"), 0);
 const estimate = (WARNING_CHAT_LIMITS.promptBytes + 1024) * 9091 / 1e6 + WARNING_CHAT_LIMITS.outputTokens * 27273 / 1e6;
 assert.ok(estimate < WARNING_CHAT_LIMITS.reservedNeurons);
 assert.equal(warningChatDay(Date.parse("2026-11-13T08:59:59+09:00")), "2026-11-12");
@@ -62,15 +69,37 @@ assert.equal(normalizeWarningChatInput({ ...validInput, model: "paid-model", dai
 
 const budgetDb = makeDb();
 const results = await Promise.all(Array.from({ length: 180 }, (_, i) => reserveWarningChatQuota(budgetDb, `account-${Math.floor(i / 6)}`, { now: NOW, dailyLimit: 9999 })));
-assert.equal(results.filter(Boolean).length, 40, "conditional SQL admits at most 40 concurrent requests across accounts");
+assert.equal(results.filter(Boolean).length, 50, "parallel unresolved requests reserve 200 Neurons each atomically");
+assert.equal(await reserveWarningChatQuota(budgetDb, "overflow", { now: NOW }), null);
+assert.equal((await readWarningChatOperationalMetrics({ NOTIFICATIONS_DB: budgetDb }, { now: NOW })).accepting, false);
+for (const reservation of results.filter(Boolean)) await recordWarningChatInferenceUsage(budgetDb, reservation, { usage: { neurons: 10 } });
+assert.ok(await reserveWarningChatQuota(budgetDb, "beyond-forty", { now: NOW }), "confirmed small usage releases reservations, no shared 40-count limit");
+const usage = await readWarningChatOperationalMetrics({ NOTIFICATIONS_DB: budgetDb }, { now: NOW });
+assert.equal(usage.reportedNeurons, 500);
+assert.equal(usage.reservedNeurons, 200);
+assert.equal(usage.accepting, true);
+await recordWarningChatInferenceUsage(budgetDb, results[0], { usage: { neurons: 999 } });
+assert.equal((await readWarningChatOperationalMetrics({ NOTIFICATIONS_DB: budgetDb }, { now: NOW })).reportedNeurons, 500, "duplicate usage cannot double-charge or free another reservation");
+await stopWarningChatForDay(budgetDb, { now: NOW });
+assert.equal(await reserveWarningChatQuota(budgetDb, "after-provider-limit", { now: NOW }), null);
+assert.equal((await readWarningChatOperationalMetrics({ NOTIFICATIONS_DB: budgetDb }, { now: NOW })).providerExhausted, true);
+assert.ok(await reserveWarningChatQuota(budgetDb, "after-provider-limit", { now: NOW + 86400_000 }), "provider stop expires on next UTC day");
+for (const error of [{ code: 3036 }, { cause: { code: "3036" } }, new Error("3036: Account limited"), new Error("AiError: 3036: daily allocation")]) assert.equal(isWarningChatAllocationError(error), true);
+for (const error of [{ status: 429 }, { code: 3040 }, new Error("3040: Capacity exceeded"), new Error("temporary unavailable")]) assert.equal(isWarningChatAllocationError(error), false);
 const perAccountDb = makeDb();
 const personal = await Promise.all(Array.from({ length: 20 }, () => reserveWarningChatQuota(perAccountDb, "same-user", { now: NOW })));
-assert.equal(personal.filter(Boolean).length, 3);
+assert.equal(personal.filter(Boolean).length, 10, "one account can reserve ten questions, never eleven");
+assert.equal(await reserveWarningChatQuota(perAccountDb, "same-user", { now: NOW }), null);
 assert.equal(await reserveWarningChatQuota(perAccountDb, "other", { now: NOW, dailyLimit: 0 }), null);
 assert.ok(await reserveWarningChatQuota(perAccountDb, "same-user", { now: NOW + 86400_000 }));
+const legacyDb = makeDb();
+legacyDb.sql.prepare("INSERT INTO app_records VALUES (?, ?, ?)").run(`warning-chat-quota:${warningChatDay(NOW)}`, JSON.stringify({ used: 49, usageReports: 1, reportedNeurons: 10, accounts: {} }), ISSUE);
+assert.ok(await reserveWarningChatQuota(legacyDb, "legacy-new", { now: NOW }));
+assert.equal(await reserveWarningChatQuota(legacyDb, "legacy-overflow", { now: NOW }), null, "old pending calls must not disappear during upgrade");
+legacyDb.sql.close();
 budgetDb.sql.prepare("INSERT INTO app_records VALUES (?, ?, ?)").run("unrelated:settings", "{}", "old");
 budgetDb.sql.prepare("INSERT INTO app_records VALUES (?, ?, ?)").run("warning-chat-quota:2020-01-01", "{}", "old");
-await reserveWarningChatQuota(budgetDb, "cleanup", { now: NOW + 86400_000 });
+await reserveWarningChatQuota(budgetDb, "cleanup", { now: NOW + 2 * 86400_000 });
 assert.ok(budgetDb.sql.prepare("SELECT * FROM app_records WHERE key = 'unrelated:settings'").get());
 assert.equal(budgetDb.sql.prepare("SELECT * FROM app_records WHERE key = 'warning-chat-quota:2020-01-01'").get(), undefined);
 assert.doesNotMatch(JSON.stringify(budgetDb.sql.prepare("SELECT value FROM app_records WHERE key LIKE 'warning-chat-quota:%'").all()), /account-\d|same-user/);
@@ -126,7 +155,7 @@ db.sql.prepare("INSERT INTO quiz_accounts VALUES (?, ?)").run("user", "Test");
 db.sql.prepare("INSERT INTO quiz_sessions VALUES (?, ?, ?)").run(await hashQuizToken(session), "user", "2026-12-01T00:00:00Z");
 db.sql.prepare("INSERT INTO app_records VALUES (?, ?, ?)").run("early-access-account:user", '{"allowed":true}', ISSUE);
 let calls = 0;
-const env = { NOTIFICATIONS_DB: db, WARNING_CHAT_ENABLED: "true", AI: { async run(model, input) {
+const env = { NOTIFICATIONS_DB: db, WARNING_CHAT_ENABLED: "true", WARNING_CHAT_DAILY_LIMIT: "3", AI: { async run(model, input) {
   calls++;
   assert.equal(model, WARNING_CHAT_MODEL);
   assert.equal(input.max_completion_tokens, 1024);
@@ -168,6 +197,21 @@ try {
   assert.equal(changedBody.answer, undefined);
   assert.equal((await onRequest({ request: routeRequest(), env })).status, 429);
   assert.equal(calls, 3);
+  db.sql.prepare("DELETE FROM app_records WHERE key LIKE 'warning-chat-quota:%'").run();
+  const exhaustedEnv = { ...env, WARNING_CHAT_DAILY_LIMIT: "none", AI: { async run() { calls++; throw new Error("3036: Account limited"); } } };
+  const exhausted = await onRequest({ request: routeRequest(), env: exhaustedEnv });
+  assert.equal(exhausted.status, 429);
+  assert.match((await exhausted.json()).error, /無料利用枠/);
+  const availability = await onRequest({ request: routeRequest({ method: "GET" }), env: exhaustedEnv });
+  const stopped = await availability.json();
+  assert.equal(stopped.configured, false);
+  assert.match(stopped.message, /受付を停止/);
+  assert.equal((await onRequest({ request: routeRequest(), env: exhaustedEnv })).status, 429);
+  assert.equal(calls, 4, "provider exhaustion is persisted; subsequent requests never call AI");
+  db.sql.prepare("DELETE FROM app_records WHERE key LIKE 'warning-chat-quota:%'").run();
+  const busyEnv = { ...env, WARNING_CHAT_DAILY_LIMIT: "none", AI: { async run() { calls++; throw new Error("3040: Capacity exceeded"); } } };
+  assert.equal((await onRequest({ request: routeRequest(), env: busyEnv })).status, 503);
+  assert.equal((await readWarningChatOperationalMetrics(busyEnv)).providerExhausted, false, "temporary capacity failure does not stop all users for the day");
   db.sql.prepare("DELETE FROM app_records WHERE key = 'early-access-account:user'").run();
   assert.equal((await onRequest({ request: routeRequest({ method: "GET" }), env })).status, 403);
 } finally {
@@ -197,5 +241,5 @@ assert.match(consent, /2026-11-13/u);
 const config = await readFile(new URL("../wrangler.toml", import.meta.url), "utf8");
 assert.equal([...config.matchAll(/^\[ai\]$/gmu)].length, 1, "a single Workers AI binding is defined");
 assert.match(config, /\[ai\]\s+binding = "AI"/u);
-assert.match(config, /WARNING_CHAT_DAILY_LIMIT = "40"/u);
+assert.match(config, /WARNING_CHAT_DAILY_LIMIT = "none"/u);
 console.log("Warning chat tests passed: real atomic SQLite quotas, authentication/EA, source revisions, failure handling, prompt limits and UI/privacy integration.");

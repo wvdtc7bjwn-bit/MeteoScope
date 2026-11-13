@@ -1,3 +1,5 @@
+import { localizeText } from "./locale.js";
+
 const genera = [
   {
     name: "巻雲", latin: "Cirrus", code: "Ci", family: "上層雲", height: "およそ5〜13 km（中緯度の目安）", shape: "cirrus",
@@ -231,7 +233,8 @@ function createGenusCard(cloud) {
   const article = document.createElement("article");
   article.className = "cloud-atlas-card";
   article.dataset.family = cloud.family;
-  article.dataset.search = `${cloud.name} ${cloud.latin} ${cloud.code} ${cloud.family} ${cloud.appearance} ${cloud.process} ${cloud.weather} ${cloud.distinguish}`.toLocaleLowerCase("ja-JP");
+  article.dataset.search = [cloud.name, cloud.latin, cloud.code, cloud.family, cloud.appearance, cloud.process, cloud.weather, cloud.distinguish]
+    .flatMap(value => [value, localizeText(value, "en")]).join(" ").toLocaleLowerCase("ja-JP");
   const photoFigure = createCloudPhoto(cloud);
   const heading = document.createElement("header");
   heading.className = "cloud-atlas-card-heading";
@@ -260,7 +263,8 @@ function createGenusCard(cloud) {
 function createTermCard(term) {
   const article = document.createElement("article");
   article.className = "cloud-atlas-term-card";
-  article.dataset.search = `${term.category} ${term.name} ${term.latin} ${term.applies} ${term.detail}`.toLocaleLowerCase("ja-JP");
+  article.dataset.search = [term.category, term.name, term.latin, term.applies, term.detail]
+    .flatMap(value => [value, localizeText(value, "en")]).join(" ").toLocaleLowerCase("ja-JP");
   const category = document.createElement("small");
   category.textContent = `${term.category} · ${term.applies}`;
   const heading = document.createElement("h3");

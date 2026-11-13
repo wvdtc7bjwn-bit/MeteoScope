@@ -1,3 +1,5 @@
+import { DISASTER_TIMELINE_EN } from "./disasterTimelineEn.js";
+
 const SOURCES = Object.freeze({
   cabinetLessons: {
     label: "内閣府 災害教訓の継承",
@@ -196,7 +198,8 @@ export function filterDisasterTimelineEvents(events = DISASTER_TIMELINE_EVENTS, 
     .filter((item) => era === "all" || getDisasterTimelineEra(item.year) === era)
     .filter((item) => {
       if (!query) return true;
-      return [item.title, item.region, item.summary, item.dateLabel, String(item.year)]
+      const english = DISASTER_TIMELINE_EN.get(item.id);
+      return [item.title, item.region, item.summary, item.dateLabel, String(item.year), english?.title, english?.summary]
         .join(" ")
         .toLocaleLowerCase("ja")
         .includes(query);

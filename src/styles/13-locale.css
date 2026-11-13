@@ -1,0 +1,56 @@
+/* English labels have different lengths. Keep every option visible and retain
+   full accessible names instead of clipping text inside a fixed-width pill. */
+html[lang="en"] #amedas-sub-tabs {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  height: auto;
+  gap: 2px;
+}
+html[lang="en"] #amedas-sub-tabs[hidden] { display: none; }
+html[lang="en"] #amedas-sub-tabs .amedas-sub-button {
+  min-width: 0;
+  padding: 7px 2px;
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: normal;
+  height: auto;
+}
+#settings-language-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+#settings-language-options > button { width: 100%; min-width: 0; }
+.mobile-dock-typhoon-empty {
+  color: #c5d0df;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: normal;
+  text-align: center;
+  padding: 12px 8px;
+}
+html[data-theme="light"] .mobile-dock-typhoon-empty { color: #36516b; }
+html[lang="en"] .warning-chat-panel #warning-chat-topic {
+  width: 112px;
+  font-size: 14px;
+}
+html[lang="en"] .warning-chat-toolbar { gap: 8px; padding-inline: 12px; }
+html[lang="en"] .mobile-dock-mode-switch > .mobile-dock-action {
+  padding-inline: 3px;
+  font-size: clamp(10px, 2.5vw, 12px);
+}
+html[lang="en"] .warning-modal-panel h2,
+html[lang="en"] .settings-group-title { overflow-wrap: anywhere; }
+html[lang="en"] .warning-modal-header > div { min-width: 0; }
+html[lang="en"] .weather-distribution-toggle-choices button {
+  white-space: normal;
+  line-height: 1.25;
+}
+html[lang="en"] .legend-weather-chart-high::before { content: "H"; }
+html[lang="en"] .legend-weather-chart-low::before { content: "L"; }
+html[lang="en"] .legend-weather-chart-typhoon::before { content: "T"; }
+html[lang="en"] .disaster-map-page-shell.is-loading::after { content: "Loading…"; }
+html[lang="en"] .disaster-map-page-shell.is-error::after { content: "Could not display"; }
+html[data-theme="light"] .earthquake-archive-search label > span,
+body[data-theme="light"] .earthquake-archive-search label > span { color: #36516b; }
+@media (max-width: 380px) {
+  html[lang="en"] #amedas-sub-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); border-radius: 16px; }
+}

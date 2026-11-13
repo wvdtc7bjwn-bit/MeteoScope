@@ -1,4 +1,5 @@
 import { escapeHtmlPadded as escapeHtml } from "../utils/html.js";
+import { localizeText } from "./locale.js";
 import { parseJmaDisasterArchive } from "../jma/disasterArchive.js";
 
 let initialized = false;
@@ -109,7 +110,7 @@ function renderArchiveCases() {
   const query = modal.querySelector("#jma-disaster-archive-search")?.value?.trim().toLocaleLowerCase("ja") ?? "";
   const filteredCases = archiveCases
     .map((item, index) => ({ ...item, index }))
-    .filter((item) => !query || item.title.toLocaleLowerCase("ja").includes(query));
+    .filter((item) => !query || `${item.title} ${localizeText(item.title, "en")}`.toLocaleLowerCase("ja").includes(query));
 
   results.innerHTML = buildJmaDisasterArchiveMarkup(filteredCases);
   if (count) count.textContent = `${filteredCases.length} / ${archiveCases.length}件`;

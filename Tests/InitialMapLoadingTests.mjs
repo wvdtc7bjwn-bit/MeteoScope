@@ -85,17 +85,12 @@ autoReload();
 assert.equal(automaticReloadCount, 1);
 
 assert.match(weatherMap, /function whenReady\(\)/);
-assert.doesNotMatch(weatherMap, /map\.once\("render", finishAfterPaint\)/);
-assert.match(weatherMap, /map\.once\("load", finishReady\)/);
-assert.match(weatherMap, /map\.once\("idle", finishReady\)/);
-assert.match(weatherMap, /finishAfterPaint\(Boolean\(map\.loaded\(\) \|\| map\.isStyleLoaded\?\.\(\)\)\)/);
-assert.match(weatherMap, /\}, 8000\)/);
-assert.match(weatherMap, /requestAnimationFrame\(\(\) => requestAnimationFrame\(\(\) => resolve\(true\)\)\)/);
+assert.match(weatherMap, /waitForInitialMapGeometry\(map, \{/);
+assert.match(weatherMap, /sourceIds: INITIAL_GEOMETRY_SOURCE_IDS/);
+assert.match(weatherMap, /layerIds: INITIAL_GEOMETRY_LAYER_IDS/);
+assert.doesNotMatch(weatherMap, /revealInitialGeometryLayers|finishAfterPaint/);
 assert.match(weatherMap, /return \{ initialize, whenReady,/);
-assert.match(weatherMap, /const INITIAL_GEOMETRY_LAYER_IDS = \[/);
-assert.match(weatherMap, /map\.on\("load", \(\) => \{\s*revealInitialGeometryLayers\(map\);/);
-assert.match(weatherMap, /function revealInitialGeometryLayers\(map\)/);
-assert.match(weatherMap, /map\.setLayoutProperty\(layerId, "visibility", "visible"\)/);
+assert.match(weatherMap, /visibility: "visible"/);
 assert.match(weatherMap, /if \(!map\.isStyleLoaded\?\.\(\)\) \{[\s\S]*?map\.once\("idle", \(\) => \{[\s\S]*?setMode\(activeMode\);/);
 
 assert.match(app, /const initialMapReady = weatherMap\.whenReady\(\)/);

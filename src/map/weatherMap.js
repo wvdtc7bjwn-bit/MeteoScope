@@ -1,4 +1,5 @@
 import { VECTOR_BASE_MAP_ENABLED, registerBaseMapProtocol, createMunicipalitySource, baseMapSourceLayer, municipalityStateTarget } from "./baseMapTiles.js";
+import { waitForInitialMapGeometry } from "./initialMapReadiness.js";
 import {
   formatTyphoonForecastCenter,
   buildTyphoonPopup,
@@ -16,6 +17,7 @@ import {
 } from "./typhoonFeatures.js";
 import { escapeHtml as escapeHTML, escapeHtml as escapeMapInfoHtml, escapeHtmlString as escapePopup } from "../utils/html.js";
 import maplibregl from "maplibre-gl";
+import { getCurrentLanguage, localizeText } from "../ui/locale.js";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { prepareWorldMapData } from "./worldLandFilter.js";
 import {
@@ -375,18 +377,16 @@ const MUNICIPALITY_LINE_LAYER_ID = "jma-municipality-line";
 const MUNICIPALITY_FIX_LINE_LAYER_ID = "jma-municipality-fix-line";
 const INITIAL_GEOMETRY_LAYER_IDS = [
   MUNICIPALITY_FILL_LAYER_ID,
-  MUNICIPALITY_FIX_FILL_LAYER_ID,
-  WARNING_CLICK_LAYER_ID,
-  WARNING_FIX_CLICK_LAYER_ID,
   MUNICIPALITY_LINE_LAYER_ID,
-  MUNICIPALITY_FIX_LINE_LAYER_ID,
+  ...(!VECTOR_BASE_MAP_ENABLED ? [MUNICIPALITY_FIX_FILL_LAYER_ID, MUNICIPALITY_FIX_LINE_LAYER_ID] : []),
   "japan-prefecture-line"
 ];
-const WARNING_STATUS_OVERLAY_LAYER_IDS = [WARNING_OVERLAY_LAYER_ID, WARNING_FIX_OVERLAY_LAYER_ID];
-const WARNING_EARLY_OVERLAY_LAYER_IDS = [WARNING_EARLY_OVERLAY_LAYER_ID, WARNING_EARLY_FIX_OVERLAY_LAYER_ID];
+const INITIAL_GEOMETRY_SOURCE_IDS = [MUNICIPALITY_SOURCE_ID, ...(!VECTOR_BASE_MAP_ENABLED ? [MUNICIPALITY_FIX_SOURCE_ID, PREFECTURE_SOURCE_ID] : [])];
+const WARNING_STATUS_OVERLAY_LAYER_IDS = [WARNING_OVERLAY_LAYER_ID, ...(!VECTOR_BASE_MAP_ENABLED ? [WARNING_FIX_OVERLAY_LAYER_ID] : [])];
+const WARNING_EARLY_OVERLAY_LAYER_IDS = [WARNING_EARLY_OVERLAY_LAYER_ID, ...(!VECTOR_BASE_MAP_ENABLED ? [WARNING_EARLY_FIX_OVERLAY_LAYER_ID] : [])];
 const WARNING_OVERLAY_LAYER_IDS = [...WARNING_STATUS_OVERLAY_LAYER_IDS, ...WARNING_EARLY_OVERLAY_LAYER_IDS];
-const WARNING_CLICK_LAYER_IDS = [WARNING_CLICK_LAYER_ID, WARNING_FIX_CLICK_LAYER_ID];
-const WARNING_HATCH_LAYER_IDS = [WARNING_HATCH_LAYER_ID, WARNING_FIX_HATCH_LAYER_ID];
+const WARNING_CLICK_LAYER_IDS = [WARNING_CLICK_LAYER_ID, ...(!VECTOR_BASE_MAP_ENABLED ? [WARNING_FIX_CLICK_LAYER_ID] : [])];
+const WARNING_HATCH_LAYER_IDS = [WARNING_HATCH_LAYER_ID, ...(!VECTOR_BASE_MAP_ENABLED ? [WARNING_FIX_HATCH_LAYER_ID] : [])];
 const WARNING_HATCH_IMAGE_ID = "jma-warning-emergency-hatch-pattern";
 const WARNING_FEATURE_STATE_KEYS = {
   status: "warningStatusLevel",
@@ -507,40 +507,11 @@ export function createWeatherMap(elementId) {
   const plateDepth3D = createPlateDepth3DLayer(maplibregl, getHypocenterDepthColor);
   const plateDepthSurface3D = createPlateDepthSurface3DLayer(maplibregl, getHypocenterDepthColor);
 
-  function whenReady() {
-    if (!map) return Promise.resolve();
-
-    return new Promise((resolve) => {
-      let settled = false;
-      let fallbackTimer = 0;
-      const finishAfterPaint = (ready) => {
-        if (settled) return;
-        settled = true;
-        if (fallbackTimer) window.clearTimeout(fallbackTimer);
-        map.off("load", finishReady);
-        map.off("idle", finishReady);
-        if (!ready) {
-          resolve(false);
-          return;
-        }
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)));
-      };
-      const finishReady = () => finishAfterPaint(true);
-
-      if (map.loaded()) {
-        finishReady();
-        return;
-      }
-
-      map.once("load", finishReady);
-      map.once("idle", finishReady);
-      fallbackTimer = window.setTimeout(() => {
-        finishAfterPaint(Boolean(map.loaded() || map.isStyleLoaded?.()));
-      }, 8000);
-    });
-  }
+  let initialMapReady = null;
+  function whenReady() { return initialMapReady ?? Promise.resolve(false); }
 
   function initialize() {
+    performance.mark("meteoscope:map:init");
     registerBaseMapProtocol(maplibregl);
     map = new maplibregl.Map({
       container: elementId,
@@ -557,9 +528,16 @@ export function createWeatherMap(elementId) {
     });
     map.getContainer().dataset.theme = activeTheme;
     map.touchZoomRotate.enableRotation();
+    initialMapReady = waitForInitialMapGeometry(map, {
+      sourceIds: INITIAL_GEOMETRY_SOURCE_IDS,
+      layerIds: INITIAL_GEOMETRY_LAYER_IDS,
+      onState(state) {
+        map.getContainer().dataset.initialGeometryState = state;
+        performance.mark(`meteoscope:map:${state}`);
+      }
+    });
 
     map.on("load", () => {
-      revealInitialGeometryLayers(map);
       setupSampleLayers();
       syncEewForecastAreas({ force: true });
       applyMapTheme(map, activeTheme);
@@ -1420,7 +1398,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       type: "fill",
       source: MUNICIPALITY_SOURCE_ID,
         ...baseMapSourceLayer("municipalities"),
-      filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+      ...(!VECTOR_BASE_MAP_ENABLED ? { filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]] } : {}),
       layout: { visibility: "none" },
       paint: {
         "fill-pattern": WARNING_HATCH_IMAGE_ID,
@@ -1428,7 +1406,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       }
     }, MUNICIPALITY_LINE_LAYER_ID);
 
-    map.addLayer({
+    if (!VECTOR_BASE_MAP_ENABLED) map.addLayer({
       id: WARNING_FIX_HATCH_LAYER_ID,
       type: "fill",
       source: MUNICIPALITY_FIX_SOURCE_ID,
@@ -3265,7 +3243,7 @@ function parseMobileVisibleHeight() {
 
 function createBaseStyle(theme = "dark") {
   const colors = MAP_THEME_COLORS[theme] ?? MAP_THEME_COLORS.dark;
-  return {
+  const style = {
     version: 8,
     sources: {
       "world-land": {
@@ -3323,7 +3301,7 @@ function createBaseStyle(theme = "dark") {
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
         ...baseMapSourceLayer("municipalities"),
-        filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+        ...(!VECTOR_BASE_MAP_ENABLED ? { filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]] } : {}),
         layout: { visibility: "none" },
         paint: {
           "fill-color": colors.municipalityFill,
@@ -3347,7 +3325,7 @@ function createBaseStyle(theme = "dark") {
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
         ...baseMapSourceLayer("municipalities"),
-        filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+        ...(!VECTOR_BASE_MAP_ENABLED ? { filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]] } : {}),
         layout: { visibility: "none" },
         paint: {
           "fill-color": getWarningOverlayColorExpression(WARNING_FEATURE_STATE_KEYS.status),
@@ -3371,7 +3349,7 @@ function createBaseStyle(theme = "dark") {
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
         ...baseMapSourceLayer("municipalities"),
-        filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+        ...(!VECTOR_BASE_MAP_ENABLED ? { filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]] } : {}),
         layout: { visibility: "none" },
         paint: {
           "fill-color": getWarningOverlayColorExpression(WARNING_FEATURE_STATE_KEYS.early),
@@ -3395,7 +3373,7 @@ function createBaseStyle(theme = "dark") {
         type: "fill",
         source: MUNICIPALITY_SOURCE_ID,
         ...baseMapSourceLayer("municipalities"),
-        filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+        ...(!VECTOR_BASE_MAP_ENABLED ? { filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]] } : {}),
         layout: { visibility: "none" },
         paint: {
           "fill-color": "rgba(0, 0, 0, 0)",
@@ -3417,7 +3395,7 @@ function createBaseStyle(theme = "dark") {
         type: "line",
         source: MUNICIPALITY_SOURCE_ID,
         ...baseMapSourceLayer("municipalities"),
-        filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]],
+        ...(!VECTOR_BASE_MAP_ENABLED ? { filter: ["!", ["in", ["get", "code"], ["literal", WARNING_GEOMETRY_FIX_CODES]]] } : {}),
         layout: { visibility: "none" },
         paint: {
           "line-color": colors.municipalityLine,
@@ -3514,6 +3492,18 @@ function createBaseStyle(theme = "dark") {
       }
     ]
   };
+  if (VECTOR_BASE_MAP_ENABLED) {
+    delete style.sources[MUNICIPALITY_FIX_SOURCE_ID];
+    style.layers = style.layers.filter(layer => layer.source !== MUNICIPALITY_FIX_SOURCE_ID);
+  }
+  // Keep layers active while the app-level loading screen hides the map. Visible
+  // style layers start tile acquisition immediately; hiding the DOM does not.
+  for (const layer of style.layers) {
+    if (INITIAL_GEOMETRY_LAYER_IDS.includes(layer.id) || WARNING_CLICK_LAYER_IDS.includes(layer.id)) {
+      layer.layout = { ...layer.layout, visibility: "visible" };
+    }
+  }
+  return style;
 }
 
 function buildGsjActiveFaultPopup(properties = {}) {
@@ -3533,13 +3523,6 @@ function buildGsjActiveFaultPopup(properties = {}) {
     </article>`;
 }
 
-function revealInitialGeometryLayers(map) {
-  INITIAL_GEOMETRY_LAYER_IDS.forEach((layerId) => {
-    if (map.getLayer(layerId)) {
-      map.setLayoutProperty(layerId, "visibility", "visible");
-    }
-  });
-}
 
 function applyMapTheme(map, theme) {
   if (!map) return;
@@ -4956,6 +4939,7 @@ function createAmedasFeatures(data) {
     if (metric.id === "wind" && !Number.isFinite(point.windDirection)) return [];
     const color = getAmedasColor(metric.id, value, data?.precipitationPeriod);
     const isWind = metric.id === "wind";
+    const stationName = getCurrentLanguage() === "en" ? (point.nameEn || localizeText(point.name)) : point.name;
 
     return [{
       type: "Feature",
@@ -4970,8 +4954,8 @@ function createAmedasFeatures(data) {
         sortKey: getAmedasSortKey(metric.id, value),
         stationId: point.id,
         label: isWind
-          ? `${point.name} ${formatAmedasValue(value)}${metric.unit}`
-          : point.name,
+          ? `${stationName} ${formatAmedasValue(value)}${metric.unit}`
+          : stationName,
         amedasValueLabel: isWind ? "" : formatAmedasValue(value),
         amedasTextColor: getAmedasTextColor(color),
         popup: buildAmedasPopup(point, metric, value, data?.latestTime)

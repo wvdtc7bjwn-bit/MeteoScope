@@ -39,7 +39,7 @@ export function createCurrentLocationWeather({ fetchForecast = fetchWeeklyForeca
     element.querySelector(".current-location-weather-icon").hidden = !slot;
     element.querySelector(".current-location-weather-text").textContent = message;
     const label = element.querySelector(".current-location-weather-copy small");
-    if (label) label.textContent = slot?.forecastType === "daily" ? "現在地・今日の予報" : "現在地・予報";
+    if (label) label.textContent = slot ? slot.forecastType === "daily" ? "今日の予報" : "3時間予報" : "現在地・予報";
     element.title = slot ? `現在地付近の${slot.forecastType === "daily" ? "今日の予報" : "３時間予報"}：${message}` : message;
     element.setAttribute("aria-label", `${element.title}。週間天気予報を開く`);
   }

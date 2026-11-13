@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { onRequest as handleWeeklyWeatherRequest } from "./functions/api/weekly-weather.js";
 import { loadWarningChatContext } from "./functions/_shared/warningChatContext.js";
+import { normalizeWarningChatSelection } from "./src/ai/warningChatPolicy.js";
 import { onRequestGet as handleEarthquakeHistoryRequest } from "./functions/api/earthquake-history.js";
 import { onRequestGet as handleEarthquakeHistoryEventRequest } from "./functions/api/earthquake-history-event.js";
 import { onRequest as handleJmaDisasterCasesRequest } from "./functions/api/jma-disaster-cases.js";
@@ -76,7 +77,7 @@ function localWarningChatApi() {
         if (request.method !== "GET") { response.statusCode = 503; return response.end(JSON.stringify({ error: "ローカルではAIを呼び出しません。Workers AIの設定後に、認証と利用上限を備えたAPIで検証してください。" })); }
         try {
           const areaCode = url.searchParams.get("areaCode");
-          const result = areaCode ? { context: await loadWarningChatContext(areaCode) } : { configured: false };
+          const result = areaCode ? { context: await loadWarningChatContext(areaCode, normalizeWarningChatSelection(Object.fromEntries(url.searchParams))) } : { configured: false };
           response.end(JSON.stringify(result));
         } catch {
           response.statusCode = 503;
@@ -370,7 +371,7 @@ function baseMapPreloadHints() {
     configResolved(config) { vectorEnabled = config.env.VITE_MAP_GEOMETRY === "vector"; },
     transformIndexHtml(html) {
       if (!vectorEnabled) return html;
-      return html.replace(/<link rel="preload" as="fetch" href="[^"<>]*data\/(?:jma-weather-warning-municipalities-map|japan-prefectures-map)\.geojson" crossorigin\s*\/>/g, "");
+      return html.replace(/<link rel="preload" as="fetch" href="[^"<>]*data\/(?:jma-weather-warning-municipalities-map|japan-prefectures-map|jma-weather-warning-municipality-fixes)\.geojson" crossorigin\s*\/>/g, "");
     }
   };
 }

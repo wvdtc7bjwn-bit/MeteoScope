@@ -3,7 +3,8 @@ import { readFile, stat } from "node:fs/promises";
 import { VectorTile } from "@mapbox/vector-tile";
 import Pbf from "pbf";
 import { createHash } from "node:crypto";
-import { createBaseMapIndexes } from "../scripts/build-base-map-tiles.mjs";
+import { createBaseMapIndexes, applyMunicipalityGeometryFixes, getBaseMapBuildVersion } from "../scripts/build-base-map-tiles.mjs";
+import { WARNING_GEOMETRY_FIX_CODES } from "../src/map/warningGeometryFixCodes.js";
 import { baseMapTileManifest as manifest } from "../src/map/data/baseMapTileManifest.js";
 import { createMunicipalitySource, baseMapSourceLayer, municipalityStateTarget, createBaseMapTileLoader } from "../src/map/baseMapTiles.js";
 
@@ -15,7 +16,10 @@ assert.equal(vector.promoteId.municipalities, "code");
 assert.deepEqual(baseMapSourceLayer("municipalities", true), { "source-layer": "municipalities" });
 assert.deepEqual(baseMapSourceLayer("municipalities", false), {});
 assert.deepEqual(municipalityStateTarget("0510000", false, true), { source: "jma-weather-warning-municipalities", sourceLayer: "municipalities", id: "0510000" });
-assert.deepEqual(municipalityStateTarget("2736600", true, true), municipalityStateTarget("2736600", true, false));
+for (const code of WARNING_GEOMETRY_FIX_CODES) {
+  assert.deepEqual(municipalityStateTarget(code, true, true), {source: "jma-weather-warning-municipalities", sourceLayer: "municipalities", id: code});
+  assert.equal(municipalityStateTarget(code, true, false).source, "jma-weather-warning-municipality-fixes");
+}
 let calls = [];
 const loader = createBaseMapTileLoader(async (url, options) => { calls.push({ url, options }); return { ok: true, arrayBuffer: async () => new Uint8Array([1, 2]).buffer }; }, "http://localhost");
 await loader({ url: "meteoscope-basemap://tiles/0/0/0.pbf" }, new AbortController());
@@ -29,16 +33,48 @@ await assert.rejects(loader({ url: "meteoscope-basemap://tiles/11/0/0.pbf" }));
 await assert.rejects(createBaseMapTileLoader(async () => ({ ok: false, status: 503 }), "http://localhost")({ url: "meteoscope-basemap://tiles/0/0/0.pbf" }), /503/);
 
 const collections = {};
+const inputTexts = {};
 for (const [name, path] of Object.entries({ municipalities: "jma-weather-warning-municipalities-map.geojson", prefectures: "japan-prefectures-map.geojson" })) {
   const text = await readFile(new URL(`../public/data/${path}`, import.meta.url), "utf8");
+  inputTexts[name] = text;
   assert.equal(createHash("sha256").update(text).digest("hex"), manifest.inputHashes[name], "Regenerate tiles after a source geometry update");
   collections[name] = JSON.parse(text);
 }
+const fixesText = await readFile(new URL("../public/data/jma-weather-warning-municipality-fixes.geojson", import.meta.url), "utf8");
+inputTexts.municipalityFixes = fixesText;
+assert.equal(createHash("sha256").update(fixesText).digest("hex"), manifest.inputHashes.municipalityFixes);
+assert.equal(getBaseMapBuildVersion(inputTexts, manifest.buildOptions), manifest.version);
+assert.notEqual(getBaseMapBuildVersion({...inputTexts, municipalityFixes: `${fixesText} `}, manifest.buildOptions), manifest.version, "A fix-only change must invalidate tile URLs");
+const fixes = JSON.parse(fixesText);
+const originalMunicipalities = collections.municipalities;
+collections.municipalities = applyMunicipalityGeometryFixes(originalMunicipalities, fixes);
+for (const [index, feature] of collections.municipalities.features.entries()) {
+  const fix = fixes.features.find(item => item.properties.code === feature.properties.code);
+  const original = originalMunicipalities.features[index];
+  if (fix) { assert.deepEqual(feature.geometry, fix.geometry); assert.deepEqual(feature.properties, original.properties); }
+  else assert.equal(feature, original, "Unchanged municipalities must retain the same geometry");
+}
+assert.throws(() => applyMunicipalityGeometryFixes(originalMunicipalities, {features: []}), /Missing/);
+assert.throws(() => applyMunicipalityGeometryFixes(originalMunicipalities, {features: [...fixes.features, fixes.features[0]]}), /duplicate/);
+assert.deepEqual(manifest.layers, ["municipalities", "prefectures"]);
+const islandWithHole = {type: "MultiPolygon", coordinates: [[[[0,0],[4,0],[4,4],[0,4],[0,0]], [[1,1],[1,2],[2,2],[2,1],[1,1]]], [[[6,0],[7,0],[7,1],[6,1],[6,0]]]]};
+const synthetic = {type: "FeatureCollection", features: [{type: "Feature", bbox: [0,0,1,1], properties: {code: "0010000", name: "unchanged"}, geometry: {type: "Polygon", coordinates: []}}]};
+const merged = applyMunicipalityGeometryFixes(synthetic, {features: [{properties: {code: "0010000"}, geometry: islandWithHole}]}, ["0010000"]);
+assert.deepEqual(merged.features[0].geometry, islandWithHole, "Keep holes, islands and MultiPolygon coordinates exactly");
+assert.equal(merged.features[0].properties.code, "0010000");
+assert.equal(merged.features[0].bbox, undefined, "Do not retain stale bounding boxes");
 const sizes = await Promise.all(manifest.tiles.map(key => stat(new URL(`../public/data/base-map-tiles/${manifest.version}/${key}.pbf`, import.meta.url))));
 assert.equal(sizes.reduce((total, file) => total + file.size, 0), manifest.totalBytes);
 const indexes = createBaseMapIndexes(collections);
-const keys = [...manifest.tiles.filter(key => key.startsWith("5/")).slice(0, 8), ...manifest.tiles.filter(key => key.startsWith("10/")).slice(-8)];
+const fixedTileKeys = fixes.features.map(feature => {
+  const [lon, lat] = feature.geometry.type === "Polygon" ? feature.geometry.coordinates[0][0] : feature.geometry.coordinates[0][0][0];
+  const x = Math.floor((lon + 180) / 360 * 1024);
+  const y = Math.floor((1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * 1024);
+  return `10/${x}/${y}`;
+});
+const keys = [...new Set([...fixedTileKeys, ...manifest.tiles.filter(key => key.startsWith("5/")).slice(0, 8), ...manifest.tiles.filter(key => key.startsWith("10/")).slice(-8)])];
 let checked = 0;
+const decodedFixCodes = new Set();
 for (const key of keys) {
   const [z, x, y] = key.split("/").map(Number);
   const bytes = await readFile(new URL(`../public/data/base-map-tiles/${manifest.version}/${key}.pbf`, import.meta.url));
@@ -51,6 +87,7 @@ for (const key of keys) {
     assert.equal(layer.length, original.features.length);
     for (let n = 0; n < layer.length; n++) {
       const feature = layer.feature(n);
+      if (name === "municipalities" && WARNING_GEOMETRY_FIX_CODES.includes(feature.properties.code)) decodedFixCodes.add(feature.properties.code);
       assert.deepEqual({ ...feature.properties }, original.features[n].tags);
       assert.equal(typeof feature.properties.code, "string", "Preserve leading-zero municipality IDs");
       const geometry = feature.loadGeometry().map(ring => ring.map(({ x, y }) => [x, y]));
@@ -60,6 +97,7 @@ for (const key of keys) {
   }
 }
 assert.ok(checked > 0);
+assert.deepEqual([...decodedFixCodes].sort(), [...WARNING_GEOMETRY_FIX_CODES].sort(), "All five repairs must exist in ordinary municipality tiles");
 assert.equal(new Set(manifest.tiles).size, manifest.tiles.length);
 console.log(`Base-map tile compatibility: ${checked} features checked`);
 
