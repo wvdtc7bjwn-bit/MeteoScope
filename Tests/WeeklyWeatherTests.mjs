@@ -128,6 +128,19 @@ assert.deepEqual(buildWeeklyForecastRegionCatalog(
   ]
 }]);
 
+// Leading-zero JMA office codes must precede integer-like JSON keys.
+const orderedOfficeCodes = ["011000", "016000", "020000", "040000", "100000", "130000", "270000", "400000", "471000", "474000"];
+const shuffledOfficeCodes = [...orderedOfficeCodes].reverse();
+const nationalCatalogInput = {
+  offices: Object.fromEntries(shuffledOfficeCodes.map((code) => [code, { name: `Office ${code}` }])),
+  class10s: Object.fromEntries(shuffledOfficeCodes.map((code) => [`${code.slice(0, -1)}1`, { name: `Area ${code}`, parent: code }]))
+};
+const nationalMappings = Object.fromEntries(shuffledOfficeCodes.map((code) => [code, [{ srf: `${code.slice(0, -1)}1`, week: code }]]));
+const originalMappings = JSON.stringify(nationalMappings);
+assert.deepEqual(buildWeeklyForecastRegionCatalog(nationalCatalogInput, nationalMappings).map((office) => office.officeCode), orderedOfficeCodes);
+assert.equal(JSON.stringify(nationalMappings), originalMappings, "Catalog sorting must not mutate source data");
+assert.deepEqual(buildWeeklyForecastRegionCatalog({}, {}), []);
+
 const prefectureWideAreaData = {
   offices: {
     "150000": { name: "新潟県", parent: "010100" }

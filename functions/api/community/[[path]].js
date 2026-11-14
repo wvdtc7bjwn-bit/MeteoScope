@@ -69,7 +69,7 @@ async function listReports(request, env) {
     ).bind(auth?.account?.id || "", now, limit);
   }
   const result = await statement.all();
-  return json({ reports: (result?.results ?? []).map(publicCommunityReport), retentionHours: 5 });
+  return json({ reports: (result?.results ?? []).map(publicCommunityReport), retentionHours: COMMUNITY_REPORT_RETENTION_MS / (60 * 60 * 1000) });
 }
 
 async function createReport(request, env) {

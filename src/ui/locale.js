@@ -18,7 +18,7 @@ const DISASTER_EN_TRANSLATIONS = new Map(DISASTER_TIMELINE_EVENTS.flatMap((event
 
 const LANGUAGE_STORAGE_KEY = "meteoscope-language";
 const LANGUAGE_VALUES = new Set(["ja", "en"]);
-const TRANSLATABLE_ATTRIBUTES = ["aria-label", "aria-description", "aria-valuetext", "title", "placeholder", "alt", "data-layer-picker-title"];
+const TRANSLATABLE_ATTRIBUTES = ["aria-label", "aria-description", "aria-valuetext", "title", "placeholder", "alt", "label", "data-layer-picker-title"];
 const SKIPPED_ELEMENTS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "CODE", "PRE"]);
 const WEATHER_TERMS = new Map([
   ["晴", "Sunny"],
@@ -824,6 +824,7 @@ const STATIC_UI_TRANSLATIONS = new Map(Object.entries({
   "選択してください": "Select",
   "画像を作成": "Create image",
   "現在の天気": "Current weather",
+  "天気・積雪の様子": "Weather and snow cover",
   "何を投稿しますか？": "What would you like to share?",
   "桜": "Cherry blossoms",
   "桜の様子": "Cherry blossoms",
@@ -862,7 +863,7 @@ const STATIC_UI_TRANSLATIONS = new Map(Object.entries({
   "気温（任意）": "Temperature (optional)",
   "例：風が強く、傘が差しにくいです": "e.g. Strong winds make umbrellas difficult to use",
   "近くの利用者へ、現在の天気や危険を共有します。正確な位置は保存せず、投稿は1日12回までです。": "Share current weather and hazards with nearby users. Exact locations are not stored. Up to 12 reports per day.",
-  "投稿は5時間後に地図から消え、D1からも順次削除されます。緊急通報には使用しないでください。": "Reports disappear from the map after 5 hours and are then removed from D1. Do not use this for emergency calls.",
+  "投稿は12時間後に地図から消え、D1からも順次削除されます。緊急通報には使用しないでください。": "Reports disappear from the map after 12 hours and are then removed from D1. Do not use this for emergency calls.",
   "投稿画像のプレビュー": "Report image preview",
   "例 24.5": "e.g. 24.5",
   "確認中...": "Checking...",

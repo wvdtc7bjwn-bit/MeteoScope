@@ -125,7 +125,7 @@ try {
   assert.equal(calls, 0, "A factual lookup must not spend AI tokens or allow model prose to deny an observation");
   const latestResponse = await onRequest({request: request({topic: "earthquake", question: "最新の地震の規模と深さは？"}), env});
   assert.equal(latestResponse.status, 200);
-  assert.match((await latestResponse.json()).answer, /M3\.5 · 深さ10km/);
+  assert.match((await latestResponse.json()).answer, /M3\.5\n深さ10km/);
   assert.equal(calls, 0, "Simple single-event fields also use no inference");
   globalThis.fetch = async () => {throw new Error("Live sources intentionally unavailable");};
   const glossaryResponse = await onRequest({request: request({question: "PLUM法とは？"}), env});

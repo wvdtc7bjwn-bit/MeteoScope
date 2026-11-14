@@ -1007,8 +1007,6 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 }
 
 .map-locate-button {
-  left: 9px;
-  bottom: 82px;
   display: grid;
   place-items: center;
   width: 44px;
@@ -1024,8 +1022,11 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 }
 
 .map-community-report-button {
-  right: 9px;
+  left: 9px;
   bottom: 82px;
+}
+
+.map-community-report-button {
   display: none;
   place-items: center;
   width: 44px;
@@ -1038,6 +1039,11 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   cursor: pointer;
   touch-action: manipulation;
   -webkit-touch-callout: none;
+}
+
+.map-locate-button {
+  right: 9px;
+  bottom: 82px;
 }
 
 .map-weather-distribution-toggle {
@@ -1690,13 +1696,22 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
   transition-delay: 0ms;
 }
 
+:root { --map-header-control-height: 48px; }
+#clock, #map-utility-menu-toggle {
+  box-sizing: border-box;
+  height: var(--map-header-control-height);
+}
+@media (max-width: 800px) { :root { --map-header-control-height: 42px; } }
+@media (max-width: 420px), (orientation: landscape) and (max-width: 1024px) and (max-height: 600px) {
+  :root { --map-header-control-height: 40px; }
+}
 #clock {
   position: absolute;
   z-index: 450;
   top: 20px;
   right: 20px;
   min-width: 166px;
-  padding: 7px 16px;
+  padding: 0 16px;
   border: 0;
   border-radius: 14px;
   color: #f4f8ff;
@@ -1724,12 +1739,15 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
   cursor: pointer;
 }
 .current-location-weather[hidden] { display: none; }
-.current-location-weather-icon { flex: none; width: 30px; height: 22px; display: grid; place-items: center; }
+.current-location-weather[data-has-forecast="true"] { flex-direction: column-reverse; gap: 0; }
+.current-location-weather[data-has-forecast="true"] .current-location-weather-copy { text-align: center; }
+.current-location-weather-icon { flex: none; width: 44px; height: 24px; display: grid; place-items: center; }
 .current-location-weather-icon[hidden] { display: none; }
-.current-location-weather-icon :is(.weekly-weather-image, .weekly-weather-glyph) { width: 30px; height: 22px; }
+.current-location-weather-icon :is(.weekly-weather-image, .weekly-weather-glyph) { width: 44px; height: 24px; }
 .current-location-weather-copy { display: grid; min-width: 0; gap: 1px; text-align: left; line-height: 1.15; }
 .current-location-weather-copy small { font-size: 9px; font-weight: 600; white-space: nowrap; }
 .current-location-weather-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 700; }
+.current-location-weather-text[hidden] { display: none; }
 #clock { display: flex; align-items: center; justify-content: center; gap: 8px; }
 #clock-display-button {
   display: block;
@@ -2191,7 +2209,6 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
   }
 
   .disaster-map-body {
-    grid-template-rows: auto minmax(0, 1fr);
     gap: 6px;
     padding: 7px;
   }
@@ -2202,15 +2219,16 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
     gap: 7px;
   }
 
+  .disaster-map-file-info { flex: 0 0 auto; }
+
   .disaster-map-file-row {
     align-items: stretch;
     flex-wrap: wrap;
   }
 
-  .disaster-map-secondary,
-  .disaster-map-file-button {
+  .disaster-map-file-row > .disaster-map-secondary {
     flex: 1 1 auto;
-    min-width: 112px;
+    min-width: 0;
   }
 
   .disaster-map-pages {
@@ -2291,7 +2309,7 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
     gap: var(--tab-shell-gap);
   }
 
-  .map-locate-button {
+  .map-community-report-button {
     left: 17px;
     bottom: calc(var(--mobile-sidebar-visible-height, 34dvh) + 70px);
   }
@@ -2324,7 +2342,7 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
     top: max(18px, env(safe-area-inset-top));
     right: 12px;
     min-width: 138px;
-    padding: 6px 12px;
+    padding: 0 12px;
     border-radius: 12px;
     font-size: 22px;
   }
@@ -2450,7 +2468,7 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
 
   #clock {
     min-width: 126px;
-    padding: 6px 10px;
+    padding: 0 10px;
     font-size: 20px;
   }
 

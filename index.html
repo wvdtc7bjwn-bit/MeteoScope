@@ -199,7 +199,7 @@
         <button id="numeric-weather-chart-button" class="disaster-map-open-button numeric-weather-chart-open-button" type="button" aria-label="高層天気図リンク集を開く" title="高層天気図リンク集" aria-haspopup="dialog" aria-controls="numeric-weather-chart-modal" aria-expanded="false"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4zM7 8h10M7 12h4M14 12h3M7 16h10"/><path d="m12 11 1.5-1.5L15 11"/></svg><span class="map-utility-label">高層天気図リンク集</span></button>
         <button id="upper-air-button" class="disaster-map-open-button upper-air-open-button" type="button" aria-label="高層気象（エマグラム）を開く（アーリーアクセス）" title="高層気象（エマグラム）" aria-haspopup="dialog" aria-controls="upper-air-modal" aria-expanded="false" hidden><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16M7 17l3-4 3 1 4-8"/><path d="M7 8h4M7 11h2"/></svg><span class="map-utility-label">高層気象（エマグラム）</span></button>
         <button id="numerical-calculation-button" class="disaster-map-open-button numerical-calculation-open-button" type="button" aria-label="気象の数値計算を開く" title="気象の数値計算" aria-haspopup="dialog" aria-controls="numerical-calculation-modal" aria-expanded="false"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01M16 18h.01"/></svg><span class="map-utility-label">気象の数値計算</span></button>
-        <button id="disaster-map-button" class="disaster-map-open-button" type="button" aria-label="防災マップを開く" title="防災マップ"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 5-3 8 3 5-3v15l-5 3-8-3-5 3zM8 3v15M16 6v15"/></svg><span class="map-utility-label">防災マップ</span></button>
+        <button id="disaster-map-button" class="disaster-map-open-button" type="button" aria-label="防災マップを開く" title="防災マップ" aria-haspopup="dialog" aria-controls="disaster-map-modal" aria-expanded="false"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 5-3 8 3 5-3v15l-5 3-8-3-5 3zM8 3v15M16 6v15"/></svg><span class="map-utility-label">防災マップ</span></button>
         <button id="settings-button" class="disaster-map-open-button map-settings-open-button" type="button" aria-label="設定を開く" title="設定" aria-haspopup="dialog" aria-controls="settings-modal" aria-expanded="false"><span class="map-utility-label">設定</span></button>
       </div>
       <button id="locate-button" class="map-locate-button" type="button" aria-label="現在地へ移動。長押しで現在地マーカーを非表示" title="現在地へ移動。長押しで現在地マーカーを非表示" aria-keyshortcuts="Shift+Enter"></button>
@@ -974,15 +974,41 @@
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-disaster-map-close>×</button>
         </header>
         <div class="disaster-map-body">
-          <div class="disaster-map-toolbar">
-            <div class="disaster-map-file-row">
-              <label class="disaster-map-file-button" for="disaster-map-file">PDF・画像を選択</label>
-              <input id="disaster-map-file" class="disaster-map-file-input" type="file" accept="application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg" />
-              <a id="disaster-map-open" class="disaster-map-secondary" target="_blank" rel="noopener noreferrer" hidden>別タブで開く</a>
-              <button id="disaster-map-clear" class="disaster-map-secondary" type="button">クリア</button>
-            </div>
-            <p id="disaster-map-status" class="disaster-map-status">PDFまたは画像を選択してください。</p>
+          <div class="disaster-map-modes" role="tablist" aria-label="防災マップの表示方法">
+            <button id="disaster-map-mode-municipal" type="button" role="tab" aria-selected="true" aria-controls="disaster-map-directory" data-disaster-map-mode="municipal">自治体から選ぶ</button>
+            <button id="disaster-map-mode-local" type="button" role="tab" aria-selected="false" aria-controls="disaster-map-local" tabindex="-1" data-disaster-map-mode="local">PDF・画像</button>
           </div>
+          <section id="disaster-map-directory" class="hazard-directory" role="tabpanel" aria-labelledby="disaster-map-mode-municipal">
+            <div id="hazard-directory-selection" class="hazard-directory-selection">
+              <p class="hazard-directory-intro">お住まいの自治体のハザードマップを探せます。</p>
+              <div class="hazard-directory-fields">
+                <label>都道府県<select id="hazard-prefecture" disabled><option value="">都道府県を選択</option></select></label>
+                <label>市区町村<select id="hazard-municipality" disabled><option value="">市区町村を選択</option></select></label>
+                <label class="hazard-directory-kind">災害の種類<select id="hazard-category" disabled><option value="">すべての種類</option></select></label>
+              </div>
+              <p id="hazard-directory-status" class="hazard-directory-status" role="status" aria-live="polite"></p>
+              <button id="hazard-directory-retry" class="disaster-map-secondary" type="button" hidden>再読み込み</button>
+              <ul id="hazard-directory-results" class="hazard-directory-results"></ul>
+              <footer class="hazard-directory-source">
+                <a href="https://disaportaldata.gsi.go.jp/hazardmap/copyright/opendata.html#wagamachi" target="_blank" rel="noopener noreferrer">出典：国土地理院「わがまちハザードマップ」 ↗</a>
+                <p>一覧に未掲載の資料もあります。最新の内容は自治体の発表をご確認ください。</p>
+              </footer>
+            </div>
+          </section>
+          <section id="disaster-map-local" class="disaster-map-local" role="tabpanel" aria-labelledby="disaster-map-mode-local" hidden>
+          <input id="disaster-map-file" class="disaster-map-file-input" type="file" tabindex="-1" accept="application/pdf,image/png,image/jpeg,.pdf,.png,.jpg,.jpeg" />
+          <div id="disaster-map-toolbar" class="disaster-map-toolbar" hidden>
+            <div class="disaster-map-file-info">
+              <span class="disaster-map-file-type" id="disaster-map-file-type"></span>
+              <strong id="disaster-map-file-name" data-i18n-ignore></strong>
+            </div>
+            <div class="disaster-map-file-row">
+              <button class="disaster-map-secondary" type="button" data-disaster-map-pick>ファイルを変更</button>
+              <a id="disaster-map-open" class="disaster-map-secondary" target="_blank" rel="noopener noreferrer" hidden>別タブで開く</a>
+              <button id="disaster-map-clear" class="disaster-map-secondary" type="button" disabled>クリア</button>
+            </div>
+          </div>
+          <p id="disaster-map-status" class="disaster-map-status" role="status" aria-live="polite" hidden></p>
           <div class="disaster-map-viewer">
             <div id="disaster-map-pages" class="disaster-map-pages" aria-label="防災マッププレビュー"></div>
             <div id="disaster-map-annotation-toolbar" class="disaster-map-annotation-toolbar" hidden>
@@ -1028,9 +1054,15 @@
               <button id="disaster-map-zoom-in" type="button" aria-label="拡大">＋</button>
             </div>
             <div id="disaster-map-placeholder" class="disaster-map-placeholder">
-              PDFまたは画像を選択するとここに表示されます。
+              <svg class="disaster-map-empty-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 12 11-5 12 5 11-5v29l-11 5-12-5-11 5zM18 7v29M30 12v29"/><circle cx="24" cy="22" r="4"/><path d="M24 26v5"/></svg>
+              <h3>手元の防災マップを開く</h3>
+              <p>自治体のハザードマップなどをPDF・画像で表示できます。</p>
+              <button class="disaster-map-file-button" type="button" data-disaster-map-pick>PDF・画像を選択</button>
+              <span class="disaster-map-file-formats">PDF / PNG / JPEG</span>
+              <small>選んだファイルはこの端末に保存されます。</small>
             </div>
-          </div>
+            </section>
+        </div>
         </div>
       </section>
     </div>
@@ -1144,15 +1176,21 @@
                 <label><input type="radio" name="topic" value="weather" checked /><span>天気</span></label>
                 <label><input type="radio" name="topic" value="cherry" /><span>桜</span></label>
                 <label><input type="radio" name="topic" value="autumn" /><span>紅葉</span></label>
-                <label><input type="radio" name="topic" value="snow-cover" /><span>積雪</span></label>
               </div>
             </fieldset>
-            <label data-community-topic="weather">現在の天気
+            <label data-community-topic="weather">天気・積雪の様子
               <select name="weather" required>
                 <option value="">選択してください</option>
-                <option value="sunny">晴れ</option><option value="cloudy">くもり</option>
-                <option value="light-rain">弱い雨</option><option value="heavy-rain">強い雨</option>
-                <option value="snow">雪</option><option value="thunder">雷</option><option value="fog">霧</option>
+                <optgroup label="天気">
+                  <option value="sunny">晴れ</option><option value="cloudy">くもり</option>
+                  <option value="light-rain">弱い雨</option><option value="heavy-rain">強い雨</option>
+                  <option value="snow">雪</option><option value="thunder">雷</option><option value="fog">霧</option>
+                </optgroup>
+                <optgroup label="積雪の様子">
+                  <option value="snow-cover-start">積もり始め</option>
+                  <option value="snow-cover-present">雪が積もっている</option>
+                  <option value="snow-cover-melting">雪解け</option>
+                </optgroup>
               </select>
             </label>
             <label data-community-topic="cherry" hidden>桜の様子
@@ -1170,14 +1208,6 @@
                 <option value="autumn-start">色づき始め</option>
                 <option value="autumn-peak">見頃</option>
                 <option value="autumn-falling">落葉が進む</option>
-              </select>
-            </label>
-            <label data-community-topic="snow-cover" hidden>積雪の様子
-              <select name="snowCover" disabled>
-                <option value="">選択してください</option>
-                <option value="snow-cover-start">積もり始め</option>
-                <option value="snow-cover-present">雪が積もっている</option>
-                <option value="snow-cover-melting">雪解け</option>
               </select>
             </label>
             <label>ひとこと（任意）
@@ -1203,7 +1233,7 @@
                 <label><input type="checkbox" name="hazards" value="slippery" />路面凍結・滑りやすい</label>
               </div>
             </fieldset>
-            <p class="community-report-caution">投稿は5時間後に地図から消え、D1からも順次削除されます。緊急通報には使用しないでください。</p>
+            <p class="community-report-caution">投稿は12時間後に地図から消え、D1からも順次削除されます。緊急通報には使用しないでください。</p>
             <button class="community-report-submit" type="submit">現在地の様子を投稿</button>
           </form>
           <p id="community-report-status" class="community-report-status" role="status"></p>

@@ -34,10 +34,13 @@ export function createCurrentLocationWeather({ fetchForecast = fetchWeeklyForeca
     const slot = findCurrentLocationForecast(forecast);
     const message = slot ? slot.weather : (unavailable || (forecast ? "予報を取得できません" : ""));
     element.hidden = !message;
+    element.setAttribute("data-has-forecast", slot ? "true" : "false");
     if (!message) return;
     element.querySelector(".current-location-weather-icon").innerHTML = slot ? renderWeeklyWeatherIcon(slot.weatherCode, slot.weather) : "";
     element.querySelector(".current-location-weather-icon").hidden = !slot;
-    element.querySelector(".current-location-weather-text").textContent = message;
+    const text = element.querySelector(".current-location-weather-text");
+    text.textContent = slot ? "" : message;
+    text.hidden = Boolean(slot);
     const label = element.querySelector(".current-location-weather-copy small");
     if (label) label.textContent = slot ? slot.forecastType === "daily" ? "今日の予報" : "3時間予報" : "現在地・予報";
     element.title = slot ? `現在地付近の${slot.forecastType === "daily" ? "今日の予報" : "３時間予報"}：${message}` : message;

@@ -1,6 +1,33 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+自治体から選ぶ|Municipal maps
+PDF・画像|PDF / images
+防災マップの表示方法|Hazard map source
+お住まいの自治体のハザードマップを探せます。|Find hazard maps published by your municipality.
+都道府県を選択|Select a prefecture
+市区町村を選択|Select a municipality
+災害の種類|Hazard type
+すべての種類|All types
+自治体の一覧を読み込み中...|Loading the municipality directory...
+市区町村を読み込み中...|Loading municipalities...
+都道府県と市区町村を選んでください。|Select a prefecture and municipality.
+市区町村を選んでください。|Select a municipality.
+一覧を読み込めませんでした。再読み込みしてください。|The directory could not be loaded. Please retry.
+資料を選ぶと、自治体の公式ページを別タブで開きます。|Select a map to open the official municipal page in a new tab.
+この種類の資料は一覧に掲載されていません。災害リスクがないことを示すものではありません。|No maps of this type are listed. This does not mean there is no hazard.
+出典：国土地理院「わがまちハザードマップ」 ↗|Source: GSI municipal hazard map directory ↗
+一覧に未掲載の資料もあります。最新の内容は自治体の発表をご確認ください。|Some maps may not be listed. Check your municipality for the latest information.
+ため池|Reservoirs
+地震の揺れ|Earthquake shaking
+地盤|Ground conditions
+液状化|Liquefaction
+建物被害|Building damage
+火災|Fire
+避難|Evacuation
+総合防災|All-hazards maps
+内水|Inland flooding
+高潮|Storm surge
 気象庁の資料に基づく制度・防災対応の解説です。現在の発表状況とは区別してください。|General explanations of the advisory system and preparedness based on JMA guidance. This is separate from the current bulletin status.
 公式ページの最新掲載欄です。掲載日と現在の発表状況は異なります。有効・解除の判定はしていません。|The latest publication block on the official page. Publication date differs from current status; validity or cancellation has not been determined.
 公式資料を取得できません。発表なしを意味しません。|The official source could not be retrieved. This does not mean no advisory exists.
@@ -872,6 +899,13 @@ AIによる説明 · Gemma 4|AI explanation · Gemma 4
 文書を読み込めませんでした。接続を確認して、もう一度お試しください。|Could not load the document. Check your connection and try again.
 送信しています…|Sending…
 送信しました。受付状況はこの端末で30日間確認できます。|Sent. You can check its status on this device for 30 days.
+手元の防災マップを開く|Open your disaster map
+自治体のハザードマップなどをPDF・画像で表示できます。|View a local hazard map or another PDF or image.
+選んだファイルはこの端末に保存されます。|The selected file is saved on this device.
+ファイルを変更|Change file
+ファイルを読み込み中...|Loading file...
+保存したファイルを復元しています...|Restoring your saved file...
+画像を表示しています。|Showing image.
 `.trim().split("\n").map((line) => line.split("|"));
 
 export const UI_EN_TRANSLATIONS = new Map(UI_EN_ENTRIES);

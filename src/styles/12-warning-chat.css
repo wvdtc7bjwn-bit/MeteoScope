@@ -29,17 +29,18 @@
 .warning-chat-panel :is(p, label) { line-height: 1.6; }
 .warning-chat-panel summary { cursor: pointer; font-size: 13px; }
 .warning-chat-panel label { display: grid; gap: 6px; font-size: 13px; }
-.warning-chat-panel :is(select, textarea) { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--modal-control-border); border-radius: 6px; background: var(--modal-control-surface); color: var(--modal-foreground); font: inherit; font-size: 16px; }
+.warning-chat-panel :is(textarea) { box-sizing: border-box; width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--modal-control-border); border-radius: 6px; background: var(--modal-control-surface); color: var(--modal-foreground); font: inherit; font-size: 16px; }
+.warning-chat-panel :is(select) { width: 100%; min-width: 0; }
 .warning-chat-panel :is(h3, strong) { color: var(--modal-foreground); }
 /* Keep topic, area/language and sources as separate, touch-sized controls. */
 .warning-chat-toolbar { position: relative; display: grid; grid-template-columns: 100px minmax(0, 1fr) auto; align-items: center; gap: 8px; flex: none; padding: 5px 18px; border-bottom: 1px solid var(--modal-control-border); }
 .warning-chat-toolbar > details > summary { display: flex; align-items: center; gap: 6px; min-height: 44px; box-sizing: border-box; padding: 4px 8px; border: 1px solid transparent; border-radius: 6px; list-style: none; }
 .warning-chat-toolbar > details > summary::-webkit-details-marker { display: none; }
 .warning-chat-toolbar > details[open] > summary { background: var(--modal-control-surface); border-color: var(--modal-control-border); }
-.warning-chat-toolbar :is(select, summary):focus-visible { outline: 2px solid var(--modal-focus); outline-offset: 1px; }
+.warning-chat-toolbar :is(summary):focus-visible { outline: 2px solid var(--modal-focus); outline-offset: 1px; }
 .warning-chat-settings { min-width: 0; }
 .warning-chat-selection-copy { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.warning-chat-panel #warning-chat-topic { width: 100%; min-height: 44px; padding: 8px; font-size: 14px; background-color: transparent; }
+.warning-chat-panel #warning-chat-topic { width: 100%; }
 #warning-chat-selection { display: block; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; }
 #warning-chat-selection-language { font-size: 11px; line-height: 1.4; opacity: .75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .warning-chat-panel .warning-chat-disclosure { flex: none; width: 16px; height: 16px; }
@@ -111,8 +112,6 @@
 @media (max-width: 420px) {
   #clock:has(#warning-chat-button:not([hidden])) { max-width: calc(100vw - 90px); box-sizing: border-box; gap: 5px; padding-inline: 8px; }
   #clock:has(#warning-chat-button:not([hidden])) .current-location-weather { flex: 1 1 auto; max-width: 100px; }
-  #clock:has(#warning-chat-button:not([hidden])) .current-location-weather-icon,
-  #clock:has(#warning-chat-button:not([hidden])) .current-location-weather-icon :is(.weekly-weather-image, .weekly-weather-glyph) { width: 24px; height: 22px; }
   #clock:has(#warning-chat-button:not([hidden])) .clock-face { width: 100px; }
   #warning-chat-button { flex-basis: 30px; width: 30px; }
   .warning-chat-toolbar { grid-template-columns: 90px minmax(0, 1fr) auto; gap: 4px; padding-inline: 10px; }

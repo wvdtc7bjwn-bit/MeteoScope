@@ -2139,7 +2139,7 @@
     text-shadow: 0 0 8px rgba(81, 196, 255, 0.18);
   }
 
-  .map-locate-button {
+  .map-community-report-button {
     bottom: max(
       calc(var(--mobile-sidebar-visible-height, 48dvh) + 70px),
       calc(max(0px, env(safe-area-inset-bottom)) + 220px)
@@ -2155,12 +2155,15 @@
   }
 
   .map-community-report-button {
+    display: grid;
+  }
+
+  .map-locate-button {
     right: 17px;
     bottom: max(
       calc(var(--mobile-sidebar-visible-height, 48dvh) + 70px),
       calc(max(0px, env(safe-area-inset-bottom)) + 220px)
     );
-    display: grid;
   }
 
   .mobile-drawer-open :is(.map-community-report-button, .map-world-typhoon-target-button) {

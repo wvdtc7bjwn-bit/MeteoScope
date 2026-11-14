@@ -27,7 +27,7 @@ assert.equal(formatCommunityReportTemperature(24.5), "24.5℃");
 assert.equal(publicCommunityReport({ is_own: 1 }).isOwn, true);
 assert.equal(publicCommunityReport({ is_own: 0 }).isOwn, false);
 
-assert.equal(COMMUNITY_REPORT_RETENTION_MS, 5 * 60 * 60 * 1000);
+assert.equal(COMMUNITY_REPORT_RETENTION_MS, 12 * 60 * 60 * 1000);
 assert.equal(COMMUNITY_REPORT_POST_COOLDOWN_MS, 5 * 60 * 1000);
 assert.equal(COMMUNITY_REPORT_ACCOUNT_DAILY_LIMIT, 12);
 assert.equal(COMMUNITY_REPORT_GLOBAL_DAILY_LIMIT, 2400);
@@ -101,6 +101,8 @@ assert.deepEqual(await cleanupExpiredCommunityReports(fakeDB, new Date("2026-07-
   totalsDeleted: 1
 });
 assert.match(prepared[0].sql, /LIMIT 200/u);
+assert.match(prepared[0].sql, /WHERE expires_at <= \?1/u);
+assert.deepEqual(prepared[0].values, ["2026-07-17T00:05:00.000Z"]);
 assert.match(prepared[1].sql, /community_post_daily/u);
 assert.match(prepared[2].sql, /community_post_totals/u);
 
@@ -129,7 +131,7 @@ const quotaReport = {
   areaCode: "1310100",
   areaName: "千代田区",
   createdAt: "2026-07-20T00:00:00.000Z",
-  expiresAt: "2026-07-20T05:00:00.000Z",
+  expiresAt: "2026-07-20T12:00:00.000Z",
   activityDate: "2026-07-20",
   counterExpiresAt: "2026-07-22T00:00:00.000Z"
 };
@@ -222,17 +224,25 @@ assert.match(webMap, /if \(!hitReport\) hideMapInfo\("community-report"\)/u);
 assert.doesNotMatch(webSummary, /mobile-dock-community-report-open/u);
 assert.match(webIndex, /data-community-report-open/u);
 assert.match(webIndex, /map-community-report-button/u);
-for (const topic of ["cherry", "autumn", "snow-cover"]) {
+for (const topic of ["weather", "cherry", "autumn"]) {
   assert.ok(webIndex.includes(`data-community-topic="${topic}"`), `${topic} must be selectable`);
 }
 assert.match(webModal, /import \{ getCurrentLanguage, localizeText \} from "\.\/locale\.js";/u);
 assert.match(webModal, /Reporting area: Get your current location/u);
 assert.match(webModal, /updateReportTopic\(event\.target\.value\)/u);
-assert.match(webModal, /"snow-cover": "snowCover"/u);
+assert.doesNotMatch(webIndex, /name="topic" value="snow-cover"|name="snowCover"/u);
+const weatherChoices = /<select name="weather" required>([\s\S]*?)<\/select>/u.exec(webIndex)?.[1];
+assert.ok(weatherChoices, "Weather choices must exist");
+for (const observation of ["snow", "snow-cover-start", "snow-cover-present", "snow-cover-melting"]) {
+  assert.ok(weatherChoices.includes(`value="${observation}"`), `${observation} must be available in Weather`);
+  const normalized = normalizeCommunityReportInput({ weather: observation, latitude: 35.68, longitude: 139.76, areaName: "千代田区" });
+  assert.equal(normalized.error, undefined);
+  assert.equal(normalized.weather, observation, "Keep snow observation codes compatible with existing markers");
+}
 assert.match(webModal, /cherry: "cherry"/u);
 assert.match(webModal, /例：風が強く、傘が差しにくいです/u);
 assert.match(webModal, /element\.textContent = localizeText\(message\)/u);
-assert.match(privacyPage, /5時間/u);
+assert.match(privacyPage, /12時間/u);
 assert.match(privacyPage, /約2km/u);
 
 console.log("Community report tests passed.");

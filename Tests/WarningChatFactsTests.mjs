@@ -26,10 +26,9 @@ const quake = {...context, topic: "earthquake", availability: "available", earth
   maxObservedIntensity: "5+", selectedMunicipalityIntensity: null, reportState: "発表"
 }};
 const quakeAnswer = buildOfficialChatFacts(quakeInput, quake).answer;
-assert.match(quakeAnswer, /M調査中 · ごく浅い/);
+assert.match(quakeAnswer, /M調査中/);
 assert.doesNotMatch(quakeAnswer, /M0\.0|当地.*5\+/);
-assert.match(quakeAnswer, /観測最大震度：5\+/);
-assert.match(quakeAnswer, /千代田区の観測震度：この電文では確認できません/);
+assert.doesNotMatch(quakeAnswer, /ごく浅い|深さ|観測最大震度|千代田区の観測震度/);
 const cancelled = buildOfficialChatFacts(quakeInput, {...quake, earthquake: {...quake.earthquake, reportState: "取消"}}).answer;
 assert.match(cancelled, /取消済み/); assert.doesNotMatch(cancelled, /試験用震源|5\+/);
 assert.match(buildOfficialChatFacts(quakeInput, {...quake, earthquake: null, availability: "empty"}).answer, /確認できませんでした/);
@@ -82,7 +81,7 @@ for (const question of ["過去1年間にここが揺れた地震は？", "最�
 const knowledge = addWarningChatKnowledge({...input, question: "それをもう少し説明して", history: [{role: "user", content: "震度とマグニチュードの違いは？"}]}, {...context, sources: []});
 assert.match(knowledge.knowledge[0].text, /揺れの強さ/);
 assert.ok(knowledge.sources.some(source => source.url.endsWith("faq27.html")));
-assert.equal(addWarningChatKnowledge({...input, question: "現在の警報は？", history: [{role: "user", content: "津波とは？"}]}, {...context, sources: []}).knowledge.length, 1, "Unrelated old topics must not contaminate new questions");
+assert.equal(addWarningChatKnowledge({...input, question: "現在の警報は？", history: [{role: "user", content: "津波とは？"}]}, {...context, sources: []}).knowledge, undefined, "A fact lookup must not add unsolicited definitions");
 
 const english = buildOfficialChatFacts({...quakeInput, language: "en"}, quake).answer;
 assert.match(english, /Epicenter:|Maximum observed intensity:/);

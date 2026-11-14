@@ -78,8 +78,7 @@
   display: block;
 }
 
-.disaster-timeline-search input,
-.disaster-timeline-selects select {
+.disaster-timeline-search input {
   box-sizing: border-box;
   width: 100%;
   min-height: 44px;
@@ -89,6 +88,10 @@
   background: var(--timeline-control);
   font: inherit;
   font-size: 16px;
+}
+
+.disaster-timeline-selects select {
+  width: 100%;
 }
 
 .disaster-timeline-search input {
@@ -113,7 +116,6 @@
 }
 
 .disaster-timeline-search input:focus-visible,
-.disaster-timeline-selects select:focus-visible,
 .disaster-timeline-categories button:focus-visible,
 .disaster-timeline-source:focus-visible {
   outline: 2px solid var(--timeline-accent);
@@ -158,10 +160,6 @@
   color: var(--timeline-muted);
   font-size: 11px;
   font-weight: 800;
-}
-
-.disaster-timeline-selects select {
-  padding: 0 34px 0 11px;
 }
 
 #disaster-timeline-count {
@@ -760,8 +758,7 @@ html[data-theme="light"] #main-tabs {
   border: 0;
 }
 
-.jma-disaster-archive-search input,
-.jma-disaster-archive-controls select {
+.jma-disaster-archive-search input {
   box-sizing: border-box;
   min-width: 0;
   width: 100%;
@@ -773,6 +770,11 @@ html[data-theme="light"] #main-tabs {
   background: var(--archive-control);
   font: inherit;
   font-size: 16px;
+}
+
+.jma-disaster-archive-controls select {
+  min-width: 0;
+  width: 100%;
 }
 
 .jma-disaster-archive-search output { color: var(--archive-accent); font-size: 12px; font-weight: 800; white-space: nowrap; }
@@ -788,11 +790,10 @@ html[data-theme="light"] #main-tabs {
 .jma-disaster-archive-card summary small { grid-column: 1; color: var(--archive-muted); font-size: 11px; font-weight: 700; }
 .jma-disaster-archive-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; padding: 0 0 16px; }
 .jma-disaster-archive-controls label { display: grid; gap: 5px; color: var(--archive-muted); font-size: 11px; font-weight: 800; }
-.jma-disaster-archive-controls select { padding-right: 30px; }
 .jma-disaster-archive-open { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid rgba(90, 185, 223, 0.4); border-radius: 7px; color: var(--archive-text); background: #1d3d52; font-size: 12px; font-weight: 800; text-decoration: none; white-space: nowrap; }
 .jma-disaster-archive-open:hover { border-color: var(--archive-accent); }
 .jma-disaster-archive-card summary:focus-visible,
-.jma-disaster-archive-controls :is(select, a):focus-visible,
+.jma-disaster-archive-controls :is(a):focus-visible,
 .jma-disaster-archive-search input:focus-visible,
 .jma-disaster-archive-fallback :is(button, a):focus-visible { outline: 2px solid var(--archive-accent); outline-offset: 2px; }
 .jma-disaster-archive-fallback { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
@@ -827,22 +828,21 @@ html[data-theme="light"] .jma-disaster-archive-status[data-state="error"] { colo
 }
 
 /* Plate model selector is confined to the earthquake layer picker. */
-#earthquake-layer-toggle:not(.collapsed) { height: 342px; }
-#earthquake-layer-toggle .weather-distribution-toggle-choices { height: 330px; grid-template-rows: 28px repeat(3, 44px) 78px repeat(2, 44px); }
+#earthquake-layer-toggle:not(.collapsed) { height: min(364px, calc(100dvh - 96px)); }
+#earthquake-layer-toggle .weather-distribution-toggle-choices { height: min(352px, calc(100dvh - 108px)); grid-template-rows: 28px repeat(3, 44px) minmax(100px, auto) repeat(2, 44px); overflow-y: auto; }
 .earthquake-plate-source { display: grid; gap: 3px; padding: 4px 5px; font-size: 11px; color: #c8d9e9; }
-.earthquake-plate-source select { width: 100%; min-width: 0; color: #e2edf6; background: #1c3044; border: 1px solid #668198; border-radius: 3px; font: inherit; }
+.earthquake-plate-source select { width: 100%; min-width: 0; }
 .earthquake-plate-source a { color: #a5d6f2; font-size: 10px; }
 html[data-theme="light"] .earthquake-plate-source { color: #334e64; }
-html[data-theme="light"] .earthquake-plate-source select { color: #19374b; background: #fff; border-color: #9aafbf; }
 html[data-theme="light"] .earthquake-plate-source a { color: #075b89; }
 
 #earthquake-layer-toggle.has-local-eew-test:not(.collapsed) {
-  height: min(412px, calc(100dvh - 96px));
+  height: min(460px, calc(100dvh - 96px));
 }
 
 #earthquake-layer-toggle.has-local-eew-test .weather-distribution-toggle-choices {
-  height: min(400px, calc(100dvh - 108px));
-  grid-template-rows: 28px repeat(3, 44px) 78px repeat(2, 44px) 72px;
+  height: min(448px, calc(100dvh - 108px));
+  grid-template-rows: 28px repeat(3, 44px) minmax(100px, auto) repeat(2, 44px) minmax(96px, auto);
   overflow-y: auto;
 }
 
@@ -860,11 +860,6 @@ html[data-theme="light"] .earthquake-plate-source a { color: #075b89; }
 .local-eew-test-controls select {
   width: 100%;
   min-width: 0;
-  color: #e2edf6;
-  background: #1c3044;
-  border: 1px solid #668198;
-  border-radius: 3px;
-  font: inherit;
 }
 
 .local-eew-test-controls small {
@@ -874,7 +869,6 @@ html[data-theme="light"] .earthquake-plate-source a { color: #075b89; }
 }
 
 html[data-theme="light"] .local-eew-test-controls { color: #334e64; }
-html[data-theme="light"] .local-eew-test-controls select { color: #19374b; background: #fff; border-color: #9aafbf; }
 html[data-theme="light"] .local-eew-test-controls small { color: #8a4b08; }
 
 /* Terrain is shared by the active map-layer picker. */
@@ -971,7 +965,7 @@ html[data-theme="light"] .warning-modal .warning-modal-panel {
   scrollbar-width: none;
 }
 .warning-modal .warning-modal-panel > [class$="-body"]::-webkit-scrollbar { display: none; }
-.warning-modal .warning-modal-panel :is(input:not([type]), input[type="text"], input[type="search"], input[type="email"], input[type="password"], input[type="number"], input[type="date"], select, textarea) {
+.warning-modal .warning-modal-panel :is(input:not([type]), input[type="text"], input[type="search"], input[type="email"], input[type="password"], input[type="number"], input[type="date"], textarea) {
   box-sizing: border-box;
   min-width: 0;
   max-width: 100%;
@@ -983,7 +977,11 @@ html[data-theme="light"] .warning-modal .warning-modal-panel {
   font-size: 16px;
   box-shadow: none;
 }
-.warning-modal .warning-modal-panel :is(button, a, input, select, textarea, summary):focus-visible {
+.warning-modal .warning-modal-panel :is(select) {
+  min-width: 0;
+  max-width: 100%;
+}
+.warning-modal .warning-modal-panel :is(button, a, input, textarea, summary):focus-visible {
   outline: 2px solid var(--modal-focus);
   outline-offset: 2px;
 }
@@ -1025,3 +1023,78 @@ focal-mechanism .focal-mechanism-source-switch button:focus-visible {
   outline-offset: -3px;
 }
 focal-mechanism .focal-mechanism-source-panel[hidden] { display: none; }
+
+/* Keep every disaster-map surface flat, including focus/hover/theme variants.
+   Focus remains visible through the shared outline, not a shadow. */
+#disaster-map-modal .disaster-map-panel,
+#disaster-map-modal .disaster-map-panel *,
+#disaster-map-modal .disaster-map-panel *::before,
+#disaster-map-modal .disaster-map-panel *::after {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.disaster-map-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--modal-control-border);
+}
+.disaster-map-modes button {
+  min-height: 44px;
+  padding: 10px 8px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.disaster-map-modes button[aria-selected="true"] { border-bottom-color: var(--modal-focus); color: var(--modal-foreground); }
+.disaster-map-local, .hazard-directory { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; gap: 10px; }
+.disaster-map-local[hidden], .hazard-directory[hidden], .hazard-directory [hidden] { display: none !important; }
+.hazard-directory { color: var(--modal-foreground); }
+.hazard-directory-selection { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 2px 10px; }
+.hazard-directory-intro { margin: 8px 0 20px; font-size: 14px; line-height: 1.65; color: var(--muted); }
+.hazard-directory-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.hazard-directory-fields label { display: grid; gap: 7px; font-size: 13px; font-weight: 650; }
+.hazard-directory-fields select { width: 100%; }
+.hazard-directory-kind { grid-column: 1 / -1; }
+.hazard-directory-status { margin: 16px 0 8px; color: var(--muted); font-size: 13px; line-height: 1.65; }
+.hazard-directory-status[data-status="error"] { color: #ff9d9d; }
+html[data-theme="light"] .hazard-directory-status[data-status="error"] { color: #a12c24; }
+.hazard-directory-results { margin: 12px 0 24px; padding: 0; list-style: none; border-top: 1px solid var(--modal-control-border); }
+.hazard-directory-results:empty { display: none; }
+.hazard-directory-results li { border-bottom: 1px solid var(--modal-control-border); }
+.hazard-directory-results a {
+  display: grid;
+  width: 100%;
+  min-height: 68px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 14px;
+  padding: 14px 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--modal-foreground);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.hazard-directory-results strong { font-size: 16px; line-height: 1.6; overflow-wrap: anywhere; }
+.hazard-directory-results a > span:not(.hazard-directory-arrow) { grid-column: 1; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.hazard-directory-results a:hover { background: var(--modal-control-surface); }
+.hazard-directory-arrow { grid-column: 2; grid-row: 1 / 3; align-self: center; font-size: 26px; color: var(--modal-focus); }
+.hazard-directory-source { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--modal-control-border); font-size: 12px; line-height: 1.7; color: var(--muted); }
+.hazard-directory-source p { margin: 6px 0 0; }
+.hazard-directory-source a { color: var(--modal-focus); overflow-wrap: anywhere; }
+@media (max-width: 380px) {
+  .hazard-directory-fields { grid-template-columns: 1fr; gap: 10px; }
+}

@@ -32,10 +32,11 @@ globalThis.window = originalWindow;
 const icon = { innerHTML: "", hidden: false };
 const text = { textContent: "" };
 const label = { textContent: "" };
+const weatherAttributes = new Map();
 const weather = {
   hidden: true,
   title: "",
-  setAttribute() {},
+  setAttribute(name, value) { weatherAttributes.set(name, value); },
   querySelector: (selector) => selector.endsWith("-icon") ? icon : selector.endsWith(" small") ? label : text
 };
 const clock = { setAttribute() {} };
@@ -48,18 +49,27 @@ assert.equal(weather.hidden, false);
 assert.equal(text.textContent, "位置情報が許可されていません");
 assert.equal(icon.hidden, true);
 await current.refresh({ status: "found", areaCode: "122010" });
-assert.equal(text.textContent, "晴れ");
+assert.equal(text.textContent, "");
+assert.equal(text.hidden, true);
+assert.equal(weatherAttributes.get("data-has-forecast"), "true");
+assert.match(weather.title, /晴れ/u);
+assert.match(weatherAttributes.get("aria-label"), /晴れ.*週間天気予報を開く/u);
 assert.equal(icon.hidden, false);
 assert.equal(label.textContent, "3時間予報");
 assert.match(icon.innerHTML, /weekly-weather-image|weekly-weather-glyph/u);
 const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 const daily = createCurrentLocationWeather({ fetchForecast: async () => ({ days: [{ date: today, weather: "くもり後雨" }] }) });
 await daily.refresh({ status: "found", areaCode: "122010" });
-assert.equal(text.textContent, "くもり後雨");
+assert.equal(text.textContent, "");
+assert.equal(text.hidden, true);
+assert.match(weather.title, /くもり後雨/u);
 assert.equal(label.textContent, "今日の予報");
 assert.match(weather.title, /今日の予報/u);
 const missing = createCurrentLocationWeather({ fetchForecast: async () => ({ threeHourlyForecasts: [] }) });
 await missing.refresh({ status: "found", areaCode: "122010" });
 assert.equal(text.textContent, "予報を取得できません");
+assert.equal(text.hidden, false);
+assert.equal(icon.hidden, true);
+assert.equal(weatherAttributes.get("data-has-forecast"), "false");
 globalThis.document = originalDocument;
 console.log("Current location weather tests passed");

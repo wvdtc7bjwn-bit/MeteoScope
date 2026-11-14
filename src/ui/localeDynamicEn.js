@@ -2,6 +2,10 @@
 // be translated by replacing isolated words inside arbitrary prose.
 export function translateDynamicUiEn(text, translate) {
   let match;
+  if ((match = text.match(/^(\d+)ページのPDFを表示しています。$/u))) return `Showing PDF · ${match[1]} ${Number(match[1]) === 1 ? "page" : "pages"}`;
+  if ((match = text.match(/^一覧\s+(\d+)$/u))) return `Markers ${match[1]}`;
+  if ((match = text.match(/^目印一覧\s+(\d+)件$/u))) return `Markers · ${match[1]}`;
+  if ((match = text.match(/^(\d+)ページ(?:・(.+))?$/u))) return `Page ${match[1]}${match[2] ? ` · ${translate(match[2])}` : ""}`;
   if ((match = text.match(/^(.+) · 最近(\d+)件の地震を確認$/u))) return `${translate(match[1])} · Checked ${match[2]} recent earthquakes`;
   if ((match = text.match(/^最近の地震で(.+)で震度を観測した地震は？$/u))) return `Which recent earthquakes had observed intensity in ${translate(match[1])}?`;
   if ((match = text.match(/^(\d+)件の電文を取得できませんでした。$/u))) return `${match[1]} reports could not be retrieved.`;

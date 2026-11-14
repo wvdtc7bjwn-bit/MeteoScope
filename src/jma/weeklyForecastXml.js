@@ -240,7 +240,12 @@ export function resolveWeeklyForecastTarget(areaData, weekAreaData, areaCode) {
 }
 
 export function buildWeeklyForecastRegionCatalog(areaData, weekAreaData) {
-  return Object.entries(weekAreaData ?? {}).flatMap(([officeCode, mappings]) => {
+  // Object enumeration puts integer-like codes (100000, ...) before codes
+  // with leading zeroes (011000, ...). Sort the fixed-width JMA codes so
+  // Hokkaido and Tohoku remain at the start, regardless of JSON key order.
+  const offices = Object.entries(weekAreaData ?? {})
+    .sort(([left], [right]) => left.localeCompare(right));
+  return offices.flatMap(([officeCode, mappings]) => {
     if (!areaData?.offices?.[officeCode] || !Array.isArray(mappings)) return [];
     const regions = [];
     const seen = new Set();

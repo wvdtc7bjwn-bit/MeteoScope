@@ -881,7 +881,7 @@ html[data-theme="light"] .modal-loading-copy small {
 
 html[data-theme="light"] .feedback-intro { color: #2f4b66; }
 html[data-theme="light"] .feedback-field span { color: #506b84; }
-html[data-theme="light"] :is(.feedback-field select, .feedback-field textarea, .feedback-field input) {
+html[data-theme="light"] :is(.feedback-field textarea, .feedback-field input) {
   border-color: rgba(68, 101, 134, 0.24);
   background: rgba(255, 255, 255, 0.82);
   color: #19344d;
@@ -961,8 +961,8 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
     align-items: flex-end;
   }
 
-  /* Keep posting below the picker, including when its choices expand upward. */
-  .map-community-report-button {
+  /* Keep the location button below the picker, including when its choices expand upward. */
+  .map-locate-button {
     right: max(12px, env(safe-area-inset-right));
     bottom: calc(var(--shared-map-controls-bottom) - 54px);
   }
@@ -1007,7 +1007,7 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
     );
   }
 
-  .map-community-report-button {
+  .map-locate-button {
     bottom: max(
       calc(var(--mobile-sidebar-visible-height, 48dvh) + 16px),
       calc(max(0px, env(safe-area-inset-bottom)) + 166px)

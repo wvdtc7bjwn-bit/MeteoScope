@@ -1,4 +1,5 @@
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { setupMunicipalHazardMaps } from "./municipalHazardMaps.js";
 
 const PAGE_GAP_PX = 12;
 const MAX_RENDER_OUTPUT_SCALE = 2;
@@ -60,6 +61,9 @@ export function setupDisasterMapModal() {
   const status = document.getElementById("disaster-map-status");
   const openLink = document.getElementById("disaster-map-open");
   const clearButton = document.getElementById("disaster-map-clear");
+  const toolbar = document.getElementById("disaster-map-toolbar");
+  const fileName = document.getElementById("disaster-map-file-name");
+  const fileType = document.getElementById("disaster-map-file-type");
   const zoomControls = document.getElementById("disaster-map-zoom");
   const zoomOutButton = document.getElementById("disaster-map-zoom-out");
   const zoomFitButton = document.getElementById("disaster-map-zoom-fit");
@@ -117,6 +121,7 @@ export function setupDisasterMapModal() {
   let loadGeneration = 0;
   let renderGeneration = 0;
   let pdfDocument = null;
+  let pdfLoadingTask = null;
   let pageObserver = null;
   let pageStates = [];
   let currentZoom = FIT_ZOOM;
@@ -130,11 +135,63 @@ export function setupDisasterMapModal() {
   let annotationMode = false;
   let editingAnnotationId = "";
   let pendingAnnotation = null;
+  const directoryRoot = document.getElementById("disaster-map-directory");
+  const localPanel = document.getElementById("disaster-map-local");
+  const mapModes = [...modal.querySelectorAll("[data-disaster-map-mode]")];
+  const directory = directoryRoot ? setupMunicipalHazardMaps(directoryRoot) : null;
+  let mapMode = directory ? "municipal" : "local";
+
+  function setMapMode(mode) {
+    mapMode = mode;
+    if (directoryRoot) directoryRoot.hidden = mode !== "municipal";
+    if (localPanel) localPanel.hidden = mode !== "local";
+    for (const button of mapModes) {
+      const selected = button.dataset.disasterMapMode === mode;
+      button.setAttribute("aria-selected", String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    }
+    if (mode === "municipal") void directory?.show();
+    else {
+      if (!storedPdfRestored && !hasActiveDocument()) void restoreStoredPdf();
+      window.requestAnimationFrame(() => {
+        if (!modal.hidden && mapMode === "local" && hasActiveDocument()) refreshPageShells({ preserveRendered: true });
+      });
+    }
+  }
+  for (const button of mapModes) {
+    button.addEventListener("click", () => setMapMode(button.dataset.disasterMapMode));
+    button.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === "Home" ? mapModes[0] : event.key === "End" ? mapModes.at(-1) : mapModes.find((item) => item !== button);
+      setMapMode(next.dataset.disasterMapMode);
+      next.focus();
+    });
+  }
 
   openButton.addEventListener("click", openDisasterMapModal);
 
   modal.addEventListener("click", (event) => {
     if (event.target.closest("[data-disaster-map-close]")) closeDisasterMapModal();
+    if (event.target.closest("[data-disaster-map-pick]")) fileInput.click();
+  });
+
+  modal.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (!annotationPanel.hidden) closeAnnotationPanel();
+      else closeDisasterMapModal();
+    }
+    if (event.key !== "Tab") return;
+    const focusable = [...modal.querySelectorAll("button, a[href], input, select, textarea, summary")]
+      .filter((element) => element.tabIndex >= 0 && !element.matches(":disabled") && element.getClientRects().length && !element.closest("[hidden]"));
+    const first = focusable[0];
+    const last = focusable.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault(); last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first?.focus();
+    }
   });
 
   fileInput.addEventListener("change", () => {
@@ -179,9 +236,10 @@ export function setupDisasterMapModal() {
   );
 
   window.addEventListener("resize", () => {
-    if (!hasActiveDocument() || modal.hidden) return;
+    if (!hasActiveDocument() || modal.hidden || mapMode !== "local") return;
     window.clearTimeout(resizeTimer);
     resizeTimer = window.setTimeout(() => {
+      if (modal.hidden || mapMode !== "local") return;
       const anchor = getDefaultZoomAnchor();
       refreshPageShells({ preserveRendered: true });
       restoreZoomAnchor(anchor);
@@ -192,11 +250,14 @@ export function setupDisasterMapModal() {
 
   function openDisasterMapModal() {
     modal.hidden = false;
+    openButton.setAttribute("aria-expanded", "true");
     document.body.classList.add("modal-open");
-    if (!storedPdfRestored && !hasActiveDocument()) void restoreStoredPdf();
+    setMapMode(mapMode);
     window.requestAnimationFrame(() => {
-      if (hasActiveDocument()) refreshPageShells({ preserveRendered: true });
-      if (!pages.childElementCount) fileInput.focus();
+      if (modal.hidden) return;
+      if (mapMode === "municipal") mapModes[0]?.focus();
+      else if (!pages.childElementCount) placeholder.querySelector("[data-disaster-map-pick]")?.focus();
+      else modal.querySelector("[data-disaster-map-close].warning-modal-close")?.focus();
     });
   }
 
@@ -205,7 +266,22 @@ export function setupDisasterMapModal() {
     setAnnotationMode(false);
     closeAnnotationPanel();
     modal.hidden = true;
+    openButton.setAttribute("aria-expanded", "false");
     document.body.classList.remove("modal-open");
+    openButton.focus();
+  }
+
+  function showFileDetails(file) {
+    if (toolbar) toolbar.hidden = false;
+    if (clearButton) clearButton.disabled = false;
+    if (fileName) {
+      fileName.textContent = file.name;
+      fileName.title = file.name;
+    }
+    if (fileType) fileType.textContent = isPdfFile(file) ? "PDF" : "画像";
+    if (!modal.hidden && placeholder.contains(document.activeElement)) {
+      toolbar?.querySelector("[data-disaster-map-pick]")?.focus({ preventScroll: true });
+    }
   }
 
   function showLocalFile(file) {
@@ -221,6 +297,7 @@ export function setupDisasterMapModal() {
     localPdfUrl = URL.createObjectURL(file);
     activeFileKind = isPdfFile(file) ? "pdf" : "image";
     activeFileKey = nextFileKey;
+    showFileDetails(file);
     if (previousFileKey && previousFileKey !== nextFileKey) {
       void deleteStoredAnnotations(previousFileKey);
     }
@@ -228,7 +305,7 @@ export function setupDisasterMapModal() {
     openLink.hidden = false;
     currentZoom = FIT_ZOOM;
     updateZoomControls();
-    setStatus(`${file.name} を読み込み中...`, "ok");
+    setStatus("ファイルを読み込み中...", "ok");
     modal.classList.add("disaster-map-modal--pdf-open");
     void saveStoredPdf(file).catch((error) => {
       console.warn("[DisasterMap] Failed to persist PDF", error);
@@ -241,16 +318,18 @@ export function setupDisasterMapModal() {
 
     storedPdfRestorePromise = (async () => {
       storedPdfRestored = true;
+      const restoreGeneration = loadGeneration;
       const record = await loadStoredPdf();
-      if (!record?.blob || hasActiveDocument()) return;
+      if (!record?.blob || restoreGeneration !== loadGeneration || localPdfUrl || hasActiveDocument()) return;
 
       const file = createStoredPdfFile(record);
-      setStatus(`${file.name} を復元しています...`, "ok");
+      setStatus("保存したファイルを復元しています...", "ok");
       cleanupPdfDocument();
       releaseLocalPdfUrl();
       localPdfUrl = URL.createObjectURL(file);
       activeFileKind = isPdfFile(file) ? "pdf" : "image";
       activeFileKey = getFileKey(file);
+      showFileDetails(file);
       openLink.href = localPdfUrl;
       openLink.hidden = false;
       currentZoom = FIT_ZOOM;
@@ -283,12 +362,13 @@ export function setupDisasterMapModal() {
 
     try {
       const bytes = await file.arrayBuffer();
+      if (currentLoad !== loadGeneration) return;
       const pdfjsLib = await loadPdfJs();
-      const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-      if (currentLoad !== loadGeneration) {
-        void pdf.destroy();
-        return;
-      }
+      if (currentLoad !== loadGeneration) return;
+      const loadingTask = pdfjsLib.getDocument({ data: bytes });
+      pdfLoadingTask = loadingTask;
+      const pdf = await loadingTask.promise;
+      if (currentLoad !== loadGeneration) return;
 
       pdfDocument = pdf;
       await createPageShells(currentLoad);
@@ -297,9 +377,11 @@ export function setupDisasterMapModal() {
       setupPageObserver();
       updateZoomControls();
       await loadAnnotationsForActiveFile();
+      if (currentLoad !== loadGeneration) return;
       renderVisiblePages();
-      setStatus(`${file.name} を表示しています。`, "ok");
+      setStatus(`${pdf.numPages}ページのPDFを表示しています。`, "ok");
     } catch (error) {
+      if (currentLoad !== loadGeneration) return;
       console.error("[DisasterMap] PDF render failed", error);
       cleanupPdfDocument();
       pages.replaceChildren();
@@ -307,7 +389,7 @@ export function setupDisasterMapModal() {
       modal.classList.remove("disaster-map-modal--pdf-open");
       setStatus("PDFを表示できませんでした。", "error");
     } finally {
-      pages.removeAttribute("aria-busy");
+      if (currentLoad === loadGeneration) pages.removeAttribute("aria-busy");
     }
   }
 
@@ -347,9 +429,11 @@ export function setupDisasterMapModal() {
       pages.appendChild(shell);
       updateZoomControls();
       await loadAnnotationsForActiveFile();
+      if (currentLoad !== loadGeneration) return;
       renderMarkersForPage(pageStates[0]);
-      setStatus(`${file.name} を表示しています。`, "ok");
+      setStatus("画像を表示しています。", "ok");
     } catch (error) {
+      if (currentLoad !== loadGeneration) return;
       console.error("[DisasterMap] Image render failed", error);
       cleanupPdfDocument();
       pages.replaceChildren();
@@ -357,7 +441,7 @@ export function setupDisasterMapModal() {
       modal.classList.remove("disaster-map-modal--pdf-open");
       setStatus("画像を表示できませんでした。", "error");
     } finally {
-      pages.removeAttribute("aria-busy");
+      if (currentLoad === loadGeneration) pages.removeAttribute("aria-busy");
     }
   }
 
@@ -903,13 +987,17 @@ export function setupDisasterMapModal() {
 
   function cleanupPdfDocument() {
     loadGeneration += 1;
+    pages.removeAttribute("aria-busy");
     renderGeneration += 1;
     pinchState = null;
     activePinchZoom = FIT_ZOOM;
     clearPinchPreview();
     disconnectPageObserver();
     for (const state of pageStates) cancelPageRender(state);
-    if (pdfDocument) void pdfDocument.destroy();
+    // PDF.js 6 releases the document and worker through its loading task.
+    // PDFDocumentProxy no longer has destroy(); using it broke file changes.
+    disposePdfLoadingTask(pdfLoadingTask);
+    pdfLoadingTask = null;
     pdfDocument = null;
     pageStates = [];
     activeFileKind = "";
@@ -944,6 +1032,10 @@ export function setupDisasterMapModal() {
     openLink.removeAttribute("href");
     openLink.hidden = true;
     placeholder.hidden = false;
+    if (toolbar) toolbar.hidden = true;
+    if (clearButton) clearButton.disabled = true;
+    if (fileName) { fileName.textContent = ""; fileName.removeAttribute("title"); }
+    if (fileType) fileType.textContent = "";
     modal.classList.remove("disaster-map-modal--pdf-open");
     currentZoom = FIT_ZOOM;
     updateZoomControls();
@@ -952,18 +1044,27 @@ export function setupDisasterMapModal() {
         console.warn("[DisasterMap] Failed to clear stored PDF", error);
       });
     }
-    setStatus("PDFまたは画像を選択してください。", "");
+    setStatus("", "");
+    if (!modal.hidden) placeholder.querySelector("[data-disaster-map-pick]")?.focus();
   }
 
   function setStatus(message, type) {
     status.textContent = message;
     status.dataset.status = type;
+    status.hidden = !message;
   }
 
   function clearPinchPreview() {
     pages.classList.remove("is-pinch-zooming");
     pages.style.removeProperty("--disaster-map-preview-scale");
   }
+}
+
+function disposePdfLoadingTask(task) {
+  if (!task) return;
+  Promise.resolve().then(() => task.destroy()).catch(() => {
+    console.warn("[DisasterMap] Failed to release PDF worker");
+  });
 }
 
 function isPdfFile(file) {

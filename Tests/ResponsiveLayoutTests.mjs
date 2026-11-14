@@ -278,7 +278,7 @@ assert.match(
 );
 assert.match(
   styles,
-  /@media \(orientation: landscape\), \(min-width: 801px\)\s*\{[\s\S]*?\.map-utility-menu-toggle\s*\{[\s\S]*?left:\s*var\(--shared-dock-left\);[\s\S]*?\.map-locate-button\s*\{[\s\S]*?bottom:\s*var\(--shared-map-controls-bottom\);[\s\S]*?\.map-legend\s*\{[\s\S]*?bottom:\s*calc\(var\(--shared-map-controls-bottom\) \+ 54px\);/
+  /@media \(orientation: landscape\), \(min-width: 801px\)\s*\{[\s\S]*?\.map-utility-menu-toggle\s*\{[\s\S]*?left:\s*var\(--shared-dock-left\);[\s\S]*?\.map-community-report-button\s*\{[\s\S]*?bottom:\s*var\(--shared-map-controls-bottom\);[\s\S]*?\.map-legend\s*\{[\s\S]*?bottom:\s*calc\(var\(--shared-map-controls-bottom\) \+ 54px\);/
 );
 assert.match(
   styles,
@@ -891,7 +891,8 @@ assert.match(panel, /root\.addEventListener\("selectstart", preventTimelineSelec
 assert.match(panel, /root\.addEventListener\("dragstart", preventTimelineSelection\)/);
 assert.doesNotMatch(panel, /mobile-dock-radar-summary/);
 assert.doesNotMatch(styles, /\.mobile-context-dock\[data-tab="radar"\]\s*\{/);
-assert.match(styles, /\.map-community-report-button\s*\{[\s\S]*?right:\s*17px;[\s\S]*?display:\s*grid;/);
+assert.match(styles, /\.map-locate-button\s*\{[^}]*right:\s*17px;/);
+assert.match(styles, /\.map-community-report-button\s*\{[^}]*display:\s*grid;/);
 assert.match(styles, /#community-report-open::before\s*\{[\s\S]*?--community-report-icon/);
 assert.match(styles, /\.radar-action-button::before\s*\{[\s\S]*?--radar-action-icon/);
 assert.match(panel, /playButton\.setAttribute\("aria-label", label\)/);
@@ -1136,8 +1137,8 @@ assert.match(styles, /\.map-weather-distribution-toggle,\s*\.map-weather-distrib
 assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-weather-distribution-toggle\s*\{[^}]*align-items:\s*flex-end;[^}]*transform-origin:\s*right bottom;/);
 assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-weather-distribution-toggle\.collapsed \.weather-distribution-toggle-choices\s*\{\s*filter:\s*none;/);
 assert.doesNotMatch(styles, /bottom:\s*calc\(var\(--shared-map-controls-bottom\) \+ 54px\);\s*\}\s*\.mobile-drawer-open \.map-weather-distribution-toggle/);
-assert.match(styles, /Keep posting below the picker[\s\S]*?\.map-community-report-button\s*\{[^}]*right:\s*max\(12px, env\(safe-area-inset-right\)\);[^}]*bottom:\s*calc\(var\(--shared-map-controls-bottom\) - 54px\);/);
-assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-community-report-button\s*\{[^}]*--mobile-sidebar-visible-height, 48dvh\) \+ 16px\)[^}]*166px/);
+assert.match(styles, /Keep the location button below the picker[\s\S]*?\.map-locate-button\s*\{[^}]*right:\s*max\(12px, env\(safe-area-inset-right\)\);[^}]*bottom:\s*calc\(var\(--shared-map-controls-bottom\) - 54px\);/);
+assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-locate-button\s*\{[^}]*--mobile-sidebar-visible-height, 48dvh\) \+ 16px\)[^}]*166px/);
 assert.match(styles, /html\[data-theme="light"\] #map-utility-actions\s*\{[^}]*background:\s*#edf4fa !important;[^}]*box-shadow:\s*none !important;[^}]*backdrop-filter:\s*none !important;/);
 
 console.log("Responsive layouts: OK");

@@ -431,7 +431,7 @@
   font-weight: 800;
 }
 
-.earthquake-archive-search :is(input, select) {
+.earthquake-archive-search :is(input) {
   width: 100%;
   min-width: 0;
   height: 34px;
@@ -443,6 +443,11 @@
   font: inherit;
   font-size: 11px;
   box-sizing: border-box;
+}
+
+.earthquake-archive-search :is(select) {
+  width: 100%;
+  min-width: 0;
 }
 
 .earthquake-archive-search-button {
@@ -583,15 +588,6 @@ html[data-theme="light"] .focal-mechanism-body a { color: #17658a; }
 .earthquake-distribution-filters select {
   width: 100%;
   min-width: 0;
-  height: 34px;
-  padding: 0 24px 0 8px;
-  border: 1px solid rgba(137, 170, 220, 0.24);
-  border-radius: 9px;
-  background: #14243a;
-  color: #eef6ff;
-  font: inherit;
-  font-size: 11px;
-  font-weight: 750;
 }
 
 .earthquake-distribution-date-control {
@@ -1405,7 +1401,6 @@ html[data-theme="light"] .focal-mechanism-body a { color: #17658a; }
 .mobile-dock-earthquake .earthquake-nearby-search-button.is-compact { flex: 0 0 auto; min-height: 14px; margin: 0 0 0 auto; padding: 0 4px; border-radius: 5px; font-size: 8px; line-height: 1; white-space: nowrap; }
 .earthquake-nearby-context { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px; border: 1px solid rgba(121, 188, 226, 0.24); border-radius: 9px; color: rgba(216, 230, 247, 0.8); font-size: 11px; }
 .earthquake-nearby-context label { display: inline-flex; align-items: center; gap: 6px; }
-.earthquake-nearby-context select { min-height: 32px; }
 .earthquake-nearby-context button { min-height: 30px; border: 1px solid rgba(121, 188, 226, 0.28); border-radius: 7px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
 
 .earthquake-map-layer-controls.has-estimated-intensity {

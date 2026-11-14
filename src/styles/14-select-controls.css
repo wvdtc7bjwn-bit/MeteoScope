@@ -1,0 +1,81 @@
+/* One visual contract for native, single-choice selects. Keep the platform's
+   option picker, form validation, keyboard operation and change events. */
+:root {
+  --select-height: 44px;
+  --select-radius: 8px;
+  --select-surface: #15263a;
+  --select-text: #edf3f9;
+  --select-border: #40556d;
+  --select-hover-border: #829bb5;
+  --select-focus: #79c9ee;
+  --select-scheme: dark;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23b4c5d7' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+}
+html[data-theme="light"], body[data-theme="light"] {
+  --select-surface: #fff;
+  --select-text: #173149;
+  --select-border: #b8c8d6;
+  --select-hover-border: #708ba2;
+  --select-focus: #1478a7;
+  --select-scheme: light;
+  --select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234e6578' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6 4 4 4-4'/%3E%3C/svg%3E");
+}
+:root select:not([multiple]):not([size]),
+:root select:not([multiple])[size="1"] {
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  height: var(--select-height);
+  min-height: var(--select-height);
+  padding: 0 40px 0 12px;
+  border: 1px solid var(--select-border);
+  border-radius: var(--select-radius);
+  background-color: var(--select-surface);
+  background-image: var(--select-chevron);
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px 16px;
+  color: var(--select-text);
+  color-scheme: var(--select-scheme);
+  font-family: var(--font-jp-gothic);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  outline: none;
+  box-shadow: none;
+  text-shadow: none;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+:where(select) { width: 100%; min-width: 0; max-width: 100%; }
+:root select:enabled:hover:not(:focus-visible) { border-color: var(--select-hover-border); }
+:root select:focus-visible {
+  border-color: var(--select-focus);
+  outline: 2px solid var(--select-focus);
+  outline-offset: 2px;
+}
+:root select:disabled { opacity: .55; cursor: not-allowed; }
+:root select[aria-invalid="true"] { border-color: var(--danger, #e6453a); }
+:root select :is(option, optgroup) { color: var(--select-text); background-color: var(--select-surface); }
+/* A radius choice is an inline field, not a full-width form row. */
+.earthquake-nearby-context select { width: 112px; }
+/* Keep the English topic label clear of the shared chevron. */
+html[lang="en"] .warning-chat-toolbar { grid-template-columns: 140px minmax(0, 1fr) auto; }
+@media (prefers-reduced-motion: reduce) {
+  :root select { transition: none; }
+}
+@media (forced-colors: active) {
+  :root select:not([multiple]):not([size]),
+  :root select:not([multiple])[size="1"] {
+    appearance: auto;
+    -webkit-appearance: auto;
+    background-image: none;
+    background-color: Canvas;
+    color: CanvasText;
+    border-color: ButtonText;
+  }
+  :root select:focus-visible { outline-color: Highlight; }
+}

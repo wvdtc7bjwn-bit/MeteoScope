@@ -1,6 +1,7 @@
 import { warningChatFactIntent } from "./warningChatFactIntent.js";
 import { recentQuestionPeriod } from "./warningChatRecentPeriod.js";
 import { formatWarningChatHeight } from "../../src/ai/warningChatFormatting.js";
+import { warningChatFocus, warningChatRequestedWarningKinds } from "./warningChatFocus.js";
 
 const isEnglish = input => input.language === "en";
 const intensityText = value => String(value).replace("-", "−");
@@ -22,7 +23,7 @@ export function buildOfficialChatFacts(input, context) {
   const recent = context.recentEarthquakes;
   if (!recent) throw new Error("missing_recent_earthquake_evidence");
   const english = isEnglish(input);
-  const details = /いつ|時刻|何時|規模|深さ|マグニチュード|when|time|magnitude|depth/iu.test(input.question);
+  const focus = warningChatFocus(input, context);
   const period = recentQuestionPeriod(input, Date.parse(context.fetchedAt));
   const inPeriod = quake => !period || (Date.parse(quake.eventTime) >= period.start && Date.parse(quake.eventTime) < period.end);
   const periodMatches = recent.matches.filter(inPeriod);
@@ -39,7 +40,7 @@ export function buildOfficialChatFacts(input, context) {
   const count = /何件|何回|how many/iu.test(input.question);
   const lines = matches.length
     ? [english ? `Yes. In ${context.areaName}, an observed intensity is reported for the following earthquakes:` : `はい。${context.areaName}では、次の地震で震度を観測しています。`,
-      ...matches.map(quake => `${timeText(quake.eventTime, english)} · ${quake.location || (english ? "epicenter unavailable" : "震源調査中")} · ${english ? "local intensity" : "当地の震度"} ${intensityText(quake.observedIntensity)}${details ? ` · M${quake.magnitude ?? (english ? "unavailable" : "調査中")} · ${depthText(quake.depthKm, english)}` : ""}`)]
+      ...(!focus.countOnly ? matches.map(quake => `${timeText(quake.eventTime, english)} · ${quake.location || (english ? "epicenter unavailable" : "震源調査中")} · ${english ? "local intensity" : "当地の震度"} ${intensityText(quake.observedIntensity)}${focus.fields.includes("magnitude") ? ` · M${quake.magnitude ?? (english ? "unavailable" : "調査中")}` : ""}${focus.fields.includes("depth") ? ` · ${depthText(quake.depthKm, english)}` : ""}`) : [])]
     : [english ? `No reported intensity in ${context.areaName} was confirmed within the checked recent earthquakes.` : `確認した最近の地震では、${context.areaName}の観測震度が掲載された地震を確認できませんでした。`];
   if (matches.length && strongest) lines[0] = english ? `The highest reported local intensity within the checked events in ${context.areaName} was ${intensityText(matches[0].observedIntensity)}:` : `確認範囲内で、${context.areaName}の観測震度が最も大きかった地震は次のとおりです（震度${intensityText(matches[0].observedIntensity)}）。`;
   if (count) lines[0] = strongest && matches.length
@@ -57,12 +58,17 @@ function buildCurrentFacts(input, context) {
   const english = isEnglish(input);
   const missing = english ? "unavailable" : "調査中";
   const lines = [];
+  const {fields} = warningChatFocus(input, context);
+  const requested = field => !fields.length || fields.includes(field);
   let evidenceId;
   if (context.topic === "weather") {
     if (!Array.isArray(context.warnings)) throw new Error("missing_warning_evidence");
     evidenceId = "current";
-    lines.push(context.warnings.length
-      ? `${context.areaName}${english ? ": Active warnings/advisories in the retrieved JMA data: " : "に発表中の警報・注意報は、"}${context.warnings.map(item => item.label).join(english ? "; " : "、")}${english ? "." : "です。"}`
+    const kinds = warningChatRequestedWarningKinds(input.question);
+    const warnings = kinds.length ? context.warnings.filter(item => kinds.some(kind => item.label.includes(kind))) : context.warnings;
+    lines.push(warnings.length
+      ? `${context.areaName}${english ? ": Active warnings/advisories in the retrieved JMA data: " : "に発表中の警報・注意報は、"}${warnings.map(item => item.label).join(english ? "; " : "、")}${english ? "." : "です。"}`
+      : kinds.length ? `${context.areaName}${english ? ": No requested warning types are listed in the retrieved JMA data. This does not guarantee safety." : `には、質問された${kinds.join("・")}の警報・注意報は、この資料には掲載されていません。安全を保証する表示ではありません。`}`
       : `${context.areaName}${english ? ": No weather warnings or advisories are listed in the retrieved JMA data. This does not guarantee safety." : "には、取得した気象庁の資料に発表中の気象警報・注意報は掲載されていません。安全を保証する表示ではありません。"}`);
     lines.push(english ? "River flood bulletins and municipal evacuation orders are not included." : "指定河川洪水予報・自治体の避難情報は、この照会の対象外です。");
   } else if (context.topic === "earthquake") {
@@ -71,10 +77,12 @@ function buildCurrentFacts(input, context) {
     if (!quake || context.availability === "empty") lines.push(english ? "No earthquake report could be found in the retrieved JMA list." : "取得した気象庁の一覧から、対象の地震電文を確認できませんでした。");
     else if (quake.reportState === "取消") lines.push(english ? "This earthquake report was cancelled. Its previous values must not be treated as valid." : "対象の地震電文は取消済みです。以前の震源・規模・震度を有効な値として表示しません。");
     else {
-      lines.push(`${english ? "Occurrence: " : "発生："}${timeText(quake.eventTime, english)}`,
-        `${english ? "Epicenter: " : "震源地："}${quake.location || missing} · M${quake.magnitude ?? missing} · ${depthText(quake.depthKm, english)}`,
-        `${english ? "Maximum observed intensity: " : "観測最大震度："}${quake.maxObservedIntensity ? intensityText(quake.maxObservedIntensity) : missing}`,
-        `${context.areaName}${english ? " observed intensity: " : "の観測震度："}${quake.selectedMunicipalityIntensity ? intensityText(quake.selectedMunicipalityIntensity) : (english ? "not confirmed in this report; not intensity zero" : "この電文では確認できません（震度0ではありません）")}`);
+      if (requested("eventTime")) lines.push(`${english ? "Occurrence: " : "発生："}${timeText(quake.eventTime, english)}`);
+      if (requested("location")) lines.push(`${english ? "Epicenter: " : "震源地："}${quake.location || missing}`);
+      if (requested("magnitude")) lines.push(`${english ? "Magnitude: " : "規模："}M${quake.magnitude ?? missing}`);
+      if (requested("depth")) lines.push(depthText(quake.depthKm, english));
+      if (requested("maxObservedIntensity")) lines.push(`${english ? "Maximum observed intensity: " : "観測最大震度："}${quake.maxObservedIntensity ? intensityText(quake.maxObservedIntensity) : missing}`);
+      if (requested("selectedMunicipalityIntensity")) lines.push(`${context.areaName}${english ? " observed intensity: " : "の観測震度："}${quake.selectedMunicipalityIntensity ? intensityText(quake.selectedMunicipalityIntensity) : (english ? "not confirmed in this report; not intensity zero" : "この電文では確認できません（震度0ではありません）")}`);
       if (quake.isHistorical) lines.push(english ? "This is an older earthquake report, not current shaking." : "発表から時間が経った地震の資料です。現在の揺れを示すものではありません。");
     }
   } else if (context.topic === "tsunami") {
@@ -85,13 +93,19 @@ function buildCurrentFacts(input, context) {
     else {
       const status = {expired: english ? "Expired bulletin" : "期限切れの資料", "forecast-unavailable": english ? "Forecast bulletin unavailable" : "警報・予報電文は未取得", reported: english ? "Retrieved tsunami bulletin" : "取得した津波電文"};
       lines.push(status[tsunami.state] || missing);
-      if (tsunami.validUntil) lines.push(`${english ? "Stated validity: " : "資料の有効期限："}${timeText(tsunami.validUntil, english)}`);
-      for (const area of tsunami.areas ?? []) lines.push(`${area.name} · ${area.grade} · ${english ? "expected height " : "予想高さ "}${formatWarningChatHeight(area.expectedHeight) || area.heightCondition || missing} · ${english ? "arrival " : "到達 "}${area.arrivalTime ? timeText(area.arrivalTime, english) : area.arrivalCondition || missing}`);
-      if (!(tsunami.areas?.length)) lines.push(english ? "Forecast heights and arrival times could not be confirmed in this report." : "この電文では予想高さ・到達時刻を確認できません。");
-      if (tsunami.omittedAreaCount) lines.push(english ? `${tsunami.omittedAreaCount} more forecast areas are omitted; see the official source.` : `ほか${tsunami.omittedAreaCount}予報区は省略しています。公式の出典をご確認ください。`);
-      lines.push(english ? "Expected heights are not observations. Arrival times are not a safe waiting period. This bulletin alone cannot establish the current status of all Japan." : "予想高さは観測値ではありません。到達予想時刻まで安全という意味ではなく、この資料だけで全国の現在の継続・解除は判断できません。");
+      if (tsunami.validUntil && requested("state")) lines.push(`${english ? "Stated validity: " : "資料の有効期限："}${timeText(tsunami.validUntil, english)}`);
+      if (requested("height") || requested("arrival")) {
+        for (const area of tsunami.areas ?? []) lines.push([area.name, area.grade,
+          ...(requested("height") ? [`${english ? "expected height " : "予想高さ "}${formatWarningChatHeight(area.expectedHeight) || area.heightCondition || missing}`] : []),
+          ...(requested("arrival") ? [`${english ? "arrival " : "到達 "}${area.arrivalTime ? timeText(area.arrivalTime, english) : area.arrivalCondition || missing}`] : [])].join(" · "));
+        if (!(tsunami.areas?.length)) lines.push(english ? "The requested forecast values could not be confirmed in this report." : "この電文では質問された予想値を確認できません。");
+        if (tsunami.omittedAreaCount) lines.push(english ? `${tsunami.omittedAreaCount} more forecast areas are omitted; see the official source.` : `ほか${tsunami.omittedAreaCount}予報区は省略しています。公式の出典をご確認ください。`);
+        if (requested("height")) lines.push(english ? "Expected heights are not observations." : "予想高さは観測値ではありません。");
+        if (requested("arrival")) lines.push(english ? "Arrival times are not a safe waiting period." : "到達予想時刻まで安全という意味ではありません。");
+      }
+      lines.push(english ? "This bulletin alone cannot establish the current status of all Japan." : "この資料だけで全国の現在の継続・解除は判断できません。");
     }
   } else throw new Error("unsupported_official_chat_topic");
-  lines.push(`${english ? "Issued: " : "発表："}${timeText(context.issuedAt, english)}`);
+  if (context.topic !== "earthquake" || requested("issuedAt")) lines.push(`${english ? "Issued: " : "発表："}${timeText(context.issuedAt, english)}`);
   return {answer: lines.join("\n"), evidenceIds: [evidenceId], answerKind: "official"};
 }

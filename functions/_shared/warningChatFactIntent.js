@@ -1,4 +1,5 @@
 import {isWarningChatEvacuationQuestion} from "../../src/ai/warningChatPolicy.js";
+import {warningChatFocus} from "./warningChatFocus.js";
 
 // Deliberately narrow: only requests answered by extracting official fields.
 // Explanations and risk judgements must not be replaced with a list of values.
@@ -20,9 +21,9 @@ export function warningChatFactIntent(input, selection) {
   if (selection.topic === "weather" && /警報|注意報|warning|advisor/iu.test(q)
     && /現在|今|発表|出て|current|in effect|active|issued/iu.test(q)
     && !/いつ|時間|まで|when|until|end|何に|対処|行動/iu.test(q)) return "weather-warnings";
-  if (selection.topic === "earthquake" && /地震|earthquake/iu.test(q)
-    && /最新|選択|その|この|latest|selected|that|this/iu.test(q)
-    && /震源|規模|マグニチュード|深さ|時刻|いつ|何時|観測震度|最大震度|magnitude|depth|where|when|intensity|epicenter/iu.test(q)
+  const shortFieldQuestion = /^(?:(?:その|この|では|じゃあ)[、,\s]*)?(?:震源(?:地)?|規模|マグニチュード|深さ|発生時刻|発表時刻|最大震度|ここの震度|観測震度|magnitude|depth|epicenter|when|where)(?:は|を|が|です|か|どこ|いつ|何時|\s|[?？。!！])*$/iu.test(q);
+  if (selection.topic === "earthquake" && (shortFieldQuestion || /地震|earthquake/iu.test(q) && /最新|選択|その|この|latest|selected|that|this/iu.test(q))
+    && warningChatFocus(input, selection).fields.length
     && !/津波|tsunami/iu.test(q)) return "earthquake-fields";
   if (selection.topic === "tsunami" && /津波|tsunami/iu.test(q)
     && /予想高さ|到達時刻|発表内容|現在も有効|まだ有効|expected height|arrival time|bulletin say|still (?:valid|in effect)/iu.test(q)) return "tsunami-fields";

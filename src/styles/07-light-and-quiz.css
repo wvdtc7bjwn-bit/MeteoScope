@@ -919,60 +919,12 @@ html[data-theme="light"] .map-utility-actions .disaster-map-open-button {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
-html[data-theme="light"] .disaster-map-body {
-  background: rgba(232, 240, 248, 0.48);
-}
-
-html[data-theme="light"] .disaster-map-toolbar {
-  border-color: rgba(57, 84, 113, 0.22);
-  background: rgba(218, 229, 240, 0.82);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
-}
-
-html[data-theme="light"] :is(.disaster-map-secondary, .disaster-map-file-button) {
-  border-color: rgba(49, 78, 109, 0.24);
-  color: #19344f;
-  background: linear-gradient(180deg, rgba(253, 255, 255, 0.96), rgba(224, 234, 244, 0.96));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 4px 10px rgba(47, 69, 94, 0.1);
-}
-
-html[data-theme="light"] :is(.disaster-map-secondary, .disaster-map-file-button):is(:hover, :focus-visible) {
-  border-color: rgba(23, 119, 170, 0.42);
-  color: #075f8b;
-  background: rgba(225, 243, 253, 0.98);
-}
-
-html[data-theme="light"] .disaster-map-status {
-  color: #526a82;
-}
-
-html[data-theme="light"] .disaster-map-status[data-status="ok"] {
-  color: #075f8b;
-}
-
-html[data-theme="light"] .disaster-map-status[data-status="error"] {
-  color: #a62929;
-}
-
-html[data-theme="light"] .disaster-map-viewer {
-  border-color: rgba(57, 84, 113, 0.24);
-  background: #dce6f0;
-  box-shadow: inset 0 1px 3px rgba(56, 78, 104, 0.1);
-}
-
-html[data-theme="light"] .disaster-map-placeholder {
-  color: #405d79;
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.56), transparent 52%),
-    rgba(228, 237, 246, 0.94);
-}
+html[data-theme="light"] .disaster-map-status[data-status="error"] { color: #a62929; }
 
 html[data-theme="light"] .disaster-map-page-shell {
   border: 1px solid rgba(55, 82, 110, 0.16);
   background: rgba(255, 255, 255, 0.88);
-  box-shadow: 0 8px 24px rgba(47, 69, 94, 0.16);
+  box-shadow: none;
 }
 
 html[data-theme="light"] .disaster-map-page-shell.is-loading::after {
@@ -990,7 +942,7 @@ html[data-theme="light"] .disaster-map-page-shell.is-error::after {
 html[data-theme="light"] .disaster-map-zoom-controls {
   border-color: rgba(55, 84, 114, 0.22);
   background: rgba(244, 249, 254, 0.92);
-  box-shadow: 0 12px 28px rgba(48, 70, 94, 0.16);
+  box-shadow: none;
 }
 
 html[data-theme="light"] .disaster-map-zoom-controls button {
@@ -1002,9 +954,9 @@ html[data-theme="light"] .disaster-map-zoom-controls button {
 html[data-theme="light"] .disaster-map-annotation-toolbar,
 html[data-theme="light"] .disaster-map-annotation-panel {
   border-color: rgba(55, 84, 114, 0.2);
-  background: rgba(244, 249, 254, 0.9);
+  background: var(--modal-surface, #f5f8fb);
   color: #18314d;
-  box-shadow: 0 16px 34px rgba(48, 70, 94, 0.16);
+  box-shadow: none;
 }
 
 html[data-theme="light"] .disaster-map-annotation-toolbar button,
@@ -1027,7 +979,7 @@ html[data-theme="light"] .disaster-map-annotation-empty {
   color: #5b7188;
 }
 
-html[data-theme="light"] .disaster-map-annotation-panel :is(input, select, textarea) {
+html[data-theme="light"] .disaster-map-annotation-panel :is(input, textarea) {
   border-color: rgba(55, 84, 114, 0.2);
   background: rgba(255, 255, 255, 0.9);
   color: #18314d;
@@ -1233,7 +1185,7 @@ html[data-theme="light"] .settings-account-delete {
   background: rgba(220, 82, 82, 0.1);
 }
 
-html[data-theme="light"] :is(input, textarea, select) {
+html[data-theme="light"] :is(input, textarea) {
   color: #1b3048;
   border-color: rgba(61, 88, 118, 0.22);
   background-color: rgba(255, 255, 255, 0.84);
@@ -1379,11 +1331,6 @@ html[data-theme="light"] .earthquake-distribution-chart-empty {
   background: rgba(57, 91, 126, 0.06);
   color: #536b82;
 }
-html[data-theme="light"] .earthquake-distribution-filters select {
-  border-color: rgba(72, 100, 132, 0.22);
-  background: #ffffff;
-  color: #20364e;
-}
 html[data-theme="light"] .earthquake-distribution-panel {
   border-color: transparent;
   background: transparent;
@@ -1392,7 +1339,7 @@ html[data-theme="light"] .earthquake-archive-search {
   border-color: rgba(72, 100, 132, 0.16);
   background: rgba(246, 250, 255, 0.9);
 }
-html[data-theme="light"] .earthquake-archive-search :is(input, select) {
+html[data-theme="light"] .earthquake-archive-search :is(input) {
   border-color: rgba(72, 100, 132, 0.22);
   background: #fff;
   color: #20364e;
@@ -1849,11 +1796,15 @@ html:not([data-early-access="active"]) :is([data-earthquake-view="history"], [da
 .community-report-form { display: grid; gap: 14px; }
 .community-report-form [hidden] { display: none !important; }
 .community-report-topic { padding-bottom: 10px !important; }
-.community-report-topic-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
-.community-report-topic-options label { position: relative; min-width: 0; cursor: pointer; }
+.community-report-topic-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.community-report-topic-options label { position: relative; display: flex; min-width: 0; cursor: pointer; }
 .community-report-topic-options input { position: absolute; opacity: 0; }
 .community-report-topic-options span {
-  display: block;
+  display: grid;
+  place-items: center;
+  flex: 1;
+  box-sizing: border-box;
+  min-height: 44px;
   padding: 9px 4px;
   border: 1px solid rgba(123, 155, 189, 0.36);
   border-radius: 7px;
@@ -1866,7 +1817,6 @@ html:not([data-early-access="active"]) :is([data-earthquake-view="history"], [da
 .community-report-topic-options input:focus-visible + span { outline: 2px solid #6db9dd; outline-offset: 2px; }
 .community-report-form > label,
 .community-report-form-grid label { display: grid; gap: 6px; color: #d8e4ef; font-size: 13px; font-weight: 800; }
-.community-report-form select,
 .community-report-form input[type="number"],
 .community-report-form textarea {
   width: 100%;
@@ -1878,6 +1828,9 @@ html:not([data-early-access="active"]) :is([data-earthquake-view="history"], [da
   color: #f5f8fb;
   background: rgba(7, 19, 37, 0.8);
   font: inherit;
+}
+.community-report-form select {
+  width: 100%;
 }
 .community-report-form textarea { min-height: 76px; resize: vertical; line-height: 1.55; }
 .community-report-comment-help { color: #91a4b8; font-size: 11px; font-weight: 500; text-align: right; }
@@ -1991,7 +1944,6 @@ html[data-theme="light"] .community-hazard-options label {
   color: #38536d;
   background: rgba(229, 237, 245, 0.82);
 }
-html[data-theme="light"] .community-report-form select,
 html[data-theme="light"] .community-report-form input[type="number"],
 html[data-theme="light"] .community-report-form textarea {
   border-color: rgba(62, 92, 122, 0.28);
@@ -2035,7 +1987,6 @@ html[data-theme="light"] .community-report-status[data-state="success"] { color:
     border-radius: var(--modal-shell-radius);
   }
   .community-report-body { padding: 15px 16px 22px; }
-  .community-report-topic-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .community-report-form-grid { grid-template-columns: 1fr; }
   .community-report-requirement { align-items: flex-start; flex-direction: column; }
 }

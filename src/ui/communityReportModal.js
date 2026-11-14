@@ -6,12 +6,11 @@ let contextProvider = () => ({});
 let submittedHandler = () => {};
 let openAccountHandler = () => {};
 let initialized = false;
-const REPORT_TOPIC_FIELDS = Object.freeze({ weather: "weather", cherry: "cherry", autumn: "autumn", "snow-cover": "snowCover" });
+const REPORT_TOPIC_FIELDS = Object.freeze({ weather: "weather", cherry: "cherry", autumn: "autumn" });
 const REPORT_TOPIC_EXAMPLES = Object.freeze({
   weather: "例：風が強く、傘が差しにくいです",
   cherry: "例：公園の桜が咲き始めました",
-  autumn: "例：山の斜面が赤く色づいています",
-  "snow-cover": "例：屋根にうっすら雪が積もりました"
+  autumn: "例：山の斜面が赤く色づいています"
 });
 
 export function setupCommunityReportModal({ getContext, onSubmitted, onOpenAccount } = {}) {
@@ -74,8 +73,8 @@ export async function openCommunityReportModal() {
   setSubmitEnabled(true);
   setStatus(
     getCurrentLanguage() === "en"
-      ? `${account.displayName} can post. Reports disappear after 5 hours. Up to 12 reports per day.`
-      : `${account.displayName} で投稿できます。投稿は5時間後に自動で消え、1日12回までです。`,
+      ? `${account.displayName} can post. Reports disappear after 12 hours. Up to 12 reports per day.`
+      : `${account.displayName} で投稿できます。投稿は12時間後に自動で消え、1日12回までです。`,
     "ready"
   );
 }
