@@ -36,7 +36,7 @@ const examples = new Map([
   ["平年最高 28.9℃ (1991-2020)", "Normal high 28.9℃ (1991-2020)"],
   ["最低Humidity 65%", "Low humidity 65%"],
   ["地図上の観測点をタップすると、Today's temperatureを表示します。", "Tap a station on the map to view today's temperature."],
-  ["11/13 19:42発生 · 和歌山県北部", "Occurred 11/13 19:42 JST · Wakayama, Northern area"],
+  ["11/13 19:42発生 · 和歌山県北部", "Occurred 11/13 19:42 JST · Northern Wakayama Prefecture"],
   ["11/6 19:53発表 · 三陸沖（期限切れの資料）", "Issued 11/6 19:53 JST · Off Sanriku (expired bulletin)"],
   ["Sakurajima (南岳山頂火口)", "Sakurajima (Minamidake summit crater)"],
   ["令和8年(2026年) 9月20日〜9月22日の事例(台風第25号と前線による大雨)", "2026/9/20–9/22 · Heavy rain from Typhoon No. 25 and a front"],

@@ -26,7 +26,7 @@ function reportOrder(a, b) {
     || Number(b.ift === "取消") - Number(a.ift === "取消") || b.json.localeCompare(a.json);
 }
 
-function selectEntries(raw, topic, now) {
+export function selectEntries(raw, topic, now) {
   if (!Array.isArray(raw)) throw new Error("invalid_seismic_list");
   const pattern = topic === "earthquake"
     ? /^\d{14}_\d{14}_VXSE5[123k]_[\w-]+\.json$/u
@@ -44,7 +44,7 @@ function selectEntries(raw, topic, now) {
   return { events: [...byEvent.values()].sort(reportOrder), reports: reports.sort(reportOrder) };
 }
 
-function validateReport(raw, entry, now) {
+export function validateReport(raw, entry, now) {
   const head = raw?.Head;
   if (raw?.Control?.Status !== "通常" || !["発表", "訂正", "取消"].includes(head?.InfoType)
     || head.EventID !== entry.eid || !validIssueTime(head.ReportDateTime, now)
@@ -52,7 +52,7 @@ function validateReport(raw, entry, now) {
   return head;
 }
 
-function earthquakeSummary(raw, areaCode, now) {
+export function earthquakeSummary(raw, areaCode, now) {
   const body = raw?.Body ?? {};
   const quake = array(body.Earthquake)[0] ?? {};
   const observation = body.Intensity?.Observation ?? {};

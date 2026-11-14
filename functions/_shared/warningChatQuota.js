@@ -12,9 +12,9 @@ export function warningChatDay(now = Date.now()) {
 }
 // Legacy rows still reserve every call whose usage was not reported.
 const PENDING_SQL = `coalesce(json_extract(app_records.value, '$.pendingNeurons'),
-  max(0, coalesce(json_extract(app_records.value, '$.used'), 0) - coalesce(json_extract(app_records.value, '$.usageReports'), 0)) * ${WARNING_CHAT_LIMITS.reservedNeurons})`;
+  max(0, coalesce(json_extract(app_records.value, '$.used'), 0) - coalesce(json_extract(app_records.value, '$.usageReports'), 0) - coalesce(json_extract(app_records.value, '$.lookupRequests'), 0)) * ${WARNING_CHAT_LIMITS.reservedNeurons})`;
 
-export async function reserveWarningChatQuota(db, accountId, { now = Date.now(), dailyLimit } = {}) {
+export async function reserveWarningChatQuota(db, accountId, { now = Date.now(), dailyLimit, inference = true } = {}) {
   const day = warningChatDay(now);
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${day}:${accountId}`));
   const digest = Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -28,12 +28,13 @@ export async function reserveWarningChatQuota(db, accountId, { now = Date.now(),
   const row = await db.prepare(`
     INSERT INTO app_records (key, value, updated_at)
     VALUES (?1, json_set('{"used":0,"accounts":{}}', '$.used', 1, ?2, 1,
-      '$.pendingNeurons', ?6, ?7, ?6), ?3)
+      '$.pendingNeurons', ?6, ?7, ?6, '$.lookupRequests', ?9), ?3)
     ON CONFLICT(key) DO UPDATE SET
       value = json_set(app_records.value,
         '$.used', coalesce(json_extract(app_records.value, '$.used'), 0) + 1,
         ?2, coalesce(json_extract(app_records.value, ?2), 0) + 1,
-        '$.pendingNeurons', ${PENDING_SQL} + ?6, ?7, ?6),
+        '$.pendingNeurons', ${PENDING_SQL} + ?6, ?7, ?6,
+        '$.lookupRequests', coalesce(json_extract(app_records.value, '$.lookupRequests'), 0) + ?9),
       updated_at = excluded.updated_at
     WHERE (?4 IS NULL OR coalesce(json_extract(app_records.value, '$.used'), 0) < ?4)
       AND coalesce(json_extract(app_records.value, ?2), 0) < ?5
@@ -41,7 +42,7 @@ export async function reserveWarningChatQuota(db, accountId, { now = Date.now(),
       AND coalesce(json_extract(app_records.value, '$.reportedNeurons'), 0) + ${PENDING_SQL} + ?6 <= ?8
     RETURNING json_extract(value, '$.used') AS used, json_extract(value, ?2) AS accountUsed
   `).bind(`warning-chat-quota:${day}`, userPath, new Date(now).toISOString(), limit,
-    WARNING_CHAT_LIMITS.perAccount, WARNING_CHAT_LIMITS.reservedNeurons, reservationPath, WARNING_CHAT_LIMITS.dailyNeurons).first();
+    WARNING_CHAT_LIMITS.perAccount, inference ? WARNING_CHAT_LIMITS.reservedNeurons : 0, reservationPath, WARNING_CHAT_LIMITS.dailyNeurons, inference ? 0 : 1).first();
   if (!row) return null;
   if (Number(row.used) === 1) {
     const cutoff = warningChatDay(now - 7 * 86400_000);
@@ -84,7 +85,7 @@ export async function readWarningChatOperationalMetrics(env, { now = Date.now() 
     model: WARNING_CHAT_MODEL, day, resetAt: new Date(Date.parse(`${day}T00:00:00Z`) + 86400_000).toISOString(),
     dailyLimit, perAccountLimit: WARNING_CHAT_LIMITS.perAccount, freeDailyNeurons: 10_000,
     budgetNeurons: WARNING_CHAT_LIMITS.dailyNeurons, providerExhausted: null, accepting: false,
-    requestCount: null, remainingRequests: null, reservedNeurons: null, reportedNeurons: null, usageReports: null, unconfirmedRequests: null,
+    requestCount: null, lookupRequests: null, remainingRequests: null, reservedNeurons: null, reportedNeurons: null, usageReports: null, unconfirmedRequests: null,
     // This feature cannot measure other projects' AI usage in the account.
     accountTotalNeurons: null
   };
@@ -92,20 +93,22 @@ export async function readWarningChatOperationalMetrics(env, { now = Date.now() 
   try {
     const row = await env.NOTIFICATIONS_DB.prepare(`SELECT json_extract(value, '$.used') AS used,
       json_extract(value, '$.reportedNeurons') AS neurons, json_extract(value, '$.usageReports') AS reports,
+      json_extract(value, '$.lookupRequests') AS lookups,
       ${PENDING_SQL} AS pending, json_extract(value, '$.exhausted') AS exhausted
       FROM app_records WHERE key = ?1`).bind(`warning-chat-quota:${day}`).first();
     const validCount = (value) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
     if (row && !validCount(row.used)) return base;
     const used = row?.used ?? 0;
     const reports = validCount(row?.reports) ? row.reports : 0;
+    const lookups = validCount(row?.lookups) ? row.lookups : 0;
     const neurons = typeof row?.neurons === "number" && Number.isFinite(row.neurons) && row.neurons >= 0 && reports > 0 ? row.neurons : null;
     const pending = typeof row?.pending === "number" && Number.isFinite(row.pending) && row.pending >= 0 ? row.pending : 0;
     const accepting = row?.exhausted !== 1 && (dailyLimit === null || used < dailyLimit)
       && (neurons ?? 0) + pending + WARNING_CHAT_LIMITS.reservedNeurons <= WARNING_CHAT_LIMITS.dailyNeurons;
     return { ...base, available: true, requestCount: used,
       remainingRequests: dailyLimit === null ? null : Math.max(0, dailyLimit - used),
-      reservedNeurons: pending, reportedNeurons: used === 0 ? 0 : neurons,
-      providerExhausted: row?.exhausted === 1, accepting, usageReports: reports, unconfirmedRequests: Math.max(0, used - reports) };
+      reservedNeurons: pending, reportedNeurons: used === lookups ? 0 : neurons, lookupRequests: lookups,
+      providerExhausted: row?.exhausted === 1, accepting, usageReports: reports, unconfirmedRequests: Math.max(0, used - reports - lookups) };
   } catch {
     console.warn("[warning-chat] usage metrics unavailable");
     return base;

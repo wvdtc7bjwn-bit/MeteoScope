@@ -54,9 +54,10 @@ function makeDb() {
 assert.equal(WARNING_CHAT_LIMITS.daily, null);
 assert.equal(WARNING_CHAT_LIMITS.dailyNeurons, 10000);
 assert.equal(warningChatQuestions()[0], "現在発表中の警報・注意報は？");
-assert.equal(warningChatQuestions({ topic: "earthquake", areaName: "千代田区" })[1], "最新の地震で千代田区の観測震度は？");
-assert.ok(warningChatQuestions({ topic: "earthquake", eventId: "20261113194233" }).every((question) => question.startsWith("選択した地震")));
-assert.ok(warningChatQuestions({ topic: "tsunami", eventId: "20261106193937" }).every((question) => question.startsWith("選択した津波情報")));
+assert.equal(warningChatQuestions({ topic: "earthquake", areaName: "千代田区" })[1], "最近の地震で千代田区で震度を観測した地震は？");
+assert.ok(warningChatQuestions({ topic: "earthquake", eventId: "20261113194233" }).slice(0, 3).every((question) => question.startsWith("選択した地震")));
+assert.ok(warningChatQuestions({ topic: "tsunami", eventId: "20261106193937" }).slice(0, 3).every((question) => question.startsWith("選択した津波情報")));
+assert.equal(warningChatQuestions({topic: "earthquake", eventId: "20261113194233"})[3], "震度とマグニチュードはどう違う？", "General terminology must not be relabelled as a selected event");
 assert.equal(warningChatDailyLimit("none"), null);
 assert.equal(warningChatDailyLimit("invalid"), 0);
 const estimate = (WARNING_CHAT_LIMITS.promptBytes + 1024) * 9091 / 1e6 + WARNING_CHAT_LIMITS.outputTokens * 27273 / 1e6;
@@ -212,8 +213,83 @@ try {
   const busyEnv = { ...env, WARNING_CHAT_DAILY_LIMIT: "none", AI: { async run() { calls++; throw new Error("3040: Capacity exceeded"); } } };
   assert.equal((await onRequest({ request: routeRequest(), env: busyEnv })).status, 503);
   assert.equal((await readWarningChatOperationalMetrics(busyEnv)).providerExhausted, false, "temporary capacity failure does not stop all users for the day");
+  // General evacuation guidance uses the authenticated route, no live source
+  // or inference, and still consumes the same personal question allowance.
+  db.sql.prepare("DELETE FROM app_records WHERE key LIKE 'warning-chat-quota:%'").run();
+  let evacuationCalls = 0;
+  globalThis.fetch = async () => { throw new Error("No current sources in this general-guidance test"); };
+  const evacuationEnv = {...env, WARNING_CHAT_DAILY_LIMIT: "none", AI: {async run() { evacuationCalls++; throw new Error("Unexpected inference"); }}};
+  for (const [topic, question, language] of [
+    ["weather", "大雨のとき、避難はどう判断する？", "ja"],
+    ["earthquake", "地震のとき、どう身を守り避難する？", "easy"],
+    ["tsunami", "How do I evacuate during a tsunami?", "en"]
+  ]) {
+    const result = await onRequest({request: routeRequest({body: {...validInput, topic, question, language}}), env: evacuationEnv});
+    assert.equal(result.status, 200);
+    const data = await result.json();
+    assert.equal(data.model, null); assert.equal(data.context.referenceKind, "evacuation");
+    assert.deepEqual(data.evidenceIds, ["evacuation"]);
+    assert.equal(data.context.issuedAt, null);
+  }
+  assert.equal(evacuationCalls, 0);
+  const evacuationMetrics = await readWarningChatOperationalMetrics(evacuationEnv);
+  assert.equal(evacuationMetrics.lookupRequests, 3);
+  assert.equal(evacuationMetrics.reservedNeurons, 0);
+  // Current questions still load and recheck live evidence, and include the
+  // reviewed guidance in exactly one inference instead of returning only fields.
+  globalThis.fetch = sourceFetcher();
+  const currentEvacuationEnv = {...evacuationEnv, AI: {async run(_model, parameters) {
+    evacuationCalls++;
+    const evidence = JSON.parse(parameters.messages[1].content.split("\n").slice(1).join("\n"));
+    assert.ok(evidence.evacuationGuidance.length); assert.ok(evidence.warnings.length);
+    return aiResult({answer: "気象庁の警報を確認し、危険な場所から早めの避難を検討してください。自治体の避難指示の発令状況は取得していません。", evidenceIds: ["current", "evacuation"]});
+  }}};
+  const currentEvacuation = await onRequest({request: routeRequest({body: {...validInput, question: "今の大雨で避難すべき？"}}), env: currentEvacuationEnv});
+  assert.equal(currentEvacuation.status, 200);
+  assert.equal((await currentEvacuation.json()).model, "Gemma 4");
+  assert.equal(evacuationCalls, 1);
+  // Ten questions total, counting both kinds. No quota/authentication bypass.
+  for (let n = 4; n < 10; n++) assert.equal((await onRequest({request: routeRequest({body: {...validInput, question: "避難の基本は？"}}), env: evacuationEnv})).status, 200);
+  assert.equal((await onRequest({request: routeRequest({body: {...validInput, question: "避難の基本は？"}}), env: evacuationEnv})).status, 429);
+  db.sql.prepare("DELETE FROM app_records WHERE key LIKE 'warning-chat-quota:%'").run();
+  let specialistCalls = 0;
+  const specialistEnv = {...env, WARNING_CHAT_DAILY_LIMIT: "none", AI: {async run(_model, parameters) {
+    specialistCalls++;
+    const evidence = JSON.parse(parameters.messages[1].content.split("\n").slice(1).join("\n"));
+    assert.equal(evidence.knowledgeOnly, true);
+    assert.ok(evidence.knowledge.length);
+    assert.ok(!evidence.warnings && !evidence.earthquake, "General mechanisms must not inherit an unrelated latest event");
+    return aiResult({answer: "気象庁の資料に基づく一般的な説明です。現在の発表状況を示すものではありません。", evidenceIds: ["knowledge"]});
+  }}};
+  globalThis.fetch = async () => { throw new Error("No current bulletin needed for a general specialist question"); };
+  for (const question of ["南海トラフ臨時情報と北海道・三陸沖後発地震注意情報の違いは？", "高層ビルが共振する仕組みを詳しく教えて"]) {
+    const result = await onRequest({request: routeRequest({body: {...validInput, question}}), env: specialistEnv});
+    assert.equal(result.status, 200); assert.equal((await result.json()).model, "Gemma 4");
+  }
+  assert.equal(specialistCalls, 2);
+  let pageVersion = "試験用の見出しです。", sourceCalls = 0;
+  globalThis.fetch = async (url) => {
+    sourceCalls++;
+    assert.equal(url, "https://www.data.jma.go.jp/eew/data/nteq/index.html");
+    return new Response(`<div id="main"><div class="teirei"><div align="right">令和8年11月13日</div><div align="center">南海トラフ地震関連解説情報</div><p>＊＊ 見出し ＊＊ ${pageVersion} ＊＊ 本文 ＊＊ 試験用本文</p></div></div>`);
+  };
+  const currentSpecialistEnv = {...specialistEnv, AI: {async run(_model, parameters) {
+    specialistCalls++;
+    const evidence = JSON.parse(parameters.messages[1].content.split("\n").slice(1).join("\n"));
+    assert.equal(evidence.advisories[0].currentState, "unverified");
+    pageVersion = "更新された試験用見出しです。";
+    return aiResult({answer: "公式ページの掲載内容を確認しました。現在の有効性は断定できません。", evidenceIds: ["advisory"]});
+  }}};
+  const changedSpecialist = await onRequest({request: routeRequest({body: {...validInput, question: "現在の南海トラフ臨時情報を確認したい"}}), env: currentSpecialistEnv});
+  assert.equal(changedSpecialist.status, 409, "Changed official advisory publication invalidates a generated answer");
+  assert.equal(sourceCalls, 2, "Only requested official source is fetched, then rechecked");
+  assert.equal(specialistCalls, 3, "No automatic second inference on a source change");
+  const steadySpecialist = await onRequest({request: routeRequest({body: {...validInput, question: "現在の南海トラフ臨時情報を確認したい"}}), env: currentSpecialistEnv});
+  assert.equal(steadySpecialist.status, 200);
+  assert.equal((await steadySpecialist.json()).context.referenceKind, "seismic-advisory");
   db.sql.prepare("DELETE FROM app_records WHERE key = 'early-access-account:user'").run();
   assert.equal((await onRequest({ request: routeRequest({ method: "GET" }), env })).status, 403);
+  assert.equal((await onRequest({request: routeRequest({body: {...validInput, question: "南海トラフ情報の意味は？"}}), env: specialistEnv})).status, 403);
 } finally {
   globalThis.fetch = originalFetch;
   globalThis.Date = RealDate;
@@ -227,7 +303,9 @@ const [html, ui, styles, privacy, consent] = await Promise.all([
   readFile(new URL("../public/privacy.html", import.meta.url), "utf8"),
   readFile(new URL("../src/ui/legalConsentModal.js", import.meta.url), "utf8")
 ]);
-assert.ok(html.indexOf('id="warning-chat-button"') < html.indexOf('id="current-location-weather"'), "chat is to the left of forecast");
+const clockMarkup = html.slice(html.indexOf('id="clock"'), html.indexOf('id="clock-display-mode"'));
+assert.ok(clockMarkup.indexOf('id="warning-chat-button"') > clockMarkup.indexOf('id="eew-connection-indicator"'), "chat follows the forecast, clock and connection indicator");
+assert.match(clockMarkup, /id="warning-chat-button"[\s\S]*<\/button><\/div>\s*<section\s*$/u, "chat is the last control, matching visual and keyboard order");
 assert.match(html, /id="warning-chat-button"[^>]+hidden/u);
 assert.match(html, /id="warning-chat-consent"[^>]+required/u);
 assert.match(ui, /meteoscope:early-access-change/u);

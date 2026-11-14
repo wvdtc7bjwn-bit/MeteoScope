@@ -625,8 +625,6 @@ html[data-theme="light"] #map-utility-actions {
   -webkit-backdrop-filter: none !important;
 }
 
-html[data-theme="light"] #map-legend { background: #edf4fa !important; }
-
 html[data-theme="light"] #map-utility-actions .disaster-map-open-button {
   border-color: rgba(72, 99, 127, 0.18);
   background: #f7fbff;

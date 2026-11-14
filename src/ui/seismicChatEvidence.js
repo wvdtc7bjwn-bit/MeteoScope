@@ -1,3 +1,5 @@
+import {formatWarningChatHeight as height} from "../ai/warningChatFormatting.js";
+
 export function renderSeismicChatEvidence(panel, context) {
   const paragraph = (value) => {
     const node = document.createElement("p");
@@ -5,8 +7,14 @@ export function renderSeismicChatEvidence(panel, context) {
     panel.append(node);
   };
   const at = (value) => value && Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", hour12: false }) : "調査中";
-  const height = (value) => /^[<>]?\d+(?:\.\d+)?$/u.test(value) ? `${value}m` : value;
-  if (context.availability === "empty") paragraph("取得した気象庁の一覧に対象の電文がありません。地震や津波がないことを意味しません。");
+  if (context.recentEarthquakes) {
+    const recent = context.recentEarthquakes;
+    paragraph(`${context.areaName} · 最近${recent.searchedCount}件の地震を確認`);
+    for (const quake of recent.matches) paragraph(`${at(quake.eventTime)} · ${quake.location || "震源調査中"} · ${context.areaName}の観測震度 ${quake.observedIntensity}`);
+    if (!recent.matches.length) paragraph("確認した範囲では、この市区町村の観測震度が掲載された地震を確認できませんでした。");
+    if (recent.unavailableCount) paragraph(`${recent.unavailableCount}件の電文を取得できませんでした。`);
+    paragraph(recent.scope);
+  } else if (context.availability === "empty") paragraph("取得した気象庁の一覧に対象の電文がありません。地震や津波がないことを意味しません。");
   else if (context.topic === "earthquake") {
     const earthquake = context.earthquake;
     paragraph(`${earthquake.kind} · ${earthquake.reportState}`);

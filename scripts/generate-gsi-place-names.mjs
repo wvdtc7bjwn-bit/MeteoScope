@@ -1,3 +1,4 @@
+import { buildPlaceNameTranslations } from "./build-place-name-translations.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
@@ -44,6 +45,9 @@ const payload = {
 
 fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, `${JSON.stringify(payload)}\n`, "utf8");
+if (path.resolve(outputPath) === path.resolve("public/data/gsi-place-names-romaji.json")) {
+  await buildPlaceNameTranslations();
+}
 console.log(`Wrote ${Object.keys(names).length} place names to ${outputPath}`);
 
 function groupItemsByRow(items) {

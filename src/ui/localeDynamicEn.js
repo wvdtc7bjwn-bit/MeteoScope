@@ -2,6 +2,9 @@
 // be translated by replacing isolated words inside arbitrary prose.
 export function translateDynamicUiEn(text, translate) {
   let match;
+  if ((match = text.match(/^(.+) · 最近(\d+)件の地震を確認$/u))) return `${translate(match[1])} · Checked ${match[2]} recent earthquakes`;
+  if ((match = text.match(/^最近の地震で(.+)で震度を観測した地震は？$/u))) return `Which recent earthquakes had observed intensity in ${translate(match[1])}?`;
+  if ((match = text.match(/^(\d+)件の電文を取得できませんでした。$/u))) return `${match[1]} reports could not be retrieved.`;
   if ((match = text.match(/^(縦長|正方形|横長)\s+(\d+)\s*×\s*(\d+)px(?:・(\d+)地点掲載)?$/u))) return `${({縦長:"Portrait", 正方形:"Square", 横長:"Landscape"})[match[1]]} ${match[2]} × ${match[3]}px${match[4] ? ` · ${match[4]} stations included` : ""}`;
   if ((match = text.match(/^実況・(高い順|低い順)\s+(\d+)地点$/u))) return `Current · ${match[1] === "高い順" ? "Highest first" : "Lowest first"} · ${match[2]} stations`;
   if ((match = text.match(/^(.+)の再現時刻$/u))) return `Replay time for ${translate(match[1])}`;

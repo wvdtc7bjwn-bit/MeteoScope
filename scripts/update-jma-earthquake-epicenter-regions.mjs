@@ -1,3 +1,4 @@
+import { buildPlaceNameTranslations } from "./build-place-name-translations.mjs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -19,6 +20,7 @@ async function main() {
   }
   await mkdir(path.dirname(OUTPUT_PATH), { recursive: true });
   await writeFile(OUTPUT_PATH, `${JSON.stringify(source)}\n`, "utf8");
+  await buildPlaceNameTranslations();
   console.log(`Saved ${source.features.length} JMA epicenter regions to ${OUTPUT_PATH}.`);
 }
 

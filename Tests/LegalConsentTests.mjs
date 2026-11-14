@@ -35,8 +35,10 @@ assert.match(settingsModule, /import \{ loadLegalDocumentMarkup \} from "\.\/leg
 assert.match(settingsModule, /container\.innerHTML = await loadLegalDocumentMarkup\(kind\)/);
 assert.match(html, /data-settings-legal-document="terms"/);
 assert.match(html, /data-settings-legal-document="privacy"/);
-assert.match(terms, /最終更新日：2026年11月13日/);
-assert.match(privacy, /最終更新日：2026年11月13日/);
+assert.match(terms, /最終更新日：2026年11月14日/);
+assert.match(privacy, /最終更新日：2026年11月14日/);
+assert.match(terms, /AIを呼び出さない照会を含め、1人1日10回/);
+assert.match(privacy, /気象庁の値や解説から直接回答できる一部の質問ではAIを呼び出しません/);
 assert.doesNotMatch(terms, /GEFS平均/);
 assert.match(consentModule, /function openDocument\(kind, trigger\)/);
 assert.match(consentModule, /function closeDocument/);

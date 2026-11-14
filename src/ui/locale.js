@@ -1,3 +1,6 @@
+import { EPICENTER_NAMES_EN } from "./placeNamesEn.generated.js";
+import { createPlaceNameIndex, loadPlaceNameData } from "./placeNameData.js";
+import { normalizePlaceNameKey } from "./placeNameAliases.js";
 import { TIDE_STATION_NAME_TRANSLATIONS } from "./tideStationNamesEn.js";
 import { UI_EN_TRANSLATIONS, COMPACT_EN_TRANSLATIONS, CLOCK_EN_TRANSLATIONS } from "./localeUiEn.js";
 import { translateDynamicUiEn } from "./localeDynamicEn.js";
@@ -17,8 +20,6 @@ const LANGUAGE_STORAGE_KEY = "meteoscope-language";
 const LANGUAGE_VALUES = new Set(["ja", "en"]);
 const TRANSLATABLE_ATTRIBUTES = ["aria-label", "aria-description", "aria-valuetext", "title", "placeholder", "alt", "data-layer-picker-title"];
 const SKIPPED_ELEMENTS = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA", "CODE", "PRE"]);
-const PLACE_NAME_DATA_URL = "/data/gsi-place-names-romaji.json";
-const AMEDAS_STATION_DATA_URL = "https://www.jma.go.jp/bosai/amedas/const/amedastable.json";
 const WEATHER_TERMS = new Map([
   ["晴", "Sunny"],
   ["晴れ", "Sunny"],
@@ -1665,7 +1666,7 @@ let observer = null;
 const listeners = new Set();
 let textStates = new WeakMap();
 let attributeStates = new WeakMap();
-let placeNames = new Map();
+let placeNames = createPlaceNameIndex();
 let placeNamesPromise = null;
 
 export function setupLocale() {
@@ -2085,6 +2086,10 @@ function translateCore(core) {
     ?? DYNAMIC_UI_TRANSLATIONS.get(core)
     ?? ADMIN_TRANSLATIONS.get(core);
   if (exact) return exact;
+  // Resolve complete earthquake region names before any station-name or
+  // prefecture fragments can turn them into mixed Japanese/English labels.
+  if (PREFECTURE_TRANSLATIONS.has(core)) return translateOfficialPlaceNames(core);
+  if (Object.hasOwn(EPICENTER_NAMES_EN, core)) return EPICENTER_NAMES_EN[core];
   const dynamic = translateDynamicUiEn(core, translateCore);
   if (dynamic !== null) return dynamic;
 
@@ -2333,39 +2338,10 @@ function lowerWeather(value) {
 
 async function loadOfficialPlaceNames() {
   if (placeNamesPromise || typeof fetch !== "function") return placeNamesPromise;
-  placeNamesPromise = Promise.allSettled([
-    fetch(PLACE_NAME_DATA_URL, { cache: "force-cache" }).then((response) => {
-      if (!response.ok) throw new Error(`Place-name data request failed: ${response.status}`);
-      return response.json();
-    }),
-    fetch(AMEDAS_STATION_DATA_URL, { cache: "force-cache" }).then((response) => {
-      if (!response.ok) throw new Error(`AMeDAS station request failed: ${response.status}`);
-      return response.json();
-    })
-  ]).then(([gazetteerResult, amedasResult]) => {
-    const merged = new Map();
-    if (gazetteerResult.status === "fulfilled") {
-      Object.entries(gazetteerResult.value?.names ?? {}).forEach(([japanese, romaji]) => {
-        if (!japanese || !romaji) return;
-        merged.set(japanese, romaji);
-        const stem = japanese.replace(/(?:都|道|府|県|市|区|町|村|島|山)$/u, "");
-        if (stem.length >= 2 && stem !== japanese && !merged.has(stem)) {
-          merged.set(stem, String(romaji).replace(/\s+(?:To|Do|Fu|Ken|Shi|Ku|Cho|Machi|Mura|Son|Jima|Shima|To|San|Yama)$/u, ""));
-        }
-      });
-    }
-    if (amedasResult.status === "fulfilled") {
-      Object.values(amedasResult.value ?? {}).forEach((station) => {
-        const japanese = String(station?.kjName ?? "").trim();
-        const english = String(station?.enName ?? "").trim();
-        if (japanese && english) merged.set(japanese, english);
-      });
-    }
-    merged.set("さいたま", "Saitama");
-    placeNames = merged;
+  placeNamesPromise = loadPlaceNameData((updatedNames) => {
+    placeNames = updatedNames;
     rebuildTranslationStates();
-    return placeNames;
-  }).catch(() => placeNames);
+  });
   return placeNamesPromise;
 }
 
@@ -2408,7 +2384,7 @@ const DESIGNATED_CITY_TRANSLATION_ENTRIES = [...DESIGNATED_CITY_TRANSLATIONS.ent
   .sort(([left], [right]) => right.length - left.length);
 
 const DESIGNATED_WARD_TRANSLATIONS = new Map(Object.entries({
-  "中央": "Chuo", "北": "Kita", "東": "Higashi", "南": "Minami", "西": "Nishi", "緑": "Midori",
+  "中央": "Chuo", "中": "Naka", "中村": "Nakamura", "北": "Kita", "東": "Higashi", "南": "Minami", "西": "Nishi", "緑": "Midori",
   "白石": "Shiroishi", "豊平": "Toyohira", "厚別": "Atsubetsu", "手稲": "Teine", "清田": "Kiyota",
   "青葉": "Aoba", "宮城野": "Miyagino", "若林": "Wakabayashi", "太白": "Taihaku", "泉": "Izumi",
   "大宮": "Omiya", "見沼": "Minuma", "桜": "Sakura", "浦和": "Urawa", "岩槻": "Iwatsuki",
@@ -2423,7 +2399,7 @@ const DESIGNATED_WARD_TRANSLATIONS = new Map(Object.entries({
   "幸": "Saiwai", "中原": "Nakahara", "高津": "Takatsu", "多摩": "Tama", "宮前": "Miyamae",
   "麻生": "Asao", "江南": "Konan", "秋葉": "Akiha", "西蒲": "Nishikan", "葵": "Aoi",
   "駿河": "Suruga", "清水": "Shimizu", "浜名": "Hamana", "天竜": "Tenryu", "千種": "Chikusa",
-  "昭和": "Showa", "瑞穂": "Mizuho", "熱田": "Atsuta", "中川": "Nakagawa", "守山": "Moriyama",
+  "昭和": "Showa", "瑞穂": "Mizuho", "熱田": "Atsuta", "中川": "Nakagawa", "守山": "Moriyama", "右京": "Ukyo",
   "名東": "Meito", "天白": "Tempaku", "上京": "Kamigyo", "左京": "Sakyo", "中京": "Nakagyo",
   "東山": "Higashiyama", "下京": "Shimogyo", "伏見": "Fushimi", "山科": "Yamashina", "西京": "Nishikyo",
   "都島": "Miyakojima", "福島": "Fukushima", "此花": "Konohana", "大正": "Taisho",
@@ -2435,7 +2411,15 @@ const DESIGNATED_WARD_TRANSLATIONS = new Map(Object.entries({
   "安佐北": "Asakita", "安芸": "Aki", "佐伯": "Saeki", "門司": "Moji", "若松": "Wakamatsu",
   "戸畑": "Tobata", "小倉北": "Kokurakita", "小倉南": "Kokuraminami", "八幡東": "Yahatahigashi",
   "八幡西": "Yahatanishi", "博多": "Hakata", "城南": "Jonan", "早良": "Sawara"
-}));
+}).map(([japanese, english]) => [normalizePlaceNameKey(japanese), english]));
+
+// JMA prefixes some observation names with a prefecture (without 県/府) or a
+// Hokkaido region to distinguish municipalities with the same name.
+const STATION_QUALIFIERS = [
+  ...[...PREFECTURE_TRANSLATIONS].map(([japanese, english]) => [japanese.replace(/[都府県]$/u, ""), english]),
+  ...["石狩", "渡島", "檜山", "後志", "空知", "上川", "留萌", "宗谷", "網走", "北見", "紋別", "胆振", "日高", "十勝", "釧路", "根室"]
+    .map((name) => [name, DYNAMIC_UI_TRANSLATIONS.get(`${name}地方`)?.replace(/ Region$/u, "")])
+].filter(([, english]) => english).sort(([a], [b]) => b.length - a.length);
 
 const OBSERVATION_LOCALITY_TRANSLATIONS = new Map(Object.entries({
   "田浦": "Tanoura",
@@ -2448,26 +2432,24 @@ const OBSERVATION_STATION_TRANSLATIONS = new Map(Object.entries({
   "八代市平山新町": "Yatsushiro City Hirayama-shinmachi",
   "鹿児島空港": "Kagoshima Airport",
   "薩摩川内市": "Satsumasendai City",
+  "新千歳空港": "New Chitose Airport",
+  "仙台空港": "Sendai Airport",
+  "成田国際空港": "Narita International Airport",
+  "東京国際空港": "Tokyo International Airport",
+  "新潟空港": "Niigata Airport",
+  "中部国際空港": "Chubu Centrair International Airport",
+  "大阪国際空港": "Osaka International Airport",
+  "関西国際空港": "Kansai International Airport",
+  "広島空港": "Hiroshima Airport",
+  "高松空港": "Takamatsu Airport",
+  "福岡空港": "Fukuoka Airport",
+  "那覇空港": "Naha Airport",
   "鹿児島県薩摩地方": "Satsuma Region, Kagoshima Prefecture"
 }));
 
 function findDesignatedCityWardPrefix(value) {
-  const cityEntry = DESIGNATED_CITY_TRANSLATION_ENTRIES
-    .find(([japanese]) => value.startsWith(japanese));
-  if (cityEntry) {
-    const remainder = value.slice(cityEntry[0].length);
-    const wardMatch = remainder.match(/^(.+?)区/u);
-    const ward = wardMatch ? DESIGNATED_WARD_TRANSLATIONS.get(wardMatch[1]) : "";
-    if (ward) {
-      return {
-        japanese: `${cityEntry[0]}${wardMatch[1]}区`,
-        romaji: `${cityEntry[1]} ${ward}-ku`
-      };
-    }
-  }
-
   for (const [japaneseCity, englishCity] of DESIGNATED_CITY_TRANSLATION_ENTRIES) {
-    const cityStem = japaneseCity.replace(/市$/u, "");
+    const cityStem = value.startsWith(`${japaneseCity}市`) ? `${japaneseCity}市` : japaneseCity;
     if (!value.startsWith(cityStem)) continue;
     const wardMatch = value.slice(cityStem.length).match(/^(.+?)区/u);
     const ward = wardMatch ? DESIGNATED_WARD_TRANSLATIONS.get(wardMatch[1]) : "";
@@ -2481,6 +2463,7 @@ function findDesignatedCityWardPrefix(value) {
 }
 
 function translateOfficialPlaceNames(value) {
+  value = normalizePlaceNameKey(value);
   if (!/[\u3400-\u9fff]/u.test(value)) return value;
 
   const observationStation = OBSERVATION_STATION_TRANSLATIONS.get(
@@ -2504,6 +2487,24 @@ function translateOfficialPlaceNames(value) {
   }
   const exact = placeNames.get(value);
   if (exact) return formatOfficialPlaceName(value, exact);
+
+  // JMA uses 伊豆大島町 to distinguish Oshima Town from the Oshima region.
+  if (value.startsWith("伊豆大島町")) {
+    return joinMunicipalityAndLocality("Oshima", translateObservationLocality(value.slice(5)));
+  }
+
+  const ward = value.match(/^(.+?)区$/u);
+  if (ward && DESIGNATED_WARD_TRANSLATIONS.has(ward[1])) {
+    return `${DESIGNATED_WARD_TRANSLATIONS.get(ward[1])}-ku`;
+  }
+
+  for (const [qualifier, english] of STATION_QUALIFIERS) {
+    if (!value.startsWith(qualifier)) continue;
+    const remainder = value.slice(qualifier.length).replace(/^地方/u, "");
+    if (!findMunicipalityPrefix(remainder) && !findDesignatedCityWardPrefix(remainder)) continue;
+    const municipality = translateOfficialPlaceNames(remainder);
+    if (!containsJapaneseText(municipality)) return `${english} / ${municipality}`;
+  }
 
   const prefecturePrefix = [...PREFECTURE_TRANSLATIONS.entries()]
     .find(([japanese]) => value.startsWith(japanese));
@@ -2534,7 +2535,7 @@ function translateOfficialPlaceNames(value) {
     let consumed = 0;
     for (let end = characters.length; end > cursor; end -= 1) {
       const candidate = characters.slice(cursor, end).join("");
-      const romaji = placeNames.get(candidate);
+      const romaji = candidate.length >= 2 ? placeNames.get(candidate) : null;
       if (!romaji) continue;
       replacement = formatOfficialPlaceName(candidate, romaji);
       consumed = end - cursor;
@@ -2548,7 +2549,7 @@ function translateOfficialPlaceNames(value) {
       cursor += 1;
     }
   }
-  return output;
+  return containsJapaneseText(output) ? value : output;
 }
 
 function translateMeteorologicalOfficeLocation(value) {
@@ -2591,16 +2592,19 @@ function translatePlaceExpression(value) {
 }
 
 function findMunicipalityPrefix(value) {
-  let match = null;
-  for (const [japanese, romaji] of placeNames) {
-    if (!/(?:市|区|町|村)$/u.test(japanese) || !value.startsWith(japanese)) continue;
-    if (!match || japanese.length > match.japanese.length) match = { japanese, romaji };
+  // Probe only prefixes of this label instead of scanning thousands of names
+  // for every text node during initial translation. Longest match wins.
+  for (let end = value.length; end > 1; end -= 1) {
+    if (!/[市区町村]/u.test(value[end - 1])) continue;
+    const japanese = value.slice(0, end);
+    const romaji = placeNames.get(japanese);
+    if (romaji) return { japanese, romaji };
   }
-  return match;
+  return null;
 }
 
 function translateObservationLocality(value) {
-  const cleaned = String(value || "")
+  const cleaned = normalizePlaceNameKey(value)
     .replace(/[＊*]/gu, "")
     .replace(/(?:町|村)$/u, "")
     .trim();
@@ -2621,7 +2625,7 @@ function translateObservationLocality(value) {
     let consumed = 0;
     for (let end = characters.length; end > cursor; end -= 1) {
       const candidate = characters.slice(cursor, end).join("");
-      const romaji = placeNames.get(candidate);
+      const romaji = candidate.length >= 2 ? placeNames.get(candidate) : null;
       if (!romaji) continue;
       replacement = formatOfficialPlaceName(candidate, romaji);
       consumed = end - cursor;

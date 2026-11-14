@@ -3,7 +3,15 @@ import { getAccountEarlyAccess } from "../_shared/accountEarlyAccess.js";
 import { loadWarningChatContext } from "../_shared/warningChatContext.js";
 import { buildWarningChatMessages, parseWarningChatAnswer } from "../_shared/warningChatAnswer.js";
 import { reserveWarningChatQuota, recordWarningChatInferenceUsage, readWarningChatOperationalMetrics, warningChatDailyLimit, isWarningChatAllocationError, stopWarningChatForDay } from "../_shared/warningChatQuota.js";
-import { normalizeWarningChatInput, normalizeWarningChatSelection, WARNING_CHAT_MODEL, WARNING_CHAT_LIMITS } from "../../src/ai/warningChatPolicy.js";
+import { usesOfficialChatFacts, buildOfficialChatFacts } from "../_shared/warningChatFacts.js";
+import { addWarningChatKnowledge } from "../_shared/warningChatKnowledge.js";
+import { warningChatDefinition, warningChatKnowledgeQuestion, isDefinitionRefinement } from "../_shared/warningChatGlossary.js";
+import { buildWarningChatDefinitionContext, buildWarningChatDefinitionAnswer } from "../_shared/warningChatDefinition.js";
+import {generalWarningChatEvacuation, buildWarningChatEvacuationContext, buildWarningChatEvacuationAnswer} from "../_shared/warningChatEvacuation.js";
+import { normalizeWarningChatInput, normalizeWarningChatSelection, resolveWarningChatQuestionSelection, isWarningChatEvacuationQuestion, WARNING_CHAT_MODEL, WARNING_CHAT_LIMITS } from "../../src/ai/warningChatPolicy.js";
+
+import {warningChatSpecialistPlan} from "../_shared/warningChatSpecialist.js";
+import {buildSeismicAdvisoryContext} from "../_shared/warningChatAdvisoryContext.js";
 
 const HEADERS = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", Vary: "Origin" };
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: HEADERS }); }
@@ -49,11 +57,31 @@ async function handleRequest(context) {
     const input = normalizeWarningChatInput(await readInput(request));
     const auth = await authenticateAccount(request, db);
     if (!auth) return json({ error: "再度ログインしてください。" }, 401);
-    const reservation = await reserveWarningChatQuota(db, auth.account.id, { dailyLimit: env.WARNING_CHAT_DAILY_LIMIT });
+    const selection = { ...resolveWarningChatQuestionSelection(input), fresh: true };
+    const specialist = warningChatSpecialistPlan(input);
+    const evacuation = specialist ? null : generalWarningChatEvacuation(input);
+    const generalKnowledge = specialist || isWarningChatEvacuationQuestion(input.question) ? null : warningChatKnowledgeQuestion(input);
+    const definition = specialist || isWarningChatEvacuationQuestion(input.question) ? null : warningChatDefinition(input) || generalKnowledge;
+    const officialLookup = !specialist && (evacuation || definition
+      ? ["ja", "easy", "en"].includes(input.language) && (Boolean(evacuation) || !isDefinitionRefinement(input.question))
+      : usesOfficialChatFacts(input, selection)) && !generalKnowledge;
+    const reservation = await reserveWarningChatQuota(db, auth.account.id, { dailyLimit: env.WARNING_CHAT_DAILY_LIMIT, inference: !officialLookup });
     if (!reservation) return json({ error: "本日の個人上限またはAI利用枠に達しました。日本時間9時に再開します。気象庁の情報をご確認ください。" }, 429);
     const { reservationId: _reservationId, ...quota } = reservation;
-    const selection = { ...normalizeWarningChatSelection(input), fresh: true };
-    const official = await loadWarningChatContext(input.areaCode, selection);
+    const loadEvidence = async () => {
+      if (specialist) return buildSeismicAdvisoryContext(input, specialist);
+      if (evacuation) return buildWarningChatEvacuationContext(input, evacuation);
+      if (definition) return buildWarningChatDefinitionContext(input, definition);
+      return addWarningChatKnowledge(input, await loadWarningChatContext(input.areaCode, selection));
+    };
+    const official = await loadEvidence();
+    if (officialLookup) {
+      const accessAfterRead = await getAccountEarlyAccess(request, db);
+      if (!accessAfterRead.active) return json({error: "アーリーアクセスの権限を再確認してください。"}, 403);
+      const answer = evacuation ? buildWarningChatEvacuationAnswer(input, official)
+        : definition ? buildWarningChatDefinitionAnswer(input, official) : buildOfficialChatFacts(input, official);
+      return json({...answer, context: official, quota, model: null, generatedAt: new Date().toISOString()});
+    }
     const messages = buildWarningChatMessages(input, official);
     let timer;
     const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("ai_timeout")), 35_000); });
@@ -82,7 +110,7 @@ async function handleRequest(context) {
     const answer = parseWarningChatAnswer(result, official);
     // Keep "latest" unpinned if that was the request, so a new earthquake or
     // tsunami report arriving during generation invalidates the old answer.
-    const latest = await loadWarningChatContext(input.areaCode, selection);
+    const latest = await loadEvidence();
     const latestAccess = await getAccountEarlyAccess(request, db);
     if (!latestAccess.active) return json({ error: "アーリーアクセスの権限を再確認してください。" }, 403);
     if (latest.revision !== official.revision) return json({ error: "気象庁の情報が更新されました。古い回答は表示していません。最新情報を確認して質問し直してください。", context: latest, quota }, 409);

@@ -1,5 +1,6 @@
 import { fetchWarningChatJson, getWarningChatArea, validIssueTime, revisionOf } from "./warningChatSources.js";
 import { loadSeismicChatContext } from "./seismicChatContext.js";
+import { loadRecentLocalEarthquakes } from "./recentLocalEarthquakes.js";
 export { fetchWarningChatJson } from "./warningChatSources.js";
 import { applyWarningKinds } from "../../src/jma/warningCore.js";
 import { buildWarningOutlookMap } from "../../src/jma/warnings.js";
@@ -12,6 +13,7 @@ export const WARNING_CHAT_SOURCES = Object.freeze([
 ]);
 export async function loadWarningChatContext(areaCode, options = {}) {
   const topic = options.topic ?? "weather";
+  if (topic === "earthquake" && options.earthquakeScope === "recent-local") return loadRecentLocalEarthquakes(areaCode, options);
   if (topic === "earthquake" || topic === "tsunami") return loadSeismicChatContext(areaCode, options);
   if (topic !== "weather") throw new TypeError("質問する情報を選択してください。");
   return loadWeatherChatContext(areaCode, options);
@@ -65,7 +67,7 @@ async function loadWeatherChatContext(areaCode, { fetcher = fetch, fresh = false
       description: slot.label || ({ 5: "特別警報級の見通し", 4: "危険警報級の見通し", 3: "警報級の見通し", 2: "注意報級の見通し" }[slot.level] ?? "基準超過の表示なし")
     })) })).filter((row) => row.slots.length),
     outlookAvailable: timelineValid,
-    limitations: "気象警報・注意報と時系列情報が対象。指定河川洪水予報・自治体の避難情報・避難経路は対象外。時系列の終了は警報解除や安全の確約ではない。",
+    limitations: "気象警報・注意報と時系列情報が対象。指定河川洪水予報・自治体の避難指示・避難所の開設状況・安全な経路の取得は対象外。一般的な避難行動は別の資料で説明する。時系列の終了は警報解除や安全の確約ではない。",
     sources: [{ title: "気象庁 発表状況", url: `${JMA}/warning/#area_type=class20s&area_code=${areaCode}&lang=ja` }, { title: "気象庁 時系列情報", url: timelineUrl }, ...WARNING_CHAT_SOURCES]
   };
   context.revision = await revisionOf({ issuedAt, warnings: context.warnings, officeHeadlines: context.officeHeadlines, outlook: context.outlook, timelineIssuedAt: context.timelineIssuedAt });

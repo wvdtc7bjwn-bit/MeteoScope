@@ -2,10 +2,10 @@ export const JMA_BOSAI = "https://www.jma.go.jp/bosai";
 const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
 const areaCatalogs = new WeakMap();
 
-export async function fetchWarningChatJson(url, { fetcher = fetch, fresh = false } = {}) {
+export async function fetchWarningChatText(url, { fetcher = fetch, fresh = false, accept = "text/html" } = {}) {
   // Workers does not implement redirect:"error". Reject 3xx via !ok without
   // following Location, preserving the fixed-source boundary on every runtime.
-  const response = await fetcher(url, { signal: AbortSignal.timeout(8000), redirect: "manual", cf: { cacheTtl: fresh ? 0 : 20 }, headers: { Accept: "application/json" } });
+  const response = await fetcher(url, { signal: AbortSignal.timeout(8000), redirect: "manual", cf: { cacheTtl: fresh ? 0 : 20 }, headers: { Accept: accept } });
   if (!response.ok || !response.body) throw new Error("jma_unavailable");
   const reader = response.body.getReader();
   let size = 0;
@@ -22,7 +22,11 @@ export async function fetchWarningChatJson(url, { fetcher = fetch, fresh = false
   const bytes = new Uint8Array(size);
   let offset = 0;
   for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
-  return JSON.parse(new TextDecoder().decode(bytes));
+  return new TextDecoder().decode(bytes);
+}
+
+export async function fetchWarningChatJson(url, options = {}) {
+  return JSON.parse(await fetchWarningChatText(url, {...options, accept: "application/json"}));
 }
 
 export function validIssueTime(value, now) {

@@ -1,6 +1,25 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+気象庁の資料に基づく制度・防災対応の解説です。現在の発表状況とは区別してください。|General explanations of the advisory system and preparedness based on JMA guidance. This is separate from the current bulletin status.
+公式ページの最新掲載欄です。掲載日と現在の発表状況は異なります。有効・解除の判定はしていません。|The latest publication block on the official page. Publication date differs from current status; validity or cancellation has not been determined.
+公式資料を取得できません。発表なしを意味しません。|The official source could not be retrieved. This does not mean no advisory exists.
+南海トラフ臨時情報と後発地震注意情報の違いは？|How do Nankai Extra Information and the subsequent-earthquake advisory differ?
+AIで説明する場合、質問と会話をCloudflare Workers AIへ送信します。個人情報は入力しないでください。|When AI is used, your question and conversation are sent to Cloudflare Workers AI. Do not enter personal information.
+大雨のとき、避難はどう判断する？|How do I decide about evacuation during heavy rain?
+地震のとき、どう身を守り避難する？|How do I protect myself and evacuate during an earthquake?
+津波から避難するときの行動は？|How do I evacuate from a tsunami?
+避難行動の基本|Evacuation basics
+気象庁の資料に基づく一般的な避難行動です。現在の避難指示や避難所の開設状況は取得していません。|General evacuation actions based on JMA guidance. Current municipal orders and shelter opening status are not retrieved.
+気象庁の用語解説です。現在の地域の発表状況は示していません。|JMA terminology reference. This does not describe the current local bulletin status.
+回答を準備しています|Preparing an answer
+回答を準備しています…|Preparing an answer…
+最新の回答へ ↓|Latest answer ↓
+警報と注意報はどう違う？|What is the difference between a warning and an advisory?
+震度とマグニチュードはどう違う？|What is the difference between intensity and magnitude?
+津波の第一波と最大波はどう違う？|What is the difference between the first and maximum tsunami waves?
+気象庁の資料から確認|Checked JMA source data
+確認した範囲では、この市区町村の観測震度が掲載された地震を確認できませんでした。|No earthquakes with a reported intensity in this municipality were confirmed within the checked range.
 気象庁 ↗|JMA ↗
 気象庁 防災情報XML「府県天気予報・府県週間天気予報」|JMA Disaster Information XML: local and weekly forecasts
 選んだ高層天気図を開く ↗|Open selected upper-air chart ↗
@@ -271,7 +290,7 @@ JVDNの火山ページを開く|Open the JVDN volcano page
 市区町村|Municipality
 市区町村境界、地震区域、都道府県境界は、気象庁の|Municipal, earthquake forecast-area and prefectural boundaries use JMA's
 で公開されている、気象庁・地方公共団体・防災科研の観測点名称、表示用座標、所属区分を加工して利用しています。|Station names, display coordinates and affiliations published there by JMA, local authorities and NIED are processed for use in this app.
-気象庁の気象警報・注意報、地震情報、津波警報・予報をもとにAIが説明します。解除時刻や安全を保証するものではありません。重要な判断は最新の公式発表で確認してください。|AI explains JMA weather warnings and advisories, earthquake information and tsunami bulletins. It cannot guarantee safety or when alerts will end. Check the latest official announcements for important decisions.
+気象庁の気象警報・注意報、地震情報、津波警報・予報、南海トラフ地震臨時情報・北海道・三陸沖後発地震注意情報の公式資料をもとにAIが説明します。解除時刻や安全を保証するものではありません。重要な判断は最新の公式発表で確認してください。|AI explains JMA weather, earthquake and tsunami information, plus official materials on Nankai Extra Information and Hokkaido–Sanriku subsequent-earthquake advisories. It cannot guarantee safety or when alerts will end. Check the latest official announcements for important decisions.
 2週間気温予報・実況解析図|Two-week temperature outlook and analysis charts
 アジア 地上気圧・850hPa・500hPa|Asia: surface pressure, 850 hPa and 500 hPa
 極東 地上気圧・風・降水量|Far East: surface pressure, wind and precipitation
@@ -365,7 +384,7 @@ NASA 黒体放射|NASA blackbody radiation
 NOAA GFS 0.25°の最寄り格子点における解析時刻の数値モデルです。気温・相対湿度から露点温度を算出して表示しています。地点の実測値ではありません。|NOAA GFS 0.25° model analysis at the nearest grid point. Dew point is calculated from temperature and relative humidity. These are not station observations.
 津波予報区|Tsunami forecast area
 一覧を開くと気象庁から取得します。|Retrieved from JMA when you open the list.
-1人1日10回（日本時間9時リセット）。全体の回数上限はなく、AIの無料利用枠に応じて自動停止します。失敗した質問も上限に含む場合があります。会話は画面を閉じると消去します。河川の氾濫情報・自治体の避難情報・避難経路は対象外です。地震予知や独自の津波到達予測は行いません。|Up to 10 questions per account per day, resetting at 09:00 Japan time. There is no shared question-count limit; service stops automatically according to the free AI allowance. Failed questions may count. Conversations are cleared when you close this screen. River flood information, local evacuation information and evacuation routes are not covered. This chat does not predict earthquakes or calculate its own tsunami arrival times.
+1人1日10回（日本時間9時リセット）。全体の回数上限はなく、AIの無料利用枠に応じて自動停止します。失敗した質問も上限に含む場合があります。会話は画面を閉じると消去します。一般的な避難行動を説明できます。河川の氾濫情報・自治体の避難指示・避難所の開設状況・安全な避難経路は取得していません。地震予知や独自の津波到達予測は行いません。|Up to 10 questions per account per day, resetting at 09:00 Japan time. There is no shared question-count limit; service stops automatically according to the free AI allowance. Failed questions may count. Conversations are cleared when you close this screen. General evacuation actions can be explained. River flood bulletins, municipal evacuation orders, shelter opening status and safe routes are not retrieved. This chat does not predict earthquakes or calculate its own tsunami arrival times.
 MeteoScopeは、公開データとオープンソースソフトウェア、ならびに情報を整備・提供する各機関の協力によって成り立っています。関係する皆さまに感謝します。|MeteoScope relies on public data, open-source software and the organizations that prepare and provide this information. We thank everyone involved.
 、および本アプリで利用するオープンソースソフトウェアの開発者・貢献者に感謝します。|, and the developers and contributors of the open-source software used in this app.
 クイズはMeteoScopeが独自に作成した学習用問題です。気象予報士試験の過去問題・解答例は転載していません。各問題の解説と一次資料を確認し、実際の防災判断は気象庁・自治体などの最新公式情報を優先してください。|These learning questions were created by MeteoScope. They do not reproduce past weather forecaster exam questions or model answers. Refer to the explanations and primary sources. For real safety decisions, prioritize the latest official information from JMA and local authorities.

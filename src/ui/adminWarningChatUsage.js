@@ -5,6 +5,7 @@ export function renderWarningChatUsage(root, metrics = {}) {
   const fields = [
     ["稼働設定", metrics.providerExhausted ? "停止（本日のAI無料枠に到達）" : metrics.enabled && metrics.aiBound ? metrics.available && metrics.accepting === false ? "停止（本日の受付予算を確保できません）" : "有効（EA限定）" : "停止・未設定"],
     ["今日の受付（失敗含む）", `${number(metrics.requestCount)}回`],
+    ["公式資料の照会（AI未使用・失敗含む）", `${number(metrics.lookupRequests)}回`],
     ["全体の回数上限", metrics.available && metrics.dailyLimit === null ? "なし（AI使用量で自動停止）" : `${number(metrics.dailyLimit)}回/日`],
     ["1アカウントの上限", `${number(metrics.perAccountLimit)}回/日`],
     ["AI応答で確認できた使用量", `${number(metrics.reportedNeurons, 2)} Neurons（このチャットのみ）`],

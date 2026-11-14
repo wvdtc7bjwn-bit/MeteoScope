@@ -32,9 +32,20 @@ const response=await adminRequest({request:new Request(url+'quota',{headers:{Coo
 assert.equal(response.status,200);
 const payload=await response.json();assert.equal(payload.warningChat.reportedNeurons,10.25);assert.equal(payload.usage.configured,false,'chat counters work without Analytics tokens');
 assert.doesNotMatch(JSON.stringify(payload),/local-test-only-password|test-0/);
+await reserveWarningChatQuota(db,'official-lookup',{now,inference:false});
+const withLookup=await readWarningChatOperationalMetrics(env,{now});
+assert.equal(withLookup.lookupRequests,1);assert.equal(withLookup.requestCount,4);
+assert.equal(withLookup.unconfirmedRequests,1);assert.equal(withLookup.reservedNeurons,200);
+assert.equal(withLookup.reportedNeurons,10.25,'official lookups are not provider-reported usage');
+const lookupDay=now+2*86400_000;
+for(let i=0;i<10;i++)assert.ok(await reserveWarningChatQuota(db,'lookup-only',{now:lookupDay,inference:false}));
+assert.equal(await reserveWarningChatQuota(db,'lookup-only',{now:lookupDay,inference:false}),null,'official lookup still enforces the account limit');
+const lookupMetrics=await readWarningChatOperationalMetrics(env,{now:lookupDay});
+assert.equal(lookupMetrics.lookupRequests,10);assert.equal(lookupMetrics.reportedNeurons,0);
+assert.equal(lookupMetrics.unconfirmedRequests,0);assert.equal(lookupMetrics.reservedNeurons,0);
 // Render using the public DOM contract: unavailable usage stays unknown and all
 // values are text nodes. No HTML interpolation or personal identifier is used.
 const originalDocument=globalThis.document;
 function element(){return{children:[],textContent:'',append(...nodes){this.children.push(...nodes);},replaceChildren(){this.children=[];}};}
-try{globalThis.document={createElement:element};const root=element();renderWarningChatUsage(root,metrics);assert.equal(root.children.length,11);assert.match(root.children.map(x=>x.children.map(n=>n.textContent).join(':')).join('\n'),/10.25 Neurons/);renderWarningChatUsage(root,unavailable);assert.match(root.children[1].children[1].textContent,/取得不可/);assert.doesNotMatch(root.children.map(x=>x.children.map(n=>n.textContent).join(':')).join('\n'),/NaN/);}finally{globalThis.document=originalDocument;sql.close();}
+try{globalThis.document={createElement:element};const root=element();renderWarningChatUsage(root,metrics);assert.equal(root.children.length,12);assert.match(root.children.map(x=>x.children.map(n=>n.textContent).join(':')).join('\n'),/10.25 Neurons/);renderWarningChatUsage(root,unavailable);assert.match(root.children[1].children[1].textContent,/取得不可/);assert.doesNotMatch(root.children.map(x=>x.children.map(n=>n.textContent).join(':')).join('\n'),/NaN/);}finally{globalThis.document=originalDocument;sql.close();}
 console.log('Warning chat admin tests passed: atomic usage sums, missing values, daily rollover, admin-only access, metrics without Analytics and safe rendering.');

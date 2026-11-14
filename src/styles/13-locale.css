@@ -28,11 +28,7 @@ html[lang="en"] #amedas-sub-tabs .amedas-sub-button {
   padding: 12px 8px;
 }
 html[data-theme="light"] .mobile-dock-typhoon-empty { color: #36516b; }
-html[lang="en"] .warning-chat-panel #warning-chat-topic {
-  width: 112px;
-  font-size: 14px;
-}
-html[lang="en"] .warning-chat-toolbar { gap: 8px; padding-inline: 12px; }
+html[lang="en"] .warning-chat-toolbar { grid-template-columns: 122px minmax(0, 1fr) auto; gap: 8px; padding-inline: 12px; }
 html[lang="en"] .mobile-dock-mode-switch > .mobile-dock-action {
   padding-inline: 3px;
   font-size: clamp(10px, 2.5vw, 12px);
