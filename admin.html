@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="/src/admin.css" />
 </head>
 <body>
+  <a class="admin-skip-link" href="#admin-workspace">本文へ移動</a>
   <header class="admin-topbar">
     <a class="admin-brand" href="/" aria-label="MeteoScopeへ戻る">
       <span class="admin-brand-mark" aria-hidden="true">M</span>
@@ -48,14 +49,26 @@
           <span class="admin-label">メニュー</span>
           <strong>運用管理</strong>
         </div>
+        <label class="admin-mobile-navigation" for="admin-section-select">管理項目
+          <select id="admin-section-select">
+            <option value="system-status">稼働状況</option>
+            <option value="free-tier-monitoring">使用量・無料枠</option>
+            <option value="account-management">アカウント</option>
+            <option value="maintenance-settings">メンテナンス</option>
+            <option value="notification-management">通知の配信</option>
+            <option value="early-access-management">アーリーアクセス</option>
+            <option value="notice-management">お知らせ・サポート</option>
+            <option value="cache-management">キャッシュ</option>
+          </select>
+        </label>
         <nav class="admin-nav">
           <a href="#system-status">稼働状況</a>
-          <a href="#free-tier-monitoring">無料枠</a>
+          <a href="#free-tier-monitoring">使用量・無料枠</a>
           <a href="#account-management">アカウント</a>
           <a href="#maintenance-settings">メンテナンス</a>
-          <a href="#notification-management">管理者通知管理</a>
+          <a href="#notification-management">通知の配信</a>
           <a href="#early-access-management">アーリーアクセス</a>
-          <a href="#notice-management">お知らせ・意見</a>
+          <a href="#notice-management">お知らせ・サポート</a>
           <a href="#cache-management">キャッシュ</a>
         </nav>
         <div class="admin-sidebar-footer">
@@ -63,15 +76,19 @@
         </div>
       </aside>
 
-      <div class="admin-workspace">
+      <div id="admin-workspace" class="admin-workspace" tabindex="-1">
         <header class="admin-page-header">
           <div>
-            <span class="admin-label">DASHBOARD</span>
-            <h1>運用管理</h1>
-            <p>各項目の状態確認と設定変更を行います。</p>
+            <span class="admin-label">運用管理</span>
+            <h1 id="admin-page-title" tabindex="-1">稼働状況</h1>
+            <p id="admin-page-description">API、保存先、通知処理の状態を確認します。</p>
           </div>
-          <p id="dashboard-message" class="admin-message admin-dashboard-message" role="status" aria-live="polite"></p>
         </header>
+        <p id="dashboard-message" class="admin-message admin-dashboard-message" role="status" aria-live="polite" aria-atomic="true"></p>
+        <div id="admin-load-errors" class="admin-load-errors" hidden>
+          <p id="admin-load-error-text" role="status"></p>
+          <button id="admin-retry-load-button" class="admin-small-button" type="button">失敗した項目を再取得</button>
+        </div>
 
         <div class="admin-grid">
           <section id="system-status" class="admin-card admin-span-2">
@@ -116,13 +133,29 @@
               </div>
               <button id="refresh-accounts-button" class="admin-small-button" type="button">一覧を更新</button>
             </div>
-            <dl id="quiz-metrics-list" class="admin-status-list admin-status-list--metrics"></dl>
-            <p class="admin-note">DAUはUTC当日にアカウント状態確認・ログイン・クイズ開始を行った重複なしの利用者数です。</p>
+            <details class="admin-details">
+              <summary>利用状況・クイズの記録</summary>
+              <dl id="quiz-metrics-list" class="admin-status-list admin-status-list--metrics"></dl>
+              <p class="admin-note">DAUはUTC当日にアカウント状態確認・ログイン・クイズ開始を行った重複なしの利用者数です。</p>
+            </details>
             <div class="admin-account-management">
               <div class="admin-account-management-head">
                 <div><h3>登録アカウント</h3><p>削除すると関連するD1データも削除されます。</p></div>
                 <span id="admin-account-count">0件</span>
               </div>
+              <div class="admin-account-filters">
+                <label class="admin-field" for="admin-account-search"><span>アカウントを検索</span>
+                  <input id="admin-account-search" type="search" placeholder="表示名・ログインID・アカウントID" autocomplete="off" />
+                </label>
+                <label class="admin-field" for="admin-account-filter"><span>先行機能の許可</span>
+                  <select id="admin-account-filter">
+                    <option value="all">すべて</option>
+                    <option value="allowed">許可中</option>
+                    <option value="not-allowed">未許可</option>
+                  </select>
+                </label>
+              </div>
+              <p id="admin-account-filter-count" class="admin-muted" role="status" aria-live="polite"></p>
               <div id="admin-account-list" class="admin-account-list"></div>
               <button id="load-more-accounts-button" class="admin-small-button admin-load-more" type="button" hidden>さらに表示</button>
             </div>

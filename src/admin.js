@@ -1,6 +1,7 @@
 import { escapeHtmlStringPadded as escapeHtml } from "./utils/html.js";
 import { setupLocale } from "./ui/locale.js";
 import { renderWarningChatUsage } from "./ui/adminWarningChatUsage.js";
+import { createAdminWorkspace, filterAdminAccounts, loadAdminResources, setAdminMessage as setMessage } from "./ui/adminWorkspace.js";
 
 const API_BASE = "/api/admin";
 const DEFAULT_CONFIG = {
@@ -17,6 +18,9 @@ let currentPushBroadcasts = [];
 let currentAccounts = [];
 let currentAccountTotal = 0;
 let nextAccountOffset = null;
+let workspace;
+let failedResources = [];
+let dashboardLoading = false;
 
 const elements = {
   loginView: document.getElementById("login-view"),
@@ -37,6 +41,12 @@ const elements = {
   quizMetricsList: document.getElementById("quiz-metrics-list"),
   accountList: document.getElementById("admin-account-list"),
   accountCount: document.getElementById("admin-account-count"),
+  accountSearch: document.getElementById("admin-account-search"),
+  accountFilter: document.getElementById("admin-account-filter"),
+  accountFilterCount: document.getElementById("admin-account-filter-count"),
+  loadErrors: document.getElementById("admin-load-errors"),
+  loadErrorText: document.getElementById("admin-load-error-text"),
+  retryLoadButton: document.getElementById("admin-retry-load-button"),
   refreshAccountsButton: document.getElementById("refresh-accounts-button"),
   loadMoreAccountsButton: document.getElementById("load-more-accounts-button"),
   maintenanceEnabled: document.getElementById("maintenance-enabled"),
@@ -63,21 +73,35 @@ void initialize();
 
 async function initialize() {
   bindEvents();
-  const session = await requestJson("/session", { ignoreUnauthorized: true });
-  if (session?.authenticated) {
-    showDashboard();
-    await refreshDashboard();
-  } else {
-    showLogin();
-    if (session?.setup?.passwordConfigured === false) {
-      setMessage(elements.loginMessage, "Cloudflare の環境変数 ADMIN_PASSWORD を設定してください。", "error");
+  workspace = createAdminWorkspace(elements.dashboardView, id => {
+    if (!elements.dashboardView.hidden) history.replaceState(null, "", `#${id}`);
+  });
+  window.addEventListener("hashchange", () => {
+    if (!elements.dashboardView.hidden) workspace.selectSection(location.hash.slice(1));
+  });
+  try {
+    const session = await requestJson("/session", { ignoreUnauthorized: true });
+    if (session?.authenticated) {
+      showDashboard();
+      await refreshDashboard();
+    } else {
+      showLogin();
+      if (session?.setup?.passwordConfigured === false) {
+        setMessage(elements.loginMessage, "Cloudflare の環境変数 ADMIN_PASSWORD を設定してください。", "error");
+      }
     }
+  } catch {
+    showLogin();
+    setMessage(elements.loginMessage, "接続できませんでした。時間をおいてログインしてください。", "error");
   }
 }
 
 function bindEvents() {
   elements.loginForm.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const button = elements.loginForm.querySelector('button[type="submit"]');
+    if (button.disabled) return;
+    button.disabled = true;
     setMessage(elements.loginMessage, "確認中...");
     try {
       await requestJson("/login", {
@@ -89,6 +113,8 @@ function bindEvents() {
       await refreshDashboard();
     } catch (error) {
       setMessage(elements.loginMessage, error.message || "ログインできませんでした。", "error");
+    } finally {
+      button.disabled = false;
     }
   });
 
@@ -98,7 +124,10 @@ function bindEvents() {
   });
 
   elements.refreshStatusButton.addEventListener("click", () => {
-    void refreshDashboard();
+    void runAdminAction(elements.refreshStatusButton, async () => {
+      renderStatus(await requestJson("/status"));
+      setMessage(elements.dashboardMessage, "稼働状況を更新しました。", "success");
+    });
   });
 
   elements.refreshQuotaButton?.addEventListener("click", () => {
@@ -106,7 +135,7 @@ function bindEvents() {
   });
 
   elements.saveConfigButton.addEventListener("click", () => {
-    void saveConfig();
+    void runAdminAction(elements.saveConfigButton, saveConfig);
   });
 
   elements.addNoticeButton.addEventListener("click", () => {
@@ -115,11 +144,11 @@ function bindEvents() {
   });
 
   elements.saveNoticesButton.addEventListener("click", () => {
-    void saveNotices();
+    void runAdminAction(elements.saveNoticesButton, saveNotices);
   });
 
   elements.refreshFeedbackButton.addEventListener("click", () => {
-    void refreshFeedback();
+    void runAdminAction(elements.refreshFeedbackButton, refreshFeedback);
   });
   elements.feedbackList?.addEventListener("click", (event) => {
     const deleteButton = event.target.closest("[data-delete-feedback]");
@@ -132,7 +161,7 @@ function bindEvents() {
   });
 
   elements.purgeCacheButton.addEventListener("click", () => {
-    void purgeCache();
+    void runAdminAction(elements.purgeCacheButton, purgeCache);
   });
   elements.pushForm?.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -151,6 +180,9 @@ function bindEvents() {
   elements.loadMoreAccountsButton?.addEventListener("click", () => {
     void refreshAccounts({ reset: false });
   });
+  elements.accountSearch?.addEventListener("input", renderAccounts);
+  elements.accountFilter?.addEventListener("change", renderAccounts);
+  elements.retryLoadButton?.addEventListener("click", () => { void refreshDashboard({ retry: true }); });
   elements.accountList?.addEventListener("click", (event) => {
     const access = event.target.closest("[data-account-early-access]");
     if (access) { void updateAccountEarlyAccess(access.dataset.accountEarlyAccess, access); return; }
@@ -173,33 +205,66 @@ function showDashboard() {
   elements.loginView.hidden = true;
   elements.dashboardView.hidden = false;
   setMessage(elements.loginMessage, "");
+  workspace?.selectSection(location.hash.slice(1));
 }
 
-async function refreshDashboard() {
+function dashboardResources() {
+  return [
+    { label: "稼働状況", load: () => requestJson("/status"), render: renderStatus },
+    { label: "使用量・無料枠", load: () => requestJson("/quota"), render: quota => {
+      renderCloudflareQuota(quota.usage || {});
+      renderWarningChatUsage(elements.warningChatMetrics, quota.warningChat);
+    } },
+    { label: "メンテナンス", load: () => requestJson("/config"), render: config => {
+      currentConfig = normalizeConfig(config.config); renderConfig();
+    } },
+    { label: "お知らせ", load: () => requestJson("/notices"), render: notices => {
+      currentNotices = Array.isArray(notices.notices) ? notices.notices : []; renderNotices();
+    } },
+    { label: "サポート", load: () => requestJson("/feedback"), render: feedback => {
+      currentFeedback = Array.isArray(feedback.feedback) ? feedback.feedback : []; renderFeedback();
+    } },
+    { label: "配信履歴", load: () => requestJson("/push/broadcasts"), render: data => {
+      currentPushBroadcasts = Array.isArray(data.broadcasts) ? data.broadcasts : []; renderPushBroadcasts();
+    } },
+    { label: "アカウント", load: () => requestJson("/accounts?limit=100&offset=0"), render: accounts => {
+      applyAccountPage(accounts, { append: false }); renderAccounts();
+    } }
+  ];
+}
+
+async function refreshDashboard({ retry = false } = {}) {
+  if (dashboardLoading) return;
+  dashboardLoading = true;
+  elements.retryLoadButton.disabled = true;
+  // Prevent an unloaded empty form from replacing an existing server setting.
+  const resources = retry ? failedResources : dashboardResources();
+  if (!retry) {
+    elements.saveConfigButton.disabled = true;
+    elements.saveNoticesButton.disabled = true;
+    elements.addNoticeButton.disabled = true;
+  }
   setMessage(elements.dashboardMessage, "読み込み中...");
-  const [status, quota, config, notices, feedback, pushBroadcasts, accounts] = await Promise.all([
-    requestJson("/status"),
-    requestJson("/quota"),
-    requestJson("/config"),
-    requestJson("/notices"),
-    requestJson("/feedback"),
-    requestJson("/push/broadcasts"),
-    requestJson("/accounts?limit=100&offset=0")
-  ]);
-  renderStatus(status);
-  renderCloudflareQuota(quota.usage || {});
-  renderWarningChatUsage(elements.warningChatMetrics, quota.warningChat);
-  currentConfig = normalizeConfig(config.config);
-  currentNotices = Array.isArray(notices.notices) ? notices.notices : [];
-  currentFeedback = Array.isArray(feedback.feedback) ? feedback.feedback : [];
-  currentPushBroadcasts = Array.isArray(pushBroadcasts.broadcasts) ? pushBroadcasts.broadcasts : [];
-  applyAccountPage(accounts, { append: false });
-  renderConfig();
-  renderNotices();
-  renderFeedback();
-  renderPushBroadcasts();
-  renderAccounts();
-  setMessage(elements.dashboardMessage, "読み込みました。", "success");
+  failedResources = await loadAdminResources(resources);
+  const failed = new Set(failedResources.map(item => item.label));
+  elements.saveConfigButton.disabled = failed.has("メンテナンス");
+  elements.saveNoticesButton.disabled = failed.has("お知らせ");
+  elements.addNoticeButton.disabled = failed.has("お知らせ");
+  elements.loadErrors.hidden = !failedResources.length;
+  elements.loadErrorText.textContent = failedResources.length
+    ? `取得できなかった項目：${failedResources.map(item => item.label).join("、")}。ほかの項目は利用できます。` : "";
+  setMessage(elements.dashboardMessage, failedResources.length ? "一部の情報を取得できませんでした。" : "最新の情報を取得しました。", failedResources.length ? "error" : "success");
+  dashboardLoading = false;
+  elements.retryLoadButton.disabled = false;
+}
+
+async function runAdminAction(button, action) {
+  if (button.disabled) return;
+  button.disabled = true;
+  button.setAttribute("aria-busy", "true");
+  try { await action(); }
+  catch (error) { setMessage(elements.dashboardMessage, error.message || "処理に失敗しました。もう一度お試しください。", "error"); }
+  finally { button.disabled = false; button.removeAttribute("aria-busy"); }
 }
 
 async function refreshAccounts({ reset }) {
@@ -237,10 +302,14 @@ function applyAccountPage(page, { append }) {
 function renderAccounts() {
   if (!elements.accountList) return;
   if (elements.accountCount) elements.accountCount.textContent = `${formatInteger(currentAccountTotal)}件`;
+  const accounts = filterAdminAccounts(currentAccounts, elements.accountSearch?.value, elements.accountFilter?.value);
+  if (elements.accountFilterCount) elements.accountFilterCount.textContent = `読み込み済み${formatInteger(currentAccounts.length)}件のうち${formatInteger(accounts.length)}件を表示${nextAccountOffset !== null ? "。続きは「さらに表示」から読み込めます。" : ""}`;
   if (!currentAccounts.length) {
     elements.accountList.innerHTML = `<p class="admin-muted">登録済みアカウントはありません。</p>`;
+  } else if (!accounts.length) {
+    elements.accountList.innerHTML = `<p class="admin-empty-state">条件に一致するアカウントはありません。検索語や許可状態を変更してください。</p>`;
   } else {
-    elements.accountList.innerHTML = currentAccounts.map((account) => `
+    elements.accountList.innerHTML = accounts.map((account) => `
       <article class="admin-account-item">
         <div class="admin-account-name">
           <strong>${escapeHtml(account.displayName || "名称未設定")}</strong>
@@ -250,7 +319,7 @@ function renderAccounts() {
           <span>作成 ${escapeHtml(formatAdminDate(account.createdAt))}</span>
           <small>ID ${escapeHtml(account.id || "--")}</small>
         </div>
-        <button class="admin-secondary-button" type="button" data-account-early-access="${escapeAttribute(account.id || "")}" aria-pressed="${account.earlyAccessAllowed ? "true" : "false"}">${account.earlyAccessAllowed ? "先行機能：許可中（解除）" : "先行機能を許可"}</button>
+        <button class="admin-secondary-button" type="button" data-account-early-access="${escapeAttribute(account.id || "")}" aria-pressed="${account.earlyAccessAllowed ? "true" : "false"}">${account.earlyAccessAllowed ? "許可中 · 解除する" : "先行機能を許可"}</button>
         <label class="admin-account-fault-source">活断層データ
           <select data-account-active-fault-source="${escapeAttribute(account.id || "")}" ${account.earlyAccessAllowed ? "" : "disabled"}>
             <option value="jshis" ${account.activeFaultSource === "gsj" ? "" : "selected"}>J-SHIS</option>
@@ -725,23 +794,23 @@ function renderNotices() {
         <button class="admin-small-button danger" type="button" data-notice-remove>削除</button>
       </div>
       <div class="admin-notice-fields">
-        <input type="text" data-notice-field="title" value="${escapeAttribute(notice.title || "")}" placeholder="タイトル" />
-        <select data-notice-field="level">
+        <input type="text" data-notice-field="title" value="${escapeAttribute(notice.title || "")}" placeholder="タイトル" aria-label="お知らせのタイトル" />
+        <select data-notice-field="level" aria-label="お知らせの重要度">
           <option value="info" ${notice.level === "info" ? "selected" : ""}>通常</option>
           <option value="warning" ${notice.level === "warning" ? "selected" : ""}>注意</option>
           <option value="critical" ${notice.level === "critical" ? "selected" : ""}>重要</option>
         </select>
-        <select data-notice-field="tickerSpeed">
+        <select data-notice-field="tickerSpeed" aria-label="テロップの速度">
           <option value="slow" ${notice.tickerSpeed === "slow" ? "selected" : ""}>ゆっくり</option>
           <option value="normal" ${!notice.tickerSpeed || notice.tickerSpeed === "normal" ? "selected" : ""}>標準</option>
           <option value="fast" ${notice.tickerSpeed === "fast" ? "selected" : ""}>速い</option>
         </select>
-        <select data-notice-field="tickerDirection">
+        <select data-notice-field="tickerDirection" aria-label="テロップの方向">
           <option value="left" ${notice.tickerDirection !== "right" ? "selected" : ""}>右から左</option>
           <option value="right" ${notice.tickerDirection === "right" ? "selected" : ""}>左から右</option>
         </select>
       </div>
-      <textarea data-notice-field="body" placeholder="本文。テロップ表示ではこの文章が横に流れます。">${escapeHtml(notice.body || "")}</textarea>
+      <textarea data-notice-field="body" aria-label="お知らせの本文" placeholder="本文。テロップ表示ではこの文章が横に流れます。">${escapeHtml(notice.body || "")}</textarea>
       <div class="admin-ticker-preview ${notice.isTicker ? "" : "is-card"}">
         <span>${escapeHtml(notice.isTicker ? "テロップ表示" : "通常カード表示")}</span>
         <strong>${escapeHtml(buildNoticePreviewText(notice))}</strong>
@@ -944,7 +1013,8 @@ async function requestJson(path, options = {}) {
     method: options.method || "GET",
     headers: options.body ? { "Content-Type": "application/json" } : undefined,
     body: options.body ? JSON.stringify(options.body) : undefined,
-    credentials: "same-origin"
+    credentials: "same-origin",
+    signal: AbortSignal.timeout(20_000)
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -1056,12 +1126,6 @@ function formatDateTime(value) {
     minute: "2-digit"
   }).format(date);
 }
-
-function setMessage(element, text, type = "") {
-  element.textContent = text;
-  element.className = `admin-message ${type}`.trim();
-}
-
 
 function escapeAttribute(value) {
   return escapeHtml(value).replaceAll("`", "&#096;");
