@@ -16,3 +16,11 @@
 
 気象・地震・週間予報の出典は気象庁です。地図などの取得元・加工内容は
 [データ出典一覧](../../DATA_SOURCES.md)を参照してください。
+
+## 紹介バナー
+
+[`public/social/meteoscope-x-banner.jpg`](../../public/social/meteoscope-x-banner.jpg)は
+1200 × 630pxのMeteoScope専用紹介画像です。公式ロゴと上記の実画面を組み合わせたもので、
+他アプリの画像や地図イラストの転用ではありません。
+[制作元のHTML](meteoscope-banner.html)を同じサイズで描画して作成しています。
+READMEと、アプリURLのOGP・Xカードで使用します。

@@ -10,7 +10,9 @@
 
 **[MeteoScopeを開く](https://meteoscope.pages.dev/)** · [更新履歴](CHANGELOG.md) · [データの出典](DATA_SOURCES.md)
 
-![パソコンで表示したMeteoScope。全国の地図に雨雲と時刻スライダーを重ねた画面](docs/images/radar-desktop.jpg)
+![MeteoScopeの紹介画像。ロゴとPC・スマートフォンの実画面](public/social/meteoscope-x-banner.jpg)
+
+[X投稿用の横長紹介画像](https://meteoscope.pages.dev/social/meteoscope-x-banner.jpg)（1200 × 630px）
 
 > 気象庁などの公開情報を取得・加工して表示する非公式アプリです。災害時の判断には、最新の公式発表や自治体の避難情報も確認してください。
 
@@ -27,6 +29,8 @@
 一部の検索・解析・速報機能は[アーリーアクセス](#アーリーアクセス)です。通常公開の情報を見るために、MeteoScopeアカウントを作る必要はありません。
 
 ## 画面イメージ
+
+![パソコンで表示したMeteoScope。全国の地図に雨雲と時刻スライダーを重ねた画面](docs/images/radar-desktop.jpg)
 
 <table>
   <tr>

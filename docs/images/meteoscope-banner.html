@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MeteoScope 紹介バナー制作元</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #081526; color: #f3f7fc; font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", sans-serif; }
+    .banner { position: relative; width: 1200px; height: 630px; overflow: hidden; }
+    .copy { position: absolute; inset: 48px auto 46px 58px; width: 560px; }
+    .brand { display: flex; align-items: center; gap: 14px; }
+    .brand img { width: 58px; height: 58px; border-radius: 12px; }
+    .brand strong { font-family: Arial, sans-serif; font-size: 39px; letter-spacing: -.8px; }
+    h1 { margin: 51px 0 24px; font-size: 45px; line-height: 1.5; letter-spacing: -.8px; font-weight: 700; }
+    .accent { color: #66cfee; }
+    .features { margin: 0; color: #bdcbdc; font-size: 20px; line-height: 2; }
+    .foot { position: absolute; left: 58px; bottom: 47px; display: flex; align-items: center; gap: 18px; }
+    .foot span { width: 38px; height: 3px; background: #46c5ed; }
+    .foot strong { font-family: Arial, sans-serif; font-size: 21px; font-weight: 400; letter-spacing: .3px; }
+    .screens { position: absolute; left: 631px; top: 73px; width: 525px; height: 510px; }
+    .desktop { position: absolute; width: 516px; left: 0; top: 0; border: 1px solid #40536e; border-radius: 12px; background: #122239; overflow: hidden; }
+    .desktop header { height: 30px; display: flex; align-items: center; gap: 10px; padding: 0 13px; color: #aebfd3; font-size: 11px; }
+    .desktop header i { display: block; width: 5px; height: 5px; border-radius: 50%; background: #65cce7; }
+    .desktop img { display: block; width: 514px; height: 321px; }
+    .mobile { position: absolute; width: 192px; height: 423px; right: 26px; top: 90px; padding: 6px; background: #1c2e45; border: 1px solid #5b7087; border-radius: 24px; overflow: hidden; }
+    .mobile img { display: block; width: 178px; height: 409px; object-fit: cover; object-position: center; border-radius: 17px; }
+    .caption { position: absolute; left: 3px; top: 376px; color: #a8bbd0; font-size: 14px; line-height: 1.8; }
+    .caption strong { display: block; color: #dfe8f4; font-size: 16px; font-weight: 500; }
+    .note { position: absolute; right: 47px; bottom: 18px; color: #899bb3; font-size: 10px; }
+  </style>
+</head>
+<body>
+  <main class="banner" aria-label="MeteoScope紹介画像">
+    <section class="copy">
+      <div class="brand"><img src="../../public/icons/icon-192.png" alt=""><strong>MeteoScope</strong></div>
+      <h1>天気と防災情報を、<br><span class="accent">ひとつの地図で。</span></h1>
+      <p class="features">雨雲レーダー・アメダス・警報<br>台風・地震・津波</p>
+    </section>
+    <section class="screens" aria-label="アプリの実画面">
+      <div class="desktop"><header><i></i>MeteoScope — 雨雲レーダー</header><img src="radar-desktop.jpg" alt="パソコンの雨雲レーダー画面"></div>
+      <div class="caption"><strong>スマートフォンでも、PCでも。</strong>気象庁などの公開情報を可視化</div>
+      <div class="mobile"><img src="earthquake-mobile.jpg" alt="スマートフォンの地震情報画面"></div>
+    </section>
+    <div class="foot"><span></span><strong>meteoscope.pages.dev</strong></div>
+    <small class="note">画面は2026年11月14日の表示例です。公式アプリではありません。</small>
+  </main>
+</body>
+</html>
