@@ -34,7 +34,7 @@
 
 <table>
   <tr>
-    <td align="center"><img src="docs/images/earthquake-mobile.jpg" width="270" alt="スマートフォンで最近の地震と細分区域の最大震度を表示した画面"><br><strong>地震・震度</strong></td>
+    <td align="center"><img src="docs/images/earthquake-mobile.png" width="270" alt="スマートフォンで熊本県熊本地方の地震と細分区域の最大震度を表示した画面"><br><strong>地震・震度</strong></td>
     <td align="center"><img src="docs/images/weekly-mobile.jpg" width="270" alt="スマートフォンで東京地方の週間天気予報を表示した画面"><br><strong>週間天気予報</strong></td>
   </tr>
 </table>
