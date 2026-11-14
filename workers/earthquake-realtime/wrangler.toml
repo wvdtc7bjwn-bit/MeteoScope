@@ -2,13 +2,10 @@ name = "meteoscope-earthquake-realtime"
 main = "src/index.js"
 compatibility_date = "2026-07-15"
 
-[browser]
-binding = "BROWSER"
-
 [triggers]
 # Keep real-time XML ingestion and Discord delivery isolated from the heavier
 # daily-list maintenance so one job cannot exhaust the other's CPU budget.
-# The first trigger handles today's and yesterday's earthquake XML every minute.
+# The first trigger sends P2P earthquake notifications before syncing JMA XML every minute.
 # The second backfills at most one missing daily-list date once per hour.
 # The last two perform XML and daily-list retention cleanup once a day, each
 # with an independent CPU budget.

@@ -3,6 +3,7 @@ import {
   deliverPendingDiscordEarthquakeNotifications,
   isDiscordNotifiableEarthquakeReport
 } from "./discordEarthquakeNotifications.js";
+import { resolveDiscordEarthquakeIdentity } from "./discordEarthquakeIdentity.js";
 
 const JMA_XML_SOURCE_URL = "https://www.data.jma.go.jp/developer/xml/feed/eqvol.xml";
 const JMA_XML_CODES = new Set(["VXSE51", "VXSE52", "VXSE53"]);
@@ -353,9 +354,10 @@ async function syncOneEntry(db, entry, fetchImpl, now, env) {
       statements.push(buildReportUpsert(db, report, processedAt));
     }
     if (isDiscordNotifiableEarthquakeReport(report)) {
+      const notificationReport = await resolveDiscordEarthquakeIdentity(db, report);
       statements.push(buildDiscordEarthquakeNotificationUpsert(
         db,
-        report,
+        notificationReport,
         entry,
         now,
         env?.DISCORD_EARTHQUAKE_ROLE_IDS

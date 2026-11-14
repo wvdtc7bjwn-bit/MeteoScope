@@ -26,7 +26,7 @@ export async function onRequest(context) {
   }
   const sourceUrl = new URL(request.url);
   const suffix = sourceUrl.pathname.replace(/^\/api\/earthquakes/, "") || "/";
-  if (suffix !== "/distribution" && suffix !== "/discord-card") {
+  if (suffix !== "/distribution") {
     return jsonResponse({ ok: false, error: "not_found" }, 404);
   }
   if (!env.HYPOCENTER_ARCHIVE?.fetch) {

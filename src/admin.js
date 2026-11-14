@@ -366,14 +366,14 @@ async function sendAdminPushBroadcast() {
 
 async function sendDiscordTestNotification() {
   if (elements.discordTestButton?.disabled) return;
-  if (!confirm("1つ前の地震を使い、共有画像付きのTEST投稿をDiscordへ送信しますか？")) return;
+  if (!confirm("1つ前の地震を使い、テキストのTEST投稿をDiscordへ送信しますか？")) return;
   if (elements.discordTestButton) elements.discordTestButton.disabled = true;
   setMessage(elements.discordTestMessage, "Discordへ送信中...");
   try {
     const response = await requestJson("/discord/test", { method: "POST" });
     setMessage(
       elements.discordTestMessage,
-      `画像付きテスト投稿を送信しました（${formatDateTime(response.sentAt)}、地震ID: ${response.eventId}）。`,
+      `テスト投稿を送信しました（${formatDateTime(response.sentAt)}、地震ID: ${response.eventId}）。`,
       "success"
     );
   } catch (error) {

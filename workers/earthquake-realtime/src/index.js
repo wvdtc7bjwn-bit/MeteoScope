@@ -5,15 +5,13 @@ import {
 } from "./jmaDailyHypocenters.js";
 import {
   runJmaXmlHypocenterMaintenance,
-  runJmaXmlHypocenterSync,
-  parseJmaXmlHypocenterReport
+  runJmaXmlHypocenterSync
 } from "./jmaXmlHypocenters.js";
 import {
-  buildDiscordEarthquakeWebhookPayload,
-  readDiscordEarthquakeCard,
   sendDiscordEarthquakeTestNotification,
   sendDiscordEarthquakePreviousTestNotification
 } from "./discordEarthquakeNotifications.js";
+import { runP2pDiscordNotifications } from "./p2pDiscordNotifications.js";
 
 export const JMA_XML_SYNC_CRON = "* * * * *";
 export const JMA_DAILY_BACKFILL_CRON = "17 * * * *";
@@ -73,7 +71,7 @@ export function getScheduledSyncName(cron) {
   return cron === JMA_DAILY_BACKFILL_CRON ? "daily-backfill" : "jma-xml";
 }
 
-async function runScheduledSync(cron, env, cache) {
+export async function runScheduledSync(cron, env, cache, options = {}) {
   const syncName = getScheduledSyncName(cron);
   try {
     if (syncName === "daily-backfill") {
@@ -85,7 +83,16 @@ async function runScheduledSync(cron, env, cache) {
     if (syncName === "jma-daily-maintenance") {
       return await runJmaDailyHypocenterMaintenance(env);
     }
-    return await runJmaXmlHypocenterSync(env);
+    // P2P delivery must not wait for the XML feed or any XML report downloads.
+    // XML remains the independent fallback and archive source.
+    let p2p;
+    try {
+      p2p = await runP2pDiscordNotifications(env, options);
+    } catch {
+      console.warn("[MeteoScope] Discord P2P sync failed; continuing JMA XML");
+      p2p = { ok: false, error: "p2p_sync_failed" };
+    }
+    return { ...await runJmaXmlHypocenterSync(env, options), p2p };
   }
   catch (error) {
     console.error(`[MeteoScopeHypocenterWorker] ${syncName} sync failed`, error);
@@ -112,49 +119,28 @@ async function postDiscordPreviousTest(request, env) {
     env.METEOSCOPE_ADMIN_SERVICE_TOKEN
   )) return jsonResponse({ ok: false, error: "not_found" }, 404);
   const latest = await env.EQ_D1.prepare(`
-    SELECT n.event_id, n.entry_url
+    SELECT n.event_id, n.payload_json
     FROM discord_earthquake_notifications n
-    JOIN jma_xml_hypocenters j ON j.event_id = n.event_id
-    WHERE j.active = 1 AND n.status = 'sent'
-    ORDER BY j.origin_time DESC, j.report_time DESC
+    LEFT JOIN jma_xml_hypocenters j ON j.event_id = n.event_id
+    WHERE n.status = 'sent' AND (j.active IS NULL OR j.active = 1)
+    ORDER BY COALESCE(json_extract(n.payload_json, '$._earthquake.originTime'), j.origin_time, n.entry_updated) DESC
     LIMIT 2
   `).all();
   const previous = latest?.results?.[1];
-  if (!previous?.entry_url) {
+  if (!previous?.payload_json) {
     return jsonResponse({ ok: false, error: "前回の地震情報が見つかりません。" }, 404);
   }
-  let report;
-  try {
-    const source = await fetch(previous.entry_url, { signal: AbortSignal.timeout(8000) });
-    if (!source.ok) throw new Error("jma_source_unavailable");
-    report = parseJmaXmlHypocenterReport(await source.text(), {
-      url: previous.entry_url, xmlCode: "VXSE53"
-    });
-    if (report.eventId !== previous.event_id || report.ignored || report.active !== 1) {
-      throw new Error("jma_source_mismatch");
-    }
-  } catch (error) {
-    console.warn("[MeteoScope] Previous earthquake source unavailable", error?.message ?? error);
-    return jsonResponse({ ok: false, error: "前回の地震情報を取得できませんでした。" }, 502);
-  }
-  const payload = buildDiscordEarthquakeWebhookPayload(report);
-  await env.EQ_D1.prepare(`
-    UPDATE discord_earthquake_notifications SET payload_json = ? WHERE event_id = ?
-  `).bind(JSON.stringify(payload), previous.event_id).run();
-  const result = await sendDiscordEarthquakePreviousTestNotification(env, {
-    event_id: previous.event_id, payload_json: JSON.stringify(payload)
-  });
+  const result = await sendDiscordEarthquakePreviousTestNotification(env, previous);
   if (result.ok) {
     return jsonResponse({ ok: true, sentAt: result.sentAt,
-      eventId: result.eventId, messageId: result.messageId, imageAttached: true });
+      eventId: result.eventId, messageId: result.messageId, imageAttached: false });
   }
   const messages = {
     discord_webhook_not_configured: "Discord Webhook Secretが未設定です。",
     discord_rate_limited: "Discordの送信制限中です。時間をおいて再試行してください。",
     discord_timeout: "Discordへの接続がタイムアウトしました。",
     discord_network_error: "Discordへ接続できませんでした。",
-    discord_message_id_missing: "Discordから投稿結果を確認できませんでした。",
-    discord_test_image_unavailable: "地震の共有画像を生成できませんでした。"
+    discord_message_id_missing: "Discordから投稿結果を確認できませんでした。"
   };
   return jsonResponse({
     ok: false,
@@ -192,17 +178,6 @@ export default {
       return jsonResponse({ ok: false, error: "method_not_allowed" }, 405, {
         allow: "GET, HEAD, OPTIONS"
       });
-    }
-    if (pathname === "/discord-card") {
-      try {
-        const card = await readDiscordEarthquakeCard(env.EQ_D1, new URL(request.url).searchParams.get("event"));
-        return card
-          ? jsonResponse(card, 200, { "cache-control": "public, max-age=60" })
-          : jsonResponse({ ok: false, error: "not_found" }, 404);
-      } catch (error) {
-        console.error("[MeteoScopeHypocenterWorker] Discord card route failed", error);
-        return jsonResponse({ ok: false, error: "card_unavailable" }, 503);
-      }
     }
     if (pathname !== "/distribution") {
       return jsonResponse({ ok: false, error: "not_found" }, 404);

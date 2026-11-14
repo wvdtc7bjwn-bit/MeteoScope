@@ -9,10 +9,8 @@ const DISCORD_NOTIFICATION_LIMIT = 4;
 const DISCORD_FETCH_TIMEOUT_MS = 8_000;
 const DISCORD_MAX_ATTEMPTS = 8;
 const DISCORD_MAX_RETRY_MS = 60 * 60 * 1000;
+const DISCORD_DELIVERY_LEASE_MS = 60_000;
 const METEOSCOPE_EARTHQUAKE_URL = "https://meteoscope.pages.dev/?tab=earthquake";
-const DISCORD_CARD_URL = "https://meteoscope.pages.dev/discord-earthquake-card.html";
-const DISCORD_CARD_FILENAME = "meteoscope-earthquake.png";
-const DISCORD_CARD_DAILY_LIMIT = 20;
 const VXSE53_CODE = "VXSE53";
 const DISCORD_ROLE_ID_PATTERN = /^\d{15,22}$/u;
 const DISCORD_INTENSITY_THRESHOLDS = [...EARTHQUAKE_INTENSITY_LEVELS]
@@ -55,7 +53,7 @@ export function buildDiscordEarthquakeNotificationUpsert(
       entry_url = excluded.entry_url,
       entry_updated = excluded.entry_updated,
       payload_json = excluded.payload_json,
-      status = 'pending',
+      status = CASE WHEN discord_earthquake_notifications.status = 'sending' THEN 'sending' ELSE 'pending' END,
       attempts = 0,
       next_attempt_at = NULL,
       last_error = NULL,
@@ -64,6 +62,10 @@ export function buildDiscordEarthquakeNotificationUpsert(
       OR (
         excluded.entry_updated = discord_earthquake_notifications.entry_updated
         AND excluded.payload_json <> discord_earthquake_notifications.payload_json
+        AND NOT (
+          COALESCE(json_extract(discord_earthquake_notifications.payload_json, '$._earthquake.source'), 'xml') = 'xml'
+          AND json_extract(excluded.payload_json, '$._earthquake.source') = 'p2p'
+        )
       )
   `).bind(
     report.eventId,
@@ -78,17 +80,12 @@ export function buildDiscordEarthquakeNotificationUpsert(
 
 export function buildDiscordEarthquakeWebhookPayload(report, roleConfig = null) {
   const maximumIntensity = formatIntensity(report.maxIntensity);
-  const place = truncate(report.place || "震源地名不明", 170);
-  const magnitude = report.magnitude !== null
-    && report.magnitude !== undefined
-    && Number.isFinite(Number(report.magnitude))
-    ? `M${Number(report.magnitude).toFixed(1)}`
-    : "不明";
-  const depth = report.depthKm !== null
-    && report.depthKm !== undefined
-    && Number.isFinite(Number(report.depthKm))
-    ? formatDepth(Number(report.depthKm))
-    : "不明";
+  const place = truncate(String(report.place ?? "").trim() || "震源調査中", 170);
+  const magnitudeValue = notificationNumber(report.magnitude, 0, 10.5);
+  const depthValue = notificationNumber(report.depthKm, 0, 1000);
+  const magnitude = magnitudeValue !== null ? `M${magnitudeValue.toFixed(1)}` : "調査中";
+  const depth = depthValue !== null ? formatDepth(depthValue) : "調査中";
+  const originTime = formatJstShortDateTime(report.originTime);
   const correction = report.infoType === "訂正" ? "【訂正】" : "";
   const tsunamiText = formatTsunamiText(report.tsunamiText);
   const headline = buildDiscordNotificationHeadline(report, maximumIntensity, place);
@@ -102,40 +99,30 @@ export function buildDiscordEarthquakeWebhookPayload(report, roleConfig = null) 
       ? `${headline}\n${roleIds.map((roleId) => `<@&${roleId}>`).join(" ")}`
       : headline,
     embeds: [{
-      author: { name: "気象庁 防災情報XML" },
-      title: `${correction}地震情報`,
+      author: { name: "地震情報" },
+      title: `${correction}最大震度${maximumIntensity}｜${place}`,
       url: METEOSCOPE_EARTHQUAKE_URL,
       color: intensityColor(report.maxIntensity),
-      description: [
-        `発生時刻：${formatJstShortDateTime(report.originTime)}頃`,
-        `震源地：${place}`,
-        `最大震度：${maximumIntensity}`,
-        `規模：${magnitude}`,
-        `深さ：${depth}`,
-        "",
-        tsunamiText
-      ].join("\n"),
-      footer: { text: "気象庁 防災情報XML・MeteoScope" },
+      description: originTime ? `発生 ${originTime}頃（日本時間）` : "発生時刻：調査中",
+      fields: [
+        { name: "規模", value: magnitude, inline: true },
+        { name: "深さ", value: depth, inline: true },
+        { name: "津波について", value: tsunamiText, inline: false }
+      ],
+      footer: { text: report.source === "p2p"
+        ? "気象庁・P2P地震情報／MeteoScope · 発表"
+        : "気象庁 防災情報XML／MeteoScope · 発表" },
       timestamp: normalizeIsoTimestamp(report.reportTime)
     }],
-    _shareCard: {
-      type: "earthquake",
-      intensity: maximumIntensity,
-      intensityColor: getEarthquakeIntensityColor(report.maxIntensity),
-      eventTime: formatJstCardDateTime(report.originTime),
+    _earthquake: {
+      source: report.source || "xml",
+      sourceEventId: report.sourceEventId || report.eventId,
+      originTime: report.originTime,
       coordinates: report.longitude != null && report.latitude != null
-        && Number.isFinite(Number(report.longitude)) && Number.isFinite(Number(report.latitude))
-        ? [Number(report.longitude), Number(report.latitude)] : null,
-      hypocenter: place,
-      magnitude,
-      depth,
-      tsunami: formatTsunamiText(report.tsunamiText),
-      observations: (report.intensityStations ?? []).map((station) => ({
-        code: String(station.code ?? ""),
-        name: String(station.name ?? ""),
-        intensity: formatIntensity(station.intensity),
-        intensityColor: getEarthquakeIntensityColor(station.intensity)
-      }))
+        ? [report.longitude, report.latitude] : null,
+      place: report.place,
+      magnitude: report.magnitude,
+      depthKm: report.depthKm
     }
   };
 }
@@ -153,7 +140,7 @@ export function buildDiscordEarthquakeTestWebhookPayload(now = Date.now()) {
         "管理者画面からの接続テストです",
         "実際の地震情報ではありません。",
         "",
-        "通知対象：確定報（VXSE53）のみ",
+        "通知対象：震源・震度情報（P2P優先、気象庁XMLを併用）",
         "震度速報：通知しません",
         "画像：添付しません"
       ].join("\n"),
@@ -161,21 +148,6 @@ export function buildDiscordEarthquakeTestWebhookPayload(now = Date.now()) {
       timestamp: new Date(Number(now)).toISOString()
     }]
   };
-}
-
-export async function readDiscordEarthquakeCard(db, eventId) {
-  const id = String(eventId ?? "");
-  if (!/^\d{10,20}$/u.test(id)) return null;
-  const row = await db.prepare(`
-    SELECT payload_json FROM discord_earthquake_notifications WHERE event_id = ?
-  `).bind(id).first();
-  if (!row?.payload_json) return null;
-  try {
-    const payload = JSON.parse(row.payload_json);
-    return payload?._shareCard?.type === "earthquake" ? payload._shareCard : null;
-  } catch {
-    return null;
-  }
 }
 
 export async function sendDiscordEarthquakeTestNotification(env, options = {}) {
@@ -226,24 +198,16 @@ export async function sendDiscordEarthquakePreviousTestNotification(env, row, op
   const webhookUrl = parseDiscordWebhookUrl(env?.DISCORD_EARTHQUAKE_WEBHOOK_URL);
   if (!webhookUrl) return { ok: false, status: 503, error: "discord_webhook_not_configured" };
   const now = Number(options.now ?? Date.now());
-  const image = await renderDiscordCardImage({
-    db: env.EQ_D1, browser: env.BROWSER, row, now
-  });
-  if (!image) return { ok: false, status: 503, error: "discord_test_image_unavailable" };
   const payload = normalizeDiscordNotificationPayload(JSON.parse(row.payload_json));
   payload.allowed_mentions = { parse: [] };
-  payload.content = `【TEST】過去の地震を使った画像付き通知テスト`;
+  payload.content = `【TEST】過去の地震を使った通知テスト`;
   payload.embeds[0].title = `【TEST】${payload.embeds[0].title}`;
   payload.embeds[0].footer = { text: "MeteoScope・過去の地震によるテスト投稿" };
-  payload.embeds[0].image = { url: `attachment://${DISCORD_CARD_FILENAME}` };
-  const form = new FormData();
-  form.set("payload_json", JSON.stringify(payload));
-  form.set("files[0]", new Blob([image], { type: "image/png" }), DISCORD_CARD_FILENAME);
   const url = new URL(webhookUrl);
   url.searchParams.set("wait", "true");
   try {
     const response = await fetchWithTimeout(options.fetchImpl ?? fetch, url, {
-      method: "POST", body: form
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload)
     });
     const result = await readJsonSafely(response);
     if (!response.ok) return { ok: false, status: response.status, error: `discord_http_${response.status}` };
@@ -261,26 +225,25 @@ export async function deliverPendingDiscordEarthquakeNotifications(env, options 
   if (!db) throw new Error("earthquake_database_unavailable");
   const webhookUrl = parseDiscordWebhookUrl(env?.DISCORD_EARTHQUAKE_WEBHOOK_URL);
   if (!webhookUrl) {
-    return { enabled: false, attempted: 0, sent: 0, retried: 0, failed: 0 };
+    return { enabled: false, attempted: 0, sent: 0, retried: 0, failed: 0, skipped: 0 };
   }
 
   const now = Number(options.now ?? Date.now());
   const pending = await db.prepare(`
     SELECT event_id, payload_json, discord_message_id, attempts
     FROM discord_earthquake_notifications
-    WHERE status IN ('pending', 'retry')
+    WHERE (status IN ('pending', 'retry') OR (status = 'sending' AND updated_at <= ?))
       AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
     ORDER BY entry_updated ASC
     LIMIT ?
-  `).bind(new Date(now).toISOString(), DISCORD_NOTIFICATION_LIMIT).all();
+  `).bind(new Date(now - DISCORD_DELIVERY_LEASE_MS).toISOString(), new Date(now).toISOString(), DISCORD_NOTIFICATION_LIMIT).all();
 
-  const stats = { enabled: true, attempted: 0, sent: 0, retried: 0, failed: 0 };
+  const stats = { enabled: true, attempted: 0, sent: 0, retried: 0, failed: 0, skipped: 0 };
   const fetchImpl = options.fetchImpl ?? fetch;
   for (const row of pending?.results ?? []) {
     stats.attempted += 1;
     const result = await deliverOneNotification({
       db,
-      browser: env?.BROWSER,
       fetchImpl,
       webhookUrl,
       row,
@@ -354,7 +317,7 @@ export function resolveDiscordEarthquakeRoleMentions(maxIntensity, roleConfig) {
     .filter(Boolean);
 }
 
-async function deliverOneNotification({ db, browser, fetchImpl, webhookUrl, row, now }) {
+async function deliverOneNotification({ db, fetchImpl, webhookUrl, row, now }) {
   const attempts = Math.max(0, Number(row.attempts) || 0);
   let payload;
   try {
@@ -364,6 +327,15 @@ async function deliverOneNotification({ db, browser, fetchImpl, webhookUrl, row,
     await markPermanentFailure(db, row.event_id, attempts + 1, "payload_json_invalid", now);
     return "failed";
   }
+
+  const claim = await db.prepare(`
+    UPDATE discord_earthquake_notifications SET status = 'sending', updated_at = ?
+    WHERE event_id = ? AND payload_json = ?
+      AND (status IN ('pending', 'retry') OR (status = 'sending' AND updated_at <= ?))
+      AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+  `).bind(new Date(now).toISOString(), row.event_id, row.payload_json,
+    new Date(now - DISCORD_DELIVERY_LEASE_MS).toISOString(), new Date(now).toISOString()).run();
+  if (Number(claim?.meta?.changes ?? 0) !== 1) return "skipped";
 
   const messageId = String(row.discord_message_id ?? "").trim();
   const requestUrl = new URL(webhookUrl);
@@ -377,32 +349,17 @@ async function deliverOneNotification({ db, browser, fetchImpl, webhookUrl, row,
   }
 
   try {
-    const image = await renderDiscordCardImage({ db, browser, row, now });
     const discordPayload = normalizeDiscordNotificationPayload(payload);
-    if (method === "PATCH") discordPayload.attachments = [];
-    let body;
-    let headers;
-    if (image) {
-      discordPayload.embeds[0].image = { url: `attachment://${DISCORD_CARD_FILENAME}` };
-      const form = new FormData();
-      form.set("payload_json", JSON.stringify(discordPayload));
-      form.set("files[0]", new Blob([image], { type: "image/png" }), DISCORD_CARD_FILENAME);
-      body = form;
-    } else {
-      headers = { "content-type": "application/json" };
-      body = JSON.stringify(discordPayload);
+    if (method === "PATCH") {
+      discordPayload.attachments = [];
+      // Updating a source or a correction must not ping the same roles again.
+      discordPayload.allowed_mentions = { parse: [] };
     }
-    let response = await fetchWithTimeout(fetchImpl, requestUrl, {
-      method, headers, body
+    const response = await fetchWithTimeout(fetchImpl, requestUrl, {
+      method,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(discordPayload)
     });
-    if (image && [400, 413, 415].includes(response.status)) {
-      delete discordPayload.embeds[0].image;
-      response = await fetchWithTimeout(fetchImpl, requestUrl, {
-        method,
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(discordPayload)
-      });
-    }
     const responseBody = await readJsonSafely(response);
     if (response.ok) {
       const returnedMessageId = messageId || String(responseBody?.id ?? "").trim();
@@ -413,10 +370,11 @@ async function deliverOneNotification({ db, browser, fetchImpl, webhookUrl, row,
       const sentAt = new Date(now).toISOString();
       await db.prepare(`
         UPDATE discord_earthquake_notifications
-        SET status = 'sent', discord_message_id = ?, attempts = ?,
+        SET discord_message_id = ?, attempts = ?,
+          status = CASE WHEN payload_json = ? THEN 'sent' ELSE 'pending' END,
           next_attempt_at = NULL, last_error = NULL, sent_at = ?, updated_at = ?
         WHERE event_id = ?
-      `).bind(returnedMessageId, attempts + 1, sentAt, sentAt, row.event_id).run();
+      `).bind(returnedMessageId, attempts + 1, row.payload_json, sentAt, sentAt, row.event_id).run();
       return "sent";
     }
 
@@ -451,47 +409,19 @@ function normalizeDiscordNotificationPayload(payload) {
     return payload;
   }
   return {
-    ...Object.fromEntries(Object.entries(payload).filter(([key]) => key !== "_shareCard")),
+    ...Object.fromEntries(Object.entries(payload).filter(([key]) => !key.startsWith("_") && key !== "attachments")),
     content: normalizeDiscordPlainText(payload.content),
     embeds: payload.embeds.map((embed) => {
       if (!embed || typeof embed !== "object") return embed;
+      const { image, thumbnail, ...textEmbed } = embed;
       return {
-        ...embed,
+        ...textEmbed,
         title: normalizeDiscordPlainText(embed.title).replaceAll("｜", "　"),
         description: normalizeDiscordPlainText(embed.description)
           .replaceAll("　／　", "　")
       };
     })
   };
-}
-
-async function renderDiscordCardImage({ db, browser, row, now }) {
-  if (!browser?.quickAction || !row.event_id) return null;
-  try {
-    const since = new Date(now - 24 * 60 * 60 * 1000).toISOString();
-    const count = await db.prepare(`
-      SELECT COUNT(*) AS total FROM discord_earthquake_notifications
-      WHERE sent_at >= ? AND event_id <> ?
-    `).bind(since, row.event_id).first();
-    if (Number(count?.total ?? 0) >= DISCORD_CARD_DAILY_LIMIT) return null;
-    const url = new URL(DISCORD_CARD_URL);
-    url.searchParams.set("event", String(row.event_id));
-    const response = await browser.quickAction("screenshot", {
-      url: url.href,
-      viewport: { width: 1080, height: 1350 },
-      screenshotOptions: { type: "png" },
-      waitForSelector: { selector: "body[data-card-ready='true']", timeout: 15_000 },
-      actionTimeout: 20_000
-    });
-    if (!response?.ok || !String(response.headers.get("content-type") ?? "").includes("image/png")) {
-      return null;
-    }
-    const image = await response.arrayBuffer();
-    return image.byteLength > 0 && image.byteLength <= 8 * 1024 * 1024 ? image : null;
-  } catch (error) {
-    console.warn("[MeteoScope] Discord earthquake card unavailable", error?.message ?? error);
-    return null;
-  }
 }
 
 function normalizeDiscordPlainText(value) {
@@ -572,21 +502,16 @@ function normalizeIsoTimestamp(value, fallback = Date.now()) {
 
 function formatJstShortDateTime(value) {
   const timestamp = Date.parse(String(value ?? ""));
-  if (!Number.isFinite(timestamp)) return "時刻不明";
+  if (!Number.isFinite(timestamp)) return null;
   const parts = JST_SHORT_DATE_TIME_FORMATTER.formatToParts(new Date(timestamp));
   const getPart = (type) => parts.find((part) => part.type === type)?.value || "";
   return `${getPart("month")}月${getPart("day")}日${getPart("hour")}:${getPart("minute")}`;
 }
 
-function formatJstCardDateTime(value) {
-  const timestamp = Date.parse(String(value ?? ""));
-  if (!Number.isFinite(timestamp)) return "時刻不明";
-  const parts = new Intl.DateTimeFormat("ja-JP", {
-    timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", hour12: false
-  }).formatToParts(new Date(timestamp));
-  const getPart = (type) => parts.find((part) => part.type === type)?.value || "";
-  return `${getPart("year")}/${getPart("month")}/${getPart("day")} ${getPart("hour")}:${getPart("minute")}`;
+function notificationNumber(value, min, max) {
+  if (value == null || typeof value === "boolean" || String(value).trim() === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number >= min && number <= max ? number : null;
 }
 
 function formatIntensity(value) {
@@ -607,7 +532,7 @@ function formatTsunamiText(value) {
   if (/津波の心配はありません/u.test(text)) {
     return "この地震による津波の心配はありません。";
   }
-  return ensureJapanesePeriod(truncate(text, 1_024));
+  return truncate(ensureJapanesePeriod(text), 1_024);
 }
 
 function buildDiscordNotificationHeadline(report, maximumIntensity, place) {

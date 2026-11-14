@@ -40,8 +40,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: "index.html",
-        admin: "admin.html",
-        discordEarthquakeCard: "discord-earthquake-card.html"
+        admin: "admin.html"
       },
       output: {
         manualChunks(id) {

@@ -2,29 +2,28 @@
 
 気象庁「日々の震源リスト」の日別データをD1へ保存し、Web版へ震央分布を返す専用Workerです。
 
-地震・津波の速報表示には使用しません。Web版の地震・津波情報は、気象庁防災情報XMLの地震火山フィードから取得します。
+Web版の地震表示はP2P地震情報と気象庁防災情報XMLを使用し、EEWは別のWolfx受信処理です。
 
 ## 公開API
 
 - `GET /api/earthquakes/distribution`
-- `GET /api/earthquakes/discord-card?event=...`（Discord通知の共有画像用データ）
 
 履歴、最新地震、観測点、WebSocketのAPIは廃止しました。
 
 ## D1
 
-使用するテーブルは次の2つだけです。
+震央分布と気象庁XMLの保管に使用する主なテーブルは次のとおりです。
 
 - `jma_daily_hypocenter_days`
 - `jma_daily_hypocenter_sync`
+- `jma_xml_hypocenters`
+- `jma_xml_feed_entries`
 
 旧DMDATA受信で使用していた`earthquake_history`、`station_intensities`、`tsunami_history`、`meteoscope_worker_state`は`0003_remove_dmdata.sql`で削除します。
 
 ## Cloudflare設定
 
-Discord通知の画像にはBrowser Runの`BROWSER` bindingを使用します。画像はWeb版と同じ地震共有カードから生成し、WebhookにPNGとして添付します。1日あたり最大20件まで画像を生成し、上限到達や画像生成失敗時はテキスト通知を送信します。Browser Runの無料枠はアカウント全体で1日10分のため、他の用途と共用する場合は利用状況を確認してください。
-
-`DMDATA_API_KEY` Secret、Durable Object binding、DM-D.S.S関連の変数は不要です。WorkerのD1 binding `EQ_D1`、Browser Run binding `BROWSER`、Cronを使用します。
+`DMDATA_API_KEY` Secret、Durable Object binding、DM-D.S.S関連の変数は不要です。WorkerのD1 binding `EQ_D1`と既存Cronを使用します。
 
 ## デプロイ
 
