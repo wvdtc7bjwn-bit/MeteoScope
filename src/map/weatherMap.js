@@ -118,7 +118,7 @@ const EEW_SOURCE_ID = "wolfx-emergency-earthquake-warning";
 const EEW_AREA_SOURCE_ID = "wolfx-eew-forecast-areas";
 const EEW_AREA_FILL_LAYER_ID = "eew-forecast-area-fill";
 const EEW_AREA_LINE_LAYER_ID = "eew-forecast-area-line";
-const EEW_LAYER_IDS = [EEW_AREA_FILL_LAYER_ID, EEW_AREA_LINE_LAYER_ID, "eew-wave-fill", "eew-wave-line", "eew-hypocenter-cross"];
+const EEW_LAYER_IDS = [EEW_AREA_FILL_LAYER_ID, EEW_AREA_LINE_LAYER_ID, "eew-wave-fill", "eew-wave-line", "eew-hypocenter-cross", "eew-hypocenter-note"];
 const EEW_P_WAVE_COLOR = "#1769c2";
 const EEW_S_WAVE_COLOR = "#ff6a3d";
 const EEW_HYPOCENTER_BLINK_INTERVAL_MS = 1800;
@@ -1353,6 +1353,23 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "text-opacity": 1,
         "text-opacity-transition": { duration: 1400, delay: 0 }
       }
+    });
+    map.addLayer({
+      id: "eew-hypocenter-note",
+      type: "symbol",
+      source: EEW_SOURCE_ID,
+      filter: ["all", ["==", ["get", "featureType"], "hypocenter"], ["!=", ["coalesce", ["get", "positionLabel"], ""], ""]],
+      layout: {
+        visibility: "none",
+        "text-field": ["get", "positionLabel"],
+        "text-font": ["Noto Sans JP"],
+        "text-size": 12,
+        "text-anchor": "top",
+        "text-offset": [0, 1.8],
+        "text-allow-overlap": true,
+        "text-ignore-placement": true
+      },
+      paint: { "text-color": "#f2b84b", "text-halo-color": "#172436", "text-halo-width": 1.5 }
     });
     map.addLayer({
       id: "jma-river-flood-casing",
@@ -4855,7 +4872,8 @@ function createEewFeatureCollection(events, now = Date.now()) {
       properties: {
         featureType: "hypocenter",
         eventId: eew.eventId,
-        uncertain: Boolean(eew.isAssumption),
+        uncertain: eew.hypocenterMarkerUncertain ?? Boolean(eew.isAssumption || eew.isOnePointDetection),
+        positionLabel: eew.hypocenterStatusLabel ? localizeText(eew.hypocenterStatusLabel) : "",
         reliability: eew.hypocenterReliability ?? "unknown"
       }
     });

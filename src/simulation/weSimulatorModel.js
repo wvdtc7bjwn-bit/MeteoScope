@@ -16,6 +16,17 @@ export function classifyIntensity(value) {
 }
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+// Shared educational magnitude-duration envelope for shaking and EEW review.
+// This is not a rule for real JMA bulletin counts or final-report timing.
+export function getSimulationMagnitudeDurationSec(magnitude) {
+  const found = SHAKING_DURATION_SCALES.findIndex(([m]) => m >= magnitude);
+  const upper = found < 0 ? SHAKING_DURATION_SCALES.length - 1 : found;
+  const high = SHAKING_DURATION_SCALES[upper];
+  const low = SHAKING_DURATION_SCALES[Math.max(0, upper - 1)];
+  const ratio = high[0] > low[0] ? clamp((magnitude - low[0]) / (high[0] - low[0]), 0, 1) : 0;
+  return low[1] + (high[1] - low[1]) * ratio;
+}
+
 // The upstream station-response and bulletin-timing model, isolated from its UI.
 // Site amplification is kept at the upstream default; no site-specific ground data are bundled.
 export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = false, latitude = 0, longitude = 0 }) {
@@ -257,12 +268,7 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
     const softness = clamp((520 - (properties.groundAvs ?? 400)) / 420, 0, 1);
     // Educational duration envelope, not waveform-based real-time intensity.
     // Broad M7/M8/M9 duration scales follow JMA FAQ27; interpolate in between.
-    const found = SHAKING_DURATION_SCALES.findIndex(([m]) => m >= state.magnitude);
-    const upper = found < 0 ? SHAKING_DURATION_SCALES.length - 1 : found;
-    const high = SHAKING_DURATION_SCALES[upper];
-    const low = SHAKING_DURATION_SCALES[Math.max(0, upper - 1)];
-    const ratio = high[0] > low[0] ? (state.magnitude - low[0]) / (high[0] - low[0]) : 0;
-    const mainDuration = (low[1] + (high[1] - low[1]) * ratio) * (1 + softness * .25);
+    const mainDuration = getSimulationMagnitudeDurationSec(state.magnitude) * (1 + softness * .25);
     const peakAtSec = properties.sArrivalSec + profile.durationSec + Math.max(0, properties.sWaveRiseDelaySec ?? 0);
     const decayStartSec = Math.max(peakAtSec, properties.sArrivalSec + mainDuration,
       (properties.lastStrongSArrivalSec ?? properties.sArrivalSec) + profile.durationSec);
@@ -350,7 +356,10 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
       ? Math.max(simulationCompleteAtSec - 8, firstReportSec)
       : firstReportSec + reviewDurationSec;
     const finalReportSec = Math.min(firstReportSec + reviewDurationSec, availableEndSec);
-    const reportCount = Math.max(Math.round(clamp(4 + Math.max(finalMagnitude - 4.0, 0) * 2.1, 4, 18)), Math.ceil((finalReportSec - firstReportSec) / 3) + 1);
+    // Resolve the initial growth of large events more frequently without
+    // stretching the initial analysis or prescribing a fixed final report count.
+    const initialReportIntervalSec = finalMagnitude >= 7.5 ? 1 : 3;
+    const reportCount = Math.max(4, Math.round(4 + Math.max(finalMagnitude - 4.0, 0) * 2.1), Math.ceil((finalReportSec - firstReportSec) / initialReportIntervalSec) + 1);
     return Array.from({ length: reportCount }, (_, index) => {
       const isFinal = index === reportCount - 1;
       const progress = index / (reportCount - 1);

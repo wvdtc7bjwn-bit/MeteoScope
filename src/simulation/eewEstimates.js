@@ -1,4 +1,4 @@
-import { classifyIntensity } from "./weSimulatorModel.js";
+import { classifyIntensity, getSimulationMagnitudeDurationSec } from "./weSimulatorModel.js";
 import { getEarthquakeIntensityRank } from "../earthquakeIntensity.js";
 import { estimateSimulationIntensity, MAX_REFERENCE_INTENSITY_DEPTH_KM, DEEP_PATH_BLEND_END_KM } from "./intensityModel.js";
 
@@ -8,7 +8,13 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
   if (!schedule.length) return [];
   const firstTime = schedule[0].elapsedSec;
   const originalEnd = schedule.at(-1).elapsedSec;
-  const finalTime = Math.max(originalEnd, ruptureCompleteSec + 2);
+  // A giant event cannot be considered settled after the short initial analysis.
+  // Follow its magnitude-duration envelope from the first P detection, then
+  // allow 8 s for review. Explicit fault rupture must also have completed.
+  const detectedAtSec = schedule[0].detectedAtSec ?? firstTime;
+  const confirmationEnd = options.magnitude > 7
+    ? detectedAtSec + getSimulationMagnitudeDurationSec(options.magnitude) + 8 : originalEnd;
+  const finalTime = Math.max(originalEnd, ruptureCompleteSec + 2, confirmationEnd);
   const timeline = schedule.map(report => ({ ...report }));
   // Extend reviews after the fast initial analysis; never stretch earlier bulletins.
   while (timeline.at(-1).elapsedSec < finalTime) timeline.push({ elapsedSec: Math.min(finalTime, Number((timeline.at(-1).elapsedSec + 3).toFixed(2))), detectedAtSec: schedule[0].detectedAtSec });

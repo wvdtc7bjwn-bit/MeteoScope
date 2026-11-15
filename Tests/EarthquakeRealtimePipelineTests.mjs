@@ -5,6 +5,7 @@ import { createEarthquakeSummaryOverride } from "../src/earthquake/summaryOverri
 import { createRealtimeEarthquakeClient, normalizeP2pEarthquake, mergeRealtimeEarthquakes, reconcileEarthquakeSources, isConfirmedEarthquakeReport, isNewEarthquakeReport } from "../src/earthquake/realtimeEarthquake.js";
 import * as format from "../src/earthquakeFormat.js";
 import { escapeHtml } from "../src/utils/html.js";
+import { createLocalEewTestEvent } from "../src/eew/localEewTest.js";
 
 const issued = Date.parse("2026-11-13T10:54:00+09:00");
 const prompt = normalizeP2pEarthquake({ code: 551, id: "prompt", issue: { type: "ScalePrompt", time: "2026/11/13 10:54:00" }, earthquake: { time: "2026/11/13 10:52:00", maxScale: 30 } });
@@ -110,6 +111,13 @@ const firstReportMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "no
 assert.match(firstReportMarkup, /M4\.6/);
 assert.match(firstReportMarkup, /深さ30km/);
 assert.match(firstReportMarkup, /東京都２３区/);
+const onePointMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", createLocalEewTestEvent("one-point"));
+assert.match(onePointMarkup, /1点検知・初期推定/);
+assert.match(onePointMarkup, /M5\.8/);
+assert.match(onePointMarkup, /深さ40km/);
+assert.doesNotMatch(onePointMarkup, /M仮定値|深さ仮定値/);
+const assumedMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", createLocalEewTestEvent("assumption"));
+assert.match(assumedMarkup, /仮定位置/);
 
 // 実アプリの受信ハンドラーも、速報ではXMLを追加取得せず、EEW地図を維持する。
 const app = readFileSync(new URL("../src/app.js", import.meta.url), "utf8");

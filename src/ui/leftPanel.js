@@ -3506,7 +3506,7 @@ function buildEarthquakeMobileContextMarkup(
     const affectedAreas = areaNames.length
       ? `対象 ${areaNames.slice(0, 3).join("・")}${areaNames.length > 3 ? `ほか${areaNames.length - 3}地域` : ""}`
       : "";
-    const detectionText = eew.isOnePointDetection ? "1点検知と確認された速報" : "";
+    const detectionText = eew.hypocenterStatusLabel || (eew.isOnePointDetection ? "1点検知・初期推定" : "");
     const supportingText = [
       eew.uncertaintyLabel || "",
       detectionText,

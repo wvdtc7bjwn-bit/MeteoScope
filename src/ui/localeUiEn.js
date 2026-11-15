@@ -7,6 +7,8 @@ WE-Simulatorを開く ↗|Open WE-Simulator ↗
 ソースコード ↗|Source code ↗
 地盤補正なし|Without ground correction
 解析中|Analyzing
+1点検知・初期推定|Single-station detection / initial estimate
+仮定位置|Assumed position
 緊急地震速報の警報対象地域|EEW warning areas
 シミュレーション（実際の発表ではありません）|Simulation (not an actual bulletin)
 震源地名不明|Unknown epicenter

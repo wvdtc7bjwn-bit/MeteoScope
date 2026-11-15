@@ -212,6 +212,10 @@ export function normalizeWolfxEew(payload, { receivedAt = Date.now(), transport 
     onePointDetectionStatus: detection.status,
     onePointDetectionEvidence: detection.evidence,
     isOnePointDetection: detection.isOnePoint,
+    // Presentation only: a one-point estimate is not an assumed source.
+    hypocenterMarkerUncertain: isAssumption || method.type === "plum" || detection.isOnePoint,
+    hypocenterStatusLabel: isAssumption || method.type === "plum" ? "仮定位置"
+      : detection.isOnePoint ? "1点検知・初期推定" : "",
     canRenderWaves,
     uncertaintyLabel: method.type === "mixed"
       ? `通常方式とPLUM法を併用した情報${isAssumption ? "・仮定震源要素を使用" : ""}`
