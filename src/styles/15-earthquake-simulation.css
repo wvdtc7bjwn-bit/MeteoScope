@@ -60,6 +60,10 @@
 .simulation-form-status:empty { display: none; }
 .simulation-model-note { font-size: 12px; color: var(--muted); }
 .simulation-reference-note { font-size: 12px; color: var(--modal-foreground); }
+.simulation-display-label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
+.simulation-display-label select { min-height: 40px; max-width: 65%; padding: 7px 10px; border: 1px solid var(--modal-control-border); border-radius: 12px; background: var(--modal-control-surface); color: var(--modal-foreground); font: inherit; }
+.simulation-playback [data-simulation-interrupted] { margin-block: 8px 0; }
+.simulation-playback [data-simulation-interrupted][hidden] { display: none; }
 .simulation-recommendation { padding-top: 12px; border-top: 1px solid var(--modal-control-border); font-size: 13px; }
 .simulation-recommendation a { display: inline-flex; align-items: center; min-height: 44px; max-width: 100%; overflow-wrap: anywhere; color: var(--blue); text-decoration: underline; text-underline-offset: 3px; }
 .simulation-form :is(.simulation-start, .simulation-secondary), .simulation-playback button {

@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import { evaluateDeepIntensityObservations } from "../scripts/validate-simulation-deep-intensity.mjs";
+const result = await evaluateDeepIntensityObservations();
+assert.equal(result.events.length, 11);
+assert.equal(result.events.reduce((sum, e) => sum + e.stations, 0), 8258);
+assert.ok(result.mean < result.baselineMean * .85, "reduce event-averaged interval error relative to deployed 861a97f on the same observed stations");
+assert.ok(result.events.every(event => event.intervalMae - event.baselineIntervalMae < .15), "bound the degradation of cases that a generic educational correction cannot reproduce");
+assert.ok(result.events.some(event => event.intervalMae > event.baselineIntervalMae), "retain unfavorable cases in the report instead of presenting only improvements");
+assert.equal(result.groundCorrection, "none");
+console.log(`Deep observed-station comparison: ${result.baselineMean.toFixed(3)} -> ${result.mean.toFixed(3)} mean interval error; 11 cases, 8258 reports; limited educational comparison, not exact prediction`);

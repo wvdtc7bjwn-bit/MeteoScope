@@ -11,6 +11,8 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
   let active = false;
   let pickHandler = null;
   let previousCursor = "";
+  let previousStations = new Map();
+  let previousFault = "";
   const cancelPick = () => {
     const map = getMap();
     if (map && pickHandler) {
@@ -23,7 +25,8 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
     const map = getMap();
     if (!map?.getLayer("eew-wave-fill")) return false;
     if (map.getSource(STATIONS)) return true;
-    map.addSource(STATIONS, { type: "geojson", data: EMPTY });
+    previousStations.clear(); previousFault = "";
+    map.addSource(STATIONS, { type: "geojson", data: EMPTY, promoteId: "id" });
     map.addSource(FAULT, { type: "geojson", data: EMPTY });
     const before = map.getLayer("eew-wave-fill") ? "eew-wave-fill" : undefined;
     map.addLayer({ id: LAYERS[0], type: "fill", source: FAULT, filter: ["==", ["get", "kind"], "area"], paint: { "fill-color": "#c68bff", "fill-opacity": .14, "fill-outline-color": "#b861ed" } }, before);
@@ -54,7 +57,7 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
       const known = p.intensityEstimateAvailable !== false;
       const availability = !known ? `<br>${english ? "Deep approximation unavailable: intensity not estimated" : "深発近似データ未取得：震度推定なし"}`
         : p.deepApproximation ? `<br>${english ? "Educational deep approximation" : "深発近似（学習用・異常震域は概算）"}` : "";
-      showInfo(event.lngLat, `<strong>${escapeHtml(p.name)}</strong><br>SIMULATION · ${english ? "Current shaking" : "現在の揺れ"}: ${escapeHtml(known ? p.intensity : "—")}<br>${english ? "Recorded maximum" : "記録最大"}: ${escapeHtml(known ? p.recordedIntensity ?? p.intensity : "—")}${availability}<br>P: ${seconds(p.pArrivalSec)} / S: ${seconds(p.sArrivalSec)}<br><small>${ground}</small>`);
+      showInfo(event.lngLat, `<strong>${escapeHtml(p.name)}</strong><br>SIMULATION · ${english ? "Current shaking" : "現在の揺れ"}: ${escapeHtml(known ? p.currentIntensity ?? p.intensity : "—")}<br>${english ? "Recorded maximum" : "記録最大"}: ${escapeHtml(known ? p.recordedIntensity ?? p.intensity : "—")}${availability}<br>P: ${seconds(p.pArrivalSec)} / S: ${seconds(p.sArrivalSec)}<br><small>${ground}</small>`);
     };
     map.on("click", LAYERS[2], onStationClick);
     map.on("click", LAYERS[3], onStationClick);
@@ -65,14 +68,33 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
     render(frame) {
       if (!ensureLayers()) return false;
       const map = getMap();
+      const source = map.getSource(STATIONS);
+      const nextStations = new Map(frame.stations.features.map(feature => [feature.properties.id, feature]));
+      if (!active || typeof source.updateData !== "function") source.setData(frame.stations);
+      else {
+        const diff = { remove: [...previousStations.keys()].filter(id => !nextStations.has(id)), add: [], update: [] };
+        for (const [id, feature] of nextStations) {
+          const previous = previousStations.get(id);
+          if (!previous) { diff.add.push(feature); continue; }
+          if (feature === previous) continue;
+          const changed = Object.entries(feature.properties).filter(([key, value]) => previous.properties[key] !== value);
+          const removed = Object.keys(previous.properties).filter(key => !Object.hasOwn(feature.properties, key));
+          const moved = feature.geometry.coordinates.some((value, i) => previous.geometry.coordinates[i] !== value);
+          if (changed.length || removed.length || moved) diff.update.push({ id, ...(moved ? { newGeometry: feature.geometry } : {}), removeProperties: removed,
+            addOrUpdateProperties: changed.map(([key, value]) => ({ key, value })) });
+        }
+        if (diff.remove.length || diff.add.length || diff.update.length) source.updateData(diff);
+      }
+      previousStations = nextStations;
+      const fault = JSON.stringify(frame.fault);
+      if (fault !== previousFault) { map.getSource(FAULT).setData(frame.fault); previousFault = fault; }
+      if (!active) LAYERS.forEach(id => map.setLayoutProperty(id, "visibility", "visible"));
       active = true;
-      map.getSource(STATIONS).setData(frame.stations);
-      map.getSource(FAULT).setData(frame.fault);
-      LAYERS.forEach(id => map.setLayoutProperty(id, "visibility", "visible"));
       return true;
     },
     clear() {
       active = false;
+      previousStations.clear(); previousFault = "";
       cancelPick();
       hideInfo();
       const map = getMap();

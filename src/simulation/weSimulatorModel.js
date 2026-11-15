@@ -20,6 +20,8 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 // Site amplification is kept at the upstream default; no site-specific ground data are bundled.
 export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = false, latitude = 0, longitude = 0 }) {
   const state = { magnitude, depthKm, latitude, longitude };
+  const riseProfiles = new WeakMap();
+  const responses = new WeakMap();
   const getOffshoreEpicenterFactor = () => offshore ? 1 : 0;
   function getStationWaveResponseProperties(key, finalIntensity, ground = {}) {
     const siteNoise = stableUnitInterval(`${key}|site`);
@@ -70,6 +72,7 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
   }
 
   function getGroundRiseProfile(properties) {
+    if (riseProfiles.has(properties)) return riseProfiles.get(properties);
     const avs = properties.groundAvs ?? 400;
     const amplification = properties.groundAmplification ?? EARTHQUAKE_MODEL.defaultSiteAmplification;
     const softness = clamp((520 - avs) / 420, 0, 1);
@@ -96,7 +99,7 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
       waveformProfile.slowRise * 0.35 -
       nearSourceStrongMotionFactor * 0.08;
   
-    return {
+    const profile = {
       durationSec: Math.max(durationSec, 1.15),
       curvature: Math.max(curvature, 1.35),
       lateEnergy: waveformProfile.lateEnergy,
@@ -117,6 +120,8 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
         1.35,
       ),
     };
+    riseProfiles.set(properties, profile);
+    return profile;
   }
 
   function groundAwareRiseProgress(timeSinceSArrivalSec, profile) {
@@ -277,8 +282,13 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
     const isSimulation = Number.isFinite(elapsedSec);
     const observed = !isSimulation || elapsedSec >= properties.pArrivalSec;
     const waveState = isSimulation && properties.sArrivalSec > elapsedSec ? "p" : "s";
-    const riseProfile = getGroundRiseProfile(properties);
-    const sTransitionLeadSec = getSWaveTransitionLeadSec(properties);
+    let response = responses.get(properties);
+    if (!response) {
+      response = { riseProfile: getGroundRiseProfile(properties), sTransitionLeadSec: getSWaveTransitionLeadSec(properties),
+        pWaveTarget: getPWaveIntensityTarget(properties), recordedFloor: getPWaveRecordedIntensityFloor(properties, true) };
+      responses.set(properties, response);
+    }
+    const { riseProfile, sTransitionLeadSec } = response;
     const riseProgress = isSimulation
       ? groundAwareRiseProgress(
           elapsedSec - properties.sArrivalSec + sTransitionLeadSec - (properties.sWaveRiseDelaySec ?? 0),
@@ -288,13 +298,13 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
     const pWaveProgress = isSimulation
       ? getPWaveRiseProgress(properties, elapsedSec)
       : 1;
-    const pWaveTarget = getPWaveIntensityTarget(properties);
+    const pWaveTarget = response.pWaveTarget;
     const pWaveIntensity = pWaveTarget * pWaveProgress;
     const rawCurrentIntensityValue =
       waveState === "p"
         ? pWaveIntensity
         : Math.max(pWaveIntensity, properties.predictedIntensityValue * riseProgress);
-    const recordedIntensityFloor = getPWaveRecordedIntensityFloor(properties, observed);
+    const recordedIntensityFloor = observed ? response.recordedFloor : 0;
     const recordedIntensityValue = Math.min(properties.predictedIntensityValue, Math.max(rawCurrentIntensityValue, recordedIntensityFloor));
     const timing = properties.shakingEndSec != null ? properties : getStationShakingTiming(properties);
     const decayProgress = isSimulation && elapsedSec > timing.shakingDecayStartSec

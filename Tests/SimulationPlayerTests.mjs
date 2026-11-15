@@ -16,8 +16,16 @@ player.setSpeed(2); assert.equal(frames.size, 1); advance(1000); assert.equal(pl
 player.seek(2); advance(500); assert.equal(player.snapshot().elapsed, 3, "backward seek resets playback epoch");
 player.setSpeed(999); assert.equal(player.snapshot().speed, 2);
 player.seek(-100); assert.equal(player.snapshot().elapsed, 0);
-advance(20000); assert.equal(player.snapshot().elapsed, 30); assert.equal(player.snapshot().running, false); assert.equal(frames.size, 0);
+for (let i = 0; i < 15; i++) advance(1000);
+assert.equal(player.snapshot().elapsed, 30); assert.equal(player.snapshot().running, false); assert.equal(frames.size, 0);
 player.seek(0); player.play(); advance(500); assert.equal(player.snapshot().elapsed, 1);
+advance(60000); assert.equal(player.snapshot().elapsed, 1, "long browser suspension cannot skip the simulation");
+assert.equal(player.snapshot().running, false); assert.equal(player.snapshot().interrupted, true);
+player.play(); advance(500); assert.equal(player.snapshot().elapsed, 2, "explicit resume continues from the frozen scene at the selected speed");
+player.suspend(); assert.equal(frames.size, 0); advance(60000); assert.equal(player.snapshot().elapsed, 2);
+assert.equal(player.snapshot().interrupted, true);
+player.pause(); player.suspend(); assert.equal(player.snapshot().elapsed, 2, "repeated lifecycle events cannot advance or restart playback");
+player.play(); assert.equal(player.snapshot().interrupted, false);
 player.dispose(); assert.equal(frames.size, 0); const count = snapshots.length;
 player.play(); player.seek(12); player.setSpeed(1); advance(1000); assert.equal(snapshots.length, count, "no frames after disposal");
 console.log("Simulation playback: pause, seek, speed, completion, replay and disposal passed");

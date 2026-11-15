@@ -1,5 +1,6 @@
 import { JMA_ENDPOINTS, MAP_DATA_ENDPOINTS } from "../config.js";
 import { getCurrentLanguage } from "./locale.js";
+import { loadSimulationResource, SimulationPreparationError } from "../simulation/preparationErrors.js";
 
 const text = (ja, en) => getCurrentLanguage() === "en" ? en : ja;
 const modelNames = () => [
@@ -25,6 +26,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
   let intensityEstimateAvailable = true;
   let offshoreDetectionCount = 0;
   let firstReportElapsedSec = null;
+  let intensityDisplay = "current";
   const modal = document.createElement("div");
   modal.id = "earthquake-simulation-modal";
   modal.className = "warning-modal simulation-modal";
@@ -61,7 +63,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
           <p class="simulation-disclaimer">${text("学習用の模擬計算です。実際の地震・EEWではありません。", "Educational simulation. This is not a real earthquake or EEW.")}</p>
           <aside class="simulation-disclaimer" data-simulation-deep-warning role="note" hidden>
             <strong>${text("深発地震の表示について", "About deep-earthquake simulations")}</strong>
-            <p>${text("深発地震は学習用の近似表示で、実際の地震がこの表示どおりになることを示すものではありません。震度分布・揺れの強さや収まり方・EEWの推移は実際と異なる場合があります。実際の震度予測や防災判断には使用しないでください。", "Deep earthquakes use an educational approximation. Real earthquakes will not necessarily behave as shown. Intensity distribution, shaking strength and decay, and EEW updates may differ from reality. Do not use this simulation to predict actual intensities or make safety decisions.")}</p>
+            <p>${text("深発地震は学習用の近似表示で、実際の地震がこの表示どおりになることを示すものではありません。震度分布・揺れの強さや収まり方・EEWの推移は実際と異なる場合があります。深さ150kmを超えるシミュレーションでは、EEWの対象地域名と赤い地域表示を出しません。実際の震度予測や防災判断には使用しないでください。", "Deep earthquakes use an educational approximation. Real earthquakes will not necessarily behave as shown. Intensity distribution, shaking strength and decay, and EEW updates may differ from reality. For simulations deeper than 150 km, EEW target region names and red regional shading are not shown. Do not use this simulation to predict actual intensities or make safety decisions.")}</p>
           </aside>
           <label>${text("震源モデル", "Source model")}<select name="model">${modelNames().map(([value, label]) => `<option value="${value}">${label}</option>`).join("")}</select></label>
           <label class="simulation-nankai-case" hidden>${text("南海トラフの破壊ケース", "Nankai rupture case")}<select name="nankaiCase"><option value="full">${text("全割れ", "Full rupture")}</option><option value="east">${text("半割れ・東側", "Eastern half")}</option><option value="west">${text("半割れ・西側", "Western half")}</option></select></label>
@@ -84,6 +86,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
           <p class="simulation-reference-note">${text("模擬EEWのM・深さ・予想最大震度は報ごとに更新され、最終報で設定値に収束します。観測点は現在の揺れを表示し、ピーク後は徐々に弱まります。記録最大は地点をタップすると確認できます。", "Simulated EEW estimates of magnitude, depth and maximum intensity update with each bulletin, converging on the configured source in the final bulletin. Station markers show current shaking, which fades after its peak. Tap a station to see its recorded maximum.")}</p>
           <details><summary>${text("計算モデル・出典", "Model and sources")}</summary><p>${text("観測点の位置は実データですが、揺れは計算値です。地盤補正ありでは、WE-SimulatorがJ-SHISを加工した1kmメッシュの速度増幅率を使います。欠測地点は補正なしです。津波・建物・地盤の非線形性は計算しません。", "Station locations are real; shaking is simulated. Ground correction uses velocity amplification from J-SHIS aggregated to 1 km meshes by WE-Simulator. Missing sites remain uncorrected. Tsunami, buildings and nonlinear soil effects are not modeled.")}</p><p>WE-Simulator · JMA2001 · ${text("司・翠川(1999)式（Mw8.3上限）", "Si & Midorikawa (1999), capped at Mw8.3")}</p><a href="https://github.com/itachi-kun-itc/WE-Simulator" target="_blank" rel="noopener noreferrer">WE-Simulator ↗</a><br><a href="https://www.j-shis.bosai.go.jp/faq-siteamp-and-shakiness" target="_blank" rel="noopener noreferrer">${text("地盤データ：J-SHIS（防災科研）、若松・松岡(2020)ほか", "Ground data: J-SHIS (NIED), Wakamatsu & Matsuoka (2020) et al.")} ↗</a></details>
           <p class="simulation-form-status" role="status"></p>
+          <button class="simulation-secondary" type="button" data-simulation-without-ground hidden>${text("地盤補正なしで再試行", "Retry without ground correction")}</button>
           <button class="simulation-start" type="submit">${text("シミュレーション開始", "Start simulation")}</button>
           <aside class="simulation-recommendation">
             <p>${text("もっと地震シミュレーションを試したい方には、WE-Simulatorをおすすめします。", "For more earthquake simulation options, try WE-Simulator.")}</p>
@@ -106,6 +109,11 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     });
     field("groundCorrection").addEventListener("change", updateModelFields);
     field("depthKm").addEventListener("input", updateModelFields);
+    modal.querySelector("[data-simulation-without-ground]").addEventListener("click", () => {
+      field("groundCorrection").value = "none";
+      updateModelFields();
+      void start();
+    });
   }
 
   function readForm() {
@@ -164,7 +172,9 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
   function renderPlayback() {
     playback.innerHTML = `<header><strong>${text("シミュレーション", "Simulation")}</strong><span>${text("実際の地震ではありません", "Not a real earthquake")}</span><button type="button" data-simulation-first-report aria-label="${text("初報まで進む", "Skip to first bulletin")}" hidden>${text("初報へ", "Skip wait")}</button><button type="button" data-simulation-options aria-expanded="false" aria-controls="simulation-playback-options">${text("操作", "More")}</button></header>
       <div class="simulation-playback-controls"><button type="button" data-simulation-pause></button><input data-simulation-seek type="range" min="0" step="0.1" aria-label="${text("シミュレーション時刻", "Simulation time")}"><output data-simulation-time aria-label="${text("経過時間", "Elapsed time")}"></output><button type="button" data-simulation-stop aria-label="${text("終了", "End")}" title="${text("終了", "End")}">×</button></div>
+      <p class="simulation-ground-coverage" data-simulation-interrupted hidden>${text("画面の中断により一時停止しました。再生ボタンで続きから再開できます。", "Playback paused after an interruption. Press Play to continue from here.")}</p>
       <div id="simulation-playback-options" hidden>
+        <label class="simulation-display-label">${text("観測点の表示", "Station display")}<select data-simulation-display><option value="current">${text("現在の揺れ", "Current shaking")}</option><option value="maximum">${text("記録最大", "Recorded maximum")}</option></select></label>
         <div class="simulation-playback-meta"><span data-simulation-name></span><span><i class="simulation-p-wave"></i>${text("P波", "P wave")} <i class="simulation-s-wave"></i>${text("S波", "S wave")}</span></div>
         ${lastValues?.depthKm > core.MAX_REFERENCE_INTENSITY_DEPTH_KM ? `<p class="simulation-ground-coverage">${intensityEstimateAvailable ? text("深発近似（学習用）：異常震域は海溝距離からの概算で、実際の分布を保証しません。", "Educational deep approximation: anomalous intensity is approximated from trench distance; actual distributions are not guaranteed.") : text("深発近似データ未取得：震度推定なし", "Deep approximation unavailable: intensity not estimated")}</p>` : ""}
         <p class="simulation-ground-coverage">${intensityEstimateAvailable && lastValues?.groundCorrection !== "none" && groundCoverage ? text(`地盤補正：${groundCoverage.corrected}/${groundCoverage.total}地点（1kmメッシュ・欠測は補正なし）`, `Ground correction: ${groundCoverage.corrected}/${groundCoverage.total} sites (1 km; missing sites uncorrected)`) : text("地盤補正なし", "Without ground correction")}</p>
@@ -188,6 +198,13 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       else { if (player.snapshot().completed) player.seek(0); player.play(); }
     });
     playback.querySelector("[data-simulation-speed]").addEventListener("change", event => player?.setSpeed(event.target.value));
+    playback.querySelector("[data-simulation-display]").value = intensityDisplay;
+    playback.querySelector("header > strong").textContent = intensityDisplay === "maximum" ? text("シミュレーション · 記録最大", "Simulation · Recorded max.") : text("シミュレーション", "Simulation");
+    playback.querySelector("[data-simulation-display]").addEventListener("change", event => {
+      intensityDisplay = event.target.value;
+      playback.querySelector("header > strong").textContent = intensityDisplay === "maximum" ? text("シミュレーション · 記録最大", "Simulation · Recorded max.") : text("シミュレーション", "Simulation");
+      if (player) player.seek(player.snapshot().elapsed);
+    });
     playback.querySelector("[data-simulation-seek]").addEventListener("input", event => player?.seek(event.target.value));
     playback.querySelector("[data-simulation-settings]").addEventListener("click", () => void open());
     playback.querySelector("[data-simulation-stop]").addEventListener("click", () => stop());
@@ -209,6 +226,8 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     preparation = controller;
     const timeout = setTimeout(() => controller.abort(new Error("Simulation data timeout")), field("groundCorrection").value !== "none" ? 45000 : 15000);
     modal.querySelector(".simulation-start").disabled = true;
+    modal.querySelector(".simulation-start").textContent = text("シミュレーション開始", "Start simulation");
+    modal.querySelector("[data-simulation-without-ground]").hidden = true;
     status.textContent = text("観測点を読み込み、計算しています…", "Loading stations and calculating…");
     showNotice("");
     try {
@@ -220,12 +239,13 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       };
       const needsGround = options.groundCorrection !== "none";
       if (needsGround) status.textContent = text("観測点・地盤データを読み込み、計算しています…", "Loading stations and ground data, then calculating…");
-      const stationsPromise = readJson(JMA_ENDPOINTS.earthquakeStations);
+      const load = (resource, loader) => loadSimulationResource(resource, loader, controller.signal);
+      const stationsPromise = load("stations", () => readJson(JMA_ENDPOINTS.earthquakeStations));
       const [stations, groundModel, epicenterRegions, forecastAreas, detectionStations, plateBoundaries] = await Promise.all([
         stationsPromise,
-        needsGround ? stationsPromise.then(stations => core.loadSimulationGroundModel({ signal: controller.signal, coordinates: Object.values(stations).map(station => [Number(station.longitude), Number(station.latitude)]) })) : null,
+        needsGround ? load("ground", () => stationsPromise.then(stations => core.loadSimulationGroundModel({ signal: controller.signal, coordinates: Object.values(stations).map(station => [Number(station.longitude), Number(station.latitude)]) }))) : null,
         options.model === "point" ? readJson(JMA_ENDPOINTS.earthquakeEpicenterRegions).catch(error => { controller.signal.throwIfAborted(); console.warn("[MeteoScope] epicenter names unavailable", error); return null; }) : null,
-        readJson(JMA_ENDPOINTS.earthquakeAreas),
+        load("areas", () => readJson(JMA_ENDPOINTS.earthquakeAreas)),
         core.loadSimulationDetectionStations({ signal: controller.signal }).catch(error => { controller.signal.throwIfAborted(); console.warn("[MeteoScope] offshore detection catalogue unavailable", error); return []; }),
         options.depthKm > core.MAX_REFERENCE_INTENSITY_DEPTH_KM ? readJson(MAP_DATA_ENDPOINTS.tectonicPlateBoundaries).catch(error => { controller.signal.throwIfAborted(); console.warn("[MeteoScope] deep approximation geometry unavailable", error); return null; }) : null
       ]);
@@ -246,7 +266,8 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       let latestSummaryKey = "";
       player = createSimulationPlayer({ duration: simulation.duration, frameInterval: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 250 : 100, onFrame(state) {
         if (isRealEvent()) { stop(text("実際のEEWを受信したためシミュレーションを終了しました。", "Simulation ended because a real EEW was received.")); return; }
-        lastFrame = simulation.frame(state.elapsed);
+        lastFrame = simulation.frame(state.elapsed, { intensityDisplay, renderOnly: true });
+        playback.querySelector("[data-simulation-interrupted]").hidden = !state.interrupted;
         const summaryKey = `${lastFrame.event.serial}|${lastFrame.event.isFinal}|${lastFrame.event.simulationDetecting}`;
         onFrame(lastFrame, { updateSummary: summaryKey !== latestSummaryKey });
         latestSummaryKey = summaryKey;
@@ -264,7 +285,14 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       playback.querySelector("[data-simulation-pause]").focus({ preventScroll: true });
     } catch (error) {
       if (token !== sequence) return;
-      status.textContent = text("計算できませんでした。入力値と通信状態を確認し、再試行してください。", "Could not calculate. Check the values and connection, then retry.");
+      const resource = error instanceof SimulationPreparationError ? ({ stations: text("観測点データ", "Station data"), ground: text("地盤データ", "Ground data"), areas: text("地域データ", "Region data") })[error.resource] : null;
+      status.textContent = resource
+        ? error.timedOut ? text(`${resource}の読み込みがタイムアウトしました。再試行してください。`, `${resource} loading timed out. Please retry.`)
+          : text(`${resource}を読み込めませんでした。通信状態を確認して再試行してください。`, `Could not load ${resource.toLowerCase()}. Check the connection and retry.`)
+        : text("計算できませんでした。入力値と通信状態を確認し、再試行してください。", "Could not calculate. Check the values and connection, then retry.");
+      modal.querySelector("[data-simulation-without-ground]").hidden = error.resource !== "ground";
+      modal.querySelector(".simulation-start").textContent = text("再試行", "Retry");
+      controller.abort(error);
       console.warn("[MeteoScope] simulation preparation failed", error);
     } finally {
       clearTimeout(timeout);
@@ -321,7 +349,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
   });
   const suspend = () => {
     if (preparation) stop(text("準備を中断しました。再度開始してください。", "Preparation was interrupted. Start again to retry."));
-    else player?.pause();
+    else player?.suspend();
     getMap()?.cancelSimulationEpicenterPick();
   };
   document.addEventListener("visibilitychange", () => { if (document.hidden) suspend(); });

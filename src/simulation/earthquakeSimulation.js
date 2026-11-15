@@ -137,26 +137,36 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
     uncertaintyLabel: !intensityEstimateAvailable ? "深発近似データ未取得：震度推定なし" : deepApproximation ? "深発近似（学習用・異常震域は概算）" : "",
     canRenderWaves: true, isCancel: false, isFinal: false, hypocenterReliability: "simulation"
   };
+  const renderCache = new Map();
+  const staticProperties = stations.map(station => ({ id: station.id, name: station.name,
+    intensityEstimateAvailable: Number.isFinite(station.predictedIntensityValue), deepApproximation,
+    pArrivalSec: Number.isFinite(station.pArrivalSec) ? station.pArrivalSec : null,
+    sArrivalSec: Number.isFinite(station.sArrivalSec) ? station.sArrivalSec : null,
+    predictedIntensity: Number.isFinite(station.predictedIntensityValue) ? classifyIntensity(station.predictedIntensityValue).label : null,
+    groundArv: station.groundArv, groundMeshCode: station.groundMeshCode }));
   return {
     options, sources, stations, duration, name, reports, groundCoverage, intensityEstimateAvailable, deepApproximation, detectionStationCount: offshoreDetectors.length,
-    frame(elapsedSeconds) {
+    frame(elapsedSeconds, { intensityDisplay = "current", renderOnly = false } = {}) {
       const elapsed = Math.max(0, Math.min(duration, elapsedSeconds));
-      const features = stations.map(station => {
+      const features = stations.map((station, index) => {
         const shaking = model.getCurrentIntensityProperties(station, elapsed);
-        return { type: "Feature", geometry: { type: "Point", coordinates: station.coordinates }, properties: {
-          id: station.id, name: station.name,
-          intensity: shaking.observed ? shaking.intensityLabel : "0",
-          color: shaking.intensityRank > 0 ? shaking.intensityColor : "#8c9dad",
-          textColor: shaking.intensityTextColor, active: shaking.observed && !shaking.settled && shaking.intensityRank > 0,
+        const recordedIntensity = Number.isFinite(station.predictedIntensityValue) ? classifyIntensity(shaking.recordedIntensityValue).label : null;
+        const display = intensityDisplay === "maximum" && shaking.observed
+          ? classifyIntensity(shaking.recordedIntensityValue) : { label: shaking.intensityLabel, rank: shaking.intensityRank, color: shaking.intensityColor, textColor: shaking.intensityTextColor };
+        const dynamic = {
+          intensity: shaking.observed ? display.label : "0", currentIntensity: shaking.observed ? shaking.intensityLabel : "0",
+          color: display.rank > 0 ? display.color : "#8c9dad",
+          textColor: display.textColor, active: shaking.observed && !shaking.settled && shaking.intensityRank > 0,
           arrived: shaking.observed, settled: shaking.settled, wave: shaking.observed ? shaking.waveState.toUpperCase() : "",
-          currentIntensityValue: shaking.currentIntensityValue,
-          intensityEstimateAvailable: Number.isFinite(station.predictedIntensityValue), deepApproximation,
-          recordedIntensity: Number.isFinite(station.predictedIntensityValue) ? classifyIntensity(shaking.recordedIntensityValue).label : null,
-          pArrivalSec: Number.isFinite(station.pArrivalSec) ? station.pArrivalSec : null,
-          sArrivalSec: Number.isFinite(station.sArrivalSec) ? station.sArrivalSec : null,
-          predictedIntensity: Number.isFinite(station.predictedIntensityValue) ? classifyIntensity(station.predictedIntensityValue).label : null,
-          intensityRank: shaking.intensityRank, groundArv: station.groundArv, groundMeshCode: station.groundMeshCode
+          recordedIntensity, intensityRank: display.rank
+        };
+        const previous = renderCache.get(station.id);
+        if (renderOnly && previous && Object.keys(dynamic).every(key => previous.properties[key] === dynamic[key])) return previous;
+        const feature = { type: "Feature", geometry: { type: "Point", coordinates: station.coordinates }, properties: {
+          ...staticProperties[index], ...dynamic, ...(!renderOnly ? { currentIntensityValue: shaking.currentIntensityValue } : {})
         } };
+        if (renderOnly) renderCache.set(station.id, feature);
+        return feature;
       });
       const report = reports.findLast(report => report.elapsedSec <= elapsed);
       return {

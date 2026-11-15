@@ -8,11 +8,14 @@ export function createSimulationPlayer({ duration, onFrame, now = () => performa
   let request = null;
   let previous = 0;
   let lastPaint = -Infinity;
-  const snapshot = () => ({ elapsed, speed, running, completed: elapsed >= duration, duration });
+  let interrupted = false;
+  const snapshot = () => ({ elapsed, speed, running, interrupted, completed: elapsed >= duration, duration });
   const emit = () => onFrame(snapshot());
   const tick = timestamp => {
     request = null;
     if (!running || disposed) return;
+    // Browser suspension or a long blocked main thread must not skip the scene.
+    if (timestamp - previous > 2500) { running = false; interrupted = true; emit(); return; }
     elapsed = Math.min(duration, elapsed + Math.max(0, timestamp - previous) / 1000 * speed);
     previous = timestamp;
     if (elapsed >= duration) running = false;
@@ -21,7 +24,7 @@ export function createSimulationPlayer({ duration, onFrame, now = () => performa
   };
   const pause = () => {
     if (disposed) return;
-    if (running) elapsed = Math.min(duration, elapsed + Math.max(0, now() - previous) / 1000 * speed);
+    if (running && now() - previous <= 2500) elapsed = Math.min(duration, elapsed + Math.max(0, now() - previous) / 1000 * speed);
     running = false;
     if (request != null) cancelFrame(request);
     request = null;
@@ -31,12 +34,20 @@ export function createSimulationPlayer({ duration, onFrame, now = () => performa
     play() {
       if (disposed || running || elapsed >= duration) return;
       running = true;
+      interrupted = false;
       previous = now();
       lastPaint = -Infinity;
       emit();
       if (running && !disposed) request = requestFrame(tick);
     },
     pause,
+    suspend() {
+      if (disposed || !running) return;
+      running = false; interrupted = true;
+      if (request != null) cancelFrame(request);
+      request = null;
+      emit();
+    },
     seek(value) {
       if (disposed || !Number.isFinite(Number(value))) return;
       elapsed = Math.max(0, Math.min(duration, Number(value)));

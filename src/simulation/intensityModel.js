@@ -6,6 +6,7 @@
 // JMA does not apply this hypocenter-based intensity method beyond 150 km.
 // https://www.data.jma.go.jp/eew/data/nc/katsuyou/reference.pdf
 export const MAX_REFERENCE_INTENSITY_DEPTH_KM = 150;
+export const DEEP_PATH_BLEND_END_KM = MAX_REFERENCE_INTENSITY_DEPTH_KM + 5;
 
 export function estimateReferenceIntensity({ magnitude, depthKm, ruptureDistanceKm, interplate = false, groundArv = 1 }) {
   if (![magnitude, depthKm, ruptureDistanceKm].every(Number.isFinite) || depthKm < 0 || ruptureDistanceKm < 0) throw new RangeError("Invalid reference intensity parameters");
@@ -33,7 +34,20 @@ export function estimateSimulationIntensity(parameters) {
   const logV2 = Math.max(0, 2.064 * Math.log10(distance / 300) - .012);
   const baseType = interplate ? -.02 : 0;
   const type = baseType + (.12 - baseType) * transition;
-  return velocityToIntensity(logVelocity600(Math.min(magnitude, 8.3), boundedDepth, distance, type) + transition * (logV1 + logV2), groundArv);
+  // Bounded educational residual adjustment, evaluated against JMA observed
+  // station classes with CMT Mw (see the checked-in validation fixture/report).
+  // It reduces widespread overestimation in moderate deep events; it is not a
+  // published GMPE term or a guarantee for individual sites such as Ninomiya.
+  // The moderate-event bias must not be extended unchanged to weak Mw5 events.
+  const adjustmentWeight = Math.max(0, Math.min(1, (magnitude - 5) / .5));
+  const magnitudeAdjustment = adjustmentWeight * Math.max(-.65, Math.min(.25, .35 * (Math.min(magnitude, 8.3) - 7.5)));
+  // The old 50 km blend left back-arc attenuation almost absent at 156-175 km
+  // and painted much of Kinki as felt. Apply the negative path term over a
+  // shorter continuous blend, checked against the 2007/2014 regional records.
+  // Positive amplification keeps the slower blend; no region is forced to zero.
+  const negativeTransition = Math.max(0, Math.min(1, (depthKm - MAX_REFERENCE_INTENSITY_DEPTH_KM) / (DEEP_PATH_BLEND_END_KM - MAX_REFERENCE_INTENSITY_DEPTH_KM)));
+  const pathTerm = (logV1 < 0 ? negativeTransition : transition) * logV1;
+  return velocityToIntensity(logVelocity600(Math.min(magnitude, 8.3), boundedDepth, distance, type) + pathTerm + transition * (logV2 + magnitudeAdjustment), groundArv);
 }
 
 function logVelocity600(mw, depth, distance, type) {
