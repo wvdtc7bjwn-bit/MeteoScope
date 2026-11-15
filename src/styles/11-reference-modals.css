@@ -828,23 +828,11 @@ html[data-theme="light"] .jma-disaster-archive-status[data-state="error"] { colo
 }
 
 /* Plate model selector is confined to the earthquake layer picker. */
-#earthquake-layer-toggle:not(.collapsed) { height: min(364px, calc(100dvh - 96px)); }
-#earthquake-layer-toggle .weather-distribution-toggle-choices { height: min(352px, calc(100dvh - 108px)); grid-template-rows: 28px repeat(3, 44px) minmax(100px, auto) repeat(2, 44px); overflow-y: auto; }
 .earthquake-plate-source { display: grid; gap: 3px; padding: 4px 5px; font-size: 11px; color: #c8d9e9; }
 .earthquake-plate-source select { width: 100%; min-width: 0; }
 .earthquake-plate-source a { color: #a5d6f2; font-size: 10px; }
 html[data-theme="light"] .earthquake-plate-source { color: #334e64; }
 html[data-theme="light"] .earthquake-plate-source a { color: #075b89; }
-
-#earthquake-layer-toggle.has-local-eew-test:not(.collapsed) {
-  height: min(460px, calc(100dvh - 96px));
-}
-
-#earthquake-layer-toggle.has-local-eew-test .weather-distribution-toggle-choices {
-  height: min(448px, calc(100dvh - 108px));
-  grid-template-rows: 28px repeat(3, 44px) minmax(100px, auto) repeat(2, 44px) minmax(96px, auto);
-  overflow-y: auto;
-}
 
 .local-eew-test-controls {
   display: grid;
@@ -872,20 +860,11 @@ html[data-theme="light"] .local-eew-test-controls { color: #334e64; }
 html[data-theme="light"] .local-eew-test-controls small { color: #8a4b08; }
 
 /* Terrain is shared by the active map-layer picker. */
-#map-layer-toggle:not(.collapsed) { width: 230px; height: 88px; }
-#map-layer-toggle .weather-distribution-toggle-choices { width: 174px; height: 76px; grid-template-rows: 28px 44px; padding: 2px 4px; background: #111f32; }
-#map-layer-toggle:is(.has-typhoon-radar, .has-community-reports):not(.collapsed) { height: 132px; }
-#map-layer-toggle:is(.has-typhoon-radar, .has-community-reports) .weather-distribution-toggle-choices { height: 120px; grid-template-rows: 28px repeat(2, 44px); }
 #map-layer-toggle-choices button[hidden] { display: none !important; }
 #typhoon-radar-overlay-button:disabled { opacity: .55; cursor: wait; }
-#weather-distribution-toggle:not(.collapsed) { width: 230px; height: 220px; }
-#weather-distribution-toggle .weather-distribution-toggle-choices { width: 174px; height: 208px; grid-template-rows: 28px repeat(4, 44px); padding: 2px 4px; background: #111f32; }
-#satellite-layer-toggle:not(.collapsed) { height: 176px; }
-#satellite-layer-toggle .weather-distribution-toggle-choices { height: 164px; grid-template-rows: 28px repeat(3, 44px); }
 #weather-distribution-toggle .weather-distribution-toggle-choices button[data-map-terrain-toggle]::after { width: 24px; height: 14px; border-radius: 999px; border: 1px solid rgba(188, 213, 234, .28); background: rgba(118, 144, 170, .16); content: ""; }
 #weather-distribution-toggle .weather-distribution-toggle-choices button[data-map-terrain-toggle]::before { display: block; }
 #weather-distribution-toggle .weather-distribution-toggle-choices button[data-map-terrain-toggle].active::after { background: rgba(56,153,202,.72); }
-html[data-theme="light"] #map-layer-toggle .weather-distribution-toggle-choices { background: #edf4fa; }
 html[data-theme="light"] #map-layer-toggle .weather-distribution-toggle-choices::before { color: #4b6278; }
 html[data-theme="light"] #map-layer-toggle .weather-distribution-toggle-choices button { color: #263d54; }
 html[data-theme="light"] #map-layer-toggle .weather-distribution-toggle-choices button.active { color: #075a83; background: rgba(39,139,190,.13); }

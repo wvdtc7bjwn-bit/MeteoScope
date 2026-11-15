@@ -1133,8 +1133,8 @@ assert.doesNotMatch(
 
 assert.match(styles, /@media \(min-width: 768px\) and \(max-width: 1366px\)\s*\{\s*:root,\s*html\[data-theme="light"\]\s*\{[^}]*--glass-shell-shadow:\s*none;[^}]*--glass-shadow:\s*none;[^}]*--glass-shadow-soft:\s*none;/);
 assert.match(styles, /iPad-sized viewports[\s\S]*?html\[data-theme="light"\]\s*\{[^}]*--glass-shell-shadow:\s*none;/);
-assert.match(styles, /\.map-weather-distribution-toggle,\s*\.map-weather-distribution-toggle\.map-earthquake-layer-toggle\s*\{[^}]*bottom:\s*var\(--shared-map-controls-bottom\);[^}]*align-items:\s*flex-end;/);
-assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-weather-distribution-toggle\s*\{[^}]*align-items:\s*flex-end;[^}]*transform-origin:\s*right bottom;/);
+assert.match(styles, /\.map-weather-distribution-toggle,\s*\.map-weather-distribution-toggle\.map-earthquake-layer-toggle\s*\{[^}]*bottom:\s*var\(--shared-map-controls-bottom\);[^}]*align-items:\s*stretch;/);
+assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-weather-distribution-toggle\s*\{[^}]*align-items:\s*stretch;[^}]*transform-origin:\s*right bottom;/);
 assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-weather-distribution-toggle\.collapsed \.weather-distribution-toggle-choices\s*\{\s*filter:\s*none;/);
 assert.doesNotMatch(styles, /bottom:\s*calc\(var\(--shared-map-controls-bottom\) \+ 54px\);\s*\}\s*\.mobile-drawer-open \.map-weather-distribution-toggle/);
 assert.match(styles, /Keep the location button below the picker[\s\S]*?\.map-locate-button\s*\{[^}]*right:\s*max\(12px, env\(safe-area-inset-right\)\);[^}]*bottom:\s*calc\(var\(--shared-map-controls-bottom\) - 54px\);/);

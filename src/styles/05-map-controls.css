@@ -1013,7 +1013,6 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   height: 44px;
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 14px;
   background: rgba(7, 14, 27, 0.78);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   cursor: pointer;
@@ -1033,7 +1032,6 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   height: 44px;
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 14px;
   background: rgba(7, 14, 27, 0.78);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   cursor: pointer;
@@ -1047,15 +1045,16 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 }
 
 .map-weather-distribution-toggle {
+  --layer-picker-bottom: 134px;
   right: 9px;
   bottom: 134px;
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-end;
-  width: 184px;
-  height: 132px;
-  padding: 0;
+  flex-direction: column;
+  align-items: stretch;
+  width: min(236px, calc(100vw - 34px));
+  height: auto;
+  max-height: max(44px, calc(100dvh - var(--layer-picker-bottom) - 92px));
+  padding: 9px;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 14px;
   background: rgba(7, 14, 27, 0.78);
@@ -1063,10 +1062,11 @@ html[data-theme="light"] .earthquake-long-press-hint button {
   overflow: hidden;
   backdrop-filter: blur(16px) saturate(1.16);
   -webkit-backdrop-filter: blur(16px) saturate(1.16);
-  transform-origin: right center;
+  transform-origin: bottom right;
   transition:
     width 220ms cubic-bezier(0.2, 1.08, 0.36, 1),
-    height 180ms cubic-bezier(0.2, 1.08, 0.36, 1),
+    max-height 220ms cubic-bezier(0.2, 1.08, 0.36, 1),
+    padding 180ms ease,
     border-radius 180ms ease,
     background-color 180ms ease,
     box-shadow 220ms ease;
@@ -1074,43 +1074,12 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 
 .map-satellite-layer-toggle {
   bottom: 134px;
-  height: 102px;
-}
-
-.map-satellite-layer-toggle .weather-distribution-toggle-choices {
-  grid-template-rows: 20px repeat(2, minmax(0, 1fr));
-  height: 88px;
 }
 
 .map-earthquake-layer-toggle {
   top: auto;
   bottom: 82px;
-  height: 162px;
-}
-
-.map-earthquake-layer-toggle .weather-distribution-toggle-choices {
-  grid-template-rows: 20px repeat(4, minmax(0, 1fr));
-  height: 148px;
-}
-
-/* Earthquake map controls: keep labels and switch states legible. */
-#earthquake-layer-toggle:not(.collapsed) {
-  width: 230px;
-  height: 220px;
-}
-#earthquake-layer-toggle .weather-distribution-toggle-choices {
-  width: 174px;
-  height: 208px;
-  grid-template-rows: 28px repeat(4, minmax(44px, 1fr));
-  padding: 2px 4px;
-  background: #111f32;
-}
-#satellite-layer-toggle:not(.collapsed) { height: 132px; }
-#satellite-layer-toggle .weather-distribution-toggle-choices {
-  height: 120px;
-  grid-template-rows: 28px repeat(2, minmax(44px, 1fr));
-  padding: 2px 4px;
-  background: #111f32;
+  --layer-picker-bottom: 82px;
 }
 :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle, #weather-distribution-toggle) .weather-distribution-toggle-choices::before {
   color: #b8c9d9;
@@ -1158,16 +1127,21 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
 .weather-distribution-toggle-button {
   position: relative;
   z-index: 1;
-  display: grid;
+  display: flex;
   flex: none;
-  place-items: center;
-  width: 44px;
-  height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 24px;
+  margin-bottom: 8px;
   padding: 0;
   border: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
   background: transparent;
   color: #dce8fa;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1;
   cursor: pointer;
   touch-action: manipulation;
   -webkit-touch-callout: none;
@@ -1187,15 +1161,18 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
 
 .weather-distribution-toggle-choices {
   display: grid;
-  grid-template-rows: 20px repeat(3, minmax(0, 1fr));
+  grid-auto-rows: minmax(44px, auto);
   grid-template-columns: 1fr;
-  flex: none;
+  flex: 0 1 auto;
   align-items: stretch;
   min-width: 0;
-  width: 134px;
-  height: 118px;
-  margin: 0 6px 0 0;
-  padding: 4px;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -1203,7 +1180,7 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
   opacity: 1;
   filter: blur(0);
   transform: translate3d(0, 0, 0) scale(1);
-  transform-origin: right center;
+  transform-origin: top right;
   transition:
     opacity 160ms ease 42ms,
     filter 200ms ease 28ms,
@@ -1212,7 +1189,7 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
 
 .weather-distribution-toggle-choices::before {
   content: attr(data-layer-picker-title);
-  display: flex;
+  display: none;
   align-items: center;
   padding-inline: 5px;
   color: rgba(214, 234, 251, 0.58);
@@ -1311,17 +1288,48 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
 .map-weather-distribution-toggle.collapsed {
   width: 44px;
   height: 44px;
+  padding: 0;
 }
 
 .map-weather-distribution-toggle.collapsed .weather-distribution-toggle-button {
-  border-left: 0;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  margin-bottom: 0;
+  border-radius: inherit;
+}
+
+.map-weather-distribution-toggle.collapsed .weather-distribution-toggle-button span {
+  display: none;
+}
+
+/* Use the legend's heading and close affordance when the picker expands. */
+.map-weather-distribution-toggle:not(.collapsed) .weather-distribution-toggle-button::before {
+  display: none;
+}
+
+.map-weather-distribution-toggle:not(.collapsed) .weather-distribution-toggle-button::after {
+  content: "";
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  background: linear-gradient(currentColor, currentColor) center / 9px 2px no-repeat;
+}
+
+.weather-distribution-toggle-button:focus-visible {
+  outline: 2px solid #56b7f2;
+  outline-offset: 4px;
+  border-radius: 8px;
 }
 
 .map-weather-distribution-toggle.collapsed .weather-distribution-toggle-choices {
   opacity: 0;
   filter: blur(3px);
   pointer-events: none;
-  transform: translate3d(8px, 0, 0) scale(0.96);
+  transform: translate3d(0, 8px, 0) scale(0.96);
 }
 
 .map-weather-distribution-toggle.is-open {
@@ -1340,7 +1348,6 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
   height: 44px;
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 14px;
   background: rgba(7, 14, 27, 0.78);
   box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   cursor: pointer;
@@ -1405,7 +1412,6 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
 }
 
 .map-community-report-button:focus-visible,
-.weather-distribution-toggle-button:focus-visible,
 
 .map-world-typhoon-target-button:focus-visible {
   outline: 2px solid #56b7f2;
@@ -1602,7 +1608,6 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
 
 .map-utility-menu-toggle[aria-expanded="true"] {
   border-color: rgba(120, 208, 255, 0.5);
-  border-radius: 17px;
   background: rgba(18, 43, 72, 0.84);
   box-shadow:
     0 14px 32px rgba(0, 0, 0, 0.32),
@@ -2022,8 +2027,17 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
   max-height: 44px;
   min-width: 0;
   padding: 0;
-  border-radius: 14px;
   overflow: hidden;
+}
+
+/* Floating icon controls share a circular shape; expanded panels keep theirs. */
+.map-utility-menu-toggle,
+.map-locate-button,
+.map-community-report-button,
+.map-world-typhoon-target-button,
+.map-weather-distribution-toggle.collapsed,
+.map-legend.collapsed {
+  border-radius: 50%;
 }
 
 .map-legend.collapsed .legend-toggle {
@@ -2032,6 +2046,7 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
   height: 44px;
   min-height: 44px;
   margin-bottom: 0;
+  border-radius: inherit;
 }
 
 .map-legend.collapsed .legend-toggle span {
