@@ -58,16 +58,18 @@ assert.equal(mapCtx.createEewFeatureCollection([live], 600000).features.filter(f
 
 const sources = new Map(); const layers = new Map([["eew-wave-fill", {}]]); const listeners = new Map();
 const canvas = { style: { cursor: "" } };
+let stationHits = [], infoCloses = 0;
 const map = {
   getLayer: id => layers.get(id), getSource: id => sources.get(id), getCanvas: () => canvas,
   addSource(id, source) { sources.set(id, { data: source.data, setData(data) { this.data = data; } }); },
   addLayer(layer) { layers.set(layer.id, { ...layer, visibility: "visible" }); },
   setPaintProperty() {}, setLayoutProperty(id, prop, value) { layers.get(id)[prop] = value; },
+  queryRenderedFeatures(_point, options) { assert.deepEqual(options.layers, ["simulation-station-points", "simulation-station-labels"]); return stationHits; },
   on(type, ...args) { listeners.set(`${type}:${args.length === 2 ? args[0] : "map"}`, args.at(-1)); },
   off(type, fn) { if (listeners.get(`${type}:map`) === fn) listeners.delete(`${type}:map`); }
 };
 const stationPopups = [];
-const overlay = createSimulationMapOverlay(() => map, (_coordinates, html) => stationPopups.push(html), () => {});
+const overlay = createSimulationMapOverlay(() => map, (_coordinates, html) => stationPopups.push(html), () => { infoCloses++; });
 assert.equal(sources.size, 0, "simulation sources do not delay initial map loading");
 const frame = { elapsed: 3, stations: { type: "FeatureCollection", features: [] }, fault: { type: "FeatureCollection", features: [] } };
 overlay.render(frame); assert.equal(overlay.active, true); assert.equal(sources.size, 2);
@@ -86,6 +88,30 @@ listeners.get("click:simulation-station-points")({ lngLat: { lng: 140, lat: 36 }
 assert.match(stationPopups.at(-1), /現在の揺れ: —/);
 assert.match(stationPopups.at(-1), /記録最大: —/);
 assert.match(stationPopups.at(-1), /深発近似データ未取得/);
+
+const selected = { type: "Feature", geometry: { type: "Point", coordinates: [140, 36] }, properties: {
+  id: "001", name: "Live station", currentIntensity: "4", intensity: "4", recordedIntensity: "5+"
+} };
+const selectStation = () => listeners.get("click:simulation-station-labels")({ lngLat: { lng: 140, lat: 36 }, features: [selected] });
+frame.stations.features = [selected]; overlay.render(frame); selectStation();
+frame.stations.features = [{ ...selected, properties: { ...selected.properties, currentIntensity: "2", intensity: "2" } }];
+overlay.render(frame);
+assert.match(stationPopups.at(-1), /現在の揺れ: 2/);
+assert.match(stationPopups.at(-1), /記録最大: 5\+/);
+const updates = stationPopups.length;
+overlay.render(frame); assert.equal(stationPopups.length, updates, "unchanged frames do not rebuild the card");
+stationHits = [selected];
+let closes = infoCloses;
+overlay.handleMapClick({ point: { x: 10, y: 10 } });
+assert.equal(infoCloses, closes, "the map click that selected a station must not immediately close its card");
+stationHits = []; overlay.handleMapClick({ point: { x: 100, y: 100 } });
+assert.equal(infoCloses, closes + 1, "an empty-map tap closes the station card");
+overlay.render(frame); assert.equal(stationPopups.length, updates, "a dismissed card cannot reopen on the next frame");
+selectStation(); overlay.dismissInfo();
+const afterClose = stationPopups.length;
+overlay.render(frame); assert.equal(stationPopups.length, afterClose, "explicit close remains closed during playback");
+selectStation(); frame.stations.features = []; closes = infoCloses; overlay.render(frame);
+assert.equal(infoCloses, closes + 1, "a removed station cannot leave an orphaned card");
 overlay.render(frame); assert.equal(sources.size, 2, "no duplicate source or layer on subsequent frames");
 let chosen;
 overlay.pick(point => { chosen = point; }); assert.equal(canvas.style.cursor, "crosshair");

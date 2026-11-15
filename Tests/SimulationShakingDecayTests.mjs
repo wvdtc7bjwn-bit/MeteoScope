@@ -8,6 +8,32 @@ const sample = { id: "001", pArrivalSec: 2, sArrivalSec: 5, epicentralDistanceKm
   ...model.getStationWaveResponseProperties("001", 5.8) };
 const timing = model.getStationShakingTiming(sample);
 assert.equal(model.getCurrentIntensityProperties(sample, 1).observed, false);
+assert.equal(model.getCurrentIntensityProperties(sample, sample.pArrivalSec).currentIntensityValue, 0, "P arrival begins the response without an instant recorded-floor jump");
+for (const magnitude of [4, 6, 9]) {
+  for (const depthKm of [10, 590]) {
+    for (const predictedIntensityValue of [.6, 3.5, 5.8, 6.8]) {
+      const responseModel = createWeSimulatorModel({ magnitude, depthKm });
+      const site = { ...sample, predictedIntensityValue, ...responseModel.getStationWaveResponseProperties("001", predictedIntensityValue) };
+      const siteTiming = responseModel.getStationShakingTiming(site);
+      const beforeS = responseModel.getCurrentIntensityProperties(site, site.sArrivalSec - .001);
+      const afterS = responseModel.getCurrentIntensityProperties(site, site.sArrivalSec + .001);
+      assert.ok(Math.abs(afterS.currentIntensityValue - beforeS.currentIntensityValue) <= .02, "S arrival cannot instantly switch from P intensity to an advanced S response");
+      let previous = responseModel.getCurrentIntensityProperties(site, site.sArrivalSec).currentIntensityValue;
+      for (let t = site.sArrivalSec + .1; t <= siteTiming.shakingPeakSec; t += .1) {
+        const value = responseModel.getCurrentIntensityProperties(site, t).currentIntensityValue;
+        assert.ok(value >= previous && value - previous <= .65, "the S response rises continuously without skipping several intensity classes in one frame");
+        previous = value;
+      }
+      previous = responseModel.getCurrentIntensityProperties(site, siteTiming.shakingDecayStartSec).currentIntensityValue;
+      for (let t = siteTiming.shakingDecayStartSec + 1; t <= siteTiming.shakingEndSec + 1; t++) {
+        const state = responseModel.getCurrentIntensityProperties(site, t);
+        assert.ok(previous - state.currentIntensityValue <= .21, "the tail cannot collapse several intensity units in its last seconds");
+        assert.equal(state.recordedIntensityValue, predictedIntensityValue, "smoothing never lowers the recorded maximum");
+        previous = state.currentIntensityValue;
+      }
+    }
+  }
+}
 const peak = model.getCurrentIntensityProperties(sample, timing.shakingDecayStartSec);
 assert.equal(peak.recordedIntensityValue, sample.predictedIntensityValue);
 assert.equal(peak.currentIntensityValue, 5.8);

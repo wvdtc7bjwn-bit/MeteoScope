@@ -2,6 +2,22 @@ import { classifyIntensity, getSimulationMagnitudeDurationSec } from "./weSimula
 import { getEarthquakeIntensityRank } from "../earthquakeIntensity.js";
 import { estimateSimulationIntensity, MAX_REFERENCE_INTENSITY_DEPTH_KM, DEEP_PATH_BLEND_END_KM } from "./intensityModel.js";
 
+// Bounded revisions of the initial analysis, not measured forecast errors.
+// Shared progress knots keep revisions correlated rather than random per frame.
+const ESTIMATE_REVISIONS = [
+  [0, 0, 0], [.16, 1, -1], [.32, -.8, .9], [.5, .6, -.6],
+  [.7, -.35, .4], [.86, .15, -.2], [1, 0, 0]
+];
+
+function getEstimateRevision(progress) {
+  const upper = ESTIMATE_REVISIONS.findIndex(([time]) => time >= progress);
+  const right = ESTIMATE_REVISIONS[Math.max(0, upper)];
+  const left = ESTIMATE_REVISIONS[Math.max(0, upper - 1)];
+  const fraction = right[0] > left[0] ? (progress - left[0]) / (right[0] - left[0]) : 0;
+  const decay = (1 - progress) ** 1.2;
+  return [1, 2].map(index => (left[index] + (right[index] - left[index]) * fraction) * decay);
+}
+
 // A deterministic teaching scenario, not a reproduction of JMA's EEW analysis.
 // Only bulletin estimates change; the configured source and wave clock stay fixed.
 export function buildSimulationEewReports({ options, stations, sources = [], schedule, ruptureCompleteSec, intensityEstimateAvailable = options.depthKm <= MAX_REFERENCE_INTENSITY_DEPTH_KM, getObservedIntensity = () => 0 }) {
@@ -24,13 +40,19 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
   // and creates broad warnings that disappear as the reported depth converges.
   // The final bulletin still uses the exact configured depth, including 151 km.
   const minimumEstimatedDepth = options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM ? DEEP_PATH_BLEND_END_KM : 0;
+  const maximumEstimatedDepth = minimumEstimatedDepth ? 700 : MAX_REFERENCE_INTENSITY_DEPTH_KM;
   const initialDepth = Math.max(minimumEstimatedDepth, Math.min(700, Math.round((options.depthKm + (options.depthKm < 70 ? 10 : -Math.min(80, options.depthKm * .25))) / 10) * 10));
+  const magnitudeError = .8 + Math.max(0, options.magnitude - 6) * .15;
+  const depthError = Math.min(80, 18 + options.depthKm * .15);
   return timeline.map((report, index) => {
     const isFinal = index === timeline.length - 1;
     const progress = originalEnd > firstTime ? Math.min(1, (report.elapsedSec - firstTime) / (originalEnd - firstTime)) : 1;
     const remaining = (1 - progress) ** 2.4;
-    const magnitude = isFinal ? options.magnitude : Number((options.magnitude + (initialMagnitude - options.magnitude) * remaining).toFixed(1));
-    const depth = isFinal ? options.depthKm : Math.max(minimumEstimatedDepth, Math.min(700, Math.round((options.depthKm + (initialDepth - options.depthKm) * remaining) / 5) * 5));
+    const [magnitudeRevision, depthRevision] = getEstimateRevision(progress);
+    const magnitude = isFinal ? options.magnitude : Number(Math.max(1, Math.min(9.5,
+      options.magnitude + (initialMagnitude - options.magnitude) * remaining + magnitudeRevision * magnitudeError)).toFixed(1));
+    const depth = isFinal ? options.depthKm : Math.max(minimumEstimatedDepth, Math.min(maximumEstimatedDepth,
+      Math.round((options.depthKm + (initialDepth - options.depthKm) * remaining + depthRevision * depthError) / 5) * 5));
     const elapsedSec = report.elapsedSec;
     const activeSourceIndices = sources.flatMap((source, index) => source.ruptureDelaySec <= elapsedSec ? [index] : []);
     const predictions = intensityEstimateAvailable ? stations.map(station => {

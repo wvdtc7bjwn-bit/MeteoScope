@@ -461,7 +461,7 @@ export function createWeatherMap(elementId) {
   let map = null;
   const simulationOverlay = createSimulationMapOverlay(
     () => map,
-    (coordinates, content) => showMapInfo("simulation", coordinates, content),
+    (coordinates, content) => showMapInfo("simulation", coordinates, content, "simulation"),
     () => hideMapInfo("simulation")
   );
   let pendingRender = null;
@@ -2541,7 +2541,10 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         hideMapInfo("earthquake-distribution");
         return;
       }
-      if (simulationOverlay.active) return;
+      if (simulationOverlay.active) {
+        simulationOverlay.handleMapClick(event);
+        return;
+      }
       if (hypocenter3DEnabled) {
         const point = hypocenter3D.pick(event.point);
         if (point?.popup) {
@@ -2572,6 +2575,11 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     mapInfoElement.className = "map-info-popup";
     mapInfoElement.hidden = true;
     mapInfoElement.addEventListener("click", async (event) => {
+      if (event.target.closest("[data-simulation-info-close]")) {
+        event.stopPropagation();
+        simulationOverlay.dismissInfo();
+        return;
+      }
       const button = event.target.closest("[data-community-report-delete]");
       if (!button || !communityReportDeleteHandler) return;
       event.stopPropagation();
@@ -2587,6 +2595,10 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       }
     });
     map.getContainer().appendChild(mapInfoElement);
+    map.getContainer().addEventListener("keydown", event => {
+      if (event.key === "Escape") simulationOverlay.dismissInfo();
+    });
+    map.on("movestart", () => simulationOverlay.dismissInfo());
     map.on("move", positionMapInfo);
     map.on("resize", positionMapInfo);
   }
@@ -2659,7 +2671,15 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     mapInfoLngLat = lngLat;
     mapInfoAnchorLngLat = anchorLngLat;
     mapInfoElement.dataset.variant = variant;
-    mapInfoElement.innerHTML = html;
+    if (owner === "simulation") {
+      // Preserve the close button and keyboard focus as current shaking changes.
+      if (!mapInfoElement.querySelector("[data-simulation-info-close]")) {
+        mapInfoElement.innerHTML = '<button type="button" class="map-info-close" data-simulation-info-close>×</button><div data-simulation-info-content></div>';
+      }
+      mapInfoElement.querySelector("[data-simulation-info-close]").setAttribute("aria-label",
+        getCurrentLanguage() === "en" ? "Close station details" : "観測点の詳細を閉じる");
+      mapInfoElement.querySelector("[data-simulation-info-content]").innerHTML = html;
+    } else mapInfoElement.innerHTML = html;
     mapInfoElement.hidden = false;
     positionMapInfo();
   }

@@ -145,11 +145,12 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
       return 1;
     }
   
-    const mainMotionOnsetSec = profile.mainMotionOnsetSec ?? clamp(profile.durationSec * 0.18, 0.65, 1.8);
+    const mainMotionOnsetSec = Math.max(profile.mainMotionOnsetSec ?? 0, profile.durationSec * .7);
     const mainMotionSurge =
       smoothStep(clamp(timeSinceSArrivalSec / mainMotionOnsetSec, 0, 1)) *
       (profile.mainSurgeRatio ?? clamp(0.9 - profile.lateEnergy * 0.25, 0.82, 0.94));
-    const exponentialEnvelope = 1 - Math.exp(-profile.curvature * normalizedTime);
+    const exponentialEnvelope = (1 - Math.exp(-profile.curvature * smoothStep(normalizedTime)))
+      / (1 - Math.exp(-profile.curvature));
     const lateEnergy = profile.lateEnergy * 0.58 * smoothStep(clamp((normalizedTime - 0.42) / 0.58, 0, 1));
     const multiPeakEnergy =
       profile.multiPeak * 0.72 *
@@ -240,14 +241,6 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
     return clamp(target, 0, Math.min(finalIntensity * 0.72, pWaveCeiling, pWaveDisplayCap));
   }
 
-  function getSWaveTransitionLeadSec(properties) {
-    const spGapSec = Math.max((properties.sArrivalSec ?? 0) - (properties.pArrivalSec ?? 0), 0.5);
-    const siteResponse = properties.pWaveSiteResponse ?? 0.5;
-    const finalIntensity = Number(properties.predictedIntensityValue ?? 0);
-    const intensityFactor = clamp((finalIntensity - 2.5) / 3.5, 0, 1);
-    return clamp(0.35 + spGapSec * 0.1 + siteResponse * 0.18 + intensityFactor * 0.28, 0.42, 1.35);
-  }
-
   function stableUnitInterval(value) {
     let hash = 2166136261;
     const text = String(value ?? "");
@@ -278,7 +271,10 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
     const deepWeight = clamp((state.depthKm - MAX_REFERENCE_INTENSITY_DEPTH_KM) / 150, 0, 1);
     const spGapSec = properties.sArrivalSec - properties.pArrivalSec;
     const deepCodaSec = Number.isFinite(spGapSec) ? deepWeight * clamp(spGapSec * .5, 0, 90) : 0;
-    const tailDuration = 12 + Math.max(0, state.magnitude - 5) * 9 + softness * 12
+    // smoothStep's maximum slope is 1.5. This teaching-display bound limits
+    // the fall to .2 intensity units/sec instead of collapsing at the tail end.
+    const tailDuration = Math.max(12 + Math.max(0, state.magnitude - 5) * 9,
+      Math.max(0, properties.predictedIntensityValue ?? 0) * 7.5) + softness * 12
       + clamp((properties.epicentralDistanceKm ?? 0) / 80, 0, 12) + deepCodaSec;
     return { shakingPeakSec: peakAtSec, shakingDecayStartSec: decayStartSec, shakingEndSec: decayStartSec + tailDuration };
   }
@@ -290,14 +286,14 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
     const waveState = isSimulation && properties.sArrivalSec > elapsedSec ? "p" : "s";
     let response = responses.get(properties);
     if (!response) {
-      response = { riseProfile: getGroundRiseProfile(properties), sTransitionLeadSec: getSWaveTransitionLeadSec(properties),
+      response = { riseProfile: getGroundRiseProfile(properties),
         pWaveTarget: getPWaveIntensityTarget(properties), recordedFloor: getPWaveRecordedIntensityFloor(properties, true) };
       responses.set(properties, response);
     }
-    const { riseProfile, sTransitionLeadSec } = response;
+    const { riseProfile } = response;
     const riseProgress = isSimulation
       ? groundAwareRiseProgress(
-          elapsedSec - properties.sArrivalSec + sTransitionLeadSec - (properties.sWaveRiseDelaySec ?? 0),
+          elapsedSec - properties.sArrivalSec - Math.max(0, properties.sWaveRiseDelaySec ?? 0),
           riseProfile,
         )
       : 1;
@@ -309,16 +305,15 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
     const rawCurrentIntensityValue =
       waveState === "p"
         ? pWaveIntensity
-        : Math.max(pWaveIntensity, properties.predictedIntensityValue * riseProgress);
-    const recordedIntensityFloor = observed ? response.recordedFloor : 0;
+        : pWaveIntensity + (properties.predictedIntensityValue - pWaveIntensity) * riseProgress;
+    const recordedIntensityFloor = observed ? response.recordedFloor * pWaveProgress : 0;
     const recordedIntensityValue = Math.min(properties.predictedIntensityValue, Math.max(rawCurrentIntensityValue, recordedIntensityFloor));
     const timing = properties.shakingEndSec != null ? properties : getStationShakingTiming(properties);
     const decayProgress = isSimulation && elapsedSec > timing.shakingDecayStartSec
       ? clamp((elapsedSec - timing.shakingDecayStartSec) / (timing.shakingEndSec - timing.shakingDecayStartSec), 0, 1) : 0;
-    // A monotonically falling amplitude envelope. Apply after the recorded P
-    // floor so a historical detection cannot keep the current shaking at 1.
-    const decayDrop = decayProgress > 0 ? -3.44 * Math.log10(Math.max(1e-6, 1 - decayProgress)) : 0;
-    const currentIntensityValue = decayProgress >= 1 ? 0 : Math.max(0, recordedIntensityValue - decayDrop);
+    // A bounded-slope intensity envelope with zero slope at both ends. Apply
+    // after the recorded P floor; keep the historical maximum separate.
+    const currentIntensityValue = Math.max(0, recordedIntensityValue * (1 - smoothStep(decayProgress)));
     const currentClass = classifyIntensity(currentIntensityValue);
   
     return {

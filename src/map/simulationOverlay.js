@@ -13,6 +13,26 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
   let previousCursor = "";
   let previousStations = new Map();
   let previousFault = "";
+  let selectedStation = null;
+  let previousInfo = "";
+  const dismissInfo = () => {
+    selectedStation = null;
+    previousInfo = "";
+    hideInfo();
+  };
+  const updateStationInfo = (feature, coordinates) => {
+    const p = feature.properties;
+    const seconds = value => value != null && Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)} s` : "—";
+    const ground = Number.isFinite(Number(p.groundArv)) && Number(p.groundArv) > 0 ? `ARV ${escapeHtml(p.groundArv)} · J-SHIS / WE-Simulator (1 km)` : escapeHtml(localizeText("地盤補正なし"));
+    const english = getCurrentLanguage() === "en";
+    const known = p.intensityEstimateAvailable !== false;
+    const availability = !known ? `<br>${english ? "Deep approximation unavailable: intensity not estimated" : "深発近似データ未取得：震度推定なし"}`
+      : p.deepApproximation ? `<br>${english ? "Educational deep approximation" : "深発近似（学習用・異常震域は概算）"}` : "";
+    const html = `<strong>${escapeHtml(p.name)}</strong><br>SIMULATION · ${english ? "Current shaking" : "現在の揺れ"}: ${escapeHtml(known ? p.currentIntensity ?? p.intensity : "—")}<br>${english ? "Recorded maximum" : "記録最大"}: ${escapeHtml(known ? p.recordedIntensity ?? p.intensity : "—")}${availability}<br>P: ${seconds(p.pArrivalSec)} / S: ${seconds(p.sArrivalSec)}<br><small>${ground}</small>`;
+    if (html === previousInfo) return;
+    previousInfo = html;
+    showInfo(coordinates, html);
+  };
   const cancelPick = () => {
     const map = getMap();
     if (map && pickHandler) {
@@ -50,14 +70,9 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
       if (!active || pickHandler) return;
       const feature = event.features?.[0];
       if (!feature) return;
-      const p = feature.properties;
-      const seconds = value => value != null && Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)} s` : "—";
-      const ground = Number.isFinite(Number(p.groundArv)) && Number(p.groundArv) > 0 ? `ARV ${escapeHtml(p.groundArv)} · J-SHIS / WE-Simulator (1 km)` : escapeHtml(localizeText("地盤補正なし"));
-      const english = getCurrentLanguage() === "en";
-      const known = p.intensityEstimateAvailable !== false;
-      const availability = !known ? `<br>${english ? "Deep approximation unavailable: intensity not estimated" : "深発近似データ未取得：震度推定なし"}`
-        : p.deepApproximation ? `<br>${english ? "Educational deep approximation" : "深発近似（学習用・異常震域は概算）"}` : "";
-      showInfo(event.lngLat, `<strong>${escapeHtml(p.name)}</strong><br>SIMULATION · ${english ? "Current shaking" : "現在の揺れ"}: ${escapeHtml(known ? p.currentIntensity ?? p.intensity : "—")}<br>${english ? "Recorded maximum" : "記録最大"}: ${escapeHtml(known ? p.recordedIntensity ?? p.intensity : "—")}${availability}<br>P: ${seconds(p.pArrivalSec)} / S: ${seconds(p.sArrivalSec)}<br><small>${ground}</small>`);
+      selectedStation = { id: feature.properties.id, coordinates: event.lngLat };
+      previousInfo = "";
+      updateStationInfo(feature, event.lngLat);
     };
     map.on("click", LAYERS[2], onStationClick);
     map.on("click", LAYERS[3], onStationClick);
@@ -65,6 +80,11 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
   };
   return {
     get active() { return active; },
+    dismissInfo,
+    handleMapClick(event) {
+      if (!active || pickHandler) return;
+      if (!getMap().queryRenderedFeatures(event.point, { layers: LAYERS.slice(2) }).length) dismissInfo();
+    },
     render(frame) {
       if (!ensureLayers()) return false;
       const map = getMap();
@@ -86,6 +106,11 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
         if (diff.remove.length || diff.add.length || diff.update.length) source.updateData(diff);
       }
       previousStations = nextStations;
+      if (selectedStation) {
+        const feature = nextStations.get(selectedStation.id);
+        if (feature) updateStationInfo(feature, selectedStation.coordinates);
+        else dismissInfo();
+      }
       const fault = JSON.stringify(frame.fault);
       if (fault !== previousFault) { map.getSource(FAULT).setData(frame.fault); previousFault = fault; }
       if (!active) LAYERS.forEach(id => map.setLayoutProperty(id, "visibility", "visible"));
@@ -96,7 +121,7 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
       active = false;
       previousStations.clear(); previousFault = "";
       cancelPick();
-      hideInfo();
+      dismissInfo();
       const map = getMap();
       if (!map?.getSource(STATIONS)) return;
       map.getSource(STATIONS).setData(EMPTY);
@@ -105,6 +130,7 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
     },
     pick(onPick) {
       cancelPick();
+      dismissInfo();
       const map = getMap();
       if (!map) return false;
       previousCursor = map.getCanvas().style.cursor;
