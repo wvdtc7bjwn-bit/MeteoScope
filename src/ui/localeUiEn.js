@@ -648,6 +648,19 @@ V 北向き|V northward
 降雪量|Snowfall
 降雪なし|No snowfall
 緊急地震速報|Earthquake Early Warning
+地震シミュレーション|Earthquake simulation
+地震シミュレーションを開く|Open earthquake simulation
+シミュレーション|Simulation
+検知待ち|Awaiting detection
+参考最大|Reference max.
+任意震源|Custom epicenter
+南海トラフ巨大地震|Nankai Trough megathrust scenario
+南海トラフ地震（半割れ・東側）|Nankai Trough eastern-half scenario
+南海トラフ地震（半割れ・西側）|Nankai Trough western-half scenario
+千島海溝（十勝・根室沖）モデル|Kuril Trench scenario (off Tokachi and Nemuro)
+日本海溝（三陸・日高沖）モデル|Japan Trench scenario (off Sanriku and Hidaka)
+実際の地震ではありません|Not a real earthquake
+実際のEEWを受信したためシミュレーションを終了しました。|Simulation ended because a real EEW was received.
 最終報|Final report
 取消報|Cancellation
 取消|Cancelled

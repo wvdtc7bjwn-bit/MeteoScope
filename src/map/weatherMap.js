@@ -1,5 +1,7 @@
 import { VECTOR_BASE_MAP_ENABLED, registerBaseMapProtocol, createMunicipalitySource, baseMapSourceLayer, municipalityStateTarget } from "./baseMapTiles.js";
 import { waitForInitialMapGeometry } from "./initialMapReadiness.js";
+import { createSimulationMapOverlay } from "./simulationOverlay.js";
+import { exposedWavefrontArcs } from "../simulation/wavefrontGeometry.js";
 import {
   formatTyphoonForecastCenter,
   buildTyphoonPopup,
@@ -49,6 +51,7 @@ import { createPlateDepthSurface3DLayer } from "./plateDepthSurface3DLayer.js";
 import { getHypocenterDepthColor } from "./hypocenterDepthStyle.js";
 import {
   splitLineAtAntimeridian,
+  unwrapLineAtAntimeridian,
   splitPolygonRingAtAntimeridian
 } from "./geoLine.js";
 import {
@@ -456,6 +459,11 @@ const amedasFeatureCollectionCache = new WeakMap();
 
 export function createWeatherMap(elementId) {
   let map = null;
+  const simulationOverlay = createSimulationMapOverlay(
+    () => map,
+    (coordinates, content) => showMapInfo("simulation", coordinates, content),
+    () => hideMapInfo("simulation")
+  );
   let pendingRender = null;
   let lastRenderedMode = null;
   let lastRenderedData = null;
@@ -552,6 +560,7 @@ export function createWeatherMap(elementId) {
   }
 
   function setMode(mode) {
+    if (mode !== "earthquake") simulationOverlay.clear();
     activeMode = mode;
     const container = map?.getContainer();
     if (!container) return;
@@ -1306,18 +1315,18 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       id: "eew-wave-fill",
       type: "fill",
       source: EEW_SOURCE_ID,
-      filter: ["==", ["get", "featureType"], "wave"],
+      filter: ["in", ["get", "featureType"], ["literal", ["wave", "wave-fill"]]],
       layout: { visibility: "none" },
       paint: {
         "fill-color": ["match", ["get", "waveType"], "P", EEW_P_WAVE_COLOR, EEW_S_WAVE_COLOR],
-        "fill-opacity": ["match", ["get", "waveType"], "P", 0.055, 0.065]
+        "fill-opacity": ["case", ["==", ["get", "featureType"], "wave-fill"], .008, ["match", ["get", "waveType"], "P", 0.055, 0.065]]
       }
     });
     map.addLayer({
       id: "eew-wave-line",
       type: "line",
       source: EEW_SOURCE_ID,
-      filter: ["==", ["get", "featureType"], "wave"],
+      filter: ["in", ["get", "featureType"], ["literal", ["wave", "wave-front"]]],
       layout: { visibility: "none", "line-cap": "round", "line-join": "round" },
       paint: {
         "line-color": ["match", ["get", "waveType"], "P", EEW_P_WAVE_COLOR, EEW_S_WAVE_COLOR],
@@ -2515,6 +2524,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         hideMapInfo("earthquake-distribution");
         return;
       }
+      if (simulationOverlay.active) return;
       if (hypocenter3DEnabled) {
         const point = hypocenter3D.pick(event.point);
         if (point?.popup) {
@@ -2934,7 +2944,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     EEW_LAYER_IDS.forEach((layerId) => {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
     });
-    syncEewHypocenterBlink(visible);
+    syncEewHypocenterBlink(visible && !activeEews.some(event => event.isSimulation));
     syncSampleVisibility();
     const areaVisible = !visible
       && activeMode === "earthquake"
@@ -2980,7 +2990,16 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     applyMapTheme(map, activeTheme);
   }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarnings, whenCameraIdle, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+  function setEarthquakeSimulationFrame(frame) {
+    if (frame && activeMode === "earthquake") return simulationOverlay.render(frame);
+    simulationOverlay.clear();
+    return false;
+  }
+
+  function pickSimulationEpicenter(onPick) { return simulationOverlay.pick(onPick); }
+  function cancelSimulationEpicenterPick() { simulationOverlay.cancelPick(); }
+
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarnings, setEarthquakeSimulationFrame, pickSimulationEpicenter, cancelSimulationEpicenterPick, whenCameraIdle, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
 }
 
 function normalizeTerrainOpacity(value) {
@@ -4840,24 +4859,44 @@ function createEewFeatureCollection(events, now = Date.now()) {
         reliability: eew.hypocenterReliability ?? "unknown"
       }
     });
-    if (!eew.canRenderWaves || !Number.isFinite(originTimestamp) || !Number.isFinite(depthKm)) return;
-    const elapsedSeconds = Math.max(0, (now - originTimestamp) / 1000);
-    const waveDistances = getJma2001WaveDistances(depthKm, elapsedSeconds);
-    if (!waveDistances) return;
-    const { pDistanceKm, sDistanceKm } = waveDistances;
-    const waveDefinitions = [
-      { type: "P", surfaceRadiusKm: pDistanceKm },
-      { type: "S", surfaceRadiusKm: sDistanceKm }
-    ];
+    if (!eew.canRenderWaves || (!eew.isSimulation && !Number.isFinite(originTimestamp)) || !Number.isFinite(depthKm)) return;
+    const elapsedSeconds = eew.isSimulation
+      ? Number(eew.simulationElapsedSeconds)
+      : Math.max(0, (now - originTimestamp) / 1000);
+    const waveSources = eew.isSimulation && Array.isArray(eew.simulationWaveSources)
+      ? eew.simulationWaveSources
+      : [{ coordinates: [longitude, latitude], ruptureDelaySec: 0 }];
+    const finiteSource = waveSources.length > 1;
+    const circlesByWave = { P: [], S: [] };
+    waveSources.forEach((source) => {
+      const sourceElapsed = elapsedSeconds - source.ruptureDelaySec;
+      if (!Number.isFinite(sourceElapsed) || sourceElapsed < 0) return;
+      const waveDistances = getJma2001WaveDistances(depthKm, sourceElapsed);
+      if (!waveDistances) return;
+      const { pDistanceKm, sDistanceKm } = waveDistances;
+      const waveDefinitions = [
+        { type: "P", surfaceRadiusKm: pDistanceKm },
+        { type: "S", surfaceRadiusKm: sDistanceKm }
+      ];
 
-    waveDefinitions.forEach(({ type, surfaceRadiusKm }) => {
-      if (surfaceRadiusKm < 1 || surfaceRadiusKm > 2_500) return;
-      features.push({
-        type: "Feature",
-        geometry: { type: "Polygon", coordinates: [createGeodesicCircle([longitude, latitude], surfaceRadiusKm)] },
-        properties: { featureType: "wave", waveType: type, eventId: eew.eventId }
+      waveDefinitions.forEach(({ type, surfaceRadiusKm }) => {
+        if (surfaceRadiusKm < 1 || surfaceRadiusKm > 2_500) return;
+        const rawRing = createGeodesicCircle(source.coordinates, surfaceRadiusKm);
+        const ring = eew.isSimulation ? unwrapLineAtAntimeridian(rawRing) : rawRing;
+        circlesByWave[type].push({ center: source.coordinates, radius: surfaceRadiusKm, ring });
+        features.push({
+          type: "Feature",
+          geometry: { type: "Polygon", coordinates: [ring] },
+          properties: { featureType: finiteSource ? "wave-fill" : "wave", waveType: type, eventId: eew.eventId }
+        });
       });
     });
+    if (finiteSource) {
+      for (const waveType of ["P", "S"]) {
+        const arcs = exposedWavefrontArcs(circlesByWave[waveType]);
+        if (arcs.length) features.push({ type: "Feature", geometry: { type: "MultiLineString", coordinates: arcs }, properties: { featureType: "wave-front", waveType, eventId: eew.eventId } });
+      }
+    }
   });
 
   return { type: "FeatureCollection", features };

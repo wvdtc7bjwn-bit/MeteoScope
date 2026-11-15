@@ -1464,10 +1464,11 @@ html[data-theme="light"] .river-affected-cities span {
     bottom: max(76px, calc(env(safe-area-inset-bottom) + 76px));
   }
 
-  .map-legend {
+  .map-left-controls {
     left: 12px;
-    bottom: max(128px, calc(env(safe-area-inset-bottom) + 128px));
-    max-height: calc(100dvh - 146px);
+  }
+  .map-legend {
+    max-height: calc(100dvh - 200px);
   }
 
   #map-attribution {
@@ -1941,10 +1942,11 @@ html[data-theme="light"] .social-share-preview-shell {
     bottom: var(--shared-map-controls-bottom);
   }
 
-  .map-legend {
+  .map-left-controls {
     left: var(--shared-dock-left);
-    bottom: calc(var(--shared-map-controls-bottom) + 54px);
-    max-height: calc(100dvh - var(--shared-map-controls-bottom) - 68px);
+  }
+  .map-legend {
+    max-height: calc(100dvh - var(--shared-map-controls-bottom) - 122px);
   }
 
   #map-attribution {
@@ -1965,7 +1967,7 @@ html[data-theme="light"] .social-share-preview-shell {
     white-space: nowrap;
   }
 
-  .mobile-drawer-open :is(.map-locate-button, .map-world-typhoon-target-button, .map-legend) {
+  .mobile-drawer-open :is(.map-locate-button, .map-world-typhoon-target-button, .map-left-controls) {
     opacity: 0;
     pointer-events: none;
   }

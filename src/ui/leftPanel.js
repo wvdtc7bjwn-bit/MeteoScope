@@ -3478,11 +3478,11 @@ function buildEarthquakeMobileContextMarkup(
       ? `${Number(eew.depth) === 0 ? "ごく浅い" : `深さ${Number(eew.depth)}km`}${assumptionSuffix}`
       : "深さ調査中";
     const areaNames = (eew.warnAreas ?? []).map((area) => area.name).filter(Boolean);
-    const statusLabel = isCancellation
+    const statusLabel = eew.isSimulation && eew.waitingForDetection ? "検知待ち" : isCancellation
       ? "取消報"
       : (eew.isFinal ? "最終報" : `第${Math.max(1, Number(eew.serial) || 1)}報`);
     const reportKind = isCancellation ? "取消" : (eew.isWarn ? "警報" : "予報");
-    const warningLabel = eew.isLocalTest ? `テスト・${reportKind}` : reportKind;
+    const warningLabel = eew.isSimulation ? "シミュレーション" : eew.isLocalTest ? `テスト・${reportKind}` : reportKind;
     const warningClass = isCancellation ? "is-cancel" : (eew.isWarn ? "is-warning" : "is-forecast");
     const eventSwitchMarkup = eewEvents.length > 1 ? `
       <div class="mobile-dock-eew-switch" role="tablist" aria-label="発表中の緊急地震速報">
@@ -3516,13 +3516,13 @@ function buildEarthquakeMobileContextMarkup(
           <span class="mobile-dock-eew-title">緊急地震速報</span>
           <span class="mobile-dock-eew-kind ${warningClass}">${escapeHtml(warningLabel)}</span>
           <span class="mobile-dock-eew-report">${escapeHtml(statusLabel)}</span>
-          <time class="mobile-dock-eew-time">発表 ${escapeHtml(formatMobileEarthquakeTime(eew.announcedTime))}</time>
+          <time class="mobile-dock-eew-time">${eew.isSimulation ? "実際の地震ではありません" : `発表 ${escapeHtml(formatMobileEarthquakeTime(eew.announcedTime))}`}</time>
         </div>
         ${eventSwitchMarkup}
       </div>
       <div class="mobile-dock-earthquake-main mobile-dock-eew-main" role="alert" aria-live="assertive">
         <em class="mobile-dock-earthquake-intensity mobile-dock-eew-intensity ${intensityTextClass}">
-          <small>${isCancellation ? "速報" : "予想最大"}</small>
+          <small>${isCancellation ? "速報" : eew.isSimulation ? "参考最大" : "予想最大"}</small>
           <span>${escapeHtml(isCancellation ? "取消" : (eew.maxIntensity || "?"))}</span>
         </em>
         <div class="mobile-dock-eew-content">

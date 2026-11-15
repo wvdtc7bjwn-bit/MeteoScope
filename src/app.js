@@ -24,6 +24,7 @@ import { setupTabs } from "./ui/tabs.js";
 import { setupAmedasDailyChartToggle, setupAmedasPrecipitationPeriods, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, showMobileEarthquakeSummaryPage, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { applyAmedasPrecipitationPeriod, normalizeAmedasPrecipitationPeriod } from "./amedasPrecipitationPeriod.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
+import { setupEarthquakeSimulation } from "./ui/earthquakeSimulation.js";
 import { setupCommonLayerToggle, setupEarthquakeLayerToggle, setupSatelliteLayerToggle, setupWeatherDistributionToggle, syncCommonLayerToggle, syncEarthquakeLayerToggle, syncSatelliteLayerToggle, syncWeatherDistributionToggle, toggleWeatherDistributionPicker } from "./ui/weatherDistributionToggle.js";
 import { setupPanelToggle } from "./ui/panelToggle.js";
 import { setupFeedbackModal } from "./ui/feedbackModal.js";
@@ -353,6 +354,8 @@ export function createWeatherApp() {
   };
   const localEewTestEnabled = isLocalEewTestEnvironment(window.location);
   let localEewTestEvent = null;
+  let simulationEewEvent = null;
+  let simulationController = null;
   let selectedEewEventId = "";
   let eewWaveTimer = 0;
   let eewWaveAnimationGeneration = 0;
@@ -496,7 +499,16 @@ export function createWeatherApp() {
   }
 
   function getDisplayedEewEvents() {
+    if (simulationEewEvent && !eewState.activeEvents.some(event => !event.isCancel)) return [simulationEewEvent];
     return localEewTestEvent ? [localEewTestEvent] : eewState.activeEvents;
+  }
+
+  function syncSimulationButton() {
+    const button = document.getElementById("earthquake-simulation-button");
+    if (button) {
+      button.hidden = activeTab !== "earthquake" || earthquakeContentMode !== "earthquake" || earthquakeView !== "recent";
+      button.parentElement?.classList.toggle("has-simulation", !button.hidden);
+    }
   }
 
   function requestEewWaveFrame(callback) {
@@ -510,6 +522,7 @@ export function createWeatherApp() {
     stopEewWaveAnimation();
     const drawableEvents = getDisplayedEewEvents().filter((eew) => !eew.isCancel);
     weatherMap?.setEmergencyEarthquakeWarnings(drawableEvents);
+    if (simulationEewEvent) return; // The simulation player owns its paused/seekable clock.
     if (
       activeTab !== "earthquake"
       || document.visibilityState === "hidden"
@@ -554,7 +567,7 @@ export function createWeatherApp() {
     const current = latestDataByTab.earthquake ?? {};
     const incoming = snapshot?.incoming;
     const isNewReport = incoming && isNewEarthquakeReport(incoming, current.earthquakes ?? []);
-    if (isNewReport && getDisplayedEewEvents().some((event) => !event.isCancel)) {
+    if (!simulationEewEvent && isNewReport && getDisplayedEewEvents().some((event) => !event.isCancel)) {
       if (earthquakeSummaryOverride.accept(incoming, current.earthquakes ?? []) && activeTab === "earthquake") {
         refreshActivePanel();
       }
@@ -614,7 +627,7 @@ export function createWeatherApp() {
     if (revision !== realtimeEarthquakeUpdateId || previousData !== latestDataByTab.earthquake) {
       return mergeEarthquakeRealtimeData(data, realtimeEarthquakeState.earthquakes, { fromXml });
     }
-    if (fromXml && realtimeEarthquakeState.connection.status !== "connected"
+    if (!simulationEewEvent && fromXml && realtimeEarthquakeState.connection.status !== "connected"
       && getDisplayedEewEvents().some((event) => !event.isCancel)) {
       const incoming = merged.find((item) => isNewEarthquakeReport(item, previousItems));
       if (incoming) earthquakeSummaryOverride.accept(incoming, previousItems);
@@ -649,6 +662,7 @@ export function createWeatherApp() {
     const button = document.querySelector('.tab-button[data-tab="earthquake"]');
     if (!button) return;
     const isActive = getDisplayedEewEvents().some((eew) => !eew.isCancel)
+      && !simulationEewEvent
       && (earlyAccessEnabled || Boolean(localEewTestEvent));
     button.classList.toggle("has-eew-alert", isActive);
     if (isActive) {
@@ -663,6 +677,9 @@ export function createWeatherApp() {
       ? snapshot
       : { activeEvents: [], recentEvents: [], connection: { status: "stopped" }, updatedAt: null };
     if (nextState.activeEvents?.length && !earlyAccessEnabled) return;
+    if (nextState.activeEvents?.some(event => !event.isCancel) && simulationController?.active) {
+      simulationController.stop("実際のEEWを受信したためシミュレーションを終了しました。");
+    }
     eewState = {
       activeEvents: Array.isArray(nextState.activeEvents) ? nextState.activeEvents : [],
       recentEvents: Array.isArray(nextState.recentEvents) ? nextState.recentEvents : [],
@@ -708,6 +725,7 @@ export function createWeatherApp() {
   let localEewTransitionTimer = null;
   function selectLocalEewTestScenario(scenario, step = 0) {
     if (!localEewTestEnabled) return;
+    simulationController?.stop();
     clearTimeout(localEewTransitionTimer);
     localEewTransitionTimer = null;
     localEewTestEvent = createLocalEewTestEvent(scenario, { step });
@@ -733,6 +751,7 @@ export function createWeatherApp() {
     const switchStartedAt = performance.now();
     const tab = TABS.find((item) => item.id === tabId) ?? TABS[0];
     const tabChanged = activeTab !== tab.id;
+    if (tabChanged) simulationController?.stop();
     if (tabChanged && earthquakeArchiveAreaDrawing) cancelEarthquakeArchiveAreaDrawing();
     if (tabChanged) tabAutoFocusGeneration += 1;
     const autoFocusGeneration = tabAutoFocusGeneration;
@@ -740,6 +759,7 @@ export function createWeatherApp() {
       warningDetailsRequest.controller.abort();
     }
     activeTab = tab.id;
+    syncSimulationButton();
     syncTyphoonRadarOverlayButton();
     renderCommunityReportLayerToggle();
     weatherMap?.setCommunityReportsVisible(communityReportsVisible && isRainRadarActive());
@@ -1586,7 +1606,9 @@ if (layerId === "river") {
   }
 
   function toggleEarthquakeContentMode() {
+    simulationController?.stop();
     earthquakeContentMode = earthquakeContentMode === "volcano" ? "earthquake" : "volcano";
+    syncSimulationButton();
     selectedVolcanoCode = "";
     selectedVolcanoBulletinId = "";
     selectedVolcanoAshForecastIndex = 0;
@@ -1682,6 +1704,7 @@ if (layerId === "river") {
   function selectEarthquakeView(view) {
     if (!["recent", "distribution", "history"].includes(view)) return;
     if (view === "history" && !earlyAccessEnabled) return;
+    if (view !== "recent") simulationController?.stop();
     earthquakeNearbySearchActive = false;
     if (view !== "history") cancelEarthquakeArchiveAreaDrawing();
     if (view !== "distribution" && earthquakeDistributionAreaDrawing) {
@@ -1689,6 +1712,7 @@ if (layerId === "river") {
       earthquakeDistributionAreaDrawing = false;
     }
     earthquakeView = view;
+    syncSimulationButton();
     if (activeTab !== "earthquake") return;
     const tab = TABS.find((item) => item.id === "earthquake");
     updateCurrentView(tab, latestDataByTab.earthquake ?? {});
@@ -2114,6 +2138,7 @@ if (layerId === "river") {
   }
 
   function focusEewOnce() {
+    if (simulationEewEvent) return;
     if (activeTab !== "earthquake" || earthquakeContentMode !== "earthquake"
       || (!earlyAccessEnabled && !localEewTestEvent) || !weatherMap
       || document.hidden) return;
@@ -2644,7 +2669,7 @@ if (layerId === "river") {
         plateBoundaryVisible: earthquakePlateBoundaryVisible,
         plateDepthContoursVisible: earthquakePlateDepthContoursVisible,
         estimatedIntensityVisible: earthquakeEstimatedIntensityVisible,
-        eewSummaryOverride: getDisplayedEewEvents().length ? earthquakeSummaryOverride.get() : null,
+        eewSummaryOverride: !simulationEewEvent && getDisplayedEewEvents().length ? earthquakeSummaryOverride.get() : null,
         eew: getSelectedEew(),
         eewEvents: getDisplayedEewEvents(),
         eewConnection: eewState.connection
@@ -2670,7 +2695,7 @@ if (layerId === "river") {
       earthquakeHistoryVisibleCount,
       earthquakeHistoryLoadingMore,
       earthquakeHistoryLoadMoreError,
-      eewSummaryOverride: getDisplayedEewEvents().length ? earthquakeSummaryOverride.get() : null,
+      eewSummaryOverride: !simulationEewEvent && getDisplayedEewEvents().length ? earthquakeSummaryOverride.get() : null,
       eew: getSelectedEew(),
       eewEvents: getDisplayedEewEvents(),
       eewConnection: eewState.connection,
@@ -4543,6 +4568,37 @@ if (layerId === "river") {
       onWeatherDistributionGoLatest: goLatestWeatherDistributionFrame
     });
     setupLegendToggle();
+    simulationController = setupEarthquakeSimulation({
+      getMap: () => weatherMap,
+      canStart: () => !localEewTestEvent && !eewState.activeEvents.some(event => !event.isCancel),
+      activate: () => {
+        if (activeTab !== "earthquake" || earthquakeContentMode !== "earthquake" || earthquakeView !== "recent" || localEewTestEvent || eewState.activeEvents.some(event => !event.isCancel)) return false;
+        earthquakeSummaryPage = "earthquake";
+        earthquakeSummaryOverride.clear();
+        cancelEarthquakeArchiveAreaDrawing();
+        weatherMap?.setMode("earthquake");
+        showMobileEarthquakeSummaryPage("earthquake");
+        return true;
+      },
+      onFrame: (frame, { updateSummary }) => {
+        if (!simulationEewEvent) stopEewWaveAnimation();
+        simulationEewEvent = frame.event;
+        weatherMap?.setEarthquakeSimulationFrame(frame);
+        weatherMap?.setEmergencyEarthquakeWarnings([frame.event]);
+        if (updateSummary) {
+          const tab = TABS.find(item => item.id === "earthquake");
+          updateCurrentView(tab, latestDataByTab.earthquake ?? {}, { skipMap: true });
+        }
+      },
+      onStop: () => {
+        simulationEewEvent = null;
+        weatherMap?.setEarthquakeSimulationFrame(null);
+        syncEewWaveAnimation();
+        syncEewAlertIndicator();
+        refreshActivePanel();
+      }
+    });
+    syncSimulationButton();
     setupPanelToggle({ onLayoutChange: () => weatherMap?.resize() });
     const onboarding = setupOnboardingModal({ onOpenSettings: openSettingsModal });
     let userServicesStarted = false;

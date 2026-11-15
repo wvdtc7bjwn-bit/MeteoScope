@@ -155,7 +155,7 @@ assert.match(index, /data-earthquake-map-layer="plateDepthContours"/u);
 assert.match(index, /data-earthquake-distribution-presentation="3d"/u);
 assert.match(layerToggle, /setupEarthquakeLayerToggle/u);
 assert.match(layerToggle, /choice\.getAttribute\("aria-pressed"\) === "true" \? "flat" : "3d"/u);
-assert.match(style, /\.map-earthquake-layer-toggle\s*\{[^}]*bottom:\s*82px;/u);
+assert.match(style, /--layer-picker-bottom:\s*calc\(var\(--map-control-lower-bottom, 82px\) \+ var\(--map-control-step, 52px\)\);/u);
 assert.match(style, /\.weather-distribution-toggle-choices\s*\{[^}]*grid-auto-rows:\s*minmax\(44px, auto\);[^}]*overflow-y:\s*auto;/u);
 assert.match(depthRenderer, /uniform float u_depth_scale/u);
 assert.match(depthRenderer, /a_position\.z \* u_depth_scale/u);

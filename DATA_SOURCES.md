@@ -6,6 +6,8 @@
 
 ## 確認済み
 
+地震シミュレーションには [WE-Simulator](https://github.com/itachi-kun-itc/WE-Simulator) の利用許可取得済みの計算コード・想定震源域近似を移植しています。観測点位置は既存の気象庁カタログ、P波・S波の走時は既存のJMA2001表です。模擬震度を実観測値として表示せず、地盤メッシュの同梱・取得も行いません。[移植範囲と加工内容](docs/earthquake-simulation.md)
+
 週間天気予報の天気アイコンは [ciscorn/jma-weather-images](https://github.com/ciscorn/jma-weather-images) の `output/*.png` を同梱しています。リポジトリ説明ではCC0とされています。天気コードに対応する画像をそのまま使用し、未対応コードは従来の表示に戻します。
 
 | 対象 | 提供者・取得URL | 条件 | MeteoScopeでの加工 |

@@ -278,7 +278,7 @@ assert.match(
 );
 assert.match(
   styles,
-  /@media \(orientation: landscape\), \(min-width: 801px\)\s*\{[\s\S]*?\.map-utility-menu-toggle\s*\{[\s\S]*?left:\s*var\(--shared-dock-left\);[\s\S]*?\.map-community-report-button\s*\{[\s\S]*?bottom:\s*var\(--shared-map-controls-bottom\);[\s\S]*?\.map-legend\s*\{[\s\S]*?bottom:\s*calc\(var\(--shared-map-controls-bottom\) \+ 54px\);/
+  /@media \(orientation: landscape\), \(min-width: 801px\)\s*\{[\s\S]*?\.map-utility-menu-toggle\s*\{[\s\S]*?left:\s*var\(--shared-dock-left\);[\s\S]*?\.map-community-report-button\s*\{[\s\S]*?bottom:\s*var\(--shared-map-controls-bottom\);/
 );
 assert.match(
   styles,
@@ -1133,12 +1133,12 @@ assert.doesNotMatch(
 
 assert.match(styles, /@media \(min-width: 768px\) and \(max-width: 1366px\)\s*\{\s*:root,\s*html\[data-theme="light"\]\s*\{[^}]*--glass-shell-shadow:\s*none;[^}]*--glass-shadow:\s*none;[^}]*--glass-shadow-soft:\s*none;/);
 assert.match(styles, /iPad-sized viewports[\s\S]*?html\[data-theme="light"\]\s*\{[^}]*--glass-shell-shadow:\s*none;/);
-assert.match(styles, /\.map-weather-distribution-toggle,\s*\.map-weather-distribution-toggle\.map-earthquake-layer-toggle\s*\{[^}]*bottom:\s*var\(--shared-map-controls-bottom\);[^}]*align-items:\s*stretch;/);
+assert.match(styles, /\.map-weather-distribution-toggle,\s*\.map-weather-distribution-toggle\.map-earthquake-layer-toggle\s*\{[^}]*align-items:\s*stretch;/);
 assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-weather-distribution-toggle\s*\{[^}]*align-items:\s*stretch;[^}]*transform-origin:\s*right bottom;/);
 assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-weather-distribution-toggle\.collapsed \.weather-distribution-toggle-choices\s*\{\s*filter:\s*none;/);
 assert.doesNotMatch(styles, /bottom:\s*calc\(var\(--shared-map-controls-bottom\) \+ 54px\);\s*\}\s*\.mobile-drawer-open \.map-weather-distribution-toggle/);
-assert.match(styles, /Keep the location button below the picker[\s\S]*?\.map-locate-button\s*\{[^}]*right:\s*max\(12px, env\(safe-area-inset-right\)\);[^}]*bottom:\s*calc\(var\(--shared-map-controls-bottom\) - 54px\);/);
-assert.match(styles, /iPad-sized viewports[\s\S]*?\.map-locate-button\s*\{[^}]*--mobile-sidebar-visible-height, 48dvh\) \+ 16px\)[^}]*166px/);
+assert.match(styles, /Keep the location button below the picker[\s\S]*?\.map-locate-button\s*\{[^}]*right:\s*max\(12px, env\(safe-area-inset-right\)\);[^}]*bottom:\s*var\(--map-control-lower-bottom\);/);
+assert.match(styles, /iPad-sized viewports[\s\S]*?#map-area\s*\{[^}]*--mobile-sidebar-visible-height, 48dvh\) \+ 16px\)[^}]*166px/);
 assert.match(styles, /html\[data-theme="light"\] #map-utility-actions\s*\{[^}]*background:\s*#edf4fa !important;[^}]*box-shadow:\s*none !important;[^}]*backdrop-filter:\s*none !important;/);
 
 console.log("Responsive layouts: OK");

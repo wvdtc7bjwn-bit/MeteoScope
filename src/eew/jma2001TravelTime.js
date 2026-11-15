@@ -11,6 +11,29 @@ export function getWaveDistancesByJma2001(depthKm, elapsedSeconds) {
   };
 }
 
+// Inverse of the same depth table used to draw the wave fronts. This keeps
+// simulated station arrivals and map circles on a single travel-time model.
+export function getTravelTimesByJma2001(depthKm, distanceKm) {
+  const distance = Number(distanceKm);
+  if (!Number.isFinite(distance) || distance < 0) throw new RangeError("Invalid surface distance");
+  const table = getNearestDepthTable(depthKm);
+  if (distance > table.at(-1)[0]) return { pArrivalSec: Infinity, sArrivalSec: Infinity };
+  let low = 0;
+  let high = table.length - 1;
+  while (low < high - 1) {
+    const middle = Math.floor((low + high) / 2);
+    if (table[middle][0] <= distance) low = middle;
+    else high = middle;
+  }
+  const lower = table[low];
+  const upper = table[high];
+  const ratio = upper[0] > lower[0] ? Math.max(0, (distance - lower[0]) / (upper[0] - lower[0])) : 0;
+  return {
+    pArrivalSec: lower[1] + ratio * (upper[1] - lower[1]),
+    sArrivalSec: lower[2] + ratio * (upper[2] - lower[2])
+  };
+}
+
 function getDistanceFromTravelTime(waveType, depthKm, elapsedSeconds) {
   const elapsed = Number(elapsedSeconds);
   if (!Number.isFinite(elapsed) || elapsed <= 0) return 0;

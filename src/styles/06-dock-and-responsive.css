@@ -2176,13 +2176,9 @@
   }
 
   .map-legend {
-    bottom: max(
-      calc(var(--mobile-sidebar-visible-height, 48dvh) + 124px),
-      calc(max(0px, env(safe-area-inset-bottom)) + 274px)
-    );
     max-height: min(
-      calc(100dvh - var(--mobile-sidebar-visible-height, 48dvh) - 144px),
-      calc(100dvh - max(0px, env(safe-area-inset-bottom)) - 294px)
+      calc(100dvh - var(--mobile-sidebar-visible-height, 48dvh) - 198px),
+      calc(100dvh - max(0px, env(safe-area-inset-bottom)) - 348px)
     );
   }
 }

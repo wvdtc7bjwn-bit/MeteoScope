@@ -1045,9 +1045,9 @@ html[data-theme="light"] .earthquake-long-press-hint button {
 }
 
 .map-weather-distribution-toggle {
-  --layer-picker-bottom: 134px;
+  --layer-picker-bottom: calc(var(--map-control-lower-bottom, 82px) + var(--map-control-step, 52px));
   right: 9px;
-  bottom: 134px;
+  bottom: var(--layer-picker-bottom);
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -1072,14 +1072,8 @@ html[data-theme="light"] .earthquake-long-press-hint button {
     box-shadow 220ms ease;
 }
 
-.map-satellite-layer-toggle {
-  bottom: 134px;
-}
-
 .map-earthquake-layer-toggle {
   top: auto;
-  bottom: 82px;
-  --layer-picker-bottom: 82px;
 }
 :is(#earthquake-layer-toggle, #satellite-layer-toggle, #map-layer-toggle, #weather-distribution-toggle) .weather-distribution-toggle-choices::before {
   color: #b8c9d9;
@@ -1955,14 +1949,16 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
   font-size: 11px;
 }
 
-.map-legend {
+.map-left-controls {
   left: 9px;
   right: auto;
-  bottom: 134px;
+}
+
+.map-legend {
   display: flex;
   flex-direction: column;
   width: 236px;
-  max-height: calc(100dvh - 154px);
+  max-height: calc(100dvh - 208px);
   min-width: 0;
   margin-bottom: 0;
   padding: 9px;
@@ -2393,12 +2389,14 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
     padding-inline: 13px;
   }
 
-  .map-legend {
+  .map-left-controls {
     left: 17px;
     right: auto;
-    bottom: calc(var(--mobile-sidebar-visible-height, 34dvh) + 124px);
+  }
+
+  .map-legend {
     width: min(252px, calc(100vw - 34px));
-    max-height: calc(100dvh - var(--mobile-sidebar-visible-height, 34dvh) - 144px);
+    max-height: calc(100dvh - var(--mobile-sidebar-visible-height, 34dvh) - 198px);
     min-width: 0;
     padding: 9px;
     transition: bottom 220ms ease, width 180ms ease, padding 180ms ease;

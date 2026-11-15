@@ -113,6 +113,7 @@ let panelUpdates = 0;
 const eewEvents = [{ eventId: "eew-A", canRenderWaves: true }];
 const calls = [];
 const appCtx = vm.createContext({ realtimeEarthquakeUpdateId: 0, realtimeEarthquakeState: { connection: connected },
+  simulationEewEvent: null,
   latestDataByTab: { earthquake: { earthquakes: [] } }, activeEarthquakeId: "", activeTab: "earthquake", earthquakeContentMode: "earthquake",
   TABS: [{ id: "earthquake" }], recordDiagnostic() {}, getDisplayedEewEvents: () => eewEvents,
   earthquakeSummaryOverride: { accept: (report) => { calls.push(report.issueType); return true; } }, refreshActivePanel() { panelUpdates++; },
@@ -134,6 +135,7 @@ const mergeSource = app.slice(app.indexOf("  async function mergeEarthquakeRealt
 let releaseMap;
 let mapCalls = 0;
 const mergeCtx = vm.createContext({ latestDataByTab: { earthquake: { earthquakes: [prompt] } },
+  simulationEewEvent: null,
   realtimeEarthquakeUpdateId: 1, realtimeEarthquakeState: { earthquakes: [prompt], connection: connected },
   mergeRealtimeEarthquakes, reconcileEarthquakeSources, isNewEarthquakeReport,
   getDisplayedEewEvents: () => [],
@@ -151,7 +153,7 @@ assert.equal(mapCalls, 2, "変更があった場合だけ再統合する");
 await appCtx.handleRealtimeEarthquakeUpdate({ earthquakes: [detail], connection: connected });
 await appCtx.handleRealtimeEarthquakeUpdate({ earthquakes: [detail], connection: { status: "stopped" } });
 assert.equal(xmlRequests, 2, "ページ非表示で意図的に停止したときはXMLを追加取得しない");
-assert.match(app, /function getDisplayedEewEvents\(\) \{\s*return localEewTestEvent \? \[localEewTestEvent\] : eewState\.activeEvents;/, "地図に渡すEEWは要約タイマーに依存しない");
+assert.match(app, /function getDisplayedEewEvents\(\) \{[^}]*return localEewTestEvent \? \[localEewTestEvent\] : eewState\.activeEvents;/, "地図に渡すEEWは要約タイマーに依存しない");
 
 // onerrorを伴わない正常closeでもconnectedのまま残さない。
 class Socket { static sockets = []; constructor() { Socket.sockets.push(this); } close() {} }

@@ -56,6 +56,7 @@ const context = vm.createContext({
   performance, console, TABS: [{ id: "radar" }, { id: "earthquake" }, { id: "amedas" }],
   activeTab: "radar", tabAutoFocusGeneration: 0, activeLoadRequestId: 0,
   warningDetailsRequest: null, communityReportsVisible: false,
+  simulationController: null,
   earthquakeArchiveAreaDrawing: true,
   cancelEarthquakeArchiveAreaDrawing: () => { context.earthquakeArchiveAreaDrawing = false; },
   yieldAfterPaint: () => new Promise((resolve) => pending.push(resolve)),
@@ -64,6 +65,7 @@ const context = vm.createContext({
   isRainRadarActive: () => false,
   ...Object.fromEntries(["syncTyphoonRadarOverlayButton", "renderCommunityReportLayerToggle",
     "syncEarlyWarningRefreshTimer", "invalidateScheduledMapRender", "invalidateScheduledPanelRender",
+    "syncSimulationButton",
     "syncActiveTabToUrl", "stopRadarPlayback", "stopLightningPlayback", "stopWeatherChartPlayback",
     "stopWeatherDistributionPlayback", "refreshCommunityReports"].map((key) => [key, noop]))
 });
