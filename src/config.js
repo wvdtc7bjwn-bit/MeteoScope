@@ -92,6 +92,7 @@ export const JMA_ENDPOINTS = {
   tideObservationBase: "https://www.jma.go.jp/bosai/tidelevel/data/tide",
   tideAstronomicalBase: "https://www.jma.go.jp/bosai/tidelevel/const/tide_astro",
   earthquakeStations: publicAsset("data/jma-intensity-stations.json"),
+  earthquakeEpicenterRegions: publicAsset("data/jma-earthquake-epicenter-regions.geojson"),
   amedasStationTable: "https://www.jma.go.jp/bosai/amedas/const/amedastable.json",
   amedasMapBase: "https://www.jma.go.jp/bosai/amedas/data/map",
   amedasPointBase: "https://www.jma.go.jp/bosai/amedas/data/point",

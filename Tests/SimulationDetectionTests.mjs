@@ -1,0 +1,23 @@
+import assert from "node:assert/strict";
+import { parseSimulationDetectionStations, loadSimulationDetectionStations } from "../src/simulation/detectionStations.js";
+import { prepareEarthquakeSimulation } from "../src/simulation/earthquakeSimulation.js";
+import { getTravelTimesByJma2001 } from "../src/eew/jma2001TravelTime.js";
+
+const feature = (network, coordinates) => ({ type: "Feature", geometry: { type: "Point", coordinates }, properties: { network, code: "TEST" } });
+const raw = { type: "FeatureCollection", features: [feature("S-net", [142, 38]), feature("DONET1", [135, 33]), feature("N-net", [133, 32]), feature("unknown", [142, 38]), feature("S-net", [NaN, 38])] };
+const parsed = parseSimulationDetectionStations(raw);
+assert.equal(parsed.length, 3);
+await assert.rejects(loadSimulationDetectionStations({ fetchImpl: async () => ({ ok: false, status: 503 }) }), /503/);
+await assert.rejects(loadSimulationDetectionStations({ fetchImpl: async () => ({ ok: true, json: async () => ({}) }) }), /Invalid/);
+const abort = new AbortController(); abort.abort();
+await assert.rejects(loadSimulationDetectionStations({ signal: abort.signal }), { name: "AbortError" });
+assert.deepEqual(await loadSimulationDetectionStations({ fetchImpl: async () => ({ ok: true, json: async () => raw }) }), parsed);
+const source = { longitude: 142, latitude: 38, magnitude: 7, depthKm: 20 };
+const land = { station: { longitude: 140.8, latitude: 38 } };
+const landOnly = await prepareEarthquakeSimulation(source, land);
+const withSea = await prepareEarthquakeSimulation(source, land, { detectionStations: parsed });
+assert.ok(withSea.reports[0].elapsedSec < landOnly.reports[0].elapsedSec, "offshore P detection advances the first bulletin");
+assert.ok(withSea.reports[0].elapsedSec >= getTravelTimesByJma2001(20, 0).pArrivalSec, "never issue before the offshore P wave arrives");
+assert.equal(withSea.stations.length, landOnly.stations.length, "offshore detection points are not fabricated land intensity observations");
+assert.deepEqual(withSea.stations, landOnly.stations, "detector catalogue does not change simulated land shaking");
+console.log("Simulation detection: network filtering, earlier offshore detection, causal arrival and fallback data passed");

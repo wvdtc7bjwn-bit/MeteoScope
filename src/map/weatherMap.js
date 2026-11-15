@@ -1,6 +1,7 @@
 import { VECTOR_BASE_MAP_ENABLED, registerBaseMapProtocol, createMunicipalitySource, baseMapSourceLayer, municipalityStateTarget } from "./baseMapTiles.js";
 import { waitForInitialMapGeometry } from "./initialMapReadiness.js";
 import { createSimulationMapOverlay } from "./simulationOverlay.js";
+import { EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID } from "./earthquakeMarkerIds.js";
 import { exposedWavefrontArcs } from "../simulation/wavefrontGeometry.js";
 import {
   formatTyphoonForecastCenter,
@@ -255,7 +256,6 @@ const TYPHOON_FORECAST_INFO_LAYERS = [
 const WIND_ARROW_IMAGE_ID = "amedas-wind-arrow";
 const VOLCANO_MARKER_IMAGE_ID = "volcano-filled-triangle";
 const EARTHQUAKE_AREA_INTENSITY_MARKER_IMAGE_ID = "earthquake-area-intensity-square";
-const EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID = "earthquake-station-intensity-round";
 const RADAR_SOURCE_PREFIX = "jma-nowcast-radar-z";
 const RADAR_LAYER_PREFIX = "jma-nowcast-radar-z";
 const LIGHTNING_SOURCE_PREFIX = "jma-nowcast-lightning-z";
@@ -2904,7 +2904,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         ...feature,
         properties: {
           ...(feature.properties ?? {}),
-          popup: `<strong>${escapePopup(feature.properties?.areaName ?? "EEW予報区")}</strong><br>予想震度 ${escapePopup(feature.properties?.intensityRange ?? feature.properties?.intensity ?? "不明")}<br><small>緊急地震速報（予報・警報）の予測値</small>`
+          popup: `<strong>${escapePopup(feature.properties?.areaName ?? "EEW予報区")}</strong><br>予想震度 ${escapePopup(feature.properties?.intensityRange ?? feature.properties?.intensity ?? "不明")}<br><small>${feature.properties?.isSimulation ? "シミュレーション（実際の発表ではありません）" : "緊急地震速報（予報・警報）の予測値"}</small>`
         }
       }));
       map?.getSource(EEW_AREA_SOURCE_ID)?.setData?.(featureCollection);
@@ -4847,7 +4847,7 @@ function createEewFeatureCollection(events, now = Date.now()) {
     if (eew.coordinates.some(value => value == null || String(value).trim() === "")) return;
     const [longitude, latitude] = eew.coordinates.map(Number);
     const originTimestamp = Date.parse(eew.originTime ?? "");
-    const depthKm = Number(eew.depth);
+    const depthKm = Number(eew.isSimulation ? (eew.simulationWaveDepthKm ?? eew.depth) : eew.depth);
     if (![longitude, latitude].every(Number.isFinite)) return;
     features.push({
       type: "Feature",

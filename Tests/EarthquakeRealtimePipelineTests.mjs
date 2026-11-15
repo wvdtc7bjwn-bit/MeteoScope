@@ -103,6 +103,13 @@ assert.doesNotMatch(markup, /不明|M0\.0/);
 const knownMarkup = ctx.buildEarthquakeMobileContextMarkup(destination);
 assert.match(knownMarkup, /熊本県熊本地方/);
 assert.match(knownMarkup, /M4\.0\/10km/);
+const waitingMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", { isSimulation: true, waitingForDetection: true, hypocenter: "東京都２３区", magnitude: null, depth: null, maxIntensity: null });
+assert.equal((waitingMarkup.match(/—/g) ?? []).length, 4, "all four simulation values are dashes before the first bulletin");
+assert.doesNotMatch(waitingMarkup, /M調査中|深さ調査中|東京都２３区|>\?</);
+const firstReportMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", { isSimulation: true, serial: 1, hypocenter: "東京都２３区", magnitude: 4.6, depth: 30, maxIntensity: "3" });
+assert.match(firstReportMarkup, /M4\.6/);
+assert.match(firstReportMarkup, /深さ30km/);
+assert.match(firstReportMarkup, /東京都２３区/);
 
 // 実アプリの受信ハンドラーも、速報ではXMLを追加取得せず、EEW地図を維持する。
 const app = readFileSync(new URL("../src/app.js", import.meta.url), "utf8");

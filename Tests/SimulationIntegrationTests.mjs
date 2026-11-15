@@ -32,6 +32,9 @@ const paused1 = mapCtx.createEewFeatureCollection([simulationEvent], 1);
 const paused2 = mapCtx.createEewFeatureCollection([simulationEvent], Date.now());
 assert.equal(JSON.stringify(paused1), JSON.stringify(paused2), "paused wave fronts ignore real clock");
 assert.equal(paused1.features.filter(f => f.properties.featureType === "wave-fill").length, 2, "unruptured source emits no waves");
+simulationEvent.simulationWaveDepthKm = 20;
+simulationEvent.depth = 70;
+assert.equal(JSON.stringify(mapCtx.createEewFeatureCollection([simulationEvent], 1)), JSON.stringify(paused1), "EEW depth revisions never move simulated wave fronts");
 simulationEvent.simulationElapsedSeconds = 60;
 assert.equal(mapCtx.createEewFeatureCollection([simulationEvent]).features.filter(f => f.properties.featureType === "wave-fill").length, 4, "ruptured sources emit P and S waves");
 const live = { coordinates: [140, 36], eventId: "real", canRenderWaves: true, depth: 20, originTime: new Date(100000).toISOString() };
@@ -52,6 +55,8 @@ assert.equal(sources.size, 0, "simulation sources do not delay initial map loadi
 const frame = { elapsed: 3, stations: { type: "FeatureCollection", features: [] }, fault: { type: "FeatureCollection", features: [] } };
 overlay.render(frame); assert.equal(overlay.active, true); assert.equal(sources.size, 2);
 assert.equal(layers.has("simulation-station-pulse"), false, "no decorative station halo or pulsing layer");
+assert.equal(layers.get("simulation-station-labels").layout["text-field"], undefined, "circle and number are a single sprite, not independently positioned layers");
+assert.deepEqual(layers.get("simulation-station-labels").layout["icon-offset"], [0, 0]);
 overlay.render(frame); assert.equal(sources.size, 2, "no duplicate source or layer on subsequent frames");
 let chosen;
 overlay.pick(point => { chosen = point; }); assert.equal(canvas.style.cursor, "crosshair");

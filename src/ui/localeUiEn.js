@@ -1,6 +1,15 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+開発者：|Developer:
+計算コードと想定震源域の公開、およびMeteoScopeへの移植・利用許可に感謝します。|Thank you for publishing the simulation code and source-region models, and for permitting their use and adaptation in MeteoScope.
+WE-Simulatorを開く ↗|Open WE-Simulator ↗
+ソースコード ↗|Source code ↗
+地盤補正なし|Without ground correction
+解析中|Analyzing
+緊急地震速報の警報対象地域|EEW warning areas
+シミュレーション（実際の発表ではありません）|Simulation (not an actual bulletin)
+震源地名不明|Unknown epicenter
 自治体から選ぶ|Municipal maps
 PDF・画像|PDF / images
 防災マップの表示方法|Hazard map source

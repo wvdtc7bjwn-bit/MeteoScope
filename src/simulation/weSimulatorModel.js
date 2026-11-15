@@ -2,7 +2,7 @@
 // Upstream revision: 3b0f37d830b1994bac9a69c9686a90bcc24477c1. See docs/earthquake-simulation.md.
 import { getEarthquakeIntensityColor, getEarthquakeIntensityMarkerTextColor } from "../earthquakeIntensity.js";
 
-export const EARTHQUAKE_MODEL = { eewProcessingDelaySec: 2.0, defaultSiteAmplification: 0 };
+export const EARTHQUAKE_MODEL = { eewProcessingDelaySec: .6, defaultSiteAmplification: 0 };
 
 const INTENSITY_THRESHOLDS = [0, 0.5, 1.5, 2.5, 3.5, 4.5, 5, 5.5, 6, 6.5];
 const INTENSITY_LABELS = ["0", "1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"];
@@ -286,36 +286,25 @@ export function createWeSimulatorModel({ magnitude, offshore = false, latitude =
   function buildSyntheticSimulationMagnitudeReports(finalMagnitude, stations, simulationCompleteAtSec) {
     const arrivalCandidates = stations.filter(station => classifyIntensity(station.predictedIntensityValue).rank >= 1).map(station => station.pArrivalSec).filter(Number.isFinite);
     if (!arrivalCandidates.length) return [];
+    const detectedAtSec = Math.min(...arrivalCandidates);
     const firstReportSec = Math.max(
-      (arrivalCandidates.length ? Math.min(...arrivalCandidates) : 1.2) + EARTHQUAKE_MODEL.eewProcessingDelaySec,
-      2.4,
+      detectedAtSec + EARTHQUAKE_MODEL.eewProcessingDelaySec,
+      .8,
     );
     const reviewDurationSec = clamp(
-      11 + Math.max(finalMagnitude - 5.0, 0) * 12 + getOffshoreEpicenterFactor() * 8,
-      11,
-      78,
+      8 + Math.max(finalMagnitude - 5.0, 0) * 7 + getOffshoreEpicenterFactor() * 3,
+      8,
+      45,
     );
     const availableEndSec = Number.isFinite(simulationCompleteAtSec)
       ? Math.max(simulationCompleteAtSec - 8, firstReportSec)
       : firstReportSec + reviewDurationSec;
     const finalReportSec = Math.min(firstReportSec + reviewDurationSec, availableEndSec);
-    const reportCount = Math.round(clamp(4 + Math.max(finalMagnitude - 4.0, 0) * 2.1, 4, 18));
-    const intervalWeights = Array.from({ length: Math.max(reportCount - 1, 1) }, (_, index) => (
-      0.45 + stableUnitInterval([
-        "magnitude-report-time",
-        state.latitude.toFixed(3),
-        state.longitude.toFixed(3),
-        finalMagnitude.toFixed(1),
-        index,
-      ].join("|")) * 1.9
-    ));
-    const totalWeight = intervalWeights.reduce((sum, weight) => sum + weight, 0);
-    let accumulatedWeight = 0;
+    const reportCount = Math.max(Math.round(clamp(4 + Math.max(finalMagnitude - 4.0, 0) * 2.1, 4, 18)), Math.ceil((finalReportSec - firstReportSec) / 3) + 1);
     return Array.from({ length: reportCount }, (_, index) => {
       const isFinal = index === reportCount - 1;
-      if (index > 0) accumulatedWeight += intervalWeights[index - 1];
-      const progress = isFinal ? 1 : accumulatedWeight / totalWeight;
-      return { reportNumber: index + 1, elapsedSec: Number((firstReportSec + (finalReportSec - firstReportSec) * progress).toFixed(2)), isFinal };
+      const progress = index / (reportCount - 1);
+      return { reportNumber: index + 1, elapsedSec: Number((firstReportSec + (finalReportSec - firstReportSec) * progress).toFixed(2)), detectedAtSec, isFinal };
     });
   }
   return { getStationWaveResponseProperties, getCurrentIntensityProperties, buildSyntheticSimulationMagnitudeReports };

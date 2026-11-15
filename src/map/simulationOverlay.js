@@ -1,4 +1,6 @@
 import { escapeHtmlPadded as escapeHtml } from "../utils/html.js";
+import { EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID } from "./earthquakeMarkerIds.js";
+import { localizeText } from "../ui/locale.js";
 
 const STATIONS = "earthquake-simulation-stations";
 const FAULT = "earthquake-simulation-fault";
@@ -26,22 +28,31 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
     const before = map.getLayer("eew-wave-fill") ? "eew-wave-fill" : undefined;
     map.addLayer({ id: LAYERS[0], type: "fill", source: FAULT, filter: ["==", ["get", "kind"], "area"], paint: { "fill-color": "#c68bff", "fill-opacity": .14, "fill-outline-color": "#b861ed" } }, before);
     map.addLayer({ id: LAYERS[1], type: "circle", source: FAULT, filter: ["==", ["get", "kind"], "rupture"], paint: { "circle-radius": 4, "circle-color": ["case", ["get", "ruptured"], "#ff6a3d", "#a28cb1"], "circle-stroke-width": 1, "circle-stroke-color": "#ffffff" } });
-    map.addLayer({ id: LAYERS[2], type: "circle", source: STATIONS, paint: {
+    map.addLayer({ id: LAYERS[2], type: "circle", source: STATIONS, filter: ["==", ["get", "intensity"], "0"], paint: {
       "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, ["case", ["get", "arrived"], 3, 1.5], 7, ["case", ["get", "arrived"], 7, 2.5], 10, ["case", ["get", "arrived"], 10, 3]],
       "circle-color": ["get", "color"], "circle-opacity": ["case", ["get", "arrived"], 1, .25],
       "circle-stroke-width": 1, "circle-stroke-color": "#26374a", "circle-color-transition": { duration: 0 }, "circle-radius-transition": { duration: 0 }, "circle-opacity-transition": { duration: 0 }
     } });
-    map.addLayer({ id: LAYERS[3], type: "symbol", source: STATIONS, minzoom: 6, filter: ["!=", ["get", "intensity"], "0"], layout: {
-      "text-field": ["get", "intensity"], "text-font": ["Noto Sans JP"], "text-size": 10, "text-allow-overlap": false
-    }, paint: { "text-color": ["get", "textColor"] } });
-    map.on("click", LAYERS[2], event => {
+    // Reuse the normal earthquake sprites: circle and numeral are one image,
+    // so dense markers cannot show another feature's text over a neighboring circle.
+    map.addLayer({ id: LAYERS[3], type: "symbol", source: STATIONS, filter: ["!=", ["get", "intensity"], "0"], layout: {
+      "icon-image": ["concat", EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID, ["get", "intensity"]],
+      "icon-anchor": "center", "icon-offset": [0, 0],
+      "icon-size": ["interpolate", ["linear"], ["zoom"], 3, .115, 7, .269, 10, .385],
+      "icon-allow-overlap": true, "icon-ignore-placement": true, "icon-padding": 0,
+      "symbol-sort-key": ["coalesce", ["get", "intensityRank"], 0]
+    } });
+    const onStationClick = event => {
       if (!active || pickHandler) return;
       const feature = event.features?.[0];
       if (!feature) return;
       const p = feature.properties;
       const seconds = value => value != null && Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)} s` : "—";
-      showInfo(event.lngLat, `<strong>${escapeHtml(p.name)}</strong><br>SIMULATION · ${escapeHtml(p.intensity)}<br>P: ${seconds(p.pArrivalSec)} / S: ${seconds(p.sArrivalSec)}<br><small>WE-Simulator / MeteoScope</small>`);
-    });
+      const ground = Number.isFinite(Number(p.groundArv)) && Number(p.groundArv) > 0 ? `ARV ${escapeHtml(p.groundArv)} · J-SHIS / WE-Simulator (1 km)` : escapeHtml(localizeText("地盤補正なし"));
+      showInfo(event.lngLat, `<strong>${escapeHtml(p.name)}</strong><br>SIMULATION · ${escapeHtml(p.intensity)}<br>P: ${seconds(p.pArrivalSec)} / S: ${seconds(p.sArrivalSec)}<br><small>${ground}</small>`);
+    };
+    map.on("click", LAYERS[2], onStationClick);
+    map.on("click", LAYERS[3], onStationClick);
     return true;
   };
   return {

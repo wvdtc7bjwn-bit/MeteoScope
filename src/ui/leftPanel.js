@@ -1,6 +1,7 @@
 import { VOLCANO_ALERT_LEVEL_GUIDE, renderVolcanoList } from "./panels/volcanoPanel.js";
 import { escapeHtmlString as escapeHtml } from "../utils/html.js";
 import { updateHistorySelection } from "./historySelection.js";
+import { EEW_WARNING_AREA_COLOR, isEewWarningArea } from "../eew/eewForecastAreas.js";
 import { renderFocalMechanism } from "./focalMechanism.js";
 import { getSnowDepthAxisMaximum, splitAmedasChartSegments } from "../amedasChart.js";
 import {
@@ -2255,6 +2256,8 @@ if (tabId === "warnings" && warningView === "early") {
       ];
     }
     return [
+      ...((data?.eewEvents ?? (data?.eew ? [data.eew] : [])).some(event => !event.isCancel && event.warnAreas?.some(area => isEewWarningArea(event, area)))
+        ? [["緊急地震速報の警報対象地域", "", EEW_WARNING_AREA_COLOR]] : []),
       ...tsunamiLegend,
       ...tsunamiObservationLegend,
       ...tideStationLegend,
@@ -3466,6 +3469,7 @@ function buildEarthquakeMobileContextMarkup(
     : "";
   if (eew) {
     const isCancellation = eew.isCancel === true;
+    const simulationPending = eew.isSimulation && eew.waitingForDetection;
     const intensityColor = isCancellation ? "#64748b" : getEarthquakeIntensityColor(eew.maxIntensity);
     const intensityTextClass = getEarthquakeIntensityTextClass(eew.maxIntensity);
     const hasMagnitude = eew.magnitude !== null && eew.magnitude !== undefined
@@ -3473,12 +3477,12 @@ function buildEarthquakeMobileContextMarkup(
     const hasDepth = eew.depth !== null && eew.depth !== undefined
       && String(eew.depth).trim() !== "" && Number.isFinite(Number(eew.depth));
     const assumptionSuffix = eew.isAssumption ? "（仮定）" : "";
-    const magnitude = eew.isAssumption ? "M仮定値" : eew.hypocenterMethod === "level" ? "M調査中" : hasMagnitude ? `M${Number(eew.magnitude).toFixed(1)}${assumptionSuffix}` : "M調査中";
-    const depth = eew.isAssumption ? "深さ仮定値" : eew.hypocenterMethod === "level" ? "深さ調査中" : hasDepth
+    const magnitude = simulationPending ? "—" : eew.isAssumption ? "M仮定値" : eew.hypocenterMethod === "level" ? "M調査中" : hasMagnitude ? `M${Number(eew.magnitude).toFixed(1)}${assumptionSuffix}` : "M調査中";
+    const depth = simulationPending ? "—" : eew.isAssumption ? "深さ仮定値" : eew.hypocenterMethod === "level" ? "深さ調査中" : hasDepth
       ? `${Number(eew.depth) === 0 ? "ごく浅い" : `深さ${Number(eew.depth)}km`}${assumptionSuffix}`
       : "深さ調査中";
     const areaNames = (eew.warnAreas ?? []).map((area) => area.name).filter(Boolean);
-    const statusLabel = eew.isSimulation && eew.waitingForDetection ? "検知待ち" : isCancellation
+    const statusLabel = eew.isSimulation && eew.waitingForDetection ? (eew.simulationDetecting === false ? "解析中" : "検知待ち") : isCancellation
       ? "取消報"
       : (eew.isFinal ? "最終報" : `第${Math.max(1, Number(eew.serial) || 1)}報`);
     const reportKind = isCancellation ? "取消" : (eew.isWarn ? "警報" : "予報");
@@ -3523,11 +3527,11 @@ function buildEarthquakeMobileContextMarkup(
       <div class="mobile-dock-earthquake-main mobile-dock-eew-main" role="alert" aria-live="assertive">
         <em class="mobile-dock-earthquake-intensity mobile-dock-eew-intensity ${intensityTextClass}">
           <small>${isCancellation ? "速報" : eew.isSimulation ? "参考最大" : "予想最大"}</small>
-          <span>${escapeHtml(isCancellation ? "取消" : (eew.maxIntensity || "?"))}</span>
+          <span>${escapeHtml(simulationPending ? "—" : isCancellation ? "取消" : (eew.maxIntensity || "?"))}</span>
         </em>
         <div class="mobile-dock-eew-content">
           <div class="mobile-dock-eew-headline">
-            <strong>${escapeHtml(eew.hypocenter || "震源調査中")}</strong>
+            <strong>${escapeHtml(simulationPending ? "—" : eew.hypocenter || "震源調査中")}</strong>
           </div>
           <div class="mobile-dock-eew-facts"${isCancellation ? " hidden" : ""}>
             <span>${escapeHtml(magnitude)}</span>

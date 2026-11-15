@@ -6,7 +6,11 @@
 
 ## 確認済み
 
-地震シミュレーションには [WE-Simulator](https://github.com/itachi-kun-itc/WE-Simulator) の利用許可取得済みの計算コード・想定震源域近似を移植しています。観測点位置は既存の気象庁カタログ、P波・S波の走時は既存のJMA2001表です。模擬震度を実観測値として表示せず、地盤メッシュの同梱・取得も行いません。[移植範囲と加工内容](docs/earthquake-simulation.md)
+地震シミュレーションには [WE-Simulator](https://github.com/itachi-kun-itc/WE-Simulator) の利用許可取得済みの計算コード・想定震源域近似を移植しています。観測点位置は既存の気象庁カタログ、P波・S波の走時は既存のJMA2001表です。地盤補正ありでは、WE-SimulatorがJ-SHIS V4の250mメッシュを1kmへ集約したモデルを、移植元の固定リビジョンから利用者のブラウザーが直接取得します。原データの同梱・再配布・D1保存は行いません。模擬震度は実観測値ではありません。[移植範囲と加工内容](docs/earthquake-simulation.md)
+
+地盤補正の出典は防災科学技術研究所 [J-SHIS](https://www.j-shis.bosai.go.jp/)、若松・松岡(2020)「地形・地盤分類250mメッシュマップの更新」日本地震工学会誌 No.40, pp.24–27、Senna et al. (2013, 2019) ほかです。[ARV・AVSの定義と参考文献](https://www.j-shis.bosai.go.jp/api-sstruct-meshinfo)、[利用規約](https://www.j-shis.bosai.go.jp/agreement)、[移植元の集約処理](https://github.com/itachi-kun-itc/WE-Simulator/blob/3b0f37d830b1994bac9a69c9686a90bcc24477c1/scripts/build_ground_model.js)。表示には出典と「1kmメッシュ・欠測は補正なし」を明記します。
+
+模擬EEWの海底検知点は、同じ固定リビジョンの `web/data/submarine_observation_points.geojson` をブラウザーが直接取得して使用します。S-net・DONET・N-netの位置情報を利用し、波形・稼働状況は取得しません。位置情報の一次資料は防災科研の[観測点情報](https://www.seafloor.bosai.go.jp/st_info/)、実運用の背景は気象庁の[DONET活用](https://www.jma.go.jp/jma/press/2503/03a/20250303_DONET.html)と[N-net活用](https://www.jma.go.jp/jma/press/2603/06b/20260306_N-net.html)を参照しています。実際の発表時刻を再現するデータとしては扱いません。
 
 週間天気予報の天気アイコンは [ciscorn/jma-weather-images](https://github.com/ciscorn/jma-weather-images) の `output/*.png` を同梱しています。リポジトリ説明ではCC0とされています。天気コードに対応する画像をそのまま使用し、未対応コードは従来の表示に戻します。
 

@@ -10,7 +10,8 @@ import {
 import { getWaveDistancesByJma2001 } from "../src/eew/jma2001TravelTime.js";
 import {
   buildEewForecastAreaFeatureCollection,
-  createEewForecastAreaSignature
+  createEewForecastAreaSignature,
+  EEW_WARNING_AREA_COLOR
 } from "../src/eew/eewForecastAreas.js";
 import { parseJstDateTime } from "../src/utils/jstDateTime.js";
 import {
@@ -184,7 +185,8 @@ function makeEew(overrides = {}) {
   assert.equal(colored.features.length, 2, "警報で予想震度がある区域だけを地図化する");
   assert.equal(colored.features[0].properties.intensity, "5-", "予想震度範囲の上限を代表色にする");
   assert.equal(colored.features[0].properties.intensityRange, "4～5-");
-  assert.equal(colored.features[0].properties.color, "#f93904", "アプリ共通の震度色を使う");
+  assert.equal(colored.features[0].properties.color, EEW_WARNING_AREA_COLOR, "警報対象地域を赤く表示する");
+  assert.equal(colored.features[1].properties.color, EEW_WARNING_AREA_COLOR, "震度4の警報対象地域も赤く表示する");
   assert.match(createEewForecastAreaSignature([warning]), /茨城県北部/u);
 
   const forecastOnly = { ...warning, isWarn: false };
@@ -193,6 +195,14 @@ function makeEew(overrides = {}) {
     2,
     "EEW予報でも区域別の予想震度があれば塗り分ける"
   );
+  assert.equal(buildEewForecastAreaFeatureCollection(areaGeoJson, [forecastOnly]).features[0].properties.color, "#f93904", "警報対象でない予報区は従来の震度色");
+  assert.notEqual(createEewForecastAreaSignature([warning]), createEewForecastAreaSignature([forecastOnly]), "警報状態が変われば同じ予測値でも地図を更新する");
+  const explicitForecast = { ...warning, warnAreas: [{ ...warning.warnAreas[0], isWarning: false, type: "予報" }] };
+  assert.equal(buildEewForecastAreaFeatureCollection(areaGeoJson, [explicitForecast]).features[0].properties.isWarning, false, "明示された予報区を警報対象と推測しない");
+  const unknownWarning = { ...warning, warnAreas: [{ code: "310", name: "茨城県北部", isWarning: true }] };
+  assert.equal(buildEewForecastAreaFeatureCollection(areaGeoJson, [unknownWarning]).features[0].properties.color, EEW_WARNING_AREA_COLOR, "対象地域の明示があれば震度未取得でも赤");
+  assert.equal(buildEewForecastAreaFeatureCollection(areaGeoJson, [{ ...warning, isCancel: true }]).features.length, 0, "取消後に対象地域を残さない");
+  assert.equal(buildEewForecastAreaFeatureCollection(areaGeoJson, [explicitForecast, warning]).features[0].properties.isWarning, true, "複数地震では警報対象の赤を優先");
 }
 
 {
