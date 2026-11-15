@@ -4868,6 +4868,7 @@ function createEewFeatureCollection(events, now = Date.now()) {
       : [{ coordinates: [longitude, latitude], ruptureDelaySec: 0 }];
     const finiteSource = waveSources.length > 1;
     const circlesByWave = { P: [], S: [] };
+    const outOfRangeWaves = new Set();
     waveSources.forEach((source) => {
       const sourceElapsed = elapsedSeconds - source.ruptureDelaySec;
       if (!Number.isFinite(sourceElapsed) || sourceElapsed < 0) return;
@@ -4880,19 +4881,21 @@ function createEewFeatureCollection(events, now = Date.now()) {
       ];
 
       waveDefinitions.forEach(({ type, surfaceRadiusKm }) => {
-        if (surfaceRadiusKm < 1 || surfaceRadiusKm > 2_500) return;
+        if (surfaceRadiusKm === null) { outOfRangeWaves.add(type); return; }
+        if (!Number.isFinite(surfaceRadiusKm) || surfaceRadiusKm < 1 || surfaceRadiusKm > 2_500) return;
         const rawRing = createGeodesicCircle(source.coordinates, surfaceRadiusKm);
         const ring = eew.isSimulation ? unwrapLineAtAntimeridian(rawRing) : rawRing;
         circlesByWave[type].push({ center: source.coordinates, radius: surfaceRadiusKm, ring });
-        features.push({
-          type: "Feature",
-          geometry: { type: "Polygon", coordinates: [ring] },
-          properties: { featureType: finiteSource ? "wave-fill" : "wave", waveType: type, eventId: eew.eventId }
-        });
       });
     });
-    if (finiteSource) {
-      for (const waveType of ["P", "S"]) {
+    for (const waveType of ["P", "S"]) {
+      // Later sources' interior circles cannot replace an out-of-range front.
+      if (outOfRangeWaves.has(waveType)) continue;
+      for (const circle of circlesByWave[waveType]) features.push({
+        type: "Feature", geometry: { type: "Polygon", coordinates: [circle.ring] },
+        properties: { featureType: finiteSource ? "wave-fill" : "wave", waveType, eventId: eew.eventId }
+      });
+      if (finiteSource) {
         const arcs = exposedWavefrontArcs(circlesByWave[waveType]);
         if (arcs.length) features.push({ type: "Feature", geometry: { type: "MultiLineString", coordinates: arcs }, properties: { featureType: "wave-front", waveType, eventId: eew.eventId } });
       }

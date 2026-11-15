@@ -1,10 +1,10 @@
 import { classifyIntensity } from "./weSimulatorModel.js";
 import { getEarthquakeIntensityRank } from "../earthquakeIntensity.js";
-import { estimateReferenceIntensity } from "./intensityModel.js";
+import { estimateSimulationIntensity, MAX_REFERENCE_INTENSITY_DEPTH_KM } from "./intensityModel.js";
 
 // A deterministic teaching scenario, not a reproduction of JMA's EEW analysis.
 // Only bulletin estimates change; the configured source and wave clock stay fixed.
-export function buildSimulationEewReports({ options, stations, sources = [], schedule, ruptureCompleteSec, getObservedIntensity = () => 0 }) {
+export function buildSimulationEewReports({ options, stations, sources = [], schedule, ruptureCompleteSec, intensityEstimateAvailable = options.depthKm <= MAX_REFERENCE_INTENSITY_DEPTH_KM, getObservedIntensity = () => 0 }) {
   if (!schedule.length) return [];
   const firstTime = schedule[0].elapsedSec;
   const originalEnd = schedule.at(-1).elapsedSec;
@@ -22,12 +22,13 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
     const depth = isFinal ? options.depthKm : Math.max(0, Math.min(700, Math.round((options.depthKm + (initialDepth - options.depthKm) * remaining) / 5) * 5));
     const elapsedSec = report.elapsedSec;
     const activeSourceIndices = sources.flatMap((source, index) => source.ruptureDelaySec <= elapsedSec ? [index] : []);
-    const predictions = stations.map(station => {
+    const predictions = intensityEstimateAvailable ? stations.map(station => {
       const distance = activeSourceIndices.length && station.sourceDistancesKm
         ? Math.min(...activeSourceIndices.map(index => station.sourceDistancesKm[index])) : station.epicentralDistanceKm;
-      return Math.max(getObservedIntensity(station, elapsedSec), estimateReferenceIntensity({ magnitude, depthKm: depth, ruptureDistanceKm: Math.hypot(distance, depth), interplate: options.model !== "point", groundArv: station.groundArv ?? 1 }));
-    });
-    const maxIntensity = classifyIntensity(Math.max(...predictions)).label;
+      const predicted = estimateSimulationIntensity({ magnitude, depthKm: depth, ruptureDistanceKm: Math.hypot(distance, depth), interplate: options.model !== "point", groundArv: station.groundArv ?? 1, trenchDistanceKm: station.trenchDistanceKm, deepApproximation: options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM });
+      return predicted === null ? null : Math.max(getObservedIntensity(station, elapsedSec) ?? 0, predicted);
+    }) : [];
+    const maxIntensity = intensityEstimateAvailable ? classifyIntensity(Math.max(...predictions)).label : null;
     const isWarn = getEarthquakeIntensityRank(maxIntensity) >= 5;
     const areas = new Map();
     if (isWarn) stations.forEach((station, index) => {

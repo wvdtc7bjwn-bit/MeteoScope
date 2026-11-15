@@ -68,7 +68,9 @@ function lookupDistanceByTime(table, timeIndex, elapsedSeconds) {
   if (elapsedSeconds <= table[0][timeIndex]) return table[0][0];
 
   const last = table[table.length - 1];
-  if (elapsedSeconds >= last[timeIndex]) return last[0];
+  // Beyond the table's 2000 km range, do not draw a stationary boundary ring.
+  if (elapsedSeconds > last[timeIndex]) return null;
+  if (elapsedSeconds === last[timeIndex]) return last[0];
 
   let low = 0;
   let high = table.length - 1;

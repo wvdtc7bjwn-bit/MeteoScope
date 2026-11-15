@@ -1,11 +1,13 @@
 // Adapted with permission from itachi-kun-itc/WE-Simulator, web/app.js.
 // Upstream revision: 3b0f37d830b1994bac9a69c9686a90bcc24477c1. See docs/earthquake-simulation.md.
 import { getEarthquakeIntensityColor, getEarthquakeIntensityMarkerTextColor } from "../earthquakeIntensity.js";
+import { MAX_REFERENCE_INTENSITY_DEPTH_KM } from "./intensityModel.js";
 
 export const EARTHQUAKE_MODEL = { eewProcessingDelaySec: .6, defaultSiteAmplification: 0 };
 
 const INTENSITY_THRESHOLDS = [0, 0.5, 1.5, 2.5, 3.5, 4.5, 5, 5.5, 6, 6.5];
 const INTENSITY_LABELS = ["0", "1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"];
+const SHAKING_DURATION_SCALES = [[1, 1], [5, 2], [6, 4], [7, 10], [8, 60], [9, 180], [9.5, 240]];
 export function classifyIntensity(value) {
   let rank = 0;
   for (let i = 1; i < INTENSITY_THRESHOLDS.length; i++) if (value >= INTENSITY_THRESHOLDS[i]) rank = i;
@@ -16,8 +18,8 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 // The upstream station-response and bulletin-timing model, isolated from its UI.
 // Site amplification is kept at the upstream default; no site-specific ground data are bundled.
-export function createWeSimulatorModel({ magnitude, offshore = false, latitude = 0, longitude = 0 }) {
-  const state = { magnitude, latitude, longitude };
+export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = false, latitude = 0, longitude = 0 }) {
+  const state = { magnitude, depthKm, latitude, longitude };
   const getOffshoreEpicenterFactor = () => offshore ? 1 : 0;
   function getStationWaveResponseProperties(key, finalIntensity, ground = {}) {
     const siteNoise = stableUnitInterval(`${key}|site`);
@@ -245,7 +247,33 @@ export function createWeSimulatorModel({ magnitude, offshore = false, latitude =
     return t * t * (3 - 2 * t);
   }
 
+  function getStationShakingTiming(properties) {
+    const profile = getGroundRiseProfile(properties);
+    const softness = clamp((520 - (properties.groundAvs ?? 400)) / 420, 0, 1);
+    // Educational duration envelope, not waveform-based real-time intensity.
+    // Broad M7/M8/M9 duration scales follow JMA FAQ27; interpolate in between.
+    const found = SHAKING_DURATION_SCALES.findIndex(([m]) => m >= state.magnitude);
+    const upper = found < 0 ? SHAKING_DURATION_SCALES.length - 1 : found;
+    const high = SHAKING_DURATION_SCALES[upper];
+    const low = SHAKING_DURATION_SCALES[Math.max(0, upper - 1)];
+    const ratio = high[0] > low[0] ? (state.magnitude - low[0]) / (high[0] - low[0]) : 0;
+    const mainDuration = (low[1] + (high[1] - low[1]) * ratio) * (1 + softness * .25);
+    const peakAtSec = properties.sArrivalSec + profile.durationSec + Math.max(0, properties.sWaveRiseDelaySec ?? 0);
+    const decayStartSec = Math.max(peakAtSec, properties.sArrivalSec + mainDuration,
+      (properties.lastStrongSArrivalSec ?? properties.sArrivalSec) + profile.durationSec);
+    // Educational deep-event coda: the P/S separation proxies the longer wave
+    // path. These bounded coefficients are a display approximation, not a fitted
+    // duration law. Blend through 150-300 km; keep arrival, peak and EEW intact.
+    const deepWeight = clamp((state.depthKm - MAX_REFERENCE_INTENSITY_DEPTH_KM) / 150, 0, 1);
+    const spGapSec = properties.sArrivalSec - properties.pArrivalSec;
+    const deepCodaSec = Number.isFinite(spGapSec) ? deepWeight * clamp(spGapSec * .5, 0, 90) : 0;
+    const tailDuration = 12 + Math.max(0, state.magnitude - 5) * 9 + softness * 12
+      + clamp((properties.epicentralDistanceKm ?? 0) / 80, 0, 12) + deepCodaSec;
+    return { shakingPeakSec: peakAtSec, shakingDecayStartSec: decayStartSec, shakingEndSec: decayStartSec + tailDuration };
+  }
+
   function getCurrentIntensityProperties(properties, elapsedSec = Infinity) {
+    const intensityEstimateAvailable = Number.isFinite(properties.predictedIntensityValue);
     const isSimulation = Number.isFinite(elapsedSec);
     const observed = !isSimulation || elapsedSec >= properties.pArrivalSec;
     const waveState = isSimulation && properties.sArrivalSec > elapsedSec ? "p" : "s";
@@ -267,15 +295,24 @@ export function createWeSimulatorModel({ magnitude, offshore = false, latitude =
         ? pWaveIntensity
         : Math.max(pWaveIntensity, properties.predictedIntensityValue * riseProgress);
     const recordedIntensityFloor = getPWaveRecordedIntensityFloor(properties, observed);
-    const currentIntensityValue = Math.max(rawCurrentIntensityValue, recordedIntensityFloor);
+    const recordedIntensityValue = Math.min(properties.predictedIntensityValue, Math.max(rawCurrentIntensityValue, recordedIntensityFloor));
+    const timing = properties.shakingEndSec != null ? properties : getStationShakingTiming(properties);
+    const decayProgress = isSimulation && elapsedSec > timing.shakingDecayStartSec
+      ? clamp((elapsedSec - timing.shakingDecayStartSec) / (timing.shakingEndSec - timing.shakingDecayStartSec), 0, 1) : 0;
+    // A monotonically falling amplitude envelope. Apply after the recorded P
+    // floor so a historical detection cannot keep the current shaking at 1.
+    const decayDrop = decayProgress > 0 ? -3.44 * Math.log10(Math.max(1e-6, 1 - decayProgress)) : 0;
+    const currentIntensityValue = decayProgress >= 1 ? 0 : Math.max(0, recordedIntensityValue - decayDrop);
     const currentClass = classifyIntensity(currentIntensityValue);
   
     return {
       observed,
       waveState,
       riseProgress: Number(riseProgress.toFixed(3)),
-      currentIntensityValue: Number(currentIntensityValue.toFixed(2)),
-      intensityValue: Number(currentIntensityValue.toFixed(2)),
+      currentIntensityValue: intensityEstimateAvailable ? Number(currentIntensityValue.toFixed(2)) : null,
+      recordedIntensityValue: intensityEstimateAvailable ? recordedIntensityValue : null,
+      settled: intensityEstimateAvailable && isSimulation && observed && elapsedSec >= timing.shakingEndSec,
+      intensityValue: intensityEstimateAvailable ? Number(currentIntensityValue.toFixed(2)) : null,
       intensityLabel: currentClass.label,
       intensityShortLabel: currentClass.shortLabel,
       intensityRank: currentClass.rank,
@@ -284,7 +321,10 @@ export function createWeSimulatorModel({ magnitude, offshore = false, latitude =
     };
   }
   function buildSyntheticSimulationMagnitudeReports(finalMagnitude, stations, simulationCompleteAtSec) {
-    const arrivalCandidates = stations.filter(station => classifyIntensity(station.predictedIntensityValue).rank >= 1).map(station => station.pArrivalSec).filter(Number.isFinite);
+    // Felt intensity is not an instrument detection threshold. Keep the teaching
+    // model's bulletin eligibility separate from the earliest available P arrival.
+    if (finalMagnitude < 3.5 && !stations.some(station => classifyIntensity(station.predictedIntensityValue).rank >= 3)) return [];
+    const arrivalCandidates = stations.map(station => station.pArrivalSec).filter(time => Number.isFinite(time) && time >= 0);
     if (!arrivalCandidates.length) return [];
     const detectedAtSec = Math.min(...arrivalCandidates);
     const firstReportSec = Math.max(
@@ -307,6 +347,6 @@ export function createWeSimulatorModel({ magnitude, offshore = false, latitude =
       return { reportNumber: index + 1, elapsedSec: Number((firstReportSec + (finalReportSec - firstReportSec) * progress).toFixed(2)), detectedAtSec, isFinal };
     });
   }
-  return { getStationWaveResponseProperties, getCurrentIntensityProperties, buildSyntheticSimulationMagnitudeReports };
+  return { getStationWaveResponseProperties, getStationShakingTiming, getCurrentIntensityProperties, buildSyntheticSimulationMagnitudeReports };
 }
 

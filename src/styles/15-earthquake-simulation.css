@@ -35,6 +35,14 @@
 }
 .map-simulation-button svg { width: 24px; height: 24px; }
 .map-simulation-button:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+/* Short landscape windows cannot fit two rows between the header and dock. */
+@media (orientation: landscape) and (max-height: 380px) {
+  #map-area:has(.map-left-controls.has-simulation) { --map-control-step: 0px; }
+  .map-left-controls.has-simulation { flex-direction: row; align-items: flex-end; gap: 10px; }
+  #map-area:has(.map-left-controls.has-simulation) .map-earthquake-layer-toggle {
+    right: calc(max(12px, env(safe-area-inset-right)) + 54px);
+  }
+}
 .simulation-panel { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
 .simulation-panel > .settings-modal-header { flex: none; }
 .simulation-panel .settings-modal-header small { color: var(--muted); font-size: 11px; letter-spacing: .08em; }

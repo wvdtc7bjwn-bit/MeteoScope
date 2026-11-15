@@ -2,7 +2,9 @@ import { FAULT_MODEL_PRESETS, NANKAI_RUPTURE_CASES } from "./faultPresets.js";
 import { classifyIntensity, createWeSimulatorModel } from "./weSimulatorModel.js";
 import { getTravelTimesByJma2001 } from "../eew/jma2001TravelTime.js";
 import { getDistanceKm } from "../location/distance.js";
-import { estimateReferenceIntensity } from "./intensityModel.js";
+import { estimateSimulationIntensity, MAX_REFERENCE_INTENSITY_DEPTH_KM } from "./intensityModel.js";
+import { createDeepTrenchLookup } from "./deepEarthquake.js";
+export { MAX_REFERENCE_INTENSITY_DEPTH_KM } from "./intensityModel.js";
 import { buildSimulationEewReports } from "./eewEstimates.js";
 import { getSimulationGround } from "./groundModel.js";
 import { findSimulationEpicenterName, createSimulationRegionLookup } from "./epicenterRegion.js";
@@ -70,11 +72,15 @@ export function getSimulationPresetOptions(model, nankaiCase = "full") {
   return { ...SIMULATION_DEFAULTS, model, nankaiCase, longitude: middle[0], latitude: middle[1], magnitude: preset.magnitudeValue, depthKm: preset.depthKm };
 }
 
-export async function prepareEarthquakeSimulation(input, rawStations, { signal, groundModel, epicenterRegions, forecastAreas, detectionStations = [], yieldTask = () => new Promise(resolve => setTimeout(resolve, 0)) } = {}) {
+export async function prepareEarthquakeSimulation(input, rawStations, { signal, groundModel, epicenterRegions, forecastAreas, detectionStations = [], plateBoundaries, yieldTask = () => new Promise(resolve => setTimeout(resolve, 0)) } = {}) {
   const options = normalizeSimulationOptions(input);
-  if (options.groundCorrection !== "none" && !groundModel) throw new Error("Ground model is required");
+  const deepApproximation = options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM;
+  const inJapanRegion = options.longitude >= 120 && options.longitude <= 170 && options.latitude >= 20 && options.latitude <= 60;
+  const trenchDistance = deepApproximation && inJapanRegion ? createDeepTrenchLookup(plateBoundaries) : null;
+  const intensityEstimateAvailable = !deepApproximation || Boolean(trenchDistance);
+  if (intensityEstimateAvailable && options.groundCorrection !== "none" && !groundModel) throw new Error("Ground model is required");
   const sources = buildSimulationSources(options);
-  const model = createWeSimulatorModel({ magnitude: options.magnitude, latitude: options.latitude, longitude: options.longitude, offshore: options.model !== "point" });
+  const model = createWeSimulatorModel({ magnitude: options.magnitude, depthKm: options.depthKm, latitude: options.latitude, longitude: options.longitude, offshore: options.model !== "point" });
   const stations = [];
   const findForecastArea = createSimulationRegionLookup(forecastAreas);
   const entries = Object.entries(rawStations ?? {});
@@ -85,54 +91,70 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
     if (coordinates.some(v => v == null || String(v).trim() === "" || !Number.isFinite(Number(v)))) continue;
     const point = coordinates.map(Number);
     if (Math.abs(point[0]) > 180 || Math.abs(point[1]) > 85) continue;
-    const { distance, pArrivalSec, sArrivalSec, sourceDistancesKm } = calculateTravelMetrics(point, options, sources);
-    const ground = options.groundCorrection !== "none" ? getSimulationGround(groundModel, point) : null;
+    const { distance, pArrivalSec, sArrivalSec, sourceDistancesKm, sourceSArrivalSecs } = calculateTravelMetrics(point, options, sources);
+    const ground = intensityEstimateAvailable && options.groundCorrection !== "none" ? getSimulationGround(groundModel, point) : null;
     const area = findForecastArea(point);
-    const predictedIntensityValue = estimateReferenceIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(distance, options.depthKm), interplate: options.model !== "point", groundArv: ground?.arv ?? 1 });
+    const trenchDistanceKm = trenchDistance?.(point) ?? null;
+    const predictedIntensityValue = estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(distance, options.depthKm), interplate: options.model !== "point", groundArv: ground?.arv ?? 1, trenchDistanceKm });
     const groundResponse = ground ? { groundAvs: ground.avs ?? 400, groundAmplification: 1.72 * Math.log10(ground.arv) } : {};
-    stations.push({
+    const strongThreshold = Math.max(.5, predictedIntensityValue - 1);
+    const lastStrongSArrivalSec = Math.max(sArrivalSec, ...sourceDistancesKm.flatMap((sourceDistance, sourceIndex) => {
+      const intensity = estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(sourceDistance, options.depthKm), interplate: options.model !== "point", groundArv: ground?.arv ?? 1, trenchDistanceKm });
+      return Number.isFinite(sourceSArrivalSecs[sourceIndex]) && intensity >= strongThreshold ? [sourceSArrivalSecs[sourceIndex]] : [];
+    }));
+    const station = {
       id: String(raw.code || key), name: String(raw.name || raw.code || key), coordinates: point,
-      epicentralDistanceKm: distance, sourceDistancesKm, pArrivalSec, sArrivalSec, predictedIntensityValue,
-      groundArv: ground?.arv ?? null, groundMeshCode: ground?.code ?? null, ...groundResponse,
+      epicentralDistanceKm: distance, sourceDistancesKm, pArrivalSec, sArrivalSec, lastStrongSArrivalSec, predictedIntensityValue,
+      groundArv: ground?.arv ?? null, groundMeshCode: ground?.code ?? null, trenchDistanceKm, ...groundResponse,
       forecastAreaCode: area?.code ?? "", forecastAreaName: area?.name ?? "",
       ...model.getStationWaveResponseProperties(key, predictedIntensityValue, groundResponse)
-    });
+    };
+    stations.push({ ...station, ...model.getStationShakingTiming(station) });
   }
   signal?.throwIfAborted();
   if (!stations.length) throw new Error("観測点データが空です。再読み込みしてください。");
-  const affected = stations.filter(s => s.predictedIntensityValue >= .5 && Number.isFinite(s.sArrivalSec));
-  const duration = Math.max(60, ...affected.map(s => s.sArrivalSec + 30), ...sources.map(s => s.ruptureDelaySec + 45));
+  const affected = stations.filter(s => (!intensityEstimateAvailable || s.predictedIntensityValue >= .5) && Number.isFinite(s.sArrivalSec));
+  const physicalDuration = Math.max(60, ...affected.map(s => intensityEstimateAvailable ? s.shakingEndSec + 2 : s.sArrivalSec + 30), ...sources.map(s => s.ruptureDelaySec + 45));
   const origin = sources.find(s => s.ruptureDelaySec === 0) ?? sources[0];
   const name = getFaultModelPreset(options)?.name ?? (findSimulationEpicenterName(epicenterRegions, origin.coordinates) || "震源地名不明");
   const groundCoverage = { corrected: stations.filter(station => station.groundArv !== null).length, total: stations.length };
-  const offshoreDetectors = detectionStations.filter(station => Array.isArray(station.coordinates) && station.coordinates.length === 2 && station.coordinates.every(Number.isFinite)).map(station => {
+  const offshoreDetectors = detectionStations.filter(station => Array.isArray(station.coordinates) && station.coordinates.length === 2 && station.coordinates.every(Number.isFinite)
+    && Math.abs(station.coordinates[0]) <= 180 && Math.abs(station.coordinates[1]) <= 85).map(station => {
     const metrics = calculateTravelMetrics(station.coordinates, options, sources);
-    return { ...metrics, predictedIntensityValue: estimateReferenceIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(metrics.distance, options.depthKm), interplate: options.model !== "point" }) };
+    return { ...metrics, predictedIntensityValue: estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(metrics.distance, options.depthKm), interplate: options.model !== "point", trenchDistanceKm: trenchDistance?.(station.coordinates) ?? null }) };
   });
   const ruptureComplete = Math.max(...sources.map(source => source.ruptureDelaySec));
-  const reports = buildSimulationEewReports({ options, stations, sources, schedule: model.buildSyntheticSimulationMagnitudeReports(options.magnitude, [...stations, ...offshoreDetectors], duration), ruptureCompleteSec: ruptureComplete,
-    getObservedIntensity: (station, elapsed) => { const value = model.getCurrentIntensityProperties(station, elapsed); return value.observed ? Math.min(station.predictedIntensityValue, value.currentIntensityValue) : 0; } });
+  const schedule = model.buildSyntheticSimulationMagnitudeReports(options.magnitude, [...stations, ...offshoreDetectors], Infinity);
+  const reports = buildSimulationEewReports({ options, stations, sources, schedule, ruptureCompleteSec: ruptureComplete, intensityEstimateAvailable,
+    getObservedIntensity: (station, elapsed) => { const value = model.getCurrentIntensityProperties(station, elapsed); return value.observed ? value.recordedIntensityValue : 0; } });
+  // Distant/deep instrumental detections can occur after the felt-shaking timeline.
+  const duration = Math.max(physicalDuration, (reports.at(-1)?.elapsedSec ?? 0) + 8);
   const baseEvent = {
     eventId: "METEOSCOPE-SIMULATION", source: "WE-Simulator / MeteoScope", isSimulation: true,
     hypocenter: name, coordinates: origin.coordinates,
+    intensityEstimateAvailable,
+    deepApproximation,
+    uncertaintyLabel: !intensityEstimateAvailable ? "深発近似データ未取得：震度推定なし" : deepApproximation ? "深発近似（学習用・異常震域は概算）" : "",
     canRenderWaves: true, isCancel: false, isFinal: false, hypocenterReliability: "simulation"
   };
   return {
-    options, sources, stations, duration, name, reports, groundCoverage, detectionStationCount: offshoreDetectors.length,
+    options, sources, stations, duration, name, reports, groundCoverage, intensityEstimateAvailable, deepApproximation, detectionStationCount: offshoreDetectors.length,
     frame(elapsedSeconds) {
       const elapsed = Math.max(0, Math.min(duration, elapsedSeconds));
       const features = stations.map(station => {
         const shaking = model.getCurrentIntensityProperties(station, elapsed);
-        const active = shaking.observed && elapsed <= station.sArrivalSec + 16 + Math.max(0, options.magnitude - 6) * 5;
         return { type: "Feature", geometry: { type: "Point", coordinates: station.coordinates }, properties: {
           id: station.id, name: station.name,
           intensity: shaking.observed ? shaking.intensityLabel : "0",
-          color: shaking.observed ? shaking.intensityColor : "#8c9dad",
-          textColor: shaking.intensityTextColor, active: active && shaking.intensityRank > 0,
-          arrived: shaking.observed, wave: shaking.observed ? shaking.waveState.toUpperCase() : "",
+          color: shaking.intensityRank > 0 ? shaking.intensityColor : "#8c9dad",
+          textColor: shaking.intensityTextColor, active: shaking.observed && !shaking.settled && shaking.intensityRank > 0,
+          arrived: shaking.observed, settled: shaking.settled, wave: shaking.observed ? shaking.waveState.toUpperCase() : "",
+          currentIntensityValue: shaking.currentIntensityValue,
+          intensityEstimateAvailable: Number.isFinite(station.predictedIntensityValue), deepApproximation,
+          recordedIntensity: Number.isFinite(station.predictedIntensityValue) ? classifyIntensity(shaking.recordedIntensityValue).label : null,
           pArrivalSec: Number.isFinite(station.pArrivalSec) ? station.pArrivalSec : null,
           sArrivalSec: Number.isFinite(station.sArrivalSec) ? station.sArrivalSec : null,
-          predictedIntensity: classifyIntensity(station.predictedIntensityValue).label,
+          predictedIntensity: Number.isFinite(station.predictedIntensityValue) ? classifyIntensity(station.predictedIntensityValue).label : null,
           intensityRank: shaking.intensityRank, groundArv: station.groundArv, groundMeshCode: station.groundMeshCode
         } };
       });
@@ -156,15 +178,17 @@ function calculateTravelMetrics(point, options, sources) {
   let pArrivalSec = Infinity;
   let sArrivalSec = Infinity;
   const sourceDistancesKm = [];
+  const sourceSArrivalSecs = [];
   for (const source of sources) {
     const surfaceDistance = getDistanceKm(source.coordinates, point);
     sourceDistancesKm.push(surfaceDistance);
     const arrival = getTravelTimesByJma2001(options.depthKm, surfaceDistance);
+    sourceSArrivalSecs.push(arrival.sArrivalSec + source.ruptureDelaySec);
     distance = Math.min(distance, surfaceDistance);
     pArrivalSec = Math.min(pArrivalSec, arrival.pArrivalSec + source.ruptureDelaySec);
     sArrivalSec = Math.min(sArrivalSec, arrival.sArrivalSec + source.ruptureDelaySec);
   }
-  return { distance, pArrivalSec, sArrivalSec, sourceDistancesKm };
+  return { distance, pArrivalSec, sArrivalSec, sourceDistancesKm, sourceSArrivalSecs };
 }
 
 function createFaultFeatures(options, sources, elapsed) {

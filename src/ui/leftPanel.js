@@ -3470,6 +3470,7 @@ function buildEarthquakeMobileContextMarkup(
   if (eew) {
     const isCancellation = eew.isCancel === true;
     const simulationPending = eew.isSimulation && eew.waitingForDetection;
+    const simulationIntensityUnavailable = eew.isSimulation && eew.intensityEstimateAvailable === false;
     const intensityColor = isCancellation ? "#64748b" : getEarthquakeIntensityColor(eew.maxIntensity);
     const intensityTextClass = getEarthquakeIntensityTextClass(eew.maxIntensity);
     const hasMagnitude = eew.magnitude !== null && eew.magnitude !== undefined
@@ -3527,7 +3528,7 @@ function buildEarthquakeMobileContextMarkup(
       <div class="mobile-dock-earthquake-main mobile-dock-eew-main" role="alert" aria-live="assertive">
         <em class="mobile-dock-earthquake-intensity mobile-dock-eew-intensity ${intensityTextClass}">
           <small>${isCancellation ? "速報" : eew.isSimulation ? "参考最大" : "予想最大"}</small>
-          <span>${escapeHtml(simulationPending ? "—" : isCancellation ? "取消" : (eew.maxIntensity || "?"))}</span>
+          <span>${escapeHtml(simulationPending || simulationIntensityUnavailable ? "—" : isCancellation ? "取消" : (eew.maxIntensity || "?"))}</span>
         </em>
         <div class="mobile-dock-eew-content">
           <div class="mobile-dock-eew-headline">

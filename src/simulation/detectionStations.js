@@ -1,4 +1,4 @@
-// Directly read the upstream catalogue; no observation data or waveforms are redistributed.
+// Read the upstream offshore catalogue directly; no observation waveforms are used.
 export const SIMULATION_DETECTION_URL = "https://raw.githubusercontent.com/itachi-kun-itc/WE-Simulator/3b0f37d830b1994bac9a69c9686a90bcc24477c1/web/data/submarine_observation_points.geojson";
 
 export function parseSimulationDetectionStations(data) {
@@ -13,12 +13,19 @@ export function parseSimulationDetectionStations(data) {
   });
 }
 
-export async function loadSimulationDetectionStations({ signal, fetchImpl = globalThis.fetch } = {}) {
-  signal?.throwIfAborted();
-  const response = await fetchImpl(SIMULATION_DETECTION_URL, { signal, cache: "force-cache", credentials: "omit" });
-  if (!response.ok) throw new Error(`Detection catalogue HTTP ${response.status}`);
-  const stations = parseSimulationDetectionStations(await response.json());
-  signal?.throwIfAborted();
-  if (!stations.length) throw new Error("Empty detection catalogue");
-  return stations;
+export function createSimulationDetectionLoader(fetchImpl = globalThis.fetch) {
+  let cached;
+  return async function load({ signal } = {}) {
+    signal?.throwIfAborted();
+    if (cached) return cached;
+    const response = await fetchImpl(SIMULATION_DETECTION_URL, { signal, cache: "force-cache", credentials: "omit" });
+    if (!response.ok) throw new Error(`Detection catalogue HTTP ${response.status}`);
+    const stations = parseSimulationDetectionStations(await response.json());
+    signal?.throwIfAborted();
+    if (!stations.length) throw new Error("Empty detection catalogue");
+    cached = stations;
+    return cached;
+  };
 }
+
+export const loadSimulationDetectionStations = createSimulationDetectionLoader();

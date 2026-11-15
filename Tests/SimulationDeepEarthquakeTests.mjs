@@ -1,0 +1,94 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { estimateReferenceIntensity, estimateSimulationIntensity, MAX_REFERENCE_INTENSITY_DEPTH_KM } from "../src/simulation/intensityModel.js";
+import { createDeepTrenchLookup } from "../src/simulation/deepEarthquake.js";
+import { prepareEarthquakeSimulation, getSimulationPresetOptions } from "../src/simulation/earthquakeSimulation.js";
+import { getTravelTimesByJma2001 } from "../src/eew/jma2001TravelTime.js";
+import { createWeSimulatorModel } from "../src/simulation/weSimulatorModel.js";
+
+const parameters = { magnitude: 8.1, depthKm: 150, ruptureDistanceKm: 600, groundArv: 2 };
+assert.equal(MAX_REFERENCE_INTENSITY_DEPTH_KM, 150);
+assert.ok(Number.isFinite(estimateReferenceIntensity(parameters)));
+for (const depthKm of [150.001, 151, 300, 590, 700]) {
+  assert.equal(estimateReferenceIntensity({ ...parameters, depthKm }), null, "unsupported deep intensity must be unknown, not zero or an extrapolated strong intensity");
+}
+const land = JSON.parse(await readFile(new URL("../public/data/jma-intensity-stations.json", import.meta.url), "utf8"));
+const source = { longitude: 139.8, latitude: 30.5, magnitude: 8.1, depthKm: 590, groundCorrection: "jshis-1km" };
+const deep = await prepareEarthquakeSimulation(source, land, { yieldTask: async () => {} });
+assert.equal(deep.intensityEstimateAvailable, false);
+assert.ok(deep.stations.every(s => s.predictedIntensityValue === null && s.groundArv === null));
+assert.ok(deep.reports.length > 1, "M/depth bulletins remain available for a deep event");
+assert.ok(deep.reports.every(r => r.maxIntensity === null && !r.isWarn && r.warnAreas.length === 0));
+const station = deep.stations.find(s => Number.isFinite(s.sArrivalSec));
+assert.equal(station.pArrivalSec, getTravelTimesByJma2001(590, station.epicentralDistanceKm).pArrivalSec);
+assert.equal(station.sArrivalSec, getTravelTimesByJma2001(590, station.epicentralDistanceKm).sArrivalSec);
+for (const elapsed of [0, 100, 185, deep.duration]) {
+  const frame = deep.frame(elapsed);
+  assert.equal(frame.event.intensityEstimateAvailable, false);
+  assert.match(frame.event.uncertaintyLabel, /近似データ未取得/);
+  assert.equal(frame.event.simulationWaveDepthKm, 590, "never replace the physical depth with the 150 km policy boundary");
+  assert.ok(frame.stations.features.every(f => f.properties.intensity === "0" && f.properties.intensityEstimateAvailable === false));
+  assert.ok(frame.stations.features.every(f => f.properties.currentIntensityValue === null && f.properties.recordedIntensity === null && f.properties.predictedIntensity === null));
+  assert.equal(frame.event.maxIntensity, null);
+  assert.equal(frame.event.warnAreas.length, 0);
+}
+const final = deep.frame(deep.duration).event;
+assert.equal(final.magnitude, 8.1);
+assert.equal(final.depth, 590);
+assert.equal(final.isFinal, true);
+assert.ok(deep.duration > station.sArrivalSec, "play through station wave arrivals without manufacturing intensity");
+const preset = await prepareEarthquakeSimulation({ ...getSimulationPresetOptions("nankai-trough"), depthKm: 590 }, { station: { longitude: 139.8, latitude: 35.5 } });
+assert.ok(preset.reports.every(r => r.maxIntensity === null && r.warnAreas.length === 0), "presets respect the same depth limit");
+const shallow = await prepareEarthquakeSimulation({ ...source, depthKm: 150, groundCorrection: "none" }, { station: { longitude: 139.8, latitude: 30.5 } });
+assert.equal(shallow.intensityEstimateAvailable, true);
+assert.ok(shallow.reports.at(-1).maxIntensity !== null, "supported depths still produce estimates");
+console.log("Deep earthquakes: 150 km boundary, no false intensity/warning colors, no ground-model requirement, unchanged travel depth and retained M/depth bulletins passed");
+
+const plateBoundaries = JSON.parse(await readFile(new URL("../public/data/usgs-plate-boundaries-japan.geojson", import.meta.url), "utf8"));
+assert.equal(createDeepTrenchLookup({ features: [] }), null);
+const distanceToTrench = createDeepTrenchLookup({ features: [{ properties: { NAME: "Pacific:Philippine", LABEL: "Convergent Boundary" }, geometry: { type: "LineString", coordinates: [[140, 30], [140, 40]] } }] });
+assert.equal(distanceToTrench([140, 35]), 0);
+assert.ok(distanceToTrench([141, 35]) > 90 && distanceToTrench([141, 35]) < 92);
+assert.equal(distanceToTrench([0, 0]), null, "Japanese trench correction has an explicit evaluation region");
+const reference = { magnitude: 8.1, depthKm: 590, ruptureDistanceKm: 800, trenchDistanceKm: 250, groundArv: 1 };
+const value = estimateSimulationIntensity(reference);
+assert.ok(value > 3 && value < 5, "bounded educational extrapolation avoids the original widespread intensity 6 values");
+assert.equal(value, estimateSimulationIntensity({ ...reference, depthKm: 700 }), "the depth amplification does not grow without bound; real depth still enters the caller's hypocentral distance");
+assert.ok(estimateSimulationIntensity({ ...reference, trenchDistanceKm: 100 }) > estimateSimulationIntensity({ ...reference, trenchDistanceKm: 400 }), "trench distance produces a Pacific-side/back-arc contrast");
+assert.ok(estimateSimulationIntensity({ ...reference, ruptureDistanceKm: 1200 }) < value, "retain the actual source distance instead of substituting a shallow source");
+assert.ok(Math.abs(estimateSimulationIntensity({ ...reference, depthKm: 150.001 }) - estimateReferenceIntensity({ ...reference, depthKm: 150 })) < .001, "changing depth through the model boundary does not create an artificial intensity jump");
+assert.ok(Math.abs(estimateSimulationIntensity({ ...reference, groundArv: 2 }) - value - 1.72 * Math.log10(2)) < 1e-10, "apply site amplification once");
+assert.equal(estimateSimulationIntensity({ ...reference, depthKm: 20 }), estimateReferenceIntensity({ ...reference, depthKm: 20 }), "normal shallow simulation uses the original formula unchanged");
+const approximate = await prepareEarthquakeSimulation({ ...source, groundCorrection: "none" }, land, { plateBoundaries, yieldTask: async () => {} });
+assert.equal(approximate.deepApproximation, true);
+assert.equal(approximate.intensityEstimateAvailable, true);
+assert.ok(approximate.stations.every(s => Number.isFinite(s.predictedIntensityValue)));
+const approximateFinal = approximate.frame(approximate.duration).event;
+assert.ok(approximateFinal.maxIntensity !== null);
+assert.match(approximateFinal.uncertaintyLabel, /深発近似/);
+assert.equal(approximateFinal.depth, 590);
+assert.equal(approximateFinal.simulationWaveDepthKm, 590);
+assert.deepEqual(approximate.stations.map(s => [s.pArrivalSec, s.sArrivalSec]), deep.stations.map(s => [s.pArrivalSec, s.sArrivalSec]), "the educational intensity model does not change P/S arrival times");
+for (const depthKm of [151, 300, 590, 700]) {
+  const simulation = depthKm === 590 ? approximate : await prepareEarthquakeSimulation({ ...source, depthKm, groundCorrection: "none" }, land, { plateBoundaries, yieldTask: async () => {} });
+  const felt = simulation.stations.filter(s => s.predictedIntensityValue >= .5 && Number.isFinite(s.sArrivalSec));
+  assert.ok(felt.length > 0);
+  const oldModel = createWeSimulatorModel({ magnitude: source.magnitude });
+  const site = felt.reduce((best, s) => s.predictedIntensityValue > best.predictedIntensityValue ? s : best);
+  const oldTiming = oldModel.getStationShakingTiming(site);
+  assert.equal(site.shakingPeakSec, oldTiming.shakingPeakSec);
+  assert.equal(site.shakingDecayStartSec, oldTiming.shakingDecayStartSec);
+  assert.ok(site.shakingEndSec > oldTiming.shakingEndSec, "preparation passes the configured depth into the common response model");
+  assert.ok(felt.every(s => simulation.duration > s.shakingEndSec));
+  const end = simulation.frame(simulation.duration);
+  assert.ok(end.stations.features.every(f => f.properties.intensity === "0"));
+  assert.equal(end.event.maxIntensity, simulation.frame(site.shakingDecayStartSec).event.maxIntensity, "EEW prediction is retained after shaking settles");
+  const t = site.shakingDecayStartSec + 20;
+  const frame = simulation.frame(t);
+  simulation.frame(simulation.duration);
+  assert.deepEqual(simulation.frame(t), frame, "rewinding restores the same deep-event state");
+  console.log(`Deep ${depthKm}km: tail ${(site.shakingEndSec - site.shakingDecayStartSec).toFixed(1)}s; previously ${(oldTiming.shakingEndSec - oldTiming.shakingDecayStartSec).toFixed(1)}s`);
+}
+const outsideJapan = await prepareEarthquakeSimulation({ ...source, latitude: -20, longitude: -170 }, { s: { latitude: -20, longitude: -170 } }, { plateBoundaries });
+assert.equal(outsideJapan.intensityEstimateAvailable, false, "do not silently use Japanese trench corrections for foreign sources");
+console.log("Deep approximation: bounded depth gain, trench contrast, real distance, ground gain, missing-data fallback and physical wave clocks passed");

@@ -662,6 +662,8 @@ V 北向き|V northward
 シミュレーション|Simulation
 検知待ち|Awaiting detection
 参考最大|Reference max.
+深発近似（学習用・異常震域は概算）|Educational deep approximation; anomalous intensity is approximate
+深発近似データ未取得：震度推定なし|Deep approximation unavailable: intensity not estimated
 任意震源|Custom epicenter
 南海トラフ巨大地震|Nankai Trough megathrust scenario
 南海トラフ地震（半割れ・東側）|Nankai Trough eastern-half scenario

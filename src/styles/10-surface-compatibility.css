@@ -955,7 +955,7 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
 
 @media (orientation: landscape), (min-width: 801px) {
   #map-area {
-    --map-control-lower-bottom: calc(var(--shared-map-controls-bottom) - 54px);
+    --map-control-lower-bottom: var(--shared-map-controls-bottom);
     --map-control-step: 54px;
   }
   .map-weather-distribution-toggle,
