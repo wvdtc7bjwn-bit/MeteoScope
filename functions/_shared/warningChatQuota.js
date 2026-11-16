@@ -15,6 +15,9 @@ const PENDING_SQL = `coalesce(json_extract(app_records.value, '$.pendingNeurons'
   max(0, coalesce(json_extract(app_records.value, '$.used'), 0) - coalesce(json_extract(app_records.value, '$.usageReports'), 0) - coalesce(json_extract(app_records.value, '$.lookupRequests'), 0)) * ${WARNING_CHAT_LIMITS.reservedNeurons})`;
 
 export async function reserveWarningChatQuota(db, accountId, { now = Date.now(), dailyLimit, inference = true } = {}) {
+  // Official-data lookups never reserve AI usage or change personal counts.
+  // They remain available after a personal/provider limit and cause no quota writes.
+  if (!inference) return { counted: false };
   const day = warningChatDay(now);
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${day}:${accountId}`));
   const digest = Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -42,14 +45,14 @@ export async function reserveWarningChatQuota(db, accountId, { now = Date.now(),
       AND coalesce(json_extract(app_records.value, '$.reportedNeurons'), 0) + ${PENDING_SQL} + ?6 <= ?8
     RETURNING json_extract(value, '$.used') AS used, json_extract(value, ?2) AS accountUsed
   `).bind(`warning-chat-quota:${day}`, userPath, new Date(now).toISOString(), limit,
-    WARNING_CHAT_LIMITS.perAccount, inference ? WARNING_CHAT_LIMITS.reservedNeurons : 0, reservationPath, WARNING_CHAT_LIMITS.dailyNeurons, inference ? 0 : 1).first();
+    WARNING_CHAT_LIMITS.perAccount, WARNING_CHAT_LIMITS.reservedNeurons, reservationPath, WARNING_CHAT_LIMITS.dailyNeurons, 0).first();
   if (!row) return null;
   if (Number(row.used) === 1) {
     const cutoff = warningChatDay(now - 7 * 86400_000);
     await db.prepare("DELETE FROM app_records WHERE key >= 'warning-chat-quota:' AND key < ?1")
       .bind(`warning-chat-quota:${cutoff}`).run();
   }
-  return { day, reservationId, used: Number(row.used), accountUsed: Number(row.accountUsed), dailyLimit: limit,
+  return { counted: true, day, reservationId, used: Number(row.used), accountUsed: Number(row.accountUsed), dailyLimit: limit,
     resetAt: new Date(Date.parse(`${day}T00:00:00Z`) + 86400_000).toISOString() };
 }
 // Replace a reservation only once. Missing usage is unknown, never zero.

@@ -240,9 +240,9 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
       const data = await request(`?${new URLSearchParams(selection)}`, undefined, controller.signal);
       if (id !== sequence || modal.hidden) return;
       renderContext(data.context);
-      setStatus(configured ? "" : availabilityNotice);
+      setStatus(availabilityNotice);
     } catch (error) { if (id === sequence && error.name !== "AbortError") {
-      if ([401,403,429].includes(error.status)) configured = false;
+      if ([401,403].includes(error.status)) configured = false;
       setStatus(error.message); byId("subject-text").textContent = "対象の情報を確認できません";
     } }
     finally { if (id === sequence) setBusy(false); }
@@ -265,7 +265,7 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
       ]);
       if (id !== sequence || modal.hidden) return;
       configured = availability.configured === true;
-      availabilityNotice = availability.message || "AI回答は準備中です。";
+      availabilityNotice = availability.message || (configured ? "" : "AI回答は準備中です。");
       areas = catalog.areas ?? [];
       const code = String(getCurrentLocation()?.areaCode || areaSelect.value || "1310100");
       prefecture.value = code.slice(0, 2);
@@ -325,15 +325,16 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
       history = history.slice(-4);
       byId("question").value = "";
       resizeInput();
-      if (data.quota) {
+      if (data.quota?.counted === false) {
+        setStatus("AIを使用していません。1日10回の制限には含まれません。");
+      } else if (data.quota) {
         const atLimit = data.quota.accountUsed >= WARNING_CHAT_LIMITS.perAccount || (data.quota.dailyLimit !== null && data.quota.used >= data.quota.dailyLimit);
-        setStatus(`本日 ${data.quota.accountUsed}/${WARNING_CHAT_LIMITS.perAccount}回${atLimit ? " · 上限に達しました（日本時間9時再開）" : ""}`);
-        if (atLimit) configured = false;
+        setStatus(`AI回答：本日 ${data.quota.accountUsed}/${WARNING_CHAT_LIMITS.perAccount}回${atLimit ? " · AI回答は上限に達しました（日本時間9時再開）。AIを使用しない回答は利用できます。" : ""}`);
       } else setStatus("回答対象外です。利用回数は消費していません。");
     } catch (error) {
       if (id !== sequence || error.name === "AbortError") return;
       if (error.data?.context) { clearConversation(); renderContext(error.data.context); }
-      if ([401, 403, 429].includes(error.status)) { configured = false; availabilityNotice = error.message; }
+      if ([401, 403].includes(error.status)) { configured = false; availabilityNotice = error.message; }
       if ([401, 403].includes(error.status)) showHelp();
       setStatus(error.message);
     } finally { if (id === sequence) { conversation.stopPending(); setBusy(false); } }

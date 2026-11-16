@@ -13,7 +13,7 @@ export function buildWeatherChatFacts(input, context) {
   const early = Boolean(context.earlyWarning);
   const period = weatherChatQuestionPeriod(input, Date.parse(context.fetchedAt), early ? 5 : 1);
   const inPeriod = date => period && date >= period.start && date < period.end;
-  const lines = [`${context.areaName}に対応する${early ? context.earlyWarning.areaName : "予報区域"}の${early ? "早期注意情報" : "天気予報"}です。`];
+  const lines = [];
   if (early) {
     const types = warningChatRequestedWarningKinds(input.question);
     const rows = context.earlyWarning.rows.filter(row => !types.length || types.includes(row.type)
@@ -24,9 +24,10 @@ export function buildWeatherChatFacts(input, context) {
       if (!slots.length) continue;
       found = true;
       const positive = slots.filter(slot => slot.level !== "掲載なし");
-      lines.push(positive.length ? `${row.type}：${positive.map(slot => `${range(slot.start, slot.end)}［${slot.level}］（発表 ${stamp(slot.issuedAt)}）`).join("、")}` : `${row.type}：対象期間に［高］［中］の掲載はありません。`);
+      lines.push(positive.length ? `${row.type}：\n${positive.map(slot => `${range(slot.start, slot.end)}：［${slot.level}］${slot.issuedAt !== context.issuedAt ? `（発表 ${stamp(slot.issuedAt)}）` : ""}`).join("\n")}` : `${row.type}：対象期間に［高］［中］の掲載はありません。`);
     }
     if (!found) lines.push("指定した現象・期間の情報を確認できません。掲載期間外や対象外の場合もあります。");
+    lines.unshift(`${context.earlyWarning.areaName}の早期注意情報`);
     lines.push("警報の発表状況とは異なります。［中］にも警報級の可能性があり、掲載なしも安全の保証ではありません。");
   } else {
     const q = input.question;
@@ -36,33 +37,52 @@ export function buildWeatherChatFacts(input, context) {
     if (!days.length) lines.push("指定した日の予報は取得した資料にありません。掲載期間の先や過去の天気は、この資料から回答できません。");
     for (const row of days) {
       const values = [];
-      if (!onlyFields || /天気|天候/u.test(q)) values.push(row.weather);
+      if (!onlyFields || /天気|天候/u.test(q)) values.push(readableWeather(row.weather));
       if (wantsTemp || !onlyFields) {
         const t = row.temperature;
         const min = `最低${t?.minC == null ? "未提供" : `${t.minC}℃`}`, max = `最高${t?.maxC == null ? "未提供" : `${t.maxC}℃`}`;
-        const requested = /最高/u.test(q) && !/最低/u.test(q) ? max : /最低/u.test(q) && !/最高/u.test(q) ? min : `${min}・${max}`;
-        values.push(t ? `${t.stationName}の予想気温：${requested}` : "気温の予報値は未提供");
+        const requested = /最高/u.test(q) && !/最低/u.test(q) ? max : /最低/u.test(q) && !/最高/u.test(q) ? min
+          : [t?.maxC != null || wantsTemp ? max : null, t?.minC != null || wantsTemp ? min : null].filter(Boolean).join("／");
+        if (t && requested) values.push(`気温（${t.stationName}）：${requested}`);
+        else if (wantsTemp) values.push("気温の予報値は未提供");
         if(t && t.issuedAt !== row.issuedAt) values.push(`気温の発表：${stamp(t.issuedAt)}`);
       }
       if (wantsPop || !onlyFields) {
-        const slots = context.forecast.precipitationSlots.filter(slot => slot.start.slice(0,10) === row.date);
+        const slots = context.forecast.precipitationSlots.filter(slot => jst(slot.start).slice(0,10) === row.date);
         // Keep six-hour values as time bands; never call their maximum a daily probability.
-        values.push(slots.length ? `降水確率：${slots.map(slot => `${range(slot.start, slot.end)} ${slot.percent}%`).join("、")}`
-          : row.pop == null ? "降水確率は未提供" : `日降水確率${row.pop}%`);
+        values.push(slots.length ? `降水確率\n${slots.map(slot => `${range(slot.start, slot.end, row.date)}：${slot.percent}%`).join("\n")}`
+          : row.pop == null ? "降水確率：未提供" : `日降水確率：${row.pop}%`);
       }
-      if (wantsWind) values.push(row.wind || "風の予報は未提供");
-      if (wantsWave) values.push(row.waves || "波の予報は未提供");
-      lines.push(`${row.date}（${row.areaName}／発表 ${stamp(row.issuedAt)}）：${values.join("。")}`);
+      if (wantsWind) values.push(`風：${readableWeather(row.wind) || "未提供"}`);
+      if (wantsWave) values.push(`波：${readableWeather(row.waves) || "未提供"}`);
+      lines.push(`${day(row.date)}（${row.areaName}）\n${values.join("\n\n")}${row.issuedAt !== context.issuedAt ? `\n発表：${stamp(row.issuedAt)}` : ""}`);
     }
-    lines.push("区域の予報であり、現在地そのものの実況や点予報ではありません。");
+    lines.push(`${context.areaName}に対応する予報区域の情報です。`);
   }
-  lines.push(`発表：${stamp(context.issuedAt)}（日本時間）。最新の予報で変わることがあります。`);
-  return {answer: lines.join("\n"), evidenceIds: [early ? "early" : "forecast"], answerKind: "official"};
+  lines.push(`発表：${stamp(context.issuedAt)}（日本時間）`);
+  return {answer: lines.join("\n\n"), evidenceIds: [early ? "early" : "forecast"], answerKind: "official"};
 }
 
 function stamp(value) {
-  return new Date(value).toLocaleString("ja-JP", {timeZone: "Asia/Tokyo", hour12: false});
+  const local = jst(value);
+  return `${day(local.slice(0, 10))} ${local.slice(11, 16)}`;
 }
-function range(start, end) {
-  return `${stamp(start)}〜${stamp(end)}（日本時間）`;
+function jst(value) {
+  return new Date(Date.parse(value) + 9 * 3600_000).toISOString();
+}
+function day(value) {
+  return `${Number(value.slice(5, 7))}/${Number(value.slice(8, 10))}`;
+}
+function range(start, end, date) {
+  const a = jst(start), b = jst(end);
+  const time = value => `${Number(value.slice(11, 13))}${value.slice(14, 16) === "00" ? "時" : `:${value.slice(14, 16)}`}`;
+  const nextDay = Date.parse(`${a.slice(0, 10)}T00:00:00Z`) + 86400_000 === Date.parse(`${b.slice(0, 10)}T00:00:00Z`);
+  // Midnight at the end of a six-hour band belongs to the preceding day's 24:00.
+  const endTime = nextDay && b.slice(11, 16) === "00:00" ? "24時" : time(b);
+  if (date === a.slice(0, 10) && (a.slice(0, 10) === b.slice(0, 10) || endTime === "24時")) return `${time(a)}〜${endTime}`;
+  return `${day(a)} ${time(a)}〜${a.slice(0, 10) === b.slice(0, 10) || endTime === "24時" ? endTime : `${day(b)} ${endTime}`}`;
+}
+function readableWeather(value) {
+  // JMA separates Japanese weather words with spaces. Keep line breaks intact.
+  return String(value || "").replace(/[ \u3000]+/gu, "").replace(/(?<=[^、。\n])(?=夕方|夜遅く|昼過ぎ|朝晩|のち)/gu, "、");
 }

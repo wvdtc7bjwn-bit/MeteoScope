@@ -92,6 +92,9 @@ const personal = await Promise.all(Array.from({ length: 20 }, () => reserveWarni
 assert.equal(personal.filter(Boolean).length, 10, "one account can reserve ten questions, never eleven");
 assert.equal(await reserveWarningChatQuota(perAccountDb, "same-user", { now: NOW }), null);
 assert.equal(await reserveWarningChatQuota(perAccountDb, "other", { now: NOW, dailyLimit: 0 }), null);
+const beforeLookup=perAccountDb.sql.prepare("SELECT value FROM app_records WHERE key = ?").get(`warning-chat-quota:${warningChatDay(NOW)}`).value;
+for (let n=0;n<20;n++) assert.deepEqual(await reserveWarningChatQuota(perAccountDb,"same-user",{now:NOW,dailyLimit:0,inference:false}),{counted:false});
+assert.equal(perAccountDb.sql.prepare("SELECT value FROM app_records WHERE key = ?").get(`warning-chat-quota:${warningChatDay(NOW)}`).value,beforeLookup,"free answers neither reserve neurons nor write quota rows, even after a limit");
 assert.ok(await reserveWarningChatQuota(perAccountDb, "same-user", { now: NOW + 86400_000 }));
 const legacyDb = makeDb();
 legacyDb.sql.prepare("INSERT INTO app_records VALUES (?, ?, ?)").run(`warning-chat-quota:${warningChatDay(NOW)}`, JSON.stringify({ used: 49, usageReports: 1, reportedNeurons: 10, accounts: {} }), ISSUE);
@@ -205,16 +208,21 @@ try {
   assert.match((await exhausted.json()).error, /無料利用枠/);
   const availability = await onRequest({ request: routeRequest({ method: "GET" }), env: exhaustedEnv });
   const stopped = await availability.json();
-  assert.equal(stopped.configured, false);
-  assert.match(stopped.message, /受付を停止/);
+  assert.equal(stopped.configured, true,"official lookups remain available when the provider allocation is exhausted");
+  assert.equal(stopped.inferenceAvailable, false);
+  assert.match(stopped.message, /AIを使用しない回答は引き続き利用できます/);
   assert.equal((await onRequest({ request: routeRequest(), env: exhaustedEnv })).status, 429);
   assert.equal(calls, 4, "provider exhaustion is persisted; subsequent requests never call AI");
+  const stoppedRow=db.sql.prepare("SELECT value FROM app_records WHERE key = ?").get(`warning-chat-quota:${warningChatDay(NOW)}`).value;
+  const stillFree=await onRequest({request:routeRequest({body:{...validInput,question:"現在発表中の警報は？"}}),env:exhaustedEnv});
+  assert.equal(stillFree.status,200);assert.deepEqual((await stillFree.json()).quota,{counted:false});
+  assert.equal(calls,4);assert.equal(db.sql.prepare("SELECT value FROM app_records WHERE key = ?").get(`warning-chat-quota:${warningChatDay(NOW)}`).value,stoppedRow);
   db.sql.prepare("DELETE FROM app_records WHERE key LIKE 'warning-chat-quota:%'").run();
   const busyEnv = { ...env, WARNING_CHAT_DAILY_LIMIT: "none", AI: { async run() { calls++; throw new Error("3040: Capacity exceeded"); } } };
   assert.equal((await onRequest({ request: routeRequest(), env: busyEnv })).status, 503);
   assert.equal((await readWarningChatOperationalMetrics(busyEnv)).providerExhausted, false, "temporary capacity failure does not stop all users for the day");
   // General evacuation guidance uses the authenticated route, no live source
-  // or inference, and still consumes the same personal question allowance.
+  // or inference, and never consumes the personal AI allowance.
   db.sql.prepare("DELETE FROM app_records WHERE key LIKE 'warning-chat-quota:%'").run();
   let evacuationCalls = 0;
   globalThis.fetch = async () => { throw new Error("No current sources in this general-guidance test"); };
@@ -233,7 +241,9 @@ try {
   }
   assert.equal(evacuationCalls, 0);
   const evacuationMetrics = await readWarningChatOperationalMetrics(evacuationEnv);
-  assert.equal(evacuationMetrics.lookupRequests, 3);
+  assert.equal(evacuationMetrics.lookupRequests, 0);
+  assert.equal(evacuationMetrics.requestCount, 0);
+  assert.equal(db.sql.prepare("SELECT count(*) AS n FROM app_records WHERE key LIKE 'warning-chat-quota:%'").get().n,0);
   assert.equal(evacuationMetrics.reservedNeurons, 0);
   // Current questions still load and recheck live evidence, and include the
   // reviewed guidance in exactly one inference instead of returning only fields.
@@ -248,9 +258,18 @@ try {
   assert.equal(currentEvacuation.status, 200);
   assert.equal((await currentEvacuation.json()).model, "Gemma 4");
   assert.equal(evacuationCalls, 1);
-  // Ten questions total, counting both kinds. No quota/authentication bypass.
-  for (let n = 4; n < 10; n++) assert.equal((await onRequest({request: routeRequest({body: {...validInput, question: "避難の基本は？"}}), env: evacuationEnv})).status, 200);
-  assert.equal((await onRequest({request: routeRequest({body: {...validInput, question: "避難の基本は？"}}), env: evacuationEnv})).status, 429);
+  // More than ten free answers do not consume the remaining nine AI calls.
+  for (let n = 0; n < 12; n++) {
+    const free=await onRequest({request: routeRequest({body: {...validInput, question: "避難の基本は？"}}), env: evacuationEnv});
+    assert.equal(free.status,200);assert.deepEqual((await free.json()).quota,{counted:false});
+  }
+  for (let n=2;n<=10;n++) {
+    const paid=await onRequest({request:routeRequest({body:{...validInput,question:"今の大雨で避難すべき？"}}),env:currentEvacuationEnv});
+    assert.equal(paid.status,200);assert.equal((await paid.json()).quota.accountUsed,n);
+  }
+  assert.equal((await onRequest({request:routeRequest({body:{...validInput,question:"今の大雨で避難すべき？"}}),env:currentEvacuationEnv})).status,429);
+  assert.equal(evacuationCalls,10,"eleventh AI call is rejected without another inference");
+  assert.equal((await onRequest({request:routeRequest({body:{...validInput,question:"避難の基本は？"}}),env:evacuationEnv})).status,200,"free answers still work after the personal AI limit");
   db.sql.prepare("DELETE FROM app_records WHERE key LIKE 'warning-chat-quota:%'").run();
   let specialistCalls = 0;
   const specialistEnv = {...env, WARNING_CHAT_DAILY_LIMIT: "none", AI: {async run(_model, parameters) {

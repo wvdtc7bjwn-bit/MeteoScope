@@ -67,9 +67,9 @@ const shared=await loadWarningChatContext(input.areaCode,{weatherScope:"forecast
 assert.equal(shared.forecast.shortTermArea.code,"130010");
 assert.ok(shared.sources.some(source=>source.url.endsWith("forecast/140000.json")),"a shared source is used only after confirming the requested region");
 const answer=buildWeatherChatFacts(input,context);
-assert.match(answer.answer,/2026-11-17.*くもり のち 雨/s);
+assert.match(answer.answer,/11\/17（東京地方）\nくもり、のち雨/);
 assert.doesNotMatch(answer.answer,/島の天気|日降水確率70|最高14℃/);
-assert.match(answer.answer,/最低-1℃・最高13℃/);
+assert.match(answer.answer,/気温（東京）：最高13℃／最低-1℃/);
 assert.match(answer.answer,/70%/);
 assert.deepEqual(answer.evidenceIds,["forecast"]);
 assert.ok(usesWeatherChatFacts(input,"forecast"));
@@ -77,7 +77,27 @@ assert.equal(usesWeatherChatFacts({...input,question:"大阪の明日の天気�
 assert.equal(usesWeatherChatFacts({...input,question:"明日15時に雨が降る？"},"forecast"),false);
 const tempOnly=buildWeatherChatFacts({...input,question:"明日の気温は？"},context).answer;
 assert.doesNotMatch(tempOnly,/くもり|70%/);
-assert.match(buildWeatherChatFacts({...input,question:"明後日の降水確率は？"},context).answer,/日降水確率80%/);
+assert.match(buildWeatherChatFacts({...input,question:"明後日の降水確率は？"},context).answer,/日降水確率：80%/);
+// Presentation remains concise without losing the actual time bands or provenance.
+const fullDay=structuredClone(context);
+fullDay.forecast.days[1].weather="くもり　夕方　から　雨　所により　雷を伴う";
+fullDay.forecast.precipitationSlots=[0,6,12,18].map((hour,index)=>({
+  start:new Date(Date.parse(D1)+hour*3600_000).toISOString(),
+  end:new Date(Date.parse(D1)+(hour+6)*3600_000).toISOString(),percent:[10,20,50,70][index]
+}));
+const compact=buildWeatherChatFacts(input,fullDay).answer;
+assert.match(compact,/くもり、夕方から雨所により雷を伴う/);
+assert.match(compact,/降水確率\n0時〜6時：10%\n6時〜12時：20%\n12時〜18時：50%\n18時〜24時：70%/);
+assert.equal((compact.match(/日本時間/g)||[]).length,1);
+assert.equal((compact.match(/発表：/g)||[]).length,1);
+assert.doesNotMatch(compact,/2026-|:00:00|18時〜0時/);
+assert.ok(compact.length<250,"a single day's weather should be readable on a phone");
+const today=buildWeatherChatFacts({...input,question:"今日の天気は？"},context).answer;
+assert.doesNotMatch(today,/最低未提供|最高未提供/);
+assert.match(buildWeatherChatFacts({...input,question:"今日の最低気温は？"},context).answer,/最低未提供/);
+const mixedIssue=structuredClone(context);
+mixedIssue.forecast.days[1].temperature.issuedAt="2026-11-15T17:00:00+09:00";
+assert.match(buildWeatherChatFacts(input,mixedIssue).answer,/気温の発表：11\/15 17:00/);
 assert.match(buildWeatherChatFacts({...input,question:"来週の天気は？"},context).answer,/指定した日の予報は取得した資料にありません/);
 assert.equal(weatherChatPeriod("来週",NOW).start,"2026-11-23");
 assert.equal(weatherChatPeriod("今週",Date.parse("2026-11-20T10:00:00+09:00")).end,"2026-11-23");
@@ -126,8 +146,10 @@ try {
   for(const question of ["明日の天気は？","明日の早期注意情報は？"]) {
     const response=await onRequest({request:request({question}),env}); assert.equal(response.status,200);
     const body=await response.json();assert.equal(body.model,null);assert.equal(body.answerKind,"official");assert.ok(body.context.revision);
+    assert.deepEqual(body.quota,{counted:false});
   }
   assert.equal(calls,0,"straightforward official facts must not be rewritten by AI");
+  assert.equal(sql.prepare("SELECT count(*) AS n FROM app_records WHERE key LIKE 'warning-chat-quota:%'").get().n,0,"weather lookups do not consume a personal or shared AI allowance");
   let excludedFetches=0; globalThis.fetch=async()=>{excludedFetches++;throw new Error("Excluded subject must not fetch sources");};
   for (const body of [{question:"自治体の避難指示は出ている？"},{question:"近くの避難所は開いていますか？"},{question:"そこはどこ？",history:[{role:"user",content:"避難所はどこですか？"}]}]) {
     const excluded=await onRequest({request:request(body),env});assert.equal(excluded.status,200);

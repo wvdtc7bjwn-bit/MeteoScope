@@ -49,8 +49,9 @@ async function handleRequest(context) {
       const areaCode = query.get("areaCode");
       if (areaCode) return json({ context: await loadWarningChatContext(areaCode, normalizeWarningChatSelection(Object.fromEntries(query))) });
       const metrics = await readWarningChatOperationalMetrics(env);
-      return json({ configured: env.WARNING_CHAT_ENABLED === "true" && typeof env.AI?.run === "function" && metrics.accepting,
-        message: !metrics.available ? "AIの利用状態を確認できません。" : !metrics.accepting ? "本日のAI利用枠に達したため受付を停止しています。日本時間9時に再開します。" : "",
+      const configured = env.WARNING_CHAT_ENABLED === "true" && typeof env.AI?.run === "function";
+      return json({ configured, inferenceAvailable: configured && metrics.accepting,
+        message: !configured ? "AI回答は準備中です。" : !metrics.available ? "AIの利用状態を確認できません。AIを使用しない回答は引き続き利用できます。" : !metrics.accepting ? "本日のAI利用枠に達しました。AIを使用しない回答は引き続き利用できます。AI回答は日本時間9時に再開します。" : "",
         limits: { ...WARNING_CHAT_LIMITS, daily: warningChatDailyLimit(env.WARNING_CHAT_DAILY_LIMIT) } });
     }
     // No browser-supplied bypass, model, budget, source URL or AI credentials.

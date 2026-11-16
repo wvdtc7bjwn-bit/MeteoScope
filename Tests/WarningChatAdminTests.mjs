@@ -34,14 +34,13 @@ const payload=await response.json();assert.equal(payload.warningChat.reportedNeu
 assert.doesNotMatch(JSON.stringify(payload),/local-test-only-password|test-0/);
 await reserveWarningChatQuota(db,'official-lookup',{now,inference:false});
 const withLookup=await readWarningChatOperationalMetrics(env,{now});
-assert.equal(withLookup.lookupRequests,1);assert.equal(withLookup.requestCount,4);
+assert.equal(withLookup.lookupRequests,0);assert.equal(withLookup.requestCount,3);
 assert.equal(withLookup.unconfirmedRequests,1);assert.equal(withLookup.reservedNeurons,200);
 assert.equal(withLookup.reportedNeurons,10.25,'official lookups are not provider-reported usage');
 const lookupDay=now+2*86400_000;
-for(let i=0;i<10;i++)assert.ok(await reserveWarningChatQuota(db,'lookup-only',{now:lookupDay,inference:false}));
-assert.equal(await reserveWarningChatQuota(db,'lookup-only',{now:lookupDay,inference:false}),null,'official lookup still enforces the account limit');
+for(let i=0;i<20;i++)assert.deepEqual(await reserveWarningChatQuota(db,'lookup-only',{now:lookupDay,inference:false}),{counted:false});
 const lookupMetrics=await readWarningChatOperationalMetrics(env,{now:lookupDay});
-assert.equal(lookupMetrics.lookupRequests,10);assert.equal(lookupMetrics.reportedNeurons,0);
+assert.equal(lookupMetrics.lookupRequests,0);assert.equal(lookupMetrics.reportedNeurons,0);
 assert.equal(lookupMetrics.unconfirmedRequests,0);assert.equal(lookupMetrics.reservedNeurons,0);
 // Render using the public DOM contract: unavailable usage stays unknown and all
 // values are text nodes. No HTML interpolation or personal identifier is used.
