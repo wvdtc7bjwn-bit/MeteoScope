@@ -32,8 +32,8 @@ const weakSignals = [
   { pArrivalSec: 12, predictedIntensityValue: 1 }
 ];
 const model = createWeSimulatorModel({ magnitude: 4 });
-assert.equal(model.buildSyntheticSimulationMagnitudeReports(4, weakSignals, 60)[0].detectedAtSec, 4, "instrument detection does not wait for intensity 1");
-assert.ok(model.buildSyntheticSimulationMagnitudeReports(3.5, [{ pArrivalSec: 4, predictedIntensityValue: 0 }], 60).length, "M3.5 can issue a simulated forecast even without felt intensity");
-assert.deepEqual(model.buildSyntheticSimulationMagnitudeReports(3, [{ pArrivalSec: 4, predictedIntensityValue: 1 }], 60), [], "small events below both forecast thresholds stay unannounced");
-assert.ok(model.buildSyntheticSimulationMagnitudeReports(3, [{ pArrivalSec: 4, predictedIntensityValue: 2.8 }], 60).length, "intensity 3 can qualify independently of magnitude");
+assert.equal(model.getSimulationInitialReport(4, weakSignals, 60)[0].detectedAtSec, 4, "instrument detection does not wait for intensity 1");
+assert.ok(model.getSimulationInitialReport(3.5, [{ pArrivalSec: 4, predictedIntensityValue: 0 }], 60).length, "M3.5 can issue a simulated forecast even without felt intensity");
+assert.deepEqual(model.getSimulationInitialReport(3, [{ pArrivalSec: 4, predictedIntensityValue: 1 }], 60), [], "small events below both forecast thresholds stay unannounced");
+assert.ok(model.getSimulationInitialReport(3, [{ pArrivalSec: 4, predictedIntensityValue: 2.8 }], 60).length, "intensity 3 can qualify independently of magnitude");
 console.log("Simulation detection: network filtering, earlier offshore detection, causal arrival and fallback data passed");

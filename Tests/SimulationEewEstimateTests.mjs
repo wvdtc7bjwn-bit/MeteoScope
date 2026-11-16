@@ -30,7 +30,7 @@ for (const options of [{ magnitude: 6, depthKm: 10 }, { magnitude: 7.4, depthKm:
     assert.equal(estimates[index].serial, index + 1);
     assert.ok(report.depth >= 0 && report.depth <= 700);
     assert.equal(estimates[index].simulationWaveDepthKm, simulation.options.depthKm, "reported depth does not change physical wave propagation");
-    if (index > 0) assert.ok(report.elapsedSec - reports[index - 1].elapsedSec <= 4.8, "variable review intervals remain bounded during long ruptures");
+    if (index > 0) assert.ok(report.elapsedSec - reports[index - 1].elapsedSec < 31, "adaptive review and confirmation intervals stay bounded");
     const observedRanks = simulation.frame(report.elapsedSec).stations.features.filter(feature => feature.properties.arrived).map(feature => feature.properties.intensityRank);
     assert.ok(getEarthquakeIntensityRank(report.maxIntensity) >= Math.max(0, ...observedRanks), "published prediction includes already observed simulated shaking");
     const nextTime = reports[index + 1]?.elapsedSec ?? simulation.duration;

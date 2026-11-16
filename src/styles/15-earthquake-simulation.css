@@ -85,6 +85,7 @@
   color: var(--text); background: var(--panel); box-shadow: none;
 }
 .simulation-playback { width: min(360px, calc(100% - 24px)); padding: 8px; border-radius: 12px; }
+.simulation-playback:not(.is-minimized) { max-height: calc(100dvh - 100px); overflow-y: auto; }
 .simulation-playback header { display: flex; flex-wrap: wrap; gap: 3px 6px; align-items: center; }
 .simulation-playback header strong { font-size: 12px; }
 .simulation-playback header span { flex: 1; font-size: 10px; color: var(--muted); }

@@ -1,23 +1,40 @@
-// Deterministic teaching cadence, not JMA's issuance algorithm. Earlier reviews
-// are denser; batches of new station arrivals shorten nearby review intervals.
-// Keep the first and final times fixed and never use wall-clock randomness.
-export function buildSimulationReviewTimes(start, end, count, observationTimes = []) {
-  if (!(end > start)) return [start];
-  const intervals = Math.max(1, Math.min(count - 1, Math.floor((end - start) / .1)));
-  const arrivals = observationTimes.filter(time => Number.isFinite(time) && time > start && time <= end).sort((a, b) => a - b);
-  const batchSize = Math.max(1, arrivals.length / intervals);
-  let cursor = 0;
-  const weights = Array.from({ length: intervals }, (_, index) => {
-    const limit = start + (end - start) * (index + 1) / intervals;
-    const before = cursor;
-    while (cursor < arrivals.length && arrivals[cursor] <= limit) cursor++;
-    const evidence = Math.min(2, (cursor - before) / batchSize);
-    return (.65 + .7 * index / Math.max(1, intervals - 1)) / (1 + evidence * .2);
+// Educational observation stream: first nearby P/S detections and the earliest
+// received P signal from each configured source. No waveform/noise inversion.
+export const SIMULATION_OBSERVATION_LIMIT = 32;
+export const SIMULATION_ANALYSIS_MIN_INTERVAL_SEC = .6;
+const roundTime = time => Number(time.toFixed(2));
+
+export function createSimulationObservationStream(detectors, sources = [], processingDelaySec = .6) {
+  const unique = new Map();
+  for(const station of detectors) if(Number.isFinite(station.pArrivalSec) && station.pArrivalSec >= 0) {
+    const key=station.id ?? station.code ?? station;
+    if(!unique.has(key) || station.pArrivalSec < unique.get(key).pArrivalSec)unique.set(key,station);
+  }
+  const usable = [...unique.values()];
+  const nearby = usable.toSorted((a,b) => a.pArrivalSec-b.pArrivalSec).slice(0,SIMULATION_OBSERVATION_LIMIT);
+  const sourceCount = Math.max(1,sources.length);
+  const sourceTimes = Array.from({length:sourceCount},(_,index) => {
+    let arrival = Infinity;
+    for(const station of usable) {
+      const time = station.sourcePArrivalSecs?.[index] ?? (sourceCount === 1 ? station.pArrivalSec : Infinity);
+      if(Number.isFinite(time) && time >= 0) arrival = Math.min(arrival,time);
+    }
+    return Number.isFinite(arrival) ? roundTime(arrival+processingDelaySec) : Infinity;
   });
-  const total = weights.reduce((sum, weight) => sum + weight, 0);
-  let cumulative = 0;
-  return [start, ...weights.map((weight, index) => {
-    cumulative += weight;
-    return index === intervals - 1 ? end : Number((start + (end - start) * cumulative / total).toFixed(2));
-  })];
+  const events = nearby.flatMap(station => [
+    {time:roundTime(station.pArrivalSec+processingDelaySec),kind:'p'},
+    ...(Number.isFinite(station.sArrivalSec) && station.sArrivalSec >= station.pArrivalSec ? [{time:roundTime(station.sArrivalSec+processingDelaySec),kind:'s'}] : []),
+  ]).concat(sourceTimes.filter(Number.isFinite).map(time=>({time,kind:'source'}))).sort((a,b)=>a.time-b.time);
+  let cursor=0,pCount=0,sCount=0,sourceSeen=0;
+  return {
+    sourceCount,sourceTimes,
+    advance(elapsed) {
+      while(cursor<events.length && events[cursor].time<=elapsed) {
+        const {kind}=events[cursor++];
+        if(kind==='p')pCount++;else if(kind==='s')sCount++;else sourceSeen++;
+      }
+      return {pCount,sCount,sourceSeen};
+    },
+    nextTime:()=>events[cursor]?.time ?? Infinity,
+  };
 }

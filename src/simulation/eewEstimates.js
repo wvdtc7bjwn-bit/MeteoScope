@@ -2,7 +2,7 @@ import { classifyIntensity, getSimulationMagnitudeDurationSec } from "./weSimula
 import { getEarthquakeIntensityRank } from "../earthquakeIntensity.js";
 import { estimateSimulationIntensity, MAX_REFERENCE_INTENSITY_DEPTH_KM, DEEP_PATH_BLEND_END_KM } from "./intensityModel.js";
 import {isInterplateSimulation} from "./activeFault.js";
-import {buildSimulationReviewTimes} from "./reportTiming.js";
+import {createSimulationObservationStream, SIMULATION_ANALYSIS_MIN_INTERVAL_SEC} from "./reportTiming.js";
 
 // Bounded revisions of the initial analysis, not measured forecast errors.
 // Shared progress knots keep revisions correlated rather than random per frame.
@@ -22,51 +22,53 @@ function getEstimateRevision(progress) {
 
 // A deterministic teaching scenario, not a reproduction of JMA's EEW analysis.
 // Only bulletin estimates change; the configured source and wave clock stay fixed.
-export function buildSimulationEewReports({ options, stations, sources = [], schedule, ruptureCompleteSec, intensityEstimateAvailable = options.depthKm <= MAX_REFERENCE_INTENSITY_DEPTH_KM, getObservedIntensity = () => 0 }) {
+export function buildSimulationEewReports({ options, stations, sources = [], schedule, detectionStations = [], ruptureCompleteSec = 0, intensityEstimateAvailable = options.depthKm <= MAX_REFERENCE_INTENSITY_DEPTH_KM, getObservedIntensity = () => 0 }) {
   if (!schedule.length) return [];
   const firstTime = schedule[0].elapsedSec;
-  const originalEnd = schedule.at(-1).elapsedSec;
-  // A giant event cannot be considered settled after the short initial analysis.
-  // Follow its magnitude-duration envelope from the first P detection, then
-  // allow 8 s for review. Explicit fault rupture must also have completed.
   const detectedAtSec = schedule[0].detectedAtSec ?? firstTime;
-  const confirmationEnd = options.magnitude > 7
-    ? detectedAtSec + getSimulationMagnitudeDurationSec(options.magnitude) + 8 : originalEnd;
-  const finalTime = Math.max(originalEnd, ruptureCompleteSec + 2, confirmationEnd);
-  const timeline = schedule.map(report => ({ ...report }));
-  // Extend reviews after the fast initial analysis; never stretch earlier bulletins.
-  if (finalTime > originalEnd) {
-    const reviewTimes = buildSimulationReviewTimes(originalEnd, finalTime, Math.ceil((finalTime - originalEnd) / 2.5) + 1,
-      stations.flatMap(station => [station.pArrivalSec, station.sArrivalSec]));
-    timeline.push(...reviewTimes.slice(1).map(elapsedSec => ({elapsedSec, detectedAtSec})));
-  }
+  const observations = createSimulationObservationStream([...stations, ...detectionStations], sources);
+  // The configured source duration supplies a synthetic signal window, not a
+  // bulletin count. Arrival coverage and later estimate stability decide when
+  // this scene can finish. These coefficients are educational assumptions.
+  const sourceDuration = getSimulationMagnitudeDurationSec(options.magnitude);
+  // A bounded safeguard based on the configured scene, never future data.
+  // Artificially slow ruptures may run beyond 600 s; allow their final signal
+  // to propagate. Reaching this bound is not a stable final bulletin.
+  const horizon = Math.max(firstTime + sourceDuration + 120, ruptureCompleteSec + 600);
   const initialMagnitude = Math.max(1, Math.min(6.8, options.magnitude - .35 - .12 * Math.max(0, options.magnitude - 5)));
   // Keep synthetic early estimates in the configured deep model's domain.
   // A fabricated 130 km estimate for a 172 km event disables path attenuation
   // and creates broad warnings that disappear as the reported depth converges.
-  // The final bulletin still uses the exact configured depth, including 151 km.
+  // Mature estimates use the exact configured depth, including 151 km,
+  // before stability confirmation rather than jumping to it in the final bulletin.
   const minimumEstimatedDepth = options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM ? DEEP_PATH_BLEND_END_KM : 0;
   const maximumEstimatedDepth = minimumEstimatedDepth ? 700 : MAX_REFERENCE_INTENSITY_DEPTH_KM;
   const initialDepth = Math.max(minimumEstimatedDepth, Math.min(700, Math.round((options.depthKm + (options.depthKm < 70 ? 10 : -Math.min(80, options.depthKm * .25))) / 10) * 10));
   const magnitudeError = .8 + Math.max(0, options.magnitude - 6) * .15;
   const depthError = Math.min(80, 18 + options.depthKm * .15);
-  return timeline.map((report, index) => {
-    const isFinal = index === timeline.length - 1;
-    const progress = originalEnd > firstTime ? Math.min(1, (report.elapsedSec - firstTime) / (originalEnd - firstTime)) : 1;
+  let predictionKey = "", basePredictions = [];
+  const evaluate = (elapsedSec, progress) => {
     const remaining = (1 - progress) ** 2.4;
     const [magnitudeRevision, depthRevision] = getEstimateRevision(progress);
-    const magnitude = isFinal ? options.magnitude : Number(Math.max(1, Math.min(9.5,
+    const magnitude = progress >= 1 ? options.magnitude : Number(Math.max(1, Math.min(9.5,
       options.magnitude + (initialMagnitude - options.magnitude) * remaining + magnitudeRevision * magnitudeError)).toFixed(1));
-    const depth = isFinal ? options.depthKm : Math.max(minimumEstimatedDepth, Math.min(maximumEstimatedDepth,
+    const depth = progress >= 1 ? options.depthKm : Math.max(minimumEstimatedDepth, Math.min(maximumEstimatedDepth,
       Math.round((options.depthKm + (initialDepth - options.depthKm) * remaining + depthRevision * depthError) / 5) * 5));
-    const elapsedSec = report.elapsedSec;
     const activeSourceIndices = sources.flatMap((source, index) => source.ruptureDelaySec <= elapsedSec ? [index] : []);
-    const predictions = intensityEstimateAvailable ? stations.map(station => {
-      const distance = activeSourceIndices.length && station.sourceDistancesKm
-        ? Math.min(...activeSourceIndices.map(index => station.sourceDistancesKm[index])) : station.epicentralDistanceKm;
-      const predicted = estimateSimulationIntensity({ magnitude, depthKm: depth, ruptureDistanceKm: Math.hypot(distance, depth), interplate: isInterplateSimulation(options), groundArv: station.groundArv ?? 1, trenchDistanceKm: station.trenchDistanceKm, deepApproximation: options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM });
+    const nextKey = `${magnitude}|${depth}|${activeSourceIndices.join(",")}`;
+    if (nextKey !== predictionKey) {
+      basePredictions = intensityEstimateAvailable ? stations.map(station => {
+        const distance = activeSourceIndices.length && station.sourceDistancesKm
+          ? Math.min(...activeSourceIndices.map(index => station.sourceDistancesKm[index])) : station.epicentralDistanceKm;
+        return estimateSimulationIntensity({ magnitude, depthKm: depth, ruptureDistanceKm: Math.hypot(distance, depth), interplate: isInterplateSimulation(options), groundArv: station.groundArv ?? 1, trenchDistanceKm: station.trenchDistanceKm, deepApproximation: options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM });
+      }) : [];
+      predictionKey = nextKey;
+    }
+    // Reuse the source estimate while still checking newly observed shaking.
+    const predictions = basePredictions.map((predicted, index) => {
+      const station = stations[index];
       return predicted === null ? null : Math.max(getObservedIntensity(station, elapsedSec) ?? 0, predicted);
-    }) : [];
+    });
     const maxIntensity = intensityEstimateAvailable ? classifyIntensity(Math.max(...predictions)).label : null;
     const isWarn = getEarthquakeIntensityRank(maxIntensity) >= 5;
     const areas = new Map();
@@ -78,6 +80,46 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
       if (intensity.rank < 4 || (areas.get(station.forecastAreaCode)?.rank ?? -1) >= intensity.rank) return;
       areas.set(station.forecastAreaCode, { code: station.forecastAreaCode, name: station.forecastAreaName, from: intensity.label, to: intensity.label, rank: intensity.rank, isWarning: true, intensityMethod: "simulation", source: "MeteoScope simulation" });
     });
-    return { reportNumber: index + 1, elapsedSec, detectedAtSec: report.detectedAtSec, magnitude, depth, maxIntensity, isWarn, warnAreas: [...areas.values()], isFinal };
-  });
+    return { magnitude, depth, maxIntensity, isWarn, warnAreas: [...areas.values()] };
+  };
+  const signature = value => `${value.magnitude}|${value.depth}|${value.maxIntensity}|${value.warnAreas.map(area => `${area.code}:${area.from}:${area.to}`).sort().join(",")}`;
+  const reports = [];
+  let elapsed = firstTime, previousEvidence = "", previousEstimate = "", stableSince = firstTime, readySince = null;
+  let publishedSignature = "", publishedCounts = {pCount:0,sCount:0,sourceSeen:0};
+  while (elapsed <= horizon) {
+    const counts = observations.advance(elapsed);
+    const evidenceKey = `${counts.pCount}|${counts.sCount}|${counts.sourceSeen}`;
+    const qualitySpan = 8 + 18 / Math.sqrt(1 + counts.pCount) + (counts.sCount ? 0 : 8);
+    const progress = Math.min(1, Math.max(0, (elapsed - firstTime) / (sourceDuration + qualitySpan)),
+      .25 + .75 * counts.sourceSeen / observations.sourceCount);
+    const estimate = evaluate(elapsed, progress);
+    const estimateKey = signature(estimate);
+    if (evidenceKey !== previousEvidence || estimateKey !== previousEstimate) stableSince = elapsed;
+    previousEvidence = evidenceKey; previousEstimate = estimateKey;
+    const stableForSec = elapsed - stableSince;
+    const confirmationSec = 15 + (counts.pCount < 3 ? 10 : 0) + (counts.sCount ? 0 : 5);
+    const ready = progress >= 1 && counts.sourceSeen === observations.sourceCount
+      && elapsed >= ruptureCompleteSec + 2 && elapsed >= detectedAtSec + sourceDuration;
+    if (ready) readySince ??= elapsed; else readySince = null;
+    const confirmationForSec = ready ? elapsed - Math.max(stableSince, readySince) : 0;
+    const isFinal = ready && confirmationForSec >= confirmationSec - .001;
+    const dataGrowth = counts.pCount - publishedCounts.pCount >= Math.max(1,Math.ceil(publishedCounts.pCount * .2))
+      || counts.sCount - publishedCounts.sCount >= Math.max(1,Math.ceil(publishedCounts.sCount * .2))
+      || counts.sourceSeen > publishedCounts.sourceSeen;
+    const heartbeatSec = Math.min(20, 6 + stableForSec * .3);
+    const periodic = reports.length && elapsed - reports.at(-1).elapsedSec >= heartbeatSec;
+    if (!reports.length || estimateKey !== publishedSignature || dataGrowth || periodic || isFinal || elapsed === horizon) {
+      reports.push({reportNumber:reports.length+1,elapsedSec:elapsed,detectedAtSec,...estimate,isFinal,
+        observationCount:counts.pCount,sObservationCount:counts.sCount,observedSourceCount:counts.sourceSeen,
+        analysisProgress:Number(progress.toFixed(3)),analysisMature:ready,stableForSec:Number(stableForSec.toFixed(2)),confirmationForSec:Number(confirmationForSec.toFixed(2)),
+        finalReason:isFinal ? "stable" : elapsed === horizon ? "insufficient-observations" : null});
+      publishedSignature = estimateKey; publishedCounts = counts;
+    }
+    if (isFinal || elapsed === horizon) break;
+    const interval = progress < 1 ? .7 + 1.8 * progress ** 2 : Math.min(10, 2 + stableForSec * .35);
+    const stableDeadline = ready ? Math.max(stableSince, readySince) + confirmationSec : Infinity;
+    const next = Math.min(elapsed + interval, observations.nextTime(), stableDeadline);
+    elapsed = Math.min(horizon, Number(Math.max(elapsed + SIMULATION_ANALYSIS_MIN_INTERVAL_SEC, next).toFixed(2)));
+  }
+  return reports;
 }

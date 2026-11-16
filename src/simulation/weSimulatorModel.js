@@ -2,7 +2,6 @@
 // Upstream revision: 3b0f37d830b1994bac9a69c9686a90bcc24477c1. See docs/earthquake-simulation.md.
 import { getEarthquakeIntensityColor, getEarthquakeIntensityMarkerTextColor } from "../earthquakeIntensity.js";
 import { MAX_REFERENCE_INTENSITY_DEPTH_KM } from "./intensityModel.js";
-import {buildSimulationReviewTimes} from "./reportTiming.js";
 
 export const EARTHQUAKE_MODEL = { eewProcessingDelaySec: .6, defaultSiteAmplification: 0 };
 
@@ -335,34 +334,16 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
       intensityTextColor: currentClass.textColor,
     };
   }
-  function buildSyntheticSimulationMagnitudeReports(finalMagnitude, stations, simulationCompleteAtSec) {
-    // Felt intensity is not an instrument detection threshold. Keep the teaching
-    // model's bulletin eligibility separate from the earliest available P arrival.
+  function getSimulationInitialReport(finalMagnitude, stations) {
+    // Qualification and earliest instrument detection are separate from the
+    // subsequent observation-driven review; never add a first-bulletin delay.
     if (finalMagnitude < 3.5 && !stations.some(station => classifyIntensity(station.predictedIntensityValue).rank >= 3)) return [];
-    const arrivalCandidates = stations.map(station => station.pArrivalSec).filter(time => Number.isFinite(time) && time >= 0);
-    if (!arrivalCandidates.length) return [];
-    const detectedAtSec = Math.min(...arrivalCandidates);
-    const firstReportSec = Math.max(
-      detectedAtSec + EARTHQUAKE_MODEL.eewProcessingDelaySec,
-      .8,
-    );
-    const reviewDurationSec = clamp(
-      8 + Math.max(finalMagnitude - 5.0, 0) * 7 + getOffshoreEpicenterFactor() * 3,
-      8,
-      45,
-    );
-    const availableEndSec = Number.isFinite(simulationCompleteAtSec)
-      ? Math.max(simulationCompleteAtSec - 8, firstReportSec)
-      : firstReportSec + reviewDurationSec;
-    const finalReportSec = Math.min(firstReportSec + reviewDurationSec, availableEndSec);
-    // Resolve the initial growth of large events more frequently without
-    // stretching the initial analysis or prescribing a fixed final report count.
-    const initialReportIntervalSec = finalMagnitude >= 7.5 ? 1 : 3;
-    const reportCount = Math.max(4, Math.round(4 + Math.max(finalMagnitude - 4.0, 0) * 2.1), Math.ceil((finalReportSec - firstReportSec) / initialReportIntervalSec) + 1);
-    const times = buildSimulationReviewTimes(Number(firstReportSec.toFixed(2)), Number(finalReportSec.toFixed(2)), reportCount,
-      stations.flatMap(station => [station.pArrivalSec, station.sArrivalSec]));
-    return times.map((elapsedSec, index) => ({ reportNumber: index + 1, elapsedSec, detectedAtSec, isFinal: index === times.length - 1 }));
+    const arrivals = stations.map(station => station.pArrivalSec).filter(time => Number.isFinite(time) && time >= 0);
+    if (!arrivals.length) return [];
+    const detectedAtSec = Math.min(...arrivals);
+    return [{reportNumber: 1, elapsedSec: Number(Math.max(detectedAtSec + EARTHQUAKE_MODEL.eewProcessingDelaySec, .8).toFixed(2)), detectedAtSec, isFinal: false}];
   }
-  return { getStationWaveResponseProperties, getStationShakingTiming, getCurrentIntensityProperties, buildSyntheticSimulationMagnitudeReports };
+
+  return { getStationWaveResponseProperties, getStationShakingTiming, getCurrentIntensityProperties, getSimulationInitialReport };
 }
 

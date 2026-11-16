@@ -96,7 +96,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
     if (coordinates.some(v => v == null || String(v).trim() === "" || !Number.isFinite(Number(v)))) continue;
     const point = coordinates.map(Number);
     if (Math.abs(point[0]) > 180 || Math.abs(point[1]) > 85) continue;
-    const { distance, pArrivalSec, sArrivalSec, sourceDistancesKm, sourceSArrivalSecs } = calculateTravelMetrics(point, options, sources);
+    const { distance, pArrivalSec, sArrivalSec, sourceDistancesKm, sourcePArrivalSecs, sourceSArrivalSecs } = calculateTravelMetrics(point, options, sources);
     const ground = intensityEstimateAvailable && options.groundCorrection !== "none" ? getSimulationGround(groundModel, point) : null;
     const area = findForecastArea(point);
     const trenchDistanceKm = trenchDistance?.(point) ?? null;
@@ -109,7 +109,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
     }));
     const station = {
       id: String(raw.code || key), name: String(raw.name || raw.code || key), coordinates: point,
-      epicentralDistanceKm: distance, sourceDistancesKm, pArrivalSec, sArrivalSec, lastStrongSArrivalSec, predictedIntensityValue,
+      epicentralDistanceKm: distance, sourceDistancesKm, sourcePArrivalSecs, sourceSArrivalSecs, pArrivalSec, sArrivalSec, lastStrongSArrivalSec, predictedIntensityValue,
       groundArv: ground?.arv ?? null, groundMeshCode: ground?.code ?? null, trenchDistanceKm, ...groundResponse,
       forecastAreaCode: area?.code ?? "", forecastAreaName: area?.name ?? "",
       ...model.getStationWaveResponseProperties(key, predictedIntensityValue, groundResponse)
@@ -124,13 +124,13 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const name = getFaultModelPreset(options)?.name ?? (findSimulationEpicenterName(epicenterRegions, origin.coordinates) || "震源地名不明");
   const groundCoverage = { corrected: stations.filter(station => station.groundArv !== null).length, total: stations.length };
   const offshoreDetectors = detectionStations.filter(station => Array.isArray(station.coordinates) && station.coordinates.length === 2 && station.coordinates.every(Number.isFinite)
-    && Math.abs(station.coordinates[0]) <= 180 && Math.abs(station.coordinates[1]) <= 85).map(station => {
+    && Math.abs(station.coordinates[0]) <= 180 && Math.abs(station.coordinates[1]) <= 85).map((station, index) => {
     const metrics = calculateTravelMetrics(station.coordinates, options, sources);
-    return { ...metrics, predictedIntensityValue: estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(metrics.distance, options.depthKm), interplate, trenchDistanceKm: trenchDistance?.(station.coordinates) ?? null }) };
+    return { id: `offshore:${station.network ?? ""}:${station.code || index}`, ...metrics, predictedIntensityValue: estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(metrics.distance, options.depthKm), interplate, trenchDistanceKm: trenchDistance?.(station.coordinates) ?? null }) };
   });
   const ruptureComplete = Math.max(...sources.map(source => source.ruptureDelaySec));
-  const schedule = model.buildSyntheticSimulationMagnitudeReports(options.magnitude, [...stations, ...offshoreDetectors], Infinity);
-  const reports = buildSimulationEewReports({ options, stations, sources, schedule, ruptureCompleteSec: ruptureComplete, intensityEstimateAvailable,
+  const schedule = model.getSimulationInitialReport(options.magnitude, [...stations, ...offshoreDetectors]);
+  const reports = buildSimulationEewReports({ options, stations, sources, schedule, detectionStations: offshoreDetectors, ruptureCompleteSec: ruptureComplete, intensityEstimateAvailable,
     getObservedIntensity: (station, elapsed) => { const value = model.getCurrentIntensityProperties(station, elapsed); return value.observed ? value.recordedIntensityValue : 0; } });
   // Distant/deep instrumental detections can occur after the felt-shaking timeline.
   const duration = Math.max(physicalDuration, (reports.at(-1)?.elapsedSec ?? 0) + 8);
@@ -192,6 +192,8 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
         elapsed, stations: { type: "FeatureCollection", features },
         event: { ...baseEvent, serial: report?.reportNumber ?? 0,
           magnitude: report?.magnitude ?? null, depth: report?.depth ?? null, maxIntensity: report?.maxIntensity ?? null,
+          simulationObservationCount: report?.observationCount ?? 0, simulationSObservationCount: report?.sObservationCount ?? 0,
+          simulationAnalysisStatus: report?.finalReason === "stable" ? "stable" : report?.finalReason === "insufficient-observations" ? "incomplete" : report?.analysisMature ? "confirming" : "reviewing",
           isWarn: report?.isWarn ?? false, waitingForDetection: !report, isFinal: report?.isFinal ?? false,
           warnAreas: report?.warnAreas ?? [],
           simulationDetecting: elapsed < (reports[0]?.detectedAtSec ?? Infinity),
@@ -207,17 +209,19 @@ function calculateTravelMetrics(point, options, sources) {
   let pArrivalSec = Infinity;
   let sArrivalSec = Infinity;
   const sourceDistancesKm = [];
+  const sourcePArrivalSecs = [];
   const sourceSArrivalSecs = [];
   for (const source of sources) {
     const surfaceDistance = getDistanceKm(source.coordinates, point);
     sourceDistancesKm.push(surfaceDistance);
     const arrival = getTravelTimesByJma2001(options.depthKm, surfaceDistance);
+    sourcePArrivalSecs.push(arrival.pArrivalSec + source.ruptureDelaySec);
     sourceSArrivalSecs.push(arrival.sArrivalSec + source.ruptureDelaySec);
     distance = Math.min(distance, surfaceDistance);
     pArrivalSec = Math.min(pArrivalSec, arrival.pArrivalSec + source.ruptureDelaySec);
     sArrivalSec = Math.min(sArrivalSec, arrival.sArrivalSec + source.ruptureDelaySec);
   }
-  return { distance, pArrivalSec, sArrivalSec, sourceDistancesKm, sourceSArrivalSecs };
+  return { distance, pArrivalSec, sArrivalSec, sourceDistancesKm, sourcePArrivalSecs, sourceSArrivalSecs };
 }
 
 function createFaultFeatures(options, sources, elapsed) {

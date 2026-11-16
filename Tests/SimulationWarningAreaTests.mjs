@@ -32,13 +32,13 @@ assert.equal(buildEewForecastAreaFeatureCollection(areas, []).features.length, 0
 const progressing = buildSimulationEewReports({
   options: { model: "nankai-trough", magnitude: 9, depthKm: 20 },
   stations: [
-    { forecastAreaCode: "001", forecastAreaName: "Near", epicentralDistanceKm: 10, sourceDistancesKm: [10, 1000], groundArv: 3 },
-    { forecastAreaCode: "002", forecastAreaName: "Later", epicentralDistanceKm: 10, sourceDistancesKm: [1000, 10], groundArv: 3 }
+    { forecastAreaCode: "001", forecastAreaName: "Near", pArrivalSec:4, sArrivalSec:7, sourcePArrivalSecs:[4,104], epicentralDistanceKm: 10, sourceDistancesKm: [10, 1000], groundArv: 3 },
+    { forecastAreaCode: "002", forecastAreaName: "Later", pArrivalSec:102, sArrivalSec:106, sourcePArrivalSecs:[170,102], epicentralDistanceKm: 10, sourceDistancesKm: [1000, 10], groundArv: 3 }
   ],
   sources: [{ ruptureDelaySec: 0 }, { ruptureDelaySec: 100 }],
   schedule: [{ reportNumber: 1, elapsedSec: 5 }, { reportNumber: 2, elapsedSec: 150 }], ruptureCompleteSec: 100
 });
 assert.ok(progressing[0].warnAreas.some(area => area.code === "001"));
 assert.ok(!progressing[0].warnAreas.some(area => area.code === "002"), "unruptured distant segments cannot generate early warning areas");
-assert.ok(progressing[1].warnAreas.some(area => area.code === "002"), "warning areas expand after rupture and estimate updates");
+assert.ok(progressing.some(report => report.elapsedSec > 100 && report.warnAreas.some(area => area.code === "002")), "warning areas expand after rupture and estimate updates");
 console.log("Simulation warning areas: per-bulletin thresholds, region mapping, red fill and clearing passed");

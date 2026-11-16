@@ -20,7 +20,7 @@ const revised = simulation.frame(reports[2].elapsedSec).event;
 simulation.frame(simulation.duration);
 assert.deepEqual(simulation.frame(reports[2].elapsedSec).event, revised, "rewind restores the downward revision");
 assert.equal(reports[0].elapsedSec, 2.37, "initial P detection and processing delay are unchanged");
-assert.equal(reports.at(-1).elapsedSec, 17.37, "revisions do not extend the review timeline");
+assert.ok(reports.at(-1).confirmationForSec >= 25, "sparse observations require stability confirmation after maturity");
 assert.equal(reports.at(-1).magnitude, 6);
 assert.equal(reports.at(-1).depth, 10);
 assert.equal(reports.at(-1).maxIntensity, "5-");
@@ -29,7 +29,7 @@ for (const depthKm of [0, 150, 151, 172, 700]) {
   const event = await prepareEarthquakeSimulation({ magnitude: 9.5, depthKm }, stations);
   assert.ok(event.reports.every(r => r.magnitude >= 1 && r.magnitude <= 9.5 && r.depth >= 0 && r.depth <= 700));
   if (depthKm <= 150) assert.ok(event.reports.every(r => r.depth <= 150), "shallow estimates remain in the model domain without deep-path data");
-  else assert.ok(event.reports.slice(0, -1).every(r => r.depth >= 155), "deep revisions cannot disable the deep-path attenuation");
+  else assert.ok(event.reports.slice(0, -1).every(r => !r.analysisMature ? r.depth >= 155 : r.depth === depthKm), "deep revisions cannot disable the deep-path attenuation");
   for (const r of event.reports) assert.equal(event.frame(r.elapsedSec).event.simulationWaveDepthKm, depthKm);
   assert.equal(event.reports.at(-1).magnitude, 9.5);
   assert.equal(event.reports.at(-1).depth, depthKm, "the final bulletin retains exact configured depth, including 151 km");
