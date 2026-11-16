@@ -1,7 +1,8 @@
 import { classifyIntensity, getSimulationMagnitudeDurationSec } from "./weSimulatorModel.js";
 import { getEarthquakeIntensityRank } from "../earthquakeIntensity.js";
 import { estimateSimulationIntensity, MAX_REFERENCE_INTENSITY_DEPTH_KM, DEEP_PATH_BLEND_END_KM } from "./intensityModel.js";
-import {isInterplateSimulation} from "./activeFault.js";
+import {isInterplateSimulation, buildActiveFaultPreset} from "./activeFault.js";
+import {simulationActiveFaultDistances} from "./sourceDistance.js";
 import {createSimulationObservationStream, SIMULATION_ANALYSIS_MIN_INTERVAL_SEC} from "./reportTiming.js";
 
 // Bounded revisions of the initial analysis, not measured forecast errors.
@@ -39,14 +40,15 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
   // Keep synthetic early estimates in the configured deep model's domain.
   // A fabricated 130 km estimate for a 172 km event disables path attenuation
   // and creates broad warnings that disappear as the reported depth converges.
-  // Mature estimates use the exact configured depth, including 151 km,
-  // before stability confirmation rather than jumping to it in the final bulletin.
+  // Internal intensity calculations retain the exact configured depth once
+  // mature. Bulletin depths are separately quantized to 10 km below.
   const minimumEstimatedDepth = options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM ? DEEP_PATH_BLEND_END_KM : 0;
   const maximumEstimatedDepth = minimumEstimatedDepth ? 700 : MAX_REFERENCE_INTENSITY_DEPTH_KM;
   const initialDepth = Math.max(minimumEstimatedDepth, Math.min(700, Math.round((options.depthKm + (options.depthKm < 70 ? 10 : -Math.min(80, options.depthKm * .25))) / 10) * 10));
   const magnitudeError = .8 + Math.max(0, options.magnitude - 6) * .15;
   const depthError = Math.min(80, 18 + options.depthKm * .15);
   let predictionKey = "", basePredictions = [];
+  const activeFaultPreset = options.model === "active-fault" ? buildActiveFaultPreset(options.activeFault) : null;
   const evaluate = (elapsedSec, progress) => {
     const remaining = (1 - progress) ** 2.4;
     const [magnitudeRevision, depthRevision] = getEstimateRevision(progress);
@@ -60,7 +62,17 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
       basePredictions = intensityEstimateAvailable ? stations.map(station => {
         const distance = activeSourceIndices.length && station.sourceDistancesKm
           ? Math.min(...activeSourceIndices.map(index => station.sourceDistancesKm[index])) : station.epicentralDistanceKm;
-        return estimateSimulationIntensity({ magnitude, depthKm: depth, ruptureDistanceKm: Math.hypot(distance, depth), interplate: isInterplateSimulation(options), groundArv: station.groundArv ?? 1, trenchDistanceKm: station.trenchDistanceKm, deepApproximation: options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM });
+        const faultDistances = activeFaultPreset && station.sourceDistancesKm
+          ? (depth === options.depthKm ? station.sourceRuptureDistancesKm
+            : simulationActiveFaultDistances(station.coordinates, options.activeFault, sources, depth, activeFaultPreset.depthKm, station.sourceDistancesKm)) : null;
+        const ruptureDistanceKm = faultDistances && activeSourceIndices.length
+          ? Math.min(...activeSourceIndices.map(index => faultDistances[index])) : Math.hypot(distance, depth);
+        const calculated = estimateSimulationIntensity({ magnitude, depthKm: depth, ruptureDistanceKm,
+          pointSource: options.model === "point", simulationCalibration: true,
+          interplate: isInterplateSimulation(options), groundArv: station.groundArv ?? 1, trenchDistanceKm: station.trenchDistanceKm, deepApproximation: options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM });
+        if (station.scenarioIntensityValue == null) return calculated;
+        if (progress >= 1 || calculated === null || station.calculatedIntensityValue == null) return station.scenarioIntensityValue;
+        return Math.max(0, Math.min(7, station.scenarioIntensityValue + calculated - station.calculatedIntensityValue));
       }) : [];
       predictionKey = nextKey;
     }
@@ -80,7 +92,10 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
       if (intensity.rank < 4 || (areas.get(station.forecastAreaCode)?.rank ?? -1) >= intensity.rank) return;
       areas.set(station.forecastAreaCode, { code: station.forecastAreaCode, name: station.forecastAreaName, from: intensity.label, to: intensity.label, rank: intensity.rank, isWarning: true, intensityMethod: "simulation", source: "MeteoScope simulation" });
     });
-    return { magnitude, depth, maxIntensity, isWarn, warnAreas: [...areas.values()] };
+    // JMA EEW bulletin depths use 10 km units; very shallow sources are
+    // announced as 10 km. Do not round the physical source or deep-model input.
+    const bulletinDepth = Math.max(10, Math.round(depth / 10) * 10);
+    return { magnitude, depth: bulletinDepth, maxIntensity, isWarn, warnAreas: [...areas.values()] };
   };
   const signature = value => `${value.magnitude}|${value.depth}|${value.maxIntensity}|${value.warnAreas.map(area => `${area.code}:${area.from}:${area.to}`).sort().join(",")}`;
   const reports = [];

@@ -14,8 +14,9 @@ for (const depthKm of [151, 156, 172, 200, 590, 700]) {
   const simulation = await prepareEarthquakeSimulation({ longitude: 137.5, latitude: 33.5, magnitude: 8.1, depthKm, groundCorrection: "jshis-1km" }, stations,
     { plateBoundaries, forecastAreas, groundModel, yieldTask: async () => {} });
   const final = simulation.reports.at(-1);
-  assert.ok(simulation.reports.slice(0, -1).every(report => !report.analysisMature ? report.depth >= DEEP_PATH_BLEND_END_KM : report.depth === depthKm), "synthetic early depth cannot disable the configured deep path model");
-  assert.equal(final.depth, depthKm, "even a configured 151 km depth is retained exactly in the final bulletin");
+  const bulletinDepth = Math.round(depthKm / 10) * 10;
+  assert.ok(simulation.reports.slice(0, -1).every(report => !report.analysisMature ? report.depth >= DEEP_PATH_BLEND_END_KM : report.depth === bulletinDepth), "synthetic early depth cannot disable the configured deep path model");
+  assert.equal(final.depth, bulletinDepth, "EEW depth uses 10 km units, independently of the physical depth");
   assert.equal(final.magnitude, 8.1);
   assert.ok(simulation.reports.every(report => simulation.frame(report.elapsedSec).event.simulationWaveDepthKm === depthKm));
   assert.ok(final.maxIntensity !== null, "keep deep reference intensity estimates");

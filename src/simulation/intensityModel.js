@@ -5,6 +5,8 @@
 // https://www.j-shis.bosai.go.jp/j-map/result/tn_257/html/html/2-4-1.html
 // JMA does not apply this hypocenter-based intensity method beyond 150 km.
 // https://www.data.jma.go.jp/eew/data/nc/katsuyou/reference.pdf
+import {pointSourceFaultDistance} from "./sourceDistance.js";
+
 export const MAX_REFERENCE_INTENSITY_DEPTH_KM = 150;
 export const DEEP_PATH_BLEND_END_KM = MAX_REFERENCE_INTENSITY_DEPTH_KM + 5;
 
@@ -22,8 +24,17 @@ export function estimateReferenceIntensity({ magnitude, depthKm, ruptureDistance
 // standard method's limit, and use the published V1/V2 terms with the same bound.
 // https://www.j-map.bosai.go.jp/j-map/result/tn_246/html/html/2-4-1.html
 export function estimateSimulationIntensity(parameters) {
-  const standard = estimateReferenceIntensity(parameters);
-  if (standard !== null && !parameters.deepApproximation) return standard;
+  const shallowParameters = parameters.pointSource && parameters.depthKm <= MAX_REFERENCE_INTENSITY_DEPTH_KM
+    ? {...parameters, ruptureDistanceKm: pointSourceFaultDistance(parameters.magnitude, parameters.depthKm, parameters.ruptureDistanceKm)} : parameters;
+  const standard = estimateReferenceIntensity(shallowParameters);
+  if (standard !== null && !parameters.deepApproximation) {
+    // The PGV -> intensity relation is published for I=4..7, not weak motions.
+    // A bounded, continuous teaching correction reduces weak-motion bias.
+    // Checked against multiple JMA earthquakes; never region/event specific.
+    const weakWeight = parameters.simulationCalibration ? Math.max(0, Math.min(1, (4.5 - standard) / 2)) : 0;
+    const shallowWeight = Math.max(0, Math.min(1, (150 - parameters.depthKm) / 50));
+    return Math.max(0, standard - .3 * weakWeight * shallowWeight);
+  }
   const { magnitude, depthKm, ruptureDistanceKm, trenchDistanceKm, groundArv = 1, interplate = false } = parameters;
   if (!Number.isFinite(trenchDistanceKm) || trenchDistanceKm < 0) return null;
   const distance = Math.max(ruptureDistanceKm, 1);

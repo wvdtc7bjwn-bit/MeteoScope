@@ -24,6 +24,8 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
   let lastValues = null;
   let lastFrame = null;
   let groundCoverage = null;
+  let scenarioIntensity = null;
+  let scenarioCoverage = null;
   let intensityEstimateAvailable = true;
   let offshoreDetectionCount = 0;
   let firstReportElapsedSec = null;
@@ -81,7 +83,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
             <p data-active-fault-status role="status"></p>
             <button type="button" class="simulation-secondary" data-active-fault-retry hidden>${text("一覧を再読み込み", "Reload fault list")}</button>
             <p data-active-fault-description></p>
-            <p>${text("J-SHISの断層面単位で選択します。規模の初期値は地震モデル全体の公表値で、面単独の規模ではありません。断層面中央の深さに置いた震源列による近似で、断層帯全体の連動や公式の強震動評価を再現するものではありません。", "Select one J-SHIS fault plane. Initial magnitude is for the entire published earthquake model, not that plane alone. A source line at its central depth is an approximation, not a full multi-plane rupture or an official strong-motion assessment.")}</p>
+            <p>${text("J-SHISの断層面単位で選択します。規模の初期値は地震モデル全体の公表値で、面単独の規模ではありません。浅い地震の震度は矩形の断層面までの距離、波の到達は中央の震源列で近似します。断層帯全体の連動や公式の強震動評価を再現するものではありません。", "Select one J-SHIS fault plane. Initial magnitude is for the entire published earthquake model, not that plane alone. Shallow intensities use distance to the rectangular plane; wave arrivals use its central source line. This does not reproduce multi-plane rupture or an official strong-motion assessment.")}</p>
             <a href="https://www.j-shis.bosai.go.jp/api-vectortile-majorfault" target="_blank" rel="noopener noreferrer">${text("出典：J-SHIS 2022年版・最大ケース（防災科研）／MeteoScope加工", "Source: J-SHIS 2022 maximum case (NIED), processed by MeteoScope")} ↗</a>
           </section>
           <label class="simulation-nankai-case" hidden>${text("南海トラフの破壊ケース", "Nankai rupture case")}<select name="nankaiCase"><option value="full">${text("全割れ", "Full rupture")}</option><option value="east">${text("半割れ・東側", "Eastern half")}</option><option value="west">${text("半割れ・西側", "Western half")}</option></select></label>
@@ -101,6 +103,13 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
           <label>${text("地盤補正", "Ground correction")}<select name="groundCorrection"><option value="jshis-1km">${text("あり（J-SHIS・1kmメッシュ）", "On (J-SHIS, 1 km mesh)")}</option><option value="none">${text("なし（基盤上の参考値）", "Off (reference bedrock)")}</option></select></label>
           <p class="simulation-model-note"></p>
           <p class="simulation-reference-note" data-simulation-reference></p>
+          <details class="simulation-public-scenario"><summary>${text("公的な想定震度分布", "Published scenario intensities")}</summary>
+            <p>${text("対応する公表ケースのデータを読み込むと、その地点の想定震度を優先します。全割れ・東西の半割れ、規模・深さ・破壊開始位置が異なるデータは流用しません。", "Load data for the matching published scenario to prioritize its surface intensities. Full and half ruptures, magnitude, depth and rupture origin must match.")}</p>
+            <label>${text("想定データを読み込む（JSON）", "Load scenario data (JSON)")}<input type="file" accept=".json,application/json" data-simulation-scenario-file></label>
+            <button class="simulation-secondary" type="button" data-simulation-scenario-clear>${text("想定データを解除", "Clear scenario data")}</button>
+            <p class="simulation-reference-note" data-simulation-scenario-status role="status"></p>
+            <a data-simulation-scenario-source target="_blank" rel="noopener noreferrer" hidden></a>
+          </details>
           <p class="simulation-reference-note">${text("模擬EEWのM・深さ・予想最大震度は観測の増加に応じて更新され、推定の安定を確認して最終報になります。観測点は現在の揺れを表示し、ピーク後は徐々に弱まります。記録最大は地点をタップすると確認できます。", "Simulated EEW estimates of magnitude, depth and maximum intensity update as observations arrive. A final bulletin follows a period of stable estimates. Station markers show current shaking, which fades after its peak. Tap a station to see its recorded maximum.")}</p>
           <details><summary>${text("計算モデル・出典", "Model and sources")}</summary><p>${text("観測点の位置は実データですが、揺れは計算値です。地盤補正ありでは、WE-SimulatorがJ-SHISを加工した1kmメッシュの速度増幅率を使います。欠測地点は補正なしです。津波・建物・地盤の非線形性は計算しません。", "Station locations are real; shaking is simulated. Ground correction uses velocity amplification from J-SHIS aggregated to 1 km meshes by WE-Simulator. Missing sites remain uncorrected. Tsunami, buildings and nonlinear soil effects are not modeled.")}</p><p>WE-Simulator · JMA2001 · ${text("司・翠川(1999)式（Mw8.3上限）", "Si & Midorikawa (1999), capped at Mw8.3")}</p><a href="https://github.com/itachi-kun-itc/WE-Simulator" target="_blank" rel="noopener noreferrer">WE-Simulator ↗</a><br><a href="https://www.j-shis.bosai.go.jp/faq-siteamp-and-shakiness" target="_blank" rel="noopener noreferrer">${text("地盤データ：J-SHIS（防災科研）、若松・松岡(2020)ほか", "Ground data: J-SHIS (NIED), Wakamatsu & Matsuoka (2020) et al.")} ↗</a></details>
           <p class="simulation-form-status" role="status"></p>
@@ -137,11 +146,43 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       updateModelFields();
     });
     modal.querySelector("[data-active-fault-retry]").addEventListener("click", () => void loadFaultChoices());
+    modal.querySelector("[data-simulation-scenario-file]").addEventListener("change", async event => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      scenarioIntensity = null;
+      try {
+        if (file.size > 16 * 1024 * 1024) throw new Error("Scenario too large");
+        scenarioIntensity = core.validatePublicScenarioData(JSON.parse(await file.text()));
+        updateScenarioStatus();
+      } catch {
+        updateScenarioStatus();
+        modal.querySelector("[data-simulation-scenario-status]").textContent = text("想定データを読み込めません。出典・ケース条件・地表震度の形式を確認してください。", "Could not read scenario data. Check provenance, case conditions and surface-intensity format.");
+      }
+      event.target.value = "";
+    });
+    modal.querySelector("[data-simulation-scenario-clear]").addEventListener("click", () => {scenarioIntensity = null; updateScenarioStatus();});
+    modal.querySelector("form").addEventListener("input", updateScenarioStatus);
     modal.querySelector("[data-simulation-without-ground]").addEventListener("click", () => {
       field("groundCorrection").value = "none";
       updateModelFields();
       void start();
     });
+  }
+
+  function updateScenarioStatus() {
+    const status = modal.querySelector("[data-simulation-scenario-status]");
+    if (!status) return;
+    const link = modal.querySelector("[data-simulation-scenario-source]");
+    link.hidden = !scenarioIntensity;
+    modal.querySelector("[data-simulation-scenario-clear]").disabled = !scenarioIntensity;
+    if (!scenarioIntensity) {status.textContent = text("公的想定データ未読込：震度は近似計算です。", "No published scenario data loaded: intensities use an approximation."); return;}
+    let matches = false;
+    try {matches = core.scenarioMatchesOptions(scenarioIntensity, core.normalizeSimulationOptions(readForm()));} catch {}
+    status.textContent = `${scenarioIntensity.caseLabel} · ${scenarioIntensity.source.published} · ${matches
+      ? text("条件一致：公的値を優先し、不足地点のみ近似計算します。地盤補正は重ねません。", "Matching conditions: prioritize published values; approximate missing sites. No duplicate ground amplification.")
+      : text("条件不一致：適用しません。全割れ・半割れ等の公表条件を確認してください。", "Conditions differ: data will not apply. Check the published rupture case and other settings.")}`;
+    link.href = scenarioIntensity.source.url;
+    link.textContent = `${text("読み込んだデータの出典", "Imported data source")}: ${scenarioIntensity.source.title} ↗`;
   }
 
   function readForm() {
@@ -219,6 +260,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       : field("groundCorrection").value !== "none"
       ? text("初回は外部の地盤データ（約16MB）を取得します。補正後も参考値で、公的な想定震度分布の再現ではありません。", "The first use downloads external ground data (about 16 MB). Corrected intensities remain reference values, not official hazard maps.")
       : text("震度は地盤補正なしの参考値です。公的な想定震度分布の再現ではありません。", "Intensities are reference values without local ground corrections, not official hazard maps.");
+    updateScenarioStatus();
   }
 
   async function open({fault} = {}) {
@@ -294,6 +336,8 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
         <p class="simulation-ground-coverage">${offshoreDetectionCount ? text(`検知：陸上＋海底観測点${offshoreDetectionCount}地点（S-net・DONET・N-net）`, `Detection: land stations + ${offshoreDetectionCount} offshore sites (S-net, DONET, N-net)`) : text("検知：陸上のみ（海底観測点データ未取得）", "Detection: land stations only (offshore catalogue unavailable)")}</p>
         <p class="simulation-ground-coverage">${firstReportElapsedSec == null ? text("初報：検知条件を満たす観測点なし", "First bulletin: no qualifying detection") : text(`初報：発生から${firstReportElapsedSec.toFixed(1)}秒（模擬時刻）`, `First bulletin: ${firstReportElapsedSec.toFixed(1)} s after origin (simulation time)`)}</p>
         <p class="simulation-ground-coverage" data-simulation-analysis-status></p>
+        <p class="simulation-ground-coverage" data-simulation-scenario-coverage></p>
+        <a data-simulation-playback-source target="_blank" rel="noopener noreferrer" hidden></a>
         <div class="simulation-playback-actions"><select data-simulation-speed aria-label="${text("再生速度", "Playback speed")}"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="5">5×</option></select><button type="button" data-simulation-focus>${text("震源を表示", "Show source")}</button><button type="button" data-simulation-overview aria-label="${text("ズームアウトして全体表示", "Zoom out to overview")}">${text("全体表示", "Overview")}</button><button type="button" data-simulation-settings>${text("設定", "Settings")}</button></div>
       </div></div>`;
     playback.querySelector("[data-simulation-minimize]").addEventListener("click", () => setPlaybackMinimized(true));
@@ -330,6 +374,16 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       const variant = lastValues.model === "nankai-trough" ? ({ full: text("全割れ", "Full"), east: text("半割れ・東側", "Eastern half"), west: text("半割れ・西側", "Western half") })[lastValues.nankaiCase] : "";
       playback.querySelector("[data-simulation-name]").textContent = `${text("設定", "Source")}: ${lastValues.model === "active-fault" ? lastValues.activeFault.LTENAME : modelNames().find(([id]) => id === lastValues.model)?.[1]}${variant ? ` (${variant})` : ""} · M${Number(lastValues.magnitude).toFixed(1)} / ${lastValues.depthKm} km`;
     }
+    const coverage = playback.querySelector("[data-simulation-scenario-coverage]");
+    const sourceLink = playback.querySelector("[data-simulation-playback-source]");
+    if (scenarioCoverage?.applied) {
+      coverage.textContent = text(`公表想定：${scenarioCoverage.caseLabel} · ${scenarioCoverage.applied}/${scenarioCoverage.total}地点。残りは近似計算。公的値に地盤補正は重ねません。`,
+        `Published scenario: ${scenarioCoverage.caseLabel} · ${scenarioCoverage.applied}/${scenarioCoverage.total} sites; others approximated. Published values receive no additional ground amplification.`);
+      sourceLink.hidden = false; sourceLink.href = scenarioCoverage.source.url;
+      sourceLink.textContent = `${scenarioCoverage.source.title} (${scenarioCoverage.source.published}) ↗`;
+    } else coverage.textContent = scenarioCoverage?.mismatch
+      ? text("公的想定の条件不一致：全地点を近似計算しています。", "Scenario conditions differ: all sites use approximations.")
+      : text("近似計算（公的想定分布の適用なし）", "Approximation (no published distribution applied)");
   }
 
   async function start() {
@@ -366,12 +420,13 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
         core.loadSimulationDetectionStations({ signal: controller.signal }).catch(error => { controller.signal.throwIfAborted(); console.warn("[MeteoScope] offshore detection catalogue unavailable", error); return []; }),
         options.depthKm > core.MAX_REFERENCE_INTENSITY_DEPTH_KM ? readJson(MAP_DATA_ENDPOINTS.tectonicPlateBoundaries).catch(error => { controller.signal.throwIfAborted(); console.warn("[MeteoScope] deep approximation geometry unavailable", error); return null; }) : null
       ]);
-      const simulation = await core.prepareEarthquakeSimulation(options, stations, { signal: controller.signal, groundModel, epicenterRegions, forecastAreas, detectionStations, plateBoundaries });
+      const simulation = await core.prepareEarthquakeSimulation(options, stations, { signal: controller.signal, groundModel, epicenterRegions, forecastAreas, detectionStations, plateBoundaries, scenarioIntensity });
       const { createSimulationPlayer } = await import("../simulation/simulationPlayer.js");
       if (token !== sequence || isRealEvent()) return;
       preparation = null;
       lastValues = options;
       groundCoverage = simulation.groundCoverage;
+      scenarioCoverage = simulation.scenarioCoverage;
       intensityEstimateAvailable = simulation.intensityEstimateAvailable;
       offshoreDetectionCount = simulation.detectionStationCount;
       firstReportElapsedSec = simulation.reports[0]?.elapsedSec ?? null;

@@ -3,7 +3,8 @@ import {fromGeojsonVt} from "@maplibre/vt-pbf";
 import {normalizeActiveFault, buildActiveFaultPreset, isInterplateSimulation} from "../src/simulation/activeFault.js";
 import {loadActiveFaultCatalog, readActiveFaultTile} from "../src/simulation/activeFaultCatalog.js";
 import {normalizeSimulationOptions, buildSimulationSources, prepareEarthquakeSimulation} from "../src/simulation/earthquakeSimulation.js";
-import {estimateReferenceIntensity} from "../src/simulation/intensityModel.js";
+import {estimateSimulationIntensity} from "../src/simulation/intensityModel.js";
+import {rectangularFaultDistance} from "../src/simulation/sourceDistance.js";
 import {getDistanceKm} from "../src/location/distance.js";
 
 // Synthetic records, not a reproduction of the provider's catalogue.
@@ -30,7 +31,7 @@ assert.equal(buildSimulationSources({...options,ruptureOrigin:"end"}).at(-1).rup
 const stations={a:{code:"001",name:"試験観測点",longitude:135.6,latitude:34.6},b:{code:"002",name:"遠方",longitude:139,latitude:36}};
 const simulation=await prepareEarthquakeSimulation(options,stations);
 assert.equal(simulation.name,fault.LTENAME);
-for(const station of simulation.stations) assert.equal(station.predictedIntensityValue,estimateReferenceIntensity({magnitude:7,depthKm:preset.depthKm,ruptureDistanceKm:Math.hypot(station.epicentralDistanceKm,preset.depthKm),interplate:false}));
+for(const station of simulation.stations) assert.ok(Math.abs(station.predictedIntensityValue-estimateSimulationIntensity({magnitude:7,depthKm:preset.depthKm,ruptureDistanceKm:rectangularFaultDistance(station.coordinates,preset.fault),interplate:false,simulationCalibration:true}))<1e-10, "known fault planes use the actual rectangular distance, without a second spherical correction");
 assert.equal(simulation.frame(0).event.magnitude,null);
 const last=simulation.frame(simulation.duration);
 assert.equal(last.event.magnitude,7);assert.equal(last.event.depth,preset.depthKm);assert.equal(last.event.isFinal,true);

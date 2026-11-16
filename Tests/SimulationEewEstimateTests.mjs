@@ -20,7 +20,7 @@ for (const options of [{ magnitude: 6, depthKm: 10 }, { magnitude: 7.4, depthKm:
   if (options.depthKm === 10) assert.ok(new Set(estimates.map(event => event.maxIntensity)).size > 1, "maximum predicted intensity follows updated estimates");
   const final = estimates.at(-1);
   assert.equal(final.magnitude, simulation.options.magnitude);
-  assert.equal(final.depth, simulation.options.depthKm);
+  assert.equal(final.depth, Math.max(10, Math.round(simulation.options.depthKm / 10) * 10));
   assert.equal(final.maxIntensity, simulation.intensityEstimateAvailable ? classifyIntensity(Math.max(...simulation.stations.map(station => station.predictedIntensityValue))).label : null);
   assert.ok(final.isFinal);
   assert.ok(reports.at(-1).elapsedSec >= Math.max(...simulation.sources.map(source => source.ruptureDelaySec)), "final estimates wait for rupture completion");

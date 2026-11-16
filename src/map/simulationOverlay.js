@@ -24,8 +24,10 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
   const updateStationInfo = (feature, coordinates) => {
     const p = feature.properties;
     const seconds = value => value != null && Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)} s` : "—";
-    const ground = Number.isFinite(Number(p.groundArv)) && Number(p.groundArv) > 0 ? `ARV ${escapeHtml(p.groundArv)} · J-SHIS / WE-Simulator (1 km)` : escapeHtml(localizeText("地盤補正なし"));
     const english = getCurrentLanguage() === "en";
+    const ground = p.intensitySource === "published-scenario"
+      ? `${english ? "Imported published scenario" : "読み込んだ公表想定"}: ${escapeHtml(p.scenarioLabel)} · ${english ? "No additional ground amplification" : "追加の地盤補正なし"}`
+      : Number.isFinite(Number(p.groundArv)) && Number(p.groundArv) > 0 ? `ARV ${escapeHtml(p.groundArv)} · J-SHIS / WE-Simulator (1 km)` : escapeHtml(localizeText("地盤補正なし"));
     const known = p.intensityEstimateAvailable !== false;
     const availability = !known ? `<br>${english ? "Deep approximation unavailable: intensity not estimated" : "深発近似データ未取得：震度推定なし"}`
       : p.deepApproximation ? `<br>${english ? "Educational deep approximation" : "深発近似（学習用・異常震域は概算）"}` : "";

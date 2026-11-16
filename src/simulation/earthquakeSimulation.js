@@ -8,6 +8,9 @@ export { MAX_REFERENCE_INTENSITY_DEPTH_KM } from "./intensityModel.js";
 import { buildSimulationEewReports } from "./eewEstimates.js";
 import { getSimulationGround } from "./groundModel.js";
 import {buildActiveFaultPreset, normalizeActiveFault, isInterplateSimulation} from "./activeFault.js";
+import {simulationActiveFaultDistances} from "./sourceDistance.js";
+import {createPublicScenarioLookup, validatePublicScenarioData} from "./scenarioIntensity.js";
+export {validatePublicScenarioData, scenarioMatchesOptions} from "./scenarioIntensity.js";
 export {buildActiveFaultPreset} from "./activeFault.js";
 import { findSimulationEpicenterName, createSimulationRegionLookup } from "./epicenterRegion.js";
 export { loadSimulationGroundModel } from "./groundModel.js";
@@ -64,6 +67,7 @@ export function buildSimulationSources(input) {
     const ratio = lengths[index] > 0 ? (along - traversed) / lengths[index] : 0;
     return {
       coordinates: path[index].map((value, dimension) => value + (path[index + 1][dimension] - value) * ratio),
+      ...(options.model === "active-fault" ? {faultAlongKm: along / length * options.activeFault.LEN} : {}),
       ruptureDelaySec: Math.abs(along - origin) / options.ruptureSpeed
     };
   });
@@ -76,12 +80,13 @@ export function getSimulationPresetOptions(model, nankaiCase = "full") {
   return { ...SIMULATION_DEFAULTS, model, nankaiCase, longitude: middle[0], latitude: middle[1], magnitude: preset.magnitudeValue, depthKm: preset.depthKm };
 }
 
-export async function prepareEarthquakeSimulation(input, rawStations, { signal, groundModel, epicenterRegions, forecastAreas, detectionStations = [], plateBoundaries, yieldTask = () => new Promise(resolve => setTimeout(resolve, 0)) } = {}) {
+export async function prepareEarthquakeSimulation(input, rawStations, { signal, groundModel, epicenterRegions, forecastAreas, detectionStations = [], plateBoundaries, scenarioIntensity = null, yieldTask = () => new Promise(resolve => setTimeout(resolve, 0)) } = {}) {
   const options = normalizeSimulationOptions(input);
+  const scenario = createPublicScenarioLookup(scenarioIntensity ? validatePublicScenarioData(scenarioIntensity) : null, options);
   const deepApproximation = options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM;
   const inJapanRegion = options.longitude >= 120 && options.longitude <= 170 && options.latitude >= 20 && options.latitude <= 60;
   const trenchDistance = deepApproximation && inJapanRegion ? createDeepTrenchLookup(plateBoundaries) : null;
-  const intensityEstimateAvailable = !deepApproximation || Boolean(trenchDistance);
+  const intensityEstimateAvailable = !deepApproximation || Boolean(trenchDistance) || Boolean(scenario);
   if (intensityEstimateAvailable && options.groundCorrection !== "none" && !groundModel) throw new Error("Ground model is required");
   const sources = buildSimulationSources(options);
   const interplate = isInterplateSimulation(options);
@@ -89,6 +94,8 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const stations = [];
   const findForecastArea = createSimulationRegionLookup(forecastAreas);
   const entries = Object.entries(rawStations ?? {});
+  const activeFaultPreset = options.model === "active-fault" ? getFaultModelPreset(options) : null;
+  const intensityParameters = {pointSource: options.model === "point", simulationCalibration: true};
   for (let index = 0; index < entries.length; index++) {
     if (index % 256 === 0) { await yieldTask(); signal?.throwIfAborted(); }
     const [key, raw] = entries[index];
@@ -100,16 +107,21 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
     const ground = intensityEstimateAvailable && options.groundCorrection !== "none" ? getSimulationGround(groundModel, point) : null;
     const area = findForecastArea(point);
     const trenchDistanceKm = trenchDistance?.(point) ?? null;
-    const predictedIntensityValue = estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(distance, options.depthKm), interplate, groundArv: ground?.arv ?? 1, trenchDistanceKm });
+    const sourceRuptureDistancesKm = activeFaultPreset ? simulationActiveFaultDistances(point, options.activeFault, sources, options.depthKm, activeFaultPreset.depthKm, sourceDistancesKm) : null;
+    const calculatedIntensityValue = estimateSimulationIntensity({ ...intensityParameters, magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: sourceRuptureDistancesKm ? Math.min(...sourceRuptureDistancesKm) : Math.hypot(distance, options.depthKm), interplate, groundArv: ground?.arv ?? 1, trenchDistanceKm });
+    const scenarioIntensityValue = scenario?.at({id: String(raw.code || key), coordinates: point}) ?? null;
+    // Published surface intensities already include their own ground model.
+    // Preserve genuine zeros and never multiply these values by ground ARV.
+    const predictedIntensityValue = scenarioIntensityValue ?? calculatedIntensityValue;
     const groundResponse = ground ? { groundAvs: ground.avs ?? 400, groundAmplification: 1.72 * Math.log10(ground.arv) } : {};
-    const strongThreshold = Math.max(.5, predictedIntensityValue - 1);
+    const strongThreshold = Math.max(.5, (calculatedIntensityValue ?? predictedIntensityValue) - 1);
     const lastStrongSArrivalSec = Math.max(sArrivalSec, ...sourceDistancesKm.flatMap((sourceDistance, sourceIndex) => {
-      const intensity = estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(sourceDistance, options.depthKm), interplate, groundArv: ground?.arv ?? 1, trenchDistanceKm });
+      const intensity = estimateSimulationIntensity({ ...intensityParameters, magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: sourceRuptureDistancesKm?.[sourceIndex] ?? Math.hypot(sourceDistance, options.depthKm), interplate, groundArv: ground?.arv ?? 1, trenchDistanceKm });
       return Number.isFinite(sourceSArrivalSecs[sourceIndex]) && intensity >= strongThreshold ? [sourceSArrivalSecs[sourceIndex]] : [];
     }));
     const station = {
       id: String(raw.code || key), name: String(raw.name || raw.code || key), coordinates: point,
-      epicentralDistanceKm: distance, sourceDistancesKm, sourcePArrivalSecs, sourceSArrivalSecs, pArrivalSec, sArrivalSec, lastStrongSArrivalSec, predictedIntensityValue,
+      epicentralDistanceKm: distance, sourceDistancesKm, sourceRuptureDistancesKm, sourcePArrivalSecs, sourceSArrivalSecs, pArrivalSec, sArrivalSec, lastStrongSArrivalSec, predictedIntensityValue, calculatedIntensityValue, scenarioIntensityValue,
       groundArv: ground?.arv ?? null, groundMeshCode: ground?.code ?? null, trenchDistanceKm, ...groundResponse,
       forecastAreaCode: area?.code ?? "", forecastAreaName: area?.name ?? "",
       ...model.getStationWaveResponseProperties(key, predictedIntensityValue, groundResponse)
@@ -123,6 +135,8 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const origin = sources.find(s => s.ruptureDelaySec === 0) ?? sources[0];
   const name = getFaultModelPreset(options)?.name ?? (findSimulationEpicenterName(epicenterRegions, origin.coordinates) || "震源地名不明");
   const groundCoverage = { corrected: stations.filter(station => station.groundArv !== null).length, total: stations.length };
+  const scenarioCoverage = {applied: stations.filter(station => station.scenarioIntensityValue !== null).length,
+    total: stations.length, source: scenario?.source ?? null, caseLabel: scenario?.caseLabel ?? "", mismatch: Boolean(scenarioIntensity && !scenario)};
   const offshoreDetectors = detectionStations.filter(station => Array.isArray(station.coordinates) && station.coordinates.length === 2 && station.coordinates.every(Number.isFinite)
     && Math.abs(station.coordinates[0]) <= 180 && Math.abs(station.coordinates[1]) <= 85).map((station, index) => {
     const metrics = calculateTravelMetrics(station.coordinates, options, sources);
@@ -158,9 +172,11 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
     pArrivalSec: Number.isFinite(station.pArrivalSec) ? station.pArrivalSec : null,
     sArrivalSec: Number.isFinite(station.sArrivalSec) ? station.sArrivalSec : null,
     predictedIntensity: Number.isFinite(station.predictedIntensityValue) ? classifyIntensity(station.predictedIntensityValue).label : null,
-    groundArv: station.groundArv, groundMeshCode: station.groundMeshCode }));
+    groundArv: station.groundArv, groundMeshCode: station.groundMeshCode,
+    intensitySource: station.scenarioIntensityValue !== null ? "published-scenario" : "approximation",
+    scenarioLabel: station.scenarioIntensityValue !== null ? scenario.caseLabel : ""}));
   return {
-    options, sources, stations, duration, name, reports, groundCoverage, intensityEstimateAvailable, deepApproximation, detectionStationCount: offshoreDetectors.length,
+    options, sources, stations, duration, name, reports, groundCoverage, scenarioCoverage, intensityEstimateAvailable, deepApproximation, detectionStationCount: offshoreDetectors.length,
     frame(elapsedSeconds, { intensityDisplay = "current", renderOnly = false } = {}) {
       const elapsed = Math.max(0, Math.min(duration, elapsedSeconds));
       const features = stations.map((station, index) => {
