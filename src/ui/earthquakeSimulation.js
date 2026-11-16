@@ -263,8 +263,8 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     playbackMinimized = minimized;
     playback.classList.toggle("is-minimized", minimized);
     playback.querySelector("#simulation-playback-content").hidden = minimized;
+    playback.querySelector(".simulation-playback-minimized").hidden = !minimized;
     const restore = playback.querySelector("[data-simulation-restore]");
-    restore.hidden = !minimized;
     if (minimized) {
       playback.querySelector("#simulation-playback-options").hidden = true;
       playback.querySelector("[data-simulation-options]").setAttribute("aria-expanded", "false");
@@ -272,8 +272,15 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     if (focus) (minimized ? restore : playback.querySelector("[data-simulation-minimize]")).focus({ preventScroll: true });
   }
 
+  function togglePlayback() {
+    if (!player) return;
+    const state = player.snapshot();
+    if (state.running) player.pause();
+    else { if (state.completed) player.seek(0); player.play(); }
+  }
+
   function renderPlayback() {
-    playback.innerHTML = `<button type="button" data-simulation-restore aria-label="${text("シミュレーションの再生パネルを戻す", "Restore simulation playback panel")}" aria-controls="simulation-playback-content" hidden><strong>${text("シミュレーション", "Simulation")}</strong><span><output data-simulation-time aria-label="${text("経過時間", "Elapsed time")}"></output> ‹</span></button>
+    playback.innerHTML = `<div class="simulation-playback-minimized" hidden><button type="button" data-simulation-pause></button><button type="button" data-simulation-restore aria-label="${text("シミュレーションの再生パネルを戻す", "Restore simulation playback panel")}" aria-controls="simulation-playback-content"><strong>${text("シミュレーション", "Simulation")}</strong><span><output data-simulation-time aria-label="${text("経過時間", "Elapsed time")}"></output> ‹</span></button></div>
       <div id="simulation-playback-content"><header><strong>${text("シミュレーション", "Simulation")}</strong><span>${text("実際の地震ではありません", "Not a real earthquake")}</span><button type="button" data-simulation-first-report aria-label="${text("初報まで進む", "Skip to first bulletin")}" hidden>${text("初報へ", "Skip wait")}</button><button type="button" data-simulation-options aria-expanded="false" aria-controls="simulation-playback-options">${text("操作", "More")}</button><button type="button" data-simulation-minimize aria-label="${text("再生パネルを最小化", "Minimize playback panel")}" title="${text("最小化", "Minimize")}">−</button></header>
       <div class="simulation-playback-controls"><button type="button" data-simulation-pause></button><input data-simulation-seek type="range" min="0" step="0.1" aria-label="${text("シミュレーション時刻", "Simulation time")}"><output data-simulation-time aria-label="${text("経過時間", "Elapsed time")}"></output><button type="button" data-simulation-stop aria-label="${text("終了", "End")}" title="${text("終了", "End")}">×</button></div>
       <p class="simulation-ground-coverage" data-simulation-interrupted hidden>${text("画面の中断により一時停止しました。再生ボタンで続きから再開できます。", "Playback paused after an interruption. Press Play to continue from here.")}</p>
@@ -302,10 +309,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       options.hidden = !options.hidden;
       event.currentTarget.setAttribute("aria-expanded", String(!options.hidden));
     });
-    playback.querySelector("[data-simulation-pause]").addEventListener("click", () => {
-      if (player.snapshot().running) player.pause();
-      else { if (player.snapshot().completed) player.seek(0); player.play(); }
-    });
+    for (const pause of playback.querySelectorAll("[data-simulation-pause]")) pause.addEventListener("click", togglePlayback);
     playback.querySelector("[data-simulation-speed]").addEventListener("change", event => player?.setSpeed(event.target.value));
     playback.querySelector("[data-simulation-display]").value = intensityDisplay;
     playback.querySelector("header > strong").textContent = intensityDisplay === "maximum" ? text("シミュレーション · 記録最大", "Simulation · Recorded max.") : text("シミュレーション", "Simulation");
@@ -388,17 +392,18 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
         playback.querySelector("[data-simulation-seek]").value = state.elapsed;
         const timeLabel = `${Math.floor(state.elapsed)}/${Math.ceil(simulation.duration)} s`;
         for (const output of playback.querySelectorAll("[data-simulation-time]")) output.textContent = timeLabel;
-        const pause = playback.querySelector("[data-simulation-pause]");
         playback.querySelector("[data-simulation-first-report]").hidden = firstReportElapsedSec == null || state.elapsed >= firstReportElapsedSec;
         const pauseLabel = state.running ? text("一時停止", "Pause") : state.completed ? text("再生し直す", "Replay") : text("再生", "Play");
-        pause.textContent = state.running ? "Ⅱ" : "▶";
-        pause.setAttribute("aria-label", pauseLabel);
-        pause.title = pauseLabel;
+        for (const pause of playback.querySelectorAll("[data-simulation-pause]")) {
+          pause.textContent = state.running ? "Ⅱ" : "▶";
+          pause.setAttribute("aria-label", pauseLabel);
+          pause.title = pauseLabel;
+        }
       } });
       camera.setScene(simulation.sources, simulation.stations, lastValues.model === "point" ? 6.8 : 5.6);
       getMap()?.setSimulationCameraInteractionHandler(() => camera.stopFollowing());
       player.play();
-      playback.querySelector("[data-simulation-pause]").focus({ preventScroll: true });
+      playback.querySelector(".simulation-playback-controls [data-simulation-pause]").focus({ preventScroll: true });
     } catch (error) {
       if (token !== sequence) return;
       const resource = error instanceof SimulationPreparationError ? ({ stations: text("観測点データ", "Station data"), ground: text("地盤データ", "Ground data"), areas: text("地域データ", "Region data") })[error.resource] : null;

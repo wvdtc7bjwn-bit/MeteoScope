@@ -142,7 +142,17 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
     uncertaintyLabel: !intensityEstimateAvailable ? "深発近似データ未取得：震度推定なし" : deepApproximation ? "深発近似（学習用・異常震域は概算）" : "",
     canRenderWaves: true, isCancel: false, isFinal: false, hypocenterReliability: "simulation"
   };
-  const renderCache = new Map();
+  const renderCache = [], renderKeys = [];
+  const staticGeometry = stations.map(station => ({type: "Point", coordinates: station.coordinates}));
+  const faultCache = new Map();
+  const renderedFault = elapsed => {
+    // Source count is bounded by buildSimulationSources (at most 18). There
+    // are only source-count + 1 reachable masks, including when seeking back.
+    let mask = 0;
+    for (let i = 0; i < sources.length; i++) if (elapsed >= sources[i].ruptureDelaySec) mask |= 1 << i;
+    if (!faultCache.has(mask)) faultCache.set(mask, createFaultFeatures(options, sources, elapsed));
+    return faultCache.get(mask);
+  };
   const staticProperties = stations.map(station => ({ id: station.id, name: station.name,
     intensityEstimateAvailable: Number.isFinite(station.predictedIntensityValue), deepApproximation,
     pArrivalSec: Number.isFinite(station.pArrivalSec) ? station.pArrivalSec : null,
@@ -155,9 +165,15 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
       const elapsed = Math.max(0, Math.min(duration, elapsedSeconds));
       const features = stations.map((station, index) => {
         const shaking = model.getCurrentIntensityProperties(station, elapsed);
-        const recordedIntensity = Number.isFinite(station.predictedIntensityValue) ? classifyIntensity(shaking.recordedIntensityValue).label : null;
+        const recordedClass = Number.isFinite(station.predictedIntensityValue) ? classifyIntensity(shaking.recordedIntensityValue) : null;
+        const recordedIntensity = recordedClass?.label ?? null;
         const display = intensityDisplay === "maximum" && shaking.observed
-          ? classifyIntensity(shaking.recordedIntensityValue) : { label: shaking.intensityLabel, rank: shaking.intensityRank, color: shaking.intensityColor, textColor: shaking.intensityTextColor };
+          ? recordedClass ?? classifyIntensity(0) : { label: shaking.intensityLabel, rank: shaking.intensityRank, color: shaking.intensityColor, textColor: shaking.intensityTextColor };
+        // These ranks/flags determine every dynamic rendered property. Compare
+        // them before allocating objects; numerical detail remains uncached.
+        const key = display.rank | (shaking.intensityRank << 4) | ((recordedClass?.rank ?? 0) << 8)
+          | (Number(shaking.observed) << 12) | (Number(shaking.settled) << 13) | (Number(shaking.waveState === "s") << 14);
+        if (renderOnly && renderCache[index] && renderKeys[index] === key) return renderCache[index];
         const dynamic = {
           intensity: shaking.observed ? display.label : "0", currentIntensity: shaking.observed ? shaking.intensityLabel : "0",
           color: display.rank > 0 ? display.color : "#8c9dad",
@@ -165,12 +181,10 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
           arrived: shaking.observed, settled: shaking.settled, wave: shaking.observed ? shaking.waveState.toUpperCase() : "",
           recordedIntensity, intensityRank: display.rank
         };
-        const previous = renderCache.get(station.id);
-        if (renderOnly && previous && Object.keys(dynamic).every(key => previous.properties[key] === dynamic[key])) return previous;
-        const feature = { type: "Feature", geometry: { type: "Point", coordinates: station.coordinates }, properties: {
+        const feature = { type: "Feature", geometry: staticGeometry[index], properties: {
           ...staticProperties[index], ...dynamic, ...(!renderOnly ? { currentIntensityValue: shaking.currentIntensityValue } : {})
         } };
-        if (renderOnly) renderCache.set(station.id, feature);
+        if (renderOnly) { renderCache[index] = feature; renderKeys[index] = key; }
         return feature;
       });
       const report = reports.findLast(report => report.elapsedSec <= elapsed);
@@ -182,7 +196,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
           warnAreas: report?.warnAreas ?? [],
           simulationDetecting: elapsed < (reports[0]?.detectedAtSec ?? Infinity),
           simulationElapsedSeconds: elapsed, simulationWaveSources: sources, simulationWaveDepthKm: options.depthKm },
-        fault: createFaultFeatures(options, sources, elapsed)
+        fault: renderOnly ? renderedFault(elapsed) : createFaultFeatures(options, sources, elapsed)
       };
     }
   };

@@ -13,6 +13,7 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
   let previousCursor = "";
   let previousStations = new Map();
   let previousFault = "";
+  let previousFaultReference = null;
   let selectedStation = null;
   let previousInfo = "";
   const dismissInfo = () => {
@@ -45,7 +46,7 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
     const map = getMap();
     if (!map?.getLayer("eew-wave-fill")) return false;
     if (map.getSource(STATIONS)) return true;
-    previousStations.clear(); previousFault = "";
+    previousStations.clear(); previousFault = ""; previousFaultReference = null;
     map.addSource(STATIONS, { type: "geojson", data: EMPTY, promoteId: "id" });
     map.addSource(FAULT, { type: "geojson", data: EMPTY });
     const before = map.getLayer("eew-wave-fill") ? "eew-wave-fill" : undefined;
@@ -90,7 +91,8 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
       if (!ensureLayers()) return false;
       const map = getMap();
       const source = map.getSource(STATIONS);
-      const nextStations = new Map(frame.stations.features.map(feature => [feature.properties.id, feature]));
+      const nextStations = new Map();
+      for (const feature of frame.stations.features) nextStations.set(feature.properties.id, feature);
       if (!active || typeof source.updateData !== "function") source.setData(frame.stations);
       else {
         const diff = { remove: [...previousStations.keys()].filter(id => !nextStations.has(id)), add: [], update: [] };
@@ -98,11 +100,12 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
           const previous = previousStations.get(id);
           if (!previous) { diff.add.push(feature); continue; }
           if (feature === previous) continue;
-          const changed = Object.entries(feature.properties).filter(([key, value]) => previous.properties[key] !== value);
+          const changed = [];
+          for (const key of Object.keys(feature.properties)) if (previous.properties[key] !== feature.properties[key]) changed.push({key, value: feature.properties[key]});
           const removed = Object.keys(previous.properties).filter(key => !Object.hasOwn(feature.properties, key));
-          const moved = feature.geometry.coordinates.some((value, i) => previous.geometry.coordinates[i] !== value);
+          const moved = feature.geometry !== previous.geometry && feature.geometry.coordinates.some((value, i) => previous.geometry.coordinates[i] !== value);
           if (changed.length || removed.length || moved) diff.update.push({ id, ...(moved ? { newGeometry: feature.geometry } : {}), removeProperties: removed,
-            addOrUpdateProperties: changed.map(([key, value]) => ({ key, value })) });
+            addOrUpdateProperties: changed });
         }
         if (diff.remove.length || diff.add.length || diff.update.length) source.updateData(diff);
       }
@@ -112,15 +115,18 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
         if (feature) updateStationInfo(feature, selectedStation.coordinates);
         else dismissInfo();
       }
-      const fault = JSON.stringify(frame.fault);
-      if (fault !== previousFault) { map.getSource(FAULT).setData(frame.fault); previousFault = fault; }
+      if (frame.fault !== previousFaultReference) {
+        const fault = JSON.stringify(frame.fault);
+        if (fault !== previousFault) { map.getSource(FAULT).setData(frame.fault); previousFault = fault; }
+        previousFaultReference = frame.fault;
+      }
       if (!active) LAYERS.forEach(id => map.setLayoutProperty(id, "visibility", "visible"));
       active = true;
       return true;
     },
     clear() {
       active = false;
-      previousStations.clear(); previousFault = "";
+      previousStations.clear(); previousFault = ""; previousFaultReference = null;
       cancelPick();
       dismissInfo();
       const map = getMap();

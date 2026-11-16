@@ -8,12 +8,14 @@ export const EARTHQUAKE_MODEL = { eewProcessingDelaySec: .6, defaultSiteAmplific
 
 const INTENSITY_THRESHOLDS = [0, 0.5, 1.5, 2.5, 3.5, 4.5, 5, 5.5, 6, 6.5];
 const INTENSITY_LABELS = ["0", "1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"];
+const INTENSITY_CLASSES = INTENSITY_LABELS.map((label, rank) => Object.freeze({
+  label, shortLabel: label, rank, color: getEarthquakeIntensityColor(label), textColor: getEarthquakeIntensityMarkerTextColor(label),
+}));
 const SHAKING_DURATION_SCALES = [[1, 1], [5, 2], [6, 4], [7, 10], [8, 60], [9, 180], [9.5, 240]];
 export function classifyIntensity(value) {
   let rank = 0;
   for (let i = 1; i < INTENSITY_THRESHOLDS.length; i++) if (value >= INTENSITY_THRESHOLDS[i]) rank = i;
-  const label = INTENSITY_LABELS[rank];
-  return { label, shortLabel: label, rank, color: getEarthquakeIntensityColor(label), textColor: getEarthquakeIntensityMarkerTextColor(label) };
+  return INTENSITY_CLASSES[rank];
 }
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 

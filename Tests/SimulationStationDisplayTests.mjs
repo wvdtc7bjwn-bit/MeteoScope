@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { prepareEarthquakeSimulation } from "../src/simulation/earthquakeSimulation.js";
+import { prepareEarthquakeSimulation, getSimulationPresetOptions } from "../src/simulation/earthquakeSimulation.js";
 const simulation = await prepareEarthquakeSimulation({ magnitude: 6 }, { "001": { code: "001", latitude: 35.68, longitude: 139.76 } });
 const peakTime = simulation.stations[0].shakingDecayStartSec;
 const peak = simulation.frame(peakTime);
@@ -17,4 +17,17 @@ const full = simulation.frame(peakTime);
 for (const [key, value] of Object.entries(a.stations.features[0].properties)) assert.deepEqual(value, full.stations.features[0].properties[key]);
 simulation.frame(simulation.duration, { renderOnly: true });
 assert.deepEqual(simulation.frame(peakTime, { renderOnly: true }), a, "cached rendering still supports deterministic rewind");
+for (const elapsed of [0, 2, 5, peakTime, simulation.duration, peakTime, .1]) for (const intensityDisplay of ["maximum", "current"]) {
+  const rendered = simulation.frame(elapsed, {renderOnly: true, intensityDisplay});
+  const full = simulation.frame(elapsed, {intensityDisplay});
+  const expected = structuredClone(full);
+  expected.stations.features.forEach(feature => delete feature.properties.currentIntensityValue);
+  assert.deepEqual(rendered, expected, "render cache preserves every displayed field across mode changes and seeks");
+}
+const finite = await prepareEarthquakeSimulation(getSimulationPresetOptions("nankai-trough"), {"001":{longitude:139.76,latitude:35.68}});
+const initialFault = finite.frame(0,{renderOnly:true}).fault;
+assert.equal(finite.frame(.01,{renderOnly:true}).fault,initialFault,"reuse unchanged fault geometry");
+const ruptureTime = Math.min(...finite.sources.map(source=>source.ruptureDelaySec).filter(time=>time>0));
+assert.notEqual(finite.frame(ruptureTime,{renderOnly:true}).fault,initialFault,"rupture changes remain visible");
+assert.equal(finite.frame(0,{renderOnly:true}).fault,initialFault,"rewind restores the corresponding rupture state");
 console.log("Simulation display: current/recorded max switching, retained EEW, neutral initial state and immutable render reuse passed");

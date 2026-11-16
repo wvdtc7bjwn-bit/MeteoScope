@@ -15,6 +15,15 @@ assert.equal(exposedWavefrontArcs([first, circle([140, 35], 200)]).length, 1, "c
 assert.equal(exposedWavefrontArcs([first, circle([145, 40], 50)]).length, 2, "disjoint fronts are retained");
 const connected = [first, circle([140.5, 35], 100)];
 const arcs = exposedWavefrontArcs(connected);
+const movedCenter = [140.5, 35];
+const mutableCircles = [circle([140, 35], 100), circle(movedCenter, 100)];
+const beforeMove = exposedWavefrontArcs(mutableCircles);
+assert.deepEqual(exposedWavefrontArcs(mutableCircles),beforeMove,"repeated P/S geometry is identical");
+movedCenter[0] = 141;
+mutableCircles[1] = circle(movedCenter,100);
+const afterMove = exposedWavefrontArcs(mutableCircles);
+assert.notDeepEqual(afterMove,beforeMove,"moving an existing center invalidates its relative-position cache");
+assert.deepEqual(afterMove,exposedWavefrontArcs([circle([140,35],100),circle([141,35],100)]),"cached and fresh center calculations agree exactly");
 assert.ok(arcs.reduce((sum, arc) => sum + arc.length, 0) < 192, "overlap removes interior lines without changing radii");
 assert.ok(arcs.every(arc => arc.length > 1));
 const crossing = exposedWavefrontArcs([circle([179.8, 35], 200)]);

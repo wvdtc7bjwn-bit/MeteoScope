@@ -7,6 +7,9 @@ const EARTH_RADIUS_KM = 6371.0088;
 const FULL_CIRCLE = 2 * Math.PI;
 const JOIN_TOLERANCE_KM = .001;
 const clamp = value => Math.max(-1, Math.min(1, value));
+// P/S fronts share fixed source centers. Weak keys release a finished scene;
+// coordinate checks also preserve correctness for callers that move a center.
+const relativePositions = new WeakMap();
 
 // Compute spherical-circle intersections before sampling the visible arcs.
 // Testing chord midpoints independently can omit pieces on both circles and
@@ -63,14 +66,22 @@ export function exposedWavefrontArcs(input) {
   return joinArcs(arcs);
 }
 
-function relativePosition([longitude, latitude], [otherLongitude, otherLatitude]) {
+function relativePosition(center, otherCenter) {
+  const [longitude, latitude] = center, [otherLongitude, otherLatitude] = otherCenter;
+  let positions = relativePositions.get(center);
+  const cached = positions?.get(otherCenter);
+  if (cached && Object.is(cached.longitude, longitude) && Object.is(cached.latitude, latitude)
+    && Object.is(cached.otherLongitude, otherLongitude) && Object.is(cached.otherLatitude, otherLatitude)) return cached.position;
   const lat = latitude * Math.PI / 180;
   const otherLat = otherLatitude * Math.PI / 180;
   const delta = (otherLongitude - longitude) * Math.PI / 180;
   const east = Math.sin(delta) * Math.cos(otherLat);
   const north = Math.cos(lat) * Math.sin(otherLat) - Math.sin(lat) * Math.cos(otherLat) * Math.cos(delta);
   const dot = Math.sin(lat) * Math.sin(otherLat) + Math.cos(lat) * Math.cos(otherLat) * Math.cos(delta);
-  return { angularDistance: Math.atan2(Math.hypot(east, north), dot), bearing: (Math.atan2(east, north) + FULL_CIRCLE) % FULL_CIRCLE };
+  const position = { angularDistance: Math.atan2(Math.hypot(east, north), dot), bearing: (Math.atan2(east, north) + FULL_CIRCLE) % FULL_CIRCLE };
+  if (!positions) { positions = new WeakMap(); relativePositions.set(center, positions); }
+  positions.set(otherCenter, {longitude, latitude, otherLongitude, otherLatitude, position});
+  return position;
 }
 
 function joinArcs(input) {
