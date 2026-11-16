@@ -2,6 +2,13 @@ import assert from "node:assert/strict";
 import { prepareEarthquakeSimulation, getSimulationPresetOptions } from "../src/simulation/earthquakeSimulation.js";
 import { createWeSimulatorModel, getSimulationMagnitudeDurationSec } from "../src/simulation/weSimulatorModel.js";
 import { buildSimulationEewReports } from "../src/simulation/eewEstimates.js";
+import { buildSimulationReviewTimes } from "../src/simulation/reportTiming.js";
+
+const review = buildSimulationReviewTimes(5, 35, 15, [6, 6.1, 6.2, 7, 8, 15, 28]);
+assert.equal(review[0], 5); assert.equal(review.at(-1), 35);
+assert.deepEqual(review, buildSimulationReviewTimes(5, 35, 15, [6, 6.1, 6.2, 7, 8, 15, 28]));
+assert.notDeepEqual(review, buildSimulationReviewTimes(5, 35, 15), "arrival batches affect review cadence");
+assert.deepEqual(buildSimulationReviewTimes(5, 5, 10), [5], "no duplicate simultaneous bulletins");
 
 const station = { pArrivalSec: 4, predictedIntensityValue: 4, epicentralDistanceKm: 20, groundArv: 1 };
 const magnitudes = [4, 5.5, 6, 7, 7.5, 8, 8.5, 9, 9.5];
@@ -12,7 +19,9 @@ for (const magnitude of magnitudes) {
   const reports = buildSimulationEewReports({ options: { magnitude, depthKm: 10, model: "point" }, stations: [station],
     sources: [{ ruptureDelaySec: 0 }], schedule, ruptureCompleteSec: 0 });
   assert.equal(reports[0].elapsedSec, 4.6, "magnitude review cannot postpone the first P-triggered bulletin");
-  if (magnitude >= 7.5) assert.ok(schedule.slice(1).every((r, i) => r.elapsedSec - schedule[i].elapsedSec <= 1.01), "large-event initial estimates update at least once per second");
+  if (magnitude >= 7.5) assert.ok(schedule.slice(1).every((r, i) => r.elapsedSec - schedule[i].elapsedSec <= 1.7), "large-event initial reviews remain frequent despite variable intervals");
+  const gaps = reports.slice(1).map((r, i) => Number((r.elapsedSec - reports[i].elapsedSec).toFixed(2)));
+  assert.ok(new Set(gaps).size > 2, "bulletins are not issued at a fixed interval");
   assert.deepEqual(reports.slice(0, schedule.length).map(r => r.elapsedSec), schedule.map(r => r.elapsedSec), "retain all fast initial report times");
   assert.equal(reports[schedule.length - 1].magnitude, magnitude, "initial M convergence is retained before the longer review");
   assert.ok(reports.slice(0, -1).every(r => !r.isFinal));
@@ -21,7 +30,7 @@ for (const magnitude of magnitudes) {
   assert.equal(reports.at(-1).depth, 10);
   for (let i = 0; i < reports.length; i++) {
     assert.equal(reports[i].reportNumber, i + 1);
-    if (i) assert.ok(reports[i].elapsedSec > reports[i - 1].elapsedSec && reports[i].elapsedSec - reports[i - 1].elapsedSec <= 3.01);
+    if (i) assert.ok(reports[i].elapsedSec > reports[i - 1].elapsedSec && reports[i].elapsedSec - reports[i - 1].elapsedSec <= 4.8);
   }
   if (magnitude <= 7) assert.equal(reports.length, schedule.length, "small and moderate scenarios retain their existing duration/count");
   if (magnitude >= 8) {

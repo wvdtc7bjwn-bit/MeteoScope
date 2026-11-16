@@ -7,6 +7,8 @@ import { createDeepTrenchLookup } from "./deepEarthquake.js";
 export { MAX_REFERENCE_INTENSITY_DEPTH_KM } from "./intensityModel.js";
 import { buildSimulationEewReports } from "./eewEstimates.js";
 import { getSimulationGround } from "./groundModel.js";
+import {buildActiveFaultPreset, normalizeActiveFault, isInterplateSimulation} from "./activeFault.js";
+export {buildActiveFaultPreset} from "./activeFault.js";
 import { findSimulationEpicenterName, createSimulationRegionLookup } from "./epicenterRegion.js";
 export { loadSimulationGroundModel } from "./groundModel.js";
 export { loadSimulationDetectionStations } from "./detectionStations.js";
@@ -16,7 +18,8 @@ export const SIMULATION_DEFAULTS = Object.freeze({ model: "point", nankaiCase: "
 
 export function normalizeSimulationOptions(input = {}) {
   const options = { ...SIMULATION_DEFAULTS, ...input };
-  if (options.model !== "point" && !Object.hasOwn(FAULT_MODEL_PRESETS, options.model)) throw new RangeError("Unknown simulation model");
+  if (!["point", "active-fault"].includes(options.model) && !Object.hasOwn(FAULT_MODEL_PRESETS, options.model)) throw new RangeError("Unknown simulation model");
+  if (options.model === "active-fault") options.activeFault = normalizeActiveFault(options.activeFault);
   if (!Object.hasOwn(NANKAI_RUPTURE_CASES, options.nankaiCase)) throw new RangeError("Invalid Nankai rupture case");
   for (const [key, min, max] of [["longitude", -180, 180], ["latitude", -85, 85], ["magnitude", 1, 9.5], ["depthKm", 0, 700], ["ruptureSpeed", 0.5, 4]]) {
     if (options[key] == null || String(options[key]).trim() === "") throw new RangeError(`Missing ${key}`);
@@ -30,6 +33,7 @@ export function normalizeSimulationOptions(input = {}) {
 }
 
 export function getFaultModelPreset(options) {
+  if (options.model === "active-fault") return buildActiveFaultPreset(options.activeFault);
   const preset = FAULT_MODEL_PRESETS[options.model];
   if (!preset || options.model !== "nankai-trough" || options.nankaiCase === "full") return preset;
   const variant = NANKAI_RUPTURE_CASES[options.nankaiCase];
@@ -80,7 +84,8 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const intensityEstimateAvailable = !deepApproximation || Boolean(trenchDistance);
   if (intensityEstimateAvailable && options.groundCorrection !== "none" && !groundModel) throw new Error("Ground model is required");
   const sources = buildSimulationSources(options);
-  const model = createWeSimulatorModel({ magnitude: options.magnitude, depthKm: options.depthKm, latitude: options.latitude, longitude: options.longitude, offshore: options.model !== "point" });
+  const interplate = isInterplateSimulation(options);
+  const model = createWeSimulatorModel({ magnitude: options.magnitude, depthKm: options.depthKm, latitude: options.latitude, longitude: options.longitude, offshore: interplate });
   const stations = [];
   const findForecastArea = createSimulationRegionLookup(forecastAreas);
   const entries = Object.entries(rawStations ?? {});
@@ -95,11 +100,11 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
     const ground = intensityEstimateAvailable && options.groundCorrection !== "none" ? getSimulationGround(groundModel, point) : null;
     const area = findForecastArea(point);
     const trenchDistanceKm = trenchDistance?.(point) ?? null;
-    const predictedIntensityValue = estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(distance, options.depthKm), interplate: options.model !== "point", groundArv: ground?.arv ?? 1, trenchDistanceKm });
+    const predictedIntensityValue = estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(distance, options.depthKm), interplate, groundArv: ground?.arv ?? 1, trenchDistanceKm });
     const groundResponse = ground ? { groundAvs: ground.avs ?? 400, groundAmplification: 1.72 * Math.log10(ground.arv) } : {};
     const strongThreshold = Math.max(.5, predictedIntensityValue - 1);
     const lastStrongSArrivalSec = Math.max(sArrivalSec, ...sourceDistancesKm.flatMap((sourceDistance, sourceIndex) => {
-      const intensity = estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(sourceDistance, options.depthKm), interplate: options.model !== "point", groundArv: ground?.arv ?? 1, trenchDistanceKm });
+      const intensity = estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(sourceDistance, options.depthKm), interplate, groundArv: ground?.arv ?? 1, trenchDistanceKm });
       return Number.isFinite(sourceSArrivalSecs[sourceIndex]) && intensity >= strongThreshold ? [sourceSArrivalSecs[sourceIndex]] : [];
     }));
     const station = {
@@ -121,7 +126,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const offshoreDetectors = detectionStations.filter(station => Array.isArray(station.coordinates) && station.coordinates.length === 2 && station.coordinates.every(Number.isFinite)
     && Math.abs(station.coordinates[0]) <= 180 && Math.abs(station.coordinates[1]) <= 85).map(station => {
     const metrics = calculateTravelMetrics(station.coordinates, options, sources);
-    return { ...metrics, predictedIntensityValue: estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(metrics.distance, options.depthKm), interplate: options.model !== "point", trenchDistanceKm: trenchDistance?.(station.coordinates) ?? null }) };
+    return { ...metrics, predictedIntensityValue: estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(metrics.distance, options.depthKm), interplate, trenchDistanceKm: trenchDistance?.(station.coordinates) ?? null }) };
   });
   const ruptureComplete = Math.max(...sources.map(source => source.ruptureDelaySec));
   const schedule = model.buildSyntheticSimulationMagnitudeReports(options.magnitude, [...stations, ...offshoreDetectors], Infinity);
@@ -206,7 +211,7 @@ function createFaultFeatures(options, sources, elapsed) {
   if (!preset) return { type: "FeatureCollection", features: [] };
   const ring = [...preset.areaSides.left, ...preset.areaSides.right.toReversed(), preset.areaSides.left[0]];
   return { type: "FeatureCollection", features: [
-    { type: "Feature", properties: { kind: "area" }, geometry: { type: "Polygon", coordinates: [ring] } },
+    { type: "Feature", properties: { kind: "area" }, geometry: preset.fault?.DIP === 90 ? {type: "LineString", coordinates: preset.path} : { type: "Polygon", coordinates: [ring] } },
     ...sources.map(s => ({ type: "Feature", properties: { kind: "rupture", ruptured: elapsed >= s.ruptureDelaySec }, geometry: { type: "Point", coordinates: s.coordinates } }))
   ] };
 }

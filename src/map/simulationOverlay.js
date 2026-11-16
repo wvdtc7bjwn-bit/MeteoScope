@@ -4,7 +4,7 @@ import { localizeText, getCurrentLanguage } from "../ui/locale.js";
 
 const STATIONS = "earthquake-simulation-stations";
 const FAULT = "earthquake-simulation-fault";
-const LAYERS = ["simulation-fault-area", "simulation-rupture-points", "simulation-station-points", "simulation-station-labels"];
+const LAYERS = ["simulation-fault-area", "simulation-rupture-points", "simulation-station-points", "simulation-station-labels", "simulation-fault-outline"];
 const EMPTY = { type: "FeatureCollection", features: [] };
 
 export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
@@ -50,6 +50,7 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
     map.addSource(FAULT, { type: "geojson", data: EMPTY });
     const before = map.getLayer("eew-wave-fill") ? "eew-wave-fill" : undefined;
     map.addLayer({ id: LAYERS[0], type: "fill", source: FAULT, filter: ["==", ["get", "kind"], "area"], paint: { "fill-color": "#c68bff", "fill-opacity": .14, "fill-outline-color": "#b861ed" } }, before);
+    map.addLayer({ id: LAYERS[4], type: "line", source: FAULT, filter: ["==", ["get", "kind"], "area"], paint: {"line-color": "#b861ed", "line-width": 1.5} }, before);
     map.addLayer({ id: LAYERS[1], type: "circle", source: FAULT, filter: ["==", ["get", "kind"], "rupture"], paint: { "circle-radius": 4, "circle-color": ["case", ["get", "ruptured"], "#ff6a3d", "#a28cb1"], "circle-stroke-width": 1, "circle-stroke-color": "#ffffff" } });
     const currentArrival = ["all", ["get", "arrived"], ["!", ["get", "settled"]]];
     map.addLayer({ id: LAYERS[2], type: "circle", source: STATIONS, filter: ["==", ["get", "intensity"], "0"], paint: {
@@ -83,7 +84,7 @@ export function createSimulationMapOverlay(getMap, showInfo, hideInfo) {
     dismissInfo,
     handleMapClick(event) {
       if (!active || pickHandler) return;
-      if (!getMap().queryRenderedFeatures(event.point, { layers: LAYERS.slice(2) }).length) dismissInfo();
+      if (!getMap().queryRenderedFeatures(event.point, { layers: LAYERS.slice(2, 4) }).length) dismissInfo();
     },
     render(frame) {
       if (!ensureLayers()) return false;

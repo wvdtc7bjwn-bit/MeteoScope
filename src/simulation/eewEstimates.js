@@ -1,6 +1,8 @@
 import { classifyIntensity, getSimulationMagnitudeDurationSec } from "./weSimulatorModel.js";
 import { getEarthquakeIntensityRank } from "../earthquakeIntensity.js";
 import { estimateSimulationIntensity, MAX_REFERENCE_INTENSITY_DEPTH_KM, DEEP_PATH_BLEND_END_KM } from "./intensityModel.js";
+import {isInterplateSimulation} from "./activeFault.js";
+import {buildSimulationReviewTimes} from "./reportTiming.js";
 
 // Bounded revisions of the initial analysis, not measured forecast errors.
 // Shared progress knots keep revisions correlated rather than random per frame.
@@ -33,7 +35,11 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
   const finalTime = Math.max(originalEnd, ruptureCompleteSec + 2, confirmationEnd);
   const timeline = schedule.map(report => ({ ...report }));
   // Extend reviews after the fast initial analysis; never stretch earlier bulletins.
-  while (timeline.at(-1).elapsedSec < finalTime) timeline.push({ elapsedSec: Math.min(finalTime, Number((timeline.at(-1).elapsedSec + 3).toFixed(2))), detectedAtSec: schedule[0].detectedAtSec });
+  if (finalTime > originalEnd) {
+    const reviewTimes = buildSimulationReviewTimes(originalEnd, finalTime, Math.ceil((finalTime - originalEnd) / 2.5) + 1,
+      stations.flatMap(station => [station.pArrivalSec, station.sArrivalSec]));
+    timeline.push(...reviewTimes.slice(1).map(elapsedSec => ({elapsedSec, detectedAtSec})));
+  }
   const initialMagnitude = Math.max(1, Math.min(6.8, options.magnitude - .35 - .12 * Math.max(0, options.magnitude - 5)));
   // Keep synthetic early estimates in the configured deep model's domain.
   // A fabricated 130 km estimate for a 172 km event disables path attenuation
@@ -58,7 +64,7 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
     const predictions = intensityEstimateAvailable ? stations.map(station => {
       const distance = activeSourceIndices.length && station.sourceDistancesKm
         ? Math.min(...activeSourceIndices.map(index => station.sourceDistancesKm[index])) : station.epicentralDistanceKm;
-      const predicted = estimateSimulationIntensity({ magnitude, depthKm: depth, ruptureDistanceKm: Math.hypot(distance, depth), interplate: options.model !== "point", groundArv: station.groundArv ?? 1, trenchDistanceKm: station.trenchDistanceKm, deepApproximation: options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM });
+      const predicted = estimateSimulationIntensity({ magnitude, depthKm: depth, ruptureDistanceKm: Math.hypot(distance, depth), interplate: isInterplateSimulation(options), groundArv: station.groundArv ?? 1, trenchDistanceKm: station.trenchDistanceKm, deepApproximation: options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM });
       return predicted === null ? null : Math.max(getObservedIntensity(station, elapsedSec) ?? 0, predicted);
     }) : [];
     const maxIntensity = intensityEstimateAvailable ? classifyIntensity(Math.max(...predictions)).label : null;

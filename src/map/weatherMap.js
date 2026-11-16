@@ -459,6 +459,7 @@ const amedasFeatureCollectionCache = new WeakMap();
 
 export function createWeatherMap(elementId) {
   let map = null;
+  let simulationCameraInteractionHandler = null;
   const simulationOverlay = createSimulationMapOverlay(
     () => map,
     (coordinates, content) => showMapInfo("simulation", coordinates, content, "simulation"),
@@ -536,6 +537,7 @@ export function createWeatherMap(elementId) {
     });
     map.getContainer().dataset.theme = activeTheme;
     map.touchZoomRotate.enableRotation();
+    map.on("movestart", event => { if (event.originalEvent) simulationCameraInteractionHandler?.(); });
     initialMapReady = waitForInitialMapGeometry(map, {
       sourceIds: INITIAL_GEOMETRY_SOURCE_IDS,
       layerIds: INITIAL_GEOMETRY_LAYER_IDS,
@@ -1195,6 +1197,10 @@ export function createWeatherMap(elementId) {
       offset: getFocusOffset(options),
       essential: true
     });
+  }
+
+  function setSimulationCameraInteractionHandler(handler) {
+    simulationCameraInteractionHandler = typeof handler === "function" ? handler : null;
   }
 
   function fitToCoordinates(coordinates, options = {}) {
@@ -2575,6 +2581,14 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     mapInfoElement.className = "map-info-popup";
     mapInfoElement.hidden = true;
     mapInfoElement.addEventListener("click", async (event) => {
+      const simulationButton = event.target.closest("[data-active-fault-simulation]");
+      if (simulationButton) {
+        event.stopPropagation();
+        const fault = JSON.parse(simulationButton.dataset.activeFaultSimulation);
+        hideMapInfo("active-fault");
+        window.dispatchEvent(new CustomEvent("meteoscope-simulation-fault", {detail: fault}));
+        return;
+      }
       if (event.target.closest("[data-simulation-info-close]")) {
         event.stopPropagation();
         simulationOverlay.dismissInfo();
@@ -3036,7 +3050,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   function pickSimulationEpicenter(onPick) { return simulationOverlay.pick(onPick); }
   function cancelSimulationEpicenterPick() { simulationOverlay.cancelPick(); }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarnings, setEarthquakeSimulationFrame, pickSimulationEpicenter, cancelSimulationEpicenterPick, whenCameraIdle, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarnings, setEarthquakeSimulationFrame, pickSimulationEpicenter, cancelSimulationEpicenterPick, whenCameraIdle, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, setSimulationCameraInteractionHandler, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
 }
 
 function normalizeTerrainOpacity(value) {
@@ -3223,6 +3237,7 @@ function buildJshisMajorFaultPopup(properties = {}) {
         <div class="map-info-popup-row"><span>想定規模</span><strong>${magnitude}</strong></div>
         <div class="map-info-popup-row"><span>30年確率</span><strong>${probability}</strong></div>
         <p class="map-info-popup-note">J-SHIS 2022年版・最大ケース</p>
+        <button type="button" data-active-fault-simulation="${escapeMapInfoHtml(JSON.stringify(properties))}">この断層でシミュレーション</button>
       </div>
     </article>`;
 }

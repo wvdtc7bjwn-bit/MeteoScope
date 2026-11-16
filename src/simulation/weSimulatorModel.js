@@ -2,6 +2,7 @@
 // Upstream revision: 3b0f37d830b1994bac9a69c9686a90bcc24477c1. See docs/earthquake-simulation.md.
 import { getEarthquakeIntensityColor, getEarthquakeIntensityMarkerTextColor } from "../earthquakeIntensity.js";
 import { MAX_REFERENCE_INTENSITY_DEPTH_KM } from "./intensityModel.js";
+import {buildSimulationReviewTimes} from "./reportTiming.js";
 
 export const EARTHQUAKE_MODEL = { eewProcessingDelaySec: .6, defaultSiteAmplification: 0 };
 
@@ -260,7 +261,7 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
     const profile = getGroundRiseProfile(properties);
     const softness = clamp((520 - (properties.groundAvs ?? 400)) / 420, 0, 1);
     // Educational duration envelope, not waveform-based real-time intensity.
-    // Broad M7/M8/M9 duration scales follow JMA FAQ27; interpolate in between.
+    // Magnitude scales are teaching-display assumptions; interpolate in between.
     const mainDuration = getSimulationMagnitudeDurationSec(state.magnitude) * (1 + softness * .25);
     const peakAtSec = properties.sArrivalSec + profile.durationSec + Math.max(0, properties.sWaveRiseDelaySec ?? 0);
     const decayStartSec = Math.max(peakAtSec, properties.sArrivalSec + mainDuration,
@@ -272,9 +273,10 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
     const spGapSec = properties.sArrivalSec - properties.pArrivalSec;
     const deepCodaSec = Number.isFinite(spGapSec) ? deepWeight * clamp(spGapSec * .5, 0, 90) : 0;
     // smoothStep's maximum slope is 1.5. This teaching-display bound limits
-    // the fall to .2 intensity units/sec instead of collapsing at the tail end.
+    // the fall to .05 intensity units/sec, leaving a gradual weak-motion coda.
+    // This is a display bound, not a duration law fitted to replay videos.
     const tailDuration = Math.max(12 + Math.max(0, state.magnitude - 5) * 9,
-      Math.max(0, properties.predictedIntensityValue ?? 0) * 7.5) + softness * 12
+      Math.max(0, properties.predictedIntensityValue ?? 0) * (1.5 / .05)) + softness * 12
       + clamp((properties.epicentralDistanceKm ?? 0) / 80, 0, 12) + deepCodaSec;
     return { shakingPeakSec: peakAtSec, shakingDecayStartSec: decayStartSec, shakingEndSec: decayStartSec + tailDuration };
   }
@@ -355,11 +357,9 @@ export function createWeSimulatorModel({ magnitude, depthKm = 0, offshore = fals
     // stretching the initial analysis or prescribing a fixed final report count.
     const initialReportIntervalSec = finalMagnitude >= 7.5 ? 1 : 3;
     const reportCount = Math.max(4, Math.round(4 + Math.max(finalMagnitude - 4.0, 0) * 2.1), Math.ceil((finalReportSec - firstReportSec) / initialReportIntervalSec) + 1);
-    return Array.from({ length: reportCount }, (_, index) => {
-      const isFinal = index === reportCount - 1;
-      const progress = index / (reportCount - 1);
-      return { reportNumber: index + 1, elapsedSec: Number((firstReportSec + (finalReportSec - firstReportSec) * progress).toFixed(2)), detectedAtSec, isFinal };
-    });
+    const times = buildSimulationReviewTimes(Number(firstReportSec.toFixed(2)), Number(finalReportSec.toFixed(2)), reportCount,
+      stations.flatMap(station => [station.pArrivalSec, station.sArrivalSec]));
+    return times.map((elapsedSec, index) => ({ reportNumber: index + 1, elapsedSec, detectedAtSec, isFinal: index === times.length - 1 }));
   }
   return { getStationWaveResponseProperties, getStationShakingTiming, getCurrentIntensityProperties, buildSyntheticSimulationMagnitudeReports };
 }

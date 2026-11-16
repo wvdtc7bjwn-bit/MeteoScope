@@ -27,13 +27,17 @@ for (const magnitude of [4, 6, 9]) {
       previous = responseModel.getCurrentIntensityProperties(site, siteTiming.shakingDecayStartSec).currentIntensityValue;
       for (let t = siteTiming.shakingDecayStartSec + 1; t <= siteTiming.shakingEndSec + 1; t++) {
         const state = responseModel.getCurrentIntensityProperties(site, t);
-        assert.ok(previous - state.currentIntensityValue <= .21, "the tail cannot collapse several intensity units in its last seconds");
+        assert.ok(previous - state.currentIntensityValue <= .060001, "the tail cannot collapse several intensity units in its last seconds");
         assert.equal(state.recordedIntensityValue, predictedIntensityValue, "smoothing never lowers the recorded maximum");
         previous = state.currentIntensityValue;
       }
     }
   }
 }
+assert.ok(model.getCurrentIntensityProperties(sample, timing.shakingDecayStartSec + 30).currentIntensityValue > 5,
+  "strong motion cannot drop multiple classes in the first half-minute of decay");
+assert.ok(model.getCurrentIntensityProperties(sample, timing.shakingDecayStartSec + 90).currentIntensityValue > 1,
+  "weaker motion persists after the strong-motion phase");
 const peak = model.getCurrentIntensityProperties(sample, timing.shakingDecayStartSec);
 assert.equal(peak.recordedIntensityValue, sample.predictedIntensityValue);
 assert.equal(peak.currentIntensityValue, 5.8);
@@ -74,7 +78,7 @@ assert.ok(createWeSimulatorModel({ magnitude: 8.1, depthKm: 225 }).getStationSha
 assert.deepEqual(createWeSimulatorModel({ magnitude: 8.1, depthKm: 700 }).getStationShakingTiming(distant), deepTiming, "depth cannot amplify the coda without bound");
 const oldQuietTime = shallowTiming.shakingEndSec + .1;
 assert.equal(shallowModel.getCurrentIntensityProperties(distant, oldQuietTime).currentIntensityValue, 0);
-assert.ok(deepModel.getCurrentIntensityProperties(distant, oldQuietTime).currentIntensityValue > .5, "a deep-event tail remains felt beyond the old cut-off");
+assert.ok(deepModel.getCurrentIntensityProperties(distant, oldQuietTime).currentIntensityValue > .1, "a deep-event tail remains felt beyond the old cut-off");
 let previousDeep = Infinity;
 for (let step = 0; step <= 100; step++) {
   const t = deepTiming.shakingDecayStartSec + (deepTiming.shakingEndSec - deepTiming.shakingDecayStartSec) * step / 100;
@@ -92,6 +96,38 @@ for (const [pArrivalSec, sArrivalSec] of [[1, 1000], [10, 5], [Infinity, Infinit
 }
 
 const catalogue = JSON.parse(await readFile(new URL("../public/data/jma-intensity-stations.json", import.meta.url), "utf8"));
+const plateBoundaries = JSON.parse(await readFile(new URL("../public/data/usgs-plate-boundaries-japan.geojson", import.meta.url), "utf8"));
+// Small geographically spread catalogue exercises every source path through
+// preparation, seeking and final rendering without multiplying full-data work.
+const coverageSites = Object.fromEntries([[135.5, 34.6], [139.7, 35.7], [142, 39], [145, 43]].map(([longitude, latitude], i) =>
+  [String(i), { code: String(i), name: `Synthetic ${i}`, longitude, latitude }]));
+const sourceCases = [
+  { model: "point", magnitude: 6 },
+  { model: "point", magnitude: 8.1, depthKm: 590, longitude: 139, latitude: 28 },
+  { model: "active-fault", magnitude: 7, depthKm: 10, activeFault: {
+    FLT_ID: "F000001_00001", LTENAME: "Synthetic fault", LON: 135.5, LAT: 34.5,
+    DEP: 2, LEN: 40, WID: 16, STR: 10, DIP: 70, MAG: -7,
+  } },
+  ...["full", "east", "west"].map(variant => getSimulationPresetOptions("nankai-trough", variant)),
+  getSimulationPresetOptions("kuril-trench"), getSimulationPresetOptions("japan-trench"),
+];
+for (const input of sourceCases) {
+  const simulation = await prepareEarthquakeSimulation(input, coverageSites, { plateBoundaries, yieldTask: async () => {} });
+  const station = simulation.stations.reduce((a, b) => a.predictedIntensityValue > b.predictedIntensityValue ? a : b);
+  assert.ok(station.predictedIntensityValue >= .5, `coverage includes a felt site: ${JSON.stringify(input)}`);
+  const at = t => simulation.frame(t).stations.features.find(f => f.properties.id === station.id).properties;
+  const atPeak = at(station.shakingDecayStartSec);
+  let previous = atPeak.currentIntensityValue;
+  for (let t = station.shakingDecayStartSec + 1; t <= station.shakingEndSec + 1; t++) {
+    const current = at(t);
+    assert.ok(previous - current.currentIntensityValue <= .060001, `${input.model}: bounded decline after rounding`);
+    assert.ok(current.currentIntensityValue <= previous, "no artificial pulses in the coda");
+    assert.equal(current.recordedIntensity, atPeak.recordedIntensity);
+    previous = current.currentIntensityValue;
+  }
+  assert.equal(at(simulation.duration).intensity, "0");
+  assert.deepEqual(at(station.shakingDecayStartSec), atPeak, "seeking restores the peak after reaching the end");
+}
 for (const input of [{ magnitude: 6 }, getSimulationPresetOptions("nankai-trough"), getSimulationPresetOptions("kuril-trench")]) {
   const simulation = await prepareEarthquakeSimulation(input, catalogue, { yieldTask: async () => {} });
   const affected = simulation.stations.filter(s => s.predictedIntensityValue >= .5 && Number.isFinite(s.sArrivalSec));

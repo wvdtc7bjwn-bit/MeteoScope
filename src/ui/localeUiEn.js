@@ -17,6 +17,7 @@ AIを使用する回答は1人1日10回（日本時間9時リセット）。AI�
 開発者：|Developer:
 計算コードと想定震源域の公開、およびMeteoScopeへの移植・利用許可に感謝します。|Thank you for publishing the simulation code and source-region models, and for permitting their use and adaptation in MeteoScope.
 WE-Simulatorを開く ↗|Open WE-Simulator ↗
+この断層でシミュレーション|Simulate this fault
 ソースコード ↗|Source code ↗
 地盤補正なし|Without ground correction
 解析中|Analyzing
