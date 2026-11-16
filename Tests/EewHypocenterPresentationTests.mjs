@@ -55,6 +55,12 @@ for (const scenario of ["assumption", "plum"]) {
   assert.equal(features[0].properties.positionLabel, "仮定位置");
 }
 const plumOnly = normalizeWolfxEew({ EventID: "plum-only", OriginalText: "PLUM法による緊急地震速報（警報）", Latitude: 36, Longitude: 140 }, { receivedAt: now });
+const level = createLocalEewTestEvent("level", { now });
+const levelFeatures = frame(level).features;
+assert.equal(levelFeatures.length, 1, "CodeType level reports with compatible source values must not draw waves");
+assert.equal(style(marker.layout["text-field"], levelFeatures[0]), "◌");
+assert.equal(levelFeatures[0].properties.positionLabel, "震源調査中");
+assert.equal(level.isAssumption, false);
 assert.equal(frame(plumOnly).features[0].properties.positionLabel, "仮定位置");
 assert.equal(frame({ ...plumOnly, coordinates: null }).features.length, 0, "never fabricate a location without coordinates");
 assert.equal(frame({ ...one, isCancel: true }).features.length, 0, "cancellation removes both the marker and its label");
@@ -63,4 +69,5 @@ assert.equal(frame(createLocalEewTestEvent("mixed", { now })).features[0].proper
 language = "en";
 assert.equal(frame(one).features[0].properties.positionLabel, "Single-station detection / initial estimate");
 assert.equal(frame(plumOnly).features[0].properties.positionLabel, "Assumed position");
+assert.equal(frame(level).features[0].properties.positionLabel, "Hypocenter under investigation");
 console.log("EEW marker: evaluated dotted/yellow/label styles, one-to-multiple replacement, P/S gates, PLUM distinction, absent coordinates, cancellation and English labels passed");

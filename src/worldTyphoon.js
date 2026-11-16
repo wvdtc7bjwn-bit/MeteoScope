@@ -52,7 +52,7 @@ export const WORLD_TYPHOON_MODELS = {
   }
 };
 
-const WORLD_TYPHOON_URLS = {
+export const WORLD_TYPHOON_URLS = {
   ecmwf: import.meta.env?.VITE_WORLD_TYPHOON_DATA_URL
     || `${PRODUCTION_WORLD_TYPHOON_ROOT}/world-typhoon-forecast.json`,
   "ifs-hres": import.meta.env?.VITE_WORLD_TYPHOON_IFS_HRES_DATA_URL
@@ -97,6 +97,11 @@ async function fetchWorldTyphoonPayload(url) {
 export async function fetchWorldTyphoonForecast(modelId = "ecmwf") {
   const model = normalizeWorldTyphoonModel(modelId);
   const payload = await fetchWorldTyphoonPayload(WORLD_TYPHOON_URLS[model]);
+  return normalizeWorldTyphoonForecast(payload, model);
+}
+
+export function normalizeWorldTyphoonForecast(payload, modelId = "ecmwf") {
+  const model = normalizeWorldTyphoonModel(modelId);
   if (Number(payload?.schemaVersion) !== 1 || !Array.isArray(payload?.systems)) {
     throw new Error("World typhoon forecast response has an unsupported schema");
   }

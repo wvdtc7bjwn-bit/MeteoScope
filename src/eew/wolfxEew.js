@@ -44,7 +44,9 @@ function getMethodMetadata(payload, { isAssumption = false } = {}) {
   const statements = String(payload.OriginalText ?? "").normalize("NFKC").split(/[。\n]/u).map(s => s.trim());
   const hasMixedEvidence = statements.some(s => /^(?:通常方式|IPF法)とPLUM法を併用(?:した(?:情報|速報)|による速報)?$/u.test(s));
   const hasPlumEvidence = hasMixedEvidence || statements.some(s => /^PLUM法(?:のみ)?による(?:緊急地震速報|震度予測)(?:[（(](?:予報|警報)[）)])?$/u.test(s));
-  const level = descriptions.some(s => /^(?:P波|S波|P波\/S波)レベル(?:越え|法)$/u.test(s));
+  // CodeType identifies this intensity-only announcement, not every source method.
+  const level = String(payload.CodeType ?? "").normalize("NFKC").trim() === "最大予測震度のみの緊急地震速報"
+    || descriptions.some(s => /^(?:P波|S波|P波\/S波)レベル(?:越え|法)$/u.test(s));
   const ipf = descriptions.some(s => /^IPF法\((?:[1-4]点|5点以上)\)$/u.test(s));
   const ipfOne = descriptions.some(s => s === "IPF法(1点)");
   const reliable = descriptions.length === 2 && descriptions.every(s => /^(?:IPF法\((?:[2-4]点|5点以上)\)|着未着法|EPOS|防災科研システム)$/u.test(s));
@@ -183,20 +185,27 @@ export function normalizeWolfxEew(payload, { receivedAt = Date.now(), transport 
       magnitude: cleanText(payload.Accuracy?.Magnitude)
     },
     warnAreas: Array.isArray(payload.WarnArea)
-      ? payload.WarnArea.slice(0, 200).map((area) => ({
-        code: cleanText(area?.Code, "", 20),
-        name: cleanText(area?.Chiiki),
-        from: normalizeIntensity(area?.Shindo1),
-        to: normalizeIntensity(area?.Shindo2),
-        announcedTime: parseJstDateTime(area?.Time),
-        arrivalTime: null,
-        arrived: area?.Arrive == null ? null : asBoolean(area.Arrive),
-        intensityMethod: "unknown",
-        methodEvidence: "insufficient-data",
-        source: "Wolfx JMA EEW",
-        isWarning: area?.Type === "警報" ? true : area?.Type === "予報" ? false : null,
-        type: cleanText(area?.Type)
-      })).filter((area) => area.name)
+      ? payload.WarnArea.slice(0, 200).map((area) => {
+        // Wolfx defines Shindo1 as maximum and Shindo2 as minimum.
+        // Also tolerate older/reversed pairs without displaying a descending range.
+        let from = normalizeIntensity(area?.Shindo2);
+        let to = normalizeIntensity(area?.Shindo1);
+        if (from && to && getIntensityRank(from) > getIntensityRank(to)) [from, to] = [to, from];
+        return {
+          code: cleanText(area?.Code, "", 20),
+          name: cleanText(area?.Chiiki),
+          from,
+          to,
+          announcedTime: parseJstDateTime(area?.Time),
+          arrivalTime: null,
+          arrived: area?.Arrive == null ? null : asBoolean(area.Arrive),
+          intensityMethod: "unknown",
+          methodEvidence: "insufficient-data",
+          source: "Wolfx JMA EEW",
+          isWarning: area?.Type === "警報" ? true : area?.Type === "予報" ? false : null,
+          type: cleanText(area?.Type)
+        };
+      }).filter((area) => area.name)
       : [],
     isWarn: asBoolean(payload.isWarn),
     isFinal: asBoolean(payload.isFinal),
@@ -213,9 +222,9 @@ export function normalizeWolfxEew(payload, { receivedAt = Date.now(), transport 
     onePointDetectionEvidence: detection.evidence,
     isOnePointDetection: detection.isOnePoint,
     // Presentation only: a one-point estimate is not an assumed source.
-    hypocenterMarkerUncertain: isAssumption || method.type === "plum" || detection.isOnePoint,
+    hypocenterMarkerUncertain: isAssumption || method.type === "plum" || method.hypocenterMethod === "level" || detection.isOnePoint,
     hypocenterStatusLabel: isAssumption || method.type === "plum" ? "仮定位置"
-      : detection.isOnePoint ? "1点検知・初期推定" : "",
+      : method.hypocenterMethod === "level" ? "震源調査中" : detection.isOnePoint ? "1点検知・初期推定" : "",
     canRenderWaves,
     uncertaintyLabel: method.type === "mixed"
       ? `通常方式とPLUM法を併用した情報${isAssumption ? "・仮定震源要素を使用" : ""}`
@@ -505,7 +514,7 @@ export function createWolfxEewClient({
       try {
         const payload = JSON.parse(text);
         if (["heartbeat", "pong"].includes(payload?.type)) {
-          if (payload.type === "heartbeat") nextSocket.send("pong");
+          if (payload.type === "heartbeat") nextSocket.send("ping");
           return;
         }
         acceptPayload(payload, "websocket");

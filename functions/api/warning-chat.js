@@ -8,10 +8,12 @@ import { addWarningChatKnowledge } from "../_shared/warningChatKnowledge.js";
 import { warningChatDefinition, warningChatKnowledgeQuestion, isDefinitionRefinement } from "../_shared/warningChatGlossary.js";
 import { buildWarningChatDefinitionContext, buildWarningChatDefinitionAnswer } from "../_shared/warningChatDefinition.js";
 import {generalWarningChatEvacuation, buildWarningChatEvacuationContext, buildWarningChatEvacuationAnswer} from "../_shared/warningChatEvacuation.js";
-import { normalizeWarningChatInput, normalizeWarningChatSelection, resolveWarningChatQuestionSelection, isWarningChatEvacuationQuestion, WARNING_CHAT_MODEL, WARNING_CHAT_LIMITS } from "../../src/ai/warningChatPolicy.js";
+import { normalizeWarningChatInput, normalizeWarningChatSelection, resolveWarningChatQuestionSelection, isWarningChatEvacuationQuestion, excludedWarningChatSubject, WARNING_CHAT_MODEL, WARNING_CHAT_LIMITS } from "../../src/ai/warningChatPolicy.js";
 
 import {warningChatSpecialistPlan} from "../_shared/warningChatSpecialist.js";
 import {buildSeismicAdvisoryContext} from "../_shared/warningChatAdvisoryContext.js";
+import {usesWeatherChatFacts, buildWeatherChatFacts} from "../_shared/warningChatWeatherFacts.js";
+import {weatherChatQuestionPeriod} from "../../src/ai/warningChatWeatherQuery.js";
 
 const HEADERS = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", Vary: "Origin" };
 function json(body, status = 200) { return new Response(JSON.stringify(body), { status, headers: HEADERS }); }
@@ -57,18 +59,33 @@ async function handleRequest(context) {
     const input = normalizeWarningChatInput(await readInput(request));
     const auth = await authenticateAccount(request, db);
     if (!auth) return json({ error: "再度ログインしてください。" }, 401);
+    const excluded = excludedWarningChatSubject(input.question, input.history);
+    if (excluded) return json({
+      answer: excluded === "municipal-evacuation"
+        ? input.language === "en" ? "This chat does not answer municipal evacuation orders, shelter availability or evacuation routes. Please check your municipality's official information."
+          : "自治体の避難指示・避難所の開設状況・避難経路については、このチャットでは回答しません。自治体の公式情報をご確認ください。"
+        : input.language === "en" ? "Weather charts, upper-air observations and EEW are excluded from this chat. Please check them in MeteoScope's respective views."
+          : "天気図・高層観測・緊急地震速報（EEW）は、このチャットでは回答対象外です。MeteoScopeの各表示でご確認ください。",
+      answerKind: "unsupported", evidenceIds: [], model: null,
+      context: {topic: input.topic, areaCode: input.areaCode, knowledgeOnly: true, referenceKind: "excluded", revision: `excluded-${excluded}`, sources: []}, generatedAt: new Date().toISOString()
+    });
     const selection = { ...resolveWarningChatQuestionSelection(input), fresh: true };
-    const specialist = warningChatSpecialistPlan(input);
+    const weatherScope = selection.weatherScope;
+    const specialist = weatherScope ? null : warningChatSpecialistPlan(input);
     const evacuation = specialist ? null : generalWarningChatEvacuation(input);
-    const generalKnowledge = specialist || isWarningChatEvacuationQuestion(input.question) ? null : warningChatKnowledgeQuestion(input);
-    const definition = specialist || isWarningChatEvacuationQuestion(input.question) ? null : warningChatDefinition(input) || generalKnowledge;
-    const officialLookup = !specialist && (evacuation || definition
+    const generalKnowledge = weatherScope || specialist || isWarningChatEvacuationQuestion(input.question) ? null : warningChatKnowledgeQuestion(input);
+    const definition = weatherScope || specialist || isWarningChatEvacuationQuestion(input.question) ? null : warningChatDefinition(input) || generalKnowledge;
+    const officialLookup = weatherScope ? usesWeatherChatFacts(input, weatherScope) : !specialist && (evacuation || definition
       ? ["ja", "easy", "en"].includes(input.language) && (Boolean(evacuation) || !isDefinitionRefinement(input.question))
       : usesOfficialChatFacts(input, selection)) && !generalKnowledge;
     const reservation = await reserveWarningChatQuota(db, auth.account.id, { dailyLimit: env.WARNING_CHAT_DAILY_LIMIT, inference: !officialLookup });
     if (!reservation) return json({ error: "本日の個人上限またはAI利用枠に達しました。日本時間9時に再開します。気象庁の情報をご確認ください。" }, 429);
     const { reservationId: _reservationId, ...quota } = reservation;
     const loadEvidence = async () => {
+      if (weatherScope) {
+        const source = await loadWarningChatContext(input.areaCode, {...selection, question: input.question});
+        return ["forecast","early"].includes(weatherScope) ? {...source, requestedPeriod: weatherChatQuestionPeriod(input, Date.parse(source.fetchedAt), weatherScope === "early" ? 5 : 1)} : source;
+      }
       if (specialist) return buildSeismicAdvisoryContext(input, specialist);
       if (evacuation) return buildWarningChatEvacuationContext(input, evacuation);
       if (definition) return buildWarningChatDefinitionContext(input, definition);
@@ -78,7 +95,7 @@ async function handleRequest(context) {
     if (officialLookup) {
       const accessAfterRead = await getAccountEarlyAccess(request, db);
       if (!accessAfterRead.active) return json({error: "アーリーアクセスの権限を再確認してください。"}, 403);
-      const answer = evacuation ? buildWarningChatEvacuationAnswer(input, official)
+      const answer = weatherScope ? buildWeatherChatFacts(input, official) : evacuation ? buildWarningChatEvacuationAnswer(input, official)
         : definition ? buildWarningChatDefinitionAnswer(input, official) : buildOfficialChatFacts(input, official);
       return json({...answer, context: official, quota, model: null, generatedAt: new Date().toISOString()});
     }

@@ -1,21 +1,31 @@
-/* A compact tool beside the forecast, with the existing modal shell. */
-#warning-chat-button {
-  flex: 0 0 34px;
-  width: 34px;
-  height: 32px;
+/* Equal end controls keep the forecast/clock bar centered and easy to tap. */
+#clock { --clock-tool-width: 44px; padding-inline: 0; }
+#clock:not(:has(#warning-chat-button:not([hidden]))) { padding-inline-end: 12px; }
+.clock-tool-button {
+  position: relative;
+  box-sizing: border-box;
+  flex: 0 0 var(--clock-tool-width);
+  width: var(--clock-tool-width);
+  height: 100%;
   display: grid;
   place-items: center;
-  padding: 5px;
+  padding: 0;
   border: 0;
-  border-left: 1px solid currentColor;
   color: inherit;
   background: transparent;
   border-radius: 0;
   cursor: pointer;
 }
+#clock-feedback-button { border-radius: inherit; border-start-end-radius: 0; border-end-end-radius: 0; }
+#warning-chat-button { border-radius: inherit; border-start-start-radius: 0; border-end-start-radius: 0; }
+.clock-tool-button::after { content: ""; position: absolute; inset-block: 25%; width: 1px; background: currentColor; opacity: .25; pointer-events: none; }
+#clock-feedback-button::after { inset-inline-end: 0; }
+#warning-chat-button::after { inset-inline-start: 0; }
 #warning-chat-button[hidden] { display: none; }
-#warning-chat-button svg { width: 23px; height: 23px; }
-#warning-chat-button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.clock-tool-button svg { display: block; width: 22px; height: 22px; }
+.clock-tool-button:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
+@media (max-width: 800px) { #clock { --clock-tool-width: 40px; } }
+@media (hover: hover) { .clock-tool-button:hover { background: rgba(127, 151, 174, .12); } }
 .warning-chat-panel { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
 .warning-chat-panel > .settings-modal-header { display: flex; flex: none; height: auto; align-items: center; justify-content: space-between; gap: 12px; }
 .warning-chat-title-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; min-width: 0; }
@@ -110,10 +120,9 @@
   .warning-chat-panel #warning-chat-send { transition: none; }
 }
 @media (max-width: 420px) {
-  #clock:has(#warning-chat-button:not([hidden])) { max-width: calc(100vw - 90px); box-sizing: border-box; gap: 5px; padding-inline: 8px; }
-  #clock:has(#warning-chat-button:not([hidden])) .current-location-weather { flex: 1 1 auto; max-width: 100px; }
-  #clock:has(#warning-chat-button:not([hidden])) .clock-face { width: 100px; }
-  #warning-chat-button { flex-basis: 30px; width: 30px; }
+  #clock { max-width: calc(100vw - 90px); box-sizing: border-box; gap: 5px; padding-inline: 0; }
+  #clock .current-location-weather { flex: 1 1 auto; max-width: 100px; }
+  #clock .clock-face { width: 100px; }
   .warning-chat-toolbar { grid-template-columns: 90px minmax(0, 1fr) auto; gap: 4px; padding-inline: 10px; }
   .warning-chat-toolbar > details > summary { padding-inline: 6px; }
   .warning-chat-controls { grid-template-columns: 1fr; }
@@ -121,8 +130,7 @@
   .warning-chat-title-row > span { font-size: 10px; }
 }
 @media (max-width: 360px) {
-  #clock:has(#warning-chat-button:not([hidden])) { gap: 4px; padding-inline: 6px; }
-  #clock:has(#warning-chat-button:not([hidden])) #warning-chat-button { flex-basis: 26px; width: 26px; }
-  #clock:has(#warning-chat-button:not([hidden])) .clock-face { width: 82px; }
-  #clock:has(#warning-chat-button:not([hidden])) .current-location-weather { max-width: 85px; }
+  #clock { --clock-tool-width: 32px; gap: 4px; padding-inline: 0; }
+  #clock .clock-face { width: 82px; }
+  #clock .current-location-weather { max-width: 85px; }
 }

@@ -14,12 +14,47 @@ import {
   EEW_WARNING_AREA_COLOR
 } from "../src/eew/eewForecastAreas.js";
 import { parseJstDateTime } from "../src/utils/jstDateTime.js";
+import { createEewAutoFocus } from "../src/eew/eewAutoFocus.js";
 import {
   createLocalEewTestEvent,
   isLocalEewTestEnvironment
 } from "../src/eew/localEewTest.js";
 
 const BASE_TIME = Date.parse("2026-11-10T12:00:00+09:00");
+
+// CodeType identifies intensity-only level-method announcements, including
+// compatible values that could otherwise look like a usable source estimate.
+for (const Accuracy of [{}, { Epicenter: "IPF法(3点)", Depth: "IPF法(3点)" }]) {
+  const event = normalizeWolfxEew(makeEew({ CodeType: "最大予測震度のみの緊急地震速報",
+    Accuracy, Magnitude: 0, Depth: 10, isAssumption: false }), { receivedAt: BASE_TIME });
+  assert.equal(event.methodType, "level");
+  assert.equal(event.hypocenterMethod, "level");
+  assert.equal(event.hypocenterReliability, "low");
+  assert.equal(event.canRenderWaves, false, "compatible detection time and assumed depth cannot produce P/S fronts");
+  assert.equal(event.isAssumption, false, "level method is distinct from JMA's formal assumed source flag");
+  assert.equal(event.hypocenterMarkerUncertain, true);
+  assert.equal(event.hypocenterStatusLabel, "震源調査中");
+  assert.equal(isWolfxEewActive(event, BASE_TIME), true, "intensity-only bulletins are still displayed");
+}
+for (const CodeType of ["Ｍ、最大予測震度及び主要動到達予測時刻の緊急地震速報", "最大予測震度のみの緊急地震速報ではない", "不明", null]) {
+  assert.equal(normalizeWolfxEew(makeEew({ CodeType })).methodType, "unknown", "CodeType does not classify all other source methods");
+}
+{
+  const store = createWolfxEewEventStore({ now: () => BASE_TIME });
+  const focus = createEewAutoFocus({ getItem: () => "1" });
+  const moves = [];
+  store.accept(makeEew({ CodeType: "最大予測震度のみの緊急地震速報", Depth: 10, Magnitude: 0 }));
+  assert.equal(focus.focus(store.getSnapshot().activeEvents, point => moves.push(point)), false, "level reports never move the map to a provisional source");
+  store.accept(makeEew({ Serial: 2, AnnouncedTime: "2026/11/10 11:59:55", CodeType: "Ｍ、最大予測震度及び主要動到達予測時刻の緊急地震速報",
+    Accuracy: { Epicenter: "IPF法(3点)", Depth: "IPF法(3点)" } }));
+  const revised = store.getSnapshot().activeEvents[0];
+  assert.equal(revised.hypocenterMethod, "ipf");
+  assert.equal(revised.canRenderWaves, true);
+  assert.equal(revised.hypocenterMarkerUncertain, false);
+  assert.equal(revised.hypocenterStatusLabel, "");
+  assert.equal(focus.focus([revised], point => moves.push(point)), true, "a later usable report restores normal handling for the same event");
+  assert.equal(moves.length, 1);
+}
 
 // Wolfx HTTP response checked 2026-11-12: Accuracy contains spaced IPF labels.
 // https://api.wolfx.jp/jma_eew.json (event 20261111125704)
@@ -98,6 +133,8 @@ assert.equal(createLocalEewTestEvent("none", { now: BASE_TIME }), null);
   assert.equal(forecast.isLocalTest, true, "ローカルテスト速報を明示する");
   assert.equal(forecast.isWarn, false, "予報シナリオを生成する");
   assert.equal(warning.isWarn, true, "警報シナリオを生成する");
+  assert.ok(warning.warnAreas.every(area => area.isWarning === true));
+  assert.ok(forecast.warnAreas.every(area => area.isWarning === false));
   assert.equal(onePoint.isOnePointDetection, true, "1点検知シナリオは明示情報から判定する");
   assert.equal(plum.methodType, "plum", "PLUM法シナリオを生成する");
   assert.equal(plum.canRenderWaves, false, "PLUM法テストでは到達円を描かない");
@@ -164,6 +201,34 @@ function makeEew(overrides = {}) {
   assert.equal(normalized.coordinates, null, "欠損座標を0度にしない");
 }
 
+// Wolfx Open API and WebSocket specifications checked 2026-11-16.
+// Magnitude is preferred; the deprecated Magunitude alias may be removed.
+for (const [fields, expected] of [
+  [{ Magnitude: 5.3 }, 5.3],
+  [{ Magunitude: 5.4 }, 5.4],
+  [{ Magnitude: 5.5, Magunitude: 5.5 }, 5.5],
+  [{ Magnitude: 5.6, Magunitude: 4.1 }, 5.6],
+  [{ Magnitude: 0, Magunitude: 5.7 }, null]
+]) {
+  const payload = makeEew();
+  delete payload.Magnitude;
+  assert.equal(normalizeWolfxEew({ ...payload, ...fields }).magnitude, expected);
+}
+
+for (const [upper, lower, from, to] of [
+  ["6弱", "5弱", "5-", "6-"],
+  ["5弱", "6弱", "5-", "6-"],
+  ["4", "4", "4", "4"],
+  ["6強", null, "", "6+"],
+  [null, "4", "4", ""],
+  ["不明", "不明", "", ""]
+]) {
+  const area = normalizeWolfxEew(makeEew({ WarnArea: [{ Chiiki: "茨城県北部", Shindo1: upper, Shindo2: lower, Type: "警報" }] })).warnAreas[0];
+  assert.equal(area.from, from);
+  assert.equal(area.to, to);
+  assert.equal(area.isWarning, true);
+}
+
 {
   const areaGeoJson = {
     type: "FeatureCollection",
@@ -175,7 +240,7 @@ function makeEew(overrides = {}) {
   const warning = normalizeWolfxEew(makeEew({
     isWarn: true,
     WarnArea: [
-      { Code: "310", Chiiki: "茨城県北部", Shindo1: "4", Shindo2: "5弱" },
+      { Code: "310", Chiiki: "茨城県北部", Shindo1: "5弱", Shindo2: "4" },
       { Code: "311", Chiiki: "茨城県南部", Shindo1: "4", Shindo2: "4" }
     ]
   }), { receivedAt: BASE_TIME });
@@ -327,9 +392,17 @@ function makeEew(overrides = {}) {
   const socket = FakeWebSocket.instances[0];
   socket.open();
   assert.equal(socket.sent.includes("query_jmaeew"), true, "接続時に最新報を問い合わせる");
+  socket.dispatch("message", { data: JSON.stringify({ type: "heartbeat", ver: 1, id: "test-only", timestamp: String(BASE_TIME) }) });
+  assert.equal(socket.sent.at(-1), "ping", "JSON heartbeatには仕様のpingコマンドを返す");
+  const afterHeartbeat = socket.sent.length;
+  socket.dispatch("message", { data: JSON.stringify({ type: "pong", timestamp: String(BASE_TIME) }) });
+  assert.equal(socket.sent.length, afterHeartbeat, "JSON pongへ返信を繰り返さない");
+  assert.equal(client.getSnapshot().activeEvents.length, 0, "heartbeatやpongを速報として登録しない");
   socket.dispatch("message", { data: "ping" });
   assert.equal(socket.sent.includes("pong"), true, "サーバーのpingへ応答する");
   client.refresh();
+  client.start();
+  assert.equal(FakeWebSocket.instances.length, 1, "開始や再取得を繰り返しても有効接続を重複させない");
   assert.equal(socket.sent.filter((value) => value === "query_jmaeew").length >= 2, true, "接続済みでも再問い合わせる");
   socket.dispatch("message", { data: JSON.stringify(makeEew({ Serial: 2, AnnouncedTime: "2026/11/10 11:59:55" })) });
   await new Promise((resolve) => setTimeout(resolve, 0));

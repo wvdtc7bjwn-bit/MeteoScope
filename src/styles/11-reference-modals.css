@@ -1070,7 +1070,12 @@ html[data-theme="light"] .hazard-directory-status[data-status="error"] { color: 
 .hazard-directory-results strong { font-size: 16px; line-height: 1.6; overflow-wrap: anywhere; }
 .hazard-directory-results a > span:not(.hazard-directory-arrow) { grid-column: 1; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .hazard-directory-results a:hover { background: var(--modal-control-surface); }
-.hazard-directory-arrow { grid-column: 2; grid-row: 1 / 3; align-self: center; font-size: 26px; color: var(--modal-focus); }
+.hazard-directory-arrow { grid-column: 2; grid-row: 1 / 4; align-self: center; font-size: 26px; color: var(--modal-focus); }
+.hazard-directory-results .hazard-directory-help { padding: 20px 4px 10px; border-bottom: 0; color: var(--muted); font-size: 13px; font-weight: 650; }
+.hazard-directory-correction { margin: -4px 4px 14px; padding-inline-start: 10px; border-inline-start: 2px solid var(--modal-focus); color: var(--muted); font-size: 12px; line-height: 1.6; }
+.hazard-directory-correction p { margin: 3px 0; }
+.hazard-directory-correction p:first-child { color: var(--modal-foreground); font-weight: 650; }
+.hazard-directory-results .hazard-directory-correction a { display: block; width: fit-content; min-height: 32px; padding: 6px 0; color: var(--modal-focus); font-size: 12px; text-decoration: underline; }
 .hazard-directory-source { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--modal-control-border); font-size: 12px; line-height: 1.7; color: var(--muted); }
 .hazard-directory-source p { margin: 6px 0 0; }
 .hazard-directory-source a { color: var(--modal-focus); overflow-wrap: anywhere; }

@@ -560,7 +560,7 @@ export function buildAreaHierarchy(areaConst, municipalityIndex, weeklyAreaMappi
   return { collectMunicipalityCodes, getAreaName, getDisplayAreaCodes, getOfficeCode };
 }
 
-function buildNoWaveTideIndex(noWaveTideConst = {}) {
+export function buildNoWaveTideIndex(noWaveTideConst = {}) {
   return {
     wave: buildNoWaveTideCodeSet(noWaveTideConst.wave),
     tide: buildNoWaveTideCodeSet(noWaveTideConst.tide)
@@ -747,7 +747,7 @@ function getJstDatePart(date, type) {
   return parts.find((part) => part.type === type)?.value ?? "00";
 }
 
-function normalizeEarlyWarningType(type) {
+export function normalizeEarlyWarningType(type) {
   return normalizeWeatherHazardType(type);
 }
 

@@ -128,17 +128,17 @@ try {
   assert.match((await latestResponse.json()).answer, /M3\.5\n深さ10km/);
   assert.equal(calls, 0, "Simple single-event fields also use no inference");
   globalThis.fetch = async () => {throw new Error("Live sources intentionally unavailable");};
-  const glossaryResponse = await onRequest({request: request({question: "PLUM法とは？"}), env});
+  const glossaryResponse = await onRequest({request: request({question: "震度とは？"}), env});
   assert.equal(glossaryResponse.status, 200, "Definitions do not depend on live bulletin availability");
   const glossary = await glossaryResponse.json();
   assert.equal(glossary.context.knowledgeOnly, true);
-  assert.match(glossary.answer, /PLUM/);
+  assert.match(glossary.answer, /震度/);
   assert.equal(calls, 0);
   const refinement = await onRequest({request: request({question: "もっと簡単に", revision: glossary.context.revision,
-    history: [{role: "user", content: "PLUM法とは？"}, {role: "assistant", content: glossary.answer}]}),
+    history: [{role: "user", content: "震度とは？"}, {role: "assistant", content: glossary.answer}]}),
     env: {...env, AI: {async run(_model, args) {
       calls++; assert.match(JSON.stringify(args.messages), /knowledgeOnly/);
-      return {response: JSON.stringify({answer: "近くで観測した揺れを使って、周りの揺れを予想する方法です。", evidenceIds: ["knowledge"]})};
+      return {response: JSON.stringify({answer: "震度は、その場所での揺れの強さを表します。", evidenceIds: ["knowledge"]})};
     }}}});
   assert.equal(refinement.status, 200, "A terminology follow-up keeps its subject without fetching live bulletins");
   assert.equal(calls, 1, "An explicit refinement uses one inference, never an automatic retry");

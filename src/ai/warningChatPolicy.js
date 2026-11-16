@@ -1,8 +1,11 @@
+import {warningChatWeatherScope} from "./warningChatWeatherQuery.js";
+import {WARNING_CHAT_DATA_PRODUCTS, warningChatDataProduct} from "./warningChatDataProducts.js";
+
 // Shared limits are enforced again on the server. UTC matches Workers AI's reset.
 export const WARNING_CHAT_MODEL = "@cf/google/gemma-4-26b-a4b-it";
 export const WARNING_CHAT_LIMITS = Object.freeze({ daily: null, perAccount: 10, promptBytes: 12288, outputTokens: 1024, reservedNeurons: 200, dailyNeurons: 10000 });
 export const WARNING_CHAT_LANGUAGES = Object.freeze({ ja: "日本語", easy: "やさしい日本語", en: "English", zh: "中文", ko: "한국어", vi: "Tiếng Việt", pt: "Português", es: "Español" });
-export const WARNING_CHAT_QUESTIONS = Object.freeze(["現在発表中の警報・注意報は？", "現在の発表では、いつまで警戒が必要？", "現在の発表で何に気をつければいい？", "警報と注意報はどう違う？", "大雨のとき、避難はどう判断する？"]);
+export const WARNING_CHAT_QUESTIONS = Object.freeze(["現在発表中の警報・注意報は？", "明日の天気は？", "明日の降水確率は？", "早期注意情報は？", "現在の発表では、いつまで警戒が必要？", "現在の発表で何に気をつければいい？", "警報と注意報はどう違う？", "大雨のとき、避難はどう判断する？"]);
 export const WARNING_CHAT_TOPICS = Object.freeze({ weather: "気象", earthquake: "地震", tsunami: "津波" });
 export const WARNING_CHAT_TOPIC_QUESTIONS = Object.freeze({
   weather: WARNING_CHAT_QUESTIONS,
@@ -23,17 +26,40 @@ export function isWarningChatEvacuationQuestion(question) {
   return /避難|避难|撤离|撤離|逃げ|身を守|安全確保|警戒レベル|evacuat|evacuación|take cover|shelter|protect (?:myself|yourself)|대피|피난|sơ tán|trú ẩn|abrigo|refúgio|huir/iu.test(question);
 }
 
+export function isMunicipalEvacuationQuestion(question, history = []) {
+  if (/^(?:それ|そこ|では|じゃあ|近く|どこ|開いて|いつ|which|where|is it open)/iu.test(question)) {
+    const previous = [...history].reverse().find(item => item.role === "user");
+    if (previous && isMunicipalEvacuationQuestion(previous.content)) return true;
+  }
+  return /避難指示|高齢者等避難|緊急安全確保|避難情報|避難所|避難場所|避難経路|避難ルート|自治体[^。\n]{0,20}避難|市(?:町村|役所)[^。\n]{0,20}避難|evacuation (?:order|route|cent(?:er|re))|(?:open|nearest) shelter|\bshelters?\b(?!\s+in\s+place)|municipal[^.\n]{0,30}evacuat|대피소|避难所|避難路線/iu.test(question);
+}
+
+export function excludedWarningChatSubject(question, history = []) {
+  if (isMunicipalEvacuationQuestion(question, history)) return "municipal-evacuation";
+  if (/天気図|等圧線|前線の(?:位置|状況)|weather chart|isobar/iu.test(question)) return "weather-chart";
+  if (/高層(?:観測|気象)|エマグラム|ラジオゾンデ|上空.*(?:気温|湿度|風)|upper.air|emagram|radiosonde/iu.test(question)) return "upper-air";
+  if (/緊急地震速報|\bEEW\b|PLUM|レベル法|単独点|1点検知|earthquake early warning/iu.test(question)) return "eew";
+  if (/^(?:それ|その|そこ|では|じゃあ|もっと|詳しく|続き|what about|tell me more|explain it)/iu.test(question)) {
+    const previous = [...history].reverse().find(item => item.role === "user");
+    if (previous) return excludedWarningChatSubject(previous.content);
+  }
+  return "";
+}
+
 export function normalizeWarningChatSelection(input) {
   const topic = input?.topic ?? "weather";
   if (!Object.hasOwn(WARNING_CHAT_TOPICS, topic)) throw new TypeError("質問する情報を選択してください。");
   const eventId = input?.eventId ?? "";
   const forecastAreaCode = input?.forecastAreaCode ?? "";
   const earthquakeScope = input?.earthquakeScope ?? "selected";
+  const weatherScope = input?.weatherScope ?? "warnings";
+  if (!["warnings", "forecast", "early", ...Object.keys(WARNING_CHAT_DATA_PRODUCTS)].includes(weatherScope)) throw new TypeError("気象情報の種類を確認してください。");
   if (!["selected", "recent-local"].includes(earthquakeScope)) throw new TypeError("地震の検索範囲を確認してください。");
   if (typeof eventId !== "string" || (eventId && !/^\d{14}$/u.test(eventId))) throw new TypeError("対象の地震を選択してください。");
   if (typeof forecastAreaCode !== "string" || (forecastAreaCode && !/^\d{3}$/u.test(forecastAreaCode))) throw new TypeError("津波予報区を選択してください。");
   return { topic, eventId: topic === "weather" ? "" : eventId, forecastAreaCode: topic === "tsunami" ? forecastAreaCode : "",
-    ...(topic === "earthquake" && !eventId && earthquakeScope === "recent-local" ? {earthquakeScope} : {}) };
+    ...(topic === "earthquake" && !eventId && earthquakeScope === "recent-local" ? {earthquakeScope} : {}),
+    ...(topic === "weather" && weatherScope !== "warnings" ? {weatherScope} : {}) };
 }
 
 // Route an explicit multi-event/local observation question to the data it needs,
@@ -54,6 +80,10 @@ export function resolveWarningChatQuestionSelection(input) {
     return {topic: actionTopic, eventId: actionTopic === selected.topic ? selected.eventId : "",
       forecastAreaCode: actionTopic === "tsunami" && actionTopic === selected.topic ? selected.forecastAreaCode : ""};
   }
+  const weatherScope = warningChatDataProduct(input) || warningChatWeatherScope(input);
+  if (weatherScope) return {topic: "weather", eventId: "", forecastAreaCode: "", weatherScope};
+  // A new warning/definition question must not remain pinned to forecast data.
+  delete selected.weatherScope;
   if (selected.topic === "earthquake" && /最新の地震|the latest earthquake/iu.test(question) && !recent) return {topic: "earthquake", eventId: "", forecastAreaCode: ""};
   if (recent && local && quakes) return {topic: "earthquake", eventId: "", forecastAreaCode: "", earthquakeScope: "recent-local"};
   if (selected.topic !== "earthquake" && /地震|震度|震源|マグニチュード|earthquake|magnitude/iu.test(question)) return {topic: "earthquake", eventId: "", forecastAreaCode: ""};

@@ -49,12 +49,12 @@ export function setupFeedbackModal() {
   if (feedbackModalInitialized) return;
   feedbackModalInitialized = true;
 
-  const openButton = document.getElementById("feedback-open");
+  const openButtons = document.querySelectorAll("#feedback-open, #clock-feedback-button");
   const modal = document.getElementById("feedback-modal");
   const form = document.getElementById("feedback-form");
-  if (!openButton || !modal || !form) return;
+  if (!openButtons.length || !modal || !form) return;
 
-  openButton.addEventListener("click", openFeedbackModal);
+  openButtons.forEach(button => button.addEventListener("click", openFeedbackModal));
   modal.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
     if (event.target.closest("[data-feedback-modal-close]")) closeFeedbackModal();

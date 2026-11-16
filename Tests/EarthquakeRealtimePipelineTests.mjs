@@ -119,6 +119,12 @@ assert.doesNotMatch(onePointMarkup, /M仮定値|深さ仮定値/);
 const assumedMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", createLocalEewTestEvent("assumption"));
 assert.match(assumedMarkup, /仮定位置/);
 
+const levelMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", createLocalEewTestEvent("level"));
+assert.match(levelMarkup, /M調査中/);
+assert.match(levelMarkup, /深さ調査中/);
+assert.match(levelMarkup, /震源調査中/);
+assert.doesNotMatch(levelMarkup, /M0\.0|深さ10km|M仮定値|深さ仮定値/, "CodeType level-method compatibility values are not measured source parameters");
+
 // 実アプリの受信ハンドラーも、速報ではXMLを追加取得せず、EEW地図を維持する。
 const app = readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
 const handler = app.slice(app.indexOf("  async function handleRealtimeEarthquakeUpdate("), app.indexOf("  function followLatestEarthquakeUpdate("));

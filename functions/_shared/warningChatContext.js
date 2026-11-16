@@ -5,6 +5,10 @@ export { fetchWarningChatJson } from "./warningChatSources.js";
 import { applyWarningKinds } from "../../src/jma/warningCore.js";
 import { buildWarningOutlookMap } from "../../src/jma/warnings.js";
 import { parseWarningOutlookDurationHours } from "../../src/warningOutlookTime.js";
+import {loadWeatherForecastChatContext} from "./warningChatForecast.js";
+import {loadEarlyWarningChatContext} from "./warningChatEarly.js";
+import {loadAppDataChatContext} from "./warningChatAppData.js";
+import {WARNING_CHAT_DATA_PRODUCTS} from "../../src/ai/warningChatDataProducts.js";
 
 const JMA = "https://www.jma.go.jp/bosai";
 export const WARNING_CHAT_SOURCES = Object.freeze([
@@ -16,6 +20,9 @@ export async function loadWarningChatContext(areaCode, options = {}) {
   if (topic === "earthquake" && options.earthquakeScope === "recent-local") return loadRecentLocalEarthquakes(areaCode, options);
   if (topic === "earthquake" || topic === "tsunami") return loadSeismicChatContext(areaCode, options);
   if (topic !== "weather") throw new TypeError("質問する情報を選択してください。");
+  if (options.weatherScope === "forecast") return loadWeatherForecastChatContext(areaCode, options);
+  if (options.weatherScope === "early") return loadEarlyWarningChatContext(areaCode, options);
+  if (Object.hasOwn(WARNING_CHAT_DATA_PRODUCTS, options.weatherScope ?? "")) return loadAppDataChatContext(areaCode, options);
   return loadWeatherChatContext(areaCode, options);
 }
 

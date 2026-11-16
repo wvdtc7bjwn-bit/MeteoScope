@@ -1,4 +1,4 @@
-import { HAZARD_CATEGORIES, getMunicipalHazardLinks } from "../domain/municipalHazardMaps.js";
+import { HAZARD_CATEGORIES, getMunicipalHazardLinks, getMunicipalHazardLookupUrls } from "../domain/municipalHazardMaps.js";
 
 export function createHazardDirectoryClient({ fetchImpl = globalThis.fetch, baseUrl = `${import.meta.env?.BASE_URL ?? "/"}data/municipal-hazard-maps/`, timeoutMs = 10_000 } = {}) {
   const cache = new Map();
@@ -7,7 +7,7 @@ export function createHazardDirectoryClient({ fetchImpl = globalThis.fetch, base
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     const promise = Promise.resolve().then(async () => {
-      const response = await fetchImpl(`${baseUrl}${path}`, { signal: controller.signal });
+      const response = await fetchImpl(`${baseUrl}${path}`, { signal: controller.signal, cache: path === "index.json" ? "no-cache" : "default" });
       if (!response.ok) throw new Error(`Hazard directory HTTP ${response.status}`);
       const data = await response.json();
       if (!validate(data)) throw new Error("Invalid hazard directory data");
@@ -88,35 +88,77 @@ export function setupMunicipalHazardMaps(root, { client = createHazardDirectoryC
     }
   }
   function selectedCity() { return data?.municipalities.find((city) => city.code === municipality.value); }
+  function appendLink(link, label = "", description = "") {
+    const item = document.createElement("li");
+    const anchor = document.createElement("a");
+    anchor.href = link.url;
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    const name = document.createElement("strong");
+    if (label) name.textContent = label;
+    else link.categories.forEach((id, i) => {
+      if (i) name.append(document.createTextNode(" / "));
+      const kind = document.createElement("span");
+      kind.textContent = HAZARD_CATEGORIES.find(item => item.id === id).label;
+      name.append(kind);
+    });
+    const detail = document.createElement("span");
+    detail.textContent = description || (link.kind === "webmap" ? "Web地図を開く" : /\.pdf$/iu.test(new URL(link.url).pathname) ? "PDFを開く" : "地図・PDFの掲載ページを開く");
+    const host = document.createElement("span");
+    host.textContent = new URL(link.url).hostname;
+    host.dataset.i18nIgnore = "";
+    const arrow = document.createElement("span");
+    arrow.textContent = "↗";
+    arrow.className = "hazard-directory-arrow";
+    arrow.setAttribute("aria-hidden", "true");
+    anchor.append(name, detail, host, arrow);
+    item.append(anchor);
+    if (link.replacements?.length) {
+      const notice = document.createElement("div");
+      notice.className = "hazard-directory-correction";
+      const disclosure = document.createElement("p");
+      disclosure.textContent = "MeteoScopeがリンク先を独自に置換";
+      const date = document.createElement("p");
+      const dateLabel = document.createElement("span");
+      dateLabel.textContent = "確認日";
+      date.append(dateLabel, document.createTextNode(`: ${link.checkedAt}`));
+      notice.append(disclosure, date);
+      for (const original of link.replacements) {
+        const reference = document.createElement("a");
+        reference.href = original.url;
+        reference.target = "_blank";
+        reference.rel = "noopener noreferrer";
+        const originalLabel = document.createElement("span");
+        originalLabel.textContent = "国土地理院の元リンク";
+        reference.append(originalLabel, document.createTextNode("（"));
+        original.categories.forEach((id, i) => {
+          if (i) reference.append(document.createTextNode(" / "));
+          const label = document.createElement("span");
+          label.textContent = HAZARD_CATEGORIES.find(kind => kind.id === id).label;
+          reference.append(label);
+        });
+        reference.append(document.createTextNode("） ↗"));
+        notice.append(reference);
+      }
+      item.append(notice);
+    }
+    results.append(item);
+  }
   function renderLinks() {
     results.replaceChildren();
     const city = selectedCity();
     if (!city) { announce("市区町村を選んでください。"); return; }
     const links = getMunicipalHazardLinks(city, category.value);
     announce(links.length ? "資料を選ぶと、自治体の公式ページを別タブで開きます。" : "この種類の資料は一覧に掲載されていません。災害リスクがないことを示すものではありません。");
-    for (const link of links) {
-      const item = document.createElement("li");
-      const anchor = document.createElement("a");
-      anchor.href = link.url;
-      anchor.target = "_blank";
-      anchor.rel = "noopener noreferrer";
-      const name = document.createElement("strong");
-      link.categories.forEach((id, i) => {
-        if (i) name.append(document.createTextNode(" / "));
-        const label = document.createElement("span");
-        label.textContent = HAZARD_CATEGORIES.find((kind) => kind.id === id).label;
-        name.append(label);
-      });
-      const host = document.createElement("span");
-      host.textContent = new URL(link.url).hostname;
-      host.dataset.i18nIgnore = "";
-      const arrow = document.createElement("span");
-      arrow.textContent = "↗";
-      arrow.className = "hazard-directory-arrow";
-      arrow.setAttribute("aria-hidden", "true");
-      anchor.append(name, host, arrow);
-      item.append(anchor);
-      results.append(item);
+    for (const link of links) appendLink(link);
+    const lookup = getMunicipalHazardLookupUrls(index.prefectures.find(item => item.code === prefecture.value)?.name, city, category.value);
+    if (lookup) {
+      const help = document.createElement("li");
+      help.className = "hazard-directory-help";
+      help.textContent = "見つからない・開けない場合";
+      results.append(help);
+      appendLink({ url: lookup.search }, "最新の公式ページを検索", "選択中の自治体と災害の種類で検索します。");
+      appendLink({ url: lookup.directory }, "国土地理院の自治体別一覧", "自治体が公開する資料の一覧を確認できます。");
     }
   }
   function selectCity() {

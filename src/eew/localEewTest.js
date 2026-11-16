@@ -26,6 +26,7 @@ function formatJstDateTime(timestamp) {
 }
 
 function buildPayload(scenario, now) {
+  const areaType = ["warning", "plum"].includes(scenario) ? "警報" : "予報";
   const common = {
     Title: "緊急地震速報（予報）",
     CodeType: "JMA_EEW",
@@ -46,13 +47,13 @@ function buildPayload(scenario, now) {
     isCancel: false,
     isAssumption: false,
     WarnArea: [
-      { Code: "311", Chiiki: "茨城県南部", Shindo1: "5弱", Shindo2: "6弱", Type: "Forecast", Arrive: false },
-      { Code: "310", Chiiki: "茨城県北部", Shindo1: "4", Shindo2: "5弱", Type: "Forecast", Arrive: false }
+      { Code: "311", Chiiki: "茨城県南部", Shindo1: "6弱", Shindo2: "5弱", Type: areaType, Arrive: false },
+      { Code: "310", Chiiki: "茨城県北部", Shindo1: "5弱", Shindo2: "4", Type: areaType, Arrive: false }
     ]
   };
 
   if (scenario === "forecast") return common;
-  if (scenario === "level") return { ...common, Accuracy: { Epicenter: "P波レベル越え", Depth: "P波レベル越え" }, OriginTime: null, Latitude: null, Longitude: null, Magnitude: null, Depth: null, Hypocenter: "震源調査中" };
+  if (scenario === "level") return { ...common, CodeType: "最大予測震度のみの緊急地震速報", Accuracy: {}, Magnitude: 0, Depth: 10, Hypocenter: "震源調査中" };
   if (scenario === "ipf-multiple") return { ...common, Serial: 2, OriginalText: "3観測点のデータによる解析" };
   if (scenario === "mixed") return { ...common, OriginalText: "IPF法とPLUM法を併用" };
   if (scenario === "accuracy-unknown") return { ...common, Accuracy: {} };

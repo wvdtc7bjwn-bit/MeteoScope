@@ -38,7 +38,7 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
     byId("forecast-area-label").hidden = topic.value !== "tsunami";
     byId("prefecture-label").hidden = topic.value === "tsunami";
     byId("area-label").hidden = topic.value === "tsunami";
-    byId("empty").textContent = ({ weather: "何に気をつければいい？", earthquake: "地震について、何を知りたいですか？", tsunami: "津波の発表について質問できます" })[topic.value];
+    byId("empty").textContent = ({ weather: "天気予報や防災情報を聞けます", earthquake: "地震について、何を知りたいですか？", tsunami: "津波の発表について質問できます" })[topic.value];
     syncQuestions();
     syncSelection();
   }
@@ -87,7 +87,7 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
     busy = value;
     form.setAttribute("aria-busy", String(value));
     byId("question").readOnly = value;
-    byId("send").disabled = value || !configured || !context;
+    byId("send").disabled = value || !configured || !/^\d{7}$/u.test(areaSelect.value);
     for (const select of [prefecture, areaSelect, language, topic, eventSelect, forecastAreaSelect]) select.disabled = value;
   }
   async function request(query = "", payload, signal) {
@@ -155,7 +155,8 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
     if (value.knowledgeOnly) {
       byId("subject").hidden = true;
       const note = document.createElement("p");
-      note.textContent = value.referenceKind === "evacuation"
+      note.textContent = value.referenceKind === "excluded" ? "指定された種類の情報は回答対象外です。"
+        : value.referenceKind === "evacuation"
         ? "気象庁の資料に基づく一般的な避難行動です。現在の避難指示や避難所の開設状況は取得していません。"
         : "気象庁の用語解説です。現在の地域の発表状況は示していません。";
       panel.append(note);
@@ -189,6 +190,24 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
       renderSeismicChatEvidence(panel, value);
       return;
     }
+    if (value.appData) {
+      const note = document.createElement("p");
+      note.textContent = `${value.appData.label}の取得資料です。回答に記載された地点・対象地域・日時をご確認ください。`;
+      panel.append(note);
+      appendSources(panel, value.sources);
+      return;
+    }
+    if (value.forecast || value.earlyWarning) {
+      const note = document.createElement("p");
+      note.textContent = value.forecast ? `${value.areaName}に対応する区域の天気予報です。気温は予報地点の値です。`
+        : `${value.earlyWarning.areaName}の早期注意情報（警報級の可能性）です。発表中の警報とは異なります。`;
+      const time = document.createElement("p");
+      time.className = "warning-chat-meta";
+      time.textContent = `発表 ${new Date(value.issuedAt).toLocaleString("ja-JP", {timeZone: "Asia/Tokyo", hour12: false})}（日本時間）`;
+      panel.append(note, time);
+      appendSources(panel, value.sources);
+      return;
+    }
     const facts = document.createElement("p");
     facts.textContent = value.warnings.length ? value.warnings.map((item) => item.label).join("／") : "この資料に発表中の気象警報・注意報はありません。安全を保証する表示ではありません。";
     const time = document.createElement("p");
@@ -210,6 +229,7 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
   }
   async function refreshContext() {
     const id = ++sequence;
+    const selection = selectedContext();
     controller?.abort();
     controller = new AbortController();
     clearConversation();
@@ -217,11 +237,14 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
     setBusy(true);
     setStatus("気象庁の情報を確認しています…");
     try {
-      const data = await request(`?${new URLSearchParams(selectedContext())}`, undefined, controller.signal);
+      const data = await request(`?${new URLSearchParams(selection)}`, undefined, controller.signal);
       if (id !== sequence || modal.hidden) return;
       renderContext(data.context);
       setStatus(configured ? "" : availabilityNotice);
-    } catch (error) { if (id === sequence && error.name !== "AbortError") { setStatus(error.message); byId("subject-text").textContent = "対象の情報を確認できません"; } }
+    } catch (error) { if (id === sequence && error.name !== "AbortError") {
+      if ([401,403,429].includes(error.status)) configured = false;
+      setStatus(error.message); byId("subject-text").textContent = "対象の情報を確認できません";
+    } }
     finally { if (id === sequence) setBusy(false); }
   }
   async function open() {
@@ -277,11 +300,12 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
   function selectedContext() {
     return { areaCode: areaSelect.value, topic: topic.value, eventId: topic.value === "weather" ? "" : eventSelect.value,
       forecastAreaCode: topic.value === "tsunami" ? forecastAreaSelect.value : "",
-      ...(topic.value === "earthquake" && !eventSelect.value && context?.earthquakeScope ? {earthquakeScope: context.earthquakeScope} : {}) };
+      ...(topic.value === "earthquake" && !eventSelect.value && context?.earthquakeScope ? {earthquakeScope: context.earthquakeScope} : {}),
+      ...(topic.value === "weather" && context?.weatherScope ? {weatherScope: context.weatherScope} : {}) };
   }
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    if (busy || !configured || !context || !isEarlyAccessEnabled() || !byId("consent").checked) return;
+    if (busy || !configured || !/^\d{7}$/u.test(areaSelect.value) || !isEarlyAccessEnabled() || !byId("consent").checked) return;
     const question = byId("question").value.trim();
     if (!question) return;
     const id = ++sequence;
@@ -292,18 +316,20 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
     conversation.startPending();
     setStatus("回答を準備しています…");
     try {
-      const data = await request("", { ...selectedContext(), language: language.value, question, history, revision: context.revision, consent: true }, controller.signal);
+      const data = await request("", { ...selectedContext(), language: language.value, question, history, revision: context?.revision ?? "", consent: true }, controller.signal);
       if (id !== sequence || modal.hidden || !isEarlyAccessEnabled()) return;
-      if (data.context.revision !== context.revision) clearConversation({keepCurrentTurn: true});
+      if (data.context.revision !== context?.revision) clearConversation({keepCurrentTurn: true});
       renderContext(data.context);
-      conversation.addAnswer(data.answerKind === "official" ? "気象庁の資料から確認" : "AIによる説明 · Gemma 4", data.answer);
+      conversation.addAnswer(data.answerKind === "unsupported" ? "回答対象外" : data.answerKind === "official" ? "気象庁の資料から確認" : "AIによる説明 · Gemma 4", data.answer);
       history.push({ role: "user", content: question }, { role: "assistant", content: data.answer });
       history = history.slice(-4);
       byId("question").value = "";
       resizeInput();
-      const atLimit = data.quota.accountUsed >= WARNING_CHAT_LIMITS.perAccount || (data.quota.dailyLimit !== null && data.quota.used >= data.quota.dailyLimit);
-      setStatus(`本日 ${data.quota.accountUsed}/${WARNING_CHAT_LIMITS.perAccount}回${atLimit ? " · 上限に達しました（日本時間9時再開）" : ""}`);
-      if (atLimit) configured = false;
+      if (data.quota) {
+        const atLimit = data.quota.accountUsed >= WARNING_CHAT_LIMITS.perAccount || (data.quota.dailyLimit !== null && data.quota.used >= data.quota.dailyLimit);
+        setStatus(`本日 ${data.quota.accountUsed}/${WARNING_CHAT_LIMITS.perAccount}回${atLimit ? " · 上限に達しました（日本時間9時再開）" : ""}`);
+        if (atLimit) configured = false;
+      } else setStatus("回答対象外です。利用回数は消費していません。");
     } catch (error) {
       if (id !== sequence || error.name === "AbortError") return;
       if (error.data?.context) { clearConversation(); renderContext(error.data.context); }

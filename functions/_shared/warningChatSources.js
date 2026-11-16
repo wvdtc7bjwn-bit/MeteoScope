@@ -2,7 +2,8 @@ export const JMA_BOSAI = "https://www.jma.go.jp/bosai";
 const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
 const areaCatalogs = new WeakMap();
 
-export async function fetchWarningChatText(url, { fetcher = fetch, fresh = false, accept = "text/html" } = {}) {
+export async function fetchWarningChatText(url, { fetcher = fetch, fresh = false, accept = "text/html", maxBytes = MAX_SOURCE_BYTES } = {}) {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > 8 * 1024 * 1024) throw new Error("invalid_source_limit");
   // Workers does not implement redirect:"error". Reject 3xx via !ok without
   // following Location, preserving the fixed-source boundary on every runtime.
   const response = await fetcher(url, { signal: AbortSignal.timeout(8000), redirect: "manual", cf: { cacheTtl: fresh ? 0 : 20 }, headers: { Accept: accept } });
@@ -15,7 +16,7 @@ export async function fetchWarningChatText(url, { fetcher = fetch, fresh = false
       const { value, done } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > MAX_SOURCE_BYTES) throw new Error("jma_response_too_large");
+      if (size > maxBytes) throw new Error("jma_response_too_large");
       chunks.push(value);
     }
   } finally { await reader.cancel().catch(() => {}); }

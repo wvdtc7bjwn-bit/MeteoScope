@@ -1,6 +1,16 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+天気予報や防災情報を聞けます|Ask about weather forecasts and disaster information
+明日の天気は？|What is tomorrow's weather forecast?
+明日の降水確率は？|What is tomorrow's precipitation probability?
+早期注意情報は？|What does the early warning information say?
+回答対象外|Outside the supported scope
+指定された種類の情報は回答対象外です。|This type of information is excluded from the chat.
+回答対象外です。利用回数は消費していません。|This topic is excluded. Your question allowance was not used.
+自治体の避難指示・避難所の開設状況・避難経路は回答対象外です。|Municipal evacuation orders, shelter availability and evacuation routes are excluded.
+天気予報・早期注意情報・警報、地震・津波、アメダス、台風・海外モデル、火山、潮位、指定河川洪水予報など、MeteoScopeが取得する資料について質問できます。雨雲・雷・雲画像・キキクルは配信時刻を確認できますが、このチャットでは画像から地点の雨量や危険度を読み取りません。解除時刻や安全を保証するものではありません。重要な判断は最新の公式発表で確認してください。|Ask about MeteoScope data including forecasts, early warning information, warnings, earthquakes, tsunamis, AMeDAS, typhoons, global models, volcanoes, tides and river flood bulletins. Radar, lightning, satellite and risk-map metadata provide publication times; this chat does not read local rainfall or risk from images.
+1人1日10回（日本時間9時リセット）。全体の回数上限はなく、AIの無料利用枠に応じて自動停止します。失敗した質問も上限に含む場合があります。会話は画面を閉じると消去します。一般的な身の守り方は説明できます。河川洪水予報は配信資料の範囲で回答します。自治体の避難指示・避難所の開設状況・避難経路は回答対象外です。天気図・高層観測・緊急地震速報（EEW）も回答対象外です。地震予知や独自の津波到達予測は行いません。|Up to 10 questions per person per day, resetting at 09:00 JST. Service pauses when the AI allocation is exhausted. Failed questions may count. The conversation is cleared when closed. General protective actions and retrieved river flood bulletins are supported. Municipal evacuation orders, shelter availability and evacuation routes are excluded. Weather charts, upper-air observations and EEW are also excluded. This chat does not predict earthquakes or independently estimate tsunami arrival times.
 開発者：|Developer:
 計算コードと想定震源域の公開、およびMeteoScopeへの移植・利用許可に感謝します。|Thank you for publishing the simulation code and source-region models, and for permitting their use and adaptation in MeteoScope.
 WE-Simulatorを開く ↗|Open WE-Simulator ↗
@@ -26,6 +36,17 @@ PDF・画像|PDF / images
 市区町村を選んでください。|Select a municipality.
 一覧を読み込めませんでした。再読み込みしてください。|The directory could not be loaded. Please retry.
 資料を選ぶと、自治体の公式ページを別タブで開きます。|Select a map to open the official municipal page in a new tab.
+Web地図を開く|Open web map
+PDFを開く|Open PDF
+地図・PDFの掲載ページを開く|Open the map and PDF listing
+見つからない・開けない場合|If a map is missing or will not open
+最新の公式ページを検索|Search for the current official page
+選択中の自治体と災害の種類で検索します。|Search using the selected municipality and hazard type.
+国土地理院の自治体別一覧|GSI municipality directory
+自治体が公開する資料の一覧を確認できます。|Check the directory of maps published by the municipality.
+MeteoScopeがリンク先を独自に置換|Link destination independently replaced by MeteoScope
+確認日|Checked on
+国土地理院の元リンク|Original GSI-listed link
 この種類の資料は一覧に掲載されていません。災害リスクがないことを示すものではありません。|No maps of this type are listed. This does not mean there is no hazard.
 出典：国土地理院「わがまちハザードマップ」 ↗|Source: GSI municipal hazard map directory ↗
 一覧に未掲載の資料もあります。最新の内容は自治体の発表をご確認ください。|Some maps may not be listed. Check your municipality for the latest information.

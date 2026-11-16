@@ -962,6 +962,7 @@ const STATIC_UI_TRANSLATIONS = new Map(Object.entries({
   "重要な防災判断では、発表時刻を確認し、": "For important safety decisions, check the issue time and also consult",
   "や自治体などの公式情報を併せて確認してください。データの停止、遅延、更新または仕様変更により、表示が最新でない場合があります。": "and official local-authority information. Service outages, delays, updates, or specification changes may cause stale displays.",
   "サポート・ご意見": "Support and feedback",
+  "サポート・ご意見を開く": "Open support and feedback",
   "使い方・不具合・改善要望を送信": "Send a question, issue, or request",
   "操作の相談、不具合、改善要望を受け付けます。緊急時は気象庁・自治体へ連絡してください。": "Send questions, issue reports, or improvement requests. For emergencies, contact JMA or your local authority.",
   "サポートを開く": "Open support",
