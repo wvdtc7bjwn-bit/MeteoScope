@@ -232,6 +232,8 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
   function updateMagnitudeFields(assessment) {
     const active = field("model").value === "active-fault";
     const select = field("assessmentCase");
+    const hasPublished = assessment.rows.some(row => publishedMagnitudeBounds(row.magnitude));
+    field("magnitudeBasis").querySelector('[value="herp-M"]').disabled = !hasPublished;
     if (active && select.dataset.faultCase !== selectedCaseId) {
       const restored = lastValues?.model === "active-fault" && lastValues.activeFault
         && core.activeFaultCaseId(lastValues.activeFault) === selectedCaseId ? lastValues : null;
@@ -241,13 +243,16 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
         option.disabled = !publishedMagnitudeBounds(row.magnitude);
         select.add(option);
       }
-      field("magnitudeBasis").value = restored?.magnitudeBasis ?? "herp-M";
+      field("magnitudeBasis").value = hasPublished ? restored?.magnitudeBasis ?? "herp-M" : "Mw";
       select.value = restored?.assessmentCase ?? (assessment.matching ? faultAssessmentCaseId(assessment.matching) : "");
       select.dataset.faultCase = selectedCaseId;
       if (field("magnitudeBasis").value === "herp-M") {
         const row = assessment.rows.find(row => faultAssessmentCaseId(row) === select.value);
         field("magnitude").value = restored?.magnitudeBasis === "herp-M" && row
           ? restored.magnitude : publishedMagnitudeDefault(row?.magnitude) ?? "";
+      } else {
+        field("magnitude").value = restored?.magnitudeBasis === "Mw" ? restored.magnitude
+          : selectedFault ? core.buildActiveFaultPreset(selectedFault).magnitudeValue ?? "" : "";
       }
     }
     const published = active && field("magnitudeBasis").value === "herp-M";

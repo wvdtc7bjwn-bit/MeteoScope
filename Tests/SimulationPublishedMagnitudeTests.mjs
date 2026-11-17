@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import vm from "node:vm";
 import {getFaultAssessment, faultAssessmentCaseId, publishedMagnitudeBounds, publishedMagnitudeDefault} from "../src/simulation/faultAssessment.js";
 import {normalizeSimulationOptions, prepareEarthquakeSimulation, getSimulationPresetOptions} from "../src/simulation/earthquakeSimulation.js";
 import {scenarioMatchesOptions} from "../src/simulation/scenarioIntensity.js";
@@ -77,4 +79,33 @@ assert.equal(scenarioMatchesOptions(profile,normalized),true);
 assert.equal(scenarioMatchesOptions(profile,{...normalized,magnitudeBasis:"Mw"}),false,"equal numbers in different magnitude bases cannot share official intensities");
 assert.equal(scenarioMatchesOptions({...profile,conditions:{...conditions,assessmentCase:"other"}},normalized),false);
 assert.equal(scenarioMatchesOptions({...profile,conditions:{...conditions,magnitudeBasis:undefined}},normalized),false,"legacy scenario files mean Mw, never published M");
+
+// Exercise the real form update: missing assessments must not leave an empty,
+// required published-M selector in front of a valid model Mw.
+const ui=readFileSync(new URL("../src/ui/earthquakeSimulation.js",import.meta.url),"utf8");
+const update=ui.slice(ui.indexOf("  function updateMagnitudeFields("),ui.indexOf("  function renderFaultChoices("));
+const elements=new Map(),fields=new Map(),publishedOption={disabled:false};
+const element=key=>{if(!elements.has(key))elements.set(key,{});return elements.get(key);};
+const field=name=>{if(!fields.has(name))fields.set(name,{value:"",dataset:{},options:[],
+  replaceChildren(...options){this.options=options;},add(option){this.options.push(option);},
+  setAttribute(name,value){this[name]=value;},querySelector(){return publishedOption;}});return fields.get(name);};
+field("model").value="active-fault";
+const form=vm.createContext({field,modal:{querySelector:element},Option:function(label,value){this.text=label;this.value=value;},
+  text:ja=>ja,publishedMagnitudeBounds,publishedMagnitudeDefault,faultAssessmentCaseId,
+  selectedFault:{...fault,LTENAME:"雫石盆地西縁断層帯",MAG:-6.4},selectedCaseId:"unmatched",lastValues:null,
+  core:{activeFaultCaseId:()=>"unmatched",buildActiveFaultPreset:()=>({magnitudeValue:6.4})}});
+vm.runInContext(update,form);
+const missing=getFaultAssessment(form.selectedFault.LTENAME);
+assert.equal(missing.rows.length,0);
+form.updateMagnitudeFields(missing);
+assert.equal(field("magnitudeBasis").value,"Mw");assert.equal(field("magnitude").value,6.4);
+assert.equal(publishedOption.disabled,true);assert.equal(field("assessmentCase").required,false);
+assert.equal(element("[data-assessment-case-label]").hidden,true);assert.equal(element("[data-assessment-value-label]").hidden,true);
+assert.equal(field("magnitude").readOnly,false);
+field("magnitude").value=6.8;form.updateMagnitudeFields(missing);assert.equal(field("magnitude").value,6.8,"do not reset an edited Mw during other field updates");
+form.selectedCaseId="published";form.selectedFault=fault;form.updateMagnitudeFields(assessment);
+assert.equal(field("magnitudeBasis").value,"herp-M");assert.equal(field("magnitude").value,7.5);
+assert.equal(publishedOption.disabled,false);assert.equal(element("[data-assessment-case-label]").hidden,false);
+form.selectedCaseId="unmatched";form.lastValues={model:"active-fault",activeFault:form.selectedFault,magnitudeBasis:"herp-M",magnitude:7.5};
+form.updateMagnitudeFields(missing);assert.equal(field("magnitudeBasis").value,"Mw");assert.equal(field("magnitude").value,6.4,"a stale published M must not become model Mw");
 console.log("Published magnitude: source priority, bounds, explicit activity choice, provenance, actual shaking/EEW and scenario isolation passed");
