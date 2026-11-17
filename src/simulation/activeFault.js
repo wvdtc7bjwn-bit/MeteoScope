@@ -15,6 +15,25 @@ export function normalizeActiveFault(properties) {
   return result;
 }
 
+export const activeFaultCaseId = fault => String(fault.FLT_ID).split("_")[0];
+
+export function groupActiveFaultModels(planes) {
+  return [...new Map(planes.map(plane => [activeFaultCaseId(plane), plane])).entries()]
+    .map(([id, plane]) => ({id, name: plane.LTENAME, plane}));
+}
+
+export function normalizeActiveFaultSelection(input) {
+  const primary = normalizeActiveFault(input);
+  if (!input.planes) return primary; // Compatibility for single-plane callers.
+  if (!Array.isArray(input.planes) || !input.planes.length || input.planes.length > 64) throw new RangeError("Invalid fault-plane collection");
+  const planes = input.planes.map(normalizeActiveFault).sort((a,b) => a.FLT_ID.localeCompare(b.FLT_ID));
+  const id = activeFaultCaseId(primary);
+  if (planes.some(plane => activeFaultCaseId(plane) !== id || plane.MAG !== primary.MAG)
+      || new Set(planes.map(plane => plane.FLT_ID)).size !== planes.length
+      || !planes.some(plane => plane.FLT_ID === primary.FLT_ID)) throw new RangeError("Mixed or duplicate activity cases");
+  return {...primary, planes, modelVersion: input.modelVersion === "Y2024" ? "Y2024" : "unverified"};
+}
+
 function destination([longitude, latitude], bearing, distance) {
   const radians = Math.PI / 180, angle = distance / 6371, direction = bearing * radians, lat = latitude * radians, lon = longitude * radians;
   const nextLat = Math.asin(Math.sin(lat) * Math.cos(angle) + Math.cos(lat) * Math.sin(angle) * Math.cos(direction));
@@ -23,7 +42,15 @@ function destination([longitude, latitude], bearing, distance) {
 }
 
 export function buildActiveFaultPreset(properties) {
-  const fault = normalizeActiveFault(properties), dip = fault.DIP * Math.PI / 180;
+  const fault = normalizeActiveFaultSelection(properties);
+  if (fault.planes?.length > 1) {
+    const parts = fault.planes.map(buildActiveFaultPreset);
+    const area = parts.reduce((sum, part) => sum + part.fault.LEN * part.fault.WID, 0);
+    const mean = key => parts.reduce((sum, part) => sum + part[key] * part.fault.LEN * part.fault.WID, 0) / area;
+    return {...parts[0], name: fault.LTENAME, fault, parts, depthKm: Math.round(mean("depthKm")),
+      longitude: mean("longitude"), latitude: mean("latitude"), lengthKm: parts.reduce((sum, part) => sum + part.lengthKm, 0)};
+  }
+  const dip = fault.DIP * Math.PI / 180;
   const top = [fault.LON, fault.LAT], end = destination(top, fault.STR, fault.LEN);
   const downDip = point => destination(point, fault.STR + 90, fault.WID * Math.cos(dip));
   const centerLine = [top, end].map(point => destination(point, fault.STR + 90, fault.WID * Math.cos(dip) / 2));

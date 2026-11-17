@@ -4925,7 +4925,7 @@ function createEewFeatureCollection(events, now = Date.now()) {
     waveSources.forEach((source) => {
       const sourceElapsed = elapsedSeconds - source.ruptureDelaySec;
       if (!Number.isFinite(sourceElapsed) || sourceElapsed < 0) return;
-      const waveDistances = getJma2001WaveDistances(depthKm, sourceElapsed);
+      const waveDistances = getJma2001WaveDistances(source.depthKm ?? depthKm, sourceElapsed);
       if (!waveDistances) return;
       const { pDistanceKm, sDistanceKm } = waveDistances;
       const waveDefinitions = [

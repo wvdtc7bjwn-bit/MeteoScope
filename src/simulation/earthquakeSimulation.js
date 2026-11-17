@@ -7,11 +7,13 @@ import { createDeepTrenchLookup } from "./deepEarthquake.js";
 export { MAX_REFERENCE_INTENSITY_DEPTH_KM } from "./intensityModel.js";
 import { buildSimulationEewReports } from "./eewEstimates.js";
 import { getSimulationGround } from "./groundModel.js";
-import {buildActiveFaultPreset, normalizeActiveFault, isInterplateSimulation} from "./activeFault.js";
+import {buildActiveFaultPreset, normalizeActiveFaultSelection, isInterplateSimulation} from "./activeFault.js";
+import {buildMultiPlaneSources} from "./activeFaultSources.js";
 import {simulationActiveFaultDistances} from "./sourceDistance.js";
 import {createPublicScenarioLookup, validatePublicScenarioData} from "./scenarioIntensity.js";
 export {validatePublicScenarioData, scenarioMatchesOptions} from "./scenarioIntensity.js";
 export {buildActiveFaultPreset} from "./activeFault.js";
+export {activeFaultCaseId,groupActiveFaultModels} from "./activeFault.js";
 import { findSimulationEpicenterName, createSimulationRegionLookup } from "./epicenterRegion.js";
 export { loadSimulationGroundModel } from "./groundModel.js";
 export { loadSimulationDetectionStations } from "./detectionStations.js";
@@ -22,7 +24,7 @@ export const SIMULATION_DEFAULTS = Object.freeze({ model: "point", nankaiCase: "
 export function normalizeSimulationOptions(input = {}) {
   const options = { ...SIMULATION_DEFAULTS, ...input };
   if (!["point", "active-fault"].includes(options.model) && !Object.hasOwn(FAULT_MODEL_PRESETS, options.model)) throw new RangeError("Unknown simulation model");
-  if (options.model === "active-fault") options.activeFault = normalizeActiveFault(options.activeFault);
+  if (options.model === "active-fault") options.activeFault = normalizeActiveFaultSelection(options.activeFault);
   if (!Object.hasOwn(NANKAI_RUPTURE_CASES, options.nankaiCase)) throw new RangeError("Invalid Nankai rupture case");
   for (const [key, min, max] of [["longitude", -180, 180], ["latitude", -85, 85], ["magnitude", 1, 9.5], ["depthKm", 0, 700], ["ruptureSpeed", 0.5, 4]]) {
     if (options[key] == null || String(options[key]).trim() === "") throw new RangeError(`Missing ${key}`);
@@ -53,6 +55,7 @@ export function buildSimulationSources(input) {
   const options = normalizeSimulationOptions(input);
   const preset = getFaultModelPreset(options);
   if (!preset) return [{ coordinates: [options.longitude, options.latitude], ruptureDelaySec: 0 }];
+  if (preset.parts) return buildMultiPlaneSources(preset, options);
   const path = preset.path;
   const lengths = path.slice(1).map((point, index) => getDistanceKm(path[index], point));
   const length = lengths.reduce((a, b) => a + b, 0);
@@ -160,10 +163,9 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const staticGeometry = stations.map(station => ({type: "Point", coordinates: station.coordinates}));
   const faultCache = new Map();
   const renderedFault = elapsed => {
-    // Source count is bounded by buildSimulationSources (at most 18). There
-    // are only source-count + 1 reachable masks, including when seeking back.
-    let mask = 0;
-    for (let i = 0; i < sources.length; i++) if (elapsed >= sources[i].ruptureDelaySec) mask |= 1 << i;
+    // Ruptured sets are nested in time, so their count identifies the set.
+    // Avoid a 32-bit mask collision for models with more than 32 samples.
+    const mask = sources.filter(source => elapsed >= source.ruptureDelaySec).length;
     if (!faultCache.has(mask)) faultCache.set(mask, createFaultFeatures(options, sources, elapsed));
     return faultCache.get(mask);
   };
@@ -230,7 +232,7 @@ function calculateTravelMetrics(point, options, sources) {
   for (const source of sources) {
     const surfaceDistance = getDistanceKm(source.coordinates, point);
     sourceDistancesKm.push(surfaceDistance);
-    const arrival = getTravelTimesByJma2001(options.depthKm, surfaceDistance);
+    const arrival = getTravelTimesByJma2001(source.depthKm ?? options.depthKm, surfaceDistance);
     sourcePArrivalSecs.push(arrival.pArrivalSec + source.ruptureDelaySec);
     sourceSArrivalSecs.push(arrival.sArrivalSec + source.ruptureDelaySec);
     distance = Math.min(distance, surfaceDistance);
@@ -243,9 +245,12 @@ function calculateTravelMetrics(point, options, sources) {
 function createFaultFeatures(options, sources, elapsed) {
   const preset = getFaultModelPreset(options);
   if (!preset) return { type: "FeatureCollection", features: [] };
-  const ring = [...preset.areaSides.left, ...preset.areaSides.right.toReversed(), preset.areaSides.left[0]];
   return { type: "FeatureCollection", features: [
-    { type: "Feature", properties: { kind: "area" }, geometry: preset.fault?.DIP === 90 ? {type: "LineString", coordinates: preset.path} : { type: "Polygon", coordinates: [ring] } },
+    ...(preset.parts ?? [preset]).map(part => {
+      const ring = [...part.areaSides.left, ...part.areaSides.right.toReversed(), part.areaSides.left[0]];
+      return {type:"Feature",properties:{kind:"area",faultId:part.fault?.FLT_ID ?? ""},geometry:part.fault?.DIP===90
+        ? {type:"LineString",coordinates:part.path} : {type:"Polygon",coordinates:[ring]}};
+    }),
     ...sources.map(s => ({ type: "Feature", properties: { kind: "rupture", ruptured: elapsed >= s.ruptureDelaySec }, geometry: { type: "Point", coordinates: s.coordinates } }))
   ] };
 }

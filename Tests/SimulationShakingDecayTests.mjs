@@ -108,7 +108,7 @@ const sourceCases = [
     FLT_ID: "F000001_00001", LTENAME: "Synthetic fault", LON: 135.5, LAT: 34.5,
     DEP: 2, LEN: 40, WID: 16, STR: 10, DIP: 70, MAG: -7,
   } },
-  ...["full", "east", "west"].map(variant => getSimulationPresetOptions("nankai-trough", variant)),
+  ...["full", "east", "west"].map(variant => ({...getSimulationPresetOptions("nankai-trough", variant),magnitude:8.5})),
   getSimulationPresetOptions("kuril-trench"), getSimulationPresetOptions("japan-trench"),
 ];
 for (const input of sourceCases) {

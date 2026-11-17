@@ -1,13 +1,58 @@
 import {VectorTile} from "@mapbox/vector-tile";
 import Pbf from "pbf";
 import {MAP_DATA_ENDPOINTS} from "../config.js";
-import {normalizeActiveFault} from "./activeFault.js";
+import {normalizeActiveFault, normalizeActiveFaultSelection} from "./activeFault.js";
+export {groupActiveFaultModels} from "./activeFault.js";
 
 // Four zoom-4 tiles cover the Japanese inland fault catalogue. Fetched directly
 // from the existing official provider, only when the user requests this model.
 const TILES = [[13,5],[14,5],[13,6],[14,6]];
 const MAX_BYTES = 2 * 1024 * 1024;
 let cached = null;
+const modelCache = new Map();
+
+async function readFaultBytes(response, label) {
+  if (!response.ok) throw new Error(`${label} HTTP ${response.status}`);
+  const reader=response.body?.getReader();
+  if(!reader)throw new Error(`Empty ${label}`);
+  let size=0;const chunks=[];
+  try {for (;;) {const {done,value}=await reader.read();if(done)break;size+=value.length;
+    if(size>MAX_BYTES)throw new Error(`${label} too large`);chunks.push(value);}}
+  finally {await reader.cancel().catch(()=>{});}
+  const bytes=new Uint8Array(size);let offset=0;
+  for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
+  return bytes;
+}
+
+export function readActiveFaultModel(data, id) {
+  const metadata = data?.metaData, model = data?.seisact_model;
+  if (data?.status !== "Success" || data?.crs?.properties?.name !== "urn:ogc:def:crs:EPSG:4326" || metadata?.version !== "Y2024" || metadata.case !== "MAX"
+      || metadata.ltecode !== id || model?.ltecode !== id || !Array.isArray(data.features)
+      || data.features.length !== Number(model.geom_num) || !data.features.length || data.features.length > 64)
+    throw new Error("Incomplete or mismatched official fault model");
+  const min = Number(model.magl), max = Number(model.magu);
+  const magnitude = Number.isFinite(min) && min === max && min !== 0 ? min : null;
+  const planes = data.features.map(feature => {
+    const p = feature.properties;
+    if (!p || !String(p.flt_id).startsWith(id + "_") || (p.pattern_code && p.pattern_code !== id))
+      throw new Error("Different activity pattern in fault model");
+    return normalizeActiveFault({...Object.fromEntries(Object.entries(p).map(([key,value]) => [key.toUpperCase(), value])), LTENAME: model.ltename, MAG: magnitude});
+  });
+  return normalizeActiveFaultSelection({...planes[0], planes, modelVersion: "Y2024"});
+}
+
+export async function loadActiveFaultModel(id, {signal, fetcher = fetch} = {}) {
+  if (!/^F[0-9A-Z]{6}$/u.test(id)) throw new RangeError("Invalid activity case ID");
+  signal?.throwIfAborted();
+  if (fetcher === fetch && modelCache.has(id)) return structuredClone(modelCache.get(id));
+  const response = await fetcher(`https://www.j-shis.bosai.go.jp/map/api/pshm/Y2024/MAX/${id}/fltinfo.geojson?epsg=4326&lang=ja`,
+    {signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000)});
+  const bytes=await readFaultBytes(response,"Fault model");
+  signal?.throwIfAborted();
+  const result = readActiveFaultModel(JSON.parse(new TextDecoder().decode(bytes)), id);
+  if (fetcher === fetch) modelCache.set(id, result);
+  return structuredClone(result);
+}
 
 export function readActiveFaultTile(bytes) {
   const layer = new VectorTile(new Pbf(bytes)).layers.major_fault;
@@ -29,14 +74,7 @@ export async function loadActiveFaultCatalog({signal, fetcher = fetch} = {}) {
   const results = await Promise.all(TILES.map(async ([x,y]) => {
     const url = MAP_DATA_ENDPOINTS.jshisMajorFaultTiles.replace("{z}", "4").replace("{x}", String(x)).replace("{y}", String(y));
     const response = await fetcher(url, {signal: requestSignal});
-    if (!response.ok) throw new Error(`Active fault catalogue HTTP ${response.status}`);
-    const reader = response.body?.getReader();
-    if (!reader) throw new Error("Empty active fault tile");
-    let size = 0; const chunks = [];
-    try { for (;;) { const {done,value} = await reader.read(); if (done) break; size += value.length; if (size > MAX_BYTES) throw new Error("Active fault tile too large"); chunks.push(value); } }
-    finally { await reader.cancel().catch(() => {}); }
-    const bytes = new Uint8Array(size); let offset = 0;
-    for (const chunk of chunks) {bytes.set(chunk, offset); offset += chunk.length;}
+    const bytes=await readFaultBytes(response,"Active fault tile");
     return readActiveFaultTile(bytes);
   }));
   requestSignal.throwIfAborted();

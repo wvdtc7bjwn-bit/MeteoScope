@@ -22,6 +22,8 @@ export function validatePublicScenarioData(data) {
   }
   if (!/^[A-Za-z0-9][A-Za-z0-9_.-]{0,119}$/u.test(data.caseId ?? "")) throw new Error("Scenario case ID required");
   if (c.model === "active-fault" && !/^F[0-9A-Z]{6}_\d{5}$/u.test(c.activeFaultId ?? "")) throw new Error("Fault plane ID required");
+  if (c.activeFaultPlaneIds && (!Array.isArray(c.activeFaultPlaneIds) || !c.activeFaultPlaneIds.length
+      || new Set(c.activeFaultPlaneIds).size !== c.activeFaultPlaneIds.length)) throw new Error("Explicit fault-plane set required");
   if (c.model === "point" && (!Number.isFinite(c.longitude) || !Number.isFinite(c.latitude)
       || Math.abs(c.longitude) > 180 || Math.abs(c.latitude) > 85)) throw new Error("Epicenter required");
   if (c.model !== "point" && !["start", "center", "end"].includes(c.ruptureOrigin)) throw new Error("Rupture origin required");
@@ -45,6 +47,10 @@ export function scenarioMatchesOptions(data, options) {
   if (c.model !== options.model || Math.abs(c.magnitude - options.magnitude) > 1e-6 || Math.abs(c.depthKm - options.depthKm) > 1e-6) return false;
   if (c.model === "nankai-trough" && c.nankaiCase !== options.nankaiCase) return false;
   if (c.model === "active-fault" && c.activeFaultId !== options.activeFault?.FLT_ID) return false;
+  if (c.model === "active-fault" && options.activeFault?.planes) {
+    if (c.activeFaultVersion !== options.activeFault.modelVersion) return false;
+    if (JSON.stringify(c.activeFaultPlaneIds?.toSorted()) !== JSON.stringify(options.activeFault.planes.map(p=>p.FLT_ID).sort())) return false;
+  }
   if (c.model === "point") return Math.abs(c.longitude - options.longitude) <= .00005 && Math.abs(c.latitude - options.latitude) <= .00005;
   return c.ruptureOrigin === options.ruptureOrigin;
 }

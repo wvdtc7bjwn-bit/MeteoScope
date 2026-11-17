@@ -40,6 +40,11 @@ export function activeFaultSourceDistances(point, fault, sources, depthShiftKm =
 export function simulationActiveFaultDistances(point, fault, sources, depthKm, referenceDepthKm, surfaceDistances) {
   const weight = Math.max(0, Math.min(1, (150 - depthKm) / 50));
   if (!weight) return null;
-  return activeFaultSourceDistances(point, fault, sources, depthKm - referenceDepthKm).map((distance, index) =>
-    weight * distance + (1 - weight) * Math.hypot(surfaceDistances[index], depthKm));
+  const distances = new Array(sources.length);
+  for (const plane of fault.planes ?? [fault]) {
+    const indices = sources.flatMap((source,index) => !source.faultId || source.faultId===plane.FLT_ID ? [index] : []);
+    const strips = activeFaultSourceDistances(point, plane, indices.map(index=>sources[index]), depthKm-referenceDepthKm);
+    indices.forEach((index,i) => { distances[index]=weight*strips[i]+(1-weight)*Math.hypot(surfaceDistances[index],depthKm); });
+  }
+  return distances;
 }

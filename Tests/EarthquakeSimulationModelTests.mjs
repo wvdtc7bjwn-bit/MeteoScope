@@ -72,7 +72,9 @@ for (const name of ["nankai-trough", "kuril-trench", "japan-trench"]) {
   }
 }
 const halfCases = await Promise.all(["east", "west"].map(async nankaiCase => {
-  const options = getSimulationPresetOptions("nankai-trough", nankaiCase);
+  const preset = getSimulationPresetOptions("nankai-trough", nankaiCase);
+  assert.equal(preset.magnitude,null,"unverified half-rupture strong-motion Mw is never prefilled");
+  const options = {...preset,magnitude:8.5}; // Explicit synthetic user setting.
   const s = await prepareEarthquakeSimulation(options, sample);
   assert.ok(options.magnitude < 9);
   assert.ok(s.frame(0).event.hypocenter.includes("半割れ"));

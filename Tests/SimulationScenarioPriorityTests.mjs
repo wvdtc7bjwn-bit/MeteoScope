@@ -43,7 +43,7 @@ const {simulationGroundMeshCode}=await import("../src/simulation/groundModel.js"
 const groundModel={meshes:Object.fromEntries(Object.values(stations).map(s=>[simulationGroundMeshCode([s.longitude,s.latitude]),[4,150]]))};
 const amplified=await prepareEarthquakeSimulation({...options,groundCorrection:"jshis-1km"},stations,{scenarioIntensity:data,groundModel,yieldTask:async()=>{}});
 assert.equal(amplified.stations[0].predictedIntensityValue,6.8,"surface scenario does not receive ARV twice");
-const half=await prepareEarthquakeSimulation({...getSimulationPresetOptions("nankai-trough","east"),groundCorrection:"none"},stations,{scenarioIntensity:data,yieldTask:async()=>{}});
+const half=await prepareEarthquakeSimulation({...getSimulationPresetOptions("nankai-trough","east"),magnitude:8.5,groundCorrection:"none"},stations,{scenarioIntensity:data,yieldTask:async()=>{}});
 assert.equal(half.scenarioCoverage.applied,0);assert.equal(half.scenarioCoverage.mismatch,true);
 assert.ok(half.stations.every(s=>s.scenarioIntensityValue===null));
 console.log("Public scenarios: exact case matching, full/east/west separation, provenance, coverage, zero/missing values, no duplicate ground correction, final EEW and unchanged wave times passed");

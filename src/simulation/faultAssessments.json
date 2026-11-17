@@ -1,0 +1,1561 @@
+{
+  "sourceUrl": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/",
+  "checkedAt": "2026-11-17",
+  "magnitudeScale": "M (as published; not converted to Mw)",
+  "records": [
+    {
+      "name": "サロベツ断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f099_sarobetsu/",
+      "caseName": "",
+      "magnitude": "7.6程度"
+    },
+    {
+      "name": "標津断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f001_shibetsu/",
+      "caseName": "",
+      "magnitude": "7.7程度以上"
+    },
+    {
+      "name": "十勝平野断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f002_tokachi-heiya/",
+      "caseName": "主部",
+      "magnitude": "8.0程度"
+    },
+    {
+      "name": "十勝平野断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f002_tokachi-heiya/",
+      "caseName": "光地園断層",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "富良野断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f003_furano/",
+      "caseName": "西部",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "富良野断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f003_furano/",
+      "caseName": "東部",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "増毛山地東縁断層帯・ 沼田−砂川付近の断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f004_mashike-numata/",
+      "caseName": "増毛山地東縁断層帯",
+      "magnitude": "7.8程度"
+    },
+    {
+      "name": "増毛山地東縁断層帯・ 沼田−砂川付近の断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f004_mashike-numata/",
+      "caseName": "沼田−砂川付近の断層帯",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "当別断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f005_tobetsu/",
+      "caseName": "",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "石狩低地東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f006_ishikari-teichi/",
+      "caseName": "主部",
+      "magnitude": "7.9程度"
+    },
+    {
+      "name": "石狩低地東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f006_ishikari-teichi/",
+      "caseName": "南部",
+      "magnitude": "7.7程度以上"
+    },
+    {
+      "name": "黒松内低地断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f007_kuromatsunai-teichi/",
+      "caseName": "",
+      "magnitude": "7.3程度以上"
+    },
+    {
+      "name": "函館平野西縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f008_hakodate-heiya/",
+      "caseName": "",
+      "magnitude": "7.0~7.5程度"
+    },
+    {
+      "name": "青森湾西岸断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f009_aomori/",
+      "caseName": "",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "津軽山地西縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f010_tsugaru/",
+      "caseName": "北部",
+      "magnitude": "6.8~7.3程度"
+    },
+    {
+      "name": "津軽山地西縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f010_tsugaru/",
+      "caseName": "南部",
+      "magnitude": "7.1~7.3程度"
+    },
+    {
+      "name": "花輪東断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f101_hanawa-higashi/",
+      "caseName": "",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "能代断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f012_noshiro/",
+      "caseName": "",
+      "magnitude": "7.1程度以上"
+    },
+    {
+      "name": "北上低地西縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f013_kitakami/",
+      "caseName": "",
+      "magnitude": "7.8程度"
+    },
+    {
+      "name": "雫石盆地西縁− 真昼山地東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f014_shizukuishi/",
+      "caseName": "真昼山地東縁断層帯 (北部)",
+      "magnitude": "6.7~7.0程度"
+    },
+    {
+      "name": "雫石盆地西縁− 真昼山地東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f014_shizukuishi/",
+      "caseName": "真昼山地東縁断層帯 (南部)",
+      "magnitude": "6.9~7.1程度"
+    },
+    {
+      "name": "雫石盆地西縁− 真昼山地東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f014_shizukuishi/",
+      "caseName": "雫石盆地西縁断層帯",
+      "magnitude": "6.9程度"
+    },
+    {
+      "name": "横手盆地東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f015_yokote/",
+      "caseName": "北部",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "横手盆地東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f015_yokote/",
+      "caseName": "南部",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "北由利断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f016_kitayuri/",
+      "caseName": "",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "新庄盆地断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f017_shinjo/",
+      "caseName": "東部",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "新庄盆地断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f017_shinjo/",
+      "caseName": "西部",
+      "magnitude": "6.9程度"
+    },
+    {
+      "name": "山形盆地断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f018_yamagata/",
+      "caseName": "北部",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "山形盆地断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f018_yamagata/",
+      "caseName": "南部",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "庄内平野東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f019_shonai/",
+      "caseName": "北部",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "庄内平野東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f019_shonai/",
+      "caseName": "南部",
+      "magnitude": "6.9程度"
+    },
+    {
+      "name": "長井盆地西縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f022_nagai/",
+      "caseName": "",
+      "magnitude": "7.7程度"
+    },
+    {
+      "name": "長町−利府線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f020_nagamachi/",
+      "caseName": "",
+      "magnitude": "7.0~7.5程度"
+    },
+    {
+      "name": "福島盆地西縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f021_fukushima/",
+      "caseName": "",
+      "magnitude": "7.8程度"
+    },
+    {
+      "name": "双葉断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f023_futaba/",
+      "caseName": "",
+      "magnitude": "6.8~7.5程度"
+    },
+    {
+      "name": "会津盆地西縁・東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f024_aizu/",
+      "caseName": "会津盆地西縁断層帯",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "会津盆地西縁・東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f024_aizu/",
+      "caseName": "会津盆地東縁断層帯",
+      "magnitude": "7.7程度"
+    },
+    {
+      "name": "関谷断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f030_sekiya/",
+      "caseName": "",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "大久保断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kanto_04_okubo/",
+      "caseName": "",
+      "magnitude": "7.0程度以上"
+    },
+    {
+      "name": "深谷断層帯・綾瀬川断層 (関東平野北西縁断層帯・ 元荒川断層帯)",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f031_fukaya-ayasegawa/",
+      "caseName": "深谷断層帯",
+      "magnitude": "7.9程度"
+    },
+    {
+      "name": "深谷断層帯・綾瀬川断層 (関東平野北西縁断層帯・ 元荒川断層帯)",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f031_fukaya-ayasegawa/",
+      "caseName": "綾瀬川断層(鴻巣−伊奈区間)",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "深谷断層帯・綾瀬川断層 (関東平野北西縁断層帯・ 元荒川断層帯)",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f031_fukaya-ayasegawa/",
+      "caseName": "綾瀬川断層(伊奈−川口区間)",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "立川断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f034_tachikawa/",
+      "caseName": "",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "伊勢原断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f035_isehara/",
+      "caseName": "",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "塩沢断層帯・ 平山−松田北断層帯・ 国府津−松田断層帯 (神縄・国府津−松田断層帯)",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f036_shiozawa-hirayama-kozu/",
+      "caseName": "塩沢断層帯",
+      "magnitude": "6.8程度以上"
+    },
+    {
+      "name": "塩沢断層帯・ 平山−松田北断層帯・ 国府津−松田断層帯 (神縄・国府津−松田断層帯)",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f036_shiozawa-hirayama-kozu/",
+      "caseName": "平山−松田北断層帯",
+      "magnitude": "6.8程度"
+    },
+    {
+      "name": "三浦半島断層群",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f037_miura-hanto/",
+      "caseName": "主部 (衣笠・北武断層帯)",
+      "magnitude": "6.7程度 もしくはそれ以上"
+    },
+    {
+      "name": "三浦半島断層群",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f037_miura-hanto/",
+      "caseName": "主部(武山断層帯)",
+      "magnitude": "6.6程度 もしくはそれ以上"
+    },
+    {
+      "name": "三浦半島断層群",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f037_miura-hanto/",
+      "caseName": "南部",
+      "magnitude": "6.1程度 もしくはそれ以上"
+    },
+    {
+      "name": "北伊豆断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f038_kitaizu/",
+      "caseName": "",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "富士川河口断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f043_fujikawa/",
+      "caseName": "ケースa",
+      "magnitude": "8.0程度"
+    },
+    {
+      "name": "身延断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kanto_16_minobu/",
+      "caseName": "",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "曽根丘陵断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f104_sone-kyuryo/",
+      "caseName": "",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "櫛形山脈断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f025_kushigata/",
+      "caseName": "",
+      "magnitude": "6.8程度"
+    },
+    {
+      "name": "月岡断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f026_tsukioka/",
+      "caseName": "",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "長岡平野西縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f027_nagaoka-heiya/",
+      "caseName": "",
+      "magnitude": "8.0程度"
+    },
+    {
+      "name": "六日町断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f103_muikamachi/",
+      "caseName": "北部(ケース1)",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "六日町断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f103_muikamachi/",
+      "caseName": "南部",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "十日町断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f039_tokamachi/",
+      "caseName": "西部",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "十日町断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f039_tokamachi/",
+      "caseName": "東部",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "高田平野断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f102_takada-heiya/",
+      "caseName": "高田平野西縁断層帯",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "高田平野断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f102_takada-heiya/",
+      "caseName": "高田平野東縁断層帯",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "長野盆地西縁断層帯 (信濃川断層帯)",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f040_nagano-bonchi/",
+      "caseName": "飯山−千曲区間",
+      "magnitude": "7.4~7.8程度"
+    },
+    {
+      "name": "長野盆地西縁断層帯 (信濃川断層帯)",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f040_nagano-bonchi/",
+      "caseName": "麻績区間",
+      "magnitude": "6.8程度"
+    },
+    {
+      "name": "糸魚川−静岡構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f041_042_044_itoshizu/",
+      "caseName": "北部(小谷−明科)区間",
+      "magnitude": "7.7程度"
+    },
+    {
+      "name": "糸魚川−静岡構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f041_042_044_itoshizu/",
+      "caseName": "中北部(明科−諏訪湖南方)区間",
+      "magnitude": "7.6程度"
+    },
+    {
+      "name": "糸魚川−静岡構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f041_042_044_itoshizu/",
+      "caseName": "中南部(諏訪湖北方−下蔦木)区間",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "糸魚川−静岡構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f041_042_044_itoshizu/",
+      "caseName": "南部(白州−富士見山)区間",
+      "magnitude": "7.6程度"
+    },
+    {
+      "name": "境峠・神谷断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f046_sakaitouge_kamiya/",
+      "caseName": "主部",
+      "magnitude": "7.6程度"
+    },
+    {
+      "name": "境峠・神谷断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f046_sakaitouge_kamiya/",
+      "caseName": "霧訪山−奈良井断層帯",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "伊那谷断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f051_inadani/",
+      "caseName": "主部",
+      "magnitude": "8.0程度"
+    },
+    {
+      "name": "伊那谷断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f051_inadani/",
+      "caseName": "南東部",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "木曽山脈西縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f045_kiso-sanmyaku/",
+      "caseName": "主部 (北部)",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "木曽山脈西縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f045_kiso-sanmyaku/",
+      "caseName": "主部 (南部)",
+      "magnitude": "6.3程度"
+    },
+    {
+      "name": "木曽山脈西縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f045_kiso-sanmyaku/",
+      "caseName": "清内路峠断層帯",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "魚津断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f105_uozu/",
+      "caseName": "",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "砺波平野断層帯・ 呉羽山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f056_tonami_kurehayama/",
+      "caseName": "砺波平野断層帯 (西部)",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "砺波平野断層帯・ 呉羽山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f056_tonami_kurehayama/",
+      "caseName": "砺波平野断層帯 (東部)",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "砺波平野断層帯・ 呉羽山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f056_tonami_kurehayama/",
+      "caseName": "呉羽山断層帯",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "邑知潟断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f055_ochigata/",
+      "caseName": "",
+      "magnitude": "7.6程度"
+    },
+    {
+      "name": "森本・富樫断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f057_morimoto_togashi/",
+      "caseName": "",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "牛首断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f049_ushikubi/",
+      "caseName": "",
+      "magnitude": "7.7程度"
+    },
+    {
+      "name": "跡津川断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f047_atotsugawa/",
+      "caseName": "",
+      "magnitude": "7.9程度"
+    },
+    {
+      "name": "高山・大原断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f048_takayama_oppara/",
+      "caseName": "国府断層帯",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "高山・大原断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f048_takayama_oppara/",
+      "caseName": "高山断層帯",
+      "magnitude": "7.6程度"
+    },
+    {
+      "name": "高山・大原断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f048_takayama_oppara/",
+      "caseName": "猪之鼻断層帯",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "阿寺断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f052_atera/",
+      "caseName": "主部 (北部)",
+      "magnitude": "6.9程度"
+    },
+    {
+      "name": "阿寺断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f052_atera/",
+      "caseName": "主部 (南部)",
+      "magnitude": "7.8程度"
+    },
+    {
+      "name": "阿寺断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f052_atera/",
+      "caseName": "佐見断層帯",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "阿寺断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f052_atera/",
+      "caseName": "白川断層帯",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "屏風山・恵那山断層帯 及び猿投山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f053_054_byobu_ena_sanage/",
+      "caseName": "屏風山断層帯",
+      "magnitude": "6.8程度"
+    },
+    {
+      "name": "屏風山・恵那山断層帯 及び猿投山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f053_054_byobu_ena_sanage/",
+      "caseName": "赤河断層帯",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "屏風山・恵那山断層帯 及び猿投山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f053_054_byobu_ena_sanage/",
+      "caseName": "恵那山−猿投山北断層帯",
+      "magnitude": "7.7程度"
+    },
+    {
+      "name": "屏風山・恵那山断層帯 及び猿投山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f053_054_byobu_ena_sanage/",
+      "caseName": "猿投−高浜断層帯",
+      "magnitude": "7.7程度"
+    },
+    {
+      "name": "屏風山・恵那山断層帯 及び猿投山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f053_054_byobu_ena_sanage/",
+      "caseName": "加木屋断層帯",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "庄川断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f050_shokawa/",
+      "caseName": "",
+      "magnitude": "7.9程度"
+    },
+    {
+      "name": "長良川上流断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f059_nagaragawa/",
+      "caseName": "",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "福井平野東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f058_fukui-heiya/",
+      "caseName": "主部",
+      "magnitude": "7.6程度"
+    },
+    {
+      "name": "福井平野東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f058_fukui-heiya/",
+      "caseName": "西部",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "濃尾断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f060_nobi/",
+      "caseName": "温見断層 (北西部)",
+      "magnitude": "6.8程度"
+    },
+    {
+      "name": "濃尾断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f060_nobi/",
+      "caseName": "温見断層 (南東部)",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "濃尾断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f060_nobi/",
+      "caseName": "主部 (根尾谷断層帯)",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "濃尾断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f060_nobi/",
+      "caseName": "主部 (梅原断層帯)",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "濃尾断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f060_nobi/",
+      "caseName": "主部 (三田洞断層帯)",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "濃尾断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f060_nobi/",
+      "caseName": "揖斐川断層帯",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "濃尾断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f060_nobi/",
+      "caseName": "武儀川断層",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "柳ヶ瀬-関ヶ原断層帯・浦底-柳ヶ瀬山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yanagase_urazoko/",
+      "caseName": "柳ヶ瀬-関ヶ原断層帯 (北部区間)",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "柳ヶ瀬-関ヶ原断層帯・浦底-柳ヶ瀬山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yanagase_urazoko/",
+      "caseName": "柳ヶ瀬-関ヶ原断層帯 (中部区間)",
+      "magnitude": "7.8程度"
+    },
+    {
+      "name": "柳ヶ瀬-関ヶ原断層帯・浦底-柳ヶ瀬山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yanagase_urazoko/",
+      "caseName": "柳ヶ瀬-関ヶ原断層帯 (南部区間)",
+      "magnitude": "7.7程度"
+    },
+    {
+      "name": "柳ヶ瀬-関ヶ原断層帯・浦底-柳ヶ瀬山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yanagase_urazoko/",
+      "caseName": "浦底-柳ヶ瀬山断層帯",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "野坂断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_nosaka/",
+      "caseName": "北部区間",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "野坂断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_nosaka/",
+      "caseName": "南部区間",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "敦賀断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_tsuruga/",
+      "caseName": "",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "養老-桑名-四日市断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yoro-kuwana-yokkaichi/",
+      "caseName": "北部区間",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "養老-桑名-四日市断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yoro-kuwana-yokkaichi/",
+      "caseName": "中部区間",
+      "magnitude": "6.9程度"
+    },
+    {
+      "name": "養老-桑名-四日市断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yoro-kuwana-yokkaichi/",
+      "caseName": "南部区間",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "養老-桑名-四日市断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yoro-kuwana-yokkaichi/",
+      "caseName": "鈴鹿沖区間",
+      "magnitude": "6.8程度"
+    },
+    {
+      "name": "伊勢湾断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_isewan/",
+      "caseName": "伊勢湾断層帯北部",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "伊勢湾断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_isewan/",
+      "caseName": "伊勢湾断層帯南部 (白子-野間区間)",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "伊勢湾断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_isewan/",
+      "caseName": "伊勢湾断層帯南部 (内海区間)",
+      "magnitude": "6.8程度"
+    },
+    {
+      "name": "鈴鹿山脈東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_suzukasanmyakutoen/",
+      "caseName": "",
+      "magnitude": "7.6程度"
+    },
+    {
+      "name": "布引山地東縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_nunobikisanchitoen/",
+      "caseName": "",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "木津川断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_kizugawa/",
+      "caseName": "",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "琵琶湖西岸断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_biwakoseigan/",
+      "caseName": "北部区間",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "琵琶湖西岸断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_biwakoseigan/",
+      "caseName": "南部区間",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "三方断層帯・花折断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_mikata_hanaore/",
+      "caseName": "三方断層帯",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "三方断層帯・花折断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_mikata_hanaore/",
+      "caseName": "花折断層帯 (北部区間)",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "三方断層帯・花折断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_mikata_hanaore/",
+      "caseName": "花折断層帯 (南部区間)",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "京都盆地-奈良盆地断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_kyotobonchi-narabonchi/",
+      "caseName": "北部区間",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "京都盆地-奈良盆地断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_kyotobonchi-narabonchi/",
+      "caseName": "南部区間",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "山田断層帯・郷村断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yamada_gomura/",
+      "caseName": "山田断層帯 (東部区間)",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "山田断層帯・郷村断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yamada_gomura/",
+      "caseName": "山田断層帯 (西部区間)",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "山田断層帯・郷村断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yamada_gomura/",
+      "caseName": "郷村断層帯 (北部区間)",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "山田断層帯・郷村断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yamada_gomura/",
+      "caseName": "郷村断層帯 (南部区間)",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "上林川断層・三峠断層・京都西山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_kanbayashi_mitoke_kyoto/",
+      "caseName": "上林川断層",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "上林川断層・三峠断層・京都西山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_kanbayashi_mitoke_kyoto/",
+      "caseName": "三峠断層",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "上林川断層・三峠断層・京都西山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_kanbayashi_mitoke_kyoto/",
+      "caseName": "京都西山断層帯 (北西部区間)",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "上林川断層・三峠断層・京都西山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_kanbayashi_mitoke_kyoto/",
+      "caseName": "京都西山断層帯 (南東部区間)",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "生駒断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_ikoma/",
+      "caseName": "",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "上町断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_uemachi/",
+      "caseName": "主部区間",
+      "magnitude": "7.6程度"
+    },
+    {
+      "name": "上町断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_uemachi/",
+      "caseName": "沿岸部区間",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "有馬-高槻断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_arima-takatsuki/",
+      "caseName": "東部区間",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "有馬-高槻断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_arima-takatsuki/",
+      "caseName": "西部区間",
+      "magnitude": "6.8程度"
+    },
+    {
+      "name": "六甲・淡路島断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_rokko_awajishima/",
+      "caseName": "六甲山地南縁-淡路島東岸区間",
+      "magnitude": "7.8程度"
+    },
+    {
+      "name": "六甲・淡路島断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_rokko_awajishima/",
+      "caseName": "淡路島西岸区間",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "大阪湾断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_osakawan/",
+      "caseName": "",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "山崎断層帯・那岐山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yamasaki_nagisen/",
+      "caseName": "那岐山断層帯",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "山崎断層帯・那岐山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yamasaki_nagisen/",
+      "caseName": "山崎断層帯主部 (北西部区間)",
+      "magnitude": "7.8程度"
+    },
+    {
+      "name": "山崎断層帯・那岐山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yamasaki_nagisen/",
+      "caseName": "山崎断層帯主部 (南東部区間)",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "山崎断層帯・那岐山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_yamasaki_nagisen/",
+      "caseName": "草谷断層",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "高茶屋断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_takajaya/",
+      "caseName": "",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "鹿野-吉岡断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/shikano-yoshioka/",
+      "caseName": "",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "宍道(鹿島)断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/shinji/",
+      "caseName": "ケース1",
+      "magnitude": "7.0程度 もしくはそれ以上"
+    },
+    {
+      "name": "宍道(鹿島)断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/shinji/",
+      "caseName": "ケース2",
+      "magnitude": "7.0程度 もしくはそれ以上"
+    },
+    {
+      "name": "長者ヶ原-芳井断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/chojagahara-yoshii/",
+      "caseName": "",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "弥栄断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/yasaka_jifuku/",
+      "caseName": "",
+      "magnitude": "7.7程度"
+    },
+    {
+      "name": "地福断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/yasaka_jifuku/",
+      "caseName": "",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "筒賀断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/tsutsuga/",
+      "caseName": "",
+      "magnitude": "7.8程度"
+    },
+    {
+      "name": "広島湾-岩国沖断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/akinada_hiroshimawan-iwakunioki/",
+      "caseName": "",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "安芸灘断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/akinada_hiroshimawan-iwakunioki/",
+      "caseName": "",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "岩国-五日市断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/iwakuni-itsukaichi/",
+      "caseName": "己斐断層区間",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "岩国-五日市断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/iwakuni-itsukaichi/",
+      "caseName": "五日市断層区間",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "岩国-五日市断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/iwakuni-itsukaichi/",
+      "caseName": "岩国断層区間",
+      "magnitude": "7.6程度"
+    },
+    {
+      "name": "大原湖断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/oharako_ogori/",
+      "caseName": "",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "小郡断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/oharako_ogori/",
+      "caseName": "",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "周防灘断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/suonada/",
+      "caseName": "周防灘断層帯主部区間",
+      "magnitude": "7.6程度"
+    },
+    {
+      "name": "周防灘断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/suonada/",
+      "caseName": "秋穂沖断層区間",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "菊川断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/kikugawa/",
+      "caseName": "北部区間",
+      "magnitude": "7.7程度"
+    },
+    {
+      "name": "菊川断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/kikugawa/",
+      "caseName": "中部区間",
+      "magnitude": "7.6程度"
+    },
+    {
+      "name": "菊川断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/kikugawa/",
+      "caseName": "南部区間",
+      "magnitude": "6.9程度 もしくはそれ以上"
+    },
+    {
+      "name": "中央構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_chuokozosen/",
+      "caseName": "金剛山地東縁区間",
+      "magnitude": "6.8程度"
+    },
+    {
+      "name": "中央構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_chuokozosen/",
+      "caseName": "五条谷区間",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "中央構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_chuokozosen/",
+      "caseName": "根来区間",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "中央構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_chuokozosen/",
+      "caseName": "紀淡海峡-鳴門海峡区間",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "中央構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_chuokozosen/",
+      "caseName": "讃岐山脈南縁東部区間",
+      "magnitude": "7.7程度"
+    },
+    {
+      "name": "中央構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_chuokozosen/",
+      "caseName": "讃岐山脈南縁西部区間",
+      "magnitude": "8.0程度 もしくはそれ以上"
+    },
+    {
+      "name": "中央構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_chuokozosen/",
+      "caseName": "石鎚山脈北縁区間",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "中央構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_chuokozosen/",
+      "caseName": "石鎚山脈北縁西部区間",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "中央構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_chuokozosen/",
+      "caseName": "伊予灘区間",
+      "magnitude": "8.0程度 もしくはそれ以上"
+    },
+    {
+      "name": "中央構造線断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_chuokozosen/",
+      "caseName": "豊予海峡-由布院区間",
+      "magnitude": "7.8程度"
+    },
+    {
+      "name": "長尾断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_nagao/",
+      "caseName": "",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "福智山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kyushu_02_fukuchiyama/",
+      "caseName": "",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "西山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f091_nishiyama/",
+      "caseName": "大島沖区間",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "西山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f091_nishiyama/",
+      "caseName": "西山区間",
+      "magnitude": "7.6程度"
+    },
+    {
+      "name": "西山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f091_nishiyama/",
+      "caseName": "嘉麻峠区間",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "宇美断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kyushu_04_umi/",
+      "caseName": "",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "警固断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f108_kego/",
+      "caseName": "北西部",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "警固断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f108_kego/",
+      "caseName": "南東部",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "日向峠-小笠木峠断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kyushu_06_hinata-okasagi/",
+      "caseName": "",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "水縄断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f094_minou/",
+      "caseName": "",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "佐賀平野北縁断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kyushu_08_sagaheiya-hokuen/",
+      "caseName": "",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "日出生断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_hijiu/",
+      "caseName": "",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "万年山-崩平山断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_haneyama-kuenohirayama/",
+      "caseName": "",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "雲仙断層群",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f095_unzen/",
+      "caseName": "北部",
+      "magnitude": "7.3程度以上"
+    },
+    {
+      "name": "雲仙断層群",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f095_unzen/",
+      "caseName": "南東部",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "雲仙断層群",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f095_unzen/",
+      "caseName": "南西部 (北部)",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "雲仙断層群",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f095_unzen/",
+      "caseName": "南西部 (南部)",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "布田川断層帯・日奈久断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f093_futagawa_hinagu/",
+      "caseName": "布田川断層帯(布田川区間)",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "布田川断層帯・日奈久断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f093_futagawa_hinagu/",
+      "caseName": "布田川断層帯(宇土区間)",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "布田川断層帯・日奈久断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f093_futagawa_hinagu/",
+      "caseName": "布田川断層帯(宇土半島北岸区間)",
+      "magnitude": "7.2程度以上"
+    },
+    {
+      "name": "布田川断層帯・日奈久断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f093_futagawa_hinagu/",
+      "caseName": "日奈久断層帯(高野−白旗区間)",
+      "magnitude": "6.8程度"
+    },
+    {
+      "name": "布田川断層帯・日奈久断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f093_futagawa_hinagu/",
+      "caseName": "日奈久断層帯(日奈久区間)",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "布田川断層帯・日奈久断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f093_futagawa_hinagu/",
+      "caseName": "日奈久断層帯(八代海区間)",
+      "magnitude": "7.3程度"
+    },
+    {
+      "name": "緑川断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kyushu_12_midorikawa/",
+      "caseName": "",
+      "magnitude": "7.4程度"
+    },
+    {
+      "name": "人吉盆地南縁断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f109_hitoyoshi-bonchi/",
+      "caseName": "",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "出水断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f096_izumi/",
+      "caseName": "",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "甑断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kyushu_15_koshiki/",
+      "caseName": "上甑島北東沖区間",
+      "magnitude": "6.9程度"
+    },
+    {
+      "name": "甑断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kyushu_15_koshiki/",
+      "caseName": "甑区間",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "宮古島断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f110_miyakojima/",
+      "caseName": "中部",
+      "magnitude": "7.2程度 もしくはそれ以上"
+    },
+    {
+      "name": "宮古島断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f110_miyakojima/",
+      "caseName": "西部",
+      "magnitude": "6.9程度 もしくはそれ以上"
+    },
+    {
+      "name": "内ノ籠断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kanto_02_uchinokomori/",
+      "caseName": "",
+      "magnitude": "6.6程度"
+    },
+    {
+      "name": "片品川左岸断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kanto_03_katashinagawa/",
+      "caseName": "",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "太田断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kanto_05_ota/",
+      "caseName": "",
+      "magnitude": "6.9程度"
+    },
+    {
+      "name": "越生断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kanto_08_ogose/",
+      "caseName": "",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "三浦半島断層群",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f037_miura-hanto/",
+      "caseName": "主部 (武山断層帯)",
+      "magnitude": "6.6程度 もしくはそれ以上"
+    },
+    {
+      "name": "富士川河口断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/f043_fujikawa/",
+      "caseName": "ケースb",
+      "magnitude": "8.0程度"
+    },
+    {
+      "name": "伊東沖断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kanto_18_ito-oki/",
+      "caseName": "",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "稲取断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kanto_19_inatori/",
+      "caseName": "",
+      "magnitude": "7.0程度"
+    },
+    {
+      "name": "石廊崎断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kanto_20_irozaki/",
+      "caseName": "",
+      "magnitude": "6.9~7.0程度"
+    },
+    {
+      "name": "中山断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_nakayama/",
+      "caseName": "",
+      "magnitude": "6.6程度"
+    },
+    {
+      "name": "三岳山断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_mitakesan/",
+      "caseName": "",
+      "magnitude": "6.4程度"
+    },
+    {
+      "name": "西賀茂断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_nishigamo/",
+      "caseName": "",
+      "magnitude": "6.0程度"
+    },
+    {
+      "name": "埴生-猪倉断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_habu-inokura/",
+      "caseName": "",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "志筑断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_shizuki/",
+      "caseName": "",
+      "magnitude": "6.6程度"
+    },
+    {
+      "name": "先山-安乎断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_senzan-aiga/",
+      "caseName": "",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "飯山寺断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_hansanji/",
+      "caseName": "",
+      "magnitude": "6.4程度"
+    },
+    {
+      "name": "津名沖断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_tsunaoki/",
+      "caseName": "",
+      "magnitude": "6.5程度"
+    },
+    {
+      "name": "宇治川断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_ujigawa/",
+      "caseName": "",
+      "magnitude": "6.1程度"
+    },
+    {
+      "name": "大野木断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_onogi/",
+      "caseName": "",
+      "magnitude": "6.1程度"
+    },
+    {
+      "name": "黄瀬断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_kinose/",
+      "caseName": "",
+      "magnitude": "6.6程度"
+    },
+    {
+      "name": "沖島北方沖断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_okishimahoppooki/",
+      "caseName": "",
+      "magnitude": "6.1程度"
+    },
+    {
+      "name": "熊川断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_kumagawa/",
+      "caseName": "",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "耳川断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_mimikawa/",
+      "caseName": "",
+      "magnitude": "6.4程度"
+    },
+    {
+      "name": "松屋断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_matsuya/",
+      "caseName": "",
+      "magnitude": "6.5程度"
+    },
+    {
+      "name": "白木-丹生断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_shiraki-nyu/",
+      "caseName": "",
+      "magnitude": "6.8程度"
+    },
+    {
+      "name": "駄口断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_daguchi/",
+      "caseName": "",
+      "magnitude": "6.4程度"
+    },
+    {
+      "name": "路原断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_chihara/",
+      "caseName": "",
+      "magnitude": "6.6程度"
+    },
+    {
+      "name": "集福寺断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_shufukuji/",
+      "caseName": "",
+      "magnitude": "6.5程度"
+    },
+    {
+      "name": "奥川並断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_okukonami/",
+      "caseName": "",
+      "magnitude": "6.6程度"
+    },
+    {
+      "name": "池田山断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_ikedayama/",
+      "caseName": "",
+      "magnitude": "6.8程度"
+    },
+    {
+      "name": "今須断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kat_imasu/",
+      "caseName": "",
+      "magnitude": "6.4程度"
+    },
+    {
+      "name": "雨滝-釜戸断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/amedaki-kamato/",
+      "caseName": "",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "日南湖断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/nichinanko/",
+      "caseName": "",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "岩坪断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/iwatsubo/",
+      "caseName": "",
+      "magnitude": "6.5程度"
+    },
+    {
+      "name": "宇津戸断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/uzuto/",
+      "caseName": "",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "安田断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/yasuda/",
+      "caseName": "",
+      "magnitude": "6.0程度"
+    },
+    {
+      "name": "宇部南方沖断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/ubenanpouoki/",
+      "caseName": "",
+      "magnitude": "6.8程度"
+    },
+    {
+      "name": "滝部断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/takibe/",
+      "caseName": "",
+      "magnitude": "6.1程度"
+    },
+    {
+      "name": "奈古断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/nago/",
+      "caseName": "",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "栄谷断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/sakaedani/",
+      "caseName": "",
+      "magnitude": "6.3程度"
+    },
+    {
+      "name": "黒瀬断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/kurose/",
+      "caseName": "",
+      "magnitude": "6.0程度"
+    },
+    {
+      "name": "上法軍寺断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kamihougunji/",
+      "caseName": "",
+      "magnitude": "6.0程度"
+    },
+    {
+      "name": "上浦-西月ノ宮断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_kamiura-nishitsukinomiya/",
+      "caseName": "",
+      "magnitude": "6.5程度"
+    },
+    {
+      "name": "綱附森断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/rs_tsunatsukemori/",
+      "caseName": "",
+      "magnitude": "6.7程度"
+    },
+    {
+      "name": "小倉東断層",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kyushu_01_kokura-higashi/",
+      "caseName": "",
+      "magnitude": "7.1程度"
+    },
+    {
+      "name": "日向峠−小笠木峠断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kyushu_06_hinata-okasagi/",
+      "caseName": "",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "市来断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kyushu_16_ichiki/",
+      "caseName": "市来区間",
+      "magnitude": "7.2程度"
+    },
+    {
+      "name": "市来断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kyushu_16_ichiki/",
+      "caseName": "甑海峡中央区間",
+      "magnitude": "7.5程度"
+    },
+    {
+      "name": "市来断層帯",
+      "url": "https://www.jishin.go.jp/regional_seismicity/rs_katsudanso/reg_kyushu_16_ichiki/",
+      "caseName": "吹上浜西方沖区間",
+      "magnitude": "7.0程度以上"
+    }
+  ]
+}
