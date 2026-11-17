@@ -1,4 +1,5 @@
 import {simulationGroundMeshCode} from "./groundModel.js";
+import {usesCalculationMw} from "./magnitudeBasis.js";
 
 const MODELS = ["point", "active-fault", "nankai-trough", "japan-trench", "kuril-trench"];
 const CASES = ["full", "east", "west"];
@@ -15,8 +16,8 @@ export function validatePublicScenarioData(data) {
       || !data.caseLabel || String(data.caseLabel).length > 160) throw new Error("Missing scenario provenance");
   if (!c || !MODELS.includes(c.model) || !Number.isFinite(c.magnitude) || c.magnitude < 1 || c.magnitude > 9.5
       || !Number.isFinite(c.depthKm) || c.depthKm < 0 || c.depthKm > 700) throw new Error("Missing scenario conditions");
-  if (c.magnitudeBasis != null && !["Mw", "herp-M"].includes(c.magnitudeBasis)) throw new Error("Invalid magnitude basis");
-  if (c.magnitudeBasis === "herp-M" && (c.model !== "active-fault" || typeof c.assessmentCase !== "string")) throw new Error("Published activity case required");
+  if (!usesCalculationMw(c))
+    throw new Error("Scenario conditions must use calculation Mw, not published M");
   if (c.model === "nankai-trough" && !CASES.includes(c.nankaiCase)) throw new Error("Explicit Nankai rupture case required");
   if (c.model === "nankai-trough") {
     const shakingCases = c.nankaiCase === "full" ? ["basic", "east", "west", "inland", "empirical", "maximum-envelope"] : ["basic", "inland"];
@@ -46,8 +47,7 @@ export function validatePublicScenarioData(data) {
 export function scenarioMatchesOptions(data, options) {
   if (!data) return false;
   const c = data.conditions;
-  if ((c.magnitudeBasis ?? "Mw") !== (options.magnitudeBasis ?? "Mw")) return false;
-  if (options.magnitudeBasis === "herp-M" && c.assessmentCase !== options.assessmentCase) return false;
+  if (!usesCalculationMw(c) || !usesCalculationMw(options)) return false;
   if (c.model !== options.model || Math.abs(c.magnitude - options.magnitude) > 1e-6 || Math.abs(c.depthKm - options.depthKm) > 1e-6) return false;
   if (c.model === "nankai-trough" && c.nankaiCase !== options.nankaiCase) return false;
   if (c.model === "active-fault" && c.activeFaultId !== options.activeFault?.FLT_ID) return false;

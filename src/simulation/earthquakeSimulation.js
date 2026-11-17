@@ -9,7 +9,7 @@ import { buildSimulationEewReports } from "./eewEstimates.js";
 import { getSimulationGround } from "./groundModel.js";
 import {buildActiveFaultPreset, normalizeActiveFaultSelection, isInterplateSimulation} from "./activeFault.js";
 import {buildMultiPlaneSources} from "./activeFaultSources.js";
-import {normalizeMagnitudeBasis} from "./faultAssessment.js";
+import {normalizeMagnitudeBasis} from "./magnitudeBasis.js";
 import {simulationActiveFaultDistances} from "./sourceDistance.js";
 import {createPublicScenarioLookup, validatePublicScenarioData} from "./scenarioIntensity.js";
 export {validatePublicScenarioData, scenarioMatchesOptions} from "./scenarioIntensity.js";
@@ -25,8 +25,12 @@ export const SIMULATION_DEFAULTS = Object.freeze({ model: "point", nankaiCase: "
 
 export function normalizeSimulationOptions(input = {}) {
   const options = { ...SIMULATION_DEFAULTS, ...input };
+  const magnitudeBasis = normalizeMagnitudeBasis(options);
   if (!["point", "active-fault"].includes(options.model) && !Object.hasOwn(FAULT_MODEL_PRESETS, options.model)) throw new RangeError("Unknown simulation model");
-  if (options.model === "active-fault") options.activeFault = normalizeActiveFaultSelection(options.activeFault);
+  if (options.model === "active-fault") {
+    options.activeFault = normalizeActiveFaultSelection(options.activeFault);
+    if (!Object.hasOwn(input, "magnitude")) options.magnitude = buildActiveFaultPreset(options.activeFault).magnitudeValue;
+  }
   if (!Object.hasOwn(NANKAI_RUPTURE_CASES, options.nankaiCase)) throw new RangeError("Invalid Nankai rupture case");
   for (const [key, min, max] of [["longitude", -180, 180], ["latitude", -85, 85], ["magnitude", 1, 9.5], ["depthKm", 0, 700], ["ruptureSpeed", 0.5, 4]]) {
     if (options[key] == null || String(options[key]).trim() === "") throw new RangeError(`Missing ${key}`);
@@ -36,7 +40,7 @@ export function normalizeSimulationOptions(input = {}) {
   }
   if (!["start", "center", "end"].includes(options.ruptureOrigin)) throw new RangeError("Invalid rupture origin");
   if (!["none", "jshis-1km"].includes(options.groundCorrection)) throw new RangeError("Invalid ground correction");
-  return {...options, ...normalizeMagnitudeBasis(options)};
+  return {...options, ...magnitudeBasis};
 }
 
 export function getFaultModelPreset(options) {
