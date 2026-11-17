@@ -10,6 +10,7 @@ import { getSimulationGround } from "./groundModel.js";
 import {buildActiveFaultPreset, normalizeActiveFaultSelection, isInterplateSimulation} from "./activeFault.js";
 import {buildMultiPlaneSources} from "./activeFaultSources.js";
 import {normalizeMagnitudeBasis} from "./magnitudeBasis.js";
+import {canConvertSimulationMagnitude, simulationMagnitudeDisplay} from "./magnitudeDisplay.js";
 import {simulationActiveFaultDistances} from "./sourceDistance.js";
 import {createPublicScenarioLookup, validatePublicScenarioData} from "./scenarioIntensity.js";
 export {validatePublicScenarioData, scenarioMatchesOptions} from "./scenarioIntensity.js";
@@ -102,6 +103,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const model = createWeSimulatorModel({ magnitude: options.magnitude, depthKm: options.depthKm, latitude: options.latitude, longitude: options.longitude, offshore: interplate });
   const stations = [];
   const findForecastArea = createSimulationRegionLookup(forecastAreas);
+  const convertibleMagnitude = canConvertSimulationMagnitude(options, sources, coordinates => findForecastArea(coordinates));
   const entries = Object.entries(rawStations ?? {});
   const activeFaultPreset = options.model === "active-fault" ? getFaultModelPreset(options) : null;
   const intensityParameters = {pointSource: options.model === "point", simulationCalibration: true};
@@ -155,6 +157,10 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const schedule = model.getSimulationInitialReport(options.magnitude, [...stations, ...offshoreDetectors]);
   const reports = buildSimulationEewReports({ options, stations, sources, schedule, detectionStations: offshoreDetectors, ruptureCompleteSec: ruptureComplete, intensityEstimateAvailable,
     getObservedIntensity: (station, elapsed) => { const value = model.getCurrentIntensityProperties(station, elapsed); return value.observed ? value.recordedIntensityValue : 0; } });
+  // Cache presentation separately: no converted value enters the motion,
+  // travel-time, rupture, report-estimation or public-scenario calculations.
+  const displayMagnitudes = new Map(reports.map(report => [report, simulationMagnitudeDisplay(report.magnitude, convertibleMagnitude)]));
+  const pendingMagnitude = simulationMagnitudeDisplay(null, false);
   // Distant/deep instrumental detections can occur after the felt-shaking timeline.
   const duration = Math.max(physicalDuration, (reports.at(-1)?.elapsedSec ?? 0) + 8);
   const baseEvent = {
@@ -217,6 +223,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
         event: { ...baseEvent, serial: report?.reportNumber ?? 0,
           magnitude: report?.magnitude ?? null, depth: report?.depth ?? null, maxIntensity: report?.maxIntensity ?? null,
           simulationMagnitudeBasis: options.magnitudeBasis, simulationMagnitudeSource: options.magnitudeSource,
+          simulationMagnitudeDisplay: displayMagnitudes.get(report) ?? pendingMagnitude,
           simulationObservationCount: report?.observationCount ?? 0, simulationSObservationCount: report?.sObservationCount ?? 0,
           simulationAnalysisStatus: report?.finalReason === "stable" ? "stable" : report?.finalReason === "insufficient-observations" ? "incomplete" : report?.analysisMature ? "confirming" : "reviewing",
           isWarn: report?.isWarn ?? false, waitingForDetection: !report, isFinal: report?.isFinal ?? false,

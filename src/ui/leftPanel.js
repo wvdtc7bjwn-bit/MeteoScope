@@ -3478,7 +3478,18 @@ function buildEarthquakeMobileContextMarkup(
     const hasDepth = eew.depth !== null && eew.depth !== undefined
       && String(eew.depth).trim() !== "" && Number.isFinite(Number(eew.depth));
     const assumptionSuffix = eew.isAssumption ? "（仮定）" : "";
-    const magnitude = simulationPending ? "—" : eew.isAssumption ? "M仮定値" : eew.hypocenterMethod === "level" ? "M調査中" : hasMagnitude ? `M${Number(eew.magnitude).toFixed(1)}${assumptionSuffix}` : "M調査中";
+    const simulatedMw = eew.isSimulation && eew.simulationMagnitudeBasis === "Mw";
+    const displayMagnitude = simulatedMw ? eew.simulationMagnitudeDisplay : null;
+    const convertedMagnitude = hasMagnitude && displayMagnitude?.converted === true && displayMagnitude.scale === "M"
+      && Number.isFinite(displayMagnitude.value);
+    const magnitudeValue = convertedMagnitude ? displayMagnitude.value : Number(eew.magnitude);
+    const magnitude = simulationPending ? "—" : eew.isAssumption ? "M仮定値" : eew.hypocenterMethod === "level" ? "M調査中" : hasMagnitude ? `M${magnitudeValue.toFixed(1)}${assumptionSuffix}` : "M調査中";
+    const magnitudeNote = simulatedMw && hasMagnitude && !simulationPending && !eew.isAssumption && eew.hypocenterMethod !== "level"
+      ? getCurrentLanguage() === "en"
+        ? convertedMagnitude ? `${magnitude} (converted reference; source Mw${Number(eew.magnitude).toFixed(1)})`
+          : `${magnitude} (Mw${Number(eew.magnitude).toFixed(1)} value; not converted to Mj)`
+        : convertedMagnitude ? `${magnitude}（換算参考値・換算元Mw${Number(eew.magnitude).toFixed(1)}）`
+          : `${magnitude}（Mw${Number(eew.magnitude).toFixed(1)}の値・Mjへの換算なし）` : "";
     const depth = simulationPending ? "—" : eew.isAssumption ? "深さ仮定値" : eew.hypocenterMethod === "level" ? "深さ調査中" : hasDepth
       ? `${Number(eew.depth) === 0 ? "ごく浅い" : `深さ${Number(eew.depth)}km`}${assumptionSuffix}`
       : "深さ調査中";
@@ -3535,7 +3546,7 @@ function buildEarthquakeMobileContextMarkup(
             <strong>${escapeHtml(simulationPending ? "—" : eew.hypocenter || "震源調査中")}</strong>
           </div>
           <div class="mobile-dock-eew-facts"${isCancellation ? " hidden" : ""}>
-            <span>${escapeHtml(magnitude)}</span>
+            <span${magnitudeNote ? ` title="${escapeHtml(magnitudeNote)}" aria-label="${escapeHtml(magnitudeNote)}"` : ""}>${escapeHtml(magnitude)}</span>
             <span>${escapeHtml(depth)}</span>
           </div>
           ${supportingText ? `<p class="mobile-dock-eew-supporting ${supportingClass}" title="${escapeHtml(supportingText)}">${escapeHtml(supportingText)}</p>` : ""}

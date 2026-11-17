@@ -6,6 +6,7 @@ import { createRealtimeEarthquakeClient, normalizeP2pEarthquake, mergeRealtimeEa
 import * as format from "../src/earthquakeFormat.js";
 import { escapeHtml } from "../src/utils/html.js";
 import { createLocalEewTestEvent } from "../src/eew/localEewTest.js";
+import { prepareEarthquakeSimulation } from "../src/simulation/earthquakeSimulation.js";
 
 const issued = Date.parse("2026-11-13T10:54:00+09:00");
 const prompt = normalizeP2pEarthquake({ code: 551, id: "prompt", issue: { type: "ScalePrompt", time: "2026/11/13 10:54:00" }, earthquake: { time: "2026/11/13 10:52:00", maxScale: 30 } });
@@ -92,7 +93,8 @@ assert.equal(format.formatEarthquakeDepthText(0), "ごく浅い");
 const panelSource = readFileSync(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8");
 const summarySource = panelSource.slice(panelSource.indexOf("function buildEarthquakeMobileContextMarkup("), panelSource.indexOf("function getTyphoonClassificationItems("));
 const metricSource = panelSource.slice(panelSource.indexOf("function formatEarthquakeUnknownMetric("), panelSource.indexOf("function getEarthquakeTsunamiState("));
-const ctx = vm.createContext({ ...format, escapeHtml, Number, localizeText: (s) => s,
+let displayLanguage = "ja";
+const ctx = vm.createContext({ ...format, escapeHtml, Number, localizeText: (s) => s, getCurrentLanguage: () => displayLanguage,
   getEarthquakeIntensityColor: () => "#ffff00", getEarthquakeIntensityTextClass: () => "intensity-dark",
   formatMobileEarthquakeTime: (s) => s, buildEarthquakeMobileViewSwitch: () => "",
   buildMobileTsunamiStatusMarkup: () => "調査中", buildMobileEarthquakeSummaryCarousel: (data) => data.primaryMarkup });
@@ -104,11 +106,11 @@ assert.doesNotMatch(markup, /不明|M0\.0/);
 const knownMarkup = ctx.buildEarthquakeMobileContextMarkup(destination);
 assert.match(knownMarkup, /熊本県熊本地方/);
 assert.match(knownMarkup, /M4\.0\/10km/);
-const waitingMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", { isSimulation: true, waitingForDetection: true, hypocenter: "東京都２３区", magnitude: null, depth: null, maxIntensity: null });
+const waitingMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", { isSimulation: true, simulationMagnitudeBasis: "Mw", waitingForDetection: true, hypocenter: "東京都２３区", magnitude: null, depth: null, maxIntensity: null });
 assert.equal((waitingMarkup.match(/—/g) ?? []).length, 4, "all four simulation values are dashes before the first bulletin");
 assert.doesNotMatch(waitingMarkup, /M調査中|深さ調査中|東京都２３区|>\?</);
-const firstReportMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", { isSimulation: true, serial: 1, hypocenter: "東京都２３区", magnitude: 4.6, depth: 30, maxIntensity: "3" });
-assert.match(firstReportMarkup, /M4\.6/);
+const firstReportMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", { isSimulation: true, simulationMagnitudeBasis: "Mw", serial: 1, hypocenter: "東京都２３区", magnitude: 4.6, depth: 30, maxIntensity: "3" });
+assert.match(firstReportMarkup, />M4\.6</);
 assert.match(firstReportMarkup, /深さ30km/);
 assert.match(firstReportMarkup, /東京都２３区/);
 const onePointMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", createLocalEewTestEvent("one-point"));
@@ -124,6 +126,38 @@ assert.match(levelMarkup, /M調査中/);
 assert.match(levelMarkup, /深さ調査中/);
 assert.match(levelMarkup, /震源調査中/);
 assert.doesNotMatch(levelMarkup, /M0\.0|深さ10km|M仮定値|深さ仮定値/, "CodeType level-method compatibility values are not measured source parameters");
+
+const renderEew = event => ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", event);
+const simulation = await prepareEarthquakeSimulation({ magnitude: 6.9, groundCorrection: "none" }, {
+  "0001": { longitude: 139.77, latitude: 35.69 }, "0002": { longitude: 139.8, latitude: 35.7 }
+}, { yieldTask: async () => {} });
+for (const time of [0, 5, 40, simulation.duration, 5]) {
+  const event = simulation.frame(time).event, summary = renderEew(event);
+  if (event.waitingForDetection) assert.doesNotMatch(summary, /Mw\d|M\d/);
+  else if (Number.isFinite(event.magnitude)) {
+    assert.match(summary, new RegExp(`>M${event.magnitude.toFixed(1).replace(".", "\\.")}<`));
+    assert.doesNotMatch(summary, />Mw\d/);
+  }
+}
+assert.match(renderEew(simulation.frame(simulation.duration).event), />M6\.9</);
+const convertedSummary = renderEew({isSimulation:true,simulationMagnitudeBasis:"Mw",magnitude:7,depth:10,
+  simulationMagnitudeDisplay:{value:7.6,scale:"M",converted:true}});
+assert.match(convertedSummary, />M7\.6</);
+assert.match(convertedSummary, /換算参考値/);
+assert.match(convertedSummary, /Mw7\.0/);
+displayLanguage = "en";
+assert.match(renderEew({isSimulation:true,simulationMagnitudeBasis:"Mw",magnitude:7,simulationMagnitudeDisplay:{value:7.6,scale:"M",converted:true}}),/converted reference; source Mw7\.0/);
+displayLanguage = "ja";
+const feedWithSimulationMetadata = renderEew({...createLocalEewTestEvent("one-point"),
+  simulationMagnitudeDisplay:{value:7.6,scale:"M",converted:true}});
+assert.match(feedWithSimulationMetadata,/M5\.8/);assert.doesNotMatch(feedWithSimulationMetadata,/M7\.6|換算参考値/);
+const missingSimulationMagnitude = renderEew({ isSimulation: true, simulationMagnitudeBasis: "Mw", magnitude: null });
+assert.match(missingSimulationMagnitude, /M調査中/);
+assert.match(renderEew({isSimulation:true,simulationMagnitudeBasis:"Mw",magnitude:9,
+  simulationMagnitudeDisplay:{value:9,scale:"Mw",converted:false}}), />M9\.0</);
+for (const event of [createLocalEewTestEvent("one-point"), createLocalEewTestEvent("assumption"), createLocalEewTestEvent("level")]) {
+  assert.doesNotMatch(renderEew(event), /Mw/ , "live/test feed labels must not be inferred to use Mw");
+}
 
 // 実アプリの受信ハンドラーも、速報ではXMLを追加取得せず、EEW地図を維持する。
 const app = readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
