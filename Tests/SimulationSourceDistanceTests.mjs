@@ -34,4 +34,13 @@ for(const magnitude of [4,6,7,8.3,9.5]) for(const depthKm of [0,10,100,149.99,15
     if(depthKm===150) assert.equal(intensity,estimateReferenceIntensity(parameters));
   }
 }
-console.log("Simulation distances: published finite-source sphere, bounded giants, rectangular planes, source strips, deep continuity and monotonic attenuation passed");
+const officialFlat={LON:135,LAT:35,DEP:2,LEN:10,WID:10,STR:0,DIP:0,
+  CORNERS:[[135,35,2],[135,35.1,2],[135.1,35.1,2],[135.1,35,2]]};
+assert.ok(Math.abs(rectangularFaultDistance([135.05,35.05],officialFlat)-2)<1e-9,"interior distance is to the official plane, not its center or edges");
+assert.equal(rectangularFaultDistance([135,35],officialFlat),2);
+assert.ok(rectangularFaultDistance([135.2,35.05],officialFlat)>2);
+assert.ok(rectangularFaultDistance([135.05,35.08],officialFlat,0,[0,1])>2,"an unruptured strip cannot act as the whole plane");
+assert.equal(rectangularFaultDistance([135,35],officialFlat,-3),0,"clipping above ground remains finite");
+const officialVertical={...officialFlat,DIP:90,CORNERS:[[135,35,2],[135,35.1,2],[135,35.1,12],[135,35,12]]};
+assert.ok(Math.abs(rectangularFaultDistance([135,35.05],officialVertical)-2)<1e-8);
+console.log("Simulation distances: published finite-source sphere, bounded giants, official planes/strips, deep continuity and monotonic attenuation passed");

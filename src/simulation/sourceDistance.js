@@ -16,6 +16,7 @@ export function pointSourceFaultDistance(magnitude, depthKm, hypocentralDistance
 // Surface point -> rectangular plane in local east/north/down coordinates.
 // The origin is the upper corner, strike clockwise from north, dip to its right.
 export function rectangularFaultDistance(point, fault, depthShiftKm = 0, alongRange = [0, fault.LEN]) {
+  if(fault.CORNERS)return officialPlaneDistance(point,fault,depthShiftKm,alongRange);
   const rad = Math.PI / 180;
   const east = (point[0] - fault.LON) * rad * 6371 * Math.cos((point[1] + fault.LAT) / 2 * rad);
   const north = (point[1] - fault.LAT) * rad * 6371;
@@ -26,6 +27,39 @@ export function rectangularFaultDistance(point, fault, depthShiftKm = 0, alongRa
     east * Math.cos(strike) * Math.cos(dip) - north * Math.sin(strike) * Math.cos(dip) + down * Math.sin(dip)));
   return Math.hypot(east - along * Math.sin(strike) - across * Math.cos(strike) * Math.cos(dip),
     north - along * Math.cos(strike) + across * Math.sin(strike) * Math.cos(dip), down - across * Math.sin(dip));
+}
+
+// Closest distance to the finite official quadrilateral, split into triangles.
+// The local projection is a distance approximation; source/display vertices
+// themselves remain the original WGS84 positions and depths.
+function officialPlaneDistance(point,fault,shift,[start,end]) {
+  const rad=Math.PI/180,scale=rad*6371;
+  const corners=fault.CORNERS.map(p=>[(p[0]-point[0])*scale*Math.cos((p[1]+point[1])/2*rad),
+    (p[1]-point[1])*scale,Math.max(0,p[2]+shift)]);
+  const along=(a,b,f)=>a.map((v,i)=>v+(b[i]-v)*Math.max(0,Math.min(1,f/fault.LEN)));
+  const [a,b,c,d]=[along(corners[0],corners[1],start),along(corners[0],corners[1],end),
+    along(corners[3],corners[2],end),along(corners[3],corners[2],start)];
+  return Math.min(triangleDistance(a,b,c),triangleDistance(a,c,d));
+}
+
+function triangleDistance(a,b,c) {
+  const bx=b[0]-a[0],by=b[1]-a[1],bz=b[2]-a[2],cx=c[0]-a[0],cy=c[1]-a[1],cz=c[2]-a[2];
+  const aa=bx*bx+by*by+bz*bz,bb=bx*cx+by*cy+bz*cz,cc=cx*cx+cy*cy+cz*cz,den=aa*cc-bb*bb;
+  if(den>1e-15){
+    const nx=by*cz-bz*cy,ny=bz*cx-bx*cz,nz=bx*cy-by*cx,nn=nx*nx+ny*ny+nz*nz;
+    const offset=a[0]*nx+a[1]*ny+a[2]*nz,scale=offset/nn;
+    const px=nx*scale-a[0],py=ny*scale-a[1],pz=nz*scale-a[2];
+    const pab=px*bx+py*by+pz*bz,pac=px*cx+py*cy+pz*cz;
+    const u=(cc*pab-bb*pac)/den,v=(aa*pac-bb*pab)/den;
+    if(u>=0&&v>=0&&u+v<=1)return Math.abs(offset)/Math.sqrt(nn);
+  }
+  return Math.sqrt(Math.min(segmentDistanceSquared(a,b),segmentDistanceSquared(b,c),segmentDistanceSquared(c,a)));
+}
+
+function segmentDistanceSquared(a,b) {
+  const x=b[0]-a[0],y=b[1]-a[1],z=b[2]-a[2],length=x*x+y*y+z*z;
+  const t=length?Math.max(0,Math.min(1,-(a[0]*x+a[1]*y+a[2]*z)/length)):0;
+  return (a[0]+t*x)**2+(a[1]+t*y)**2+(a[2]+t*z)**2;
 }
 
 export function activeFaultSourceDistances(point, fault, sources, depthShiftKm = 0) {

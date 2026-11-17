@@ -82,7 +82,7 @@ export function bindDepth3DVertexBuffer(gl, buffer, attributes) {
   gl.vertexAttribPointer(attributes.size, 1, gl.FLOAT, false, stride, 7 * Float32Array.BYTES_PER_ELEMENT);
 }
 
-function compileShader(gl, type, source) {
+export function compileShader(gl, type, source) {
   const shader = gl.createShader(type);
   gl.shaderSource(shader, source);
   gl.compileShader(shader);

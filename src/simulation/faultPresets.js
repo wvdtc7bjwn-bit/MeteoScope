@@ -1,5 +1,17 @@
 // Adapted with permission from itachi-kun-itc/WE-Simulator, web/app.js.
 // Upstream revision: 3b0f37d830b1994bac9a69c9686a90bcc24477c1. See docs/earthquake-simulation.md.
+export const NANKAI_LONG_TERM_ASSESSMENT = Object.freeze({
+  magnitude: "M8～M9クラス", checkedAt: "2026-11-17",
+  sourceUrl: "https://www.jishin.go.jp/regional_seismicity/rs_kaiko/k_nankai/"
+});
+// Cabinet Office 2025, table 4.1: whole-region moments in N m. Sum moments,
+// never magnitudes. The half-rupture Mw values below are MeteoScope reference
+// defaults derived from rounded tabular values, not published half-rupture Mw.
+export const NANKAI_HALF_REFERENCE_MOMENTS = Object.freeze({
+  east: Object.freeze([8.3e21, 1.2e21]), // Tokai + Suruga Bay
+  west: Object.freeze([2.0e22, 4.3e21]) // Nankai + Hyuga-nada
+});
+const halfReferenceMw = side => Number(((Math.log10(NANKAI_HALF_REFERENCE_MOMENTS[side].reduce((sum,moment)=>sum+moment,0))-9.1)/1.5).toFixed(1));
 export const NANKAI_RUPTURE_CASES = {
   full: {
     label: "全割れケース",
@@ -7,10 +19,10 @@ export const NANKAI_RUPTURE_CASES = {
   east: {
     label: "半割れケース（東側）",
     name: "南海トラフ地震（半割れ・東側）",
-    magnitude: "計算用Mw未設定",
-    magnitudeValue: null,
-    magnitudeContext: "東側半割れ：2025年の津波用公表Mwは8.7です。強震用ケースの計算Mwとしては流用せず、計算用Mwを入力してください。",
-    magnitudeContextEn: "Eastern half: published 2025 tsunami-model Mw is 8.7. It is not substituted for a strong-motion scenario Mw; enter calculation Mw.",
+    magnitude: "参考Mw8.6",
+    magnitudeValue: halfReferenceMw("east"),
+    magnitudeContext: "東側半割れの初期Mw8.6はMeteoScopeの参考設定です。内閣府2025年・表4.1の東海域＋駿河湾域の地震モーメントを合計して算出しました。公表された半割れMwそのものではなく、変更できます。津波用公表Mw8.7とは区別します。",
+    magnitudeContextEn: "Eastern half: initial Mw8.6 is a MeteoScope reference derived by summing the Tokai and Suruga Bay region moments in Cabinet Office 2025 table 4.1. It is editable, not a directly published half-rupture Mw, and distinct from tsunami-model Mw8.7.",
     region: "紀伊半島沖から駿河湾側",
     modelType: "東側半割れの学習用近似",
     segments: ["熊野灘海盆域", "遠州海盆域", "駿河湾域"],
@@ -20,10 +32,10 @@ export const NANKAI_RUPTURE_CASES = {
   west: {
     label: "半割れケース（西側）",
     name: "南海トラフ地震（半割れ・西側）",
-    magnitude: "計算用Mw未設定",
-    magnitudeValue: null,
-    magnitudeContext: "西側半割れ：2025年の津波用公表Mwは9.0です。強震用ケースの計算Mwとしては流用せず、計算用Mwを入力してください。",
-    magnitudeContextEn: "Western half: published 2025 tsunami-model Mw is 9.0. It is not substituted for a strong-motion scenario Mw; enter calculation Mw.",
+    magnitude: "参考Mw8.9",
+    magnitudeValue: halfReferenceMw("west"),
+    magnitudeContext: "西側半割れの初期Mw8.9はMeteoScopeの参考設定です。内閣府2025年・表4.1の南海域＋日向灘域の地震モーメントを合計して算出しました。公表された半割れMwそのものではなく、変更できます。津波用公表Mw9.0とは区別します。",
+    magnitudeContextEn: "Western half: initial Mw8.9 is a MeteoScope reference derived by summing the Nankai and Hyuga-nada region moments in Cabinet Office 2025 table 4.1. It is editable, not a directly published half-rupture Mw, and distinct from tsunami-model Mw9.0.",
     region: "日向灘から紀伊半島沖側",
     modelType: "西側半割れの学習用近似",
     segments: ["日向灘域", "土佐海盆域", "室戸舟状海盆域", "熊野灘海盆域"],

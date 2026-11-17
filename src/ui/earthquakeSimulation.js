@@ -2,7 +2,7 @@ import { JMA_ENDPOINTS, MAP_DATA_ENDPOINTS } from "../config.js";
 import { getCurrentLanguage } from "./locale.js";
 import { loadSimulationResource, SimulationPreparationError } from "../simulation/preparationErrors.js";
 import { createSimulationCamera } from "../simulation/camera.js";
-import {getFaultAssessment} from "../simulation/faultAssessment.js";
+import {getFaultAssessment, faultAssessmentCaseId, publishedMagnitudeBounds, publishedMagnitudeDefault} from "../simulation/faultAssessment.js";
 
 const text = (ja, en) => getCurrentLanguage() === "en" ? en : ja;
 const modelNames = () => [
@@ -88,8 +88,13 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
             <button type="button" class="simulation-secondary" data-active-fault-retry hidden>${text("一覧を再読み込み", "Reload fault list")}</button>
             <p data-active-fault-description></p>
             <p data-active-model-status role="status"></p>
+            <label>${text("規模の資料", "Magnitude source")}<select name="magnitudeBasis"><option value="herp-M">${text("地震調査委員会の公表Mを優先", "Prefer HERP published M")}</option><option value="Mw">${text("計算用Mwを指定", "Specify calculation Mw")}</option></select></label>
+            <label data-assessment-case-label>${text("公表Mの活動ケース", "Published M activity case")}<select name="assessmentCase"></select></label>
+            <label data-assessment-value-label hidden>${text("公表Mの範囲から選択", "Choose a value within published M bounds")}<select name="assessmentMagnitude"></select></label>
+            <p data-assessment-default-note hidden></p>
             <p data-active-assessment></p><a data-active-assessment-link target="_blank" rel="noopener noreferrer" hidden></a>
-            <p>${text("選択した活動ケースの2024年版モデルを全断層面で計算します。公表Mは計算用Mwへ変換しません。断層面間の破壊伝播・震度は学習用近似です。最新評価で区分が変わった場合も、旧モデルの形状やMwを最新の値と見なしません。", "All planes of the selected 2024 activity model are used. Published M is never converted to calculation Mw. Rupture propagation and intensities are educational approximations. Older geometries and Mw do not represent revised assessment sections.")}</p>
+            <p data-magnitude-basis-note></p>
+            <p>${text("断層形状は選択した2024年版モデルの全断層面です。公表Mを選んでも形状は変わりません。最新評価で区分が変わった場合も、旧モデルの形状を最新の区分とは見なしません。", "Geometry uses all planes of the selected 2024 model. Selecting published M does not change geometry or reproduce revised activity sections.")}</p>
             <a href="https://www.j-shis.bosai.go.jp/api-vectortile-majorfault" target="_blank" rel="noopener noreferrer">${text("一覧：J-SHIS 2022年版・MAX確率ケース", "Index: J-SHIS 2022, MAX probability case")} ↗</a><br>
             <a data-active-model-source target="_blank" rel="noopener noreferrer" hidden>${text("計算に使用する2024年版モデル（公式API） ↗", "2024 calculation model (official API) ↗")}</a>
           </section>
@@ -100,7 +105,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
           </div>
           <button class="simulation-secondary" type="button" data-simulation-pick>${text("地図で震源を選ぶ", "Choose epicenter on map")}</button>
           <div class="simulation-fields">
-            <label>${text("計算用Mw", "Calculation Mw")}<input name="magnitude" aria-label="${text("マグニチュード Mw", "Moment magnitude Mw")}" type="number" min="1" max="9.5" step="0.1" required inputmode="decimal"></label>
+            <label><span data-magnitude-label>${text("計算用Mw", "Calculation Mw")}</span><input name="magnitude" aria-label="${text("マグニチュード Mw", "Moment magnitude Mw")}" type="number" min="1" max="9.5" step="0.1" required inputmode="decimal"></label>
             <label>${text("深さ（km）", "Depth (km)")}<input name="depthKm" type="number" min="0" max="700" step="1" required inputmode="numeric"></label>
           </div>
           <div class="simulation-fault-fields simulation-fields" hidden>
@@ -110,6 +115,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
           <label>${text("地盤補正", "Ground correction")}<select name="groundCorrection"><option value="jshis-1km">${text("あり（J-SHIS・1kmメッシュ）", "On (J-SHIS, 1 km mesh)")}</option><option value="none">${text("なし（基盤上の参考値）", "Off (reference bedrock)")}</option></select></label>
           <p class="simulation-model-note"></p>
           <p data-simulation-published-magnitude></p>
+          <p data-simulation-long-term-assessment hidden></p><a data-simulation-long-term-source target="_blank" rel="noopener noreferrer" hidden></a>
           <p class="simulation-reference-note" data-simulation-reference></p>
           <details class="simulation-public-scenario"><summary>${text("公的な想定震度分布", "Published scenario intensities")}</summary>
             <p>${text("対応する公表ケースのデータを読み込むと、その地点の想定震度を優先します。全割れ・東西の半割れ、規模・深さ・破壊開始位置が異なるデータは流用しません。", "Load data for the matching published scenario to prioritize its surface intensities. Full and half ruptures, magnitude, depth and rupture origin must match.")}</p>
@@ -148,6 +154,18 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     });
     field("groundCorrection").addEventListener("change", updateModelFields);
     field("depthKm").addEventListener("input", updateModelFields);
+    for (const name of ["magnitudeBasis", "assessmentCase"]) field(name).addEventListener("change", () => {
+      const assessment = getFaultAssessment(selectedFault?.LTENAME ?? "");
+      const row = assessment.rows.find(row => faultAssessmentCaseId(row) === field("assessmentCase").value);
+      field("magnitude").value = field("magnitudeBasis").value === "herp-M"
+        ? publishedMagnitudeDefault(row?.magnitude) ?? ""
+        : selectedFault ? core.buildActiveFaultPreset(selectedFault).magnitudeValue ?? "" : "";
+      updateModelFields();
+    });
+    field("assessmentMagnitude").addEventListener("change",()=>{
+      field("magnitude").value=field("assessmentMagnitude").value;
+      updateModelFields();
+    });
     field("faultSearch").addEventListener("input", renderFaultChoices);
     field("activeFaultId").addEventListener("change", () => {
       selectedCaseId=field("activeFaultId").value;
@@ -198,7 +216,8 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
 
   function readForm() {
     const values = Object.fromEntries(["model", "nankaiCase", "latitude", "longitude", "magnitude", "depthKm", "ruptureOrigin", "ruptureSpeed", "groundCorrection"].map(name => [name, field(name)?.value]));
-    return values.model === "active-fault" ? {...values, activeFault: selectedFault} : values;
+    return values.model === "active-fault" ? {...values, activeFault: selectedFault,
+      magnitudeBasis: field("magnitudeBasis").value, assessmentCase: field("assessmentCase").value} : values;
   }
 
   function applyActiveFault(fault) {
@@ -207,6 +226,57 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     for (const name of ["longitude", "latitude", "depthKm"]) field(name).value = preset[name];
     field("magnitude").value = preset.magnitudeValue ?? "";
     field("ruptureOrigin").value = "center";
+    delete field("assessmentCase").dataset.faultCase;
+  }
+
+  function updateMagnitudeFields(assessment) {
+    const active = field("model").value === "active-fault";
+    const select = field("assessmentCase");
+    if (active && select.dataset.faultCase !== selectedCaseId) {
+      const restored = lastValues?.model === "active-fault" && lastValues.activeFault
+        && core.activeFaultCaseId(lastValues.activeFault) === selectedCaseId ? lastValues : null;
+      select.replaceChildren(new Option(text("公表ケースを選択してください", "Select a published case"), ""));
+      for (const row of assessment.rows) {
+        const option = new Option(`${row.caseName || row.name} · M${row.magnitude}`, faultAssessmentCaseId(row));
+        option.disabled = !publishedMagnitudeBounds(row.magnitude);
+        select.add(option);
+      }
+      field("magnitudeBasis").value = restored?.magnitudeBasis ?? "herp-M";
+      select.value = restored?.assessmentCase ?? (assessment.matching ? faultAssessmentCaseId(assessment.matching) : "");
+      select.dataset.faultCase = selectedCaseId;
+      if (field("magnitudeBasis").value === "herp-M") {
+        const row = assessment.rows.find(row => faultAssessmentCaseId(row) === select.value);
+        field("magnitude").value = restored?.magnitudeBasis === "herp-M" && row
+          ? restored.magnitude : publishedMagnitudeDefault(row?.magnitude) ?? "";
+      }
+    }
+    const published = active && field("magnitudeBasis").value === "herp-M";
+    const row = published ? assessment.rows.find(row => faultAssessmentCaseId(row) === select.value) : null;
+    const bounds = row && publishedMagnitudeBounds(row.magnitude);
+    select.disabled = !published;
+    select.required = published;
+    modal.querySelector("[data-assessment-case-label]").hidden = !published;
+    const rangeSelect=field("assessmentMagnitude"),range=published&&bounds?.value===null;
+    modal.querySelector("[data-assessment-value-label]").hidden=!range;
+    const defaultNote=modal.querySelector("[data-assessment-default-note]");
+    defaultNote.hidden=!range;
+    if(range)defaultNote.textContent=text(`参考初期値はM${publishedMagnitudeDefault(row.magnitude).toFixed(1)}です（MeteoScope設定）。公表範囲の中央、または記載された境界値を使い、選択欄で変更できます。`,
+      `Reference initial value: M${publishedMagnitudeDefault(row.magnitude).toFixed(1)} (set by MeteoScope). Uses the published range midpoint or stated bound; change it in the selector.`);
+    rangeSelect.disabled=!range;rangeSelect.required=range;
+    if(range){
+      rangeSelect.replaceChildren(new Option(text("Mを選択してください", "Select M"),""));
+      for(let tenth=Math.ceil(bounds.min*10);tenth<=Math.floor(bounds.max*10);tenth++)rangeSelect.add(new Option((tenth/10).toFixed(1),String(tenth/10)));
+      rangeSelect.value=field("magnitude").value;
+    }
+    field("magnitude").readOnly = published && Boolean(bounds);
+    field("magnitude").min = bounds?.min ?? 1;
+    field("magnitude").max = bounds?.max ?? 9.5;
+    const label = published ? text("公表M（近似計算）", "Published M (approximation)") : text("計算用Mw", "Calculation Mw");
+    modal.querySelector("[data-magnitude-label]").textContent = label;
+    field("magnitude").setAttribute("aria-label", published ? label : text("マグニチュード Mw", "Moment magnitude Mw"));
+    modal.querySelector("[data-magnitude-basis-note]").textContent = published
+      ? text("公表Mと同じ数値をMw前提の計算式へ与える学習用の感度試算です。MからMwへの換算でも、公的な想定震度の再現でもありません。活動区間が一致しない場合は形状との対応も未確認です。Mに幅・上限・下限がある場合は候補から選んでください。開いた境界での候補の端は計算上の入力限界（1～9.5）で、公的な上限・下限ではありません。", "Educational sensitivity run: the published M number is supplied to an Mw-based equation. This is neither M-to-Mw conversion nor an official intensity assessment. Geometry may not match the assessment section. Select an explicit value for a range or bound. Open bounds use the simulation limits (1–9.5), not additional official limits.")
+      : text("計算用Mwを使用します。公表MをMwと同じ値とは扱いません。", "Uses calculation Mw; published M is not treated as an equivalent Mw.");
   }
 
   function renderFaultChoices() {
@@ -278,6 +348,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
         ? `${selectedFault.LTENAME} · ${selectedFault.MAG < 0 ? text(`2024年版モデルのMw ${-selectedFault.MAG}`, `2024 model Mw ${-selectedFault.MAG}`) : selectedFault.MAG > 0 ? text(`2024年版モデルのMj ${selectedFault.MAG}。計算用Mwは未確認です。`, `2024 model Mj ${selectedFault.MAG}; calculation Mw unavailable.`) : text("モデルのMwは未確認です。", "Model Mw unavailable.")}` : "";
       const name=selectedFault?.LTENAME??faultCatalog.find(fault=>core.activeFaultCaseId(fault)===selectedCaseId)?.LTENAME??"";
       const assessment=getFaultAssessment(name);
+      updateMagnitudeFields(assessment);
       const published=modal.querySelector("[data-active-assessment]");
       published.textContent=assessment.rows.length
         ? text(`公表M（地震調査委員会、${assessment.checkedAt}確認）：${assessment.rows.map(row=>`${row.caseName||row.name} M${row.magnitude}`).join(" ／ ")}。${assessment.exact?"活動区間の名称一致。計算モデルと同じ評価年・形状を保証しません。":"断層帯の評価一覧です。選択モデルとの活動区間の一致は未確認です。"}`, `Published M (HERP; checked ${assessment.checkedAt}): ${assessment.rows.map(row=>`${row.caseName||row.name} M${row.magnitude}`).join(" / ")}. Activity sections and the 2024 calculation model may differ.`)
@@ -290,6 +361,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     } else {
       faultCatalogController?.abort(); faultCatalogController = null;
       faultModelController?.abort();faultModelController=null;faultModelLoading=false;
+      updateMagnitudeFields({rows: []});
     }
     const deepApproximation = Number(field("depthKm").value) > core.MAX_REFERENCE_INTENSITY_DEPTH_KM;
     modal.querySelector("[data-simulation-deep-warning]").hidden = !deepApproximation;
@@ -312,6 +384,14 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     const seaPreset=activeFault?null:core.getFaultModelPreset({model:field("model").value,nankaiCase:field("nankaiCase").value});
     modal.querySelector("[data-simulation-published-magnitude]").textContent=seaPreset?.magnitudeContext
       ? text(seaPreset.magnitudeContext,seaPreset.magnitudeContextEn) : "";
+    const nankai=field("model").value==="nankai-trough",longTerm=core.NANKAI_LONG_TERM_ASSESSMENT;
+    const longTermNote=modal.querySelector("[data-simulation-long-term-assessment]"),longTermLink=modal.querySelector("[data-simulation-long-term-source]");
+    longTermNote.hidden=longTermLink.hidden=!nankai;
+    if(nankai){
+      longTermNote.textContent=text(`地震調査委員会の長期評価：${longTerm.magnitude}（${longTerm.checkedAt}確認）。全割れ・東西半割れ別の単一Mを示すものではありません。内閣府の強震用・津波用Mwとは区別します。`,
+        `HERP long-term assessment: M8–M9 class (checked ${longTerm.checkedAt}). This is not a single magnitude assigned separately to full/eastern/western ruptures. It is distinct from Cabinet Office strong-motion/tsunami Mw.`);
+      longTermLink.href=longTerm.sourceUrl;longTermLink.textContent=text("地震調査委員会の南海トラフ評価 ↗", "HERP Nankai assessment ↗");
+    }
     modal.querySelector(".simulation-start").disabled=activeFault&&(!selectedFault?.planes||faultModelLoading);
   }
 
@@ -338,7 +418,8 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       renderForm();
       if(field("model").value==="active-fault" && selectedCaseId && !selectedFault?.planes) void loadSelectedFault(selectedCaseId);
       modal.querySelector("[data-simulation-close]")?.focus({ preventScroll: true });
-    } catch {
+    } catch (error) {
+      console.warn("[MeteoScope] simulation settings unavailable", error);
       close();
       showNotice(text("計算モデルを読み込めませんでした。ボタンから再試行してください。", "Could not load the model. Open simulation to retry."));
     }
@@ -348,7 +429,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     faultCatalogController?.abort(); faultCatalogController = null;
     faultModelController?.abort();faultModelController=null;faultModelLoading=false;
     if (!preservePreparation && preparation) stop();
-    if (field("model")) lastValues = readForm();
+    if (field("model") && !preservePreparation) lastValues = readForm();
     modal.hidden = true;
     button.setAttribute("aria-expanded", "false");
     if (!document.querySelector(".warning-modal:not([hidden])")) document.body.classList.remove("modal-open");
@@ -376,8 +457,9 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
   }
 
   function renderPlayback() {
+    const publishedM = lastValues?.magnitudeBasis === "herp-M";
     playback.innerHTML = `<div class="simulation-playback-minimized" hidden><button type="button" data-simulation-pause></button><button type="button" data-simulation-restore aria-label="${text("シミュレーションの再生パネルを戻す", "Restore simulation playback panel")}" aria-controls="simulation-playback-content"><strong>${text("シミュレーション", "Simulation")}</strong><span><output data-simulation-time aria-label="${text("経過時間", "Elapsed time")}"></output> ‹</span></button></div>
-      <div id="simulation-playback-content"><header><strong>${text("シミュレーション", "Simulation")}</strong><span>${text("実際の地震ではありません", "Not a real earthquake")}</span><button type="button" data-simulation-first-report aria-label="${text("初報まで進む", "Skip to first bulletin")}" hidden>${text("初報へ", "Skip wait")}</button><button type="button" data-simulation-options aria-expanded="false" aria-controls="simulation-playback-options">${text("操作", "More")}</button><button type="button" data-simulation-minimize aria-label="${text("再生パネルを最小化", "Minimize playback panel")}" title="${text("最小化", "Minimize")}">−</button></header>
+      <div id="simulation-playback-content"><header><strong>${text("シミュレーション", "Simulation")}</strong><span>${publishedM ? text("公表Mによる近似・実際の地震ではありません", "Published-M approximation; not a real earthquake") : text("実際の地震ではありません", "Not a real earthquake")}</span><button type="button" data-simulation-first-report aria-label="${text("初報まで進む", "Skip to first bulletin")}" hidden>${text("初報へ", "Skip wait")}</button><button type="button" data-simulation-options aria-expanded="false" aria-controls="simulation-playback-options">${text("操作", "More")}</button><button type="button" data-simulation-minimize aria-label="${text("再生パネルを最小化", "Minimize playback panel")}" title="${text("最小化", "Minimize")}">−</button></header>
       <div class="simulation-playback-controls"><button type="button" data-simulation-pause></button><input data-simulation-seek type="range" min="0" step="0.1" aria-label="${text("シミュレーション時刻", "Simulation time")}"><output data-simulation-time aria-label="${text("経過時間", "Elapsed time")}"></output><button type="button" data-simulation-stop aria-label="${text("終了", "End")}" title="${text("終了", "End")}">×</button></div>
       <p class="simulation-ground-coverage" data-simulation-interrupted hidden>${text("画面の中断により一時停止しました。再生ボタンで続きから再開できます。", "Playback paused after an interruption. Press Play to continue from here.")}</p>
       <div id="simulation-playback-options" hidden>
@@ -426,7 +508,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     playback.querySelector("[data-simulation-overview]").addEventListener("click", () => camera.showOverview());
     if (lastValues) {
       const variant = lastValues.model === "nankai-trough" ? ({ full: text("全割れ", "Full"), east: text("半割れ・東側", "Eastern half"), west: text("半割れ・西側", "Western half") })[lastValues.nankaiCase] : "";
-      playback.querySelector("[data-simulation-name]").textContent = `${text("設定", "Source")}: ${lastValues.model === "active-fault" ? lastValues.activeFault.LTENAME : modelNames().find(([id]) => id === lastValues.model)?.[1]}${variant ? ` (${variant})` : ""} · Mw${Number(lastValues.magnitude).toFixed(1)} / ${lastValues.depthKm} km`;
+      playback.querySelector("[data-simulation-name]").textContent = `${text("設定", "Source")}: ${lastValues.model === "active-fault" ? lastValues.activeFault.LTENAME : modelNames().find(([id]) => id === lastValues.model)?.[1]}${variant ? ` (${variant})` : ""} · ${publishedM ? "M" : "Mw"}${Number(lastValues.magnitude).toFixed(1)} / ${lastValues.depthKm} km${publishedM ? ` · ${lastValues.magnitudeSource.caseName || lastValues.magnitudeSource.name} (${text("公表Mの近似", "published-M approximation")})` : ""}`;
     }
     const coverage = playback.querySelector("[data-simulation-scenario-coverage]");
     const sourceLink = playback.querySelector("[data-simulation-playback-source]");

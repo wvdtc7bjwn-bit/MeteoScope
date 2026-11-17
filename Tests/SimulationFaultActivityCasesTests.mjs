@@ -10,9 +10,17 @@ import {parseFaultAssessmentIndex} from "../scripts/update-simulation-fault-asse
 
 // Synthetic model; no provider geometry is bundled as a fixture.
 const id="F000001";
-const plane=(index,lon,dep=2)=>({type:"Feature",properties:{flt_id:`${id}_${String(index).padStart(5,"0")}`,lon,lat:35,dep,len:40,wid:12,str:0,dip:60}});
+const plane=(index,lon,dep=2)=>{
+  const properties={flt_id:`${id}_${String(index).padStart(5,"0")}`,lon,lat:35,dep,len:40,wid:12,str:0,dip:60};
+  const p=buildActiveFaultPreset({...Object.fromEntries(Object.entries(properties).map(([k,v])=>[k.toUpperCase(),v])),LTENAME:"試験"});
+  const bottom=dep+12*Math.sin(Math.PI/3);
+  const ring=[[...p.areaSides.left[0],dep],[...p.areaSides.left[1],dep],[...p.areaSides.right[1],bottom],[...p.areaSides.right[0],bottom]];
+  return {type:"Feature",properties,geometry:{type:"Polygon",coordinates:[[...ring,ring[0]]]}};
+};
 const data={status:"Success",crs:{properties:{name:"urn:ogc:def:crs:EPSG:4326"}},metaData:{version:"Y2024",case:"MAX",ltecode:id},seisact_model:{ltecode:id,ltename:"試験・同時活動",geom_num:2,magl:-7,magu:-7},features:[plane(1,135),plane(2,136,10)]};
 const model=readActiveFaultModel(data,id),preset=buildActiveFaultPreset(model);
+assert.deepEqual(preset.parts[0].areaSides.left[1],data.features[0].geometry.coordinates[0][1].slice(0,2),"retain official vertices without spherical reconstruction");
+assert.throws(()=>readActiveFaultModel({...data,features:[{...data.features[0],geometry:null},data.features[1]]},id),/rectangle/);
 assert.equal(model.planes.length,2);
 assert.equal(preset.magnitudeValue,7,"whole-model Mw retained once, never summed across planes");
 assert.equal(groupActiveFaultModels(model.planes).length,1);

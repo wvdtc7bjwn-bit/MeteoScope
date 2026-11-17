@@ -9,6 +9,7 @@ import { buildSimulationEewReports } from "./eewEstimates.js";
 import { getSimulationGround } from "./groundModel.js";
 import {buildActiveFaultPreset, normalizeActiveFaultSelection, isInterplateSimulation} from "./activeFault.js";
 import {buildMultiPlaneSources} from "./activeFaultSources.js";
+import {normalizeMagnitudeBasis} from "./faultAssessment.js";
 import {simulationActiveFaultDistances} from "./sourceDistance.js";
 import {createPublicScenarioLookup, validatePublicScenarioData} from "./scenarioIntensity.js";
 export {validatePublicScenarioData, scenarioMatchesOptions} from "./scenarioIntensity.js";
@@ -19,6 +20,7 @@ export { loadSimulationGroundModel } from "./groundModel.js";
 export { loadSimulationDetectionStations } from "./detectionStations.js";
 
 export { FAULT_MODEL_PRESETS };
+export {NANKAI_LONG_TERM_ASSESSMENT} from "./faultPresets.js";
 export const SIMULATION_DEFAULTS = Object.freeze({ model: "point", nankaiCase: "full", longitude: 139.76, latitude: 35.68, magnitude: 5.5, depthKm: 10, ruptureOrigin: "center", ruptureSpeed: 2.8, groundCorrection: "none" });
 
 export function normalizeSimulationOptions(input = {}) {
@@ -34,7 +36,7 @@ export function normalizeSimulationOptions(input = {}) {
   }
   if (!["start", "center", "end"].includes(options.ruptureOrigin)) throw new RangeError("Invalid rupture origin");
   if (!["none", "jshis-1km"].includes(options.groundCorrection)) throw new RangeError("Invalid ground correction");
-  return options;
+  return {...options, ...normalizeMagnitudeBasis(options)};
 }
 
 export function getFaultModelPreset(options) {
@@ -210,6 +212,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
         elapsed, stations: { type: "FeatureCollection", features },
         event: { ...baseEvent, serial: report?.reportNumber ?? 0,
           magnitude: report?.magnitude ?? null, depth: report?.depth ?? null, maxIntensity: report?.maxIntensity ?? null,
+          simulationMagnitudeBasis: options.magnitudeBasis, simulationMagnitudeSource: options.magnitudeSource,
           simulationObservationCount: report?.observationCount ?? 0, simulationSObservationCount: report?.sObservationCount ?? 0,
           simulationAnalysisStatus: report?.finalReason === "stable" ? "stable" : report?.finalReason === "insufficient-observations" ? "incomplete" : report?.analysisMature ? "confirming" : "reviewing",
           isWarn: report?.isWarn ?? false, waitingForDetection: !report, isFinal: report?.isFinal ?? false,

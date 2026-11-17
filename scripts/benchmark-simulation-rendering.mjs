@@ -8,16 +8,22 @@ import {getWaveDistancesByJma2001} from '../src/eew/jma2001TravelTime.js';
 import {exposedWavefrontArcs} from '../src/simulation/wavefrontGeometry.js';
 import {destinationPoint} from '../src/typhoonGeometry.js';
 import {unwrapLineAtAntimeridian} from '../src/map/geoLine.js';
+import {drawSimulationWaves} from '../src/map/simulationWaveCanvas.js';
 
 const root=new URL('../',import.meta.url);
 const catalogue=JSON.parse(await readFile(new URL('public/data/jma-intensity-stations.json',root),'utf8'));
 const plateBoundaries=JSON.parse(await readFile(new URL('public/data/usgs-plate-boundaries-japan.geojson',root),'utf8'));
 const mapText=await readFile(new URL('src/map/weatherMap.js',root),'utf8');
-const context=vm.createContext({getJma2001WaveDistances:getWaveDistancesByJma2001,exposedWavefrontArcs,unwrapLineAtAntimeridian,
+const context=vm.createContext({getJma2001WaveDistances:getWaveDistancesByJma2001,exposedWavefrontArcs,unwrapLineAtAntimeridian,localizeText:value=>value,
  createGeodesicCircle:(center,radius)=>{const ring=Array.from({length:96},(_,i)=>destinationPoint(center,radius,i*360/96));return [...ring,ring[0]];}});
 vm.runInContext(mapText.slice(mapText.indexOf('function createEewFeatureCollection('),mapText.indexOf('function getJma2001WaveDistances(')),context);
 const hash=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const stats=values=>{const sorted=values.toSorted((a,b)=>a-b);return {median:sorted[Math.floor(sorted.length*.5)],p95:sorted[Math.floor(sorted.length*.95)]};};
+// Project the actual, unchanged wave geometry to a 430x932 Mercator viewport.
+// Canvas calls are no-ops: this isolates CPU preparation, not raster/GPU FPS.
+const projection={getCenter:()=>({lng:137,lat:35}),getRenderWorldCopies:()=>true,
+ project:([lon,lat])=>({x:215+(lon-137)*18,y:466-1031.324*Math.log(Math.tan(Math.PI/4+lat*Math.PI/360))+673.9})};
+const canvasContext={clearRect(){},beginPath(){},moveTo(){},lineTo(){},closePath(){},fill(){},stroke(){}};
 const cases=[
  ['point',{magnitude:6.5}],
  ['nankai',getSimulationPresetOptions('nankai-trough')],
@@ -31,20 +37,24 @@ for(const [name,input] of cases){
  const map={getLayer:id=>layers.get(id),getSource:id=>sources.get(id),getCanvas:()=>({style:{}}),on(){},off(){},setPaintProperty(){},setLayoutProperty(){},
  addLayer:layer=>layers.set(layer.id,layer),addSource(id){sources.set(id,{setData(){},updateData(){}});}};
  const overlay=createSimulationMapOverlay(()=>map,()=>{},()=>{});
- const durations={frame:[],overlay:[],waves:[],total:[]};
+ const durations={frame:[],overlay:[],waves:[],total:[],oldWavePreparation:[],directWavePreparation:[]},payload={full:[],markers:[]};
  for(let pass=-1;pass<3;pass++)for(let i=0;i<(pass<0?12:150);i++){
   const time=simulation.duration*i/149;
   const t0=performance.now();const frame=simulation.frame(time,{renderOnly:true});const t1=performance.now();
-  overlay.render(frame);const t2=performance.now();context.createEewFeatureCollection([frame.event]);const t3=performance.now();
-  if(pass>=0){durations.frame.push(t1-t0);durations.overlay.push(t2-t1);durations.waves.push(t3-t2);durations.total.push(t3-t0);}
+  overlay.render(frame);const t2=performance.now();const waves=context.createEewFeatureCollection([frame.event]);const t3=performance.now();
+  const json=JSON.stringify(waves),t4=performance.now();
+  drawSimulationWaves(canvasContext,projection,waves,430,932);const t5=performance.now();
+  const markers=JSON.stringify({...waves,features:waves.features.filter(feature=>feature.properties.featureType==='hypocenter')});const t6=performance.now();
+  if(pass>=0){durations.frame.push(t1-t0);durations.overlay.push(t2-t1);durations.waves.push(t3-t2);durations.total.push(t3-t0);
+   durations.oldWavePreparation.push(t4-t2);durations.directWavePreparation.push((t3-t2)+(t6-t4));payload.full.push(Buffer.byteLength(json));payload.markers.push(Buffer.byteLength(markers));}
  }
  const fingerprints=[];
  for(const mode of ['current','maximum'])for(const renderOnly of [false,true])for(const time of [0,.1,2,12,40,100,218,413,simulation.duration,0]){
   const frame=simulation.frame(time,{intensityDisplay:mode,renderOnly});
   fingerprints.push({mode,renderOnly,time,frame:hash(frame),waves:hash(context.createEewFeatureCollection([frame.event]))});
  }
- const entry={name,duration:simulation.duration,stations:simulation.stations.length,ms:Object.fromEntries(Object.entries(durations).map(([key,times])=>[key,stats(times)])),fingerprints};
- result.cases.push(entry);console.log(JSON.stringify({name,ms:entry.ms}));
+ const entry={name,duration:simulation.duration,stations:simulation.stations.length,ms:Object.fromEntries(Object.entries(durations).map(([key,times])=>[key,stats(times)])),waveSourceBytes:Object.fromEntries(Object.entries(payload).map(([key,bytes])=>[key,stats(bytes)])),fingerprints};
+ result.cases.push(entry);console.log(JSON.stringify({name,ms:entry.ms,waveSourceBytes:entry.waveSourceBytes}));
 }
 await mkdir(new URL('../.cache/',import.meta.url),{recursive:true});
 await writeFile(process.argv[2]??new URL('../.cache/simulation-render-benchmark.json',import.meta.url),JSON.stringify(result,null,2));

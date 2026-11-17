@@ -49,6 +49,20 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
   const depthError = Math.min(80, 18 + options.depthKm * .15);
   let predictionKey = "", basePredictions = [];
   const activeFaultPreset = options.model === "active-fault" ? buildActiveFaultPreset(options.activeFault) : null;
+  // Geometry depends on depth, not on magnitude or the set already ruptured.
+  // Reuse the same distances across revisions; keep temporary memory bounded.
+  const distancesByDepth=new Map();
+  const faultDistancesAt=depth=>{
+    if(!activeFaultPreset)return null;
+    if(depth===options.depthKm)return stations.map(station=>station.sourceRuptureDistancesKm);
+    if(!distancesByDepth.has(depth)){
+      const distances=stations.map(station=>station.sourceDistancesKm
+        ? simulationActiveFaultDistances(station.coordinates,options.activeFault,sources,depth,activeFaultPreset.depthKm,station.sourceDistancesKm):null);
+      if(distancesByDepth.size>=4)distancesByDepth.delete(distancesByDepth.keys().next().value);
+      distancesByDepth.set(depth,distances);
+    }
+    return distancesByDepth.get(depth);
+  };
   const evaluate = (elapsedSec, progress) => {
     const remaining = (1 - progress) ** 2.4;
     const [magnitudeRevision, depthRevision] = getEstimateRevision(progress);
@@ -59,12 +73,11 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
     const activeSourceIndices = sources.flatMap((source, index) => source.ruptureDelaySec <= elapsedSec ? [index] : []);
     const nextKey = `${magnitude}|${depth}|${activeSourceIndices.join(",")}`;
     if (nextKey !== predictionKey) {
-      basePredictions = intensityEstimateAvailable ? stations.map(station => {
+      const faultDistancesForDepth=intensityEstimateAvailable?faultDistancesAt(depth):null;
+      basePredictions = intensityEstimateAvailable ? stations.map((station,stationIndex) => {
         const distance = activeSourceIndices.length && station.sourceDistancesKm
           ? Math.min(...activeSourceIndices.map(index => station.sourceDistancesKm[index])) : station.epicentralDistanceKm;
-        const faultDistances = activeFaultPreset && station.sourceDistancesKm
-          ? (depth === options.depthKm ? station.sourceRuptureDistancesKm
-            : simulationActiveFaultDistances(station.coordinates, options.activeFault, sources, depth, activeFaultPreset.depthKm, station.sourceDistancesKm)) : null;
+        const faultDistances = faultDistancesForDepth?.[stationIndex] ?? null;
         const ruptureDistanceKm = faultDistances && activeSourceIndices.length
           ? Math.min(...activeSourceIndices.map(index => faultDistances[index])) : Math.hypot(distance, depth);
         const calculated = estimateSimulationIntensity({ magnitude, depthKm: depth, ruptureDistanceKm,

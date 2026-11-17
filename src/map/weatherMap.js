@@ -1,6 +1,7 @@
 import { VECTOR_BASE_MAP_ENABLED, registerBaseMapProtocol, createMunicipalitySource, baseMapSourceLayer, municipalityStateTarget } from "./baseMapTiles.js";
 import { waitForInitialMapGeometry } from "./initialMapReadiness.js";
 import { createSimulationMapOverlay } from "./simulationOverlay.js";
+import { createSimulationWaveCanvas } from "./simulationWaveCanvas.js";
 import { EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID } from "./earthquakeMarkerIds.js";
 import { exposedWavefrontArcs } from "../simulation/wavefrontGeometry.js";
 import {
@@ -471,6 +472,11 @@ export function createWeatherMap(elementId) {
   let modeApplyPending = false;
   let activeMode = "radar";
   let activeEews = [];
+  let eewMarkerKey = "", eewMarkerCollection = EMPTY_GEOJSON;
+  let eewVisibilityKey = "", eewVisibilitySource = null;
+  const simulationWaves = createSimulationWaveCanvas(() => map, {
+    onCapabilityChange: () => setEmergencyEarthquakeWarnings(activeEews)
+  });
   let sampleDataMode = null;
   let recentEarthquakeCollectionCache = null;
   let eewAreaSignature = "";
@@ -2932,9 +2938,30 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       eew && !eew.isCancel
     ));
     const source = map?.getSource(EEW_SOURCE_ID);
-    if (source?.setData) source.setData(createEewFeatureCollection(activeEews));
+    if (source?.setData) {
+      const collection = createEewFeatureCollection(activeEews);
+      const simulation = activeMode === "earthquake" && activeEews.length > 0 && activeEews.every(event => event.isSimulation);
+      const direct = simulation && simulationWaves.setData(collection);
+      if (direct) {
+        const markers = collection.features.filter(feature => feature.properties.featureType === "hypocenter");
+        const key = JSON.stringify(markers);
+        if (key !== eewMarkerKey) {
+          eewMarkerKey = key;
+          eewMarkerCollection = { type: "FeatureCollection", features: markers };
+        }
+        setGeoJsonSourceData(source, eewMarkerCollection);
+      } else {
+        simulationWaves.clear();
+        setGeoJsonSourceData(source, collection);
+      }
+    }
     syncEewForecastAreas();
-    syncEewVisibility();
+    const visibilityKey = `${activeMode}|${activeEews.length > 0}|${activeEews.some(event => event.isSimulation)}`;
+    if (eewVisibilityKey !== visibilityKey || eewVisibilitySource !== source) {
+      eewVisibilityKey = visibilityKey;
+      eewVisibilitySource = source;
+      syncEewVisibility();
+    }
   }
 
   function syncEewForecastAreas({ force = false } = {}) {
@@ -2992,6 +3019,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   function syncEewVisibility() {
     if (!map?.getSource(EEW_SOURCE_ID)) return;
     const visible = activeMode === "earthquake" && activeEews.length > 0;
+    simulationWaves.setVisible(visible);
     EEW_LAYER_IDS.forEach((layerId) => {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
     });

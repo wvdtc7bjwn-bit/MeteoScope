@@ -36,7 +36,10 @@ export function readActiveFaultModel(data, id) {
     const p = feature.properties;
     if (!p || !String(p.flt_id).startsWith(id + "_") || (p.pattern_code && p.pattern_code !== id))
       throw new Error("Different activity pattern in fault model");
-    return normalizeActiveFault({...Object.fromEntries(Object.entries(p).map(([key,value]) => [key.toUpperCase(), value])), LTENAME: model.ltename, MAG: magnitude});
+    const ring=feature.geometry?.coordinates?.[0];
+    if(feature.geometry?.type!=="Polygon"||feature.geometry.coordinates.length!==1||!Array.isArray(ring)||ring.length!==5
+      ||JSON.stringify(ring[0])!==JSON.stringify(ring[4])) throw new Error("Incomplete official fault rectangle");
+    return normalizeActiveFault({...Object.fromEntries(Object.entries(p).map(([key,value]) => [key.toUpperCase(), value])), LTENAME: model.ltename, MAG: magnitude, CORNERS:ring.slice(0,4)});
   });
   return normalizeActiveFaultSelection({...planes[0], planes, modelVersion: "Y2024"});
 }
