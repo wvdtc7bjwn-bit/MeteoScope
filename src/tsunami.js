@@ -23,6 +23,11 @@ export function getTsunamiLevelRank(level) {
   return TSUNAMI_LEVELS[level]?.rank ?? 0;
 }
 
+export function getHighestTsunamiLevel(areas = []) {
+  const level = [...areas].sort((a,b) => getTsunamiLevelRank(b.level)-getTsunamiLevelRank(a.level))[0]?.level ?? "none";
+  return getTsunamiLevelRank(level) > 0 ? level : areas.some(area => area.level === "unknown") ? "unknown" : level;
+}
+
 export function getTsunamiLevelLineWidth(level) {
   return TSUNAMI_LEVELS[level]?.lineWidth ?? TSUNAMI_LEVELS.none.lineWidth;
 }

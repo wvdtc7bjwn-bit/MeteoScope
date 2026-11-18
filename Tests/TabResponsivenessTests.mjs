@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { mergeRefreshedData } from "../src/app/refreshedData.js";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { yieldAfterPaint } from "../src/scheduling.js";
@@ -209,7 +210,7 @@ const refreshCtx = vm.createContext({
   EARTHQUAKE_REFRESH_INTERVAL_MS: 15000, latestDataByTab: { earthquake: { earthquakes: [] } },
   activeEarthquakeId: '', TABS: [{id:'earthquake'}], console: { warn: (...args) => refreshErrors.push(args) },
   loadTabData: async () => { refreshCalls++; return { earthquakes: [{id:'new'}] }; },
-  updateCurrentView: noop
+  updateCurrentView: noop, mergeRefreshedData
 });
 const refreshStart = source.indexOf('  async function refreshEarthquakeData(');
 const refreshEnd = source.indexOf('  async function locateCurrentPosition()', refreshStart);

@@ -19,6 +19,7 @@ import {
   getTsunamiLevelColor,
   getTsunamiLevelLineWidth,
   getTsunamiLevelRank,
+  getHighestTsunamiLevel,
   getTsunamiObservationStyle
 } from "../tsunami.js";
 import {
@@ -111,7 +112,7 @@ export async function fetchEarthquakeXmlList({
     })
   ]);
   const tsunamiReports = tsunamiResults
-    .filter((result) => result.status === "fulfilled" && result.value)
+    .filter((result) => result.status === "fulfilled" && result.value && !result.value.training)
     .map((result) => result.value);
   const tsunamiReportsByEventId = mergeTsunamiReportsByEventId(tsunamiReports);
   const earthquakesWithMapData = [];
@@ -146,6 +147,7 @@ export async function fetchEarthquakeXmlList({
     earthquakes,
     tsunami,
     tsunamiStatus,
+    tsunamiSourceReports: tsunamiReports,
     estimatedIntensityStatus: !estimatedIntensityCatalogAvailable
       ? "unavailable"
       : earthquakes.some((earthquake) => earthquake.estimatedIntensity) ? "available" : "none",
@@ -345,6 +347,9 @@ export function parseTsunamiReport(text, entry = {}) {
     id: entry.id || `${eventId}:${entry.code}:${reportTimeRaw}`,
     eventId,
     xmlCode: entry.code || getXmlCodeFromUrl(entry.url),
+    status: getText(getFirstChild(head, "InfoType")),
+    training: /訓練|試験/u.test(getText(getFirstChild(control, "Status"))),
+    issuedAtRaw: getText(getFirstChild(control, "DateTime")),
     title,
     headline,
     reportTime: parseJmaTime(reportTimeRaw) ?? reportTimeRaw ?? "--",
@@ -431,15 +436,14 @@ export function mergeTsunamiReports(reports, { now = Date.now() } = {}) {
   ))[0];
   const ordered = [...eventReports].sort((a, b) => getDateMs(b.reportTimeRaw) - getDateMs(a.reportTimeRaw));
   const latest = ordered[0];
-  const latestForecast = ordered.find((report) => report.areas?.length) ?? latest;
+  const latestForecast = ordered.find((report) => report.xmlCode === "VTSE41")
+    ?? ordered.find((report) => report.areas?.length) ?? latest;
   const areas = dedupeTsunamiAreas(latestForecast.areas ?? []);
-  const observations = mergeTsunamiObservations(ordered.flatMap((report) => report.observations ?? []));
+  const observations = mergeTsunamiObservations([...ordered].reverse().flatMap((report) => report.observations ?? []));
   const offshoreObservations = mergeTsunamiObservations(
-    ordered.flatMap((report) => report.offshoreObservations ?? [])
+    [...ordered].reverse().flatMap((report) => report.offshoreObservations ?? [])
   );
-  const highestLevel = areas
-    .map((area) => area.level)
-    .sort((a, b) => getTsunamiLevelRank(b) - getTsunamiLevelRank(a))[0] ?? "none";
+  const highestLevel = getHighestTsunamiLevel(areas);
   const isCancellation = highestLevel === "none" && areas.some((area) => (
     /解除/u.test(area.grade) || Boolean(area.lastGrade)
   ));
@@ -506,11 +510,12 @@ function mergeTsunamiObservations(observations) {
 
 function getTsunamiLevel(name, code) {
   const value = `${name ?? ""} ${code ?? ""}`;
+  if (/解除/u.test(value)) return "none";
   if (/大津波警報/u.test(value)) return "major-warning";
   if (/津波警報/u.test(value) && !/解除/u.test(value)) return "warning";
   if (/津波注意報/u.test(value) && !/解除/u.test(value)) return "advisory";
   if (/津波予報|若干の海面変動/u.test(value)) return "forecast";
-  return "none";
+  return /津波なし|津波の心配はありません/u.test(value) ? "none" : "unknown";
 }
 
 function getTsunamiHeight(node) {
@@ -833,6 +838,7 @@ export async function loadTsunamiAreaLookup() {
       ttlMs: STATIC_DATA_CACHE_TTL_MS,
       cache: "force-cache"
     }).then(buildTsunamiAreaLookup);
+    tsunamiAreaLookupPromise = tsunamiAreaLookupPromise.catch(error => { tsunamiAreaLookupPromise = null; throw error; });
   }
   return tsunamiAreaLookupPromise;
 }
@@ -843,6 +849,7 @@ export async function loadTsunamiStationLookup() {
       ttlMs: STATIC_DATA_CACHE_TTL_MS,
       cache: "force-cache"
     }).then(buildTsunamiStationLookup);
+    tsunamiStationLookupPromise = tsunamiStationLookupPromise.catch(error => { tsunamiStationLookupPromise = null; throw error; });
   }
   return tsunamiStationLookupPromise;
 }
@@ -889,7 +896,12 @@ export function attachTsunamiMapData(
   stationLookup = buildEmptyTsunamiStationLookup()
 ) {
   if (!tsunami) return null;
-  const areaFeatures = tsunami.areas.flatMap((area) => {
+  const areas = tsunami.areas.map(area => {
+    if (area.code) return area;
+    const matches = [...lookup.entries()].filter(([,features]) => features.some(f => f.properties?.name === area.name));
+    return matches.length === 1 ? {...area,code:matches[0][0]} : area;
+  });
+  const areaFeatures = areas.flatMap((area) => {
     if (area.level === "none") return [];
     return (lookup.get(normalizeTsunamiAreaCode(area.code)) ?? []).map((feature, index) => ({
       type: "Feature",
@@ -918,6 +930,7 @@ export function attachTsunamiMapData(
     .flatMap(buildTsunamiObservationMapFeature);
   return {
     ...tsunami,
+    areas,
     observations,
     offshoreObservations,
     mapFeatures: [...areaFeatures, ...observationFeatures]

@@ -1,6 +1,9 @@
 import { findLatestRadarObservationIndex } from "../jma/radar.js";
 
 function mergeRefreshedData(tabId, currentData, nextData) {
+  if (tabId === "earthquake" && (currentData?.tsunamiRevision ?? -1) > (nextData?.tsunamiRevision ?? -1)) {
+    return {...nextData,tsunami:currentData.tsunami,tsunamiStatus:currentData.tsunamiStatus,tsunamiRevision:currentData.tsunamiRevision};
+  }
   if (tabId === "warnings") return mergeWarningTabData(currentData, nextData);
   if (tabId === "amedas") return mergeAmedasData(currentData, nextData);
   if (tabId !== "radar" || !currentData?.frames?.length || !nextData?.frames?.length) return nextData;

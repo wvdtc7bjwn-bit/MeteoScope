@@ -462,7 +462,20 @@ MeteoScopeは、公開データとオープンソースソフトウェア、な�
 、および本アプリで利用するオープンソースソフトウェアの開発者・貢献者に感謝します。|, and the developers and contributors of the open-source software used in this app.
 クイズはMeteoScopeが独自に作成した学習用問題です。気象予報士試験の過去問題・解答例は転載していません。各問題の解説と一次資料を確認し、実際の防災判断は気象庁・自治体などの最新公式情報を優先してください。|These learning questions were created by MeteoScope. They do not reproduce past weather forecaster exam questions or model answers. Refer to the explanations and primary sources. For real safety decisions, prioritize the latest official information from JMA and local authorities.
 気象庁・NASA・NOAAの公開資料をもとに、大気・気候・太陽・宇宙天気を、近接概念を見分けながら学べます。|Learn about the atmosphere, climate, the Sun and space weather using public JMA, NASA and NOAA materials, with explanations distinguishing related concepts.
-でリアルタイム受信し、気象庁防災情報XMLを正式値・詳細情報・履歴の取得に併用します。Wolfxは緊急地震速報の取得だけに使用します。|in real time, alongside JMA disaster-information XML for official values, details and history. Wolfx is used only for Earthquake Early Warnings.
+地震・津波情報|Earthquake and tsunami information
+現在、津波情報は発表されていません|No tsunami information is currently issued
+津波情報を照合中|Cross-checking tsunami information
+津波情報を読み込み中|Loading tsunami information
+受信待ち|Waiting for a bulletin
+受信状況|Reception status
+地震情報と津波警報・注意報は|Earthquake information and tsunami warnings/advisories are received through
+でリアルタイム受信します。津波観測はWolfxと気象庁防災情報XMLで補完し、地震の詳細・履歴にも気象庁XMLを併用します。発表時刻を照合し、古い情報で現在の発表を上書きしません。|in real time. Tsunami observations are supplemented by Wolfx and JMA disaster-information XML, which also provides earthquake details and history. Publication times are compared so older data cannot overwrite newer reports.
+取得：Wolfx|Retrieved via Wolfx
+取得：気象庁XML|Retrieved via JMA XML
+発表時刻未確認|Publication time unavailable
+リアルタイム受信を確認中です。最後に受信した発表を表示しています。|Checking the real-time connection. Showing the last received bulletin.
+津波情報が取り消されています。最新の発表を確認してください。|The tsunami bulletin has been withdrawn. Check the latest official information.
+津波予報の有効期限を過ぎています。解除を意味しません。|The tsunami forecast has expired. This does not mean it has been lifted.
 の活動セグメントをMeteoScopeがGeoJSONへ変換・表示用に加工したデータを表示します。アカウントがない場合や許可されていない場合はJ-SHISを表示します。|active segments converted to GeoJSON and processed for display by MeteoScope. Users without an account or individual permission see J-SHIS instead.
 の公開情報・データを利用しています。個別の出典・利用条件は「情報出典・加工」に記載しています。|public information and data. Individual sources and terms are listed under Sources and processing.
 を利用しています。管理者が個別に許可したアカウントでは、|is used by default. Accounts individually permitted by the administrator can view

@@ -2,6 +2,7 @@ import { parseJstDateTime } from "../utils/jstDateTime.js";
 import { getEarthquakeReportStage, isKnownEarthquakeHypocenter } from "../earthquakeFormat.js";
 
 const P2P_HISTORY_URL = "https://api.p2pquake.net/v2/history?codes=551&limit=20";
+const P2P_TSUNAMI_HISTORY_URL = "https://api.p2pquake.net/v2/history?codes=552&limit=1";
 const P2P_WEBSOCKET_URL = "wss://api.p2pquake.net/v2/ws";
 const HISTORY_LIMIT = 50;
 const RECONNECT_MIN_MS = 2_000;
@@ -285,6 +286,7 @@ export function shouldTemporarilyShowEarthquakeInfo(earthquake) {
 export function createRealtimeEarthquakeClient({
   onUpdate = () => {},
   onStatus = () => {},
+  onTsunami = () => {},
   fetchImpl = globalThis.fetch?.bind(globalThis),
   WebSocketImpl = globalThis.WebSocket,
   now = () => Date.now()
@@ -295,6 +297,7 @@ export function createRealtimeEarthquakeClient({
   let reconnectTimer = null;
   let reconnectAttempt = 0;
   let historyAbortController = null;
+  let tsunamiHistoryController = null;
   let connection = { status: "stopped", source: "", lastMessageAt: null, error: "" };
   let earthquakes = [];
   const seenP2pIds = new Set();
@@ -336,6 +339,22 @@ export function createRealtimeEarthquakeClient({
     }
   }
 
+  async function fetchTsunamiHistory(expectedGeneration = generation) {
+    if (!fetchImpl || tsunamiHistoryController) return;
+    const controller = new AbortController();
+    tsunamiHistoryController = controller;
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetchImpl(P2P_TSUNAMI_HISTORY_URL, {cache:"no-store",signal:controller.signal});
+      if (!response.ok) throw new Error(`P2P tsunami history HTTP ${response.status}`);
+      const payload = await response.json();
+      if (!running || expectedGeneration !== generation || controller.signal.aborted) return;
+      // History does not bypass the source store's publication-time watermark.
+      for (const report of Array.isArray(payload) ? payload : []) if (Number(report?.code) === 552) onTsunami(report, {history:true});
+    } catch { /* XML remains an independent fallback; never infer an all-clear. */ }
+    finally { clearTimeout(timeout); if (tsunamiHistoryController === controller) tsunamiHistoryController = null; }
+  }
+
   function closeSocket(socket) {
     if (!socket) return;
     socket.onopen = null;
@@ -364,11 +383,13 @@ export function createRealtimeEarthquakeClient({
       reconnectAttempt = 0;
       setStatus({ status: "connected", source: "p2p", error: "" });
       void fetchP2pHistory(expectedGeneration).catch(() => {});
+      void fetchTsunamiHistory(expectedGeneration);
     };
     socket.onmessage = (event) => {
       if (!running || generation !== expectedGeneration || socket !== p2pSocket) return;
       try {
         const payload = JSON.parse(event.data);
+        if (Number(payload?.code) === 552) { onTsunami(payload, {history:false}); return; }
         if (Number(payload?.code) !== 551) return;
         const id = cleanText(payload.id);
         if (id && seenP2pIds.has(id)) return;
@@ -392,6 +413,7 @@ export function createRealtimeEarthquakeClient({
   async function refresh() {
     if (!running) return;
     const expectedGeneration = generation;
+    void fetchTsunamiHistory(expectedGeneration);
     try {
       await fetchP2pHistory(expectedGeneration);
       if (!running || generation !== expectedGeneration) return;
@@ -417,6 +439,7 @@ export function createRealtimeEarthquakeClient({
     generation += 1;
     connectP2p(generation);
     void fetchP2pHistory(generation).catch(() => {});
+    void fetchTsunamiHistory(generation);
   }
 
   function stop({ clear = false } = {}) {
@@ -424,6 +447,7 @@ export function createRealtimeEarthquakeClient({
     generation += 1;
     historyAbortController?.abort();
     historyAbortController = null;
+    tsunamiHistoryController?.abort(); tsunamiHistoryController = null;
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
     closeSocket(p2pSocket);

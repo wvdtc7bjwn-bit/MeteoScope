@@ -3737,7 +3737,7 @@ function buildMobileTsunamiSummaryMarkup(earthquake, tsunami, tsunamiStatus) {
   const hasCounts = areas.length > 0 || observations.length > 0;
   const title = primaryArea?.name
     || latestObservation?.stationName
-    || (state.level === "none" ? "警報・注意報なし" : state.label || "発表状況を確認中");
+    || (state.noBulletin ? state.label : state.level === "none" ? "警報・注意報なし" : state.label || "発表状況を確認中");
   const areaTickerText = tickerGroups
     .flatMap((group) => group.areas.map((area) => area.name))
     .join("　•　");
@@ -3773,10 +3773,10 @@ function buildMobileTsunamiSummaryMarkup(earthquake, tsunami, tsunamiStatus) {
     <div class="mobile-dock-tsunami-main${hasCounts ? "" : " no-counts"}" style="--mobile-tsunami-color: ${escapeHtml(color)};">
       ${report?.isTestScenario ? '<span class="tsunami-test-badge">LOCAL TEST</span>' : ""}
       <em class="mobile-dock-tsunami-level" data-mobile-tsunami-level-badge>
-        <span>${escapeHtml(getMobileTsunamiLevelShortLabel(state.level))}</span>
+        <span>${escapeHtml(state.waiting ? "受信待ち" : getMobileTsunamiLevelShortLabel(state.level))}</span>
       </em>
       <div class="mobile-dock-tsunami-text">
-        <span class="mobile-dock-earthquake-time">${reportTime !== "--" ? `発表 ${escapeHtml(reportTime)}` : "気象庁発表"}</span>
+        <span class="mobile-dock-earthquake-time">${reportTime !== "--" ? `発表 ${escapeHtml(reportTime)}` : state.noBulletin ? "発表状況" : "受信状況"}</span>
         ${areaTickerText ? `
           <div
             class="mobile-dock-tsunami-area-ticker"
@@ -7409,10 +7409,16 @@ function getEarthquakeTsunamiState(earthquake, tsunami, status) {
 }
 
 function getCurrentTsunamiState(earthquake, tsunami, status) {
+  if (status === "not-reported" && !tsunami) {
+    return {level:"none",label:"現在、津波情報は発表されていません",tsunami:null,noBulletin:true};
+  }
+  if (["loading", "checking"].includes(status) && !tsunami) {
+    return {level:"unknown",label:status === "loading" ? "津波情報を読み込み中" : "津波情報を照合中",tsunami:null,waiting:true};
+  }
   if (status === "available" && tsunami) {
     return {
       level: tsunami.highestLevel,
-      label: getTsunamiLevelLabel(tsunami.highestLevel),
+      label: tsunami.isCancellation ? "解除" : tsunami.highestLevel === "unknown" ? "津波情報未確認" : getTsunamiLevelLabel(tsunami.highestLevel),
       tsunami
     };
   }
@@ -7425,13 +7431,13 @@ function buildTsunamiDedicatedDetailMarkup(earthquake, tsunami, status) {
   const areas = (report?.areas ?? []).filter((area) => area.level !== "none");
   const coastalObservations = report?.observations ?? [];
   const offshoreObservations = report?.offshoreObservations ?? [];
-  const headline = report?.headline || (
+  const headline = report?.headline || (state.waiting || state.noBulletin ? state.label : (
     state.level === "none"
       ? "現在発表中の津波警報・注意報はありません。"
       : state.level === "unavailable"
         ? "津波情報を取得できませんでした。"
         : "気象庁の津波情報を確認しています。"
-  );
+  ));
 
   return `
     <section class="tsunami-dedicated-panel level-${escapeHtml(state.level)}" aria-label="津波情報">
@@ -7442,6 +7448,7 @@ function buildTsunamiDedicatedDetailMarkup(earthquake, tsunami, status) {
         </div>
       ` : ""}
       <p class="tsunami-dedicated-headline">${escapeHtml(headline)}</p>
+      ${report?.updateNotice ? `<p role="status">${escapeHtml(report.updateNotice)}</p>` : ""}
       ${areas.length ? `
         <section class="tsunami-dedicated-section" aria-labelledby="tsunami-area-heading">
           <h3 id="tsunami-area-heading">警報・注意報の発表区域</h3>
@@ -7481,6 +7488,7 @@ function buildTsunamiDedicatedObservationSection(title, observations, type) {
             <span class="tsunami-observation-station">
               <strong>${escapeHtml(observation.stationName)}</strong>
               <small>${escapeHtml([observation.agency, observation.sensor].filter(Boolean).join(" / "))}</small>
+              ${observation.source ? `<small>${escapeHtml(observation.source === "wolfx" ? "取得：Wolfx" : "取得：気象庁XML")} · ${escapeHtml(observation.reportTime || "発表時刻未確認")}${observation.stale ? ` · ${escapeHtml("更新を確認できません")}` : ""}</small>` : ""}
             </span>
             <span>
               <strong>${escapeHtml(

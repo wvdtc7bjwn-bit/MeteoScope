@@ -65,6 +65,9 @@ import {
   EARTHQUAKE_XML_INITIAL_DETAIL_FETCH_LIMIT,
   EARTHQUAKE_XML_MAX_DETAIL_FETCH_LIMIT,
   attachEarthquakeMapDataList,
+  attachTsunamiMapData,
+  loadTsunamiAreaLookup,
+  loadTsunamiStationLookup,
   fetchEarthquakeXmlList
 } from "./jma/earthquakeXml.js";
 import { fetchTideObservationSeries, fetchTideStationCatalog } from "./jma/tideLevel.js";
@@ -110,6 +113,8 @@ import { setupMapUtilityMenu } from "./ui/mapUtilityMenu.js";
 import { getSocialSharePayload } from "./socialShareState.js";
 import { recordDiagnostic } from "./runtimeDiagnostics.js";
 import { createWolfxEewClient } from "./eew/wolfxEew.js";
+import { createTsunamiSourceStore } from "./tsunami/sourceStore.js";
+import { createWolfxTsunamiObservationClient } from "./tsunami/wolfxObservations.js";
 import { createLocalEewTestEvent, isLocalEewTestEnvironment } from "./eew/localEewTest.js";
 import {
   createRealtimeEarthquakeClient,
@@ -367,6 +372,8 @@ export function createWeatherApp() {
     updatedAt: null
   };
   let realtimeEarthquakeUpdateId = 0;
+  const tsunamiSourceStore = createTsunamiSourceStore();
+  let wolfxTsunamiClient = null;
   const earthquakeSummaryOverride = createEarthquakeSummaryOverride({
     onExpire: () => {
       if (activeTab === "earthquake") refreshActivePanel();
@@ -615,6 +622,29 @@ export function createWeatherApp() {
     showMobileEarthquakeSummaryPage("earthquake");
   }
 
+  function handleTsunamiSourceChange() {
+    const snapshot = tsunamiSourceStore.snapshot();
+    // Publish the text state immediately; geometry/observation lookups follow.
+    latestDataByTab.earthquake = {...latestDataByTab.earthquake,...snapshot};
+    if(activeTab === "earthquake") refreshActivePanel();
+    wolfxTsunamiClient?.setActive(snapshot.tsunami?.isActive);
+    void handleRealtimeEarthquakeUpdate({...realtimeEarthquakeState,incoming:null});
+  }
+
+  async function mergeTsunamiSourceData(data,{fromXml=false}={}) {
+    if(data.tsunami?.isTestScenario)return {tsunami:data.tsunami,tsunamiStatus:data.tsunamiStatus};
+    if(fromXml) tsunamiSourceStore.acceptXml(data.tsunamiSourceReports??[],{status:data.tsunamiStatus});
+    const snapshot=tsunamiSourceStore.snapshot();
+    const revision=tsunamiSourceStore.revision;
+    wolfxTsunamiClient?.setActive(snapshot.tsunami?.isActive);
+    if(!snapshot.tsunami)return snapshot;
+    try {
+      const [areas,stations]=await Promise.all([loadTsunamiAreaLookup(),loadTsunamiStationLookup()]);
+      if(revision!==tsunamiSourceStore.revision)return mergeTsunamiSourceData(data);
+      return {...snapshot,tsunami:attachTsunamiMapData(snapshot.tsunami,areas,stations)};
+    }catch{return tsunamiSourceStore.snapshot();}
+  }
+
   async function mergeEarthquakeRealtimeData(data = {}, realtimeItems = realtimeEarthquakeState.earthquakes, { fromXml = false } = {}) {
     const previousData = latestDataByTab.earthquake;
     const revision = realtimeEarthquakeUpdateId;
@@ -623,6 +653,7 @@ export function createWeatherApp() {
       ? reconcileEarthquakeSources(data.earthquakes, previousItems, realtimeItems, realtimeEarthquakeState.connection)
       : mergeRealtimeEarthquakes(previousItems, mergeRealtimeEarthquakes(data.earthquakes ?? [], realtimeItems));
     const earthquakes = await attachEarthquakeMapDataList(merged);
+    const tsunamiData = await mergeTsunamiSourceData(data,{fromXml});
     // 地図データの非同期準備中に届いた続報・接続状態を取りこぼさない。
     if (revision !== realtimeEarthquakeUpdateId || previousData !== latestDataByTab.earthquake) {
       return mergeEarthquakeRealtimeData(data, realtimeEarthquakeState.earthquakes, { fromXml });
@@ -634,6 +665,7 @@ export function createWeatherApp() {
     }
     return {
       ...data,
+      ...tsunamiData,
       earthquakes,
       realtimeConnection: realtimeEarthquakeState.connection,
       realtimeUpdatedAt: realtimeEarthquakeState.updatedAt,
@@ -1505,7 +1537,7 @@ if (layerId === "river") {
     })()
       .then((nextData) => mergeEarthquakeRealtimeData(nextData, undefined, { fromXml: true }))
       .then((nextData) => {
-        latestDataByTab.earthquake = nextData;
+        latestDataByTab.earthquake = mergeRefreshedData("earthquake",latestDataByTab.earthquake,nextData);
         earthquakeHistoryVisibleCount = Math.min(
           nextData?.earthquakes?.length ?? 0,
           targetVisibleCount
@@ -3643,13 +3675,13 @@ if (layerId === "river") {
         }
 
         const previousEarthquakes = latestDataByTab.earthquake?.earthquakes ?? [];
-        latestDataByTab.earthquake = nextData;
+        latestDataByTab.earthquake = mergeRefreshedData("earthquake",latestDataByTab.earthquake,nextData);
         followLatestEarthquakeUpdate(previousEarthquakes, earthquakes);
         if (activeTab === "earthquake") {
           const tab = TABS.find((item) => item.id === "earthquake");
-          updateCurrentView(tab, nextData);
+          updateCurrentView(tab, latestDataByTab.earthquake);
         }
-        return nextData;
+        return latestDataByTab.earthquake;
       })
       .catch((error) => {
         console.warn("[MeteoScope] earthquake XML refresh failed", error);
@@ -4343,19 +4375,36 @@ if (layerId === "river") {
     });
     realtimeEarthquakeClient = createRealtimeEarthquakeClient({
       onUpdate: (snapshot) => void handleRealtimeEarthquakeUpdate(snapshot),
-      onStatus: (status) => recordDiagnostic("earthquake-realtime-status", status)
+      onTsunami: (report,options) => {
+        if(tsunamiSourceStore.acceptP2p(report,options)){
+          handleTsunamiSourceChange();
+          void wolfxTsunamiClient?.refresh();
+          void refreshEarthquakeTabData({force:true,refreshOpenDistribution:false});
+        }
+      },
+      onStatus: (status) => {
+        tsunamiSourceStore.setConnection(status.status);
+        recordDiagnostic("earthquake-realtime-status", status);
+      }
+    });
+    wolfxTsunamiClient = createWolfxTsunamiObservationClient({
+      onUpdate: payload => {if(tsunamiSourceStore.acceptWolfx(payload))handleTsunamiSourceChange();},
+      onStatus: status => recordDiagnostic("tsunami-observations",{status})
     });
     realtimeEarthquakeClient.start();
+    wolfxTsunamiClient.start();
     syncEewEarlyAccess();
     window.addEventListener("pagehide", () => {
       eewClient?.stop({ clear: false });
       realtimeEarthquakeClient?.stop({ clear: false });
+      wolfxTsunamiClient?.stop();
       stopEewWaveAnimation();
       earthquakeSummaryOverride.clear();
     });
     window.addEventListener("pageshow", () => {
       weatherMap?.resize();
       realtimeEarthquakeClient?.start();
+      wolfxTsunamiClient?.start();
       void realtimeEarthquakeClient?.refresh();
       if (earlyAccessEnabled) {
         eewClient?.start();

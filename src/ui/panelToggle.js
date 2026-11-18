@@ -40,6 +40,11 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   let lastHorizontalTime = 0;
   let horizontalVelocityX = 0;
   let horizontalSummarySwipeEnabled = false;
+  let motionMetrics = null;
+  let transitionTimer = null;
+  let transitionGeneration = 0;
+  const transitionDuration = 280;
+  let frozenSummary = false;
 
   function isCompactLandscape() {
     return window.matchMedia?.("(orientation: landscape) and (max-width: 1024px) and (max-height: 600px) and (hover: none) and (pointer: coarse)").matches === true;
@@ -94,6 +99,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   }
 
   function getSnapOffsets() {
+    if (motionMetrics) return motionMetrics.offsets;
     const sidebarHeight = getSheetHeight();
     const peek = Math.max(0, sidebarHeight - getPeekVisibleHeight());
     const middle = Math.max(0, sidebarHeight - getMiddleVisibleHeight());
@@ -115,6 +121,11 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   }
 
   function getCurrentOffset() {
+    if (document.documentElement.classList.contains("is-drawer-transitioning")) {
+      // Read only when a new gesture interrupts CSS motion, never per frame.
+      const renderedHeight = parseFloat(window.getComputedStyle(sidebar).height);
+      if (Number.isFinite(renderedHeight)) return clampOffset(getSheetHeight() - renderedHeight);
+    }
     return drawerOffset ?? getOffsetForState(drawerState);
   }
 
@@ -149,8 +160,8 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     sidebar.style.setProperty("--mobile-detail-reveal-progress", easedDetailProgress.toFixed(4));
 
     if (mobileContextDock) {
-      const tabBarHeight = document.getElementById("main-tabs")?.getBoundingClientRect().height || 68;
-      const summaryHeight = mobileContextDock.offsetHeight || 126;
+      const tabBarHeight = motionMetrics?.tabBarHeight ?? (document.getElementById("main-tabs")?.getBoundingClientRect().height || 68);
+      const summaryHeight = motionMetrics?.summaryHeight ?? (mobileContextDock.offsetHeight || 126);
       const retreatDistance = Math.max(72, (summaryHeight + tabBarHeight) / 2 - 1);
       const absorptionProgress = Math.min(1, Math.max(0, (expansionProgress - 0.16) / 0.56));
       mobileContextDock.classList.toggle("is-drawer-grab-active", absorptionProgress < 0.86);
@@ -192,7 +203,6 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
       pendingDragOffset = null;
       if (!dragging || nextOffset == null) return;
       applyTransform(nextOffset);
-      notifyLayoutChangeSoon();
     });
   }
 
@@ -222,6 +232,11 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   }
 
   function applyTransform(offset = null) {
+    if (frozenSummary && mobileContextDock) {
+      mobileContextDock.style.removeProperty("opacity");
+      mobileContextDock.style.removeProperty("transform");
+      frozenSummary = false;
+    }
     const offsets = getSnapOffsets();
     const nextOffset = Math.min(offsets.peek, Math.max(0, offset ?? getCurrentOffset()));
     sidebar.classList.toggle("drawer-open", nextOffset <= 2);
@@ -234,25 +249,103 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     setDrawerTransition(nextOffset, offsets);
   }
 
+  function stopDrawerMotion() {
+    transitionGeneration++;
+    if (transitionTimer !== null) window.clearTimeout(transitionTimer);
+    transitionTimer = null;
+    motionMetrics = null;
+    if (layoutNotifyFrame) window.cancelAnimationFrame(layoutNotifyFrame);
+    layoutNotifyFrame = 0;
+    document.documentElement.classList.remove("is-drawer-transitioning");
+  }
+
+  function measureMotion() {
+    motionMetrics = null;
+    motionMetrics = {
+      offsets: getSnapOffsets(),
+      tabBarHeight: document.getElementById("main-tabs")?.getBoundingClientRect().height || 68,
+      summaryHeight: mobileContextDock?.offsetHeight || 126
+    };
+  }
+
+  function animateDrawerOffset(applyTarget) {
+    stopDrawerMotion();
+    cancelPendingDragTransform();
+    measureMotion();
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+    const easing = "cubic-bezier(0.16, 1, 0.3, 1)";
+    sidebar.style.transition = reducedMotion ? "none" : `height ${transitionDuration}ms ${easing}, opacity ${transitionDuration}ms ${easing}, transform ${transitionDuration}ms ${easing}`;
+    document.documentElement.classList.add("is-drawer-transitioning");
+    applyTarget();
+    motionMetrics = null;
+    if (reducedMotion) {
+      finishDrawerMotion();
+      return;
+    }
+    scheduleDrawerCompletion();
+  }
+
+  function scheduleDrawerCompletion() {
+    if (transitionTimer !== null) window.clearTimeout(transitionTimer);
+    const generation = ++transitionGeneration;
+    // transitionend normally finishes the motion; this also covers unchanged
+    // endpoints, canceled rendering and background tabs without extra resizing.
+    transitionTimer = window.setTimeout(() => {
+      if (generation === transitionGeneration) finishDrawerMotion();
+    }, transitionDuration + 120);
+  }
+
+  function finishDrawerMotion() {
+    if (!document.documentElement.classList.contains("is-drawer-transitioning")) return;
+    stopDrawerMotion();
+    notifyLayoutChangeSoon();
+  }
+
+  sidebar.addEventListener("transitionend", event => {
+    if (event.target === sidebar && ["height", "opacity"].includes(event.propertyName)) finishDrawerMotion();
+  });
+  sidebar.addEventListener("transitionrun", event => {
+    if (event.target === sidebar && document.documentElement.classList.contains("is-drawer-transitioning")) {
+      // Rendering may start later on a busy page; count the safety timeout from
+      // the browser's transition start rather than interrupting that transition.
+      scheduleDrawerCompletion();
+    }
+  });
+
   function setDrawerState(state) {
-    drawerState = state;
-    drawerOffset = null;
-    sidebar.style.transition = "transform 340ms cubic-bezier(0.16, 1, 0.3, 1), height 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease, filter 220ms ease";
-    applyTransform();
-    window.setTimeout(notifyLayoutChange, 350);
+    animateDrawerOffset(() => {
+      drawerState = state;
+      drawerOffset = null;
+      applyTransform(getOffsetForState(state));
+    });
   }
 
   function setDrawerOffset(offset, { transition = false } = {}) {
+    if (transition) {
+      animateDrawerOffset(() => {
+        drawerOffset = clampOffset(offset);
+        updateDrawerStateFromOffset(drawerOffset);
+        applyTransform(drawerOffset);
+      });
+      return;
+    }
+    stopDrawerMotion();
     drawerOffset = clampOffset(offset);
     updateDrawerStateFromOffset(drawerOffset);
-    sidebar.style.transition = transition
-      ? "transform 260ms cubic-bezier(0.16, 1, 0.3, 1), height 240ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms ease, filter 180ms ease"
-      : "none";
+    sidebar.style.transition = "none";
     applyTransform(drawerOffset);
     notifyLayoutChange();
   }
 
   function beginDrag(event, target = handle, initialAxis = "y") {
+    const wasTransitioning = document.documentElement.classList.contains("is-drawer-transitioning");
+    const renderedOffset = getCurrentOffset();
+    const opacity = wasTransitioning ? window.getComputedStyle(sidebar).opacity : null;
+    const summaryStyle = wasTransitioning && mobileContextDock ? window.getComputedStyle(mobileContextDock) : null;
+    const summaryOpacity = summaryStyle?.opacity;
+    const summaryTransform = summaryStyle?.transform;
+    stopDrawerMotion();
+    measureMotion();
     if (initialAxis === "y") event.preventDefault();
     dragging = true;
     dragPointerId = event.pointerId;
@@ -266,9 +359,21 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     horizontalVelocityX = 0;
     horizontalSummarySwipeEnabled = target === mobileContextDock
       && Boolean(mobileContextDock?.querySelector(".mobile-dock-earthquake-summary-track"));
-    startOffset = getCurrentOffset();
+    startOffset = renderedOffset;
     currentOffset = startOffset;
     sidebar.style.transition = "none";
+    if (wasTransitioning) {
+      // Freeze the rendered frame before disabling transitions for a gesture.
+      // Otherwise pointerdown briefly snaps the sheet to its previous target.
+      drawerOffset = renderedOffset;
+      setVisibleHeight(renderedOffset);
+      sidebar.style.opacity = opacity;
+      if (mobileContextDock) {
+        mobileContextDock.style.opacity = summaryOpacity;
+        mobileContextDock.style.transform = summaryTransform;
+        frozenSummary = true;
+      }
+    }
     mobileContextDock?.classList.toggle("is-vertical-dragging", initialAxis === "y");
     if (initialAxis === "y") target.setPointerCapture?.(event.pointerId);
   }
@@ -336,6 +441,8 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
       dragTarget = null;
       dragAxis = "y";
       horizontalSummarySwipeEnabled = false;
+      motionMetrics = null;
+      if (frozenSummary && ["peek", "full"].includes(drawerState)) setDrawerState(drawerState);
       return;
     }
     const moved = Math.abs(currentOffset - startOffset) > 6 || Math.abs(event.clientY - startY) > 6;
@@ -348,7 +455,11 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     dragTarget = null;
     dragAxis = "y";
     horizontalSummarySwipeEnabled = false;
-    setDrawerOffset(moved ? currentOffset : startOffset);
+    if (moved) setDrawerOffset(currentOffset);
+    // A tap may interrupt an animation before the click handler reverses it.
+    // Keep its intended state; treating that tap as a free drag loses direction.
+    else if (["peek", "full"].includes(drawerState)) setDrawerState(drawerState);
+    else setDrawerOffset(startOffset);
   }
 
   handle.addEventListener("click", () => {
@@ -417,11 +528,17 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
   });
 
   window.addEventListener("resize", () => {
+    stopDrawerMotion();
+    sidebar.style.transition = "none";
+    if (["peek", "full"].includes(drawerState)) drawerOffset = null;
     applyTransform();
     notifyLayoutChange();
   }, { passive: true });
   window.addEventListener("orientationchange", () => {
     window.setTimeout(() => {
+      stopDrawerMotion();
+      sidebar.style.transition = "none";
+      if (["peek", "full"].includes(drawerState)) drawerOffset = null;
       applyTransform();
       notifyLayoutChange();
     }, 250);

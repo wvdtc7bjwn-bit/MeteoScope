@@ -208,6 +208,7 @@ const mergeSource = app.slice(app.indexOf("  async function mergeEarthquakeRealt
 let releaseMap;
 let mapCalls = 0;
 const mergeCtx = vm.createContext({ latestDataByTab: { earthquake: { earthquakes: [prompt] } },
+  mergeTsunamiSourceData: async () => ({}),
   simulationEewEvent: null,
   realtimeEarthquakeUpdateId: 1, realtimeEarthquakeState: { earthquakes: [prompt], connection: connected },
   mergeRealtimeEarthquakes, reconcileEarthquakeSources, isNewEarthquakeReport,
