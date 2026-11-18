@@ -620,7 +620,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       const [stations, groundModel, epicenterRegions, forecastAreas, detectionStations, plateBoundaries] = await Promise.all([
         stationsPromise,
         needsGround ? load("ground", () => stationsPromise.then(stations => core.loadSimulationGroundModel({ signal: controller.signal, coordinates: Object.values(stations).map(station => [Number(station.longitude), Number(station.latitude)]) }))) : null,
-        options.model === "point" ? readJson(JMA_ENDPOINTS.earthquakeEpicenterRegions).catch(error => { controller.signal.throwIfAborted(); console.warn("[MeteoScope] epicenter names unavailable", error); return null; }) : null,
+        readJson(JMA_ENDPOINTS.earthquakeEpicenterRegions).catch(error => { controller.signal.throwIfAborted(); console.warn("[MeteoScope] epicenter names unavailable", error); return null; }),
         load("areas", () => readJson(JMA_ENDPOINTS.earthquakeAreas)),
         core.loadSimulationDetectionStations({ signal: controller.signal }).catch(error => { controller.signal.throwIfAborted(); console.warn("[MeteoScope] offshore detection catalogue unavailable", error); return []; }),
         options.depthKm > core.MAX_REFERENCE_INTENSITY_DEPTH_KM ? readJson(MAP_DATA_ENDPOINTS.tectonicPlateBoundaries).catch(error => { controller.signal.throwIfAborted(); console.warn("[MeteoScope] deep approximation geometry unavailable", error); return null; }) : null

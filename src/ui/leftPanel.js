@@ -2,6 +2,7 @@ import { VOLCANO_ALERT_LEVEL_GUIDE, renderVolcanoList } from "./panels/volcanoPa
 import { escapeHtmlString as escapeHtml } from "../utils/html.js";
 import { updateHistorySelection } from "./historySelection.js";
 import { EEW_WARNING_AREA_COLOR, isEewWarningArea } from "../eew/eewForecastAreas.js";
+import { summarizeEewAreaNames } from "../eew/eewSummaryAreas.js";
 import { renderFocalMechanism } from "./focalMechanism.js";
 import { getSnowDepthAxisMaximum, splitAmedasChartSegments } from "../amedasChart.js";
 import {
@@ -3493,7 +3494,7 @@ function buildEarthquakeMobileContextMarkup(
     const depth = simulationPending ? "—" : eew.isAssumption ? "深さ仮定値" : eew.hypocenterMethod === "level" ? "深さ調査中" : hasDepth
       ? `${Number(eew.depth) === 0 ? "ごく浅い" : `深さ${Number(eew.depth)}km`}${assumptionSuffix}`
       : "深さ調査中";
-    const areaNames = (eew.warnAreas ?? []).map((area) => area.name).filter(Boolean);
+    const areaNames = summarizeEewAreaNames(eew.warnAreas);
     const statusLabel = eew.isSimulation && eew.waitingForDetection ? (eew.simulationDetecting === false ? "解析中" : "検知待ち") : isCancellation
       ? "取消報"
       : (eew.isFinal ? "最終報" : `第${Math.max(1, Number(eew.serial) || 1)}報`);
@@ -3518,12 +3519,13 @@ function buildEarthquakeMobileContextMarkup(
       ? `対象 ${areaNames.slice(0, 3).join("・")}${areaNames.length > 3 ? `ほか${areaNames.length - 3}地域` : ""}`
       : "";
     const detectionText = eew.hypocenterStatusLabel || (eew.isOnePointDetection ? "1点検知・初期推定" : "");
-    const supportingText = [
+    const supportingPrefix = [
       eew.uncertaintyLabel || "",
-      simulatedMw && hasMagnitude && !simulationPending ? (getCurrentLanguage()==="en"
-        ? convertedMagnitude ? "M: converted reference" : "M notation: Mw value"
-        : convertedMagnitude ? "Mは換算参考値" : "M表記の数値はMw") : "",
-      detectionText,
+      detectionText
+    ].filter(Boolean).join("・");
+    const supportingDetails = [supportingPrefix, areaNames.length ? `対象 ${areaNames.join("・")}` : ""].filter(Boolean).join("・");
+    const supportingText = [
+      supportingPrefix,
       affectedAreas
     ].filter(Boolean).join("・");
     const supportingClass = eew.uncertaintyLabel
@@ -3552,7 +3554,7 @@ function buildEarthquakeMobileContextMarkup(
             <span${magnitudeNote ? ` title="${escapeHtml(magnitudeNote)}" aria-label="${escapeHtml(magnitudeNote)}"` : ""}>${escapeHtml(magnitude)}</span>
             <span>${escapeHtml(depth)}</span>
           </div>
-          ${supportingText ? `<p class="mobile-dock-eew-supporting ${supportingClass}" title="${escapeHtml(supportingText)}">${escapeHtml(supportingText)}</p>` : ""}
+          ${supportingText ? `<p class="mobile-dock-eew-supporting ${supportingClass}" title="${escapeHtml(supportingDetails)}">${escapeHtml(supportingText)}</p>` : ""}
         </div>
       </div>
     `;

@@ -63,7 +63,8 @@ for (const name of ["nankai-trough", "kuril-trench", "japan-trench"]) {
   for (const second of [0, 30, 100, simulation.duration]) {
     const frame = simulation.frame(second);
     assert.equal(frame.event.isSimulation, true);
-    assert.equal(frame.event.hypocenter, FAULT_MODEL_PRESETS[name].name);
+    assert.equal(frame.event.hypocenter, "震源地名不明", "missing JMA regions must not turn a scenario name into an epicentral name");
+    assert.equal(simulation.name, FAULT_MODEL_PRESETS[name].name, "scenario label is retained separately");
     assert.ok(frame.stations.features.every(feature => feature.geometry.coordinates.every(Number.isFinite)));
     assert.ok(!JSON.stringify(frame).includes('"NaN"'));
     const ring = frame.fault.features[0].geometry.coordinates[0];
@@ -77,7 +78,7 @@ const halfCases = await Promise.all(["east", "west"].map(async nankaiCase => {
   const options = {...preset,magnitude:8.5}; // Explicit synthetic user setting.
   const s = await prepareEarthquakeSimulation(options, sample);
   assert.ok(options.magnitude < 9);
-  assert.ok(s.frame(0).event.hypocenter.includes("半割れ"));
+  assert.ok(s.name.includes("半割れ"), "half-rupture labels remain scenario metadata, not JMA epicentral names");
   return { path: s.sources, ring: s.frame(0).fault.features[0].geometry.coordinates[0] };
 }));
 assert.notDeepEqual(halfCases[0], halfCases[1], "east and west half ruptures have different source regions");

@@ -7,6 +7,8 @@ import * as format from "../src/earthquakeFormat.js";
 import { escapeHtml } from "../src/utils/html.js";
 import { createLocalEewTestEvent } from "../src/eew/localEewTest.js";
 import { prepareEarthquakeSimulation } from "../src/simulation/earthquakeSimulation.js";
+import { summarizeEewAreaNames } from "../src/eew/eewSummaryAreas.js";
+import { EEW_SUMMARY_AREA_GROUPS } from "../src/eew/eewSummaryAreaGroups.js";
 
 const issued = Date.parse("2026-11-13T10:54:00+09:00");
 const prompt = normalizeP2pEarthquake({ code: 551, id: "prompt", issue: { type: "ScalePrompt", time: "2026/11/13 10:54:00" }, earthquake: { time: "2026/11/13 10:52:00", maxScale: 30 } });
@@ -94,7 +96,7 @@ const panelSource = readFileSync(new URL("../src/ui/leftPanel.js", import.meta.u
 const summarySource = panelSource.slice(panelSource.indexOf("function buildEarthquakeMobileContextMarkup("), panelSource.indexOf("function getTyphoonClassificationItems("));
 const metricSource = panelSource.slice(panelSource.indexOf("function formatEarthquakeUnknownMetric("), panelSource.indexOf("function getEarthquakeTsunamiState("));
 let displayLanguage = "ja";
-const ctx = vm.createContext({ ...format, escapeHtml, Number, localizeText: (s) => s, getCurrentLanguage: () => displayLanguage,
+const ctx = vm.createContext({ ...format, summarizeEewAreaNames, escapeHtml, Number, localizeText: (s) => s, getCurrentLanguage: () => displayLanguage,
   getEarthquakeIntensityColor: () => "#ffff00", getEarthquakeIntensityTextClass: () => "intensity-dark",
   formatMobileEarthquakeTime: (s) => s, buildEarthquakeMobileViewSwitch: () => "",
   buildMobileTsunamiStatusMarkup: () => "調査中", buildMobileEarthquakeSummaryCarousel: (data) => data.primaryMarkup });
@@ -128,6 +130,15 @@ assert.match(levelMarkup, /震源調査中/);
 assert.doesNotMatch(levelMarkup, /M0\.0|深さ10km|M仮定値|深さ仮定値/, "CodeType level-method compatibility values are not measured source parameters");
 
 const renderEew = event => ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", event);
+const fullShikokuAreas = EEW_SUMMARY_AREA_GROUPS.find(group => group.name === "四国地方").areas.map(([code,name]) => ({code,name,from:"4"}));
+for (const isSimulation of [false, true]) {
+  assert.match(renderEew({isSimulation,warnAreas:fullShikokuAreas}), />対象 四国地方</, "live and simulation use the same grouped summary");
+  assert.doesNotMatch(renderEew({isSimulation,warnAreas:fullShikokuAreas.slice(1)}), /対象 四国地方/);
+  const allAreas = EEW_SUMMARY_AREA_GROUPS.flatMap(group => group.areas.map(([code,name]) => ({code,name})));
+  const nationwide = renderEew({isSimulation,warnAreas:allAreas});
+  assert.match(nationwide, />対象 北海道・東北地方・関東地方ほか11地域</);
+  assert.match(nationwide, /title="対象 北海道・東北地方・関東地方・伊豆諸島・小笠原・北陸地方/, "tooltip retains all grouped targets");
+}
 const simulation = await prepareEarthquakeSimulation({ magnitude: 6.9, groundCorrection: "none" }, {
   "0001": { longitude: 139.77, latitude: 35.69 }, "0002": { longitude: 139.8, latitude: 35.7 }
 }, { yieldTask: async () => {} });
@@ -145,6 +156,7 @@ const convertedSummary = renderEew({isSimulation:true,simulationMagnitudeBasis:"
 assert.match(convertedSummary, />M7\.6</);
 assert.match(convertedSummary, /換算参考値/);
 assert.match(convertedSummary, /Mw7\.0/);
+assert.doesNotMatch(convertedSummary,/mobile-dock-eew-supporting/,"magnitude explanations are not an extra visible summary row");
 displayLanguage = "en";
 assert.match(renderEew({isSimulation:true,simulationMagnitudeBasis:"Mw",magnitude:7,simulationMagnitudeDisplay:{value:7.6,scale:"M",converted:true}}),/converted reference; source Mw7\.0/);
 displayLanguage = "ja";
@@ -155,6 +167,12 @@ const missingSimulationMagnitude = renderEew({ isSimulation: true, simulationMag
 assert.match(missingSimulationMagnitude, /M調査中/);
 assert.match(renderEew({isSimulation:true,simulationMagnitudeBasis:"Mw",magnitude:9,
   simulationMagnitudeDisplay:{value:9,scale:"Mw",converted:false}}), />M9\.0</);
+const compactSimulationSummary=renderEew({isSimulation:true,simulationMagnitudeBasis:"Mw",hypocenter:"四国沖",magnitude:6.8,depth:30,
+  simulationMagnitudeDisplay:{value:6.8,scale:"Mw",converted:false}});
+assert.match(compactSimulationSummary,/四国沖/);
+assert.match(compactSimulationSummary,/title="M6\.8（Mw6\.8の値・Mjへの換算なし）"/,"magnitude provenance remains available in the tooltip");
+assert.doesNotMatch(compactSimulationSummary,/M表記の数値はMw|Mは換算参考値|mobile-dock-eew-supporting/,"remove only the visible magnitude explanation");
+assert.match(renderEew({isSimulation:true,uncertaintyLabel:"深発近似（学習用）",warnAreas:[{name:"試験地域"}]}),/深発近似（学習用）.*対象 試験地域/s,"other notices and target regions stay visible");
 for (const event of [createLocalEewTestEvent("one-point"), createLocalEewTestEvent("assumption"), createLocalEewTestEvent("level")]) {
   assert.doesNotMatch(renderEew(event), /Mw/ , "live/test feed labels must not be inferred to use Mw");
 }

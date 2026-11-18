@@ -1,6 +1,16 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+東北地方|Tohoku Region
+関東地方|Kanto Region
+北陸地方|Hokuriku Region
+甲信地方|Koshin Region
+東海地方|Tokai Region
+近畿地方|Kinki Region
+中国地方|Chugoku Region
+四国地方|Shikoku Region
+九州地方|Kyushu Region
+沖縄地方|Okinawa Region
 天気予報や防災情報を聞けます|Ask about weather forecasts and disaster information
 明日の天気は？|What is tomorrow's weather forecast?
 明日の降水確率は？|What is tomorrow's precipitation probability?

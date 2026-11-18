@@ -150,7 +150,10 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const affected = stations.filter(s => (!intensityEstimateAvailable || s.predictedIntensityValue >= .5) && Number.isFinite(s.sArrivalSec));
   const physicalDuration = Math.max(60, ...affected.map(s => intensityEstimateAvailable ? s.shakingEndSec + 2 : s.sArrivalSec + 30), ...sources.map(s => s.ruptureDelaySec + 45));
   const origin = sources.find(s => s.ruptureDelaySec === 0) ?? sources[0];
-  const name = getFaultModelPreset(options)?.name ?? (findSimulationEpicenterName(epicenterRegions, origin.coordinates) || "震源地名不明");
+  const hypocenter = findSimulationEpicenterName(epicenterRegions, origin.coordinates) || "震源地名不明";
+  // Model/assessment names describe the scenario, not JMA epicentral regions.
+  // Keep them available as scene labels, but never substitute them in EEW.
+  const name = getFaultModelPreset(options)?.name ?? hypocenter;
   const groundCoverage = { corrected: stations.filter(station => station.groundArv !== null).length, total: stations.length };
   const scenarioCoverage = {applied: stations.filter(station => station.scenarioIntensityValue !== null).length,
     total: stations.length, source: scenario?.source ?? null, caseLabel: scenario?.caseLabel ?? "", mismatch: Boolean(scenarioIntensity && !scenario)};
@@ -171,7 +174,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const duration = Math.max(physicalDuration, (reports.at(-1)?.elapsedSec ?? 0) + 8);
   const baseEvent = {
     eventId: "METEOSCOPE-SIMULATION", source: "WE-Simulator / MeteoScope", isSimulation: true,
-    hypocenter: name, coordinates: origin.coordinates,
+    hypocenter, coordinates: origin.coordinates,
     intensityEstimateAvailable,
     deepApproximation,
     uncertaintyLabel: !intensityEstimateAvailable ? "深発近似データ未取得：震度推定なし" : deepApproximation ? "深発近似（学習用・異常震域は概算）" : options.jshisGeometry ? `J-SHIS ${options.jshisGeometry.patternCode} 点群距離近似・伝播は独自設定` : "",

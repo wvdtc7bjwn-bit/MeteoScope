@@ -11,7 +11,7 @@ export function isEewWarningArea(event, area) {
   return Boolean(event?.isWarn) && getEarthquakeIntensityRank(selectForecastIntensity(area)) >= 4;
 }
 
-function normalizeEewAreaName(value) {
+export function normalizeEewAreaName(value) {
   return String(value ?? "")
     .normalize("NFKC")
     .replace(/\s+/gu, "")
