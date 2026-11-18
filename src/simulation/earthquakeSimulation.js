@@ -12,6 +12,7 @@ import {buildMultiPlaneSources} from "./activeFaultSources.js";
 import {normalizeMagnitudeBasis} from "./magnitudeBasis.js";
 import {canConvertSimulationMagnitude, simulationMagnitudeDisplay} from "./magnitudeDisplay.js";
 import {simulationMagnitudeTrajectory} from "./magnitudeDisplay.js";
+import { normalizeSimulationMagnitudeInput, PointMagnitudeInputError } from "./magnitudeInput.js";
 import {simulationEarthquakeType} from "./earthquakeType.js";
 import {validateJshisGeometry,createJshisPointDistances,snapJshisSources} from "./jshisSourceGeometry.js";
 import {simulationActiveFaultDistances} from "./sourceDistance.js";
@@ -45,7 +46,7 @@ export function normalizeSimulationOptions(input = {}) {
   if (!["start", "center", "end"].includes(options.ruptureOrigin)) throw new RangeError("Invalid rupture origin");
   if (!["none", "jshis-1km"].includes(options.groundCorrection)) throw new RangeError("Invalid ground correction");
   validateJshisGeometry(options.jshisGeometry,options);
-  return {...options, earthquakeType:simulationEarthquakeType(options), ...magnitudeBasis};
+  return {...options, ...normalizeSimulationMagnitudeInput(options), earthquakeType:simulationEarthquakeType(options), ...magnitudeBasis};
 }
 
 export function getFaultModelPreset(options) {
@@ -110,6 +111,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const stations = [];
   const findForecastArea = createSimulationRegionLookup(forecastAreas);
   const convertibleMagnitude = canConvertSimulationMagnitude(options, sources, coordinates => findForecastArea(coordinates));
+  if (options.magnitudeInputScale === "Mj" && !convertibleMagnitude) throw new PointMagnitudeInputError("land");
   const entries = Object.entries(rawStations ?? {});
   const activeFaultPreset = options.model === "active-fault" ? getFaultModelPreset(options) : null;
   const intensityParameters = {pointSource: options.model === "point", simulationCalibration: true,earthquakeType:options.earthquakeType};

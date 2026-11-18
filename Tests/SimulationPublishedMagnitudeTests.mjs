@@ -3,6 +3,7 @@ import {readFileSync} from "node:fs";
 import vm from "node:vm";
 import {getFaultAssessment} from "../src/simulation/faultAssessment.js";
 import {normalizeMagnitudeBasis} from "../src/simulation/magnitudeBasis.js";
+import {normalizeSimulationMagnitudeInput,PointMagnitudeInputError} from "../src/simulation/magnitudeInput.js";
 import * as core from "../src/simulation/earthquakeSimulation.js";
 import {scenarioMatchesOptions, validatePublicScenarioData} from "../src/simulation/scenarioIntensity.js";
 import {NANKAI_LONG_TERM_ASSESSMENT, NANKAI_RUPTURE_CASES, NANKAI_HALF_REFERENCE_MOMENTS, FAULT_MODEL_PRESETS} from "../src/simulation/faultPresets.js";
@@ -17,11 +18,11 @@ assert.equal(core.normalizeSimulationOptions({model:"active-fault",activeFault:f
 for(const MAG of [7.5,null])assert.throws(()=>core.normalizeSimulationOptions({model:"active-fault",activeFault:{...plane,MAG}}),/Missing magnitude/);
 const ui=readFileSync(new URL("../src/ui/earthquakeSimulation.js",import.meta.url),"utf8");
 const fields=new Map(),elements=new Map();
-const field=name=>{if(!fields.has(name))fields.set(name,{value:""});return fields.get(name);};
+const field=name=>{if(!fields.has(name))fields.set(name,{value:"",setAttribute(){},setCustomValidity(){}});return fields.get(name);};
 const element=key=>{if(!elements.has(key))elements.set(key,{});return elements.get(key);};
 for(const [key,value] of Object.entries(core.SIMULATION_DEFAULTS))field(key).value=value;
 field("model").value="active-fault";
-const form=vm.createContext({field,core,text:ja=>ja,modal:{querySelector:element},
+const form=vm.createContext({field,core,normalizeSimulationMagnitudeInput,PointMagnitudeInputError,text:ja=>ja,modal:{querySelector:element},
   selectedFault:null,selectedCaseId:"",faultCatalog:[],faultModelLoading:false,jshisGeometry:null,
   getFaultAssessment,renderFaultChoices(){},loadFaultChoices(){},updateScenarioStatus(){},faultCatalogController:null,faultModelController:null});
 vm.runInContext(ui.slice(ui.indexOf("  function readForm("),ui.indexOf("  function renderFaultChoices(")),form);

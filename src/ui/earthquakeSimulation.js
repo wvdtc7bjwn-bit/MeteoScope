@@ -4,6 +4,7 @@ import { loadSimulationResource, SimulationPreparationError } from "../simulatio
 import { createSimulationCamera } from "../simulation/camera.js";
 import {getFaultAssessment} from "../simulation/faultAssessment.js";
 import {createSimulationTermsConsent,simulationTermsMarkup} from "../simulation/simulationTerms.js";
+import { normalizeSimulationMagnitudeInput, PointMagnitudeInputError } from "../simulation/magnitudeInput.js";
 
 const text = (ja, en) => getCurrentLanguage() === "en" ? en : ja;
 const modelNames = () => [
@@ -115,10 +116,13 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
           </div>
           <button class="simulation-secondary" type="button" data-simulation-pick>${text("地図で震源を選ぶ", "Choose epicenter on map")}</button>
           <label class="simulation-earthquake-type">${text("地震タイプ（位置からは自動判定しません）", "Earthquake type (not inferred from location)")}<select name="earthquakeType"><option value="crustal">${text("地殻内地震", "Crustal")}</option><option value="interplate">${text("プレート間地震", "Interplate")}</option><option value="intraslab">${text("プレート内地震", "Intraslab")}</option></select></label>
+          <label data-point-magnitude-scale>${text("規模の入力方法", "Magnitude input")}<select name="magnitudeInputScale"><option value="Mw">${text("Mwで設定", "Set Mw")}</option><option value="Mj">${text("Mで設定（Mj換算参考）", "Set M (empirical Mj reference)")}</option></select></label>
           <div class="simulation-fields">
             <label><span data-magnitude-label>${text("計算用Mw", "Calculation Mw")}</span><input name="magnitude" aria-label="${text("マグニチュード Mw", "Moment magnitude Mw")}" type="number" min="1" max="9.5" step="0.1" required inputmode="decimal"></label>
             <label>${text("深さ（km）", "Depth (km)")}<input name="depthKm" type="number" min="0" max="700" step="1" required inputmode="numeric"></label>
           </div>
+          <p data-point-magnitude-note role="status" aria-live="polite" hidden></p>
+          <a data-point-magnitude-source href="https://www.j-map.bosai.go.jp/j-map/result/tn_246/html/html/2-4-1.html" target="_blank" rel="noopener noreferrer" hidden>${text("MとMwの換算根拠（防災科研） ↗", "M–Mw relation (NIED) ↗")}</a>
           <div class="simulation-fault-fields simulation-fields" hidden>
             <label>${text("破壊開始位置", "Rupture origin")}<select name="ruptureOrigin"><option value="center">${text("中央", "Center")}</option><option value="start">${text("始点側", "Start")}</option><option value="end">${text("終点側", "End")}</option></select></label>
             <label>${text("破壊速度（km/s）", "Rupture speed (km/s)")}<input name="ruptureSpeed" type="number" min="0.5" max="4" step="0.1" required inputmode="decimal"></label>
@@ -157,6 +161,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     jshisGeometry=values.jshisGeometry??null;
     selectedCaseId = selectedFault ? core.activeFaultCaseId(selectedFault) : selectedCaseId;
     for (const [name, value] of Object.entries(values)) if (field(name)) field(name).value = value;
+    if (values.magnitudeInputScale === "Mj") field("magnitude").value = values.magnitudeInputValue;
     updateModelFields();
     if(jshisGeometry)modal.querySelector("[data-jshis-status]").textContent=`${jshisGeometry.identity.version} ${jshisGeometry.patternCode} · ${jshisGeometry.points.length} ${text("構成点・端末内で保持", "points retained on device")}`;
     modal.querySelector("form").addEventListener("submit", event => { event.preventDefault(); void start(); });
@@ -168,6 +173,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       modelImportSequence++;
       marineModelData=null;jshisGeometry=null;
       const model = field("model").value;
+      field("magnitudeInputScale").value = "Mw";
       const values = { ...core.getSimulationPresetOptions(model === "active-fault" ? "point" : model), model, groundCorrection: field("groundCorrection").value };
       for (const [name, value] of Object.entries(values)) if (field(name)) field(name).value = value;
       if (model === "active-fault" && selectedFault) applyActiveFault(selectedFault);
@@ -181,8 +187,10 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       updateModelFields();
     });
     field("groundCorrection").addEventListener("change", updateModelFields);
+    field("magnitudeInputScale").addEventListener("change", updateModelFields);
+    field("magnitude").addEventListener("input", updatePointMagnitudeFields);
     field("depthKm").addEventListener("input", updateModelFields);
-    field("earthquakeType").addEventListener("change", updateScenarioStatus);
+    field("earthquakeType").addEventListener("change", updateModelFields);
     modal.querySelector("[data-jshis-source-file]").addEventListener("change", async event=>{
       const file=event.target.files?.[0];if(!file)return;
       const importSequence=++modelImportSequence;
@@ -285,6 +293,10 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
   function readForm() {
     const values = Object.fromEntries(["model", "nankaiCase", "latitude", "longitude", "magnitude", "depthKm", "ruptureOrigin", "ruptureSpeed", "groundCorrection"].map(name => [name, field(name)?.value]));
     values.earthquakeType=field("earthquakeType")?.value||"crustal";
+    if (values.model === "point" && field("magnitudeInputScale")?.value === "Mj") {
+      values.magnitudeInputScale = "Mj";
+      values.magnitudeInputValue = values.magnitude;
+    }
     if(jshisGeometry?.model===values.model)values.jshisGeometry=jshisGeometry;
     return values.model === "active-fault" ? {...values, activeFault: selectedFault,
       magnitudeBasis: "Mw"} : values;
@@ -304,6 +316,42 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     for (const name of ["longitude", "latitude", "depthKm"]) field(name).value = preset[name];
     field("magnitude").value = preset.magnitudeValue ?? "";
     field("ruptureOrigin").value = "center";
+  }
+
+  function pointMagnitudeErrorText(error) {
+    if (!(error instanceof PointMagnitudeInputError)) return "";
+    if (error.reason === "land") return text("この地点は陸域と確認できないためMから換算できません。Mwで設定してください。", "This point could not be confirmed as land. Set Mw instead.");
+    if (error.reason === "depth") return text("Mからの参考換算は深さ0〜20kmに対応します。これ以外はMwで設定してください。", "The M reference conversion supports depths of 0–20 km. Otherwise set Mw.");
+    if (error.reason === "type") return text("Mからの参考換算は地殻内地震に対応します。他の地震タイプはMwで設定してください。", "The M reference conversion supports crustal earthquakes. Set Mw for other earthquake types.");
+    if (error.reason === "range") return text("Mは5より大きく8以下で入力してください。この範囲外はMwで設定してください。", "Enter M greater than 5 and no greater than 8. Set Mw outside this range.");
+    return text("M入力は任意震源でのみ使用できます。Mwで設定してください。", "M input is available only for a custom epicenter. Set Mw instead.");
+  }
+
+  function updatePointMagnitudeFields() {
+    const point = field("model").value === "point";
+    const scale = field("magnitudeInputScale");
+    modal.querySelector("[data-point-magnitude-scale]").hidden = !point;
+    if (!point) scale.value = "Mw";
+    const mj = point && scale.value === "Mj";
+    const magnitude = field("magnitude");
+    magnitude.min = mj ? "5.1" : "1";
+    magnitude.max = mj ? "8" : "9.5";
+    magnitude.setAttribute("aria-label", mj ? text("マグニチュード M（Mj換算参考）", "Magnitude M (empirical Mj reference)") : text("マグニチュード Mw", "Moment magnitude Mw"));
+    magnitude.setCustomValidity("");
+    modal.querySelector("[data-magnitude-label]").textContent = mj ? text("入力するM（Mj換算参考）", "Input M (empirical Mj reference)") : text("計算用Mw", "Calculation Mw");
+    const note = modal.querySelector("[data-point-magnitude-note]");
+    note.hidden = !mj;
+    modal.querySelector("[data-point-magnitude-source]").hidden = !mj;
+    if (!mj) { note.textContent = ""; return; }
+    const conditions = text("浅い内陸の地殻内地震用の参考換算です。Mw = 0.78 × Mj + 1.08。陸域かどうかは開始時に確認します。", "Empirical reference for shallow inland crustal earthquakes: Mw = 0.78 × Mj + 1.08. Land coverage is checked on start.");
+    try {
+      const converted = normalizeSimulationMagnitudeInput(readForm());
+      note.textContent = `${text(`計算用Mw：${converted.magnitude.toFixed(3)}`, `Calculation Mw: ${converted.magnitude.toFixed(3)}`)}。${conditions}`;
+    } catch (error) {
+      const message = pointMagnitudeErrorText(error);
+      magnitude.setCustomValidity(message);
+      note.textContent = `${message} ${conditions}`;
+    }
   }
 
   function renderFaultChoices() {
@@ -392,6 +440,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     const typeField=field("earthquakeType");
     typeField.disabled=field("model").value!=="point";
     if(typeField.disabled)typeField.value=activeFault?"crustal":"interplate";
+    updatePointMagnitudeFields();
     const marine=modal.querySelector(".simulation-jshis-source");
     if(marine)marine.hidden=!core.FAULT_MODEL_PRESETS[field("model").value]||(field("model").value==="nankai-trough"&&field("nankaiCase").value!=="full");
     if(!jshisGeometry&&modal.querySelector("[data-jshis-pattern]"))modal.querySelector("[data-jshis-pattern]").disabled=true;
@@ -576,7 +625,10 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     playback.querySelector("[data-simulation-overview]").addEventListener("click", () => camera.showOverview());
     if (lastValues) {
       const variant = lastValues.model === "nankai-trough" ? ({ full: text("全割れ", "Full"), east: text("半割れ・東側", "Eastern half"), west: text("半割れ・西側", "Western half") })[lastValues.nankaiCase] : "";
-      playback.querySelector("[data-simulation-name]").textContent = `${text("設定", "Source")}: ${lastValues.model === "active-fault" ? lastValues.activeFault.LTENAME : modelNames().find(([id]) => id === lastValues.model)?.[1]}${variant ? ` (${variant})` : ""} · Mw${Number(lastValues.magnitude).toFixed(1)} / ${lastValues.depthKm} km`;
+      const magnitudeSetting = lastValues.magnitudeInputScale === "Mj"
+        ? `M${Number(lastValues.magnitudeInputValue).toFixed(1)} → Mw${Number(lastValues.magnitude).toFixed(3)}`
+        : `Mw${Number(lastValues.magnitude).toFixed(1)}`;
+      playback.querySelector("[data-simulation-name]").textContent = `${text("設定", "Source")}: ${lastValues.model === "active-fault" ? lastValues.activeFault.LTENAME : modelNames().find(([id]) => id === lastValues.model)?.[1]}${variant ? ` (${variant})` : ""} · ${magnitudeSetting} / ${lastValues.depthKm} km`;
     }
     const coverage = playback.querySelector("[data-simulation-scenario-coverage]");
     const sourceLink = playback.querySelector("[data-simulation-playback-source]");
@@ -678,10 +730,10 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     } catch (error) {
       if (token !== sequence) return;
       const resource = error instanceof SimulationPreparationError ? ({ stations: text("観測点データ", "Station data"), ground: text("地盤データ", "Ground data"), areas: text("地域データ", "Region data") })[error.resource] : null;
-      status.textContent = resource
+      status.textContent = pointMagnitudeErrorText(error) || (resource
         ? error.timedOut ? text(`${resource}の読み込みがタイムアウトしました。再試行してください。`, `${resource} loading timed out. Please retry.`)
           : text(`${resource}を読み込めませんでした。通信状態を確認して再試行してください。`, `Could not load ${resource.toLowerCase()}. Check the connection and retry.`)
-        : text("計算できませんでした。入力値と通信状態を確認し、再試行してください。", "Could not calculate. Check the values and connection, then retry.");
+        : text("計算できませんでした。入力値と通信状態を確認し、再試行してください。", "Could not calculate. Check the values and connection, then retry."));
       modal.querySelector("[data-simulation-without-ground]").hidden = error.resource !== "ground";
       modal.querySelector(".simulation-start").textContent = text("再試行", "Retry");
       controller.abort(error);
