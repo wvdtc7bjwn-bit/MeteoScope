@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { prepareEarthquakeSimulation } from "../src/simulation/earthquakeSimulation.js";
-import { getEarthquakeIntensityRank } from "../src/earthquakeIntensity.js";
 
 const stations = { "00001": { name: "Near source", longitude: 139.76, latitude: 35.68 } };
 const options = { magnitude: 6, depthKm: 10 };
@@ -10,8 +9,9 @@ const hasBothDirections = values => values.some((v, i) => i > 0 && v > values[i 
   && values.some((v, i) => i > 0 && v < values[i - 1]);
 assert.ok(hasBothDirections(reports.map(r => r.magnitude)), "M must include upward and downward analysis revisions");
 assert.ok(hasBothDirections(reports.map(r => r.depth)), "depth must include upward and downward analysis revisions");
-assert.ok(hasBothDirections(reports.map(r => getEarthquakeIntensityRank(r.maxIntensity))), "calculated maximum intensity can fall after an initial overestimate");
-assert.ok(reports.some(r => r.magnitude > options.magnitude) && reports.some(r => r.magnitude < options.magnitude));
+assert.ok(new Set(reports.map(r => r.maxIntensity)).size > 1, "calculated intensity follows the developing estimate without forcing an overshoot");
+assert.ok(reports.some(r => r.magnitude < options.magnitude), "early analysis can underestimate the configured magnitude");
+assert.ok(reports.every(r => r.magnitude <= options.magnitude + .1), "do not force a large overshoot just to demonstrate bidirectional revisions");
 const earlyError = Math.max(...reports.slice(0, 4).map(r => Math.abs(r.magnitude - options.magnitude)));
 const laterError = Math.max(...reports.slice(-3).map(r => Math.abs(r.magnitude - options.magnitude)));
 assert.ok(laterError < earlyError, "the late analysis settles instead of sustaining initial uncertainty");

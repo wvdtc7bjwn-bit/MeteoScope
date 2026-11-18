@@ -11,6 +11,9 @@ import {buildActiveFaultPreset, normalizeActiveFaultSelection, isInterplateSimul
 import {buildMultiPlaneSources} from "./activeFaultSources.js";
 import {normalizeMagnitudeBasis} from "./magnitudeBasis.js";
 import {canConvertSimulationMagnitude, simulationMagnitudeDisplay} from "./magnitudeDisplay.js";
+import {simulationMagnitudeTrajectory} from "./magnitudeDisplay.js";
+import {simulationEarthquakeType} from "./earthquakeType.js";
+import {validateJshisGeometry,createJshisPointDistances,snapJshisSources} from "./jshisSourceGeometry.js";
 import {simulationActiveFaultDistances} from "./sourceDistance.js";
 import {createPublicScenarioLookup, validatePublicScenarioData} from "./scenarioIntensity.js";
 export {validatePublicScenarioData, scenarioMatchesOptions} from "./scenarioIntensity.js";
@@ -41,7 +44,8 @@ export function normalizeSimulationOptions(input = {}) {
   }
   if (!["start", "center", "end"].includes(options.ruptureOrigin)) throw new RangeError("Invalid rupture origin");
   if (!["none", "jshis-1km"].includes(options.groundCorrection)) throw new RangeError("Invalid ground correction");
-  return {...options, ...magnitudeBasis};
+  validateJshisGeometry(options.jshisGeometry,options);
+  return {...options, earthquakeType:simulationEarthquakeType(options), ...magnitudeBasis};
 }
 
 export function getFaultModelPreset(options) {
@@ -98,7 +102,9 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const trenchDistance = deepApproximation && inJapanRegion ? createDeepTrenchLookup(plateBoundaries) : null;
   const intensityEstimateAvailable = !deepApproximation || Boolean(trenchDistance) || Boolean(scenario);
   if (intensityEstimateAvailable && options.groundCorrection !== "none" && !groundModel) throw new Error("Ground model is required");
-  const sources = buildSimulationSources(options);
+  const originalSources = buildSimulationSources(options);
+  const sources = options.jshisGeometry ? snapJshisSources(originalSources,options.jshisGeometry,options.depthKm) : originalSources;
+  const pointDistances = options.jshisGeometry ? createJshisPointDistances(options.jshisGeometry,sources,options.depthKm) : null;
   const interplate = isInterplateSimulation(options);
   const model = createWeSimulatorModel({ magnitude: options.magnitude, depthKm: options.depthKm, latitude: options.latitude, longitude: options.longitude, offshore: interplate });
   const stations = [];
@@ -106,7 +112,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const convertibleMagnitude = canConvertSimulationMagnitude(options, sources, coordinates => findForecastArea(coordinates));
   const entries = Object.entries(rawStations ?? {});
   const activeFaultPreset = options.model === "active-fault" ? getFaultModelPreset(options) : null;
-  const intensityParameters = {pointSource: options.model === "point", simulationCalibration: true};
+  const intensityParameters = {pointSource: options.model === "point", simulationCalibration: true,earthquakeType:options.earthquakeType};
   for (let index = 0; index < entries.length; index++) {
     if (index % 256 === 0) { await yieldTask(); signal?.throwIfAborted(); }
     const [key, raw] = entries[index];
@@ -118,7 +124,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
     const ground = intensityEstimateAvailable && options.groundCorrection !== "none" ? getSimulationGround(groundModel, point) : null;
     const area = findForecastArea(point);
     const trenchDistanceKm = trenchDistance?.(point) ?? null;
-    const sourceRuptureDistancesKm = activeFaultPreset ? simulationActiveFaultDistances(point, options.activeFault, sources, options.depthKm, activeFaultPreset.depthKm, sourceDistancesKm) : null;
+    const sourceRuptureDistancesKm = pointDistances ? pointDistances(point) : activeFaultPreset ? simulationActiveFaultDistances(point, options.activeFault, sources, options.depthKm, activeFaultPreset.depthKm, sourceDistancesKm) : null;
     const calculatedIntensityValue = estimateSimulationIntensity({ ...intensityParameters, magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: sourceRuptureDistancesKm ? Math.min(...sourceRuptureDistancesKm) : Math.hypot(distance, options.depthKm), interplate, groundArv: ground?.arv ?? 1, trenchDistanceKm });
     const scenarioIntensityValue = scenario?.at({id: String(raw.code || key), coordinates: point}) ?? null;
     // Published surface intensities already include their own ground model.
@@ -151,7 +157,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
   const offshoreDetectors = detectionStations.filter(station => Array.isArray(station.coordinates) && station.coordinates.length === 2 && station.coordinates.every(Number.isFinite)
     && Math.abs(station.coordinates[0]) <= 180 && Math.abs(station.coordinates[1]) <= 85).map((station, index) => {
     const metrics = calculateTravelMetrics(station.coordinates, options, sources);
-    return { id: `offshore:${station.network ?? ""}:${station.code || index}`, ...metrics, predictedIntensityValue: estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: Math.hypot(metrics.distance, options.depthKm), interplate, trenchDistanceKm: trenchDistance?.(station.coordinates) ?? null }) };
+    return { id: `offshore:${station.network ?? ""}:${station.code || index}`, ...metrics, predictedIntensityValue: estimateSimulationIntensity({ magnitude: options.magnitude, depthKm: options.depthKm, ruptureDistanceKm: pointDistances ? Math.min(...pointDistances(station.coordinates)) : Math.hypot(metrics.distance, options.depthKm), interplate, earthquakeType:options.earthquakeType,trenchDistanceKm: trenchDistance?.(station.coordinates) ?? null }) };
   });
   const ruptureComplete = Math.max(...sources.map(source => source.ruptureDelaySec));
   const schedule = model.getSimulationInitialReport(options.magnitude, [...stations, ...offshoreDetectors]);
@@ -159,7 +165,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
     getObservedIntensity: (station, elapsed) => { const value = model.getCurrentIntensityProperties(station, elapsed); return value.observed ? value.recordedIntensityValue : 0; } });
   // Cache presentation separately: no converted value enters the motion,
   // travel-time, rupture, report-estimation or public-scenario calculations.
-  const displayMagnitudes = new Map(reports.map(report => [report, simulationMagnitudeDisplay(report.magnitude, convertibleMagnitude)]));
+  const displayMagnitudes = simulationMagnitudeTrajectory(reports,convertibleMagnitude);
   const pendingMagnitude = simulationMagnitudeDisplay(null, false);
   // Distant/deep instrumental detections can occur after the felt-shaking timeline.
   const duration = Math.max(physicalDuration, (reports.at(-1)?.elapsedSec ?? 0) + 8);
@@ -168,7 +174,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
     hypocenter: name, coordinates: origin.coordinates,
     intensityEstimateAvailable,
     deepApproximation,
-    uncertaintyLabel: !intensityEstimateAvailable ? "深発近似データ未取得：震度推定なし" : deepApproximation ? "深発近似（学習用・異常震域は概算）" : "",
+    uncertaintyLabel: !intensityEstimateAvailable ? "深発近似データ未取得：震度推定なし" : deepApproximation ? "深発近似（学習用・異常震域は概算）" : options.jshisGeometry ? `J-SHIS ${options.jshisGeometry.patternCode} 点群距離近似・伝播は独自設定` : "",
     canRenderWaves: true, isCancel: false, isFinal: false, hypocenterReliability: "simulation"
   };
   const renderCache = [], renderKeys = [];
@@ -260,7 +266,7 @@ function createFaultFeatures(options, sources, elapsed) {
   const preset = getFaultModelPreset(options);
   if (!preset) return { type: "FeatureCollection", features: [] };
   return { type: "FeatureCollection", features: [
-    ...(preset.parts ?? [preset]).map(part => {
+    ...(options.jshisGeometry ? [] : preset.parts ?? [preset]).map(part => {
       const ring = [...part.areaSides.left, ...part.areaSides.right.toReversed(), part.areaSides.left[0]];
       return {type:"Feature",properties:{kind:"area",faultId:part.fault?.FLT_ID ?? ""},geometry:part.fault?.DIP===90
         ? {type:"LineString",coordinates:part.path} : {type:"Polygon",coordinates:[ring]}};

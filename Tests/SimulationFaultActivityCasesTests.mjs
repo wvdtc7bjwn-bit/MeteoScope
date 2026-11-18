@@ -17,7 +17,7 @@ const plane=(index,lon,dep=2)=>{
   const ring=[[...p.areaSides.left[0],dep],[...p.areaSides.left[1],dep],[...p.areaSides.right[1],bottom],[...p.areaSides.right[0],bottom]];
   return {type:"Feature",properties,geometry:{type:"Polygon",coordinates:[[...ring,ring[0]]]}};
 };
-const data={status:"Success",crs:{properties:{name:"urn:ogc:def:crs:EPSG:4326"}},metaData:{version:"Y2024",case:"MAX",ltecode:id},seisact_model:{ltecode:id,ltename:"試験・同時活動",geom_num:2,magl:-7,magu:-7},features:[plane(1,135),plane(2,136,10)]};
+const data={type:"FeatureCollection",status:"Success",crs:{properties:{name:"urn:ogc:def:crs:EPSG:4326"}},metaData:{version:"Y2024",case:"MAX",ltecode:id},seisact_model:{ltecode:id,ltename:"試験・同時活動",geom_num:2,magl:-7,magu:-7},features:[plane(1,135),plane(2,136,10)]};
 const model=readActiveFaultModel(data,id),preset=buildActiveFaultPreset(model);
 assert.deepEqual(preset.parts[0].areaSides.left[1],data.features[0].geometry.coordinates[0][1].slice(0,2),"retain official vertices without spherical reconstruction");
 assert.throws(()=>readActiveFaultModel({...data,features:[{...data.features[0],geometry:null},data.features[1]]},id),/rectangle/);

@@ -1,4 +1,5 @@
 import {getDistanceKm} from "../location/distance.js";
+import {simulationEarthquakeType} from "./earthquakeType.js";
 
 // Numerical/source attributes and optional complete API corners are retained;
 // tile-clipped polygons are never used as a complete fault plane.
@@ -82,4 +83,4 @@ export function buildActiveFaultPreset(properties) {
     fault, lengthKm: getDistanceKm(top, end)};
 }
 
-export const isInterplateSimulation = options => options.model !== "point" && options.model !== "active-fault";
+export const isInterplateSimulation = options => simulationEarthquakeType(options)==="interplate";

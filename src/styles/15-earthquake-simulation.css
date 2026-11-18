@@ -78,6 +78,18 @@
 .simulation-form .simulation-start { color: #07162b; border-color: #69c7ef; background: #69c7ef; }
 .simulation-form .simulation-start:disabled { opacity: .6; cursor: wait; }
 .simulation-loading { padding: 24px; color: var(--modal-foreground); }
+.simulation-terms { display: grid; gap: 20px; color: var(--modal-foreground); }
+.simulation-terms h3 { margin: 0 0 8px; font-size: 16px; line-height: 1.5; }
+.simulation-terms p { margin: 0; font-size: 14px; line-height: 1.8; overflow-wrap: anywhere; }
+.simulation-terms .simulation-terms-version { font-size: 12px; color: var(--muted); }
+.simulation-terms-check { display: flex; align-items: flex-start; gap: 10px; padding-block: 8px; font-size: 14px; line-height: 1.7; cursor: pointer; }
+.simulation-terms-check input { flex: 0 0 22px; width: 22px; height: 22px; margin: 1px 0 0; accent-color: var(--blue); }
+.simulation-terms-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.simulation-terms-actions button { flex: 1 1 170px; }
+.simulation-terms :is(.simulation-start, .simulation-secondary) { min-height: 44px; padding: 10px 12px; border: 1px solid var(--modal-control-border); border-radius: 12px; background: var(--modal-control-surface); color: var(--modal-foreground); font: inherit; cursor: pointer; }
+.simulation-terms .simulation-start { background: #69c7ef; border-color: #69c7ef; color: #07162b; font-weight: 650; }
+.simulation-terms .simulation-start:disabled { opacity: .5; cursor: not-allowed; }
+.simulation-terms :is(button, input):focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
 .simulation-playback, .simulation-notice {
   position: absolute; z-index: 8; top: max(76px, calc(env(safe-area-inset-top) + 76px)); right: 12px;
   box-sizing: border-box; width: min(430px, calc(100% - 24px)); padding: 12px;

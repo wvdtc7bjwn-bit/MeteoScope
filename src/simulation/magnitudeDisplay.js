@@ -10,6 +10,7 @@ export function canConvertSimulationMagnitude(options, sources, isOnLand) {
   // models use the crustal calculation; land coverage alone is not evidence
   // about the mechanism of an actual earthquake. Missing data never qualifies.
   return ["point", "active-fault"].includes(options.model)
+    && (!options.earthquakeType || options.earthquakeType === "crustal")
     && options.depthKm >= 0 && options.depthKm <= 20
     && inReferenceRange(referenceM(options.magnitude))
     && sources.length > 0 && typeof isOnLand === "function"
@@ -25,4 +26,12 @@ export function simulationMagnitudeDisplay(mw, convertible) {
   if (convertible && inReferenceRange(value))
     return Object.freeze({value: Math.round(value * 10) / 10, scale: "M", converted: true});
   return Object.freeze({value: mw, scale: "Mw", converted: false});
+}
+
+// Choose ONE numerical scale for the entire precomputed bulletin sequence.
+// If even one estimate crosses the empirical bounds, use original Mw values
+// for every bulletin. Never clamp, extrapolate or switch scales mid-scene.
+export function simulationMagnitudeTrajectory(reports,eligible){
+  const convertible=eligible&&reports.every(r=>!Number.isFinite(r.magnitude)||inReferenceRange(referenceM(r.magnitude)));
+  return new Map(reports.map(r=>[r,simulationMagnitudeDisplay(r.magnitude,convertible)]));
 }

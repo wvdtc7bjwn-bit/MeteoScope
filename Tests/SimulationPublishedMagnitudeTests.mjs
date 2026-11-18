@@ -22,7 +22,7 @@ const element=key=>{if(!elements.has(key))elements.set(key,{});return elements.g
 for(const [key,value] of Object.entries(core.SIMULATION_DEFAULTS))field(key).value=value;
 field("model").value="active-fault";
 const form=vm.createContext({field,core,text:ja=>ja,modal:{querySelector:element},
-  selectedFault:null,selectedCaseId:"",faultCatalog:[],faultModelLoading:false,
+  selectedFault:null,selectedCaseId:"",faultCatalog:[],faultModelLoading:false,jshisGeometry:null,
   getFaultAssessment,renderFaultChoices(){},loadFaultChoices(){},updateScenarioStatus(){},faultCatalogController:null,faultModelController:null});
 vm.runInContext(ui.slice(ui.indexOf("  function readForm("),ui.indexOf("  function renderFaultChoices(")),form);
 vm.runInContext(ui.slice(ui.indexOf("  function updateModelFields("),ui.indexOf("  async function open(")),form);

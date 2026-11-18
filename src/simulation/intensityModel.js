@@ -1,22 +1,27 @@
 // Reference-ground calculation, not an official surface-intensity forecast.
 // Si & Midorikawa (1999), PGV600 -> PGV400 x1.31; Midorikawa et al. (1999).
 // https://www.j-map.bosai.go.jp/j-map/result/tn_246/html/html/2-4-1.html
-// Mw8.3 saturation is the basic-model assumption documented for giant events:
+// The cited Mw8.3 saturation assumption is documented for Nankai. Extending
+// this bound to other giant simulations is a conservative legacy assumption,
+// not a validated Kuril/Japan-Trench SMGA model:
 // https://www.j-shis.bosai.go.jp/j-map/result/tn_257/html/html/2-4-1.html
 // JMA does not apply this hypocenter-based intensity method beyond 150 km.
 // https://www.data.jma.go.jp/eew/data/nc/katsuyou/reference.pdf
 import {pointSourceFaultDistance} from "./sourceDistance.js";
+import {EARTHQUAKE_TYPE_COEFFICIENTS} from "./earthquakeType.js";
 
 export const MAX_REFERENCE_INTENSITY_DEPTH_KM = 150;
 export const DEEP_PATH_BLEND_END_KM = MAX_REFERENCE_INTENSITY_DEPTH_KM + 5;
 
-export function estimateReferenceIntensity({ magnitude, depthKm, ruptureDistanceKm, interplate = false, groundArv = 1 }) {
+export function estimateReferenceIntensity({ magnitude, depthKm, ruptureDistanceKm, interplate = false, earthquakeType, groundArv = 1 }) {
   if (![magnitude, depthKm, ruptureDistanceKm].every(Number.isFinite) || depthKm < 0 || ruptureDistanceKm < 0) throw new RangeError("Invalid reference intensity parameters");
   if (!Number.isFinite(groundArv) || groundArv <= 0) throw new RangeError("Invalid ground amplification");
+  const type=earthquakeType??(interplate?"interplate":"crustal");
+  if(!Object.hasOwn(EARTHQUAKE_TYPE_COEFFICIENTS,type))throw new RangeError("Invalid earthquake type");
   if (depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM) return null;
   const mw = Math.min(magnitude, 8.3);
   const distance = Math.max(ruptureDistanceKm, 1);
-  return velocityToIntensity(logVelocity600(mw, depthKm, distance, interplate ? -.02 : 0), groundArv);
+  return velocityToIntensity(logVelocity600(mw, depthKm, distance, EARTHQUAKE_TYPE_COEFFICIENTS[type]), groundArv);
 }
 
 // Explicit educational extrapolation, not a validated deep-earthquake forecast.
@@ -43,7 +48,7 @@ export function estimateSimulationIntensity(parameters) {
   const transition = Math.max(0, Math.min(1, (depthKm - MAX_REFERENCE_INTENSITY_DEPTH_KM) / 50));
   const logV1 = (-4.021e-5 * trenchDistanceKm + 9.905e-3) * (boundedDepth - 30);
   const logV2 = Math.max(0, 2.064 * Math.log10(distance / 300) - .012);
-  const baseType = interplate ? -.02 : 0;
+  const baseType = EARTHQUAKE_TYPE_COEFFICIENTS[parameters.earthquakeType??(interplate?"interplate":"crustal")];
   const type = baseType + (.12 - baseType) * transition;
   // Bounded educational residual adjustment, evaluated against JMA observed
   // station classes with CMT Mw (see the checked-in validation fixture/report).

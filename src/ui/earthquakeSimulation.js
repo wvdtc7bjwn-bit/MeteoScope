@@ -3,6 +3,7 @@ import { getCurrentLanguage } from "./locale.js";
 import { loadSimulationResource, SimulationPreparationError } from "../simulation/preparationErrors.js";
 import { createSimulationCamera } from "../simulation/camera.js";
 import {getFaultAssessment} from "../simulation/faultAssessment.js";
+import {createSimulationTermsConsent,simulationTermsMarkup} from "../simulation/simulationTerms.js";
 
 const text = (ja, en) => getCurrentLanguage() === "en" ? en : ja;
 const modelNames = () => [
@@ -16,6 +17,9 @@ const modelNames = () => [
 export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame, onStop }) {
   const button = document.getElementById("earthquake-simulation-button");
   if (!button) return null;
+  const termsConsent=createSimulationTermsConsent();
+  let showingTerms=false;
+  let pendingFault=null;
   let core = null;
   let player = null;
   let preparation = null;
@@ -27,6 +31,9 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
   let groundCoverage = null;
   let scenarioIntensity = null;
   let scenarioCoverage = null;
+  let marineModelData = null;
+  let jshisGeometry = null;
+  let modelImportSequence = 0;
   let faultModelController = null;
   let faultModelLoading = false;
   let selectedCaseId = "";
@@ -68,14 +75,20 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
   const showNotice = message => { notice.textContent = message; notice.hidden = !message; };
 
   function updateModalLabels() {
-    modal.querySelector("#simulation-title").textContent = text("地震シミュレーション", "Earthquake simulation");
+    modal.querySelector("#simulation-title").textContent = showingTerms
+      ? text("シミュレーション利用規約", "Simulation terms of use") : text("地震シミュレーション", "Earthquake simulation");
     modal.querySelector(".warning-modal-close").setAttribute("aria-label", text("閉じる", "Close"));
   }
   updateModalLabels();
 
   function renderForm() {
+    showingTerms=false;
+    updateModalLabels();
+    modelImportSequence++;
+    marineModelData=null;
     modalBody.innerHTML = `<form class="simulation-form">
           <p class="simulation-disclaimer">${text("学習用の模擬計算です。実際の地震・EEWではありません。", "Educational simulation. This is not a real earthquake or EEW.")}</p>
+          <button type="button" class="simulation-secondary" data-simulation-terms-open>${text("シミュレーション利用規約・注意事項", "Simulation terms and limitations")}</button>
           <aside class="simulation-disclaimer" data-simulation-deep-warning role="note" hidden>
             <strong>${text("深発地震の表示について", "About deep-earthquake simulations")}</strong>
             <p>${text("深発地震は学習用の近似表示で、実際の地震がこの表示どおりになることを示すものではありません。震度分布・揺れの強さや収まり方・EEWの推移は実際と異なる場合があります。深さ150kmを超えるシミュレーションでは、EEWの対象地域名と赤い地域表示を出しません。実際の震度予測や防災判断には使用しないでください。", "Deep earthquakes use an educational approximation. Real earthquakes will not necessarily behave as shown. Intensity distribution, shaking strength and decay, and EEW updates may differ from reality. For simulations deeper than 150 km, EEW target region names and red regional shading are not shown. Do not use this simulation to predict actual intensities or make safety decisions.")}</p>
@@ -86,6 +99,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
             <label>${text("活断層・活動ケース", "Active fault / activity case")}<select name="activeFaultId"></select></label>
             <p data-active-fault-status role="status"></p>
             <button type="button" class="simulation-secondary" data-active-fault-retry hidden>${text("一覧を再読み込み", "Reload fault list")}</button>
+            <label>${text("保存済み2024年版モデルを端末から読込", "Import a saved 2024 model from this device")}<input type="file" accept=".geojson,.json,application/geo+json,application/json" data-active-model-file></label>
             <p data-active-fault-description></p>
             <p data-active-model-status role="status"></p>
             <p data-active-assessment></p><a data-active-assessment-link target="_blank" rel="noopener noreferrer" hidden></a>
@@ -100,6 +114,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
             <label>${text("経度", "Longitude")}<input name="longitude" type="number" min="-180" max="180" step="0.0001" required inputmode="decimal"></label>
           </div>
           <button class="simulation-secondary" type="button" data-simulation-pick>${text("地図で震源を選ぶ", "Choose epicenter on map")}</button>
+          <label class="simulation-earthquake-type">${text("地震タイプ（位置からは自動判定しません）", "Earthquake type (not inferred from location)")}<select name="earthquakeType"><option value="crustal">${text("地殻内地震", "Crustal")}</option><option value="interplate">${text("プレート間地震", "Interplate")}</option><option value="intraslab">${text("プレート内地震", "Intraslab")}</option></select></label>
           <div class="simulation-fields">
             <label><span data-magnitude-label>${text("計算用Mw", "Calculation Mw")}</span><input name="magnitude" aria-label="${text("マグニチュード Mw", "Moment magnitude Mw")}" type="number" min="1" max="9.5" step="0.1" required inputmode="decimal"></label>
             <label>${text("深さ（km）", "Depth (km)")}<input name="depthKm" type="number" min="0" max="700" step="1" required inputmode="numeric"></label>
@@ -111,6 +126,13 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
           <label>${text("地盤補正", "Ground correction")}<select name="groundCorrection"><option value="jshis-1km">${text("あり（J-SHIS・1kmメッシュ）", "On (J-SHIS, 1 km mesh)")}</option><option value="none">${text("なし（基盤上の参考値）", "Off (reference bedrock)")}</option></select></label>
           <p class="simulation-model-note"></p>
           <p data-simulation-published-magnitude></p>
+          <details class="simulation-jshis-source" hidden><summary>${text("J-SHISの震源形状点群（試験的・ローカル読込）", "J-SHIS source points (experimental local import)")}</summary>
+            <p>${text("2024年版のGeoJSONを端末内で読み込みます。全構成点への距離近似を使い、面の接続・SMGA・すべり量は推測しません。破壊伝播はMeteoScope独自の近似です。公的な強震動評価や内閣府の全割れ・半割れ想定の再現ではありません。", "Import a 2024 GeoJSON locally. Distance uses all source points; no surface connectivity, SMGA or slip is invented. Rupture propagation is a MeteoScope approximation, not an official strong-motion or full/half-rupture scenario.")}</p>
+            <label>${text("元GeoJSONを選択（公開・送信しません）", "Choose raw GeoJSON (stays on device)")}<input type="file" accept=".geojson,.json,application/geo+json,application/json" data-jshis-source-file></label>
+            <label>${text("J-SHIS発生パターン", "J-SHIS occurrence pattern")}<select data-jshis-pattern disabled></select></label>
+            <button type="button" class="simulation-secondary" data-jshis-clear>${text("簡略震源列に戻す", "Use simplified source line")}</button>
+            <p data-jshis-status role="status">${text("未読込：従来の簡略震源列を使用します。", "No import: using the simplified source line.")}</p>
+          </details>
           <p data-simulation-long-term-assessment hidden></p><a data-simulation-long-term-source target="_blank" rel="noopener noreferrer" hidden></a>
           <p class="simulation-reference-note" data-simulation-reference></p>
           <details class="simulation-public-scenario"><summary>${text("公的な想定震度分布", "Published scenario intensities")}</summary>
@@ -132,11 +154,19 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
         </form>`;
     const values = lastValues ?? { ...core.getSimulationPresetOptions("point"), groundCorrection: "jshis-1km" };
     selectedFault = values.activeFault ?? selectedFault;
+    jshisGeometry=values.jshisGeometry??null;
     selectedCaseId = selectedFault ? core.activeFaultCaseId(selectedFault) : selectedCaseId;
     for (const [name, value] of Object.entries(values)) if (field(name)) field(name).value = value;
     updateModelFields();
+    if(jshisGeometry)modal.querySelector("[data-jshis-status]").textContent=`${jshisGeometry.identity.version} ${jshisGeometry.patternCode} · ${jshisGeometry.points.length} ${text("構成点・端末内で保持", "points retained on device")}`;
     modal.querySelector("form").addEventListener("submit", event => { event.preventDefault(); void start(); });
+    modal.querySelector("[data-simulation-terms-open]").addEventListener("click",()=>{
+      lastValues=readForm();
+      renderTerms(true);
+    });
     field("model").addEventListener("change", () => {
+      modelImportSequence++;
+      marineModelData=null;jshisGeometry=null;
       const model = field("model").value;
       const values = { ...core.getSimulationPresetOptions(model === "active-fault" ? "point" : model), model, groundCorrection: field("groundCorrection").value };
       for (const [name, value] of Object.entries(values)) if (field(name)) field(name).value = value;
@@ -144,20 +174,74 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       updateModelFields();
     });
     field("nankaiCase").addEventListener("change", () => {
+      modelImportSequence++;
+      marineModelData=null;jshisGeometry=null;
       const values = { ...core.getSimulationPresetOptions(field("model").value, field("nankaiCase").value), groundCorrection: field("groundCorrection").value };
       for (const [name, value] of Object.entries(values)) if (field(name)) field(name).value = value;
       updateModelFields();
     });
     field("groundCorrection").addEventListener("change", updateModelFields);
     field("depthKm").addEventListener("input", updateModelFields);
+    field("earthquakeType").addEventListener("change", updateScenarioStatus);
+    modal.querySelector("[data-jshis-source-file]").addEventListener("change", async event=>{
+      const file=event.target.files?.[0];if(!file)return;
+      const importSequence=++modelImportSequence;
+      const model=field("model").value;
+      try {
+        if(file.size>32*1024*1024)throw new Error("Source model too large");
+        const data=JSON.parse(await file.text());
+        const {selectJshisGeometry}=await import("../simulation/jshisSourceGeometry.js");
+        if(importSequence!==modelImportSequence||modal.hidden||field("model").value!==model)return;
+        const first=data.features?.[0]?.properties?.pattern_code;
+        const geometry=selectJshisGeometry(data,first,model);
+        marineModelData=data;jshisGeometry=geometry;
+        const select=modal.querySelector("[data-jshis-pattern]");
+        select.replaceChildren(...data.features.map(f=>new Option(f.properties.pattern_code,f.properties.pattern_code)));
+        select.disabled=false;
+        applyJshisGeometry();
+      }catch{if(importSequence!==modelImportSequence||modal.hidden)return;marineModelData=null;jshisGeometry=null;modal.querySelector("[data-jshis-pattern]").disabled=true;
+        modal.querySelector("[data-jshis-status]").textContent=text("読込失敗：選択中の海域に対応する2024年版・WGS84の全パターンを含むGeoJSONを確認してください。", "Import failed: check the matching 2024 WGS84 GeoJSON containing all occurrence patterns.");}
+      finally{event.target.value="";updateScenarioStatus();}
+    });
+    modal.querySelector("[data-jshis-pattern]").addEventListener("change",async event=>{
+      if(!marineModelData)return;
+      const data=marineModelData,pattern=event.target.value,model=field("model").value,importSequence=++modelImportSequence;
+      const {selectJshisGeometry}=await import("../simulation/jshisSourceGeometry.js");
+      if(importSequence!==modelImportSequence||modal.hidden||data!==marineModelData)return;
+      jshisGeometry=selectJshisGeometry(data,pattern,model);applyJshisGeometry();
+    });
+    modal.querySelector("[data-jshis-clear]").addEventListener("click",()=>{
+      modelImportSequence++;
+      marineModelData=null;jshisGeometry=null;modal.querySelector("[data-jshis-pattern]").disabled=true;
+      modal.querySelector("[data-jshis-status]").textContent=text("簡略震源列を使用します。", "Using the simplified source line.");updateScenarioStatus();
+    });
     field("faultSearch").addEventListener("input", renderFaultChoices);
     field("activeFaultId").addEventListener("change", () => {
+      modelImportSequence++;
       selectedCaseId=field("activeFaultId").value;
       selectedFault=null;
       if(selectedCaseId) void loadSelectedFault(selectedCaseId); else updateModelFields();
     });
     modal.querySelector("[data-active-fault-retry]").addEventListener("click", () => {
       if(selectedCaseId && !selectedFault?.planes) void loadSelectedFault(selectedCaseId); else void loadFaultChoices();
+    });
+    modal.querySelector("[data-active-model-file]").addEventListener("change",async event=>{
+      const file=event.target.files?.[0];if(!file)return;
+      const importSequence=++modelImportSequence;
+      faultModelController?.abort();faultModelController=null;faultModelLoading=false;
+      faultCatalogController?.abort();faultCatalogController=null;
+      try {
+        if(file.size>2*1024*1024)throw new Error("Model too large");
+        const data=JSON.parse(await file.text());
+        const {readActiveFaultModel}=await import("../simulation/activeFaultCatalog.js");
+        if(importSequence!==modelImportSequence||modal.hidden||field("model").value!=="active-fault")return;
+        const fault=readActiveFaultModel(data,data.metaData?.ltecode,{probabilityCase:data.metaData?.case});
+        applyActiveFault(fault);selectedCaseId=core.activeFaultCaseId(fault);
+        updateModelFields();
+        modal.querySelector("[data-active-model-status]").textContent=text(`端末から読込：2024年版・全${fault.planes.length}断層面。ファイルの出典と改変有無は別途確認してください。`,`Imported locally: all ${fault.planes.length} planes of the 2024 model. Verify file provenance separately.`);
+        modal.querySelector("[data-active-fault-retry]").hidden=true;
+      }catch{if(importSequence!==modelImportSequence||modal.hidden)return;modal.querySelector("[data-active-model-status]").textContent=text("読込失敗：2024年版WGS84の完全なモデルを確認してください。", "Import failed: check the complete 2024 WGS84 model.");}
+      finally{event.target.value="";}
     });
     modal.querySelector("[data-simulation-scenario-file]").addEventListener("change", async event => {
       const file = event.target.files?.[0];
@@ -200,8 +284,18 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
 
   function readForm() {
     const values = Object.fromEntries(["model", "nankaiCase", "latitude", "longitude", "magnitude", "depthKm", "ruptureOrigin", "ruptureSpeed", "groundCorrection"].map(name => [name, field(name)?.value]));
+    values.earthquakeType=field("earthquakeType")?.value||"crustal";
+    if(jshisGeometry?.model===values.model)values.jshisGeometry=jshisGeometry;
     return values.model === "active-fault" ? {...values, activeFault: selectedFault,
       magnitudeBasis: "Mw"} : values;
+  }
+
+  function applyJshisGeometry(){
+    field("depthKm").value=jshisGeometry.referenceDepthKm;
+    modal.querySelector("[data-jshis-status]").textContent=text(
+      `${jshisGeometry.identity.version} ${jshisGeometry.patternCode}・${jshisGeometry.points.length}構成点。深さ初期値は点群の平均です。計算用Mwは手動設定で、点群APIにはケース個別のMwがありません。深さを変更すると点群全体を上下移動します。`,
+      `${jshisGeometry.identity.version} ${jshisGeometry.patternCode}: ${jshisGeometry.points.length} points. Initial depth is their mean. Set calculation Mw explicitly: this API has no per-pattern Mw. Changing depth shifts all source points vertically.`);
+    updateScenarioStatus();
   }
 
   function applyActiveFault(fault) {
@@ -276,7 +370,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     modal.querySelector(".simulation-active-fault").hidden = !activeFault;
     field("activeFaultId").required = activeFault;
     if (activeFault) {
-      renderFaultChoices(); void loadFaultChoices();
+      renderFaultChoices(); if(!selectedFault?.planes||faultCatalog.length)void loadFaultChoices();
       modal.querySelector("[data-active-fault-description]").textContent = selectedFault
         ? `${selectedFault.LTENAME} · ${selectedFault.MAG < 0 ? text(`2024年版モデルのMw ${-selectedFault.MAG}`, `2024 model Mw ${-selectedFault.MAG}`) : selectedFault.MAG > 0 ? text(`2024年版モデルのMj ${selectedFault.MAG}。計算用Mwは未確認です。`, `2024 model Mj ${selectedFault.MAG}; calculation Mw unavailable.`) : text("モデルのMwは未確認です。", "Model Mw unavailable.")}` : "";
       const name=selectedFault?.LTENAME??faultCatalog.find(fault=>core.activeFaultCaseId(fault)===selectedCaseId)?.LTENAME??"";
@@ -295,6 +389,12 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
       faultModelController?.abort();faultModelController=null;faultModelLoading=false;
     }
     const deepApproximation = Number(field("depthKm").value) > core.MAX_REFERENCE_INTENSITY_DEPTH_KM;
+    const typeField=field("earthquakeType");
+    typeField.disabled=field("model").value!=="point";
+    if(typeField.disabled)typeField.value=activeFault?"crustal":"interplate";
+    const marine=modal.querySelector(".simulation-jshis-source");
+    if(marine)marine.hidden=!core.FAULT_MODEL_PRESETS[field("model").value]||(field("model").value==="nankai-trough"&&field("nankaiCase").value!=="full");
+    if(!jshisGeometry&&modal.querySelector("[data-jshis-pattern]"))modal.querySelector("[data-jshis-pattern]").disabled=true;
     modal.querySelector("[data-simulation-deep-warning]").hidden = !deepApproximation;
     modal.querySelector(".simulation-nankai-case").hidden = field("model").value !== "nankai-trough";
     modal.querySelector(".simulation-coordinate-fields").hidden = Boolean(preset);
@@ -326,17 +426,51 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     modal.querySelector(".simulation-start").disabled=activeFault&&(!selectedFault?.planes||faultModelLoading);
   }
 
+  function renderTerms(review = false) {
+    modelImportSequence++;
+    faultCatalogController?.abort();faultCatalogController=null;
+    faultModelController?.abort();faultModelController=null;faultModelLoading=false;
+    marineModelData=null;
+    showingTerms=true;
+    updateModalLabels();
+    modalBody.innerHTML=simulationTermsMarkup(getCurrentLanguage()==="en",review&&termsConsent.isAccepted());
+    modalBody.scrollTop=0;
+    const checkbox=modal.querySelector("[data-simulation-terms-check]");
+    const accept=modal.querySelector("[data-simulation-terms-accept]");
+    checkbox?.addEventListener("change",()=>{accept.disabled=!checkbox.checked;});
+    accept?.addEventListener("click",()=>{
+      if(!checkbox.checked)return;
+      termsConsent.accept();
+      const fault=pendingFault;pendingFault=null;
+      void open(fault?{fault}:{});
+    });
+    modal.querySelector("[data-simulation-terms-back]")?.addEventListener("click",()=>{
+      if(!termsConsent.isAccepted()){renderTerms();return;}
+      void open().then(()=>{if(!modal.hidden)modal.querySelector("[data-simulation-terms-open]")?.focus({preventScroll:true});});
+    });
+    const title=modal.querySelector("#simulation-title");
+    title.setAttribute("tabindex","-1");
+    title.focus({preventScroll:true});
+  }
+
   async function open({fault} = {}) {
     getMap()?.cancelSimulationEpicenterPick();
     picking = false;
     showNotice("");
     player?.pause();
-    lastFocused = document.activeElement;
+    if(modal.hidden)lastFocused = document.activeElement;
     updateModalLabels();
-    if (!core) modalBody.innerHTML = `<p class="simulation-loading" role="status">${text("計算モデルを読み込み中…", "Loading the simulation model…")}</p>`;
     button.setAttribute("aria-expanded", "true");
     modal.hidden = false;
     document.body.classList.add("modal-open");
+    if(!termsConsent.isAccepted()){
+      pendingFault=fault??null;
+      renderTerms();
+      return;
+    }
+    showingTerms=false;
+    updateModalLabels();
+    if (!core) modalBody.innerHTML = `<p class="simulation-loading" role="status">${text("計算モデルを読み込み中…", "Loading the simulation model…")}</p>`;
     try {
       core ??= await import("../simulation/earthquakeSimulation.js");
       if (modal.hidden) return;
@@ -357,11 +491,14 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
   }
 
   function close({ preservePreparation = false, returnFocus = true } = {}) {
+    pendingFault=null;
+    modelImportSequence++;
     faultCatalogController?.abort(); faultCatalogController = null;
     faultModelController?.abort();faultModelController=null;faultModelLoading=false;
     if (!preservePreparation && preparation) stop();
     if (field("model") && !preservePreparation) lastValues = readForm();
     modal.hidden = true;
+    marineModelData=null; // Release other patterns; only selected points survive.
     button.setAttribute("aria-expanded", "false");
     if (!document.querySelector(".warning-modal:not([hidden])")) document.body.classList.remove("modal-open");
     if (returnFocus) lastFocused?.focus?.({ preventScroll: true });
@@ -397,7 +534,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
         <p class="simulation-ground-coverage">${text("揺れの広がりに合わせて表示範囲を広げます。手動で地図を動かすと解除します。", "The view expands as shaking spreads. Moving the map manually turns this off.")}</p>
         <label class="simulation-display-label">${text("観測点の表示", "Station display")}<select data-simulation-display><option value="current">${text("現在の揺れ", "Current shaking")}</option><option value="maximum">${text("記録最大", "Recorded maximum")}</option></select></label>
         <div class="simulation-playback-meta"><span data-simulation-name></span><span><i class="simulation-p-wave"></i>${text("P波", "P wave")} <i class="simulation-s-wave"></i>${text("S波", "S wave")}</span></div>
-        <p class="simulation-ground-coverage">${text("要約はM表記です。浅い内陸条件では換算参考値、それ以外はMwの値を表示します。計算にはMwを使います。", "The summary uses M notation: an empirical reference for eligible shallow inland scenarios, otherwise the Mw value. Calculations retain Mw.")}</p>
+        <p class="simulation-ground-coverage">${text("要約はM表記です。浅い地殻内条件で全報が換算範囲に収まるときだけ換算参考値を使用し、それ以外は全報をMwの値で統一します。気象庁のMjではありません。計算にはMwを使います。", "The summary uses M notation. An empirical reference applies only when all bulletins meet shallow crustal conversion limits; otherwise every bulletin retains its Mw value. This is not JMA Mj. Calculations retain Mw.")}</p>
         ${lastValues?.depthKm > core.MAX_REFERENCE_INTENSITY_DEPTH_KM ? `<p class="simulation-ground-coverage">${intensityEstimateAvailable ? text("深発近似（学習用）：異常震域は海溝距離からの概算で、実際の分布を保証しません。", "Educational deep approximation: anomalous intensity is approximated from trench distance; actual distributions are not guaranteed.") : text("深発近似データ未取得：震度推定なし", "Deep approximation unavailable: intensity not estimated")}</p>` : ""}
         <p class="simulation-ground-coverage">${intensityEstimateAvailable && lastValues?.groundCorrection !== "none" && groundCoverage ? text(`地盤補正：${groundCoverage.corrected}/${groundCoverage.total}地点（1kmメッシュ・欠測は補正なし）`, `Ground correction: ${groundCoverage.corrected}/${groundCoverage.total} sites (1 km; missing sites uncorrected)`) : text("地盤補正なし", "Without ground correction")}</p>
         <p class="simulation-ground-coverage">${offshoreDetectionCount ? text(`検知：陸上＋海底観測点${offshoreDetectionCount}地点（S-net・DONET・N-net）`, `Detection: land stations + ${offshoreDetectionCount} offshore sites (S-net, DONET, N-net)`) : text("検知：陸上のみ（海底観測点データ未取得）", "Detection: land stations only (offshore catalogue unavailable)")}</p>
@@ -454,6 +591,7 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
   }
 
   async function start() {
+    if(!termsConsent.isAccepted()){renderTerms();return;}
     if (!modal.querySelector("form").reportValidity()) return;
     const status = modal.querySelector(".simulation-form-status");
     if (isRealEvent()) { status.textContent = text("実際のEEWを表示中です。終了後に開始できます。", "A real EEW is active. Simulation can start after it ends."); return; }
@@ -613,7 +751,8 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
   window.addEventListener("pagehide", suspend);
   window.addEventListener("meteoscope-language-change", () => {
     updateModalLabels();
-    if (!modal.hidden && core && !preparation) { lastValues = readForm(); renderForm(); }
+    if(!modal.hidden&&showingTerms)renderTerms(termsConsent.isAccepted());
+    else if (!modal.hidden && core && !preparation) { lastValues = readForm(); renderForm(); }
     if (player) { const state = player.snapshot(); player.pause(); renderPlayback(); playback.querySelector("[data-simulation-seek]").max = state.duration; playback.querySelector("[data-simulation-speed]").value = state.speed; player.seek(state.elapsed); }
   });
   return { stop, pause: () => player?.pause(), get active() { return Boolean(player || preparation || picking || !modal.hidden); } };

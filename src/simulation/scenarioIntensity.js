@@ -48,6 +48,12 @@ export function scenarioMatchesOptions(data, options) {
   if (!data) return false;
   const c = data.conditions;
   if (!usesCalculationMw(c) || !usesCalculationMw(options)) return false;
+  if ((c.earthquakeType??"crustal")!==(options.earthquakeType??"crustal")&&c.model==="point")return false;
+  if(options.jshisGeometry||c.jshisGeometry){
+    const a=options.jshisGeometry,b=c.jshisGeometry;
+    if(!a||!b||a.patternCode!==b.patternCode||a.identity?.code!==b.identity?.code
+      ||a.identity?.version!==b.identity?.version||a.identity?.probabilityCase!==b.identity?.probabilityCase)return false;
+  }
   if (c.model !== options.model || Math.abs(c.magnitude - options.magnitude) > 1e-6 || Math.abs(c.depthKm - options.depthKm) > 1e-6) return false;
   if (c.model === "nankai-trough" && c.nankaiCase !== options.nankaiCase) return false;
   if (c.model === "active-fault" && c.activeFaultId !== options.activeFault?.FLT_ID) return false;

@@ -3520,6 +3520,9 @@ function buildEarthquakeMobileContextMarkup(
     const detectionText = eew.hypocenterStatusLabel || (eew.isOnePointDetection ? "1点検知・初期推定" : "");
     const supportingText = [
       eew.uncertaintyLabel || "",
+      simulatedMw && hasMagnitude && !simulationPending ? (getCurrentLanguage()==="en"
+        ? convertedMagnitude ? "M: converted reference" : "M notation: Mw value"
+        : convertedMagnitude ? "Mは換算参考値" : "M表記の数値はMw") : "",
       detectionText,
       affectedAreas
     ].filter(Boolean).join("・");

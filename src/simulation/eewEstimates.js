@@ -4,6 +4,7 @@ import { estimateSimulationIntensity, MAX_REFERENCE_INTENSITY_DEPTH_KM, DEEP_PAT
 import {isInterplateSimulation, buildActiveFaultPreset} from "./activeFault.js";
 import {simulationActiveFaultDistances} from "./sourceDistance.js";
 import {createSimulationObservationStream, SIMULATION_ANALYSIS_MIN_INTERVAL_SEC} from "./reportTiming.js";
+import {simulationEarthquakeType} from "./earthquakeType.js";
 
 // Bounded revisions of the initial analysis, not measured forecast errors.
 // Shared progress knots keep revisions correlated rather than random per frame.
@@ -45,7 +46,11 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
   const minimumEstimatedDepth = options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM ? DEEP_PATH_BLEND_END_KM : 0;
   const maximumEstimatedDepth = minimumEstimatedDepth ? 700 : MAX_REFERENCE_INTENSITY_DEPTH_KM;
   const initialDepth = Math.max(minimumEstimatedDepth, Math.min(700, Math.round((options.depthKm + (options.depthKm < 70 ? 10 : -Math.min(80, options.depthKm * .25))) / 10) * 10));
-  const magnitudeError = .8 + Math.max(0, options.magnitude - 6) * .15;
+  // Small synthetic analysis revisions, not a model of actual EEW errors.
+  // The old 0.8..1.325 amplitude made a smooth source-growth trend reverse by
+  // about a full magnitude, amplified further by the display-only M conversion.
+  // Keep initial underestimation/source growth separate from this residual.
+  const magnitudeError = .18 + Math.max(0, options.magnitude - 6) * .025;
   const depthError = Math.min(80, 18 + options.depthKm * .15);
   let predictionKey = "", basePredictions = [];
   const activeFaultPreset = options.model === "active-fault" ? buildActiveFaultPreset(options.activeFault) : null;
@@ -53,6 +58,7 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
   // Reuse the same distances across revisions; keep temporary memory bounded.
   const distancesByDepth=new Map();
   const faultDistancesAt=depth=>{
+    if(options.jshisGeometry)return stations.map(station=>station.sourceRuptureDistancesKm);
     if(!activeFaultPreset)return null;
     if(depth===options.depthKm)return stations.map(station=>station.sourceRuptureDistancesKm);
     if(!distancesByDepth.has(depth)){
@@ -82,7 +88,7 @@ export function buildSimulationEewReports({ options, stations, sources = [], sch
           ? Math.min(...activeSourceIndices.map(index => faultDistances[index])) : Math.hypot(distance, depth);
         const calculated = estimateSimulationIntensity({ magnitude, depthKm: depth, ruptureDistanceKm,
           pointSource: options.model === "point", simulationCalibration: true,
-          interplate: isInterplateSimulation(options), groundArv: station.groundArv ?? 1, trenchDistanceKm: station.trenchDistanceKm, deepApproximation: options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM });
+          interplate: isInterplateSimulation(options),earthquakeType:simulationEarthquakeType(options), groundArv: station.groundArv ?? 1, trenchDistanceKm: station.trenchDistanceKm, deepApproximation: options.depthKm > MAX_REFERENCE_INTENSITY_DEPTH_KM });
         if (station.scenarioIntensityValue == null) return calculated;
         if (progress >= 1 || calculated === null || station.calculatedIntensityValue == null) return station.scenarioIntensityValue;
         return Math.max(0, Math.min(7, station.scenarioIntensityValue + calculated - station.calculatedIntensityValue));

@@ -25,7 +25,7 @@ export default defineConfig({
   plugins: [baseMapPreloadHints(), localWarningChatApi(), localReadOnlyPagesApi("jma-focal-mechanism", "/api/jma-focal-mechanism", handleFocalMechanismRequest), localActiveFaultApi(), localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localJmaUpperAirArchiveApi(), localUpperAirApi(), localGfsProfileApi()],
   base: process.env.GITHUB_PAGES === "true" ? "/MeteoScope/" : "/",
   server: {
-    fs: { deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "**/.cache/early-access/**"] },
+    fs: { deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "**/.cache/early-access/**", "**/.private-data/**"] },
     proxy: {
       "/api": {
         target: cloudflareApiTarget,

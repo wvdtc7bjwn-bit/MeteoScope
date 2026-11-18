@@ -2,6 +2,7 @@ import {VectorTile} from "@mapbox/vector-tile";
 import Pbf from "pbf";
 import {MAP_DATA_ENDPOINTS} from "../config.js";
 import {normalizeActiveFault, normalizeActiveFaultSelection} from "./activeFault.js";
+import {validateJshisMetadata} from "./jshisModel.js";
 export {groupActiveFaultModels} from "./activeFault.js";
 
 // Four zoom-4 tiles cover the Japanese inland fault catalogue. Fetched directly
@@ -24,11 +25,10 @@ async function readFaultBytes(response, label) {
   return bytes;
 }
 
-export function readActiveFaultModel(data, id) {
-  const metadata = data?.metaData, model = data?.seisact_model;
-  if (data?.status !== "Success" || data?.crs?.properties?.name !== "urn:ogc:def:crs:EPSG:4326" || metadata?.version !== "Y2024" || metadata.case !== "MAX"
-      || metadata.ltecode !== id || model?.ltecode !== id || !Array.isArray(data.features)
-      || data.features.length !== Number(model.geom_num) || !data.features.length || data.features.length > 64)
+export function readActiveFaultModel(data, id, {probabilityCase="MAX"} = {}) {
+  validateJshisMetadata(data,{version:"Y2024",probabilityCase,code:id});
+  const model = data.seisact_model;
+  if (data.features.length !== Number(model.geom_num) || data.features.length > 64)
     throw new Error("Incomplete or mismatched official fault model");
   const min = Number(model.magl), max = Number(model.magu);
   const magnitude = Number.isFinite(min) && min === max && min !== 0 ? min : null;
