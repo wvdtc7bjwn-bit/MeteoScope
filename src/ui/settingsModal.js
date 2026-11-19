@@ -93,11 +93,14 @@ export function setupSettingsModal(options = {}) {
     }
 
     const terrainOpacityButton = event.target.closest("[data-settings-terrain-opacity]");
-    if (terrainOpacityButton) {
+    const terrainColorButton = event.target.closest("[data-settings-terrain-color]");
+    if (terrainOpacityButton || terrainColorButton) {
       const state = settingsOptions.getState?.() ?? {};
       settingsOptions.onTerrainLayerChange?.({
+        ...state.terrainLayerSettings,
         visible: state.terrainLayerSettings?.visible === true,
-        opacity: terrainOpacityButton.dataset.settingsTerrainOpacity
+        ...(terrainOpacityButton ? { opacity: terrainOpacityButton.dataset.settingsTerrainOpacity }
+          : { colorMode: terrainColorButton.dataset.settingsTerrainColor })
       });
       renderSettingsTerrain();
       return;
@@ -543,6 +546,11 @@ function renderSettingsTerrain() {
   const terrain = state.terrainLayerSettings ?? {};
   const enabled = terrain.visible === true;
   const opacity = Number(terrain.opacity) || 0.48;
+  document.querySelectorAll("[data-settings-terrain-color]").forEach((button) => {
+    const selected = button.dataset.settingsTerrainColor === (terrain.colorMode ?? "color");
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-checked", String(selected));
+  });
   const options = document.getElementById("settings-terrain-opacity-options");
   const status = document.getElementById("settings-terrain-status");
   if (options) options.toggleAttribute("disabled", !enabled);
@@ -553,8 +561,8 @@ function renderSettingsTerrain() {
     button.disabled = !enabled;
   });
   if (status) status.textContent = enabled
-    ? "地図右上の時刻表示の下にある「地形」でON/OFFを切り替えます。"
-    : "地形はOFFです。地図右上の時刻表示の下にある「地形」でONにしてください。";
+    ? "地図のレイヤーメニューにある「地形」でON/OFFを切り替えます。"
+    : "地形はOFFです。表示方法は保存され、次にONにしたときに適用されます。";
 }
 
 function renderSettingsLanguage() {

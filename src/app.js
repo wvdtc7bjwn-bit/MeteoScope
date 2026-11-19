@@ -8,6 +8,7 @@ import {
   loadAmedasPrecipitationPeriod,
   saveAmedasPrecipitationPeriod,
   normalizeTerrainLayerOpacity,
+  normalizeTerrainLayerColorMode,
   loadTerrainLayerSettings,
   saveTerrainLayerSettings,
   loadEarthquakeLayerVisibility,
@@ -4206,7 +4207,8 @@ if (layerId === "river") {
   function setTerrainLayerSettings(nextSettings) {
     terrainLayerSettings = {
       visible: nextSettings?.visible === true,
-      opacity: normalizeTerrainLayerOpacity(nextSettings?.opacity ?? terrainLayerSettings.opacity)
+      opacity: normalizeTerrainLayerOpacity(nextSettings?.opacity ?? terrainLayerSettings.opacity),
+      colorMode: normalizeTerrainLayerColorMode(nextSettings?.colorMode ?? terrainLayerSettings.colorMode)
     };
     saveTerrainLayerSettings(terrainLayerSettings);
     weatherMap?.setTerrainLayer(terrainLayerSettings);

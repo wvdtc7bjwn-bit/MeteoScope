@@ -1,5 +1,6 @@
 import { VECTOR_BASE_MAP_ENABLED, registerBaseMapProtocol, createMunicipalitySource, baseMapSourceLayer, municipalityStateTarget } from "./baseMapTiles.js";
 import { waitForInitialMapGeometry } from "./initialMapReadiness.js";
+import { normalizeTerrainLayerColorMode } from "../preferences/mapPreferences.js";
 import { createSimulationMapOverlay } from "./simulationOverlay.js";
 import { createSimulationWaveCanvas } from "./simulationWaveCanvas.js";
 import { EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID } from "./earthquakeMarkerIds.js";
@@ -485,6 +486,7 @@ export function createWeatherMap(elementId) {
   let activeTheme = document.documentElement.dataset.theme === "light" ? "light" : "dark";
   let terrainLayerVisible = false;
   let terrainLayerOpacity = DEFAULT_TERRAIN_OPACITY;
+  let terrainLayerColorMode = "color";
   let terrainSyncPending = false;
   let tsunamiBlinkTimer = 0;
   let tsunamiBlinkVisible = true;
@@ -603,9 +605,10 @@ export function createWeatherMap(elementId) {
     if (mode === "typhoon") void ensureWorldGeometryLoaded();
   }
 
-  function setTerrainLayer({ visible, opacity } = {}) {
+  function setTerrainLayer({ visible, opacity, colorMode } = {}) {
     terrainLayerVisible = Boolean(visible);
     terrainLayerOpacity = normalizeTerrainOpacity(opacity);
+    terrainLayerColorMode = normalizeTerrainLayerColorMode(colorMode);
     syncTerrainLayer();
   }
 
@@ -631,6 +634,7 @@ export function createWeatherMap(elementId) {
     });
     if (map.getLayer(GSI_RELIEF_LAYER_ID)) {
       map.setPaintProperty(GSI_RELIEF_LAYER_ID, "raster-opacity", reliefOpacity);
+      map.setPaintProperty(GSI_RELIEF_LAYER_ID, "raster-saturation", terrainLayerColorMode === "grayscale" ? -1 : -0.08);
     }
     if (map.getLayer(GSI_HILLSHADE_LAYER_ID)) {
       map.setPaintProperty(GSI_HILLSHADE_LAYER_ID, "raster-opacity", hillshadeOpacity);
@@ -667,7 +671,7 @@ export function createWeatherMap(elementId) {
       layout: { visibility: "visible" },
       paint: {
         "raster-opacity": terrainLayerOpacity,
-        "raster-saturation": -0.08,
+        "raster-saturation": terrainLayerColorMode === "grayscale" ? -1 : -0.08,
         "raster-fade-duration": 0
       }
     }, beforeLayerId);

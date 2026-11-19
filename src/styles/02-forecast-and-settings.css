@@ -1646,12 +1646,14 @@ html[data-theme="light"] .weekly-weather-issued strong {
   outline-offset: 3px;
 }
 
-.settings-terrain-opacity {
+.settings-terrain-opacity,
+.settings-terrain-color {
   display: grid;
   gap: 7px;
 }
 
-.settings-terrain-opacity > span {
+.settings-terrain-opacity > span,
+.settings-terrain-color > span {
   color: #aebbd0;
   font-size: 12px;
   font-weight: 800;
@@ -1673,6 +1675,10 @@ html[data-theme="light"] .weekly-weather-issued strong {
   border: 1px solid rgba(207, 232, 255, 0.16);
   border-radius: 12px;
   background: rgba(7, 16, 34, 0.34);
+}
+
+.settings-terrain-color-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .settings-theme-options button {

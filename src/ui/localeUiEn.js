@@ -618,6 +618,11 @@ V 北向き|V northward
 雲画像|Satellite
 地形|Terrain
 地形表示|Terrain
+地形の色|Terrain color
+カラー|Color
+グレー|Grayscale
+地図のレイヤーメニューにある「地形」でON/OFFを切り替えます。|Use Terrain in the map layers menu to switch it on or off.
+地形はOFFです。表示方法は保存され、次にONにしたときに適用されます。|Terrain is off. Your display preference is saved and will apply when terrain is enabled.
 地形表示をONにする|Enable terrain
 地形表示をOFFにする|Disable terrain
 地形の濃さ|Terrain opacity

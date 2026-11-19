@@ -455,9 +455,16 @@
           </section>
           <h3 class="settings-section-label" data-settings-section-label="display">地図と表示</h3>
           <section class="settings-group settings-terrain-group" data-settings-section="display">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>地形の濃さ</strong><small>色別標高図と陰影起伏図</small></span></button>
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>地形表示</strong><small>色別標高図と陰影起伏図</small></span></button>
             <div class="settings-group-content" hidden>
-              <p id="settings-terrain-status" class="settings-terrain-status">地図右上の時刻表示の下にある「地形」でON/OFFを切り替えます。</p>
+              <p id="settings-terrain-status" class="settings-terrain-status">地図のレイヤーメニューにある「地形」でON/OFFを切り替えます。</p>
+              <div class="settings-terrain-color">
+                <span>地形の色</span>
+                <div class="settings-theme-options settings-terrain-color-options" role="radiogroup" aria-label="地形の色">
+                  <button type="button" data-settings-terrain-color="color" role="radio" aria-checked="false">カラー</button>
+                  <button type="button" data-settings-terrain-color="grayscale" role="radio" aria-checked="false">グレー</button>
+                </div>
+              </div>
               <div class="settings-terrain-opacity">
                 <span>濃さ</span>
                 <div id="settings-terrain-opacity-options" class="settings-theme-options settings-terrain-opacity-options" role="radiogroup" aria-label="地形の濃さ">

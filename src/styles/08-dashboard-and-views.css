@@ -831,7 +831,7 @@ html[data-theme="light"] :is(
 ) { color: #4f667d; }
 
 html[data-theme="light"] .settings-switch-copy strong { color: #1e3852; }
-html[data-theme="light"] .settings-terrain-opacity > span { color: #4f667d; }
+html[data-theme="light"] :is(.settings-terrain-opacity, .settings-terrain-color) > span { color: #4f667d; }
 
 html[data-theme="light"] :is(
   .settings-my-area-search-label,
