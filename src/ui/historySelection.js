@@ -1,8 +1,11 @@
 import { renderFocalMechanism } from "./focalMechanism.js";
+import { renderHistoricalLongPeriod } from "./longPeriodGroundMotion.js";
+
+const longPeriodViews = new WeakMap();
 
 // Keep the selected card at the same screen position when removing a mechanism
 // from an earlier card. Never focus/scroll an unrelated result into view.
-export function updateHistorySelection(root, selectedId, items) {
+export function updateHistorySelection(root, selectedId, items, detail) {
   const buttons = [...root.querySelectorAll("[data-earthquake-archive-id]")];
   const id = String(selectedId ?? "");
   const selected = buttons.find(button => button.dataset.earthquakeArchiveId === id);
@@ -21,6 +24,12 @@ export function updateHistorySelection(root, selectedId, items) {
     else if (!mechanism) {
       const item = items.find(item => String(item.id) === id);
       if (item) card.insertAdjacentHTML("beforeend", renderFocalMechanism(item));
+    }
+    const event = active && detail?.id === id && detail.status === "ok" ? detail.event : null;
+    if (longPeriodViews.get(card) !== event) {
+      card.querySelector(".earthquake-long-period")?.remove();
+      if (event) card.insertAdjacentHTML("beforeend", renderHistoricalLongPeriod(event));
+      longPeriodViews.set(card, event);
     }
   }
   if (selected && Number.isFinite(top)) {

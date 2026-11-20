@@ -1,5 +1,6 @@
 import { parseJstDateTime } from "../utils/jstDateTime.js";
 import { getEarthquakeReportStage, isKnownEarthquakeHypocenter } from "../earthquakeFormat.js";
+import { selectLatestLongPeriodReport } from "./longPeriodGroundMotion.js";
 
 const P2P_HISTORY_URL = "https://api.p2pquake.net/v2/history?codes=551&limit=20";
 const P2P_TSUNAMI_HISTORY_URL = "https://api.p2pquake.net/v2/history?codes=552&limit=1";
@@ -239,6 +240,7 @@ function mergeEarthquake(left, right) {
     intensityAreas: primary.intensityAreas?.length ? primary.intensityAreas : (fallback.intensityAreas ?? []),
     intensityCities: primary.intensityCities?.length ? primary.intensityCities : (fallback.intensityCities ?? []),
     intensityStations: primary.intensityStations?.length ? primary.intensityStations : (fallback.intensityStations ?? []),
+    longPeriod: selectLatestLongPeriodReport(primary.longPeriod, fallback.longPeriod),
     headline: primary.headline || fallback.headline,
     tsunamiComment: primary.tsunamiComment || fallback.tsunamiComment,
     url: primary.url || fallback.url

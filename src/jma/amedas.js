@@ -1,3 +1,4 @@
+import { parseCsvRows } from "../utils/csv.js";
 import { AUTO_REFRESH_INTERVAL_MS, JMA_ENDPOINTS, STATIC_DATA_CACHE_TTL_MS } from "../config.js";
 import { fetchAmedasDailyTemperatureNormals } from "../amedasTemperatureNormal.js";
 import { getAmedasObservationField } from "../amedasPrecipitationPeriod.js";
@@ -200,42 +201,6 @@ function formatAmedasRankingObservationTime(row, hourIndex, minuteIndex) {
   return normalizeAmedasClock(`${row[hourIndex] ?? ""}:${row[minuteIndex] ?? ""}`);
 }
 
-function parseCsvRows(text) {
-  const rows = [];
-  let row = [];
-  let field = "";
-  let quoted = false;
-
-  for (let index = 0; index < text.length; index += 1) {
-    const character = text[index];
-    if (character === '"') {
-      if (quoted && text[index + 1] === '"') {
-        field += '"';
-        index += 1;
-      } else {
-        quoted = !quoted;
-      }
-      continue;
-    }
-    if (!quoted && character === ",") {
-      row.push(field);
-      field = "";
-      continue;
-    }
-    if (!quoted && (character === "\n" || character === "\r")) {
-      if (character === "\r" && text[index + 1] === "\n") index += 1;
-      row.push(field);
-      if (row.some((value) => value !== "")) rows.push(row);
-      row = [];
-      field = "";
-      continue;
-    }
-    field += character;
-  }
-  row.push(field);
-  if (row.some((value) => value !== "")) rows.push(row);
-  return rows;
-}
 
 export async function fetchAmedasDailySeries(
   stationId,

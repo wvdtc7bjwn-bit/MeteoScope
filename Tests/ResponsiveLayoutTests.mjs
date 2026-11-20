@@ -530,7 +530,7 @@ assert.match(panel, /--weather-time-shift:/);
 assert.match(panel, /const step = compact \? 30 : 40/);
 assert.match(panel, /data-mobile-weather-chart-slider/);
 assert.match(panel, /data-mobile-radar-slider/);
-assert.match(panel, /data-mobile-weather-tap-controls/);
+assert.match(panel, /renderMobileWeatherTimelineToolbar/);
 assert.doesNotMatch(panel, /重ねた雨雲レーダー時刻/);
 assert.doesNotMatch(panel, /mobile-dock-satellite-radar-timeline/);
 assert.match(panel, /export function setupTideObservationControls/);
@@ -658,6 +658,11 @@ const eventSummaryMarkup = eventSummaryContext.buildMobileEarthquakeEventText({
 assert.doesNotMatch(eventSummaryMarkup, /<img/);
 assert.match(eventSummaryMarkup, /2026\/11\/20 10:46頃/);
 assert.doesNotMatch(eventSummaryContext.buildMobileEarthquakeEventText({time:"--"}), /--頃/);
+const summaryWithLongPeriod = eventSummaryContext.buildMobileEarthquakeEventText({
+  magnitude: "M7.6", depth: "16km", longPeriodMarkup: '<span class="mobile-dock-earthquake-long-period">最大階級4</span>',
+  tsunamiMarkup: '<span class="earthquake-tsunami-status">津波情報</span>'
+});
+assert.match(summaryWithLongPeriod, /mobile-dock-earthquake-depth[^]*?深さ16km[^]*?最大階級4[^]*?津波情報/);
 assert(eventSummaryMarkup.indexOf("mobile-dock-earthquake-fact-values") < eventSummaryMarkup.indexOf("data-mobile-dock-control"));
 assert.match(index, /data-layer-picker-title="天気分布予報"/);
 assert.match(index, /data-layer-picker-kind="single"/);
@@ -785,22 +790,15 @@ assert.doesNotMatch(tsunamiMobileSummary, /<small>津波<\/small>/);
 assert.doesNotMatch(tsunamiMobileSummary, /primaryArea\.arrivalCondition|primaryArea\.arrivalTime/);
 assert.doesNotMatch(tsunamiMobileSummary, /primaryArea\.heightCondition|primaryArea\.height/);
 assert.match(tsunamiMobileSummary, /const areaTickerText = tickerGroups\s*\.flatMap\(\(group\) => group\.areas\.map\(\(area\) => area\.name\)\)\s*\.join\(/);
-const mobileTapControlsStart = panel.indexOf("export function setupMobileWeatherTimelineTapControls");
-const mobileTapControlsEnd = panel.indexOf("\nexport function ", mobileTapControlsStart + 1);
-const mobileTapControls = panel.slice(mobileTapControlsStart, mobileTapControlsEnd);
-assert.ok(mobileTapControlsStart >= 0);
-assert.match(mobileTapControls, /getElementById\("mobile-context-dock"\)/);
-assert.doesNotMatch(mobileTapControls, /getElementById\("(?:radar-time-controls|weather-chart-controls)"\)/);
-assert.match(mobileTapControls, /MOBILE_WEATHER_TIMELINE_TAP_MOVE_THRESHOLD_PX/);
-assert.match(mobileTapControls, /if \(event\.defaultPrevented\) return;/);
-assert.match(mobileTapControls, /tapCount === 3/);
-assert.match(mobileTapControls, /\[onWeatherChartPlay, onWeatherChartStop, onWeatherChartGoLatest\]/);
-assert.match(mobileTapControls, /\[onRadarPlay, onRadarStop, onRadarGoLatest\]/);
-assert.match(app, /let weatherChartPlayTimer = null/);
-assert.match(
-  app,
-  /setupMobileWeatherTimelineTapControls\(\{[\s\S]*?onRadarPlay: startRadarPlayback,[\s\S]*?onRadarStop: stopRadarPlaybackAndRefresh,[\s\S]*?onRadarGoLatest: goLatestRadarObservation,[\s\S]*?onWeatherChartPlay: startWeatherChartPlayback,[\s\S]*?onWeatherChartStop: stopWeatherChartPlayback,[\s\S]*?onWeatherChartGoLatest: goLatestWeatherChartFrame/
-);
+const mobileTimelineControlsStart = panel.indexOf("export function setupMobileWeatherTimelineControls");
+const mobileTimelineControlsEnd = panel.indexOf("\nexport function ", mobileTimelineControlsStart + 1);
+const mobileTimelineControls = panel.slice(mobileTimelineControlsStart, mobileTimelineControlsEnd);
+assert.ok(mobileTimelineControlsStart >= 0);
+assert.match(mobileTimelineControls, /data-mobile-weather-action/);
+assert.doesNotMatch(mobileTimelineControls, /tapCount|setTimeout/);
+assert.match(app, /onStep: stepActiveRadarTimeline/);
+assert.match(app, /onTogglePlay: toggleActiveRadarPlayback/);
+assert.match(app, /onGoLatest: goLatestActiveRadarTimeline/);
 assert.match(panel, /function updateSliderFromTimelineDrag/);
 assert.match(panel, /function getWeatherTimelineDragIndex/);
 assert.match(panel, /\(startX - clientX\) \/ frameWidth/);
@@ -824,7 +822,7 @@ const weatherChartControlsEnd = panel.indexOf("\nexport function ", weatherChart
 const weatherChartControls = panel.slice(weatherChartControlsStart, weatherChartControlsEnd);
 assert.ok(weatherChartControlsStart >= 0);
 assert.match(weatherChartControls, /let draggingSliderMoved = false;/);
-assert.match(weatherChartControls, /if \(!draggingSliderMoved\) \{[\s\S]*?updateSliderFromTimelineDrag\(/);
+assert.match(weatherChartControls, /if \(!draggingSliderMoved\) \{[\s\S]*?selectWeatherTimelineFrameAtPointer\(/);
 assert.match(weatherChartControls, /draggingSliderMoved = false;[\s\S]*?commitSlider\(finishedSlider\);/);
 assert.doesNotMatch(weatherChartControls, /addEventListener\("change", handleChange\)/);
 assert.match(
@@ -852,10 +850,10 @@ assert.match(
 );
 assert.match(
   panel,
-  /const handlePointerUp = \(event\) => \{[\s\S]*?if \(!draggingSliderMoved\) \{[\s\S]*?updateSliderFromTimelineDrag\([\s\S]*?commitSlider\(finishedSlider\)/
+  /const handlePointerUp = \(event\) => \{[\s\S]*?if \(!draggingSliderMoved\) \{[\s\S]*?selectWeatherTimelineFrameAtPointer\([\s\S]*?commitSlider\(finishedSlider\)/
 );
 assert.match(panel, /data-mobile-weather-date/);
-assert.match(panel, /data-mobile-weather-dates=/);
+assert.match(panel, /data-mobile-weather-frames=/);
 assert.match(panel, /class="mobile-dock-weather-timeline\$\{loadingLabel \? " is-loading" : ""\}"/);
 assert.match(panel, /const loadingLabel = weatherChartLoading[\s\S]*?"天気図を読み込み中"[\s\S]*?"雷情報を読み込み中"[\s\S]*?"雨雲レーダーを読み込み中"/);
 assert.match(panel, />天気図<\/button>[\s\S]*?>雷<\/button>/);

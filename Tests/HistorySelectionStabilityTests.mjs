@@ -9,8 +9,11 @@ function button(id, mechanism) {
   const card = {
     mechanism, active: false,
     classList: { toggle(_, value) { card.active = value; } },
-    querySelector() { return card.mechanism; },
-    insertAdjacentHTML() { card.mechanism = { remove() { card.mechanism = null; } }; }
+    querySelector(selector) { return selector === "focal-mechanism" ? card.mechanism : card.longPeriod; },
+    insertAdjacentHTML(_position, markup) {
+      if (markup.includes("earthquake-long-period")) card.longPeriod = { remove() { card.longPeriod = null; } };
+      else card.mechanism = { remove() { card.mechanism = null; } };
+    }
   };
   const b = { dataset: { earthquakeArchiveId: id }, closest: () => card,
     setAttribute(_, value) { b.pressed = value; },
@@ -29,6 +32,15 @@ const retained = second.card.mechanism;
 updateHistorySelection(root, "b", [{ id: "b" }]);
 assert.equal(second.card.mechanism, retained, "detail completion must retain loaded mechanism DOM");
 assert.equal(sidebar.scrollTop, 200);
+const detail = { id: "b", status: "ok", event: { longPeriod: { maxClass: 1, status: "issued" } } };
+updateHistorySelection(root, "b", [{ id: "b" }], detail);
+const longPeriodNode = second.card.longPeriod;
+assert.ok(longPeriodNode, "completed history observations appear on the selected card");
+updateHistorySelection(root, "b", [{ id: "b" }], detail);
+assert.equal(second.card.longPeriod, longPeriodNode, "periodic refresh preserves expanded long-period details");
+assert.equal(second.card.mechanism, retained);
+updateHistorySelection(root, "a", [{ id: "a" }, { id: "b" }], detail);
+assert.equal(second.card.longPeriod, null, "observations must not remain on the previously selected earthquake");
 
 const source = readFileSync(new URL("../src/ui/settingsModal.js", import.meta.url), "utf8");
 const calls = [];

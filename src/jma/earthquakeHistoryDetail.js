@@ -253,7 +253,9 @@ export function normalizeEarthquakeHistoryEvent(event = {}, expectedId = "") {
       magnitude: parseMagnitude(hypocenter.magnitude),
       maxIntensity: normalizeIntensity(hypocenter.maxIntensity)
     },
-    stations
+    stations,
+    longPeriod: event.longPeriod ?? null,
+    longPeriodStatus: event.longPeriodStatus ?? "unavailable"
   };
 }
 

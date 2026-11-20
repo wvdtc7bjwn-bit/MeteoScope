@@ -508,6 +508,24 @@ focal-mechanism {
 focal-mechanism summary { cursor: pointer; font-weight: 600; padding: 8px 0; }
 focal-mechanism[hidden] { display: none; }
 focal-mechanism summary:focus-visible { outline: 2px solid #369bc6; outline-offset: 3px; }
+.earthquake-long-period { margin: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); }
+.earthquake-long-period header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.earthquake-long-period h4 { margin: 0; font-size: 14px; }
+.earthquake-long-period header > strong { display: flex; align-items: center; gap: 6px; font-size: 12px; white-space: nowrap; }
+.earthquake-long-period p, .earthquake-long-period > a { margin: 8px 0; font-size: 12px; line-height: 1.6; }
+.earthquake-long-period > a { color: var(--accent); }
+.earthquake-long-period summary { padding: 10px 0; font-size: 13px; cursor: pointer; }
+.earthquake-long-period details + details { border-top: 1px solid var(--line); }
+.long-period-class { display: inline-block; padding: 3px 7px; border-radius: 5px; background: var(--panel-strong); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.long-period-class.grade-1 { background: #00a9e8; color: #081628; }
+.long-period-class.grade-2 { background: #f2dd00; color: #141414; }
+.long-period-class.grade-3 { background: #ed4c17; color: #fff; }
+.long-period-class.grade-4 { background: #a50082; color: #fff; }
+.long-period-table-scroll { overflow-x: auto; }
+.earthquake-long-period table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.earthquake-long-period :is(th, td) { padding: 8px 4px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--line); }
+.earthquake-long-period th small { display: block; margin-top: 3px; color: var(--muted); font-weight: 400; }
+.earthquake-long-period :is(summary, a):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .focal-mechanism-body { font-size: 14px; line-height: 1.65; overflow-wrap: anywhere; }
 .focal-mechanism-body section + section { border-top: 1px solid rgba(137, 170, 220, 0.28); margin-top: 16px; }
 .focal-mechanism-body h4 { margin: 10px 0 8px; font-size: 14px; }

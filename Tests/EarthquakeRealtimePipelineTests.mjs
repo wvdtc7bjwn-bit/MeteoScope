@@ -9,6 +9,7 @@ import { createLocalEewTestEvent } from "../src/eew/localEewTest.js";
 import { prepareEarthquakeSimulation } from "../src/simulation/earthquakeSimulation.js";
 import { summarizeEewAreaNames } from "../src/eew/eewSummaryAreas.js";
 import { EEW_SUMMARY_AREA_GROUPS } from "../src/eew/eewSummaryAreaGroups.js";
+import { renderLongPeriodSummary } from "../src/ui/longPeriodGroundMotion.js";
 
 const issued = Date.parse("2026-11-13T10:54:00+09:00");
 const prompt = normalizeP2pEarthquake({ code: 551, id: "prompt", issue: { type: "ScalePrompt", time: "2026/11/13 10:54:00" }, earthquake: { time: "2026/11/13 10:52:00", maxScale: 30 } });
@@ -96,7 +97,7 @@ const panelSource = readFileSync(new URL("../src/ui/leftPanel.js", import.meta.u
 const summarySource = panelSource.slice(panelSource.indexOf("function buildEarthquakeMobileContextMarkup("), panelSource.indexOf("function getTyphoonClassificationItems("));
 const metricSource = panelSource.slice(panelSource.indexOf("function formatEarthquakeUnknownMetric("), panelSource.indexOf("function getEarthquakeTsunamiState("));
 let displayLanguage = "ja";
-const ctx = vm.createContext({ ...format, summarizeEewAreaNames, escapeHtml, Number, localizeText: (s) => s, getCurrentLanguage: () => displayLanguage,
+const ctx = vm.createContext({ ...format, summarizeEewAreaNames, renderLongPeriodSummary, escapeHtml, Number, localizeText: (s) => s, getCurrentLanguage: () => displayLanguage,
   getEarthquakeIntensityColor: () => "#ffff00", getEarthquakeIntensityTextClass: () => "intensity-dark",
   formatMobileEarthquakeTime: (s) => s, buildEarthquakeMobileViewSwitch: () => "",
   buildMobileTsunamiStatusMarkup: () => "調査中", buildMobileEarthquakeSummaryCarousel: (data) => data.primaryMarkup });
@@ -108,6 +109,9 @@ assert.doesNotMatch(markup, /不明|M0\.0/);
 const knownMarkup = ctx.buildEarthquakeMobileContextMarkup(destination);
 assert.match(knownMarkup, /熊本県熊本地方/);
 assert.match(knownMarkup, />M4\.0<[^]*?>深さ10km</);
+const longPeriodMarkup = ctx.buildEarthquakeMobileContextMarkup({ ...destination, longPeriod: { maxClass: 3, status: "issued" } });
+assert.match(longPeriodMarkup, /深さ10km[^]*?>最大階級3</);
+assert.doesNotMatch(ctx.buildEarthquakeMobileContextMarkup({ ...destination, longPeriod: { maxClass: 0 } }), /最大階級/);
 const waitingMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", { isSimulation: true, simulationMagnitudeBasis: "Mw", waitingForDetection: true, hypocenter: "東京都２３区", magnitude: null, depth: null, maxIntensity: null });
 assert.equal((waitingMarkup.match(/—/g) ?? []).length, 4, "all four simulation values are dashes before the first bulletin");
 assert.doesNotMatch(waitingMarkup, /M調査中|深さ調査中|東京都２３区|>\?</);

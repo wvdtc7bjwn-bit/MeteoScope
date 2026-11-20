@@ -1,3 +1,5 @@
+import { renderMobileWeatherTimelineToolbar, getMobileWeatherFocusSelector } from "./mobileWeatherTimeline.js";
+import { renderLightningLegendSymbol } from "./lightningLegend.js";
 import { VOLCANO_ALERT_LEVEL_GUIDE, renderVolcanoList } from "./panels/volcanoPanel.js";
 import { getWarningLegendBackground } from "../warningMapColors.js";
 import { escapeHtmlString as escapeHtml } from "../utils/html.js";
@@ -5,6 +7,7 @@ import { updateHistorySelection } from "./historySelection.js";
 import { EEW_WARNING_AREA_COLOR, isEewWarningArea } from "../eew/eewForecastAreas.js";
 import { summarizeEewAreaNames } from "../eew/eewSummaryAreas.js";
 import { renderFocalMechanism } from "./focalMechanism.js";
+import { renderLongPeriodGroundMotion, renderLongPeriodSummary } from "./longPeriodGroundMotion.js";
 import { getSnowDepthAxisMaximum, splitAmedasChartSegments } from "../amedasChart.js";
 import {
   AMEDAS_LEVELS_BY_METRIC,
@@ -129,9 +132,6 @@ let warningGroupKeyByAreaCode = new Map();
 let expandedWarningGroupKey = "";
 
 const AMEDAS_RANKING_LIMIT = 100;
-const MOBILE_WEATHER_TIMELINE_TAP_DELAY_MS = 360;
-const MOBILE_WEATHER_TIMELINE_TAP_MAX_DURATION_MS = 500;
-const MOBILE_WEATHER_TIMELINE_TAP_MOVE_THRESHOLD_PX = 8;
 const TIDE_RANGE_OPTIONS = [
   [1, "1時間"],
   [6, "6時間"],
@@ -903,6 +903,7 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
   let activeSliderValue = null;
   let activeSliderStartX = null;
   let activeSliderStartValue = null;
+  let activeSliderMoved = false;
   const isMobileRadarSlider = (slider) => slider?.matches?.(
     "[data-mobile-radar-slider], [data-mobile-lightning-slider], [data-mobile-weather-distribution-slider]"
   );
@@ -935,10 +936,12 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
   const handlePointerDown = (event) => {
     if (!(event.target instanceof HTMLInputElement)) return;
     if (!isRadarSlider(event.target)) return;
+    if (event.target.disabled) return;
     activeSlider = event.target;
     activeSliderValue = Number(activeSlider.value) || 0;
     activeSliderStartX = event.clientX;
     activeSliderStartValue = activeSliderValue;
+    activeSliderMoved = false;
     if (isMobileRadarSlider(activeSlider)) mobileRadarDockSliding = true;
     event.preventDefault();
     event.stopPropagation();
@@ -948,6 +951,8 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
 
   const handlePointerMove = (event) => {
     if (!activeSlider) return;
+    if (Math.abs(event.clientX - activeSliderStartX) < 6 && !activeSliderMoved) return;
+    activeSliderMoved = true;
     event.preventDefault();
     event.stopPropagation();
     previewSlider(activeSlider, event.clientX);
@@ -957,7 +962,10 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
     if (!activeSlider) return;
     event.preventDefault();
     event.stopPropagation();
-    if (updateFromPointer) previewSlider(activeSlider, event.clientX);
+    if (updateFromPointer && !activeSliderMoved && isMobileRadarSlider(activeSlider)) {
+      const value = selectWeatherTimelineFrameAtPointer(activeSlider, event.clientX, activeSliderStartValue);
+      if (Number.isFinite(value)) { activeSliderValue = value; updateRadarSliderPresentation(activeSlider, value); }
+    } else if (updateFromPointer) previewSlider(activeSlider, event.clientX);
     const finishedSlider = activeSlider;
     const value = activeSliderValue;
     finishWeatherTimelineDrag(finishedSlider, value);
@@ -989,113 +997,20 @@ export function setupRadarControls({ onSeek, onStep, onTogglePlay, onGoLatest })
   });
 }
 
-export function setupMobileWeatherTimelineTapControls({
-  onRadarPlay,
-  onRadarStop,
-  onRadarGoLatest,
-  onLightningPlay,
-  onLightningStop,
-  onLightningGoLatest,
-  onWeatherChartPlay,
-  onWeatherChartStop,
-  onWeatherChartGoLatest,
-  onWeatherDistributionPlay,
-  onWeatherDistributionStop,
-  onWeatherDistributionGoLatest
-}) {
-  const mobileDock = document.getElementById("mobile-context-dock");
-  if (!mobileDock) return;
-
-  let activePointer = null;
-  let tapCount = 0;
-  let tapMode = "";
-  let tapTimer = null;
-
-  const getTapMode = (target) => {
-    if (!(target instanceof HTMLInputElement)) return "";
-    if (target.matches("[data-mobile-radar-slider]")) return "radar";
-    if (target.matches("[data-mobile-lightning-slider]")) return "lightning";
-    if (target.matches("[data-mobile-weather-chart-slider]")) return "weather-chart";
-    if (target.matches("[data-mobile-weather-distribution-slider]")) return "weather-distribution";
-    return "";
-  };
-  const clearTapTimer = () => {
-    if (tapTimer === null) return;
-    window.clearTimeout(tapTimer);
-    tapTimer = null;
-  };
-  const resetTapSequence = () => {
-    clearTapTimer();
-    tapCount = 0;
-    tapMode = "";
-  };
-  const runTapAction = (mode, count) => {
-    const actions = mode === "weather-chart"
-      ? [onWeatherChartPlay, onWeatherChartStop, onWeatherChartGoLatest]
-      : (mode === "lightning"
-        ? [onLightningPlay, onLightningStop, onLightningGoLatest]
-        : (mode === "weather-distribution"
-          ? [onWeatherDistributionPlay, onWeatherDistributionStop, onWeatherDistributionGoLatest]
-          : [onRadarPlay, onRadarStop, onRadarGoLatest]));
-    actions[count - 1]?.();
-  };
-  const commitTapSequence = () => {
-    const mode = tapMode;
-    const count = tapCount;
-    resetTapSequence();
-    if (mode && count >= 1 && count <= 3) runTapAction(mode, count);
-  };
-
-  mobileDock.addEventListener("pointerdown", (event) => {
-    if (event.defaultPrevented) return;
-    const mode = getTapMode(event.target);
-    if (!mode || event.button !== 0) return;
-
-    clearTapTimer();
-    if (tapMode && tapMode !== mode) {
-      tapCount = 0;
-    }
-    tapMode = mode;
-    activePointer = {
-      id: event.pointerId,
-      mode,
-      startX: event.clientX,
-      startY: event.clientY,
-      startedAt: Date.now()
-    };
-  });
-
-  mobileDock.addEventListener("pointerup", (event) => {
-    if (event.defaultPrevented) return;
-    const pointer = activePointer;
-    activePointer = null;
-    if (!pointer || pointer.id !== event.pointerId) return;
-
-    const moveDistance = Math.hypot(
-      event.clientX - pointer.startX,
-      event.clientY - pointer.startY
-    );
-    const duration = Date.now() - pointer.startedAt;
-    if (
-      pointer.mode !== tapMode
-      || moveDistance > MOBILE_WEATHER_TIMELINE_TAP_MOVE_THRESHOLD_PX
-      || duration > MOBILE_WEATHER_TIMELINE_TAP_MAX_DURATION_MS
-    ) {
-      resetTapSequence();
-      return;
-    }
-
-    tapCount = Math.min(3, tapCount + 1);
-    if (tapCount === 3) {
-      commitTapSequence();
-      return;
-    }
-    tapTimer = window.setTimeout(commitTapSequence, MOBILE_WEATHER_TIMELINE_TAP_DELAY_MS);
-  });
-
-  mobileDock.addEventListener("pointercancel", () => {
-    activePointer = null;
-    resetTapSequence();
+export function setupMobileWeatherTimelineControls({ onStep, onTogglePlay, onGoLatest }) {
+  const root = document.getElementById("mobile-context-dock");
+  if (!root) return;
+  root.addEventListener("click", event => {
+    if (!(event.target instanceof Element)) return;
+    const button = event.target.closest("[data-mobile-weather-action]");
+    if (!button || button.disabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const action = button.dataset.mobileWeatherAction;
+    if (action === "prev") onStep?.(-1);
+    else if (action === "next") onStep?.(1);
+    else if (action === "play") onTogglePlay?.();
+    else if (action === "latest") onGoLatest?.();
   });
 }
 
@@ -1149,6 +1064,7 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
   const handlePointerDown = (event) => {
     if (!(event.target instanceof HTMLInputElement)) return;
     if (!isWeatherChartSlider(event.target)) return;
+    if (event.target.disabled) return;
     draggingSlider = event.target;
     draggingSliderStartX = event.clientX;
     draggingSliderStartValue = Number(event.target.value) || 0;
@@ -1176,7 +1092,7 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
 
   const handlePointerMove = (event) => {
     if (!draggingSlider) return;
-    if (Math.abs(event.clientX - draggingSliderStartX) < 2) return;
+    if (Math.abs(event.clientX - draggingSliderStartX) < 6 && !draggingSliderMoved) return;
     draggingSliderMoved = true;
     const nextValue = updateSliderFromTimelineDrag(
       draggingSlider,
@@ -1201,7 +1117,9 @@ export function setupWeatherChartControls({ onSeek, onPreview, onStep, onGoLates
     if (!draggingSlider) return;
     const finishedSlider = draggingSlider;
     if (!draggingSliderMoved) {
-      const nextValue = updateSliderFromTimelineDrag(
+      const nextValue = finishedSlider.closest("#mobile-context-dock")
+        ? selectWeatherTimelineFrameAtPointer(finishedSlider, event.clientX, draggingSliderStartValue)
+        : updateSliderFromTimelineDrag(
         finishedSlider,
         draggingSliderStartX,
         draggingSliderStartValue,
@@ -2076,9 +1994,11 @@ function renderLegend(tabId, amedasMetricId, warningView = "status", data = null
   root.innerHTML = `${isCountryForecast
     ? '<p class="legend-world-typhoon-note">線と点の色は各モデルボタンの色に対応します</p>'
     : ""}${items
-    .map(([label, className, color]) => {
+    .map(([label, className, color, symbol]) => {
       const swatchStyle = color ? ` style="background:${escapeHtml(color)}"` : "";
       const visibleLabel = formatLegendLabelWithUnit(localizeText(label), unit);
+      const icon = renderLightningLegendSymbol(symbol);
+      if (icon) return `<div class="legend-item"><span class="legend-swatch legend-discharge-symbol" style="color:${escapeHtml(color)}">${icon}</span>${escapeHtml(visibleLabel)}</div>`;
       return `<div class="legend-item"><span class="legend-swatch ${className}"${swatchStyle}></span>${escapeHtml(visibleLabel)}</div>`;
     })
     .join("")}`;
@@ -2128,8 +2048,8 @@ function buildLegendItems(tabId, amedasMetricId, warningView = "status", data = 
     }
     if (data?.lightningEnabled) {
       return [
-        ["× 対地放電（落雷）", "", "#faf500"],
-        ["○ 雲放電", "", "#faf500"],
+        ["対地放電（落雷）", "", "#faf500", "ground"],
+        ["雲放電", "", "#faf500", "cloud"],
         ["活動度1", "", "#fff100"],
         ["活動度2", "", "#ff9d00"],
         ["活動度3", "", "#f04444"],
@@ -2737,6 +2657,7 @@ function renderMobileContextDock(tab, state, context = {}) {
   }
   lastMobileTideStationCode = tideStationCode;
   root.dataset.tab = tab.id;
+  const focusSelector = tab.id === "radar" ? getMobileWeatherFocusSelector(root) : "";
   root.innerHTML = buildMobileContextDockContent(tab, state, context);
   if (root.querySelector(".mobile-dock-earthquake-summary-track")) {
     applyMobileEarthquakeSummaryPage(root, { animate: false });
@@ -2745,6 +2666,7 @@ function renderMobileContextDock(tab, state, context = {}) {
     delete root.dataset.mobileEarthquakeSummaryPage;
     root.style.removeProperty("--mobile-summary-drag-x");
   }
+  if (focusSelector) root.querySelector(focusSelector)?.focus({ preventScroll: true });
   initializeMobileDockSegmentIndicators(root);
 }
 
@@ -3617,6 +3539,7 @@ function buildEarthquakeMobileContextMarkup(
       ${buildMobileEarthquakeEventText({
         statusLabel: isInfoOverride ? earthquake?.reportTitle || "地震情報" : "発生時刻：",
         time, place: formatEarthquakeHypocenterText(earthquake), magnitude, depth,
+        longPeriodMarkup: renderLongPeriodSummary(earthquake.longPeriod),
         actionMarkup: nearbyAction, noticeMarkup: eewConnectionNotice, tsunamiMarkup
       })}
     </div>
@@ -3634,7 +3557,7 @@ function buildEarthquakeMobileContextMarkup(
   });
 }
 
-function buildMobileEarthquakeEventText({ statusLabel, time, place, magnitude, depth, actionMarkup = "", noticeMarkup = "", tsunamiMarkup = "" }) {
+function buildMobileEarthquakeEventText({ statusLabel, time, place, magnitude, depth, actionMarkup = "", noticeMarkup = "", tsunamiMarkup = "", longPeriodMarkup = "" }) {
   const depthLabel = depth && depth !== "--" ? (depth === "ごく浅い" ? depth : `深さ${depth}`) : "";
   const displayTime = /^\d{4}\/\d{2}\/\d{2}\s+\d{1,2}:\d{2}$/u.test(String(time)) ? `${time}頃` : time;
   return `
@@ -3651,6 +3574,7 @@ function buildMobileEarthquakeEventText({ statusLabel, time, place, magnitude, d
         <span class="mobile-dock-earthquake-fact-values">${escapeHtml(magnitude && magnitude !== "--" ? magnitude : "詳細確認中")}</span>
         ${depthLabel ? '<span class="mobile-dock-earthquake-fact-separator" aria-hidden="true">/</span>' : ""}
         ${depthLabel ? `<span class="mobile-dock-earthquake-depth">${escapeHtml(depthLabel)}</span>` : ""}
+        ${longPeriodMarkup}
         ${tsunamiMarkup}
       </div>
       ${actionMarkup ? `<div class="mobile-dock-earthquake-summary-aside">
@@ -4265,7 +4189,14 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
     : (isSatelliteMode ? satelliteFrameMeta : (isLightningMode ? lightningFrameMeta : (isDistributionMode ? distributionFrameMeta : radarFrameMeta)));
   const frameDates = frameMeta.map((item) => compactWeatherDateLabel(item?.title));
   const activeDate = frameDates[activeIndex] ?? "--";
-  const frameDatesAttribute = `data-mobile-weather-dates="${escapeHtml(JSON.stringify(frameDates))}"`;
+  const frameDatesAttribute = `data-mobile-weather-frames="${escapeHtml(JSON.stringify(frameMeta.map(frame => ({ title: frame.title, kind: frame.meta }))))}"`;
+  const currentIndex = isChartMode ? currentChartIndex : isSatelliteMode ? satelliteFrames.length - 1 : isLightningMode ? currentLightningIndex : isDistributionMode ? -1 : currentRadarIndex;
+  const playing = isChartMode ? Boolean(state.weatherChartPlaying) : isSatelliteMode ? Boolean(satellite.playing) : isLightningMode ? Boolean(state.lightningPlaying) : isDistributionMode ? Boolean(state.weatherDistributionPlaying) : Boolean(state.radarPlaying);
+  const activeMeta = frameMeta[activeIndex];
+  const timelineUnavailable = Boolean(loadingLabel) || (isChartMode ? state.weatherChartStatus : isSatelliteMode ? satellite.status : isLightningMode ? state.lightningStatus : isDistributionMode ? state.weatherDistributionStatus : status) === "error";
+  const toolbar = renderMobileWeatherTimelineToolbar({ date: activeDate, time: compactWeatherTimeLabel(activeMeta?.title || "--:--"), kind: activeMeta?.meta || "--", fullTime: activeMeta?.title || "--",
+    playing, disabled: length < 2 || timelineUnavailable, index: activeIndex, length, currentIndex,
+    mode: isChartMode ? "weather-chart" : isSatelliteMode ? "satellite" : isDistributionMode ? "weather-distribution" : "radar", loadingMarkup: loadingLabel ? buildMobileDockLoadingStatus(loadingLabel) : "" });
   const range = length > 1
     ? buildWeatherTimeTimelineMarkup(
       frameMeta,
@@ -4273,7 +4204,7 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
       (item) => isLightningMode
         ? item?.timeLabel
         : (isSatelliteMode ? item?.timeLabel : compactWeatherTimeLabel(item?.title)),
-      `<input type="range" class="weather-time-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : (isSatelliteMode ? "data-mobile-weather-satellite-slider" : (isLightningMode ? "data-mobile-lightning-slider" : (isDistributionMode ? "data-mobile-weather-distribution-slider" : "data-mobile-radar-slider")))} ${frameDatesAttribute} aria-label="${isChartMode ? "天気図" : (isSatelliteMode ? "衛星雲画像" : (isLightningMode ? "雷" : (isDistributionMode ? getWeatherDistributionLabel(weatherDistributionMode) : "雨雲レーダー")))}時刻">`,
+      `<input type="range" class="weather-time-range mobile-dock-range-input" min="0" max="${length - 1}" value="${activeIndex}" ${timelineUnavailable ? "disabled" : ""} data-mobile-dock-control ${isChartMode ? "data-mobile-weather-chart-slider" : (isSatelliteMode ? "data-mobile-weather-satellite-slider" : (isLightningMode ? "data-mobile-lightning-slider" : (isDistributionMode ? "data-mobile-weather-distribution-slider" : "data-mobile-radar-slider")))} ${frameDatesAttribute} aria-valuetext="${escapeHtml(`${activeMeta?.title || "--"} · ${activeMeta?.meta || "--"}`)}" aria-label="${isChartMode ? "天気図" : (isSatelliteMode ? "衛星雲画像" : (isLightningMode ? "雷" : (isDistributionMode ? getWeatherDistributionLabel(weatherDistributionMode) : "雨雲レーダー")))}時刻">`,
       { compact: true }
     )
     : buildWeatherTimeTimelineMarkup(
@@ -4295,10 +4226,8 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
         <button type="button" class="mobile-dock-action${isSatelliteMode ? " active" : ""}" data-mobile-dock-control data-radar-overlay="satellite" aria-pressed="${isSatelliteMode ? "true" : "false"}"${isSatelliteMode ? " disabled" : ""}>雲画像</button>
         <button type="button" class="mobile-dock-action${lightningEnabled ? " active" : ""}" data-mobile-dock-control data-radar-overlay="lightning" aria-pressed="${lightningEnabled ? "true" : "false"}"${lightningEnabled ? " disabled" : ""}>雷</button>
       </div>
-      <div class="mobile-dock-weather-timeline${loadingLabel ? " is-loading" : ""}" data-mobile-weather-tap-controls aria-busy="${loadingLabel ? "true" : "false"}">
-        ${loadingLabel
-          ? buildMobileDockLoadingStatus(loadingLabel)
-          : `<time class="mobile-dock-date" data-mobile-weather-date>${escapeHtml(activeDate)}</time>`}
+      <div class="mobile-dock-weather-timeline${loadingLabel ? " is-loading" : ""}" aria-busy="${loadingLabel ? "true" : "false"}">
+        ${toolbar}
         ${range}
       </div>
     </div>
@@ -4317,10 +4246,17 @@ function updateMobileWeatherChartSliderPreview(slider) {
 }
 
 function updateMobileWeatherDate(slider, value = Number(slider?.value)) {
-  const date = slider?.closest("#mobile-context-dock")?.querySelector("[data-mobile-weather-date]");
-  if (!date) return;
-  const dates = parseJsonArray(slider.dataset.mobileWeatherDates);
-  date.textContent = dates[clampIndex(value, dates.length)] || "--";
+  const root = slider?.closest("#mobile-context-dock");
+  if (!root) return;
+  const frames = parseJsonArray(slider.dataset.mobileWeatherFrames);
+  const frame = frames[clampIndex(value, frames.length)];
+  const date = root.querySelector("[data-mobile-weather-date]");
+  const time = root.querySelector("[data-mobile-weather-time]");
+  const kind = root.querySelector("[data-mobile-weather-kind]");
+  if (date) date.textContent = compactWeatherDateLabel(frame?.title);
+  if (time) { time.textContent = compactWeatherTimeLabel(frame?.title || "--:--"); time.title = frame?.title || "--"; }
+  if (kind) kind.textContent = localizeText(frame?.kind || "--");
+  slider.setAttribute("aria-valuetext", [frame?.title, frame?.kind].filter(Boolean).join(" · ") || "--");
 }
 function buildMobileContextMarkup(kicker, title, meta = "", progress = "") {
   return `
@@ -4532,6 +4468,16 @@ function updateSliderFromTimelineDrag(slider, startX, startValue, clientX) {
   const fractionalIndex = getWeatherTimelineDragIndex(slider, startX, startValue, clientX);
   if (!Number.isFinite(fractionalIndex)) return null;
   const value = Math.round(fractionalIndex);
+  slider.value = String(value);
+  return value;
+}
+
+function selectWeatherTimelineFrameAtPointer(slider, clientX, startValue) {
+  const timeline = slider?.closest(".weather-time-timeline");
+  const bounds = timeline?.getBoundingClientRect();
+  if (!bounds?.width || !Number.isFinite(clientX) || !Number.isFinite(startValue)) return null;
+  const position = startValue + (clientX - bounds.left - bounds.width / 2) / getWeatherTimelineStep(timeline);
+  const value = Math.round(Math.max(Number(slider.min) || 0, Math.min(Number(slider.max) || 0, position)));
   slider.value = String(value);
   return value;
 }
@@ -6295,7 +6241,7 @@ function renderEarthquakeList(tab, state) {
     // DOM, focused button and loaded mechanism instead of rebuilding the list.
     const markup = `${viewToggle}${buildEarthquakeArchiveMarkup({ ...data, selectedHistoricalEarthquakeId: "" })}`;
     renderDetailPages(markup);
-    updateHistorySelection(root, data.selectedHistoricalEarthquakeId, data.earthquakeArchive?.items ?? []);
+    updateHistorySelection(root, data.selectedHistoricalEarthquakeId, data.earthquakeArchive?.items ?? [], data.selectedHistoricalEarthquakeDetail);
     return;
   }
 
@@ -6380,6 +6326,7 @@ function renderEarthquakeList(tab, state) {
         ${Array.isArray(earthquake.coordinates) && earthquake.coordinates.length === 2
           ? `<button type="button" class="earthquake-nearby-search-button" data-mobile-dock-control data-earthquake-nearby-search="${escapeHtml(earthquake.id)}">この震源の近傍を検索</button>` : ""}
         ${isExpanded ? renderFocalMechanism(earthquake) : ""}
+        ${isExpanded ? renderLongPeriodGroundMotion(earthquake.longPeriod) : ""}
         ${isExpanded ? renderEarthquakeObservations(observations, observationsId, { showShareButton: true }) : ""}
         ${isExpanded ? renderEarthquakeTsunamiDetails(tsunamiState) : ""}
       </article>
@@ -7225,6 +7172,7 @@ function buildEarthquakeArchiveMobileContextMarkup(data) {
         </em>
         ${buildMobileEarthquakeEventText({
           statusLabel: "発生時刻：", time, place: formatEarthquakeHypocenterText(hypocenter), magnitude, depth,
+          longPeriodMarkup: renderLongPeriodSummary(liveHypocenter ? data.selectedHistoricalEarthquakeDetail.event?.longPeriod : null),
           actionMarkup: '<button type="button" class="earthquake-nearby-search-button is-compact earthquake-history-summary-back" data-mobile-dock-control data-earthquake-history-detail-back>震央一覧</button>'
         })}
       </div>
@@ -7241,18 +7189,27 @@ function buildEarthquakeArchiveMobileContextMarkup(data) {
       tideObservation: data.tideObservation
     });
   }
+  const searching = ["idle", "loading", "refreshing"].includes(status);
+  const incomplete = snapshot?.complete === false || status === "partial-error";
+  const failed = status === "error";
+  const countVisible = Boolean(snapshot) && !failed;
+  const summaryHint = failed ? "検索データを取得できませんでした"
+    : searching ? "地震データを検索しています"
+      : incomplete ? "一部の期間を取得できていません"
+        : count === 0 ? "条件に一致する地震はありません"
+          : "地図の震央を選ぶと詳細を表示";
   const primaryMarkup = `
     ${buildEarthquakeMobileViewSwitch("history")}
-    <div class="mobile-dock-earthquake-distribution-summary">
-      <div class="mobile-dock-earthquake-distribution-head">
-        <span class="mobile-dock-kicker">${data.earthquakeNearbySearchActive ? "震源近傍・震度3以上" : "過去の地震"}・${escapeHtml(formatArchiveDate(filters.startDate))}〜</span>
-        <strong>${["idle", "loading"].includes(status)
-          ? "検索中"
-          : `${count.toLocaleString("ja-JP")}件${status === "refreshing" ? "・検索中" : snapshot?.complete === false || status === "partial-error" ? "・一部取得" : ""}`}</strong>
+    <div class="mobile-dock-earthquake-distribution-summary is-archive-summary">
+      <div class="mobile-dock-archive-period">
+        <span class="mobile-dock-kicker">${data.earthquakeNearbySearchActive ? "震源近傍・震度3以上" : "検索期間"}</span>
+        <strong>${escapeHtml(formatArchiveDate(filters.startDate))}〜${escapeHtml(formatArchiveDate(filters.endDate))}</strong>
       </div>
-      <div class="mobile-dock-earthquake-distribution-range-hint">${selected
-        ? `${escapeHtml(formatArchiveDateTime(selected.originTime))}・${escapeHtml(selected.place)}`
-        : status === "error" ? "検索データを取得できませんでした" : data.earthquakeNearbySearchActive ? "震源から半径50km以内を検索中" : "詳細パネルで検索条件を指定"}</div>
+      <div class="mobile-dock-archive-count">
+        <strong>${countVisible ? `${count.toLocaleString("ja-JP")}<small>件</small>` : "—"}</strong>
+        <span>${failed ? "取得失敗" : searching ? "検索中" : incomplete ? "一部取得" : "検索結果"}</span>
+      </div>
+      <div class="mobile-dock-earthquake-distribution-range-hint">${summaryHint}</div>
     </div>
   `;
   return buildMobileEarthquakeSummaryCarousel({

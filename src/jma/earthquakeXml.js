@@ -10,6 +10,7 @@ import {
 import { fetchJson, fetchText, parseJmaTime } from "./jmaClient.js";
 import { buildHistoricalIntensityAreaFeatures } from "./earthquakeHistoryDetail.js";
 import { yieldToMainThread } from "../scheduling.js";
+import { attachLongPeriodReports, normalizeLongPeriodClass, selectLatestLongPeriodReport } from "../earthquake/longPeriodGroundMotion.js";
 import {
   attachIntensityStationCoordinates,
   buildEmptyStationLookup,
@@ -34,6 +35,8 @@ const EARTHQUAKE_HISTORY_DISPLAY_LIMIT = EARTHQUAKE_XML_MAX_DETAIL_FETCH_LIMIT;
 export const EARTHQUAKE_HISTORY_INITIAL_VISIBLE_COUNT = 11;
 export const EARTHQUAKE_HISTORY_LOAD_MORE_COUNT = 15;
 const EARTHQUAKE_XML_CODES = /VXSE5[1-3]/;
+const LONG_PERIOD_XML_CODE = "VXSE62";
+const LONG_PERIOD_DETAIL_FETCH_LIMIT = 18;
 const TSUNAMI_XML_DETAIL_FETCH_LIMIT = 18;
 const TSUNAMI_XML_CODES = /VTSE(?:41|51|52)/;
 const EARTHQUAKE_SERIES_WINDOW_MS = 5 * 60 * 1000;
@@ -87,9 +90,14 @@ export async function fetchEarthquakeXmlList({
   const tsunamiEntries = allEntries
     .filter((entry) => TSUNAMI_XML_CODES.test(entry.code))
     .slice(0, TSUNAMI_XML_DETAIL_FETCH_LIMIT);
-  const [earthquakeResults, tsunamiResults] = await Promise.all([
+  const longPeriodEntries = allEntries.filter(entry => entry.code === LONG_PERIOD_XML_CODE)
+    .slice(0, LONG_PERIOD_DETAIL_FETCH_LIMIT);
+  const [earthquakeResults, tsunamiResults, longPeriodResults] = await Promise.all([
     Promise.allSettled(earthquakeEntries.map(fetchEarthquakeDetail)),
-    Promise.allSettled(tsunamiEntries.map(fetchTsunamiDetail))
+    Promise.allSettled(tsunamiEntries.map(fetchTsunamiDetail)),
+    Promise.allSettled(longPeriodEntries.map(async entry => parseLongPeriodReport(await fetchText(entry.url, {
+      ttlMs: EARTHQUAKE_REPORT_TTL_MS, cache: "no-store"
+    }), entry)))
   ]);
   const fulfilledEarthquakeResults = earthquakeResults
     .filter((result) => result.status === "fulfilled" && result.value)
@@ -97,8 +105,10 @@ export async function fetchEarthquakeXmlList({
   if (earthquakeEntries.length > 0 && fulfilledEarthquakeResults.length === 0) {
     throw new Error("Earthquake XML detail unavailable");
   }
-  const baseEarthquakes = mergeEarthquakeReportsByPriority(fulfilledEarthquakeResults)
-    .slice(0, EARTHQUAKE_HISTORY_DISPLAY_LIMIT);
+  const baseEarthquakes = attachLongPeriodReports(
+    mergeEarthquakeReportsByPriority(fulfilledEarthquakeResults).slice(0, EARTHQUAKE_HISTORY_DISPLAY_LIMIT),
+    longPeriodResults.filter(result => result.status === "fulfilled").map(result => result.value)
+  );
   let estimatedIntensityCatalogAvailable = true;
   const [areaLookup, tsunamiLookup, tsunamiStationLookup, stationLookup, estimatedIntensityCatalog] = await Promise.all([
     loadEarthquakeAreaLookup().catch(() => new Map()),
@@ -148,6 +158,9 @@ export async function fetchEarthquakeXmlList({
     tsunami,
     tsunamiStatus,
     tsunamiSourceReports: tsunamiReports,
+    longPeriodStatus: longPeriodResults.some(result => result.status === "rejected")
+      ? (longPeriodResults.every(result => result.status === "rejected") ? "unavailable" : "partial")
+      : !currentFeedAvailable ? "unavailable" : longPeriodEntries.length ? "available" : "none",
     estimatedIntensityStatus: !estimatedIntensityCatalogAvailable
       ? "unavailable"
       : earthquakes.some((earthquake) => earthquake.estimatedIntensity) ? "available" : "none",
@@ -311,6 +324,60 @@ export function parseEarthquakeReport(text, entry) {
     tsunamiComment,
     url: entry.url
   };
+}
+
+export function parseLongPeriodReport(text, entry = {}) {
+  const xml = parseXml(text);
+  const report = getFirst(xml, "Report") ?? xml;
+  const control = getFirstChild(report, "Control");
+  const head = getFirstChild(report, "Head");
+  const eventId = normalizeEarthquakeEventId(getText(getFirstChild(head, "EventID")));
+  // Training products must never appear as observations of an actual event.
+  if (!eventId || /訓練|試験/u.test(getText(getFirstChild(control, "Status")))) return null;
+  const infoType = getText(getFirstChild(head, "InfoType"));
+  const status = infoType === "取消" ? "cancelled" : infoType === "訂正" ? "corrected" : "issued";
+  const observation = getFirst(getFirstChild(getFirstChild(report, "Body"), "Intensity"), "Observation");
+  if (status !== "cancelled" && !observation) throw new Error("Long-period XML observation unavailable");
+  const reportTimeRaw = getText(getFirstChild(head, "ReportDateTime")) || getText(getFirstChild(control, "DateTime"));
+  const areas = [];
+  const stations = [];
+  if (status !== "cancelled") for (const pref of getChildren(observation, "Pref")) {
+    for (const area of getChildren(pref, "Area")) {
+      const areaData = {
+        code: getText(getFirstChild(area, "Code")), areaName: getText(getFirstChild(area, "Name")),
+        prefecture: getText(getFirstChild(pref, "Name")),
+        maxClass: normalizeLongPeriodClass(getText(getFirstChild(area, "MaxLgInt")))
+      };
+      areas.push(areaData);
+      for (const station of getElements(area, "IntensityStation")) {
+        const spectrum = getChildren(station, "SvaPerPeriod");
+        stations.push({
+          code: getText(getFirstChild(station, "Code")), stationName: getText(getFirstChild(station, "Name")),
+          areaCode: areaData.code, areaName: areaData.areaName, prefecture: areaData.prefecture,
+          class: normalizeLongPeriodClass(getText(getFirstChild(station, "LgInt"))),
+          sva: parseLongPeriodVelocity(getText(getFirstChild(station, "Sva"))),
+          periods: getChildren(station, "LgIntPerPeriod").map(period => ({
+            band: period.getAttribute("PeriodicBand"), unit: period.getAttribute("PeriodUnit"),
+            class: normalizeLongPeriodClass(getText(period)),
+            sva: parseLongPeriodVelocity(getText(spectrum.find(value => value.getAttribute("PeriodicBand") === period.getAttribute("PeriodicBand")
+              && value.getAttribute("PeriodUnit") === period.getAttribute("PeriodUnit"))))
+          }))
+        });
+      }
+    }
+  }
+  return {
+    id: entry.id || entry.url || `${eventId}:${reportTimeRaw}`, eventId, source: "jma-xml", xmlCode: LONG_PERIOD_XML_CODE,
+    status, serial: getText(getFirstChild(head, "Serial")), reportTimeRaw,
+    issuedAtRaw: getText(getFirstChild(control, "DateTime")), reportTime: parseJmaTime(reportTimeRaw) ?? reportTimeRaw,
+    maxClass: status === "cancelled" ? null : normalizeLongPeriodClass(getText(getFirstChild(observation, "MaxLgInt"))),
+    areas, stations, url: entry.url || ""
+  };
+}
+
+function parseLongPeriodVelocity(text) {
+  const value = text ? Number(text) : NaN;
+  return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 export function parseTsunamiReport(text, entry = {}) {
@@ -646,6 +713,7 @@ function mergeEarthquakeReports(primary, fallback) {
     intensityAreas: primary.intensityAreas?.length ? primary.intensityAreas : fallback.intensityAreas,
     intensityCities: primary.intensityCities?.length ? primary.intensityCities : fallback.intensityCities,
     intensityStations: primary.intensityStations?.length ? primary.intensityStations : fallback.intensityStations,
+    longPeriod: selectLatestLongPeriodReport(primary.longPeriod, fallback.longPeriod),
     headline: primary.headline || fallback.headline,
     tsunamiComment: primary.tsunamiComment || fallback.tsunamiComment,
     url: primary.url || fallback.url
@@ -1069,7 +1137,7 @@ function normalizeEarthquakeEventTime(value) {
 }
 
 function getXmlCodeFromUrl(value) {
-  return String(value ?? "").match(/(?:VXSE5[1-3]|VTSE(?:41|51|52))/)?.[0] ?? "";
+  return String(value ?? "").match(/(?:VXSE5[1-3]|VXSE62|VTSE(?:41|51|52))/)?.[0] ?? "";
 }
 
 function getEarthquakeReportPriority(report) {

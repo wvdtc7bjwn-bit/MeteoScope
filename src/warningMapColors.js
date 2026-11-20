@@ -1,7 +1,7 @@
 export const WARNING_MAP_COLORS = Object.freeze({
   // Reference-map hues, brightened and saturated after visual review.
   // Existing transparency preserves the underlying terrain.
-  advisory: "#dbc750",
+  advisory: "#c5aa24",
   warning: "#962720",
   danger: "#69558d",
   emergency: "#69558d"

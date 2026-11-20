@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import vm from "node:vm";
+import { renderLightningLegendSymbol } from "../src/ui/lightningLegend.js";
 import {
   buildLightningFrames,
   buildLightningObservationUrl,
@@ -107,7 +109,13 @@ assert.doesNotMatch(mobileRadarSource, /"現在"/);
 assert.match(mapSource, /updateLightningLayer/);
 assert.match(mapSource, /jma-nowcast-lightning-z/);
 assert.match(mapSource, /lightning-observation-ground/);
-assert.match(mapSource, /"text-field": "×"/);
+assert.match(mapSource, /id: LIGHTNING_OBSERVATION_LAYER_IDS\[0\],[\s\S]*?"text-field": "\+"/);
+assert.match(panelSource, /\["対地放電（落雷）", "", "#faf500", "ground"\]/);
+assert.match(panelSource, /\["雲放電", "", "#faf500", "cloud"\]/);
+assert.match(renderLightningLegendSymbol("ground"), /<path/);
+assert.doesNotMatch(renderLightningLegendSymbol("ground"), /<circle/);
+assert.match(renderLightningLegendSymbol("cloud"), /<circle/);
+assert.equal(renderLightningLegendSymbol("activity"), "");
 assert.match(mapSource, /filter: \["!=", \["get", "type"\], 4\]/);
 assert.match(mapSource, /moveLightningObservationLayersToFront\(map\)/);
 assert.match(mapSource, /const LIGHTNING_MAX_ZOOM = 8\.9/);
@@ -116,5 +124,23 @@ assert.match(
   /lightningVisible[\s\S]*\? LIGHTNING_MAX_ZOOM[\s\S]*: DEFAULT_VIEW\.maxZoom/
 );
 assert.match(mapSource, /setRadarOverlayZoomLimit\(map, mode, data\)/);
+
+// Exercise the actual layer construction: zooming out must retain both kinds
+// of discharge, without changing the existing higher-zoom presentation.
+const observationLayers = [];
+const layerContext = vm.createContext({
+  LIGHTNING_OBSERVATION_SOURCE_ID: "jma-lightning-observations",
+  LIGHTNING_OBSERVATION_LAYER_IDS: ["lightning-observation-ground", "lightning-observation-cloud"],
+  lightningObservationUrlByMap: new WeakMap(), setLightningObservationVisible() {}, moveLightningObservationLayersToFront() {}
+});
+vm.runInContext(mapSource.slice(mapSource.indexOf("function updateLightningObservationLayer("), mapSource.indexOf("function setLightningObservationVisible(")), layerContext);
+layerContext.updateLightningObservationLayer({ getSource() { return null; }, addSource() {}, addLayer(layer) { observationLayers.push(layer); } }, "radar", { lightningEnabled: true, lightningObservationUrl: "https://example.test/observations.json" });
+assert.equal(observationLayers.length, 2);
+for (const zoom of [0, 2, 3.9, 4, 8.9]) {
+  assert.equal(observationLayers.filter(layer => (layer.minzoom ?? 0) <= zoom && zoom < (layer.maxzoom ?? 24)).length, 2, `Both discharge layers remain visible at zoom ${zoom}`);
+}
+assert.equal(observationLayers[0].layout["text-field"], "+");
+assert.equal(observationLayers[0].layout["text-allow-overlap"], true);
+assert.equal(observationLayers[1].type, "circle");
 
 console.log("Lightning tests passed.");

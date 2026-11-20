@@ -396,7 +396,7 @@ assert.match(panel, /if \(view === "history"\) \{[\s\S]*?buildEarthquakeArchiveM
   "過去の地震タブを開くと検索条件と結果を詳細パネルに表示する");
 assert.match(app, /radiusKm: 50/u);
 assert.match(panel, /data-next-visible-count/u);
-assert.match(panel, /status === "refreshing" \? "・検索中"/u);
+// Refreshing and partial summary states are executed in EarthquakeArchiveSummaryTests.mjs.
 assert.doesNotMatch(panel, /snapshot\?\.complete === false \? "・更新中"/u);
 assert.match(panel, /snapshot\.unavailableRanges/u);
 assert.match(app, /onProgress: \(partialData\)/u);

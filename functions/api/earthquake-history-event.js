@@ -1,4 +1,5 @@
 import { JMA_EARTHQUAKE_HISTORY_SOURCE_URL, JMA_EARTHQUAKE_INTENSITY_API_URL } from "../../src/jma/earthquakeHistoryApi.js";
+import { fetchHistoricalLongPeriod } from "../_shared/longPeriodHistory.js";
 
 const EVENT_ID_PATTERN = /^\d{12,17}$/u;
 const CACHE_TTL_SECONDS = 24 * 60 * 60;
@@ -12,6 +13,7 @@ function jsonResponse(payload, status = 200, cacheControl = "no-store") {
 }
 
 export async function onRequestGet(context) {
+  const startedAt = Date.now();
   const url = new URL(context.request.url);
   const id = String(url.searchParams.get("id") ?? "");
   if (!EVENT_ID_PATTERN.test(id)) return jsonResponse({ ok: false, error: "invalid_event_id" }, 400);
@@ -19,7 +21,7 @@ export async function onRequestGet(context) {
   // 14-digit, second-resolution ID.
   const jmaEventId = id.slice(0, 14);
 
-  const cacheKey = new Request(new URL(`/api/earthquake-history-event?v=1&id=${encodeURIComponent(jmaEventId)}`, url.origin));
+  const cacheKey = new Request(new URL(`/api/earthquake-history-event?v=2&id=${encodeURIComponent(jmaEventId)}`, url.origin));
   const cache = globalThis.caches?.default;
   if (cache) {
     try {
@@ -67,7 +69,11 @@ export async function onRequestGet(context) {
         character: String(station?.char ?? "")
       }))
     };
-    const result = jsonResponse({ ok: true, event }, 200, `public, max-age=0, s-maxage=${CACHE_TTL_SECONDS}`);
+    Object.assign(event, await fetchHistoricalLongPeriod({ originTime: event.hypocenter.originTime,
+      place: event.hypocenter.place, magnitude: event.hypocenter.magnitude }, context.request.signal,
+      Math.max(0, Math.min(8000, 18500 - (Date.now() - startedAt)))));
+    const cacheSeconds = event.longPeriodStatus === "unavailable" ? 60 : CACHE_TTL_SECONDS;
+    const result = jsonResponse({ ok: true, event }, 200, `public, max-age=0, s-maxage=${cacheSeconds}`);
     if (cache) {
       const write = cache.put(cacheKey, result.clone()).catch((error) => console.warn("[earthquake-history-event] cache write failed", error));
       if (context.waitUntil) context.waitUntil(write);

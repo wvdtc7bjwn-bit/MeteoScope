@@ -1,9 +1,35 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+検索期間|Search period
+検索結果|Search results
+取得失敗|Unavailable
+一部取得|Partial results
+地震データを検索しています|Searching earthquake records
+一部の期間を取得できていません|Some periods could not be retrieved
+条件に一致する地震はありません|No earthquakes match these filters
+地図の震央を選ぶと詳細を表示|Select an epicenter on the map for details
 雲画像を取得中です。|Loading satellite imagery.
 雲画像を取得できませんでした。|Unable to load satellite imagery.
 気象庁ひまわりの赤外雲画像を時刻ごとに表示しています。|JMA Himawari infrared cloud imagery is displayed for the selected time.
+気象庁の過去観測データ|JMA historical observations
+最大階級|Max class
+長周期地震動|Long-period ground motion
+長周期地震動階級|Long-period ground-motion class
+長周期地震動階級は震度とは異なる指標です。|Long-period ground-motion class is a different measure from seismic intensity.
+この地震の長周期地震動に関する観測情報は取り消されました。|The long-period ground-motion observation report for this earthquake has been cancelled.
+階級1未満|Below class 1
+階級1|Class 1
+階級2|Class 2
+階級3|Class 3
+階級4|Class 4
+地域別|By region
+観測点別|By station
+気象庁の解説|JMA explanation
+前の時刻|Previous time
+次の時刻|Next time
+最新の実況へ|Go to latest analysis
+最新の観測へ|Go to latest observation
 1時刻のみ|One time available
 湖と貯水池|Lakes and reservoirs
 湖沼: 国土数値情報（2005年・MeteoScope加工）|Lakes: MLIT National Land Numerical Information (2005, processed by MeteoScope)

@@ -22,7 +22,7 @@ import { createEewAutoFocus } from "./eew/eewAutoFocus.js";
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, MAP_DATA_ENDPOINTS, TABS, WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasDailyChartToggle, setupAmedasPrecipitationPeriods, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, showMobileEarthquakeSummaryPage, setupMobileWeatherTimelineTapControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasDailyChartToggle, setupAmedasPrecipitationPeriods, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, showMobileEarthquakeSummaryPage, setupMobileWeatherTimelineControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { applyAmedasPrecipitationPeriod, normalizeAmedasPrecipitationPeriod } from "./amedasPrecipitationPeriod.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupEarthquakeSimulation } from "./ui/earthquakeSimulation.js";
@@ -3153,11 +3153,6 @@ if (layerId === "river") {
     lightningPlayTimer = null;
   }
 
-  function stopLightningPlaybackAndRefresh() {
-    stopLightningPlayback();
-    refreshRadarPanel();
-  }
-
   function startWeatherDistributionPlayback() {
     const distribution = getActiveWeatherDistribution();
     if (weatherDistributionPlayTimer || !weatherDistributionMode || !distribution?.frames?.length) return;
@@ -3227,11 +3222,6 @@ if (layerId === "river") {
     if (!weatherChartPlayTimer) return;
     window.clearInterval(weatherChartPlayTimer);
     weatherChartPlayTimer = null;
-  }
-
-  function stopRadarPlaybackAndRefresh() {
-    stopRadarPlayback();
-    refreshRadarPanel();
   }
 
   function refreshRadarPanel() {
@@ -4655,19 +4645,10 @@ if (layerId === "river") {
       onSatelliteGoLatest: goLatestWeatherChartSatelliteFrame,
       onSatelliteTogglePlay: toggleWeatherChartSatellitePlayback
     });
-    setupMobileWeatherTimelineTapControls({
-      onRadarPlay: startRadarPlayback,
-      onRadarStop: stopRadarPlaybackAndRefresh,
-      onRadarGoLatest: goLatestRadarObservation,
-      onLightningPlay: startLightningPlayback,
-      onLightningStop: stopLightningPlaybackAndRefresh,
-      onLightningGoLatest: goLatestLightningObservation,
-      onWeatherChartPlay: startWeatherChartPlayback,
-      onWeatherChartStop: stopWeatherChartPlayback,
-      onWeatherChartGoLatest: goLatestWeatherChartFrame,
-      onWeatherDistributionPlay: startWeatherDistributionPlayback,
-      onWeatherDistributionStop: stopWeatherDistributionPlayback,
-      onWeatherDistributionGoLatest: goLatestWeatherDistributionFrame
+    setupMobileWeatherTimelineControls({
+      onStep: stepActiveRadarTimeline,
+      onTogglePlay: toggleActiveRadarPlayback,
+      onGoLatest: goLatestActiveRadarTimeline
     });
     setupLegendToggle();
     simulationController = setupEarthquakeSimulation({

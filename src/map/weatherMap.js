@@ -1719,7 +1719,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       ],
       layout: {
         "icon-image": ["concat", EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID, ["get", "intensityKey"]],
-        "icon-size": ["interpolate", ["linear"], ["zoom"], 3, 0.09, 5, 0.13, 7, 0.20, 9, 0.26, 10, 0.32, 12, 0.3845],
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 3, 0.10, 5, 0.15, 7, 0.23, 9, 0.30, 10, 0.37, 12, 0.44],
         "icon-padding": 1,
         "icon-allow-overlap": true,
         "icon-ignore-placement": true,
@@ -4604,11 +4604,10 @@ function updateLightningObservationLayer(map, mode, data = {}) {
     id: LIGHTNING_OBSERVATION_LAYER_IDS[0],
     type: "symbol",
     source: LIGHTNING_OBSERVATION_SOURCE_ID,
-    minzoom: 4,
     layout: {
-      "text-field": "×",
+      "text-field": "+",
         "text-font": ["Noto Sans JP"],
-      "text-size": ["interpolate", ["linear"], ["zoom"], 4, 12, 10, 22],
+      "text-size": ["interpolate", ["linear"], ["zoom"], 0, 6, 4, 12, 10, 22],
       "text-allow-overlap": true,
       "text-ignore-placement": true
     },
@@ -4623,9 +4622,8 @@ function updateLightningObservationLayer(map, mode, data = {}) {
     id: LIGHTNING_OBSERVATION_LAYER_IDS[1],
     type: "circle",
     source: LIGHTNING_OBSERVATION_SOURCE_ID,
-    minzoom: 4,
     paint: {
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 2.2, 10, 3.8],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 1, 4, 2.2, 10, 3.8],
       "circle-color": "#faf500",
       "circle-stroke-color": "#303030",
       "circle-stroke-width": 1.1
