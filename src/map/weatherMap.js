@@ -1,3 +1,5 @@
+import { calculateFocusPadding, createViewportFocus } from "./focusViewport.js";
+import { createEarthquakeCoordinateRange } from "../earthquake/coordinateRange.js";
 import { VECTOR_BASE_MAP_ENABLED, registerBaseMapProtocol, createMunicipalitySource, baseMapSourceLayer, municipalityStateTarget } from "./baseMapTiles.js";
 import { waitForInitialMapGeometry } from "./initialMapReadiness.js";
 import { registerTerrainTileProtocol, terrainTileTemplate } from "./terrainTiles.js";
@@ -97,7 +99,7 @@ const MODE_CLASS = {
 
 const SAMPLE_SOURCE_ID = "weather-samples";
 const EARTHQUAKE_SHAPE_SOURCE_ID = "earthquake-shapes";
-const EARTHQUAKE_SHAPE_LAYERS = new Set(["sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed"]);
+const EARTHQUAKE_SHAPE_LAYERS = new Set(["earthquake-coordinate-range", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed"]);
 const earthquakeCollectionPartsCache = new WeakMap();
 
 function splitEarthquakeCollection(collection) {
@@ -146,7 +148,7 @@ const HYPOCENTER_CROSS_PAINT = {
 };
 let jma2001WaveDistanceCalculator = null;
 let jma2001WaveDistanceLoadPromise = null;
-const SAMPLE_LAYERS = ["sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
+const SAMPLE_LAYERS = ["earthquake-coordinate-range", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
 const EARTHQUAKE_INTERACTIVE_LAYERS = [EEW_AREA_FILL_LAYER_ID, "sample-circle", "sample-tsunami-coastal", "sample-cross", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line"];
 const TSUNAMI_BLINK_INTERVAL_MS = 1800;
@@ -529,6 +531,11 @@ export function createWeatherMap(elementId) {
   const plateDepth3D = createPlateDepth3DLayer(maplibregl, getHypocenterDepthColor);
   const plateDepthSurface3D = createPlateDepthSurface3DLayer(maplibregl, getHypocenterDepthColor);
 
+  const viewportFocus = createViewportFocus({
+    padding: getFocusPadding,
+    refocus: (coordinates, options) => fitToCoordinates(coordinates, { ...options, duration: 320 })
+  });
+
   let initialMapReady = null;
   function whenReady() { return initialMapReady ?? Promise.resolve(false); }
 
@@ -554,7 +561,9 @@ export function createWeatherMap(elementId) {
     });
     map.getContainer().dataset.theme = activeTheme;
     map.touchZoomRotate.enableRotation();
-    map.on("movestart", event => { if (event.originalEvent) simulationCameraInteractionHandler?.(); });
+    map.on("movestart", event => {
+      if (event.originalEvent) { viewportFocus.clear(); simulationCameraInteractionHandler?.(); }
+    });
     initialMapReady = waitForInitialMapGeometry(map, {
       sourceIds: INITIAL_GEOMETRY_SOURCE_IDS,
       layerIds: INITIAL_GEOMETRY_LAYER_IDS,
@@ -579,6 +588,7 @@ export function createWeatherMap(elementId) {
   }
 
   function setMode(mode) {
+    if (mode !== activeMode) viewportFocus.clear();
     if (mode !== "earthquake") simulationOverlay.clear();
     activeMode = mode;
     const container = map?.getContainer();
@@ -1066,6 +1076,8 @@ export function createWeatherMap(elementId) {
     }
     lastRenderedMode = mode;
     lastRenderedData = data;
+    if (mode !== "earthquake" || getEarthquakeMapView(data) !== "recent"
+      || data?.earthquakeContentMode === "volcano") viewportFocus.clear();
     if (mode === "earthquake" && data?.historicalEarthquakeDetailVisible === true) {
       hideMapInfo("earthquake-distribution");
     }
@@ -1092,7 +1104,7 @@ export function createWeatherMap(elementId) {
           ?? data.earthquakes?.find((item) => String(item.id) === String(data.selectedEarthquakeId ?? ""))
           ?? data.earthquakes?.[0];
         const inputs = [
-          earthquake?.id, earthquake?.coordinates, earthquake?.intensityStations,
+          earthquake?.id, earthquake?.coordinates, earthquake?.coordinateDecimalPlaces, earthquake?.intensityStations,
           earthquake?.intensityAreaFeatures, Boolean(earthquake?.estimatedIntensity?.images?.length),
           earthquake ? buildEarthquakePopup(earthquake) : "",
           data.tsunami?.mapFeatures, data.tideStationsVisible,
@@ -1224,12 +1236,16 @@ export function createWeatherMap(elementId) {
 
   function flyToLocation(coordinates, options = {}) {
     if (!map || !Array.isArray(coordinates)) return;
+    if (options.followViewport) viewportFocus.remember([coordinates], options);
+    else viewportFocus.clear();
     const minZoom = Number.isFinite(options.minZoom) ? options.minZoom : 8.2;
     const zoom = Number.isFinite(options.zoom) ? options.zoom : Math.max(map.getZoom(), minZoom);
     map.flyTo({
       center: coordinates,
       zoom,
-      duration: Number.isFinite(options.duration) ? options.duration : 850,
+      duration: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : Number.isFinite(options.duration) ? options.duration : 850,
+      padding: 0,
+      retainPadding: false,
       offset: getFocusOffset(options),
       essential: true
     });
@@ -1252,14 +1268,17 @@ export function createWeatherMap(elementId) {
       return;
     }
 
+    if (options.followViewport) viewportFocus.remember(validCoordinates, options);
+    else viewportFocus.clear();
     const bounds = validCoordinates.slice(1).reduce(
       (nextBounds, point) => nextBounds.extend(point),
       new maplibregl.LngLatBounds(validCoordinates[0], validCoordinates[0])
     );
     map.fitBounds(bounds, {
       padding: getFocusPadding(options),
+      retainPadding: false,
       maxZoom: Number.isFinite(options.maxZoom) ? options.maxZoom : 7.2,
-      duration: Number.isFinite(options.duration) ? options.duration : 850,
+      duration: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : Number.isFinite(options.duration) ? options.duration : 850,
       essential: true
     });
   }
@@ -1515,7 +1534,8 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       filter: ["all",
         ["any", ["==", ["geometry-type"], "Polygon"], ["==", ["geometry-type"], "LineString"]],
         ["!", ["has", "tsunamiLevel"]],
-        ["!=", ["get", "lineStyle"], "dashed"]
+        ["!=", ["get", "lineStyle"], "dashed"],
+        ["!=", ["get", "markerType"], "earthquake-coordinate-range"]
       ],
       paint: {
         "line-color": ["get", "color"],
@@ -1551,6 +1571,15 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         "line-width": ["coalesce", ["get", "lineWidth"], 2],
         "line-dasharray": [2, 2]
       }
+    });
+
+    map.addLayer({
+      id: "earthquake-coordinate-range",
+      type: "line",
+      source: EARTHQUAKE_SHAPE_SOURCE_ID,
+      minzoom: 8,
+      filter: ["==", ["get", "markerType"], "earthquake-coordinate-range"],
+      paint: { "line-color": "#ffffff", "line-width": 1.5, "line-dasharray": [4, 2] }
     });
 
     map.addLayer({
@@ -2846,6 +2875,9 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
 
   function resize() {
     map?.resize();
+    if (!document.documentElement.classList.contains("is-drawer-transitioning") && !activeEews.length) {
+      viewportFocus.refresh();
+    }
     // Resume may leave the canvas compositor stale even at the same size.
     map?.triggerRepaint();
   }
@@ -2964,6 +2996,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   }
 
   function setEmergencyEarthquakeWarnings(events = []) {
+    if ((Array.isArray(events) ? events : [events]).some(event => event && !event.isCancel)) viewportFocus.clear();
     activeEews = (Array.isArray(events) ? events : [events]).filter((eew) => (
       eew && !eew.isCancel
     ));
@@ -3327,47 +3360,33 @@ function formatJshisProbability(value) {
 
 function getFocusOffset(options = {}) {
   if (options.offset) return options.offset;
-  if (!window.matchMedia("(max-width: 800px) and (orientation: portrait)").matches) return [0, 0];
-
-  const coveredHeight = getMobileCoveredHeight();
-  const yOffset = -Math.round(Math.min(440, Math.max(150, coveredHeight * 0.48)));
-  return [0, yOffset];
+  const { top, right, bottom, left } = getFocusPadding(options);
+  return [Math.round((left - right) / 2), Math.round((top - bottom) / 2)];
 }
 
 function getFocusPadding(options = {}) {
   if (options.padding) return options.padding;
-  const viewportHeight = window.innerHeight || 0;
-  if (window.matchMedia("(max-width: 800px) and (orientation: portrait)").matches) {
-    const coveredHeight = getMobileCoveredHeight();
-    const bottom = Math.round(Math.min(viewportHeight * 0.58, Math.max(180, coveredHeight + 28)));
-    return { top: 92, right: 26, bottom, left: 26 };
+  const viewport = document.getElementById("map")?.getBoundingClientRect()
+    ?? { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth, width: window.innerWidth, height: window.innerHeight };
+  let top = 0, bottom = 0;
+  for (const id of ["clock", "map-utility-menu-toggle", "mobile-context-dock", "main-tabs", "sidebar"]) {
+    const element = document.getElementById(id);
+    if (!element || element.hidden) continue;
+    if (id === "sidebar" && !document.documentElement.classList.contains("mobile-drawer-open")) continue;
+    const style = getComputedStyle(element);
+    if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) continue;
+    const rect = element.getBoundingClientRect();
+    if (!rect.width || !rect.height || rect.right <= viewport.left || rect.left >= viewport.right
+      || rect.bottom <= viewport.top || rect.top >= viewport.bottom) continue;
+    if (id === "clock" || id === "map-utility-menu-toggle") top = Math.max(top, rect.bottom - viewport.top);
+    else bottom = Math.max(bottom, viewport.bottom - Math.max(viewport.top, rect.top));
   }
-  return { top: 96, right: 96, bottom: 96, left: 96 };
-}
-
-function getMobileCoveredHeight() {
-  const sidebar = document.getElementById("sidebar");
-  const sidebarTop = sidebar?.getBoundingClientRect().top;
-  const viewportHeight = window.innerHeight || 0;
-  return Number.isFinite(sidebarTop)
-    ? Math.max(0, viewportHeight - sidebarTop)
-    : parseMobileVisibleHeight();
+  return calculateFocusPadding({ width: viewport.width, height: viewport.height, top, bottom });
 }
 
 function clampNumber(value, min, max) {
   if (max < min) return min;
   return Math.min(max, Math.max(min, value));
-}
-
-function parseMobileVisibleHeight() {
-  const value = getComputedStyle(document.documentElement).getPropertyValue("--mobile-sidebar-visible-height").trim();
-  if (!value) return 0;
-  const numeric = Number.parseFloat(value);
-  if (!Number.isFinite(numeric)) return 0;
-  if (value.endsWith("dvh") || value.endsWith("vh")) {
-    return (window.innerHeight || 0) * numeric / 100;
-  }
-  return numeric;
 }
 
 function createBaseStyle(theme = "dark") {
@@ -3670,6 +3689,7 @@ function applyMapTheme(map, theme) {
   const colors = MAP_THEME_COLORS[theme] ?? MAP_THEME_COLORS.dark;
   const paintUpdates = [
     ["background", "background-color", colors.background],
+    ["earthquake-coordinate-range", "line-color", theme === "light" ? "#111111" : "#ffffff"],
     ["world-land-fill", "fill-color", colors.worldLand],
     ["japan-lake-fill", "fill-color", colors.background],
     ["world-country-line", "line-color", colors.worldCountryLine],
@@ -5420,6 +5440,7 @@ function createEarthquakeFeatures(data) {
     ...areaFeatures,
     ...areaIntensityMarkers,
     ...stationFeatures,
+    ...[createEarthquakeCoordinateRange(earthquake)].filter(Boolean),
     ...epicenterFeature
   ];
 }
@@ -5597,6 +5618,7 @@ function buildEarthquakePopup(earthquake) {
     <span>発生: ${escapePopup(earthquake.eventTime ?? "--")}</span><br>
     <span>規模: ${escapePopup(earthquake.magnitude && earthquake.magnitude !== "--" ? earthquake.magnitude : unknownText)}</span><br>
     <span>深さ: ${escapePopup(formatEarthquakeDepthText(earthquake.depth, { unknownText }))}</span>
+    ${createEarthquakeCoordinateRange(earthquake) ? `<br><small>${escapePopup(localizeText("点線枠：震源位置の目安（座標の丸め幅）"))}</small>` : ""}
   `;
 }
 

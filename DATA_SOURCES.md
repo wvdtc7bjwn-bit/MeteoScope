@@ -85,3 +85,5 @@
 ### 気象研究所のプレート形状（地震タブの等深線）
 
 出典：弘瀬冬樹「プレート形状の数値データ」（気象庁気象研究所、https://www.mri-jma.go.jp/Dep/sei/fhirose/plate/PlateData.html）を加工。元データは研究地域ごとに異なる研究成果を組み合わせたものであり、出典論文は同ページの「引用文献」を参照。太平洋プレートは格子の隣接点を線形補間して等深線を作成した近似で、元ページの GMT による補間とは一致しない。フィリピン海プレートは提供された等深線座標を変換した。気象研究所の等深線は平面表示のみとし、立体面は生成しない。範囲外は外挿していない。
+
+最近の地震で震源の周囲に表示する点線枠は、公表座標の小数桁に対応する丸め幅です（各軸の半幅は `0.5 × 10^-桁数` 度）。実際の震源決定誤差や信頼区間を示しません。座標と桁数は同じ報告から取得し、精度不明の場合は表示しません。[EQMonitorの座標精度矩形](https://github.com/YumNumm/EQMonitor/blob/2faa0f93ad3eb0c1a1368d53c34ca3f5f0d4b36f/app/lib/core/util/map/hypocenter_error_range_util.dart)および[描画方法](https://github.com/YumNumm/EQMonitor/blob/2faa0f93ad3eb0c1a1368d53c34ca3f5f0d4b36f/app/lib/feature/earthquake_history/ui/layer/earthquake_history_hypocenter_error_layer.dart)を参考に、MeteoScopeの既存地図へ独立実装しています。拡大時（ズーム8以上）のみ表示します。

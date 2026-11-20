@@ -2194,12 +2194,14 @@ if (layerId === "river") {
     if (coordinates.length > 1) {
       weatherMap?.fitToCoordinates(coordinates, {
         maxZoom: 7.4,
+        followViewport: true,
         duration: 850
       });
       return;
     }
     weatherMap?.flyToLocation(coordinates[0], {
-      minZoom: 7,
+      zoom: 7,
+      followViewport: true,
       duration: 850
     });
   }

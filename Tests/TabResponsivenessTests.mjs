@@ -142,7 +142,7 @@ const sourceCache = new WeakMap();
 const visibility = [];
 const renderCtx = vm.createContext({
   map: { getSource: id => id === "shapes" ? shapeSource : sampleSource, getLayer: () => true, setLayoutProperty: (...args) => visibility.push(args) },
-  EARTHQUAKE_SHAPE_SOURCE_ID: 'shapes', EARTHQUAKE_SHAPE_LAYERS: new Set(['sample-fill']),
+  viewportFocus: { clear() {} }, EARTHQUAKE_SHAPE_SOURCE_ID: 'shapes', EARTHQUAKE_SHAPE_LAYERS: new Set(['sample-fill']),
   SAMPLE_SOURCE_ID: 'samples', SAMPLE_LAYERS: ['sample-fill'],
   HYPOCENTER_AREA_FILL_LAYER_ID: 'area-fill', HYPOCENTER_AREA_LINE_LAYER_ID: 'area-line',
   EMPTY_GEOJSON: { type: 'FeatureCollection', features: [] },

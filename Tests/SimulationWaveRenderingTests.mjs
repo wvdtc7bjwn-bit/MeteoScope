@@ -80,7 +80,7 @@ const source=readFileSync(new URL("../src/map/weatherMap.js",import.meta.url),"u
 const update=source.slice(source.indexOf("  function setEmergencyEarthquakeWarnings("),source.indexOf("  function syncEewForecastAreas("));
 let direct=true,writes=[],previous=null,visibilityCalls=0;
 const geoSource={setData(collection){writes.push(structuredClone(collection));}};
-const c=vm.createContext({EEW_SOURCE_ID:"eew",activeEews:[],activeMode:"earthquake",eewMarkerKey:"",eewMarkerCollection:{type:"FeatureCollection",features:[]},eewVisibilityKey:"",eewVisibilitySource:null,
+const c=vm.createContext({viewportFocus:{clear(){}},EEW_SOURCE_ID:"eew",activeEews:[],activeMode:"earthquake",eewMarkerKey:"",eewMarkerCollection:{type:"FeatureCollection",features:[]},eewVisibilityKey:"",eewVisibilitySource:null,
   map:{getSource:()=>geoSource},simulationWaves:{setData:()=>direct,clear(){}},
   createEewFeatureCollection:events=>({type:"FeatureCollection",features:events.flatMap(e=>[
     {type:"Feature",geometry:{type:"Point",coordinates:e.coordinates},properties:{featureType:"hypocenter",uncertain:e.uncertain}},polygon(),front])}),

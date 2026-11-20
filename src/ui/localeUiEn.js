@@ -1,6 +1,7 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+点線枠：震源位置の目安（座標の丸め幅）|Dashed rectangle: epicenter position guide (coordinate rounding).
 検索期間|Search period
 検索結果|Search results
 取得失敗|Unavailable

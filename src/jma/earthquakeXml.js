@@ -312,6 +312,7 @@ export function parseEarthquakeReport(text, entry) {
     eventTimeRaw: originTime || arrivalTime || targetDateTime,
     hypocenterName,
     coordinates: coordinate?.coordinates ?? null,
+    coordinateDecimalPlaces: coordinate?.decimalPlaces ?? null,
     depth: coordinate?.depthKm ?? null,
     magnitude: formatMagnitude(getText(magnitudeNode), magnitudeNode?.getAttribute("description")),
     maxIntensity,
@@ -701,6 +702,7 @@ function mergeEarthquakeReports(primary, fallback) {
       ? primary.hypocenterName
       : fallback.hypocenterName,
     coordinates: primary.coordinates ?? fallback.coordinates,
+    coordinateDecimalPlaces: primary.coordinates ? primary.coordinateDecimalPlaces ?? null : fallback.coordinateDecimalPlaces ?? null,
     depth: primary.depth ?? fallback.depth,
     magnitude: primary.magnitude && primary.magnitude !== "--" ? primary.magnitude : fallback.magnitude,
     maxIntensity: primary.maxIntensity ?? fallback.maxIntensity,
@@ -1173,6 +1175,7 @@ function parseJmaCoordinate(value) {
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
   return {
     coordinates: [longitude, latitude],
+    decimalPlaces: [match[2], match[1]].map(value => value.split(".")[1]?.length ?? 0),
     depthKm: Number.isFinite(depthMeters) ? Math.round(depthMeters / 1000) : null
   };
 }

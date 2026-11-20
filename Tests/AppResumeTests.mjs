@@ -27,7 +27,7 @@ const mapSource = read('../src/map/weatherMap.js');
 const start = mapSource.indexOf('  function resize() {');
 const end = mapSource.indexOf('\n  }', start) + 4;
 const calls = [];
-const mapContext = vm.createContext({ map: { resize: () => calls.push('resize'), triggerRepaint: () => calls.push('paint') } });
+const mapContext = vm.createContext({ document: { documentElement: { classList: { contains: () => false } } }, activeEews: [], viewportFocus: { refresh() {} }, map: { resize: () => calls.push('resize'), triggerRepaint: () => calls.push('paint') } });
 vm.runInContext(mapSource.slice(start, end), mapContext);
 mapContext.resize();
 assert.deepEqual(calls, ['resize', 'paint']);
