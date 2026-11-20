@@ -37,6 +37,46 @@ function normalizeIntensity(value) {
   return ["1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"].includes(normalized) ? normalized : "";
 }
 
+function parseRegionalTime(value, announcedTime) {
+  const text = cleanText(value);
+  if (!text || /^\/+$/u.test(text)) return null;
+  if (!/^\d{6}$/u.test(text)) return /^\d{4}[/-]/u.test(text) ? parseJstDateTime(text) : null;
+  const hour = Number(text.slice(0, 2)), minute = Number(text.slice(2, 4)), second = Number(text.slice(4));
+  const reference = Date.parse(announcedTime ?? "");
+  if (hour > 23 || minute > 59 || second > 59 || !Number.isFinite(reference)) return null;
+  // HHMMSS has no date: resolve against the bulletin's JST date, including
+  // predictions immediately before/after midnight. Never use reception time.
+  const jstDay = Math.floor((reference + 9 * 3600000) / 86400000) * 86400000 - 9 * 3600000;
+  const sameDay = jstDay + (hour * 3600 + minute * 60 + second) * 1000;
+  const nearest = [sameDay - 86400000, sameDay, sameDay + 86400000]
+    .sort((a, b) => Math.abs(a - reference) - Math.abs(b - reference))[0];
+  return new Date(nearest).toISOString();
+}
+
+function normalizeRegionalArrival(area, announcedTime) {
+  const arrivalDescription = typeof area?.Arrive === "string" ? cleanText(area.Arrive) : "";
+  const description = arrivalDescription.normalize("NFKC").replace(/\s+/gu, "");
+  // Match an affirmative category, not a mention/negation in arbitrary prose.
+  const plum = /^(?:主要動到達時刻の予測なし\()?PLUM法による予測\)?$/u.test(description);
+  const predicted = ["未到達", "主要動到達時刻の予測", "主要動到達時刻の予測あり", "主要動到達予測", "到達予測"].includes(description);
+  const arrivedDescription = ["既に主要動到達と推測", "既に主要動到達と予測", "既に主要動が到達と予測", "主要動が既に到達と予測"].includes(description);
+  const legacyArrived = typeof area?.Arrive === "boolean" ? area.Arrive : null;
+  const regionalTime = parseRegionalTime(area?.Time, announcedTime);
+  const timeKind = plum ? "plum-first-prediction" : predicted || legacyArrived === false ? "arrival-prediction" : "unknown";
+  return {
+    announcedTime: null,
+    regionalTime,
+    regionalTimeRaw: cleanText(area?.Time),
+    regionalTimeKind: timeKind,
+    arrivalTime: timeKind === "arrival-prediction" ? regionalTime : null,
+    plumPredictionTime: plum ? regionalTime : null,
+    arrivalDescription,
+    arrived: arrivedDescription ? true : predicted ? false : legacyArrived,
+    intensityMethod: plum ? "plum" : "unknown",
+    methodEvidence: plum ? "wolfx-arrival-description" : "insufficient-data"
+  };
+}
+
 function getMethodMetadata(payload, { isAssumption = false } = {}) {
   // Wolfx Accuracyは説明文字列。数値コードや未定義のisPlumを解釈しない。
   const descriptions = [payload.Accuracy?.Epicenter, payload.Accuracy?.Depth]
@@ -196,11 +236,7 @@ export function normalizeWolfxEew(payload, { receivedAt = Date.now(), transport 
           name: cleanText(area?.Chiiki),
           from,
           to,
-          announcedTime: parseJstDateTime(area?.Time),
-          arrivalTime: null,
-          arrived: area?.Arrive == null ? null : asBoolean(area.Arrive),
-          intensityMethod: "unknown",
-          methodEvidence: "insufficient-data",
+          ...normalizeRegionalArrival(area, announcedTime),
           source: "Wolfx JMA EEW",
           isWarning: area?.Type === "警報" ? true : area?.Type === "予報" ? false : null,
           type: cleanText(area?.Type)

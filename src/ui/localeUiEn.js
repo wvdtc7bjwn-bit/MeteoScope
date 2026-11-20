@@ -647,6 +647,7 @@ V 北向き|V northward
 過去の地震|Past earthquakes
 過去の地震検索|Earthquake history search
 過去の地震検索要約|Earthquake history summary
+発生時刻：|Time:
 近傍検索|Nearby search
 近傍条件を解除|Clear nearby filter
 この震源の近傍を検索|Search near this epicenter

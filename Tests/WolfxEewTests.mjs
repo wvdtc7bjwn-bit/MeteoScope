@@ -95,7 +95,48 @@ for (const OriginalText of ["PLUM法とは揺れから予測する手法です",
   assert.equal(region.intensityMethod, "unknown");
   assert.equal(region.arrivalTime, null);
   assert.equal(region.isWarning, true);
-  assert.ok(region.announcedTime);
+  assert.equal(region.announcedTime, null, "regional Time is not a bulletin announcement time");
+  assert.equal(region.regionalTime, "2026-11-10T03:00:00.000Z");
+  assert.equal(region.arrived, null);
+}
+
+for (const [announced, time, expected] of [
+  ["2026/11/10 12:00:00", "120030", "2026-11-10T03:00:30.000Z"],
+  ["2026/11/10 23:59:58", "000010", "2026-11-10T15:00:10.000Z"],
+  ["2026/11/11 00:00:02", "235958", "2026-11-10T14:59:58.000Z"],
+  ["2026/11/10 12:00:00", "//////", null],
+  ["2026/11/10 12:00:00", "246000", null],
+  ["2026/11/10 12:00:00", "126001", null],
+  [null, "120030", null]
+]) {
+  const event = normalizeWolfxEew(makeEew({AnnouncedTime:announced, WarnArea:[{Chiiki:"茨城県北部",Time:time,Arrive:"主要動到達時刻の予測"}]}));
+  assert.equal(event.warnAreas[0].arrivalTime,expected, `${announced} / ${time}`);
+  assert.equal(event.warnAreas[0].announcedTime,null);
+}
+{
+  const event = normalizeWolfxEew(makeEew({Accuracy:{Epicenter:"IPF法(3点)",Depth:"IPF法(3点)"},isAssumption:false,
+    WarnArea:[{Chiiki:"茨城県北部",Time:"120030",Arrive:"主要動到達時刻の予測なし（PLUM 法による予測）",Type:"警報",Shindo1:"5強",Shindo2:"4"}]}));
+  const area=event.warnAreas[0];
+  assert.equal(area.arrivalTime,null,"PLUM first-prediction time must never become an arrival countdown");
+  assert.equal(area.plumPredictionTime,"2026-11-10T03:00:30.000Z");
+  assert.equal(area.intensityMethod,"plum");
+  assert.equal(area.arrived,null);
+  assert.equal(event.isAssumption,false,"regional PLUM does not imply a formally assumed source");
+  assert.equal(event.canRenderWaves,true,"regional PLUM does not discard a usable normal hypocenter");
+  for(const Arrive of ["未定義の説明","PLUM法による予測ではない",null]) {
+    const row=normalizeWolfxEew(makeEew({WarnArea:[{Chiiki:"茨城県北部",Time:"120030",Arrive}]})).warnAreas[0];
+    assert.equal(row.intensityMethod,"unknown");
+    assert.equal(row.arrived,null,"an unknown description must not mean not-yet-arrived");
+    assert.equal(row.arrivalTime,null);
+    assert.equal(row.regionalTime,"2026-11-10T03:00:30.000Z");
+  }
+  for(const Arrive of [true,false]) {
+    const row=normalizeWolfxEew(makeEew({WarnArea:[{Chiiki:"茨城県北部",Time:"120030",Arrive}]})).warnAreas[0];
+    assert.equal(row.arrived,Arrive,"legacy boolean values remain compatible");
+  }
+  const arrived=normalizeWolfxEew(makeEew({WarnArea:[{Chiiki:"茨城県北部",Time:"//////",Arrive:"既に主要動到達と予測"}]})).warnAreas[0];
+  assert.equal(arrived.arrived,true);
+  assert.equal(arrived.arrivalTime,null);
 }
 
 for (const [originalText, expected] of [

@@ -3609,32 +3609,22 @@ function buildEarthquakeMobileContextMarkup(
     formatEarthquakeDepthText(earthquake?.depth, { compact: true, unknownText }),
     unknownText
   );
-  const time = formatMobileEarthquakeTime(earthquake?.eventTime ?? earthquake?.reportTime);
-  const facts = [magnitude, depth].filter((item) => item && item !== "--").join("/");
+  const time = formatMobileEarthquakeTime(earthquake?.eventTimeRaw || earthquake?.eventTime || earthquake?.reportTimeRaw || earthquake?.reportTime, true);
   const tsunamiMarkup = buildMobileTsunamiStatusMarkup(earthquake, tsunami, tsunamiStatus);
+  const nearbyAction = Array.isArray(earthquake?.coordinates) && earthquake.coordinates.length === 2
+    ? `<button type="button" class="earthquake-nearby-search-button is-compact" data-mobile-dock-control data-earthquake-nearby-search="${escapeHtml(earthquake.id)}" aria-label="${escapeHtml(localizeText("この震源の近傍を検索"))}">近傍検索</button>` : "";
   const primaryMarkup = `
     ${buildEarthquakeMobileViewSwitch("recent")}
-    <div class="mobile-dock-earthquake-main">
+    <div class="mobile-dock-earthquake-main is-event-summary">
       <em class="mobile-dock-earthquake-intensity ${intensityTextClass}">
         <small>最大震度</small>
         <span>${escapeHtml(intensity)}</span>
       </em>
-      <div class="mobile-dock-earthquake-text">
-        <div class="mobile-dock-earthquake-status-line">
-          <span class="mobile-dock-earthquake-status-label">${escapeHtml(isInfoOverride ? earthquake?.reportTitle || "地震情報" : "最新")}</span>
-          <time class="mobile-dock-earthquake-time">${escapeHtml(time)}</time>
-          ${eewConnectionNotice}
-          ${Array.isArray(earthquake?.coordinates) && earthquake.coordinates.length === 2
-            ? `<button type="button" class="earthquake-nearby-search-button is-compact" data-mobile-dock-control data-earthquake-nearby-search="${escapeHtml(earthquake.id)}">近傍検索</button>` : ""}
-        </div>
-        <div class="mobile-dock-earthquake-headline">
-          <strong>${escapeHtml(formatEarthquakeHypocenterText(earthquake))}</strong>
-          <div class="mobile-dock-earthquake-facts">
-            <span class="mobile-dock-earthquake-fact-values">${escapeHtml(facts || "詳細確認中")}</span>
-            ${tsunamiMarkup}
-          </div>
-        </div>
-      </div>
+      ${buildMobileEarthquakeEventText({
+        statusLabel: isInfoOverride ? earthquake?.reportTitle || "地震情報" : "発生時刻：",
+        time, place: formatEarthquakeHypocenterText(earthquake), magnitude, depth,
+        actionMarkup: nearbyAction, noticeMarkup: eewConnectionNotice, tsunamiMarkup
+      })}
     </div>
   `;
   return buildMobileEarthquakeSummaryCarousel({
@@ -3648,6 +3638,32 @@ function buildEarthquakeMobileContextMarkup(
     tsunamiStatus,
     tideObservation
   });
+}
+
+function buildMobileEarthquakeEventText({ statusLabel, time, place, magnitude, depth, actionMarkup = "", noticeMarkup = "", tsunamiMarkup = "" }) {
+  const depthLabel = depth && depth !== "--" ? (depth === "ごく浅い" ? depth : `深さ${depth}`) : "";
+  const displayTime = /^\d{4}\/\d{2}\/\d{2}\s+\d{1,2}:\d{2}$/u.test(String(time)) ? `${time}頃` : time;
+  return `
+    <div class="mobile-dock-earthquake-text${actionMarkup ? " has-aside" : ""}">
+      <div class="mobile-dock-earthquake-status-line">
+        <span class="mobile-dock-earthquake-status-label" title="${escapeHtml(statusLabel)}">${escapeHtml(statusLabel)}</span>
+        <time class="mobile-dock-earthquake-time" title="${escapeHtml(displayTime)}">${escapeHtml(displayTime)}</time>
+        ${noticeMarkup}
+      </div>
+      <div class="mobile-dock-earthquake-headline">
+        <strong title="${escapeHtml(place)}">${escapeHtml(place)}</strong>
+      </div>
+      <div class="mobile-dock-earthquake-facts">
+        <span class="mobile-dock-earthquake-fact-values">${escapeHtml(magnitude && magnitude !== "--" ? magnitude : "詳細確認中")}</span>
+        ${depthLabel ? '<span class="mobile-dock-earthquake-fact-separator" aria-hidden="true">/</span>' : ""}
+        ${depthLabel ? `<span class="mobile-dock-earthquake-depth">${escapeHtml(depthLabel)}</span>` : ""}
+        ${tsunamiMarkup}
+      </div>
+      ${actionMarkup ? `<div class="mobile-dock-earthquake-summary-aside">
+        ${actionMarkup}
+      </div>` : ""}
+    </div>
+  `;
 }
 
 function getTyphoonClassificationItems(details = {}) {
@@ -7199,31 +7215,20 @@ function buildEarthquakeArchiveMobileContextMarkup(data) {
     const intensity = formatHistoricalIntensity(hypocenter.maxIntensity);
     const intensityColor = getEarthquakeIntensityColor(hypocenter.maxIntensity);
     const intensityTextClass = getEarthquakeIntensityTextClass(hypocenter.maxIntensity);
-    const facts = [
-      formatEarthquakeMagnitude(hypocenter.magnitude, { prefix: true, compact: true }),
-      formatEarthquakeDepthText(hypocenter.depth, { compact: true })
-    ].filter((value) => value && value !== "--").join("/");
+    const magnitude = formatEarthquakeMagnitude(hypocenter.magnitude, { prefix: true, compact: true });
+    const depth = formatEarthquakeDepthText(hypocenter.depth, { compact: true });
     const time = formatMobileEarthquakeTime(liveHypocenter?.originTime || selected.originTime, true);
     const primaryMarkup = `
       ${buildEarthquakeMobileViewSwitch("history")}
-      <div class="mobile-dock-earthquake-main">
+      <div class="mobile-dock-earthquake-main is-event-summary">
         <em class="mobile-dock-earthquake-intensity ${intensityTextClass}">
           <small>最大震度</small>
           <span>${escapeHtml(intensity)}</span>
         </em>
-        <div class="mobile-dock-earthquake-text">
-          <div class="mobile-dock-earthquake-status-line">
-            <span class="mobile-dock-earthquake-status-label">過去</span>
-            <time class="mobile-dock-earthquake-time">${escapeHtml(time)}</time>
-            <button type="button" class="earthquake-nearby-search-button is-compact earthquake-history-summary-back" data-mobile-dock-control data-earthquake-history-detail-back>震央一覧</button>
-          </div>
-          <div class="mobile-dock-earthquake-headline">
-            <strong>${escapeHtml(formatEarthquakeHypocenterText(hypocenter))}</strong>
-            <div class="mobile-dock-earthquake-facts">
-              <span class="mobile-dock-earthquake-fact-values">${escapeHtml(facts || "詳細確認中")}</span>
-            </div>
-          </div>
-        </div>
+        ${buildMobileEarthquakeEventText({
+          statusLabel: "発生時刻：", time, place: formatEarthquakeHypocenterText(hypocenter), magnitude, depth,
+          actionMarkup: '<button type="button" class="earthquake-nearby-search-button is-compact earthquake-history-summary-back" data-mobile-dock-control data-earthquake-history-detail-back>震央一覧</button>'
+        })}
       </div>
     `;
     return buildMobileEarthquakeSummaryCarousel({

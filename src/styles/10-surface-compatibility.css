@@ -947,10 +947,6 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
     right: 17px;
   }
 
-  .mobile-drawer-open .map-weather-distribution-toggle {
-    opacity: 0;
-    pointer-events: none;
-  }
 }
 
 @media (orientation: landscape), (min-width: 801px) {
@@ -971,10 +967,6 @@ html[data-theme="light"] .weather-distribution-toggle-choices button.active {
     bottom: var(--map-control-lower-bottom);
   }
 
-  .mobile-drawer-open .map-weather-distribution-toggle {
-    opacity: 0;
-    pointer-events: none;
-  }
 }
 
 /* iPad-sized viewports use static surfaces in both orientations. Remove even

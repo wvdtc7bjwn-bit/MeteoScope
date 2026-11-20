@@ -1,5 +1,6 @@
 import { VECTOR_BASE_MAP_ENABLED, registerBaseMapProtocol, createMunicipalitySource, baseMapSourceLayer, municipalityStateTarget } from "./baseMapTiles.js";
 import { waitForInitialMapGeometry } from "./initialMapReadiness.js";
+import { registerTerrainTileProtocol, terrainTileTemplate } from "./terrainTiles.js";
 import { normalizeTerrainLayerColorMode } from "../preferences/mapPreferences.js";
 import { createSimulationMapOverlay } from "./simulationOverlay.js";
 import { createSimulationWaveCanvas } from "./simulationWaveCanvas.js";
@@ -296,10 +297,13 @@ const HIMAWARI_SATELLITE_SOURCE_ID = "jma-himawari-satellite";
 const HIMAWARI_SATELLITE_LAYER_ID = "jma-himawari-satellite-raster";
 const himawariSatelliteLayerStateByMap = new WeakMap();
 const GSI_RELIEF_SOURCE_ID = "gsi-relief";
+const GSI_RELIEF_OVERVIEW_SOURCE_ID = "gsi-relief-overview";
 const GSI_HILLSHADE_SOURCE_ID = "gsi-hillshade";
 const GSI_RELIEF_LAYER_ID = "gsi-relief-raster";
+const GSI_RELIEF_OVERVIEW_LAYER_ID = "gsi-relief-overview-raster";
 const GSI_HILLSHADE_LAYER_ID = "gsi-hillshade-raster";
-const TERRAIN_LAYER_IDS = [GSI_RELIEF_LAYER_ID, GSI_HILLSHADE_LAYER_ID];
+const RELIEF_LAYER_IDS = [GSI_RELIEF_LAYER_ID, GSI_RELIEF_OVERVIEW_LAYER_ID];
+const TERRAIN_LAYER_IDS = [...RELIEF_LAYER_IDS, GSI_HILLSHADE_LAYER_ID];
 const DEFAULT_TERRAIN_OPACITY = 0.48;
 const LIGHTNING_MAX_ZOOM = 8.9;
 const WEATHER_FRONT_COLD_IMAGE_ID = "weather-front-cold-triangle";
@@ -530,6 +534,7 @@ export function createWeatherMap(elementId) {
   function initialize() {
     performance.mark("meteoscope:map:init");
     registerBaseMapProtocol(maplibregl);
+    registerTerrainTileProtocol(maplibregl);
     map = new maplibregl.Map({
       container: elementId,
       center: [DEFAULT_VIEW.center[1], DEFAULT_VIEW.center[0]],
@@ -537,6 +542,9 @@ export function createWeatherMap(elementId) {
       minZoom: DEFAULT_VIEW.minZoom,
       maxZoom: DEFAULT_VIEW.maxZoom,
       renderWorldCopies: true,
+      // Keep relevant coarse tiles that are still loading during a zoom.
+      // They can cover the view until the detailed raster tiles arrive.
+      cancelPendingTileRequestsWhileZooming: false,
       dragRotate: true,
       pitchWithRotate: false,
       localIdeographFontFamily: '"Noto Sans JP", sans-serif',
@@ -632,10 +640,11 @@ export function createWeatherMap(elementId) {
       if (!map.getLayer(layerId)) return;
       map.setLayoutProperty(layerId, "visibility", terrainLayerVisible ? "visible" : "none");
     });
-    if (map.getLayer(GSI_RELIEF_LAYER_ID)) {
-      map.setPaintProperty(GSI_RELIEF_LAYER_ID, "raster-opacity", reliefOpacity);
-      map.setPaintProperty(GSI_RELIEF_LAYER_ID, "raster-saturation", terrainLayerColorMode === "grayscale" ? -1 : -0.08);
-    }
+    RELIEF_LAYER_IDS.forEach(layerId => {
+      if (!map.getLayer(layerId)) return;
+      map.setPaintProperty(layerId, "raster-opacity", reliefOpacity);
+      map.setPaintProperty(layerId, "raster-saturation", terrainLayerColorMode === "grayscale" ? -1 : -0.08);
+    });
     if (map.getLayer(GSI_HILLSHADE_LAYER_ID)) {
       map.setPaintProperty(GSI_HILLSHADE_LAYER_ID, "raster-opacity", hillshadeOpacity);
     }
@@ -650,7 +659,7 @@ export function createWeatherMap(elementId) {
       : undefined;
     map.addSource(GSI_RELIEF_SOURCE_ID, {
       type: "raster",
-      tiles: [MAP_DATA_ENDPOINTS.gsiReliefTiles],
+      tiles: [terrainTileTemplate("relief")],
       tileSize: 256,
       minzoom: 5,
       maxzoom: 15,
@@ -658,23 +667,37 @@ export function createWeatherMap(elementId) {
     });
     map.addSource(GSI_HILLSHADE_SOURCE_ID, {
       type: "raster",
-      tiles: [MAP_DATA_ENDPOINTS.gsiHillshadeTiles],
+      tiles: [terrainTileTemplate("hillshademap")],
       tileSize: 256,
       minzoom: 2,
       maxzoom: 16,
       attribution: "国土地理院"
     });
-    map.addLayer({
-      id: GSI_RELIEF_LAYER_ID,
+    // GSI relief starts at native z5. Below map zoom 3.5 the normal 256px
+    // raster LOD would request z4 and hide it. Keep original z5 PNGs there:
+    // tileSize affects LOD selection only; no resampling/re-encoding is done.
+    // Limit this overview to Japan rather than requesting z5 for the world.
+    map.addSource(GSI_RELIEF_OVERVIEW_SOURCE_ID, {
       type: "raster",
-      source: GSI_RELIEF_SOURCE_ID,
+      tiles: [terrainTileTemplate("relief")],
+      tileSize: 128,
+      minzoom: 5,
+      maxzoom: 5,
+      bounds: [122, 20, 154, 46],
+      attribution: "国土地理院"
+    });
+    RELIEF_LAYER_IDS.forEach(layerId => map.addLayer({
+      id: layerId,
+      type: "raster",
+      source: layerId === GSI_RELIEF_LAYER_ID ? GSI_RELIEF_SOURCE_ID : GSI_RELIEF_OVERVIEW_SOURCE_ID,
+      ...(layerId === GSI_RELIEF_LAYER_ID ? { minzoom: 3.5 } : { maxzoom: 3.5 }),
       layout: { visibility: "visible" },
       paint: {
         "raster-opacity": terrainLayerOpacity,
         "raster-saturation": terrainLayerColorMode === "grayscale" ? -1 : -0.08,
         "raster-fade-duration": 0
       }
-    }, beforeLayerId);
+    }, beforeLayerId));
     map.addLayer({
       id: GSI_HILLSHADE_LAYER_ID,
       type: "raster",

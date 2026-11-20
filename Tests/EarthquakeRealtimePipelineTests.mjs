@@ -107,7 +107,7 @@ assert.match(markup, /調査中/);
 assert.doesNotMatch(markup, /不明|M0\.0/);
 const knownMarkup = ctx.buildEarthquakeMobileContextMarkup(destination);
 assert.match(knownMarkup, /熊本県熊本地方/);
-assert.match(knownMarkup, /M4\.0\/10km/);
+assert.match(knownMarkup, />M4\.0<[^]*?>深さ10km</);
 const waitingMarkup = ctx.buildEarthquakeMobileContextMarkup(null, null, "none", null, "ok", { isSimulation: true, simulationMagnitudeBasis: "Mw", waitingForDetection: true, hypocenter: "東京都２３区", magnitude: null, depth: null, maxIntensity: null });
 assert.equal((waitingMarkup.match(/—/g) ?? []).length, 4, "all four simulation values are dashes before the first bulletin");
 assert.doesNotMatch(waitingMarkup, /M調査中|深さ調査中|東京都２３区|>\?</);

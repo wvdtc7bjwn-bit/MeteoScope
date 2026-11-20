@@ -1,5 +1,7 @@
 import { readStylesheet } from "./helpers/readStylesheet.mjs";
 import assert from "node:assert/strict";
+import vm from "node:vm";
+import { escapeHtmlString } from "../src/utils/html.js";
 import { readFile } from "node:fs/promises";
 import { groupMobileTsunamiAreas } from "../src/ui/mobileTsunamiTicker.js";
 
@@ -641,7 +643,22 @@ assert.match(
   styles,
   /\.mobile-dock-earthquake-facts\s*\{[\s\S]*?flex:\s*0 0 auto;[\s\S]*?gap:\s*5px;/
 );
-assert.match(panel, /compact:\s*true,[\s\S]*?const facts = \[magnitude, depth\][\s\S]*?\.join\("\/"\)/);
+const eventSummaryContext = vm.createContext({ escapeHtml: escapeHtmlString });
+vm.runInContext(panel.slice(panel.indexOf("function buildMobileEarthquakeEventText("), panel.indexOf("function getTyphoonClassificationItems(")), eventSummaryContext);
+const renderEventSummary = (magnitude, depth) => eventSummaryContext.buildMobileEarthquakeEventText({ statusLabel:"最新",time:"11/20 10:46",place:"日向灘",magnitude,depth });
+assert.match(renderEventSummary("M2.6", "10km"), />M2\.6<[^]*?>深さ10km</);
+assert.match(renderEventSummary("--", "10km"), />詳細確認中<[^]*?>深さ10km</);
+assert.match(renderEventSummary("M2.7", "ごく浅い"), />ごく浅い</);
+assert.doesNotMatch(renderEventSummary("M2.7", "ごく浅い"), /深さごく浅い/);
+assert.match(renderEventSummary("調査中", "調査中"), />深さ調査中</);
+const eventSummaryMarkup = eventSummaryContext.buildMobileEarthquakeEventText({
+  statusLabel: "発生時刻：", time: "2026/11/20 10:46", place: '<img src=x onerror="bad()">',
+  magnitude: "M2.6", depth: "10km", actionMarkup: '<button data-mobile-dock-control>近傍検索</button>'
+});
+assert.doesNotMatch(eventSummaryMarkup, /<img/);
+assert.match(eventSummaryMarkup, /2026\/11\/20 10:46頃/);
+assert.doesNotMatch(eventSummaryContext.buildMobileEarthquakeEventText({time:"--"}), /--頃/);
+assert(eventSummaryMarkup.indexOf("mobile-dock-earthquake-fact-values") < eventSummaryMarkup.indexOf("data-mobile-dock-control"));
 assert.match(index, /data-layer-picker-title="天気分布予報"/);
 assert.match(index, /data-layer-picker-kind="single"/);
 assert.match(index, /data-layer-picker-title="重ねる情報"/);

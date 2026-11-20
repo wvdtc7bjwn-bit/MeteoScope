@@ -1967,11 +1967,6 @@ html[data-theme="light"] .social-share-preview-shell {
     white-space: nowrap;
   }
 
-  .mobile-drawer-open :is(.map-locate-button, .map-world-typhoon-target-button, .map-left-controls) {
-    opacity: 0;
-    pointer-events: none;
-  }
-
   html[data-theme="light"] #sidebar {
     border-color: rgba(72, 100, 132, 0.24);
     background: var(--shared-shell-glass-background);

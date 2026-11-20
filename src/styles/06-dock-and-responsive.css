@@ -2,6 +2,21 @@
    layout at every interactive screen size. Geometry is refined below for
    portrait phones, landscape phones, and desktop. */
 @media screen {
+  /* Hide the floating map controls throughout a detail-sheet drag/open state.
+     One rule covers portrait, landscape and desktop, including open pickers. */
+  .mobile-drawer-open :is(
+    .map-left-controls,
+    .map-locate-button,
+    .map-community-report-button,
+    .map-world-typhoon-target-button,
+    .map-weather-distribution-toggle,
+    .map-kikikuru-tabs
+  ) {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   #sidebar {
     bottom: calc(max(0px, env(safe-area-inset-bottom)) + 8px);
     left: 11px;
@@ -1230,6 +1245,148 @@
     box-shadow: none;
   }
 
+  /* Reported/historical events share a compact three-line readout. The
+     intensity badge and EEW readout retain their existing size and layout. */
+  .is-event-summary .mobile-dock-earthquake-text {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 14px 24px 20px;
+    column-gap: 8px;
+    row-gap: 0;
+    height: 58px;
+  }
+
+  .is-event-summary .mobile-dock-earthquake-text.has-aside {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .is-event-summary :is(.mobile-dock-earthquake-status-line, .mobile-dock-earthquake-headline) {
+    grid-column: 1;
+    min-width: 0;
+  }
+
+  .is-event-summary .mobile-dock-earthquake-status-line {
+    grid-column: 1 / -1;
+    gap: 4px;
+  }
+
+  .is-event-summary .mobile-dock-earthquake-status-label {
+    overflow: hidden;
+    flex: 0 1 auto;
+    max-width: 40%;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .is-event-summary .mobile-dock-earthquake-time {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .is-event-summary .mobile-dock-eew-connection-banner {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .is-event-summary .mobile-dock-earthquake-headline strong {
+    font-weight: 750;
+  }
+
+  .is-event-summary .mobile-dock-earthquake-facts {
+    display: flex;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .is-event-summary .mobile-dock-earthquake-fact-values {
+    font-size: 13px;
+    font-weight: 750;
+    line-height: 20px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .is-event-summary .mobile-dock-earthquake-depth {
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 20px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .is-event-summary .mobile-dock-earthquake-fact-separator {
+    opacity: 0.5;
+    font-size: 11px;
+    line-height: 20px;
+  }
+
+  .is-event-summary .mobile-dock-earthquake-summary-aside {
+    display: flex;
+    grid-column: 2;
+    grid-row: 2;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0;
+    min-width: 0;
+    max-width: 105px;
+    padding-block: 0;
+    box-sizing: border-box;
+  }
+
+  .is-event-summary .mobile-dock-earthquake-facts .earthquake-tsunami-status {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    margin-left: 4px;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .is-event-summary .earthquake-nearby-search-button.is-compact {
+    flex: 0 0 auto;
+    min-width: 56px;
+    min-height: 24px;
+    margin: auto 0 0 auto;
+    padding: 2px 4px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #c8dbea;
+    font-size: 10.5px;
+    font-weight: 650;
+    line-height: 1.25;
+    white-space: nowrap;
+  }
+
+  html[data-theme="light"] .is-event-summary .earthquake-nearby-search-button.is-compact {
+    color: #274b67;
+  }
+
+  html[data-theme="light"] .is-event-summary :is(.mobile-dock-earthquake-fact-values, .mobile-dock-earthquake-depth) {
+    color: #405a74;
+  }
+
   .mobile-dock-earthquake-intensity small {
     font-size: 7px;
     font-weight: 900;
@@ -2174,11 +2331,6 @@
       calc(var(--mobile-sidebar-visible-height, 48dvh) + 70px),
       calc(max(0px, env(safe-area-inset-bottom)) + 220px)
     );
-  }
-
-  .mobile-drawer-open :is(.map-community-report-button, .map-world-typhoon-target-button) {
-    opacity: 0;
-    pointer-events: none;
   }
 
   .map-kikikuru-tabs {

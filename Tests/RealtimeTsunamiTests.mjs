@@ -34,7 +34,11 @@ assert.equal(store.snapshot().tsunami.isCancellation,true);
 assert(store.acceptP2p(p2p(7,'Watch')));assert.equal(store.snapshot().tsunami.observations.length,0,'a new cycle cannot inherit old observations without matching event IDs');
 store.acceptWolfx(wolf(8,0));assert.equal(store.snapshot().tsunami.observations[0].maxHeight,'0m');
 assert.equal(store.snapshot().tsunami.highestLevel,'advisory','Wolfx contributes observations only');
-for(const patch of [{trusted:false},{status:'unknown'},{status:'uninitialized'},{validUntil:t(100)},{validUntil:null}]) assert.equal(store.acceptWolfx(wolf(9,9,patch)),false);
+for(const patch of [{trusted:false},{status:'unknown'},{status:'uninitialized'},{validUntil:t(100)},{validUntil:null}]) {
+  assert.equal(normalizeWolfxObservations(wolf(9,9,patch),{now}),null);
+  store.acceptWolfx(wolf(9,9,patch));
+  assert.notEqual(store.snapshot().tsunami.observations[0]?.maxHeight,'9m','invalid observations are never adopted');
+}
 store.acceptWolfx(wolf(10,1,{status:'cleared'}));assert.equal(store.snapshot().tsunami.highestLevel,'advisory','Wolfx cleared status cannot erase P2P warnings');
 const cancel=wolf(11);cancel.observations[0].status='cancelled';store.acceptWolfx(cancel);
 assert.equal(store.snapshot().tsunami.observations.length,0,'product cancellation tombstone prevents old alternate-source values from resurfacing');
@@ -96,6 +100,40 @@ const availability=createTsunamiSourceStore({now:()=>now});assert.equal(availabi
 availability.acceptXml([],{status:'none'});assert.equal(availability.snapshot().tsunamiStatus,'not-reported');assert.equal(availability.snapshot().tsunami,null);
 availability.acceptWolfx(wolf(2,1,{observations:[]}));assert.equal(availability.snapshot().tsunamiStatus,'checking','known Wolfx activity cannot be reported as no bulletin while primary sources are still catching up');
 availability.acceptWolfx(wolf(2,1,{status:'expired',observations:[]}));assert.equal(availability.snapshot().tsunamiStatus,'not-reported');assert.equal(availability.snapshot().tsunami,null,'expired metadata never fabricates a warning cancellation');
+const expiredOnly=createTsunamiSourceStore({now:()=>now});
+expiredOnly.acceptXml([],{status:'unavailable'});
+expiredOnly.acceptWolfx(wolf(2,1,{status:'expired',observations:[]}));
+assert.equal(expiredOnly.snapshot().tsunamiStatus,'unavailable','expired Wolfx data alone cannot establish no current bulletin');
+expiredOnly.acceptWolfx(wolf(2,1,{status:'none_reported',observations:[]}));
+assert.equal(expiredOnly.snapshot().tsunamiStatus,'not-reported');
+assert.equal(expiredOnly.acceptWolfx(wolf(2,1,{trusted:false,status:'unknown',observations:[]})),true);
+assert.equal(expiredOnly.snapshot().tsunamiStatus,'unavailable','explicit trust loss overrides the previous unexpired deadline');
+const trustLoss=createTsunamiSourceStore({now:()=>now});trustLoss.acceptWolfx(wolf(2));
+trustLoss.acceptWolfx(wolf(2,1,{trusted:false,status:'unknown'}));
+assert.equal(trustLoss.snapshot().tsunami.observations[0].stale,true,'retained observations immediately become stale after trust loss');
+trustLoss.acceptWolfx(wolf(2));
+assert.equal(trustLoss.snapshot().tsunami.observations[0].stale,false,'trust can be renewed without inventing a newer official observation');
+let deadlineNow=now,deadlineId=0;
+const deadlineTimers=new Map(),deadlineStates=[];
+const deadlineStore=createTsunamiSourceStore({now:()=>deadlineNow});
+let deadlinePayload=wolf(2,1,{validUntil:t(121)});
+const deadlineClient=createWolfxTsunamiObservationClient({now:()=>deadlineNow,
+ setTimer:(fn,ms)=>{const id=++deadlineId;deadlineTimers.set(id,{fn:()=>{deadlineTimers.delete(id);fn();},ms});return id;},clearTimer:id=>deadlineTimers.delete(id),
+ fetchImpl:async()=>({ok:true,json:async()=>deadlinePayload}),onUpdate:payload=>deadlineStore.acceptWolfx(payload),onStatus:s=>deadlineStates.push(s)});
+deadlineClient.start();await new Promise(r=>setImmediate(r));
+assert.equal(deadlineStore.snapshot().tsunami.observations[0].stale,false);
+const expiredTimer=[...deadlineTimers.values()].find(timer=>timer.ms===60001);
+assert(expiredTimer,'the trust deadline is checked before the five-minute idle poll');
+deadlinePayload={};await deadlineClient.refresh();
+assert([...deadlineTimers.values()].includes(expiredTimer),'malformed later JSON must preserve the last valid response expiry timer');
+deadlineNow+=60001;expiredTimer.fn();
+assert.equal(deadlineStore.snapshot().tsunami.observations[0].stale,true);
+assert.equal(deadlineStates.at(-1),'expired');
+deadlinePayload=wolf(2,1,{validUntil:t(130)});await deadlineClient.refresh();
+assert.equal(deadlineStore.snapshot().tsunami.observations[0].stale,false);
+expiredTimer.fn();
+assert.equal(deadlineStore.snapshot().tsunami.observations[0].stale,false,'a canceled old deadline cannot revoke renewed trust');
+deadlineClient.stop();assert.equal(deadlineTimers.size,0,'stop releases polling and trust-deadline timers');
 const panel=readFileSync(new URL('../src/ui/leftPanel.js',import.meta.url),'utf8');
 const presentation=vm.createContext({getEarthquakeTsunamiState:()=>{throw new Error('current reception must not use an unrelated earthquake comment');}});
 vm.runInContext(panel.slice(panel.indexOf('function getCurrentTsunamiState('),panel.indexOf('function buildTsunamiDedicatedDetailMarkup(')),presentation);

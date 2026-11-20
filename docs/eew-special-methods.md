@@ -1,4 +1,4 @@
-# 特殊EEWの解釈（2026-11-16）
+# 特殊EEWの解釈（2026-11-20確認）
 
 ## 配信仕様と制約
 
@@ -8,7 +8,11 @@
 - 精度コード参考: https://dmdata.jp/docs/reference/conversion/json/schema/eew-information/
 - 参考実装: https://github.com/YumNumm/EQMonitor/blob/main/app/lib/feature/eew/data/eew_alive_telegram.dart
 
-WolfxのAccuracyは説明文字列であり、生コードの対応を保証する資料ではない。数字だけからIPFや観測点数を推定しない。WarnArea.Typeは予報／警報、Timeは警報発表時刻。地域別PLUM・到達予想時刻は取得できないためunknown/nullを保存する。
+WolfxのAccuracyは説明文字列であり、生コードの対応を保証する資料ではない。数字だけからIPFや観測点数を推定しない。WarnArea.Typeは予報／警報。地域別のTimeは警報発表時刻ではなく、主要動到達予測時刻である。PLUMの区分では、その震度を初めて予測した時刻になる。
+
+2026-11-20の照合で、地域別Timeを発表時刻に格納していた処理と、Arriveの説明文字列を真偽値に変換していた処理を修正した。HHMMSSはAnnouncedTimeの日本時間の日付を基準に日付またぎを補い、内部ではUTCにそろえる。//////、不正な時分秒、基準日不明では時刻を生成しない。従来の日時形式も受理する。
+
+Arriveの肯定的なPLUM区分が確認できる場合だけ、地域のintensityMethodをplumとし、時刻はplumPredictionTimeへ分離する。到達予測として明示された区分だけarrivalTimeに格納し、不明な区分はregionalTimeと原文を保持して意味をunknownにする。地域のannouncedTimeには格納しない。旧真偽値は互換対応するが、未知の文字列を未到達とは解釈しない。地域別PLUMの存在だけで、正常な震源要素を仮定震源に変更したりP/S波を消したりしない。地域別時刻の新しいカウントダウン表示は追加していない。
 
 2026-11-16に公式仕様とHTTP/WebSocketの実レスポンスを再確認した。`Magnitude`を優先し、廃止予定の旧綴り`Magunitude`だけが届く場合も受理する。新フィールドのみでもMが表示できることをテストする。`WarnArea.Shindo1`は最大、`Shindo2`は最小であり、内部の`from`／`to`を下限／上限にそろえる。逆順のペアも階級順に並べ、片方が欠損した場合は不明な値を補わない。
 
@@ -17,6 +21,10 @@ WolfxのAccuracyは説明文字列であり、生コードの対応を保証す�
 レベル法の`OriginTime`は互換性のため検知時刻の場合があり、深さ10kmも仮定値である。M・深さは「調査中」、位置は黄色の点線丸と「震源調査中」で表示し、P/S波描画と自動震源移動を抑制する。正式な仮定震源要素のフラグ`isAssumption`を立てる変更ではなく、`false`でもこの条件を適用する。同じEventIDの続報で通常の精度条件を満たせば通常表示へ戻る。未知値の互換値0だけから有効な震源と判断せず、通常報の正当な深さ0kmは引き続き扱う。
 
 接続先はJMA専用の`wss://ws-api.wolfx.jp/jma_eew`を維持し、アプリ内の複数表示で共有する。JSON `heartbeat`への返信は仕様の手動コマンド`ping`とし、JSON `pong`へ返信を繰り返さない。従来の文字列`ping`への応答、再接続とHTTP補完は維持する。実接続ではJSON heartbeatとJMA速報を確認した。実際のレベル法発表の受信は未確認であり、仕様準拠のデータで正規化・画面テンプレート・描画式・続報遷移を検証する。
+
+WebSocket仕様の2026-11-19更新では、all_eew集約接続のexclude指定を確認した。現在はJMAのEEWだけを専用接続から受信しており、除外指定を追加する必要はない。地震詳細・特別地震情報APIの仕様と実レスポンスも確認したが、今回それらへの取得元切り替えは行っていない。地震情報・特別地震情報の既存P2P／気象庁XML処理を保つ。
+
+2026-11-20のHTTP実応答ではMagnitude・Accuracy・CodeTypeを確認した。WarnAreaは空配列だったため、地域別TimeとPLUMの区別は仕様に沿った検証用電文でテストした。配信原文全区分を実受信できたという検証ではない。
 
 EQMonitorの現行mainでは依頼された旧モデルパスが存在せずeqapi_typesを使用している。有効速報の保持と低精度情報の描画除外を分離している点を参考にした。配信元の異なるisPlumなどをWolfxのフィールドとして移植していない。
 

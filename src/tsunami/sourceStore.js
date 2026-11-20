@@ -11,6 +11,10 @@ const text = value => typeof value === "string" || typeof value === "number" ? S
 const waveHeight = wave => text(wave?.text) || (wave?.height != null && Number.isFinite(Number(wave.height)) && Number(wave.height) >= 0 ? `${Number(wave.height)}m` : "");
 const eventIds = value => (Array.isArray(value) ? value : [value]).map(text).filter(Boolean);
 const levels = {MajorWarning:"major-warning",Warning:"warning",Watch:"advisory"};
+export function isWolfxTsunamiPayload(payload) {
+  return Array.isArray(payload?.observations)&&typeof payload.trusted==="boolean"
+    && ["uninitialized","unknown","active","forecast_only","cleared","expired","none_reported"].includes(payload.status);
+}
 export function normalizeP2pTsunami(payload, {now=Date.now(), history=false}={}) {
   if (Number(payload?.code)!==552 || typeof payload.cancelled!=="boolean" || payload.test || payload.training) return null;
   const time = tsunamiTime(payload.issue?.time), stamp=tsunamiTimestamp(time);
@@ -35,9 +39,8 @@ export function normalizeXmlTsunami(report) {
     status:report.status==="取消"?"withdrawn":"issued",sourceUrls:report.url?[report.url]:[]};
 }
 export function normalizeWolfxObservations(payload,{now=Date.now()}={}) {
-  if(payload?.trusted!==true || !Number.isFinite(Date.parse(payload.validUntil)) || Date.parse(payload.validUntil)<=now
+  if(!isWolfxTsunamiPayload(payload) || payload.trusted!==true || !Number.isFinite(Date.parse(payload.validUntil)) || Date.parse(payload.validUntil)<=now
       || !["active","forecast_only","cleared","expired","none_reported"].includes(payload.status))return null;
-  if(!Array.isArray(payload.observations))return null;
   const contextIds=eventIds(payload.report?.eventIds);
   return payload.observations.flatMap(report=>{
     if(!report||!["VTSE51","VTSE52"].includes(report.product)||!tsunamiTime(report.time)||!["issued","corrected","cancelled"].includes(report.status))return [];
@@ -109,7 +112,15 @@ export function createTsunamiSourceStore({now=()=>Date.now()}={}) {
       return changed;
     },
     acceptWolfx(payload) {
-      const reports=normalizeWolfxObservations(payload,{now:now()});if(!reports)return false;
+      const reports=normalizeWolfxObservations(payload,{now:now()});
+      if(!reports){
+        // An explicit loss of trust revokes the old response immediately,
+        // even if its previously supplied validity deadline is still ahead.
+        if(isWolfxTsunamiPayload(payload)&&wolfxVerifiedUntil!==0){
+          wolfxVerifiedUntil=0;wolfxState="";revision++;return true;
+        }
+        return false;
+      }
       let changed=wolfxVerifiedUntil<=now()||wolfxState!==payload.status;
       wolfxState=payload.status;
       if(wolfxVerifiedUntil!==Date.parse(payload.validUntil)){wolfxVerifiedUntil=Date.parse(payload.validUntil);revision++;}
@@ -132,11 +143,11 @@ export function createTsunamiSourceStore({now=()=>Date.now()}={}) {
         }
       }
       const observations=[...rows.values()].map(({row,report})=>({...row,reportTimeRaw:report.reportTimeRaw,reportTime:tsunamiDisplayTime(report.reportTimeRaw),source:report.source,
-        stale:report.source==="wolfx"&&Date.parse(report.validUntil)<=now() || report.source==="xml"&&xmlStatus==="unavailable"}));
+        stale:report.source==="wolfx"&&(wolfxVerifiedUntil<=now()||Date.parse(report.validUntil)<=now()) || report.source==="xml"&&xmlStatus==="unavailable"}));
       if(!alert && !observations.length){
         const wolfxCurrent=wolfxVerifiedUntil>now();
         const status=wolfxCurrent&&["active","forecast_only"].includes(wolfxState)?"checking"
-          :xmlStatus==="none"||wolfxCurrent?"not-reported":xmlStatus==="loading"?"loading":"unavailable";
+          :xmlStatus==="none"||wolfxCurrent&&["cleared","none_reported"].includes(wolfxState)?"not-reported":xmlStatus==="loading"?"loading":"unavailable";
         return {tsunami:null,tsunamiStatus:status,tsunamiRevision:revision};
       }
       const withdrawn=alert?.status==="withdrawn";
