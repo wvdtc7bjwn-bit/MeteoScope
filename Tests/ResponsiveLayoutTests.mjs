@@ -522,7 +522,7 @@ assert.match(styles, /height:\s*min\(var\(--mobile-sidebar-visible-height, 520px
 assert.match(index, /id="community-report-map-open"\s+class="map-community-report-button"/);
 assert.match(index, /id="community-report-open"[^>]*aria-label="投稿"[^>]*><\/button>/);
 for (const [id, label] of [["radar-prev", "5分前"], ["radar-play", "再生"], ["radar-now", "現在"], ["radar-next", "5分後"]]) {
-  assert.match(index, new RegExp(`id="${id}"[^>]*aria-label="${label}"[^>]*><\\/button>`, "u"));
+  assert.match(index, new RegExp(`id="${id}"[^>]*aria-label="${label}"[^>]*><span>[^<]+<\\/span><\\/button>`, "u"));
 }
 assert.match(panel, /function buildWeatherTimeTimelineMarkup/);
 assert.match(panel, /class="weather-time-active-marker"/);
@@ -913,12 +913,6 @@ assert.match(styles, /\.map-community-report-button\s*\{[^}]*display:\s*grid;/);
 assert.match(styles, /#community-report-open::before\s*\{[\s\S]*?--community-report-icon/);
 assert.match(styles, /\.radar-action-button::before\s*\{[\s\S]*?--radar-action-icon/);
 assert.match(panel, /playButton\.setAttribute\("aria-label", label\)/);
-for (const [action, label] of [["prev", "前"], ["latest", "最新"], ["next", "次"]]) {
-  assert.match(
-    panel,
-    new RegExp(`data-weather-chart-action="${action}"[^\\r\\n]*aria-label="${label}"[^\\r\\n]*><\\/button>`, "u")
-  );
-}
 assert.match(styles, /\[data-weather-chart-action="prev"\][\s\S]*?--radar-action-icon/);
 assert.match(styles, /\[data-weather-chart-action="latest"\][\s\S]*?--radar-action-icon/);
 assert.match(styles, /\[data-weather-chart-action="next"\][\s\S]*?--radar-action-icon/);

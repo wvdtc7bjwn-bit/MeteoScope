@@ -1036,26 +1036,6 @@ html[data-theme="light"] .settings-changelog-entry li::marker {
   color: #8190a8;
 }
 
-.warning-outlook-level-2 {
-  background: #f2e700;
-  color: #08111d;
-}
-
-.warning-outlook-level-3 {
-  background: #ff2b12;
-  color: #fff;
-}
-
-.warning-outlook-level-4 {
-  background: #b400ff;
-  color: #fff;
-}
-
-.warning-outlook-level-5 {
-  background: #100010;
-  color: #fff;
-}
-
 .warning-outlook-level-middle {
   background: #ffc8b8;
   color: #24110e;

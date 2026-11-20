@@ -420,9 +420,9 @@ html[data-theme="light"] .remote-notice-card {
 }
 
 .warning-prefecture-group-emergency,
-.warning-prefecture-group-danger { --warning-group-color: #b400ff; }
-.warning-prefecture-group-warning { --warning-group-color: #ff2b12; }
-.warning-prefecture-group-advisory { --warning-group-color: #fff000; }
+.warning-prefecture-group-danger { --warning-group-color: var(--warning-map-danger); }
+.warning-prefecture-group-warning { --warning-group-color: var(--warning-map-warning); }
+.warning-prefecture-group-advisory { --warning-group-color: var(--warning-map-advisory); }
 .warning-prefecture-group-high { --warning-group-color: #ff6b73; }
 .warning-prefecture-group-middle { --warning-group-color: #ffc8b8; }
 
@@ -463,9 +463,7 @@ html[data-theme="light"] .remote-notice-card {
 }
 
 .warning-prefecture-group-emergency .warning-prefecture-marker {
-  background:
-    repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.92) 0 4px, transparent 4px 8px),
-    #b400ff;
+  background: var(--warning-map-emergency-background);
 }
 
 .warning-prefecture-copy {

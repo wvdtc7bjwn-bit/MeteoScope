@@ -1,6 +1,10 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+雲画像を取得中です。|Loading satellite imagery.
+雲画像を取得できませんでした。|Unable to load satellite imagery.
+気象庁ひまわりの赤外雲画像を時刻ごとに表示しています。|JMA Himawari infrared cloud imagery is displayed for the selected time.
+1時刻のみ|One time available
 湖と貯水池|Lakes and reservoirs
 湖沼: 国土数値情報（2005年・MeteoScope加工）|Lakes: MLIT National Land Numerical Information (2005, processed by MeteoScope)
 国土数値情報（湖沼データ）・国土交通省|Lake data, National Land Numerical Information, MLIT

@@ -430,6 +430,7 @@ export function createWeatherApp() {
   let weatherChartExtendedHistory = false;
   let activeWeatherChartFrameIndex = 0;
   let weatherChartSatelliteEnabled = false;
+  let weatherChartSatellitePlayTimer = null;
   let weatherChartSatelliteStatus = "idle";
   let weatherChartSatelliteWeatherChartOverlayEnabled = loadOptionalLayerVisibility("satellite-weather-chart");
   let weatherChartSatelliteRadarOverlayEnabled = loadOptionalLayerVisibility("satellite-radar");
@@ -809,6 +810,7 @@ export function createWeatherApp() {
         stopRadarPlayback();
         stopLightningPlayback();
         stopWeatherChartPlayback();
+        stopWeatherChartSatellitePlayback();
         stopWeatherDistributionPlayback();
       }
       weatherMap?.setMode(tab.id);
@@ -854,6 +856,7 @@ export function createWeatherApp() {
         warningView: activeWarningView,
         activeKikikuruLayer,
         radarPlaying: Boolean(radarPlayTimer),
+        weatherChartPlaying: Boolean(weatherChartPlayTimer),
         currentLocation: currentLocationInfo,
         myAreas,
         locationInsights: buildLocationInsights(tab.id, null),
@@ -911,6 +914,7 @@ export function createWeatherApp() {
         warningView: activeWarningView,
         activeKikikuruLayer,
         radarPlaying: Boolean(radarPlayTimer),
+        weatherChartPlaying: Boolean(weatherChartPlayTimer),
         currentLocation: currentLocationInfo,
         myAreas,
         locationInsights: buildLocationInsights(tab.id, null),
@@ -2342,6 +2346,7 @@ if (layerId === "river") {
       warningView: activeWarningView,
       activeKikikuruLayer,
       radarPlaying: Boolean(radarPlayTimer),
+      weatherChartPlaying: Boolean(weatherChartPlayTimer),
       currentLocation: currentLocationInfo,
       myAreas,
       locationInsights: buildLocationInsights(tab.id, displayData),
@@ -2919,12 +2924,18 @@ if (layerId === "river") {
   }
 
   function selectActiveRadarTimelineFrame(index) {
+    stopRadarPlayback();
+    stopLightningPlayback();
+    stopWeatherDistributionPlayback();
     if (weatherDistributionMode) selectWeatherDistributionFrame(index);
     else if (lightningEnabled) selectLightningFrame(index);
     else selectRadarFrame(index);
   }
 
   function stepActiveRadarTimeline(delta) {
+    stopRadarPlayback();
+    stopLightningPlayback();
+    stopWeatherDistributionPlayback();
     if (weatherDistributionMode) stepWeatherDistributionFrame(delta);
     else if (lightningEnabled) stepLightningFrame(delta);
     else stepRadarFrame(delta);
@@ -3008,7 +3019,8 @@ if (layerId === "river") {
       weatherChartFrame,
       frames: weatherChartSatelliteFrames,
       activeFrameIndex,
-      frame
+      frame,
+      playing: Boolean(weatherChartSatellitePlayTimer)
     };
   }
 
@@ -3167,7 +3179,7 @@ if (layerId === "river") {
   }
 
   function startWeatherChartPlayback() {
-    if (weatherChartPlayTimer || !weatherChartEnabled || !weatherChartData?.frames?.length) return;
+    if (weatherChartPlayTimer || !weatherChartEnabled || (weatherChartData?.frames?.length ?? 0) < 2) return;
     weatherChartPlayTimer = window.setInterval(() => {
       if (!weatherChartEnabled || !weatherChartData?.frames?.length || activeTab !== "radar") {
         stopWeatherChartPlayback();
@@ -3176,6 +3188,39 @@ if (layerId === "river") {
       const currentIndex = weatherChartData.activeFrameIndex ?? activeWeatherChartFrameIndex;
       selectWeatherChartFrame((currentIndex + 1) % weatherChartData.frames.length);
     }, 850);
+    refreshRadarPanel();
+  }
+
+  function toggleWeatherChartPlayback() {
+    if (!weatherChartPlayTimer) { startWeatherChartPlayback(); return; }
+    stopWeatherChartPlayback();
+    refreshRadarPanel();
+  }
+
+  function startWeatherChartSatellitePlayback() {
+    if (weatherChartSatellitePlayTimer || !weatherChartSatelliteEnabled || activeTab !== "radar" || weatherChartSatelliteFrames.length < 2) return;
+    weatherChartSatellitePlayTimer = window.setInterval(() => {
+      if (!weatherChartSatelliteEnabled || activeTab !== "radar" || weatherChartSatelliteFrames.length < 2) { stopWeatherChartSatellitePlayback(); return; }
+      setWeatherChartSatelliteFrame((activeWeatherChartSatelliteFrameIndex + 1) % weatherChartSatelliteFrames.length);
+    }, 850);
+    refreshRadarPanel();
+  }
+
+  function stopWeatherChartSatellitePlayback() {
+    if (!weatherChartSatellitePlayTimer) return;
+    window.clearInterval(weatherChartSatellitePlayTimer);
+    weatherChartSatellitePlayTimer = null;
+  }
+
+  function toggleWeatherChartSatellitePlayback() {
+    if (!weatherChartSatellitePlayTimer) { startWeatherChartSatellitePlayback(); return; }
+    stopWeatherChartSatellitePlayback();
+    refreshRadarPanel();
+  }
+
+  function goLatestWeatherChartSatelliteFrame() {
+    stopWeatherChartSatellitePlayback();
+    if (weatherChartSatelliteFrames.length) setWeatherChartSatelliteFrame(weatherChartSatelliteFrames.length - 1);
   }
 
   function stopWeatherChartPlayback() {
@@ -3197,6 +3242,7 @@ if (layerId === "river") {
 
   async function selectRadarOverlay(overlayId) {
     if (!["radar", "weather-distribution", "temperature-distribution", "snowfall-distribution", "weather-chart", "satellite", "lightning"].includes(overlayId)) return;
+    stopWeatherChartSatellitePlayback();
     weatherChartEnabled = overlayId === "weather-chart";
     weatherChartSatelliteEnabled = overlayId === "satellite";
     weatherChartSatelliteStatus = weatherChartSatelliteEnabled ? "loading" : "idle";
@@ -3866,6 +3912,7 @@ if (layerId === "river") {
       warningView: activeWarningView,
       activeKikikuruLayer,
       radarPlaying: Boolean(radarPlayTimer),
+      weatherChartPlaying: Boolean(weatherChartPlayTimer),
       currentLocation: currentLocationInfo,
       myAreas,
       locationInsights: buildLocationInsights(tab.id, null),
@@ -4597,12 +4644,16 @@ if (layerId === "river") {
     });
     setupSatelliteLayerToggle({ onChange: toggleWeatherChartSatelliteLayer });
     setupWeatherChartControls({
-      onSeek: selectWeatherChartFrame,
-      onPreview: previewWeatherChartFrame,
-      onStep: stepWeatherChartFrame,
+      onSeek: index => { stopWeatherChartPlayback(); selectWeatherChartFrame(index); },
+      onPreview: index => { stopWeatherChartPlayback(); previewWeatherChartFrame(index); },
+      onStep: delta => { stopWeatherChartPlayback(); stepWeatherChartFrame(delta); },
       onGoLatest: goLatestWeatherChartFrame,
-      onSatelliteSeek: setWeatherChartSatelliteFrame,
-      onSatellitePreview: previewWeatherChartSatelliteFrame
+      onTogglePlay: toggleWeatherChartPlayback,
+      onSatelliteSeek: index => { stopWeatherChartSatellitePlayback(); setWeatherChartSatelliteFrame(index); },
+      onSatellitePreview: index => { stopWeatherChartSatellitePlayback(); previewWeatherChartSatelliteFrame(index); },
+      onSatelliteStep: delta => { stopWeatherChartSatellitePlayback(); setWeatherChartSatelliteFrame(activeWeatherChartSatelliteFrameIndex + delta); },
+      onSatelliteGoLatest: goLatestWeatherChartSatelliteFrame,
+      onSatelliteTogglePlay: toggleWeatherChartSatellitePlayback
     });
     setupMobileWeatherTimelineTapControls({
       onRadarPlay: startRadarPlayback,

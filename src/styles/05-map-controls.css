@@ -8,14 +8,15 @@
   display: grid;
   place-items: center;
   min-width: 0;
-  min-height: 34px;
-  padding: 0;
+  min-height: 54px;
+  gap: 3px;
+  padding: 7px 3px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.06);
-  color: var(--type-bottom-nav-color);
-  font-size: var(--type-bottom-nav-size);
-  font-weight: var(--type-bottom-nav-weight);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -29,24 +30,31 @@
 }
 
 #radar-prev,
+[data-weather-satellite-action="prev"],
 [data-weather-chart-action="prev"] {
   --radar-action-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 5v14'/%3E%3Cpath d='m18 6-8 6 8 6Z'/%3E%3C/g%3E%3C/svg%3E");
 }
 
-#radar-play {
+#radar-play,
+[data-weather-chart-action="play"],
+[data-weather-satellite-action="play"] {
   --radar-action-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='m8 5 11 7-11 7Z' fill='black'/%3E%3C/svg%3E");
 }
 
-#radar-play.playing {
+#radar-play.playing,
+[data-weather-chart-action="play"].playing,
+[data-weather-satellite-action="play"].playing {
   --radar-action-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 5h4v14H7zM14 5h4v14h-4z' fill='black'/%3E%3C/svg%3E");
 }
 
 #radar-now,
+[data-weather-satellite-action="latest"],
 [data-weather-chart-action="latest"] {
   --radar-action-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3Cpath d='M12 7v5l3 2'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 #radar-next,
+[data-weather-satellite-action="next"],
 [data-weather-chart-action="next"] {
   --radar-action-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M19 5v14'/%3E%3Cpath d='m6 6 8 6-8 6Z'/%3E%3C/g%3E%3C/svg%3E");
 }

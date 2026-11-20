@@ -21,6 +21,15 @@ export const EARLY_WARNING_MAP_COLORS = Object.freeze({
   high: "#ff6b73"
 });
 
+// UI badges, outlook cells and list markers use the map's shared palette.
+export function applyWarningPalette(root) {
+  if (!root?.style) return;
+  for (const [level, color] of Object.entries(WARNING_MAP_COLORS)) {
+    root.style.setProperty(`--warning-map-${level}`, color);
+  }
+  root.style.setProperty("--warning-map-emergency-background", getWarningLegendBackground("emergency"));
+}
+
 export function getWarningColor(level) {
   return WARNING_MAP_COLORS[level] ?? WARNING_MAP_COLORS.advisory;
 }

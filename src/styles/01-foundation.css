@@ -975,7 +975,7 @@ h2 {
 }
 
 .location-my-area-item .early-warning-badge-none {
-  color: #152033;
+  color: var(--text);
 }
 
 .location-my-area-badges {
@@ -1247,33 +1247,41 @@ html[data-language="en"] .warning-area-row > strong {
 
 .warning-badge-advisory,
 .mobile-dock-warning-badge-advisory,
-.river-flood-level-2 {
-  background: #fff000;
+.warning-outlook-level-2 {
+  background: var(--warning-map-advisory);
   color: #000;
 }
 
 .warning-badge-warning,
 .mobile-dock-warning-badge-warning,
-.river-flood-level-3 {
-  background: #ff2b12;
+.warning-outlook-level-3 {
+  background: var(--warning-map-warning);
   color: #fff;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
 }
 
 .warning-badge-danger,
 .mobile-dock-warning-badge-danger,
-.river-flood-level-4 {
-  background: #b400ff;
+.warning-outlook-level-4 {
+  background: var(--warning-map-danger);
   color: #fff;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
 }
 
 .warning-badge-emergency,
 .mobile-dock-warning-badge-emergency,
+.warning-outlook-level-5 {
+  background: var(--warning-map-emergency-background);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+}
+
+/* River announcements retain their independent operational scale. */
+.river-flood-level-2 { background: #fff000; color: #000; }
+.river-flood-level-3 { background: #ff2b12; color: #fff; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset; }
+.river-flood-level-4 { background: #b400ff; color: #fff; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset; }
 .river-flood-level-5 {
-  background:
-    repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.92) 0 5px, transparent 5px 10px),
-    #b400ff;
+  background: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.92) 0 5px, transparent 5px 10px), #b400ff;
   color: #fff;
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
 }
@@ -1292,9 +1300,11 @@ html[data-language="en"] .warning-area-row > strong {
 }
 
 .early-warning-badge-none,
+.warning-badge-none,
 .mobile-dock-warning-badge-none {
-  background: rgba(244, 247, 255, 0.9);
-  color: #152033;
+  background: var(--panel-strong);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--line) inset;
 }
 
 .warning-empty {

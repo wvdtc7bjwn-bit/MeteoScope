@@ -2342,6 +2342,7 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 .radar-time-controls.weather-chart-active > .radar-time-head,
 .radar-time-controls.weather-chart-active > .location-insight-panel,
 .radar-time-controls.weather-chart-active > .weather-time-timeline,
+.radar-time-controls.weather-chart-active > .radar-timeline-range,
 .radar-time-controls.weather-chart-active > .radar-time-actions {
   display: none;
 }
@@ -2399,7 +2400,7 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 
 .weather-chart-actions {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 7px;
 }
 
@@ -2430,11 +2431,17 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 #radar-time-label {
   min-width: 0;
   color: #f8fbff;
-  font-size: 14px;
-  font-weight: 900;
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   line-height: 1.25;
-  text-align: right;
+  text-align: left;
 }
+
+.radar-time-reading { display: grid; min-width: 0; gap: 3px; }
+.radar-time-caption { color: var(--muted); font-size: 11px; font-weight: 600; line-height: 1.4; }
+.weather-chart-head .radar-time-reading strong { font-size: 28px; font-weight: 700; text-align: left; font-variant-numeric: tabular-nums; }
+.radar-timeline-range { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 12px; color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; line-height: 1.4; }
 
 .weather-time-timeline {
   --weather-time-step: 40px;

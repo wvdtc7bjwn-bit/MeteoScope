@@ -564,7 +564,7 @@ assert.match(
 );
 assert.match(
   styleSource,
-  /\.warning-prefecture-group-warning\s*\{\s*--warning-group-color:\s*#ff2b12;\s*\}[\s\S]*?\.warning-prefecture-group-advisory\s*\{\s*--warning-group-color:\s*#fff000;\s*\}/
+  /\.warning-prefecture-group-warning\s*\{\s*--warning-group-color:\s*var\(--warning-map-warning\);\s*\}[\s\S]*?\.warning-prefecture-group-advisory\s*\{\s*--warning-group-color:\s*var\(--warning-map-advisory\);\s*\}/
 );
 assert.match(
   styleSource,

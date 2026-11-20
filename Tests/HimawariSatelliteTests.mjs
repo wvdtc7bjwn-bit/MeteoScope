@@ -34,7 +34,7 @@ const [appSource, panelSource, mapSource, indexSource] = await Promise.all([
 ]);
 assert.match(appSource, /getWeatherChartSatelliteState\(\)/);
 assert.match(appSource, /"satellite"/);
-assert.match(appSource, /onSatelliteSeek: setWeatherChartSatelliteFrame/);
+assert.match(appSource, /onSatelliteSeek: index => \{ stopWeatherChartSatellitePlayback\(\); setWeatherChartSatelliteFrame\(index\); \}/);
 assert.match(appSource, /Himawari satellite auto refresh failed/);
 assert.match(appSource, /toggleWeatherChartSatelliteLayer/);
 assert.match(appSource, /findRadarObservationFrameIndexAtTime\(latestDataByTab\.radar\?\.frames, frame\?\.timestamp\)/);

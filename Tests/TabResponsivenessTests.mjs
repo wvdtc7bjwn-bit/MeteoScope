@@ -67,7 +67,7 @@ const context = vm.createContext({
   ...Object.fromEntries(["syncTyphoonRadarOverlayButton", "renderCommunityReportLayerToggle",
     "syncEarlyWarningRefreshTimer", "invalidateScheduledMapRender", "invalidateScheduledPanelRender",
     "syncSimulationButton",
-    "syncActiveTabToUrl", "stopRadarPlayback", "stopLightningPlayback", "stopWeatherChartPlayback",
+    "syncActiveTabToUrl", "stopRadarPlayback", "stopLightningPlayback", "stopWeatherChartPlayback", "stopWeatherChartSatellitePlayback",
     "stopWeatherDistributionPlayback", "refreshCommunityReports"].map((key) => [key, noop]))
 });
 vm.runInContext(`${source.slice(start, end)} return requestId; }`, context);
