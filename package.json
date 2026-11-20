@@ -62,7 +62,8 @@
     "deploy:cloudflare": "npm run build && npx wrangler pages deploy dist --project-name meteoscope",
     "deploy:earthquake-worker": "node scripts/deploy-earthquake-worker.mjs",
     "data:update:focal-mechanism": "node scripts/build-focal-mechanism-archive.mjs",
-    "data:build:base-map-tiles": "node scripts/build-base-map-tiles.mjs"
+    "data:build:base-map-tiles": "node scripts/build-base-map-tiles.mjs",
+    "data:build:lakes": "node scripts/build-lake-geometry.mjs"
   },
   "dependencies": {
     "@mapbox/vector-tile": "2.0.5",

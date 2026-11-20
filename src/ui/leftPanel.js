@@ -1,4 +1,5 @@
 import { VOLCANO_ALERT_LEVEL_GUIDE, renderVolcanoList } from "./panels/volcanoPanel.js";
+import { getWarningLegendBackground } from "../warningMapColors.js";
 import { escapeHtmlString as escapeHtml } from "../utils/html.js";
 import { updateHistorySelection } from "./historySelection.js";
 import { EEW_WARNING_AREA_COLOR, isEewWarningArea } from "../eew/eewForecastAreas.js";
@@ -145,10 +146,10 @@ const TIDE_WARNING_CRITERIA = [
 const legendsByTab = {
   amedas: [["観測地点", "legend-amedas"]],
   warnings: [
-    ["特別警報", "legend-emergency"],
-    ["危険警報", "legend-danger"],
-    ["警報", "legend-warning"],
-    ["注意報", "legend-advisory"]
+    ["特別警報", "legend-emergency", getWarningLegendBackground("emergency")],
+    ["危険警報", "legend-danger", getWarningLegendBackground("danger")],
+    ["警報", "legend-warning", getWarningLegendBackground("warning")],
+    ["注意報", "legend-advisory", getWarningLegendBackground("advisory")]
   ],
   typhoon: [
     ["強風域 (15m/s以上)", "legend-typhoon-strong"],

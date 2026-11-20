@@ -28,6 +28,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { prepareWorldMapData } from "./worldLandFilter.js";
 import {
   AMEDAS_METRICS,
+  APP_BASE_URL,
   EARTHQUAKE_INTENSITY_LEVELS,
   DEFAULT_VIEW,
   getAmedasObservationColor,
@@ -79,7 +80,7 @@ import { WORLD_TYPHOON_MODELS, isWorldTyphoonControlMember } from "../worldTypho
 import {
   destinationPoint
 } from "../typhoonGeometry.js";
-import { getEarlyWarningColor, getWarningColor } from "../warningMapColors.js";
+import { getEarlyWarningColor, getWarningColor, WARNING_EMERGENCY_HATCH_COLOR } from "../warningMapColors.js";
 import { mergeRiverFloodWarningsIntoGroups } from "../warningRiverMerge.js";
 import {
   buildEewForecastAreaFeatureCollection,
@@ -654,7 +655,9 @@ export function createWeatherMap(elementId) {
     if (!map || map.getSource(GSI_RELIEF_SOURCE_ID)) return;
     // Keep operational overlays and administrative borders readable, but place
     // terrain above the opaque municipality base fills so land relief is visible.
-    const beforeLayerId = map.getLayer(WARNING_OVERLAY_LAYER_ID)
+    const beforeLayerId = map.getLayer("japan-lake-fill")
+      ? "japan-lake-fill"
+      : map.getLayer(WARNING_OVERLAY_LAYER_ID)
       ? WARNING_OVERLAY_LAYER_ID
       : undefined;
     map.addSource(GSI_RELIEF_SOURCE_ID, {
@@ -3377,6 +3380,9 @@ function createBaseStyle(theme = "dark") {
         data: EMPTY_GEOJSON
       },
       [MUNICIPALITY_SOURCE_ID]: createMunicipalitySource(),
+      ...(!VECTOR_BASE_MAP_ENABLED ? { "japan-lakes": {
+        type: "geojson", data: `${APP_BASE_URL}data/japan-lakes.geojson`
+      } } : {}),
       [MUNICIPALITY_FIX_SOURCE_ID]: {
         type: "geojson",
         data: JMA_ENDPOINTS.warningMunicipalityFixes,
@@ -3622,6 +3628,15 @@ function createBaseStyle(theme = "dark") {
     delete style.sources[MUNICIPALITY_FIX_SOURCE_ID];
     style.layers = style.layers.filter(layer => layer.source !== MUNICIPALITY_FIX_SOURCE_ID);
   }
+  // Water replaces the base fill only. Municipality warning/early-outlook
+  // feature states continue to cover both land and lake areas and clear together.
+  style.layers.splice(style.layers.findIndex(layer => layer.id === WARNING_OVERLAY_LAYER_ID), 0, {
+    id: "japan-lake-fill",
+    type: "fill",
+    source: VECTOR_BASE_MAP_ENABLED ? MUNICIPALITY_SOURCE_ID : "japan-lakes",
+    ...baseMapSourceLayer("lakes"),
+    paint: { "fill-color": colors.background, "fill-antialias": true }
+  });
   // Keep layers active while the app-level loading screen hides the map. Visible
   // style layers start tile acquisition immediately; hiding the DOM does not.
   for (const layer of style.layers) {
@@ -3656,6 +3671,7 @@ function applyMapTheme(map, theme) {
   const paintUpdates = [
     ["background", "background-color", colors.background],
     ["world-land-fill", "fill-color", colors.worldLand],
+    ["japan-lake-fill", "fill-color", colors.background],
     ["world-country-line", "line-color", colors.worldCountryLine],
     [MUNICIPALITY_FILL_LAYER_ID, "fill-color", colors.municipalityFill],
     [MUNICIPALITY_FIX_FILL_LAYER_ID, "fill-color", colors.municipalityFill],
@@ -3845,7 +3861,7 @@ function setupWarningHatchImage(map) {
   if (!context) return;
 
   context.clearRect(0, 0, size, size);
-  context.strokeStyle = "rgba(0, 0, 0, 0.9)";
+  context.strokeStyle = WARNING_EMERGENCY_HATCH_COLOR;
   context.lineWidth = 4;
   context.beginPath();
   context.moveTo(-4, size + 4);
@@ -4264,7 +4280,7 @@ function getWarningEmergencyHatchOpacityExpression() {
   return [
     "case",
     ["==", ["feature-state", WARNING_FEATURE_STATE_KEYS.status], "emergency"],
-    0.7,
+    1,
     0
   ];
 }

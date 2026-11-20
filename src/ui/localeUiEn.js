@@ -1,6 +1,12 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+湖と貯水池|Lakes and reservoirs
+湖沼: 国土数値情報（2005年・MeteoScope加工）|Lakes: MLIT National Land Numerical Information (2005, processed by MeteoScope)
+国土数値情報（湖沼データ）・国土交通省|Lake data, National Land Numerical Information, MLIT
+データの利用条件|Data terms of use
+をご確認ください。|Please review these terms.
+（2005年9月時点、商用可）をMeteoScopeが加工しています。全ての池や現在の湖岸を網羅せず、原典由来の時間的・空間的誤差があります。測量・航行・浸水範囲の判定には使用しないでください。|MeteoScope processes the September 2005 data (commercial use permitted). It does not include every pond or current shoreline and has temporal and spatial errors inherited from its sources. Do not use it for surveying, navigation, or determining inundation areas.
 東北地方|Tohoku Region
 関東地方|Kanto Region
 北陸地方|Hokuriku Region

@@ -54,7 +54,7 @@ export function encodeBaseMapTile(indexes, z, x, y) {
   return Object.keys(layers).length ? fromGeojsonVt(layers, { version: 2, extent: 8192 }) : null;
 }
 export async function buildBaseMapTiles() {
-  const files = { municipalities: "jma-weather-warning-municipalities-map.geojson", prefectures: "japan-prefectures-map.geojson", municipalityFixes: "jma-weather-warning-municipality-fixes.geojson" };
+  const files = { municipalities: "jma-weather-warning-municipalities-map.geojson", prefectures: "japan-prefectures-map.geojson", municipalityFixes: "jma-weather-warning-municipality-fixes.geojson", lakes: "japan-lakes.geojson" };
   const collections = {};
   const inputTexts = {};
   const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));

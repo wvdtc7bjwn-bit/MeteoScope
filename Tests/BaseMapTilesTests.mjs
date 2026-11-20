@@ -41,6 +41,10 @@ for (const [name, path] of Object.entries({ municipalities: "jma-weather-warning
 }
 const fixesText = await readFile(new URL("../public/data/jma-weather-warning-municipality-fixes.geojson", import.meta.url), "utf8");
 inputTexts.municipalityFixes = fixesText;
+const lakesText = await readFile(new URL("../public/data/japan-lakes.geojson", import.meta.url), "utf8");
+inputTexts.lakes = lakesText;
+collections.lakes = JSON.parse(lakesText);
+assert.equal(getBaseMapInputHash(lakesText), manifest.inputHashes.lakes);
 assert.equal(getBaseMapInputHash(fixesText), manifest.inputHashes.municipalityFixes);
 assert.equal(getBaseMapBuildVersion(inputTexts, manifest.buildOptions), manifest.version);
 const linuxInputs = Object.fromEntries(Object.entries(inputTexts).map(([key, text]) => [key, text.replaceAll("\r\n", "\n")]));
@@ -48,6 +52,7 @@ const windowsInputs = Object.fromEntries(Object.entries(linuxInputs).map(([key, 
 assert.equal(getBaseMapBuildVersion(linuxInputs, manifest.buildOptions), getBaseMapBuildVersion(windowsInputs, manifest.buildOptions), "Windows and CI must produce the same version");
 assert.equal(getBaseMapInputHash(linuxInputs.municipalityFixes), getBaseMapInputHash(windowsInputs.municipalityFixes));
 assert.notEqual(getBaseMapBuildVersion({...inputTexts, municipalityFixes: `${fixesText} `}, manifest.buildOptions), manifest.version, "A fix-only change must invalidate tile URLs");
+assert.notEqual(getBaseMapBuildVersion({...inputTexts, lakes: `${lakesText} `}, manifest.buildOptions), manifest.version, "Lake updates must invalidate tile URLs");
 const fixes = JSON.parse(fixesText);
 const originalMunicipalities = collections.municipalities;
 collections.municipalities = applyMunicipalityGeometryFixes(originalMunicipalities, fixes);
@@ -59,7 +64,7 @@ for (const [index, feature] of collections.municipalities.features.entries()) {
 }
 assert.throws(() => applyMunicipalityGeometryFixes(originalMunicipalities, {features: []}), /Missing/);
 assert.throws(() => applyMunicipalityGeometryFixes(originalMunicipalities, {features: [...fixes.features, fixes.features[0]]}), /duplicate/);
-assert.deepEqual(manifest.layers, ["municipalities", "prefectures"]);
+assert.deepEqual(manifest.layers, ["municipalities", "prefectures", "lakes"]);
 const islandWithHole = {type: "MultiPolygon", coordinates: [[[[0,0],[4,0],[4,4],[0,4],[0,0]], [[1,1],[1,2],[2,2],[2,1],[1,1]]], [[[6,0],[7,0],[7,1],[6,1],[6,0]]]]};
 const synthetic = {type: "FeatureCollection", features: [{type: "Feature", bbox: [0,0,1,1], properties: {code: "0010000", name: "unchanged"}, geometry: {type: "Polygon", coordinates: []}}]};
 const merged = applyMunicipalityGeometryFixes(synthetic, {features: [{properties: {code: "0010000"}, geometry: islandWithHole}]}, ["0010000"]);
@@ -75,9 +80,11 @@ const fixedTileKeys = fixes.features.map(feature => {
   const y = Math.floor((1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * 1024);
   return `10/${x}/${y}`;
 });
-const keys = [...new Set([...fixedTileKeys, ...manifest.tiles.filter(key => key.startsWith("5/")).slice(0, 8), ...manifest.tiles.filter(key => key.startsWith("10/")).slice(-8)])];
+const lakeTileKeys = [[136.07,35.25],[140.85,42.59],[140.39,36.02],[132.97,35.44]].map(([lon,lat]) => `10/${Math.floor((lon+180)/360*1024)}/${Math.floor((1-Math.asinh(Math.tan(lat*Math.PI/180))/Math.PI)/2*1024)}`);
+const keys = [...new Set([...fixedTileKeys, ...lakeTileKeys, ...manifest.tiles.filter(key => key.startsWith("5/")).slice(0, 8), ...manifest.tiles.filter(key => key.startsWith("10/")).slice(-8)])];
 let checked = 0;
 const decodedFixCodes = new Set();
+const decodedLakeNames = new Set();
 for (const key of keys) {
   const [z, x, y] = key.split("/").map(Number);
   const bytes = await readFile(new URL(`../public/data/base-map-tiles/${manifest.version}/${key}.pbf`, import.meta.url));
@@ -90,6 +97,7 @@ for (const key of keys) {
     assert.equal(layer.length, original.features.length);
     for (let n = 0; n < layer.length; n++) {
       const feature = layer.feature(n);
+      if (name === "lakes") decodedLakeNames.add(feature.properties.name);
       if (name === "municipalities" && WARNING_GEOMETRY_FIX_CODES.includes(feature.properties.code)) decodedFixCodes.add(feature.properties.code);
       assert.deepEqual({ ...feature.properties }, original.features[n].tags);
       assert.equal(typeof feature.properties.code, "string", "Preserve leading-zero municipality IDs");
@@ -101,6 +109,7 @@ for (const key of keys) {
 }
 assert.ok(checked > 0);
 assert.deepEqual([...decodedFixCodes].sort(), [...WARNING_GEOMETRY_FIX_CODES].sort(), "All five repairs must exist in ordinary municipality tiles");
+for (const lake of ["琵琶湖", "洞爺湖", "霞ヶ浦", "宍道湖"]) assert(decodedLakeNames.has(lake), `Ordinary tiles include ${lake}`);
 assert.equal(new Set(manifest.tiles).size, manifest.tiles.length);
 console.log(`Base-map tile compatibility: ${checked} features checked`);
 

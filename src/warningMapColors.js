@@ -1,9 +1,20 @@
 export const WARNING_MAP_COLORS = Object.freeze({
-  advisory: "#fff000",
-  warning: "#ff2b12",
-  danger: "#b400ff",
-  emergency: "#b400ff"
+  // Reference-map hues, brightened and saturated after visual review.
+  // Existing transparency preserves the underlying terrain.
+  advisory: "#dbc750",
+  warning: "#962720",
+  danger: "#69558d",
+  emergency: "#69558d"
 });
+
+export const WARNING_EMERGENCY_HATCH_COLOR = "#000000";
+
+export function getWarningLegendBackground(level) {
+  const color = getWarningColor(level);
+  return level === "emergency"
+    ? `repeating-linear-gradient(135deg, ${WARNING_EMERGENCY_HATCH_COLOR} 0 4px, transparent 4px 10px), ${color}`
+    : color;
+}
 
 export const EARLY_WARNING_MAP_COLORS = Object.freeze({
   middle: "#ffc8b8",

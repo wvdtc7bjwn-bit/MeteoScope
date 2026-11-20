@@ -1,0 +1,14 @@
+{
+  "source": "国土数値情報（湖沼データ）・国土交通省",
+  "sourceUrl": "https://nlftp.mlit.go.jp/ksj/gml/datalist/KsjTmplt-W09-v2_2.html",
+  "downloadUrl": "https://nlftp.mlit.go.jp/ksj/gml/data/W09/W09-05/W09-05_GML.zip",
+  "licenseUrl": "https://nlftp.mlit.go.jp/ksj/other/agreement_02.html",
+  "license": "商用可（出典・加工者表示、利用規約継承）",
+  "referenceDate": "2005-09-01",
+  "sourceCrs": "JGD2000 geographic (SHP longitude/latitude)",
+  "processing": "MeteoScopeがGeoJSONへ変換。湖内の島・穴・複数ポリゴンを保持。座標の簡略化なし。基図タイルには既存と同じ表示用の量子化・簡略化を適用。",
+  "limitations": "整備時点の湖沼・貯水池で、全ての池・現在の湖岸を網羅しない。原典由来の時間的・空間的誤差があり、測量・航行・浸水範囲の判定には使用しない。",
+  "featureCount": 556,
+  "sha256": "6d4121c6e07a2db3fb3de3b183252ace9d57ba93f886485a99b33a7366d2fd2e",
+  "sourceSha256": "87aeea7c4c33ce2e2c19b0e82fe01445cb914a7ddf14cd0811120680d93aec50"
+}

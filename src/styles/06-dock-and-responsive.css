@@ -1309,27 +1309,31 @@
     gap: 6px;
     min-width: 0;
     overflow: hidden;
+    color: #cbd9e8;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 20px;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
   }
 
-  .is-event-summary .mobile-dock-earthquake-fact-values {
-    font-size: 13px;
-    font-weight: 750;
-    line-height: 20px;
-    font-variant-numeric: tabular-nums;
+  .is-event-summary .mobile-dock-earthquake-facts > :is(.mobile-dock-earthquake-fact-values, .mobile-dock-earthquake-depth, .earthquake-tsunami-status) {
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+  }
+
+  .is-event-summary :is(.mobile-dock-earthquake-fact-values, .mobile-dock-earthquake-depth) {
+    color: inherit;
   }
 
   .is-event-summary .mobile-dock-earthquake-depth {
-    font-size: 12px;
-    font-weight: 650;
-    line-height: 20px;
-    font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
 
   .is-event-summary .mobile-dock-earthquake-fact-separator {
     opacity: 0.5;
-    font-size: 11px;
-    line-height: 20px;
   }
 
   .is-event-summary .mobile-dock-earthquake-summary-aside {
@@ -1350,15 +1354,12 @@
     flex: 0 1 auto;
     min-width: 0;
     max-width: 100%;
-    margin-left: 4px;
+    margin-left: 2px;
     padding: 0;
     overflow: hidden;
     border: 0;
     border-radius: 0;
     background: transparent;
-    font-size: 11px;
-    font-weight: 650;
-    line-height: 20px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1383,7 +1384,7 @@
     color: #274b67;
   }
 
-  html[data-theme="light"] .is-event-summary :is(.mobile-dock-earthquake-fact-values, .mobile-dock-earthquake-depth) {
+  html[data-theme="light"] .is-event-summary .mobile-dock-earthquake-facts {
     color: #405a74;
   }
 

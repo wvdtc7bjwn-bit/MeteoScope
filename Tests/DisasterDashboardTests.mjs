@@ -14,7 +14,8 @@ import {
 } from "../src/earthquakeFormat.js";
 import {
   getEarlyWarningColor,
-  getWarningColor
+  getWarningColor,
+  getWarningLegendBackground
 } from "../src/warningMapColors.js";
 import { buildModalLoadingState } from "../src/ui/modalLoadingState.js";
 
@@ -30,8 +31,11 @@ assert.equal(formatEarthquakeDepthText(0, { compact: true }), "ごく浅い");
 assert.equal(formatEarthquakeDepthText("0km", { compact: true }), "ごく浅い");
 assert.equal(formatEarthquakeDepthText(10, { compact: true }), "10km");
 assert.equal(formatEarthquakeDepthText(null, { compact: true }), "--");
-assert.equal(getWarningColor("warning"), "#ff2b12");
-assert.equal(getWarningColor("danger"), "#b400ff");
+assert.equal(getWarningColor("warning"), "#962720");
+assert.equal(getWarningColor("danger"), "#69558d");
+assert.equal(getWarningColor("emergency"), getWarningColor("danger"));
+assert.match(getWarningLegendBackground("emergency"), /repeating-linear-gradient\(135deg, #000000[^]*#69558d$/);
+assert.equal(getWarningLegendBackground("danger"), getWarningColor("danger"));
 assert.equal(getEarlyWarningColor("middle"), "#ffc8b8");
 assert.equal(getEarlyWarningColor("high"), "#ff6b73");
 assert.deepEqual(
@@ -128,7 +132,7 @@ assert.equal(model.status, "ready");
 assert.equal(model.overview.activeRiskCount, 5);
 assert.equal(model.overview.tone, "attention");
 assert.equal(model.warnings.length, 1);
-assert.equal(model.warnings[0].color, "#ff2b12");
+assert.equal(model.warnings[0].color, "#962720");
 assert.equal(model.earlyWarnings.length, 1);
 assert.equal(model.earlyWarnings[0].color, "#ffc8b8");
 assert.equal(model.riverReports.length, 1);
@@ -152,7 +156,7 @@ assert.deepEqual(
 const dashboardMarkup = buildDisasterDashboardMarkup(model);
 assert.match(dashboardMarkup, /disaster-dashboard-refresh-icon/);
 assert.match(dashboardMarkup, /preserveAspectRatio="xMidYMid meet"/);
-assert.match(dashboardMarkup, /--dashboard-alert-color:#ff2b12/);
+assert.match(dashboardMarkup, /--dashboard-alert-color:#962720/);
 assert.match(dashboardMarkup, /--dashboard-alert-color:#ffc8b8/);
 assert.match(dashboardMarkup, /早期注意情報/);
 

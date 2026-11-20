@@ -265,14 +265,6 @@ html[data-theme="light"] .legend-weather-chart-isobar {
 }
 
 .legend-amedas { background: var(--green); }
-.legend-advisory { background: var(--warning); }
-.legend-warning { background: #ff2b12; }
-.legend-danger { background: #b400ff; }
-.legend-emergency {
-  background:
-    repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.92) 0 5px, transparent 5px 10px),
-    #b400ff;
-}
 .legend-early-middle { background: #ffc8b8; }
 .legend-early-high { background: #ff6b73; }
 .legend-typhoon-storm {
