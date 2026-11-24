@@ -1,3 +1,4 @@
+import { getEarthquakeHistoryStatus } from "./earthquakeHistoryStatus.js";
 import { renderMobileWeatherTimelineToolbar, getMobileWeatherFocusSelector } from "./mobileWeatherTimeline.js";
 import { renderLightningLegendSymbol } from "./lightningLegend.js";
 import { VOLCANO_ALERT_LEVEL_GUIDE, renderVolcanoList } from "./panels/volcanoPanel.js";
@@ -1534,6 +1535,8 @@ export function setupEarthquakeSelector({
     }
     const historyDetailBackButton = event.target.closest("[data-earthquake-history-detail-back]");
     if (historyDetailBackButton) {
+      event.preventDefault();
+      event.stopPropagation();
       onArchiveDetailBack?.();
       return;
     }
@@ -1616,14 +1619,6 @@ export function setupEarthquakeSelector({
   };
   root.addEventListener("click", handleClick);
   mobileDock?.addEventListener("click", handleClick);
-  mobileDock?.addEventListener("click", (event) => {
-    if (!(event.target instanceof Element)) return;
-    const backButton = event.target.closest("[data-earthquake-history-detail-back]");
-    if (!backButton) return;
-    event.preventDefault();
-    event.stopPropagation();
-    onArchiveDetailBack?.();
-  });
 
   root.addEventListener("submit", (event) => {
     const form = event.target;
@@ -6580,7 +6575,7 @@ function buildEarthquakeArchiveMarkup(data) {
   const form = `
     <form class="earthquake-archive-search" data-earthquake-archive-form aria-label="過去の地震検索">
       <div class="earthquake-archive-head">
-        <div><strong>気象庁 震度データベース</strong><span>1919年〜2日前・震度1以上の地震を検索</span></div>
+        <div><strong>気象庁 震度データベース</strong><span>1919年〜公開済みの最新日・震度1以上を検索</span></div>
         <a href="https://www.data.jma.go.jp/eqdb/data/shindo/" target="_blank" rel="noopener noreferrer">気象庁 ↗</a>
       </div>
       <div class="earthquake-archive-periods earthquake-distribution-range-presets" role="group" aria-label="検索期間（終了日を基準）">
@@ -6622,14 +6617,19 @@ function buildEarthquakeArchiveMarkup(data) {
   const totalMatched = Number(snapshot?.totalMatched ?? snapshot?.matchedCount ?? items.length);
   const resultLimit = Math.min(items.length, EARTHQUAKE_HISTORY_RESULT_LIMIT);
   const coverageLabel = `${formatArchiveDate(snapshot?.filters?.startDate ?? startDate)}〜${formatArchiveDate(snapshot?.filters?.endDate ?? endDate)}`;
+  const coverage = getEarthquakeHistoryStatus(snapshot, status);
   const progressNotice = status === "partial-error"
     ? `<p class="earthquake-archive-list-note" role="alert">${escapeHtml(data.earthquakeArchiveError ?? "続きのデータを取得できませんでした")}。取得済み分を表示しています。<button type="button" class="earthquake-distribution-retry" data-earthquake-archive-retry>再試行</button></p>`
     : "";
   const fallbackNotice = snapshot?.fallbackRanges?.length
     ? `<p class="earthquake-archive-list-note" role="status">通信障害のため保存データで代替：${snapshot.fallbackRanges.map((range) => `${escapeHtml(formatArchiveDate(range.startDate))} ${escapeHtml(range.startTime)}〜${escapeHtml(formatArchiveDate(range.endDate))} ${escapeHtml(range.endTime)}（更新 ${escapeHtml(formatArchiveDateTime(range.updatedAt))}）`).join("、")}</p>`
     : "";
-  const missingNotice = snapshot?.unavailableRanges?.length
-    ? `<p class="earthquake-archive-list-note" role="alert">取得できていない期間：${snapshot.unavailableRanges.map((range) => `${escapeHtml(formatArchiveDate(range.startDate))}〜${escapeHtml(formatArchiveDate(range.endDate))}${range.reason === "jma_not_yet_available" ? `（気象庁データは${escapeHtml(formatArchiveDate(range.availableThrough))}まで）` : ""}`).join("、")}。全期間の検索は完了していません。</p>` : "";
+  const unpublished = (snapshot?.unavailableRanges ?? []).filter(range => range.reason === "jma_not_yet_available");
+  const failedRanges = (snapshot?.unavailableRanges ?? []).filter(range => range.reason !== "jma_not_yet_available");
+  const formatRanges = ranges => ranges.map(range => `${escapeHtml(formatArchiveDate(range.startDate))}〜${escapeHtml(formatArchiveDate(range.endDate))}`).join("、");
+  const missingNotice = `${unpublished.length ? `<p class="earthquake-archive-list-note" role="status">未公開の期間：${formatRanges(unpublished)}。${escapeHtml(coverage.kind === "unpublished" ? coverage.hint : `気象庁データは${formatArchiveDate(snapshot.availableThrough ?? unpublished[0].availableThrough)}まで`)}。</p>` : ""}${failedRanges.length ? `<p class="earthquake-archive-list-note" role="alert">取得できていない期間：${formatRanges(failedRanges)}。<button type="button" class="earthquake-distribution-retry" data-earthquake-archive-retry>再試行</button></p>` : ""}${snapshot?.invalidRecordCount ? `<p class="earthquake-archive-list-note" role="alert">一部の地震データが不正なため表示できません。<button type="button" class="earthquake-distribution-retry" data-earthquake-archive-retry>再試行</button></p>` : ""}`;
+  const adjustedNotice = snapshot?.rangeAdjusted && snapshot.availableThrough
+    ? `<p class="earthquake-archive-list-note" role="status">気象庁の公開済み最新日 ${escapeHtml(formatArchiveDate(snapshot.availableThrough))} に合わせ、直近7日間を検索しました。</p>` : "";
   const incompleteNotice = snapshot?.searchFinished && !snapshot.complete && !snapshot.cancelled && snapshot?.unsearchedRanges?.length
     ? `<p class="earthquake-archive-list-note" role="status">${snapshot.filters.nearby && snapshot.filters.sort === "newest"
       ? "新しい地震から最大1,000件を表示しています。これより古い期間は未取得です。"
@@ -6640,12 +6640,12 @@ function buildEarthquakeArchiveMarkup(data) {
       <strong>${snapshot?.complete ? "" : "取得済み "}${totalMatched.toLocaleString("ja-JP")}件</strong>
       <span>${snapshot?.truncated && items.length >= EARTHQUAKE_HISTORY_RESULT_LIMIT
         ? `地図は先頭${resultLimit.toLocaleString("ja-JP")}件`
-        : coverageLabel}${loading ? "・検索中" : snapshot?.complete === false ? "・未取得期間あり" : ""}</span>
+        : coverageLabel}${loading ? "・検索中" : snapshot?.complete === false ? `・${coverage.label}` : ""}</span>
     </div>
   `;
   const nearbyNotice = snapshot?.filters?.nearby
     ? `<p class="earthquake-archive-list-note">震源から半径${escapeHtml(snapshot.filters.nearby.radiusKm)}km以内を検索しています。</p>` : "";
-  const notices = `${nearbyNotice}${progressNotice}${fallbackNotice}${missingNotice}${incompleteNotice}${cancelledNotice}`;
+  const notices = `${nearbyNotice}${adjustedNotice}${progressNotice}${fallbackNotice}${missingNotice}${incompleteNotice}${cancelledNotice}`;
   if (!items.length) return `${form}${notices}${resultHead}${loading ? `<div class="earthquake-empty" role="status">取得済みの期間から順次表示します。</div>` : `<div class="earthquake-empty">${snapshot?.complete ? "条件に一致する地震はありません。" : "取得済み分には条件に一致する地震がありません。"}</div>`}`;
   const list = visibleItems.map((item) => {
     const active = String(item.id) === selectedId;
@@ -7281,15 +7281,10 @@ function buildEarthquakeArchiveMobileContextMarkup(data) {
       tideObservation: data.tideObservation
     });
   }
-  const searching = ["idle", "loading", "refreshing"].includes(status);
-  const incomplete = snapshot?.complete === false || status === "partial-error";
   const failed = status === "error";
   const countVisible = Boolean(snapshot) && !failed;
-  const summaryHint = failed ? "検索データを取得できませんでした"
-    : searching ? "地震データを検索しています"
-      : incomplete ? "一部の期間を取得できていません"
-        : count === 0 ? "条件に一致する地震はありません"
-          : "地図の震央を選ぶと詳細を表示";
+  const coverage = getEarthquakeHistoryStatus(snapshot, status);
+  const summaryHint = coverage.hint;
   const primaryMarkup = `
     ${buildEarthquakeMobileViewSwitch("history")}
     <div class="mobile-dock-earthquake-distribution-summary is-archive-summary">
@@ -7299,9 +7294,9 @@ function buildEarthquakeArchiveMobileContextMarkup(data) {
       </div>
       <div class="mobile-dock-archive-count">
         <strong>${countVisible ? `${count.toLocaleString("ja-JP")}<small>件</small>` : "—"}</strong>
-        <span>${failed ? "取得失敗" : searching ? "検索中" : incomplete ? "一部取得" : "検索結果"}</span>
+        <span>${coverage.label}</span>
       </div>
-      <div class="mobile-dock-earthquake-distribution-range-hint">${summaryHint}</div>
+      <div class="mobile-dock-earthquake-distribution-range-hint">${escapeHtml(summaryHint)}</div>
     </div>
   `;
   return buildMobileEarthquakeSummaryCarousel({

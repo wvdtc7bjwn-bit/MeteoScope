@@ -1,7 +1,7 @@
 import {
   buildJmaIntensitySearchForm, isJmaHistoryDate, validateJmaHistoryConditions,
   JMA_EARTHQUAKE_HISTORY_SOURCE_URL, JMA_EARTHQUAKE_INTENSITY_API_URL,
-  isCoordinateWithinRadius
+  isCoordinateWithinRadius, getJmaHistoryLatestDate, shiftHistoryDate, normalizeHistoryCoordinates
 } from "../../src/jma/earthquakeHistoryApi.js";
 import { pointInPolygon } from "../../src/jma/hypocenterDistribution.js";
 import { normalizeHistoricalEpicenterName } from "../../src/jma/historicalEpicenterNames.js";
@@ -12,7 +12,7 @@ const API_RESULT_LIMIT = 1_000;
 function jsonResponse(payload, status = 200, cacheControl = "no-store") {
   return Response.json(payload, { status, headers: {
     "cache-control": cacheControl, "content-type": "application/json; charset=utf-8",
-    "x-content-type-options": "nosniff"
+    "x-content-type-options": "nosniff", "access-control-allow-origin": "*"
   } });
 }
 
@@ -22,11 +22,13 @@ export async function onRequestGet(context) {
   const endDate = url.searchParams.get("end") ?? "";
   const startTime = url.searchParams.get("startTime") ?? "00:00";
   const endTime = url.searchParams.get("endTime") ?? "23:59";
-  const latestAvailableDate = getJmaLatestDate();
+  const latestAvailableDate = getJmaHistoryLatestDate();
+  const latestWeek = url.searchParams.get("latestWeek") === "1";
   if (!isJmaHistoryDate(startDate) || !isJmaHistoryDate(endDate)
     || startDate < "1919-01-01" || startDate > endDate
     || !/^([01]\d|2[0-3]):[0-5]\d$/u.test(startTime) || !/^([01]\d|2[0-3]):[0-5]\d$/u.test(endTime)
-    || (startDate === endDate && startTime > endTime)) {
+    || (startDate === endDate && startTime > endTime)
+    || (url.searchParams.has("latestWeek") && (!latestWeek || startDate !== shiftHistoryDate(endDate, -6) || startTime !== "00:00" || endTime !== "23:59"))) {
     return jsonResponse({ ok: false, error: "invalid_date_range" }, 400);
   }
   if (endDate > latestAvailableDate) return jsonResponse({ ok: false, error: "date_not_yet_available", latestAvailableDate }, 400);
@@ -41,7 +43,8 @@ export async function onRequestGet(context) {
   // Keep polygon-filtered responses separate from older nationwide candidates.
   const cacheUrl = new URL("/api/earthquake-history", url.origin);
   const { nearby, areaPolygon, ...plainConditions } = conditions;
-  cacheUrl.search = new URLSearchParams({ v: "4", start: startDate, end: endDate, startTime, endTime, ...plainConditions,
+  cacheUrl.search = new URLSearchParams({ v: "5", start: startDate, end: endDate, startTime, endTime, ...plainConditions,
+    ...(latestWeek ? { latestWeek: "1" } : {}),
     ...(areaPolygon.length ? { areaPolygon: JSON.stringify(areaPolygon) } : {}),
     ...(nearby ? { nearbyLat: String(nearby.latitude), nearbyLon: String(nearby.longitude), nearbyRadiusKm: String(nearby.radiusKm) } : {}) });
   const cacheKey = new Request(cacheUrl);
@@ -56,11 +59,11 @@ export async function onRequestGet(context) {
   }
   try {
     context.request.signal.throwIfAborted();
-    const queryJma = async (queryEndDate, queryEndTime) => {
+    const queryJma = async (queryEndDate, queryEndTime, queryStartDate = startDate) => {
       const response = await fetch(JMA_EARTHQUAKE_INTENSITY_API_URL, {
         method: "POST",
         headers: { accept: "application/json", referer: JMA_EARTHQUAKE_HISTORY_SOURCE_URL },
-        body: buildJmaIntensitySearchForm(startDate, queryEndDate, startTime, queryEndTime, conditions),
+        body: buildJmaIntensitySearchForm(queryStartDate, queryEndDate, startTime, queryEndTime, conditions),
         signal: AbortSignal.any([context.request.signal, AbortSignal.timeout(25_000)])
       });
       if (response.status === 400 || response.status === 422) return null;
@@ -70,12 +73,19 @@ export async function onRequestGet(context) {
     let payload = await queryJma(endDate, endTime);
     if (!payload) return jsonResponse({ ok: false, error: "jma_invalid_search_conditions" }, 400);
     let availableThrough = null;
+    let effectiveStartDate = startDate, effectiveEndDate = endDate;
     let upstreamQueryCount = 1;
     const availabilityMessage = [typeof payload?.res === "string" ? payload.res : "", ...(Array.isArray(payload?.str) ? payload.str : [])].join("\n");
     const reportedLatest = availabilityMessage.match(/(\d{4}-\d{2}-\d{2})\s*より後のデータはありません/u)?.[1];
     if (reportedLatest && isJmaHistoryDate(reportedLatest) && reportedLatest < endDate) {
       availableThrough = reportedLatest;
-      if (startDate > reportedLatest) {
+      if (latestWeek) {
+        effectiveEndDate = reportedLatest;
+        effectiveStartDate = shiftHistoryDate(reportedLatest, -6);
+        payload = await queryJma(effectiveEndDate, "23:59", effectiveStartDate);
+        upstreamQueryCount += 1;
+        if (!payload) return jsonResponse({ ok: false, error: "jma_invalid_search_conditions" }, 400);
+      } else if (startDate > reportedLatest) {
         payload = { res: [], str: [] };
       } else {
         payload = await queryJma(reportedLatest, "23:59");
@@ -91,20 +101,23 @@ export async function onRequestGet(context) {
       throw new Error("JMA returned an unsupported response");
     }
     const summary = Array.isArray(payload.str) ? payload.str.join("\n") : "";
-    const reportedCount = summary.match(/検索結果地震数\s*[:：]\s*(\d+)\s*地震/u);
+    const reportedCount = summary.match(/検索結果地震数\s*[:：]\s*([\d,]+)\s*地震/u);
+    const totalCandidates = reportedCount ? Number(reportedCount[1].replaceAll(",", "")) : null;
     const limitExceeded = /上限を超え/u.test(summary);
-    const limited = limitExceeded || (candidates.length >= API_RESULT_LIMIT && Number(reportedCount?.[1]) !== candidates.length);
+    const limited = limitExceeded || (totalCandidates !== null && totalCandidates > candidates.length)
+      || (candidates.length >= API_RESULT_LIMIT && totalCandidates !== candidates.length);
     const keyword = conditions.keyword.toLocaleLowerCase("ja-JP");
-    const records = keyword ? candidates.filter((record) => normalizeHistoricalEpicenterName(String(record.id), record.name).toLocaleLowerCase("ja-JP").includes(keyword)) : candidates;
+    const records = keyword ? candidates.filter((record) => normalizeHistoricalEpicenterName(String(record?.id), record?.name).toLocaleLowerCase("ja-JP").includes(keyword)) : candidates;
     const matchedRecords = records.filter((record) => (!nearby || isWithinNearbyRadius(record, nearby))
-      && (!areaPolygon.length || pointInPolygon([Number(record.lon), Number(record.lat)], areaPolygon)));
+      && (!areaPolygon.length || isWithinArea(record, areaPolygon)));
     const result = jsonResponse({
-      ok: true, startDate, endDate, startTime, endTime, conditions,
+      ok: true, startDate: effectiveStartDate, endDate: effectiveEndDate, startTime, endTime, conditions,
+      rangeAdjusted: effectiveStartDate !== startDate || effectiveEndDate !== endDate,
       sourceUrl: JMA_EARTHQUAKE_HISTORY_SOURCE_URL,
       records: matchedRecords,
-      candidateCount: candidates.length, limited, limitExceeded, totalMatched: limited || availableThrough ? null : matchedRecords.length,
+      candidateCount: candidates.length, limited, limitExceeded, totalMatched: limited || (availableThrough && !latestWeek) ? null : matchedRecords.length,
       upstreamQueryCount, availableThrough
-    }, 200, availableThrough ? "no-store" : `public, max-age=0, s-maxage=${CACHE_TTL_SECONDS}`);
+    }, 200, availableThrough ? "no-store" : `public, max-age=0, s-maxage=${latestWeek ? 300 : CACHE_TTL_SECONDS}`);
     if (cache && !availableThrough) {
       const write = cache.put(cacheKey, result.clone()).catch((error) => console.warn("[earthquake-history-proxy] cache write failed", error));
       if (context.waitUntil) context.waitUntil(write);
@@ -119,12 +132,10 @@ export async function onRequestGet(context) {
 }
 
 function isWithinNearbyRadius(record, nearby) {
-  const latitude = Number(record?.lat);
-  const longitude = Number(record?.lon);
-  return isCoordinateWithinRadius([longitude, latitude], [nearby.longitude, nearby.latitude], nearby.radiusKm);
+  return isCoordinateWithinRadius([record?.lon, record?.lat], [nearby.longitude, nearby.latitude], nearby.radiusKm);
 }
 
-function getJmaLatestDate() {
-  const jstDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
-  return new Date(Date.parse(`${jstDate}T00:00:00Z`) - 2 * 86_400_000).toISOString().slice(0, 10);
+function isWithinArea(record, polygon) {
+  const coordinates = normalizeHistoryCoordinates(record?.lon, record?.lat);
+  return coordinates ? pointInPolygon(coordinates, polygon) : false;
 }

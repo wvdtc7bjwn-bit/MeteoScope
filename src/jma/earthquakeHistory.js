@@ -1,17 +1,19 @@
 import { pointInPolygon } from "./hypocenterDistribution.js";
 import { fetchJson } from "./jmaClient.js";
 import { normalizeHistoricalEpicenterName } from "./historicalEpicenterNames.js";
+import { APP_BASE_URL } from "../config.js";
 import {
   normalizeJmaEarthquakeIntensity,
   normalizeJmaEarthquakeOriginTime,
   isJmaHistoryDate,
   validateJmaHistoryConditions,
   splitJmaEarthquakeDateRange,
-  isCoordinateWithinRadius
+  isCoordinateWithinRadius, getJmaHistoryLatestDate, parseHistoryNumber,
+  normalizeHistoryCoordinates, parseHistoryDepth, canonicalHistoryEventId, getEarthquakeHistoryApiUrl
 } from "./earthquakeHistoryApi.js";
 
-const DATA_BASE = "/data/earthquake-history";
-const LIVE_SEARCH_ENDPOINT = "/api/earthquake-history";
+const DATA_BASE = `${APP_BASE_URL}data/earthquake-history`;
+const LIVE_SEARCH_ENDPOINT = getEarthquakeHistoryApiUrl("earthquake-history");
 export const EARTHQUAKE_HISTORY_EARLIEST_DATE = "1919-01-01";
 export const EARTHQUAKE_HISTORY_RESULT_LIMIT = 1_000;
 export const EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT = 200;
@@ -55,6 +57,7 @@ export async function fetchEarthquakeHistoryManifest({ signal } = {}) {
 export async function searchEarthquakeHistory(filters = {}, { onProgress, signal } = {}) {
   signal?.throwIfAborted();
   const normalized = normalizeEarthquakeHistoryFilters(filters);
+  const latestWeek = !filters.startDate && !filters.endDate;
   const pending = [{ startDate: normalized.startDate, endDate: normalized.endDate, startTime: "00:00", endTime: "23:59" }];
   const matches = new Map();
   const fallbackRanges = [];
@@ -65,17 +68,20 @@ export async function searchEarthquakeHistory(filters = {}, { onProgress, signal
   let scannedRecordCount = 0;
   let completedRangeCount = 0;
   let limitExceeded = false;
+  let availableThrough = null;
+  let rangeAdjusted = false;
+  let invalidRecordCount = 0;
   let progressTimer = null;
   let lastPublish = -Infinity;
 
   function snapshot(searchFinished = false) {
-    const complete = searchFinished && !pending.length && !unresolvedRanges.length && !unavailableRanges.length;
+    const complete = searchFinished && !pending.length && !unresolvedRanges.length && !unavailableRanges.length && !invalidRecordCount;
     const sorted = [...matches.values()].sort(getHistoryComparator(normalized.sort));
     return {
       ok: true, filters: normalized, manifest, complete, searchFinished,
       totalMatched: complete ? matches.size : null, matchedCount: matches.size,
       truncated: sorted.length > EARTHQUAKE_HISTORY_RESULT_LIMIT || unresolvedRanges.length > 0 || pending.length > 0 && searchFinished,
-      limitExceeded, queryCount, scannedRecordCount,
+      limitExceeded, queryCount, scannedRecordCount, availableThrough, rangeAdjusted, invalidRecordCount,
       displayLimit: EARTHQUAKE_HISTORY_RESULT_LIMIT, acquisitionLimit: HISTORY_ACQUISITION_LIMIT, queryLimit: HISTORY_QUERY_LIMIT,
       completedRangeCount,
       fallbackYears: [...new Set(fallbackRanges.flatMap((range) => {
@@ -152,9 +158,21 @@ export async function searchEarthquakeHistory(filters = {}, { onProgress, signal
     queryCount += 1;
     let records;
     try {
-      const payload = await loadLiveHistoryRange(range, normalized, signal);
+      const payload = await loadLiveHistoryRange(range, normalized, signal, latestWeek && queryCount === 1);
+      if (latestWeek && queryCount === 1 && payload.rangeAdjusted
+        && isJmaHistoryDate(payload.startDate) && isJmaHistoryDate(payload.endDate)
+        && payload.startDate <= payload.endDate && payload.endDate <= range.endDate) {
+        // A default week follows the publication date, not an assumed two-day
+        // lag. Move both ends so it still covers seven days, rather than six.
+        normalized.startDate = range.startDate = payload.startDate;
+        normalized.endDate = range.endDate = payload.endDate;
+        rangeAdjusted = true;
+      }
       records = payload.records.flatMap(normalizeLiveHistoryRecord);
-      scannedRecordCount += Number(payload.candidateCount ?? payload.records.length);
+      invalidRecordCount += payload.records.length - records.length;
+      const candidateCount = Number(payload.candidateCount);
+      scannedRecordCount += Number.isFinite(candidateCount) && candidateCount >= payload.records.length ? candidateCount : payload.records.length;
+      if (isJmaHistoryDate(payload.availableThrough)) availableThrough = availableThrough ? minDate(availableThrough, payload.availableThrough) : payload.availableThrough;
       if (isJmaHistoryDate(payload.availableThrough) && payload.availableThrough < range.endDate) {
         unavailableRanges.push({
           startDate: maxDate(range.startDate, shiftDate(payload.availableThrough, 1)),
@@ -178,8 +196,9 @@ export async function searchEarthquakeHistory(filters = {}, { onProgress, signal
     }
     signal?.throwIfAborted();
     for (const record of records) {
+      const key = canonicalHistoryEventId(record.id);
       if (recordMatchesHistorySearch(record, normalized, range)
-        && !(record.dataSource === "archive" && matches.get(record.id)?.dataSource === "live")) matches.set(record.id, record);
+        && !(record.dataSource === "archive" && matches.get(key)?.dataSource === "live")) matches.set(key, record);
     }
     completedRangeCount += 1;
     publish();
@@ -256,17 +275,14 @@ export function normalizeEarthquakeHistoryFilters(filters) {
   const endDate = requestedStartDate <= requestedEndDate ? requestedEndDate : requestedStartDate;
   return {
     startDate: minDate(maxDate(startDate, EARTHQUAKE_HISTORY_EARLIEST_DATE), latestDate),
-    endDate: minDate(endDate, latestDate),
+    endDate: minDate(maxDate(endDate, EARTHQUAKE_HISTORY_EARLIEST_DATE), latestDate),
     ...conditions,
     nearby: conditions.nearby
   };
 }
 
 export function getJmaLatestAvailableDate(now = Date.now()) {
-  const todayInJapan = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit"
-  }).format(new Date(now));
-  return shiftDate(todayInJapan, -2);
+  return getJmaHistoryLatestDate(now);
 }
 
 // Calendar periods include both dates and end at the selected end date.
@@ -303,9 +319,10 @@ async function loadHistoryYear(year, file, signal) {
   return payload.flatMap(normalizeHistoryRecord);
 }
 
-async function loadLiveHistoryRange(range, conditions, signal) {
+async function loadLiveHistoryRange(range, conditions, signal, latestWeek = false) {
   const query = new URLSearchParams({ start: range.startDate, end: range.endDate, startTime: range.startTime, endTime: range.endTime,
-    minIntensity: conditions.minIntensity, minMagnitude: conditions.minMagnitude, maxDepth: conditions.maxDepth, sort: conditions.sort, keyword: conditions.keyword, v: "4" });
+    minIntensity: conditions.minIntensity, minMagnitude: conditions.minMagnitude, maxDepth: conditions.maxDepth, sort: conditions.sort, keyword: conditions.keyword, v: "5" });
+  if (latestWeek) query.set("latestWeek", "1");
   if (conditions.nearby) {
     query.set("nearbyLat", String(conditions.nearby.latitude));
     query.set("nearbyLon", String(conditions.nearby.longitude));
@@ -318,18 +335,17 @@ async function loadLiveHistoryRange(range, conditions, signal) {
       retryCount: 0, signal, cancelUnderlying: true, staleIfError: false
     });
   if (!payload?.ok || !Array.isArray(payload.records)) {
-    throw new Error("気象庁の震度データベースを取得できませんでした");
+    throw new TypeError("気象庁の震度データベースを取得できませんでした");
   }
   return payload;
 }
 
 function normalizeLiveHistoryRecord(record) {
-  const latitude = Number(record?.lat);
-  const longitude = Number(record?.lon);
+  const coordinates = normalizeHistoryCoordinates(record?.lon, record?.lat);
   const originTime = normalizeJmaEarthquakeOriginTime(record?.ot);
-  if (!record?.id || !originTime || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
-  const magnitude = record.mag == null || String(record.mag).trim() === "" ? NaN : Number(record.mag);
-  const depthMatch = String(record.dep ?? "").match(/(\d+(?:\.\d+)?)\s*km/iu);
+  if (!record?.id || !originTime || !coordinates) return [];
+  const [longitude, latitude] = coordinates;
+  const magnitude = parseHistoryNumber(record.mag);
   const id = String(record.id);
   return [{
     id,
@@ -338,8 +354,8 @@ function normalizeLiveHistoryRecord(record) {
     place: normalizeHistoricalEpicenterName(id, record.name),
     latitude,
     longitude,
-    coordinates: [longitude, latitude],
-    depthKm: depthMatch ? Number(depthMatch[1]) : /ごく浅い/u.test(String(record.dep)) ? 0 : null,
+    coordinates,
+    depthKm: parseHistoryDepth(record.dep),
     magnitude: Number.isFinite(magnitude) ? magnitude : null,
     maxIntensity: normalizeJmaEarthquakeIntensity(record.maxI),
     sourceUrl: `https://www.data.jma.go.jp/eqdb/data/shindo/#${encodeURIComponent(id)}`
@@ -347,11 +363,11 @@ function normalizeLiveHistoryRecord(record) {
 }
 
 function normalizeHistoryRecord(record) {
-  const latitude = Number(record?.la);
-  const longitude = Number(record?.lo);
-  if (!record?.id || !record?.t || !Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
-  const magnitude = record.m == null ? null : Number(record.m);
-  const depthKm = record.d == null ? null : Number(record.d);
+  const coordinates = normalizeHistoryCoordinates(record?.lo, record?.la);
+  if (!record?.id || !record?.t || !isJmaHistoryDate(String(record.t).slice(0,10)) || !coordinates) return [];
+  const [longitude, latitude] = coordinates;
+  const magnitude = parseHistoryNumber(record.m);
+  const depthKm = parseHistoryNumber(record.d);
   return [{
     id: String(record.id),
     dataSource: "archive",

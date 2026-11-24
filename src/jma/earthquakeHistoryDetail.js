@@ -1,8 +1,9 @@
 import { fetchJson } from "./jmaClient.js";
 import { JMA_ENDPOINTS, STATIC_DATA_CACHE_TTL_MS } from "../config.js";
 import { getEarthquakeIntensityColor, getEarthquakeIntensityRank } from "../earthquakeIntensity.js";
+import { normalizeHistoryCoordinates, parseHistoryDepth, parseHistoryNumber, canonicalHistoryEventId, getEarthquakeHistoryApiUrl } from "./earthquakeHistoryApi.js";
 
-const EVENT_ENDPOINT = "/api/earthquake-history-event";
+const EVENT_ENDPOINT = getEarthquakeHistoryApiUrl("earthquake-history-event");
 const AREA_BOUNDARY_SNAP_TOLERANCE_KM = 5;
 // Static area geometry is shared across reports; never rescan every vertex
 // for each earthquake in the recent-history list. Intensities remain per-call.
@@ -12,9 +13,11 @@ export async function fetchEarthquakeHistoryEvent(eventId, { signal } = {}) {
   const id = normalizeEarthquakeHistoryEventId(eventId);
   if (!id) throw new TypeError("地震IDが不正です");
   const [payload, areaGeoJson] = await Promise.all([
-    fetchJson(`${EVENT_ENDPOINT}?id=${encodeURIComponent(id)}`, {
-    ttlMs: 24 * 60 * 60 * 1000,
-    timeoutMs: 20_000,
+    fetchJson(`${EVENT_ENDPOINT}?id=${encodeURIComponent(id)}&v=3`, {
+    // Supplementary long-period observations can become available later. Do
+    // not hide the server's one-minute retry policy behind a day-long cache.
+    ttlMs: 60 * 1000,
+    timeoutMs: 25_000,
     retryCount: 0,
     signal,
     cancelUnderlying: true,
@@ -213,19 +216,17 @@ export function normalizeEarthquakeHistoryEventId(value) {
 export function normalizeEarthquakeHistoryEvent(event = {}, expectedId = "") {
   const hypocenter = event.hypocenter ?? {};
   const id = normalizeEarthquakeHistoryEventId(hypocenter.id ?? expectedId);
-  const latitude = Number(hypocenter.lat);
-  const longitude = Number(hypocenter.lon);
-  if (!id || !Number.isFinite(latitude) || latitude < -90 || latitude > 90
-    || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+  const coordinates = normalizeHistoryCoordinates(hypocenter.lon, hypocenter.lat);
+  if (!id || !coordinates || (expectedId && canonicalHistoryEventId(id) !== canonicalHistoryEventId(expectedId))) {
     throw new Error("地震の詳細データが不正です");
   }
+  const [longitude, latitude] = coordinates;
   const stations = (Array.isArray(event.stations) ? event.stations : []).flatMap((station) => {
-    const stationLatitude = Number(station?.latitude);
-    const stationLongitude = Number(station?.longitude);
+    const point = normalizeHistoryCoordinates(station?.longitude, station?.latitude);
     const intensity = normalizeIntensity(station?.intensity ?? station?.character);
     const name = String(station?.name ?? "").trim();
-    if (!name || !intensity || !Number.isFinite(stationLatitude) || stationLatitude < -90 || stationLatitude > 90
-      || !Number.isFinite(stationLongitude) || stationLongitude < -180 || stationLongitude > 180) return [];
+    if (!name || !intensity || !point) return [];
+    const [stationLongitude, stationLatitude] = point;
     return [{
       id: String(station.code ?? `${name}:${stationLatitude}:${stationLongitude}`),
       name,
@@ -248,9 +249,9 @@ export function normalizeEarthquakeHistoryEvent(event = {}, expectedId = "") {
       place: String(hypocenter.place ?? "震央地名不明"),
       latitude,
       longitude,
-      coordinates: [longitude, latitude],
-      depthKm: parseDepth(hypocenter.depth),
-      magnitude: parseMagnitude(hypocenter.magnitude),
+      coordinates,
+      depthKm: parseHistoryDepth(hypocenter.depth),
+      magnitude: parseHistoryNumber(hypocenter.magnitude),
       maxIntensity: normalizeIntensity(hypocenter.maxIntensity)
     },
     stations,
@@ -269,14 +270,4 @@ function normalizeIntensity(value) {
   // The JMA database contains unsplit "5" and "6" values for observations
   // made under the pre-October-1996 intensity scale. Keep those labels intact.
   return /^(?:1|2|3|4|5|5-|5\+|6|6-|6\+|7)$/u.test(intensity) ? intensity : "";
-}
-
-function parseDepth(value) {
-  const match = String(value ?? "").match(/(\d+(?:\.\d+)?)\s*km/iu);
-  return match ? Number(match[1]) : null;
-}
-
-function parseMagnitude(value) {
-  const magnitude = Number(value);
-  return Number.isFinite(magnitude) ? magnitude : null;
 }

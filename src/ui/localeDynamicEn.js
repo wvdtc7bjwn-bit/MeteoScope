@@ -2,6 +2,12 @@
 // be translated by replacing isolated words inside arbitrary prose.
 export function translateDynamicUiEn(text, translate) {
   let match;
+  if ((match = text.match(/^公開済みの最新日 ([\d/]+) までの1週間を表示$/u))) return `Showing the week through the latest published date, ${match[1]}`;
+  if ((match = text.match(/^気象庁のデータは ([\d/]+) まで公開されています$/u))) return `JMA data is published through ${match[1]}`;
+  if ((match = text.match(/^気象庁データは([\d/]+)まで$/u))) return `JMA data through ${match[1]}`;
+  if ((match = text.match(/^気象庁の公開済み最新日 ([\d/]+) に合わせ、直近7日間を検索しました。$/u))) return `Searched seven days through the latest published JMA date, ${match[1]}.`;
+  if ((match = text.match(/^未公開の期間：([\d/〜、]+)。(.*)。$/u))) return `Unpublished period: ${match[1].replaceAll("〜", "–").replaceAll("、", ", ")}. ${translate(match[2])}.`;
+  if ((match = text.match(/^取得できていない期間：([\d/〜、]+)。$/u))) return `Periods not retrieved: ${match[1].replaceAll("〜", "–").replaceAll("、", ", ")}.`;
   if ((match = text.match(/^(\d+)ページのPDFを表示しています。$/u))) return `Showing PDF · ${match[1]} ${Number(match[1]) === 1 ? "page" : "pages"}`;
   if ((match = text.match(/^一覧\s+(\d+)$/u))) return `Markers ${match[1]}`;
   if ((match = text.match(/^目印一覧\s+(\d+)件$/u))) return `Markers · ${match[1]}`;

@@ -11,6 +11,18 @@ export const UI_EN_ENTRIES = `
 検索結果|Search results
 取得失敗|Unavailable
 一部取得|Partial results
+公開待ち|Awaiting publication
+件数上限|Record limit
+検索中断|Search cancelled
+一部のデータの取得に失敗しました。再試行できます|Some data could not be retrieved. You can retry.
+一部の期間の取得に失敗しました。再試行できます|Some periods could not be retrieved. You can retry.
+一部の地震データを表示できません。再試行できます|Some earthquake records cannot be displayed. You can retry.
+一部の地震データが不正なため表示できません。|Some earthquake records are invalid and cannot be displayed.
+取得上限に達しました。期間や条件を絞って検索できます|The retrieval limit was reached. Narrow the period or filters.
+指定した期間の一部は、気象庁でまだ公開されていません|Part of this period has not yet been published by JMA.
+検索は全件取得まで完了していません|The search has not retrieved all records.
+条件変更のため検索を中断しました|Search cancelled because the filters changed
+1919年〜公開済みの最新日・震度1以上を検索|Search intensity 1 or higher, from 1919 through the latest published date
 地震データを検索しています|Searching earthquake records
 一部の期間を取得できていません|Some periods could not be retrieved
 条件に一致する地震はありません|No earthquakes match these filters

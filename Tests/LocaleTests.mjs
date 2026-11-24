@@ -4,6 +4,11 @@ import { localizeText, localizeVolcanoText } from "../src/ui/locale.js";
 import { TIDE_STATION_NAME_TRANSLATIONS } from "../src/ui/tideStationNamesEn.js";
 
 const cases = new Map([
+  ["公開待ち", "Awaiting publication"],
+  ["件数上限", "Record limit"],
+  ["検索中断", "Search cancelled"],
+  ["気象庁のデータは 2026/11/22 まで公開されています", "JMA data is published through 2026/11/22"],
+  ["公開済みの最新日 2026/11/22 までの1週間を表示", "Showing the week through the latest published date, 2026/11/22"],
   ["最大震度", "Max."],
   ["発表中の警報・注意報", "Active warnings and advisories"],
   ["雷注意報", "Thunderstorm Advisory"],

@@ -1,3 +1,4 @@
+import { getEarthquakeHistoryStatus } from "../src/ui/earthquakeHistoryStatus.js";
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
@@ -74,7 +75,7 @@ try{
 console.log('Earthquake history area search: client, proxy, JMA bounds, cache isolation, invalid inputs and truthful limit state passed');
 
 const panel=readFileSync(new URL('../src/ui/leftPanel.js',import.meta.url),'utf8');
-const renderer=vm.createContext({escapeHtml,getEarthquakeHistoryPresetRange,EARTHQUAKE_HISTORY_PERIOD_PRESETS,EARTHQUAKE_HISTORY_EARLIEST_DATE,getJmaLatestAvailableDate:()=> '2025-12-31',
+const renderer=vm.createContext({getEarthquakeHistoryStatus,escapeHtml,getEarthquakeHistoryPresetRange,EARTHQUAKE_HISTORY_PERIOD_PRESETS,EARTHQUAKE_HISTORY_EARLIEST_DATE,getJmaLatestAvailableDate:()=> '2025-12-31',
  buildArchiveSelect:()=>'',buildDistributionAreaControls:()=>'',
  EARTHQUAKE_HISTORY_INTENSITY_OPTIONS:[],EARTHQUAKE_HISTORY_SORT_OPTIONS:[],
  EARTHQUAKE_HISTORY_RESULT_LIMIT:1000,EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT:200,

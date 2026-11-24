@@ -370,7 +370,7 @@ assert.match(panel, /archiveSearchButton\.closest\("\[data-earthquake-archive-fo
 assert.match(panel, /closest\("button\[data-earthquake-view\]"\)/u);
 assert.match(panel, /onArchiveFilterChange\?\.\(readArchiveSearchFilters\(archiveForm\)\)/u);
 assert.match(panel, /const filters = data\.earthquakeArchiveFilters \?\? snapshot\?\.filters/u);
-assert.match(panel, /1919年〜2日前/u);
+assert.match(panel, /1919年〜公開済みの最新日/u);
 assert.match(panel, /検索結果が上限の\$\{EARTHQUAKE_HISTORY_RESULT_LIMIT\.toLocaleString\("ja-JP"\)\}件を超えています/u);
 assert.match(panel, /getEarthquakeIntensityColor\(item\.maxIntensity\)[\s\S]*?renderExpandedEarthquakeSummary\(\{[\s\S]*?intensityColor,[\s\S]*?showTsunami: false/u,
   "過去地震は共通の震度色と最新の地震の表示を使い、津波情報を推測しない");
@@ -398,7 +398,7 @@ assert.match(app, /radiusKm: 50/u);
 assert.match(panel, /data-next-visible-count/u);
 // Refreshing and partial summary states are executed in EarthquakeArchiveSummaryTests.mjs.
 assert.doesNotMatch(panel, /snapshot\?\.complete === false \? "・更新中"/u);
-assert.match(panel, /snapshot\.unavailableRanges/u);
+assert.match(panel, /snapshot\?\.unavailableRanges/u);
 assert.match(app, /onProgress: \(partialData\)/u);
 assert.match(panel, /気象庁の震度データベースを検索/u);
 assert.match(map, /getEarthquakeMapView\(data\) === "history"/u);

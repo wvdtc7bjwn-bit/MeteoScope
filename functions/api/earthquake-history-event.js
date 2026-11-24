@@ -8,7 +8,7 @@ function jsonResponse(payload, status = 200, cacheControl = "no-store") {
   return Response.json(payload, { status, headers: {
     "cache-control": cacheControl,
     "content-type": "application/json; charset=utf-8",
-    "x-content-type-options": "nosniff"
+    "x-content-type-options": "nosniff", "access-control-allow-origin": "*"
   } });
 }
 
@@ -21,7 +21,7 @@ export async function onRequestGet(context) {
   // 14-digit, second-resolution ID.
   const jmaEventId = id.slice(0, 14);
 
-  const cacheKey = new Request(new URL(`/api/earthquake-history-event?v=2&id=${encodeURIComponent(jmaEventId)}`, url.origin));
+  const cacheKey = new Request(new URL(`/api/earthquake-history-event?v=3&id=${encodeURIComponent(jmaEventId)}`, url.origin));
   const cache = globalThis.caches?.default;
   if (cache) {
     try {
@@ -45,10 +45,10 @@ export async function onRequestGet(context) {
     const payload = await response.json();
     const source = payload?.res;
     const hypocenter = Array.isArray(source?.hyp)
-      ? source.hyp.find((item) => String(item?.id) === jmaEventId) ?? source.hyp[0]
+      ? source.hyp.find((item) => String(item?.id) === jmaEventId)
       : source?.hyp;
     const observations = Array.isArray(source?.int) ? source.int : null;
-    if (!hypocenter || !observations) throw new Error("JMA returned an unsupported event response");
+    if (!hypocenter || !observations || (hypocenter.id && String(hypocenter.id) !== jmaEventId)) throw new Error("JMA returned an unsupported event response");
     const event = {
       hypocenter: {
         id: String(hypocenter.id ?? jmaEventId),

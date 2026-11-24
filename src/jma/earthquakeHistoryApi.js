@@ -1,6 +1,11 @@
 export const JMA_EARTHQUAKE_INTENSITY_API_URL = "https://www.data.jma.go.jp/eqdb/data/shindo/api/";
 export const JMA_EARTHQUAKE_HISTORY_SOURCE_URL = "https://www.data.jma.go.jp/eqdb/data/shindo/";
 
+export function getEarthquakeHistoryApiUrl(path) {
+  const origin = globalThis.location?.hostname?.endsWith("github.io") ? "https://meteoscope.pages.dev" : "";
+  return `${origin}/api/${path}`;
+}
+
 export const JMA_HISTORY_INTENSITIES = Object.freeze({ "1": "1", "2": "2", "3": "3", "4": "4", "5-": "A", "5+": "B", "6-": "C", "6+": "D", "7": "7" });
 export const JMA_HISTORY_SORTS = Object.freeze({ newest: "S0", oldest: "S1", intensity: "S2", magnitude: "S3" });
 
@@ -20,9 +25,9 @@ export function validateJmaHistoryConditions(value = {}) {
   const nearby = !hasNearby
     ? null
     : {
-      latitude: Number(value.nearby?.latitude ?? value.nearbyLat),
-      longitude: Number(value.nearby?.longitude ?? value.nearbyLon),
-      radiusKm: Number(value.nearby?.radiusKm ?? value.nearbyRadiusKm)
+      latitude: parseHistoryNumber(value.nearby?.latitude ?? value.nearbyLat),
+      longitude: parseHistoryNumber(value.nearby?.longitude ?? value.nearbyLon),
+      radiusKm: parseHistoryNumber(value.nearby?.radiusKm ?? value.nearbyRadiusKm)
     };
   if (nearby && (!Number.isFinite(nearby.latitude) || nearby.latitude < -90 || nearby.latitude > 90
     || !Number.isFinite(nearby.longitude) || nearby.longitude < -180 || nearby.longitude > 180
@@ -37,6 +42,41 @@ export function isJmaHistoryDate(value) {
   if (!/^\d{4}-\d{2}-\d{2}$/u.test(String(value ?? ""))) return false;
   const date = new Date(`${value}T00:00:00Z`);
   return Number.isFinite(date.valueOf()) && date.toISOString().slice(0, 10) === value;
+}
+
+// This is an upper bound for the date picker, not proof that JMA has published
+// that day. The API's availability response takes precedence over this estimate.
+export function getJmaHistoryLatestDate(now = Date.now()) {
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit"
+  }).format(new Date(now));
+  return shiftHistoryDate(today, -2);
+}
+
+export function shiftHistoryDate(date, days) {
+  return formatUtcDate(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000);
+}
+
+export function parseHistoryNumber(value) {
+  if (!["number", "string"].includes(typeof value) || String(value).trim() === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+export function normalizeHistoryCoordinates(longitude, latitude) {
+  const lon = parseHistoryNumber(longitude), lat = parseHistoryNumber(latitude);
+  return lon !== null && lat !== null && Math.abs(lon) <= 180 && Math.abs(lat) <= 90 ? [lon, lat] : null;
+}
+
+export function parseHistoryDepth(value) {
+  if (/ごく浅い/u.test(String(value))) return 0;
+  const match = String(value ?? "").match(/(\d+(?:\.\d+)?)\s*km/iu);
+  return match ? Number(match[1]) : typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+export function canonicalHistoryEventId(value) {
+  const id = String(value ?? "");
+  return /^\d{14,17}$/u.test(id) ? id.slice(0, 14) : id;
 }
 
 export function buildJmaIntensitySearchForm(startDate, endDate, startTime = "00:00", endTime = "23:59", conditions = {}) {
@@ -83,20 +123,24 @@ export function buildNearbySearchPolygon({ latitude, longitude, radiusKm }, vert
 
 export function isCoordinateWithinRadius(coordinates, center, radiusKm) {
   if (!Array.isArray(coordinates) || coordinates.length < 2 || !Array.isArray(center) || center.length < 2) return false;
-  const [longitude, latitude] = coordinates.map(Number);
-  const [centerLongitude, centerLatitude] = center.map(Number);
-  if (![longitude, latitude, centerLongitude, centerLatitude, Number(radiusKm)].every(Number.isFinite)) return false;
+  const point = normalizeHistoryCoordinates(...coordinates), origin = normalizeHistoryCoordinates(...center);
+  if (!point || !origin || parseHistoryNumber(radiusKm) === null || Number(radiusKm) < 0) return false;
+  const [longitude, latitude] = point;
+  const [centerLongitude, centerLatitude] = origin;
   const radians = (degrees) => degrees * Math.PI / 180;
   const latitudeDelta = radians(centerLatitude - latitude);
   const longitudeDelta = radians(centerLongitude - longitude);
   const a = Math.sin(latitudeDelta / 2) ** 2
     + Math.cos(radians(latitude)) * Math.cos(radians(centerLatitude)) * Math.sin(longitudeDelta / 2) ** 2;
-  return 6371.0088 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= Number(radiusKm);
+  const clamped = Math.min(1, Math.max(0, a));
+  return 6371.0088 * 2 * Math.atan2(Math.sqrt(clamped), Math.sqrt(1 - clamped)) <= Number(radiusKm);
 }
 
 export function normalizeJmaEarthquakeOriginTime(value) {
   const match = String(value ?? "").match(/^(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})(?::(\d{2}(?:\.\d+)?))?$/u);
   if (!match) return "";
+  if (!isJmaHistoryDate(`${match[1]}-${match[2]}-${match[3]}`) || Number(match[4]) > 23
+    || Number(match[5]) > 59 || Number(match[6] ?? 0) >= 61) return "";
   return `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6] ?? "00"}+09:00`;
 }
 

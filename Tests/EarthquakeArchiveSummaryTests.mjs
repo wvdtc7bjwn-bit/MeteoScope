@@ -1,3 +1,4 @@
+import { getEarthquakeHistoryStatus } from "../src/ui/earthquakeHistoryStatus.js";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
@@ -5,7 +6,7 @@ import { escapeHtml } from "../src/utils/html.js";
 
 const source = await readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8");
 const context = vm.createContext({
-  escapeHtml,
+  escapeHtml, getEarthquakeHistoryStatus,
   formatArchiveDate: value => String(value ?? "").replaceAll("-", "/") || "日付不明",
   buildEarthquakeMobileViewSwitch: () => "",
   buildMobileEarthquakeSummaryCarousel: options => options.primaryMarkup
@@ -28,7 +29,15 @@ assert.match(render({ earthquakeArchiveStatus: "loading", earthquakeArchive: nul
 assert.match(render({ earthquakeArchiveStatus: "refreshing" }), /43<small>件[\s\S]*検索中/);
 assert.match(render({ earthquakeArchiveStatus: "error" }), /取得失敗/);
 assert.doesNotMatch(render({ earthquakeArchiveStatus: "error" }), /43<small>件/);
-assert.match(render({ earthquakeArchiveStatus: "partial-error" }), /一部の期間を取得できていません/);
+assert.match(render({ earthquakeArchiveStatus: "partial-error" }), /一部のデータの取得に失敗しました/);
+const unpublished = { ...data.earthquakeArchive, complete: false, totalMatched: null, matchedCount: 117,
+  filters: { startDate: "2026-11-17", endDate: "2026-11-23" }, availableThrough: "2026-11-22",
+  unavailableRanges: [{ startDate: "2026-11-23", endDate: "2026-11-23", reason: "jma_not_yet_available" }] };
+assert.match(render({ earthquakeArchive: unpublished }), /117<small>件[\s\S]*公開待ち/);
+assert.match(render({ earthquakeArchive: unpublished }), /気象庁のデータは 2026\/11\/22 まで公開されています/);
+assert.doesNotMatch(render({ earthquakeArchive: unpublished }), /一部取得|取得に失敗/u);
+assert.match(render({ earthquakeArchive: { ...unpublished, unavailableRanges: [], unsearchedRanges: [{}], limitExceeded: true } }), /件数上限/);
+assert.match(render({ earthquakeArchive: { ...data.earthquakeArchive, rangeAdjusted: true, availableThrough: "2026-11-18" } }), /公開済みの最新日 2026\/11\/18 までの1週間を表示/);
 assert.match(render({ earthquakeArchive: { ...data.earthquakeArchive, totalMatched: 0, items: [] } }), /条件に一致する地震はありません/);
 assert.match(render({ earthquakeNearbySearchActive: true }), /震源近傍・震度3以上/);
 assert.doesNotMatch(render({ earthquakeArchive: { ...data.earthquakeArchive, filters: { startDate: '<img src="x">' } } }), /<img/);

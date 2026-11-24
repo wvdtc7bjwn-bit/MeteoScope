@@ -35,6 +35,7 @@ try {
   };
   const first = await call();
   assert.equal(first.status, 200);
+  assert.equal(first.headers.get("access-control-allow-origin"), "*", "public earthquake detail must be readable from the static mirror");
   const payload = await first.json();
   assert.equal(payload.event.hypocenter.lat, "37.5");
   assert.equal(payload.event.stations[0].code, "A01");
@@ -63,6 +64,16 @@ try {
   assert.equal(partialPayload.event.stations[0].code, "A01");
   assert.equal(partialPayload.event.longPeriodStatus, "unavailable");
   assert.match(partial.headers.get("cache-control"), /s-maxage=60$/, "Retry supplementary observations without caching the failure for a full day");
+  cache.clear();
+  let mismatchedRequests = 0;
+  globalThis.fetch = async () => {
+    mismatchedRequests += 1;
+    return Response.json({ res: { hyp: [{ id: "20240101161122" }], int: [] } });
+  };
+  const mismatch = await call();
+  assert.equal(mismatch.status, 502, "never show the first returned earthquake when its ID does not match");
+  assert.equal(mismatchedRequests, 1, "invalid earthquake detail must not initiate supplementary requests");
+  assert.equal(cache.size, 0, "mismatched detail must never be cached as a successful response");
 } finally {
   globalThis.fetch = originalFetch;
   globalThis.caches = originalCaches;
