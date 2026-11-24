@@ -1,3 +1,4 @@
+import { RAIN_RADAR_ZOOM_LEVELS } from "./radarRasterLevels.js";
 import { calculateFocusPadding, createViewportFocus } from "./focusViewport.js";
 import { createEarthquakeCoordinateRange } from "../earthquake/coordinateRange.js";
 import { VECTOR_BASE_MAP_ENABLED, registerBaseMapProtocol, createMunicipalitySource, baseMapSourceLayer, municipalityStateTarget } from "./baseMapTiles.js";
@@ -1236,6 +1237,7 @@ export function createWeatherMap(elementId) {
 
   function flyToLocation(coordinates, options = {}) {
     if (!map || !Array.isArray(coordinates)) return;
+    options = { ...options, focusCoordinates: [coordinates] };
     if (options.followViewport) viewportFocus.remember([coordinates], options);
     else viewportFocus.clear();
     const minZoom = Number.isFinite(options.minZoom) ? options.minZoom : 8.2;
@@ -1245,7 +1247,6 @@ export function createWeatherMap(elementId) {
       zoom,
       duration: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : Number.isFinite(options.duration) ? options.duration : 850,
       padding: 0,
-      retainPadding: false,
       offset: getFocusOffset(options),
       essential: true
     });
@@ -1268,6 +1269,7 @@ export function createWeatherMap(elementId) {
       return;
     }
 
+    options = { ...options, focusCoordinates: validCoordinates };
     if (options.followViewport) viewportFocus.remember(validCoordinates, options);
     else viewportFocus.clear();
     const bounds = validCoordinates.slice(1).reduce(
@@ -1276,7 +1278,6 @@ export function createWeatherMap(elementId) {
     );
     map.fitBounds(bounds, {
       padding: getFocusPadding(options),
-      retainPadding: false,
       maxZoom: Number.isFinite(options.maxZoom) ? options.maxZoom : 7.2,
       duration: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : Number.isFinite(options.duration) ? options.duration : 850,
       essential: true
@@ -3369,8 +3370,15 @@ function getFocusPadding(options = {}) {
   const viewport = document.getElementById("map")?.getBoundingClientRect()
     ?? { top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth, width: window.innerWidth, height: window.innerHeight };
   let top = 0, bottom = 0;
-  for (const id of ["clock", "map-utility-menu-toggle", "mobile-context-dock", "main-tabs", "sidebar"]) {
-    const element = document.getElementById(id);
+  const obstructions = [];
+  const ids = ["clock", "map-utility-menu-toggle", "mobile-context-dock", "main-tabs", "sidebar"];
+  const elements = ids.map(id => ({ id, element: document.getElementById(id) }));
+  if (options.followViewport && viewport.width > viewport.height) {
+    for (const element of document.querySelectorAll?.(".map-left-controls, .weather-distribution-toggle-button, .weather-distribution-toggle-choices, .map-locate-button, .map-community-report-button") ?? []) {
+      elements.push({ id: "map-control", element });
+    }
+  }
+  for (const { id, element } of elements) {
     if (!element || element.hidden) continue;
     if (id === "sidebar" && !document.documentElement.classList.contains("mobile-drawer-open")) continue;
     const style = getComputedStyle(element);
@@ -3378,10 +3386,13 @@ function getFocusPadding(options = {}) {
     const rect = element.getBoundingClientRect();
     if (!rect.width || !rect.height || rect.right <= viewport.left || rect.left >= viewport.right
       || rect.bottom <= viewport.top || rect.top >= viewport.bottom) continue;
+    obstructions.push({ left: rect.left - viewport.left, right: rect.right - viewport.left,
+      top: rect.top - viewport.top, bottom: rect.bottom - viewport.top });
     if (id === "clock" || id === "map-utility-menu-toggle") top = Math.max(top, rect.bottom - viewport.top);
     else bottom = Math.max(bottom, viewport.bottom - Math.max(viewport.top, rect.top));
   }
-  return calculateFocusPadding({ width: viewport.width, height: viewport.height, top, bottom });
+  return calculateFocusPadding({ width: viewport.width, height: viewport.height, top, bottom,
+    obstructions: options.followViewport ? obstructions : [], coordinates: options.focusCoordinates ?? [] });
 }
 
 function clampNumber(value, min, max) {
@@ -4453,6 +4464,7 @@ function updateRadarLayer(map, mode, data = {}) {
     tileUrl: data?.radarTileUrl,
     sourcePrefix: RADAR_SOURCE_PREFIX,
     layerPrefix: RADAR_LAYER_PREFIX,
+    zoomLevels: RAIN_RADAR_ZOOM_LEVELS,
     opacity: typhoonBulletinRadarVisible ? 0.78 : 0.9
   });
 }
@@ -4672,14 +4684,15 @@ function updateNowcastRasterLayer(map, {
   tileUrl,
   sourcePrefix,
   layerPrefix,
-  opacity
+  opacity,
+  zoomLevels = RADAR_ZOOM_LEVELS
 }) {
   if (!shouldShow || !tileUrl) {
     setNowcastRasterVisible(map, layerPrefix, false);
     return;
   }
 
-  const firstLevel = RADAR_ZOOM_LEVELS[0];
+  const firstLevel = zoomLevels[0];
   const sourceId = getNowcastSourceId(sourcePrefix, firstLevel.id);
   const expectedTileUrl = getRadarTileUrl(tileUrl, firstLevel);
   const currentSource = map.getSource(sourceId);
@@ -4689,14 +4702,14 @@ function updateNowcastRasterLayer(map, {
   }
 
   removeNowcastRasterLayer(map, sourcePrefix, layerPrefix);
-  RADAR_ZOOM_LEVELS.forEach((level) => {
+  zoomLevels.forEach((level) => {
     const { z, minzoom, maxzoom } = level;
     const levelSourceId = getNowcastSourceId(sourcePrefix, level.id);
     const layerId = getNowcastLayerId(layerPrefix, level.id);
     map.addSource(levelSourceId, {
       type: "raster",
       tiles: [getRadarTileUrl(tileUrl, level)],
-      tileSize: 256,
+      tileSize: level.tileSize ?? 256,
       minzoom: 0,
       maxzoom: z,
       bounds: [118, 20, 150, 48],
