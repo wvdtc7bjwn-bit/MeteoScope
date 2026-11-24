@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import vm from "node:vm";
 import { normalizeLakeCollection } from "../scripts/build-lake-geometry.mjs";
+import { createWorldSource } from "../src/map/worldTiles.js";
 
 const exterior = [[135,35],[136,35],[136,36],[135,36],[135,35]];
 const hole = [[135.2,35.2],[135.2,35.4],[135.4,35.4],[135.4,35.2],[135.2,35.2]];
@@ -31,7 +32,7 @@ const mapSource=await readFile(new URL("../src/map/weatherMap.js",import.meta.ur
 const ids=Object.fromEntries([...mapSource.matchAll(/const ([A-Z_]+_ID) = "([^"]+)";/g)].map(m=>[m[1],m[2]]));
 const factory=mapSource.slice(mapSource.indexOf('function createBaseStyle('),mapSource.indexOf('function buildGsjActiveFaultPopup('));
 for(const vector of [true,false]) {
- const context=vm.createContext({...ids,VECTOR_BASE_MAP_ENABLED:vector,APP_BASE_URL:"/MeteoScope/",MAP_THEME_COLORS:{dark:{background:"dark-water"},light:{background:"light-water"}},JMA_ENDPOINTS:{},EMPTY_GEOJSON:{type:"FeatureCollection",features:[]},WARNING_GEOMETRY_FIX_CODES:[],WARNING_FEATURE_STATE_KEYS:{status:"status",early:"early"},INITIAL_GEOMETRY_LAYER_IDS:[],WARNING_CLICK_LAYER_IDS:[],createMunicipalitySource:()=>({type:vector?"vector":"geojson"}),baseMapSourceLayer:name=>vector?{"source-layer":name}:{},getWarningOverlayColorExpression:()=>"red",getWarningOverlayOpacityExpression:()=>1});
+ const context=vm.createContext({...ids,createWorldSource,VECTOR_BASE_MAP_ENABLED:vector,APP_BASE_URL:"/MeteoScope/",MAP_THEME_COLORS:{dark:{background:"dark-water"},light:{background:"light-water"}},JMA_ENDPOINTS:{},EMPTY_GEOJSON:{type:"FeatureCollection",features:[]},WARNING_GEOMETRY_FIX_CODES:[],WARNING_FEATURE_STATE_KEYS:{status:"status",early:"early"},INITIAL_GEOMETRY_LAYER_IDS:[],WARNING_CLICK_LAYER_IDS:[],createMunicipalitySource:()=>({type:vector?"vector":"geojson"}),baseMapSourceLayer:name=>vector?{"source-layer":name}:{},getWarningOverlayColorExpression:()=>"red",getWarningOverlayOpacityExpression:()=>1});
  vm.runInContext(factory,context);
  for(const theme of ["dark","light"]) {
   const style=context.createBaseStyle(theme),lake=style.layers.find(l=>l.id==="japan-lake-fill");

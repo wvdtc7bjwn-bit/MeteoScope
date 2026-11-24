@@ -35,6 +35,13 @@
 
 ## 外部GISレイヤー
 
+### 世界の陸地・国境
+
+- 原典はNatural Earth 1:10m Admin 0 Countries v5.1.1（[配布元](https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-admin-0-countries/)、[パブリックドメインの利用条件](https://www.naturalearthdata.com/about/terms-of-use/)）。既存の`worldCountriesGeoJson.js`の座標・属性をそのまま使用する。
+- 地図では日本の陸地と重複する北方領土の4ポリゴンを既存の処理で除外し、日本の形状は従来どおり気象庁由来の市区町村データで表示する。
+- `worldTiles.worker.js`が既存の圧縮データを端末内で展開し、表示範囲ごとのベクトルタイルを生成する。座標の追加丸め・簡略化は行わず、従来の地図ライブラリと同じextent・buffer・tolerance・最大ズームを使用する。画面側へ全世界の座標を転送しない。
+- 日本の背景タイルには最大4MiBのメモリーキャッシュを設ける。移動停止後の先読みは隣接範囲・最大6枚・同時2件に制限し、操作開始や画面非表示で中断する。省データ設定・2G相当の回線では先読みしない。観測情報の時刻やキャッシュ方針は変更しない。
+
 ### J-SHIS 主要活断層帯
 
 - 提供者: 国立研究開発法人 防災科学技術研究所。仕様は[J-SHIS Web API 主要活断層帯](https://www.j-shis.bosai.go.jp/api-vectortile-majorfault)を参照する。

@@ -28,7 +28,7 @@ import { escapeHtml as escapeHTML, escapeHtml as escapeMapInfoHtml, escapeHtmlSt
 import maplibregl from "maplibre-gl";
 import { getCurrentLanguage, localizeText } from "../ui/locale.js";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { prepareWorldMapData } from "./worldLandFilter.js";
+import { createWorldSource, registerWorldTileProtocol } from "./worldTiles.js";
 import {
   AMEDAS_METRICS,
   APP_BASE_URL,
@@ -460,7 +460,6 @@ const MAP_THEME_COLORS = {
 };
 
 const EMPTY_GEOJSON = { type: "FeatureCollection", features: [] };
-let worldGeometryPromise = null;
 const warningFeatureStateCache = new WeakMap();
 const kikikuruTileUrlCache = new Map();
 const radarOverlayZoomLimitCache = new WeakMap();
@@ -543,7 +542,8 @@ export function createWeatherMap(elementId) {
 
   function initialize() {
     performance.mark("meteoscope:map:init");
-    registerBaseMapProtocol(maplibregl);
+    const baseMapTiles = registerBaseMapProtocol(maplibregl);
+    registerWorldTileProtocol(maplibregl);
     registerTerrainTileProtocol(maplibregl);
     map = new maplibregl.Map({
       container: elementId,
@@ -564,7 +564,20 @@ export function createWeatherMap(elementId) {
     map.getContainer().dataset.theme = activeTheme;
     map.touchZoomRotate.enableRotation();
     map.on("movestart", event => {
+      baseMapTiles?.cancelPrefetch();
       if (event.originalEvent) { viewportFocus.clear(); simulationCameraInteractionHandler?.(); }
+    });
+    const cancelPrefetchWhenHidden = () => { if (document.hidden) baseMapTiles?.cancelPrefetch(); };
+    document.addEventListener("visibilitychange", cancelPrefetchWhenHidden);
+    map.once("remove", () => {
+      baseMapTiles?.cancelPrefetch();
+      document.removeEventListener("visibilitychange", cancelPrefetchWhenHidden);
+    });
+    map.on("idle", () => {
+      const connection = navigator.connection;
+      if (!baseMapTiles || document.hidden || map.isMoving() || connection?.saveData
+        || ["slow-2g", "2g"].includes(connection?.effectiveType)) return;
+      void baseMapTiles.prefetch(map.getBounds(), map.getZoom());
     });
     initialMapReady = waitForInitialMapGeometry(map, {
       sourceIds: INITIAL_GEOMETRY_SOURCE_IDS,
@@ -734,17 +747,13 @@ export function createWeatherMap(elementId) {
     }
   }
 
-  async function ensureWorldGeometryLoaded() {
-    const landSource = map?.getSource("world-land");
-    if (!landSource?.setData) return;
-    worldGeometryPromise ??= import("./data/worldLandGeoJson.js")
-      .then((landModule) => prepareWorldMapData(landModule.worldLandGeoJson));
-    try {
-      const geometry = await worldGeometryPromise;
-      setGeoJsonSourceData(map?.getSource("world-land"), geometry);
-    } catch (error) {
-      worldGeometryPromise = null;
-      console.warn("[MeteoScope] world geometry load failed", error);
+  function ensureWorldGeometryLoaded() {
+    // The worker starts only after these layers become visible. Keep optional
+    // world geometry out of the initial Japanese basemap loading gate.
+    for (const id of ["world-land-fill", "world-country-line"]) {
+      if (map?.getLayer(id) && map.getLayoutProperty(id, "visibility") !== "visible") {
+        map.setLayoutProperty(id, "visibility", "visible");
+      }
     }
   }
 
@@ -3449,10 +3458,7 @@ function createBaseStyle(theme = "dark") {
   const style = {
     version: 8,
     sources: {
-      "world-land": {
-        type: "geojson",
-        data: EMPTY_GEOJSON
-      },
+      "world-land": createWorldSource(),
       [MUNICIPALITY_SOURCE_ID]: createMunicipalitySource(),
       ...(!VECTOR_BASE_MAP_ENABLED ? { "japan-lakes": {
         type: "geojson", data: `${APP_BASE_URL}data/japan-lakes.geojson`
@@ -3476,6 +3482,8 @@ function createBaseStyle(theme = "dark") {
         id: "world-land-fill",
         type: "fill",
         source: "world-land",
+        "source-layer": "land",
+        layout: { visibility: "none" },
         paint: {
           "fill-color": colors.worldLand,
           "fill-antialias": false,
@@ -3486,6 +3494,8 @@ function createBaseStyle(theme = "dark") {
         id: "world-country-line",
         type: "line",
         source: "world-land",
+        "source-layer": "land",
+        layout: { visibility: "none" },
         paint: {
           "line-color": colors.worldCountryLine,
           "line-width": [

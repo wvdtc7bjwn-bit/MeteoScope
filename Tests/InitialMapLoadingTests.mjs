@@ -101,7 +101,9 @@ assert.match(app, /function showInitialMapLoadingError\(\)/);
 assert.match(app, /function startLocationWatchOnLaunch\(\)/);
 assert.match(app, /void startLocationWatchOnLaunch\(\)/);
 
-assert.match(weatherMap, /import\("\.\/data\/worldLandGeoJson\.js"\)/);
+assert.match(weatherMap, /registerWorldTileProtocol\(maplibregl\)/);
+assert.match(weatherMap, /"world-land": createWorldSource\(\)/);
+assert.doesNotMatch(weatherMap, /import\("\.\/data\/worldLandGeoJson\.js"\)/, "full world geometry must not be decoded on the UI thread");
 assert.doesNotMatch(weatherMap, /source: "world-countries"/);
 assert.doesNotMatch(weatherMap, /\bglyphs\s*:/);
 assert.match(weatherMap, /localIdeographFontFamily:/);
