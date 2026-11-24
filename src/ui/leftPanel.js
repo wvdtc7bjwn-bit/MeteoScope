@@ -8,7 +8,8 @@ import { EEW_WARNING_AREA_COLOR, isEewWarningArea } from "../eew/eewForecastArea
 import { summarizeEewAreaNames } from "../eew/eewSummaryAreas.js";
 import { renderFocalMechanism } from "./focalMechanism.js";
 import { renderLongPeriodGroundMotion, renderLongPeriodSummary } from "./longPeriodGroundMotion.js";
-import { getSnowDepthAxisMaximum, splitAmedasChartSegments } from "../amedasChart.js";
+import { bindAmedasChartInspection } from "./amedasChartInspection.js";
+import { AMEDAS_CHART_LAYOUT, AMEDAS_SUMMARY_CHART_LAYOUT, getAmedasChartAxis, splitAmedasChartSegments } from "../amedasChart.js";
 import {
   AMEDAS_LEVELS_BY_METRIC,
   AMEDAS_METRICS,
@@ -97,6 +98,7 @@ const amedasRankingOrderByMetric = {
   humidity: "top",
   pressure: "top"
 };
+let revealAmedasChartAfterLoad = false;
 let amedasTemperatureRankingView = "current";
 let amedasWindRankingView = "current";
 let amedasWindRankingKind = "average";
@@ -180,12 +182,16 @@ export function updateLeftPanel(tab, state = {}) {
           : (tab.id === "radar" && state.lightningEnabled
           ? "雷"
           : (tab.id === "typhoon" && state.data?.worldForecastMode ? "海外モデル資料" : tab.label))))));
+  document.querySelector("#sidebar .current-panel")?.classList.toggle("is-amedas", tab.id === "amedas");
   setText("mode-label", modeLabel);
   document.getElementById("mode-label")?.classList.toggle("mode-label-warning", tab.id === "warnings");
   setText("panel-title", buildPanelTitle(tab, state));
   setPanelTitleVisible(false);
   setText("panel-description", buildDescription(tab, state));
-  setText("panel-time", buildTimeText(state));
+  const panelTime = buildTimeText(state);
+  setText("panel-time", tab.id === "amedas"
+    ? panelTime.replace("更新時刻:", "更新:").replace(/\b\d{4}\//, "")
+    : panelTime);
   setPanelTimeVisible(tab.id !== "radar" && tab.id !== "typhoon" && tab.id !== "earthquake");
   renderCurrentLocationCard(tab, state.currentLocation, { warningView, activeKikikuruLayer, data: state.data });
   setWarningSocialSharePayload(tab, state, warningView);
@@ -225,6 +231,17 @@ export function setupAmedasSubTabs({ onChange }) {
     event.preventDefault();
     event.stopPropagation();
     onChange?.(button.dataset.mobileAmedasMetric);
+  });
+}
+
+export function setupAmedasSummaryControls({ onBack } = {}) {
+  const root = document.getElementById("mobile-context-dock");
+  root?.addEventListener("click", event => {
+    if (!(event.target instanceof Element) || !event.target.closest("[data-amedas-summary-back]")) return;
+    event.preventDefault();
+    event.stopPropagation();
+    onBack?.();
+    window.requestAnimationFrame(() => root.querySelector("[data-mobile-amedas-metric].active")?.focus({ preventScroll: true }));
   });
 }
 
@@ -459,6 +476,7 @@ export function setupAmedasRankingToggle({ onChange, onSelectStation } = {}) {
 
     const stationButton = event.target.closest("[data-amedas-station-id]");
     if (!stationButton) return;
+    revealAmedasChartAfterLoad = true;
     onSelectStation?.(stationButton.dataset.amedasStationId);
   });
 
@@ -1729,9 +1747,9 @@ function buildDescription(tab, state) {
       ? getAmedasPrecipitationDisplayLabel(state.amedasPrecipitationPeriod ?? state.data?.precipitationPeriod)
       : (getCurrentLanguage() === "en" ? metric.primary : metric.label);
     if (getCurrentLanguage() === "en") {
-      return `Showing ${metricLabel} at AMeDAS stations.${count > 0 ? `\nStations shown: ${count}` : ""}`;
+      return `${metricLabel} · ${count} stations on map`;
     }
-    return `アメダス観測地点の${metricLabel}を表示しています。${count > 0 ? `\n表示地点: ${count}地点` : ""}`;
+    return `${metricLabel} · 地図表示 ${count}地点`;
   }
   if (tab.id === "warnings") {
     if (state.status === "loading") return localizeText("市区町村ごとの警報・注意報を取得中です。");
@@ -2223,7 +2241,9 @@ function renderAmedasSubTabs(tab, activeMetricId) {
   if (!isAmedas) return;
 
   [...root.querySelectorAll(".amedas-sub-button")].forEach((button) => {
-    button.classList.toggle("active", button.dataset.amedasMetric === activeMetricId);
+    const active = button.dataset.amedasMetric === activeMetricId;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
   });
   window.requestAnimationFrame(() => syncMobileDockSegmentIndicator(root));
 }
@@ -2657,8 +2677,12 @@ function renderMobileContextDock(tab, state, context = {}) {
   }
   lastMobileTideStationCode = tideStationCode;
   root.dataset.tab = tab.id;
+  const showAmedasChart = tab.id === "amedas" && Boolean(state.selectedAmedasStationId && state.amedasSummaryChartVisible);
+  root.classList.toggle("has-amedas-chart", showAmedasChart);
   const focusSelector = tab.id === "radar" ? getMobileWeatherFocusSelector(root) : "";
   root.innerHTML = buildMobileContextDockContent(tab, state, context);
+  const summaryChart = root.querySelector("#amedas-summary-chart");
+  if (summaryChart) renderAmedasDailyChart(tab, state, context.amedasMetric ?? getAmedasMetric(state.amedasMetric), summaryChart, { compact: true });
   if (root.querySelector(".mobile-dock-earthquake-summary-track")) {
     applyMobileEarthquakeSummaryPage(root, { animate: false });
     window.requestAnimationFrame(() => syncMobileTsunamiAreaTickers(root));
@@ -2706,6 +2730,13 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     return buildRadarMobileContextMarkup(frames, index, state.status, state);
   }
   if (tab.id === "amedas") {
+    if (state.selectedAmedasStationId && state.amedasSummaryChartVisible) {
+      const isEnglish = getCurrentLanguage() === "en";
+      return `<div class="mobile-dock-amedas-chart" data-mobile-dock-control>
+        <button type="button" class="mobile-amedas-chart-back" data-mobile-dock-control data-amedas-summary-back aria-label="${isEnglish ? "Back to AMeDAS metrics" : "アメダスの項目選択に戻る"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14 6-6 6 6 6"/></svg></button>
+        <section id="amedas-summary-chart" class="amedas-temperature-chart is-summary-chart" aria-live="polite"></section>
+      </div>`;
+    }
     const metric = amedasMetric ?? getAmedasMetric(state.amedasMetric ?? state.data?.activeMetric);
     const precipitationPeriod = getAmedasPrecipitationPeriod(
       state.amedasPrecipitationPeriod ?? state.data?.precipitationPeriod
@@ -5493,7 +5524,7 @@ function renderAmedasRanking(tab, state, metric) {
 
   root.innerHTML = `
     <div class="amedas-ranking-head">
-      <span data-amedas-ranking-title="${escapeHtml(metric.id)}" data-amedas-precipitation-period="${escapeHtml(precipitationPeriod.id)}">${escapeHtml(metricDisplayLabel)}ランキング</span>
+      <span data-amedas-ranking-title="${escapeHtml(metric.id)}" data-amedas-precipitation-period="${escapeHtml(precipitationPeriod.id)}">${getCurrentLanguage() === "en" ? `${escapeHtml(metricDisplayLabel)} ranking · Japan` : `全国の${escapeHtml(metricDisplayLabel)}ランキング`}</span>
       <button type="button" class="social-share-trigger amedas-ranking-share" data-social-share="amedas" aria-label="ランキングを画像で共有" title="ランキングを画像で共有">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v11m0-11 4 4m-4-4L8 7M5 12v7h14v-7"/></svg>
       </button>
@@ -5561,13 +5592,15 @@ function getAmedasRankingEmptyMessage(metricId, rankingView) {
   return "日最高・日最低ランキングを取得できません";
 }
 
-function renderAmedasDailyChart(tab, state, metric) {
-  const root = document.getElementById("amedas-daily-chart");
+function renderAmedasDailyChart(tab, state, metric, root = document.getElementById("amedas-daily-chart"), { compact = false } = {}) {
   if (!root) return;
+  bindAmedasChartInspection(root, null);
 
   const shouldShow = tab.id === "amedas";
   root.hidden = !shouldShow;
   if (!shouldShow) {
+    revealAmedasChartAfterLoad = false;
+    root.style.minHeight = "";
     root.innerHTML = "";
     return;
   }
@@ -5579,79 +5612,106 @@ function renderAmedasDailyChart(tab, state, metric) {
   );
   const chartDoesNotMatch = chart.metricId !== metric.id
     || (metric.id === "precipitation" && chart.precipitationPeriod !== precipitationPeriod.id);
-  const periodToggle = state.earlyAccessEnabled ? buildAmedasDailyChartPeriodToggle(dayOffset) : "";
+  const periodToggle = compact ? "" : `<div class="amedas-chart-toolbar"><h2>${getCurrentLanguage() === "en" ? "Station observations" : "地点の観測"}</h2>${state.earlyAccessEnabled && state.selectedAmedasStationId ? buildAmedasDailyChartPeriodToggle(dayOffset) : ""}</div>`;
   if (!state.selectedAmedasStationId || chart.status === "idle" || chartDoesNotMatch) {
-    root.innerHTML = `<p class="amedas-temperature-chart-empty">地図上の観測点をタップすると、${escapeHtml(getAmedasDailySeriesTitle(metric.id, 0, precipitationPeriod.id))}を表示します。</p>`;
+    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${getCurrentLanguage() === "en" ? "Select a station on the map or in the ranking below to view its observations and daily trend." : `地図や下のランキングから観測点を選ぶと、${escapeHtml(getAmedasDailySeriesTitle(metric.id, 0, precipitationPeriod.id))}と推移を確認できます。`}</p>`;
     return;
   }
   if (chart.status === "loading") {
+    // Retain the previous chart's footprint so the ranking below cannot jump
+    // into its place while the replacement observation is fetched.
+    root.style.minHeight = `${root.getBoundingClientRect().height}px`;
     root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(chart.stationName || "観測点")}の${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriod.id))}を読み込んでいます...</p>`;
     return;
   }
+  root.style.minHeight = "";
   if (chart.status === "error") {
+    revealAmedasChartAfterLoad = false;
     root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriod.id))}を取得できませんでした。</p>`;
     return;
   }
 
   const points = chart.data?.points ?? [];
   if (!points.length) {
+    revealAmedasChartAfterLoad = false;
     root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">この観測点では${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriod.id))}を観測していません。</p>`;
     return;
   }
 
   const latest = chart.data?.latest;
   const isRollingPrecipitation = metric.id === "precipitation" && precipitationPeriod.id === "24h";
-  const temperatureNormal = metric.id === "temperature" ? chart.data?.temperatureNormal : null;
-  root.style.setProperty("--amedas-series-color", metric.color);
+  const temperatureNormal = !compact && metric.id === "temperature" ? chart.data?.temperatureNormal : null;
+  const chartLayout = compact ? AMEDAS_SUMMARY_CHART_LAYOUT : AMEDAS_CHART_LAYOUT;
+  const inspectionId = `${root.id || "amedas-daily-chart"}-inspection`;
+  root.style.setProperty("--amedas-series-color", metric.id === "temperature" ? "#E6EDF5" : metric.color);
   root.style.setProperty("--amedas-gust-color", metric.color);
   root.innerHTML = `
     ${periodToggle}
     <div class="amedas-temperature-chart-head">
       <div>
-        <span>${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriod.id))}</span>
         <strong>${escapeHtml(chart.stationName || "観測点")}</strong>
+        <span>${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriod.id))}</span>
       </div>
-      <div class="amedas-temperature-chart-current">
+      ${dayOffset === 0 ? `<div class="amedas-temperature-chart-current">
         ${formatAmedasDailyColoredValue(latest?.value, metric, precipitationPeriod.id)}
-        <span>${escapeHtml(latest?.label ?? "--:--")}</span>
-      </div>
+        <span>${escapeHtml(latest?.label ?? "--:--")}${compact ? "" : (getCurrentLanguage() === "en" ? " observed" : " 観測")}</span>
+      </div>` : ""}
     </div>
-    ${metric.id === "wind" ? `
+    ${!compact && metric.id === "wind" ? `
       <div class="amedas-temperature-chart-key" aria-label="グラフの凡例">
         <span>平均風速</span>
         <span class="gust">最大瞬間風速</span>
       </div>
-    ` : metric.id === "temperature" ? `
+    ` : !compact && metric.id === "temperature" ? `
       <div class="amedas-temperature-chart-key amedas-temperature-reference-key" aria-label="気温グラフの凡例">
         <span>実況</span>
         ${buildAmedasTemperatureNormalLegend(temperatureNormal, metric)}
       </div>
     ` : ""}
-    ${buildAmedasDailyChartSvg(points, chart.data?.min, chart.data?.max, metric, dayOffset, precipitationPeriod.id, temperatureNormal)}
-    ${isRollingPrecipitation ? `
+    ${buildAmedasDailyChartSvg(points, chart.data?.min, chart.data?.max, metric, dayOffset, precipitationPeriod.id, temperatureNormal, chartLayout, inspectionId)}
+    <div class="amedas-chart-inspection" id="${inspectionId}">
+      <p class="amedas-chart-inspection-hint">${getCurrentLanguage() === "en" ? (compact ? "Trace to inspect observations" : "Trace the graph to inspect observations. Use arrow keys when focused.") : (compact ? "なぞって時刻ごとの観測値を確認" : "グラフをなぞると観測値を表示（キーボードは←→）")}</p>
+      <div class="amedas-chart-inspection-reading" hidden aria-live="off"><time></time><strong></strong><small></small></div>
+    </div>
+    ${temperatureNormal ? `<p class="amedas-normal-period">${getCurrentLanguage() === "en" ? "Normals" : "平年値"}: ${escapeHtml(temperatureNormal.period)}</p>` : ""}
+    ${!compact && isRollingPrecipitation ? `
       <p class="amedas-temperature-chart-note">${escapeHtml(getAmedasRollingPrecipitationNote())}</p>
     ` : ""}
-    <div class="amedas-temperature-chart-range${metric.id === "wind" ? " is-wind" : ""}">
+    <div class="amedas-temperature-chart-range">
       <span>${escapeHtml(getAmedasDailyMinLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.min, metric, precipitationPeriod.id)}</span>
       <span>${escapeHtml(getAmedasDailyMaxLabel(metric.id))} ${formatAmedasDailyColoredValue(chart.data?.max, metric, precipitationPeriod.id)}</span>
       ${metric.id === "wind" && Number.isFinite(chart.data?.maxGust) ? `<span>最大瞬間 ${formatAmedasDailyColoredValue(chart.data.maxGust, metric, precipitationPeriod.id)}${chart.data.maxGustLabel ? ` (${escapeHtml(chart.data.maxGustLabel)})` : ""}</span>` : ""}
     </div>
   `;
+  bindAmedasChartInspection(root, {
+    points,
+    layout: chartLayout,
+    formatValue: value => formatAmedasDailyValue(value, metric),
+    windLabel: !compact && metric.id === "wind" ? (getCurrentLanguage() === "en" ? "Gust" : "最大瞬間") : ""
+  });
+  if (!compact && revealAmedasChartAfterLoad) {
+    revealAmedasChartAfterLoad = false;
+    window.requestAnimationFrame(() => {
+      const sidebar = document.getElementById("sidebar");
+      if (!sidebar?.classList.contains("drawer-open") || root.hidden) return;
+      const handleHeight = document.getElementById("sidebar-drawer-handle")?.getBoundingClientRect().height ?? 0;
+      sidebar.scrollTo({ top: Math.max(0, sidebar.scrollTop + root.getBoundingClientRect().top
+        - sidebar.getBoundingClientRect().top - handleHeight - 10), behavior: "instant" });
+    });
+  }
 }
 
 function buildAmedasDailyChartPeriodToggle(dayOffset) {
   return `
     <div class="amedas-chart-period-toggle" aria-label="グラフの日付" style="--amedas-chart-period-index:${dayOffset}">
-      <button type="button" data-amedas-chart-day="0" class="${dayOffset === 0 ? "active" : ""}">今日</button>
-      <button type="button" data-amedas-chart-day="1" class="${dayOffset === 1 ? "active" : ""}">昨日</button>
+      <button type="button" data-amedas-chart-day="0" aria-pressed="${dayOffset === 0}" class="${dayOffset === 0 ? "active" : ""}">今日</button>
+      <button type="button" data-amedas-chart-day="1" aria-pressed="${dayOffset === 1}" class="${dayOffset === 1 ? "active" : ""}">昨日</button>
     </div>
   `;
 }
 
-function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset = 0, precipitationPeriodId = "1h", temperatureNormal = null) {
-  const width = 320;
-  const height = 142;
-  const inset = { top: 10, right: 8, bottom: 23, left: 34 };
+function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset = 0, precipitationPeriodId = "1h", temperatureNormal = null, layout = AMEDAS_CHART_LAYOUT, inspectionId = "amedas-daily-chart-inspection") {
+  const { width, height, inset } = layout;
   const plotWidth = width - inset.left - inset.right;
   const plotHeight = height - inset.top - inset.bottom;
   const isPrecipitation = metric.id === "precipitation";
@@ -5661,14 +5721,13 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
     : [];
   const chartMinimum = Math.min(...[minValue, ...normalValues].filter(Number.isFinite));
   const chartMaximum = Math.max(...[maxValue, ...normalValues].filter(Number.isFinite));
-  const min = isPrecipitation || metric.id === "snow" ? 0 : (Number.isFinite(chartMinimum) ? Math.floor(chartMinimum - 1) : 0);
-  const gustMax = metric.id === "wind"
+  const gustMax = metric.id === "wind" && layout !== AMEDAS_SUMMARY_CHART_LAYOUT
     ? Math.max(...points.map((point) => point.gust).filter(Number.isFinite), Number.NEGATIVE_INFINITY)
     : Number.NEGATIVE_INFINITY;
-  const max = metric.id === "snow"
-    ? getSnowDepthAxisMaximum(chartMaximum)
-    : getAmedasDailyAxisMax(Math.max(Number(chartMaximum) || 0, gustMax), metric.id);
-  const span = Math.max(1, max - min);
+  const { min, max, ticks } = getAmedasChartAxis(
+    chartMinimum, Math.max(chartMaximum, gustMax), metric.id
+  );
+  const span = Math.max(Number.EPSILON, max - min);
   const xFor = (minute) => inset.left + (Math.max(0, Math.min(1440, minute)) / 1440) * plotWidth;
   const yFor = (value) => inset.top + ((max - value) / span) * plotHeight;
 
@@ -5676,17 +5735,18 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
     .map((segment) => segment.map((point) => `${xFor(point.minute).toFixed(1)},${yFor(point[valueKey]).toFixed(1)}`));
   const segments = buildSegments("value");
 
-  const grids = [min, min + span / 2, max].map((value) => {
+  const gridTicks = layout === AMEDAS_SUMMARY_CHART_LAYOUT ? [ticks[0], ticks.at(-1)] : ticks;
+  const grids = gridTicks.map((value) => {
     const y = yFor(value).toFixed(1);
-    return `<g><line x1="${inset.left}" x2="${width - inset.right}" y1="${y}" y2="${y}"/><text x="0" y="${Number(y) + 4}">${formatAmedasDailyAxis(value, metric)}</text></g>`;
+    return `<g><line x1="${inset.left}" x2="${width - inset.right}" y1="${y}" y2="${y}"/><text x="${inset.left - 8}" y="${Number(y) + 4}" text-anchor="end">${formatAmedasDailyAxis(value, metric)}</text></g>`;
   }).join("");
   const times = [0, 360, 720, 1080, 1440].map((minute) => {
     const x = xFor(minute).toFixed(1);
-    const label = minute === 1440 ? "24" : String(minute / 60).padStart(2, "0");
-    return `<text x="${x}" y="${height - 5}" text-anchor="middle">${label}</text>`;
+    const label = minute === 1440 ? "24時" : `${String(minute / 60).padStart(2, "0")}時`;
+    return `<line x1="${x}" x2="${x}" y1="${inset.top}" y2="${height - inset.bottom}"/><text x="${x}" y="${height - 5}" text-anchor="middle">${getCurrentLanguage() === "en" ? label.replace("時", "") : label}</text>`;
   }).join("");
   const shapes = isPrecipitation && !isRollingPrecipitation
-    ? points.map((point) => {
+    ? points.filter(point => Number.isFinite(point.value) && point.value > 0).map((point) => {
       const x = xFor(point.minute) - 1.1;
       const y = yFor(point.value);
       return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="2.2" height="${Math.max(1, inset.top + plotHeight - y).toFixed(1)}" rx="1.1"/>`;
@@ -5694,18 +5754,25 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
     : segments.map((items) => metric.id === "snow" && items.length === 1
       ? `<circle cx="${items[0].split(",")[0]}" cy="${items[0].split(",")[1]}" r="2"/>`
       : `<polyline points="${items.join(" ")}"/>`).join("");
-  const gustPaths = metric.id === "wind"
+  const gustPaths = metric.id === "wind" && layout !== AMEDAS_SUMMARY_CHART_LAYOUT
     ? buildSegments("gust").map((items) => `<polyline points="${items.join(" ")}"/>`).join("")
     : "";
   const referenceLines = buildAmedasTemperatureNormalLines(temperatureNormal, metric, inset, width, yFor);
+  const latestPoint = points.filter(point => Number.isFinite(point.value)).at(-1);
+  const latestMarker = latestPoint && (!isPrecipitation || isRollingPrecipitation)
+    ? `<circle class="amedas-chart-latest" cx="${xFor(latestPoint.minute).toFixed(1)}" cy="${yFor(latestPoint.value).toFixed(1)}" r="3.5"/>` : "";
 
   return `
-    <svg class="amedas-temperature-chart-plot" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriodId))}">
+    <svg class="amedas-temperature-chart-plot" viewBox="0 0 ${width} ${height}" data-axis-min="${min}" data-axis-max="${max}" tabindex="0" aria-describedby="${inspectionId}" role="img" aria-label="${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriodId))}">
       <g class="amedas-temperature-chart-grid">${grids}</g>
       <g class="amedas-temperature-chart-axis">${times}</g>
       ${referenceLines ? `<g class="amedas-temperature-chart-reference-lines">${referenceLines}</g>` : ""}
-      <g class="amedas-temperature-chart-line${isPrecipitation && !isRollingPrecipitation ? " is-bar" : ""}${isRollingPrecipitation ? " is-rolling-precipitation" : ""}">${shapes}</g>
+      <g class="amedas-temperature-chart-line${isPrecipitation && !isRollingPrecipitation ? " is-bar" : ""}${isRollingPrecipitation ? " is-rolling-precipitation" : ""}">${shapes}${latestMarker}</g>
       ${gustPaths ? `<g class="amedas-temperature-chart-line-gust">${gustPaths}</g>` : ""}
+      <g class="amedas-chart-inspection-guide" style="display:none" aria-hidden="true">
+        <line y1="${inset.top}" y2="${height - inset.bottom}"/>
+        <circle r="4"/>
+      </g>
     </svg>
   `;
 }
@@ -5717,7 +5784,7 @@ function getRadarFrameKindLabel(frame) {
 
 function buildAmedasTemperatureNormalLegend(normal, metric) {
   return getAmedasTemperatureNormalEntries(normal).map(([kind, label, value]) => `
-    <span class="reference ${kind}">${label} ${formatAmedasDailyValue(value, metric)} <small>(${escapeHtml(normal.period)})</small></span>
+    <span class="reference ${kind}">${label} ${formatAmedasDailyValue(value, metric)}</span>
   `).join("");
 }
 
@@ -5735,12 +5802,6 @@ function getAmedasTemperatureNormalEntries(normal) {
     ["maximum", "平年最高", normal.maximum],
     ["minimum", "平年最低", normal.minimum]
   ].filter(([, , value]) => Number.isFinite(value));
-}
-
-function getAmedasDailyAxisMax(value, metricId) {
-  const numeric = Number.isFinite(value) ? value : 0;
-  if (metricId === "precipitation") return Math.max(1, Math.ceil(numeric));
-  return Math.max(1, Math.ceil(numeric + 1));
 }
 
 function formatAmedasDailyAxis(value, metric) {

@@ -22,7 +22,7 @@ import { createEewAutoFocus } from "./eew/eewAutoFocus.js";
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, MAP_DATA_ENDPOINTS, TABS, WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
-import { setupAmedasDailyChartToggle, setupAmedasPrecipitationPeriods, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, showMobileEarthquakeSummaryPage, setupMobileWeatherTimelineControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
+import { setupAmedasDailyChartToggle, setupAmedasSummaryControls, setupAmedasPrecipitationPeriods, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, showMobileEarthquakeSummaryPage, setupMobileWeatherTimelineControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { applyAmedasPrecipitationPeriod, normalizeAmedasPrecipitationPeriod } from "./amedasPrecipitationPeriod.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupEarthquakeSimulation } from "./ui/earthquakeSimulation.js";
@@ -257,6 +257,7 @@ export function createWeatherApp() {
   let activeAmedasMetric = AMEDAS_METRICS[0].id;
   let activeAmedasPrecipitationPeriod = loadAmedasPrecipitationPeriod();
   let selectedAmedasStationId = "";
+  let amedasSummaryChartVisible = false;
   let earlyAccessState = { status: "checking", active: false, message: "認証状態を確認中です。" };
   let earlyAccessEnabled = false;
   let earlyAccessRequestId = 0;
@@ -2256,6 +2257,7 @@ if (layerId === "river") {
     if (!point) return;
 
     selectedAmedasStationId = String(point.id);
+    amedasSummaryChartVisible = true;
     focusAmedasStation(point);
     void loadAmedasDailyChart(point, activeAmedasMetric, amedasDailyChartDayOffset);
   }
@@ -2342,6 +2344,7 @@ if (layerId === "river") {
       amedasMetric: activeAmedasMetric,
       amedasPrecipitationPeriod: activeAmedasPrecipitationPeriod,
       selectedAmedasStationId,
+      amedasSummaryChartVisible,
       amedasDailyChart,
       amedasDailyChartDayOffset,
       earlyAccessEnabled,
@@ -4478,6 +4481,10 @@ if (layerId === "river") {
       onClose: closeTideObservation
     });
     setupAmedasRankingToggle({ onChange: refreshAmedasPanel, onSelectStation: selectAmedasStation });
+    setupAmedasSummaryControls({ onBack: () => {
+      amedasSummaryChartVisible = false;
+      refreshAmedasPanel();
+    } });
     window.addEventListener("amedas-station-select", (event) => {
       const stationId = event.detail?.stationId;
       if (stationId) selectAmedasStation(stationId);

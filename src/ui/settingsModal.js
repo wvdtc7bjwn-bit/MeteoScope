@@ -367,30 +367,45 @@ function setSettingsGroupExpanded(group, expanded) {
     previous.animation?.cancel();
     settingsGroupAnimations.delete(group);
   }
-  group.style.removeProperty("overflow");
+  const canAnimate = content && group.animate && startHeight && !group.hidden
+    && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (canAnimate) {
+    // Hold the visible size before changing the layout, including rapid reversals.
+    group.style.height = `${startHeight}px`;
+    group.style.overflow = "hidden";
+  } else {
+    group.style.removeProperty("height");
+    group.style.removeProperty("overflow");
+  }
   group.classList.toggle("is-expanded", expanded);
   toggle?.setAttribute("aria-expanded", expanded ? "true" : "false");
   if (!content) return;
   content.inert = !expanded;
   content.hidden = !expanded;
-  if (!group.animate || !startHeight || group.hidden
-    || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+  if (!canAnimate) return;
 
-  // Measure after lazy content (such as the changelog) has been rendered.
+  // Lazy content is ready by the next frame. Measure without exposing its
+  // natural height for a frame or letting the temporary measurement move scroll.
   const state = { frame: 0, animation: null };
   settingsGroupAnimations.set(group, state);
   state.frame = requestAnimationFrame(() => {
     if (settingsGroupAnimations.get(group) !== state) return;
+    const scroller = group.closest(".settings-modal-body");
+    const scrollTop = scroller?.scrollTop;
+    group.style.removeProperty("height");
     const endHeight = group.getBoundingClientRect().height;
+    group.style.height = `${startHeight}px`;
     content.hidden = false;
-    group.style.overflow = "hidden";
+    if (scroller) scroller.scrollTop = scrollTop;
     state.animation = group.animate([
       { height: `${startHeight}px` },
       { height: `${endHeight}px` }
-    ], { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" });
+    ], { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)", fill: "both" });
     state.animation.onfinish = () => {
       if (settingsGroupAnimations.get(group) !== state) return;
       content.hidden = !expanded;
+      state.animation.cancel();
+      group.style.removeProperty("height");
       group.style.removeProperty("overflow");
       settingsGroupAnimations.delete(group);
     };

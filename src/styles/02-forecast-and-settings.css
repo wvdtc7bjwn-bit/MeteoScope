@@ -1466,6 +1466,7 @@ html[data-theme="light"] .weekly-weather-issued strong {
 
 .settings-group {
   display: grid;
+  grid-template-rows: max-content;
   gap: 0;
   padding: 0 12px;
   border: 0;

@@ -1,6 +1,10 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+更新が遅れています · 前回のデータを表示中|Updates delayed · Showing previous data
+オフライン · 情報が最新でない場合があります|Offline · Information may be out of date
+表示する観測項目|Observation metric
+地点の観測|Station observations
 点線枠：震源位置の目安（座標の丸め幅）|Dashed rectangle: epicenter position guide (coordinate rounding).
 検索期間|Search period
 検索結果|Search results

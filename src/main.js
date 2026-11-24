@@ -32,9 +32,9 @@ function setupConnectionStatus() {
     const offline = navigator.onLine === false;
     element.hidden = !offline && !staleSource;
     if (offline) {
-      element.textContent = "オフラインです。表示中の情報は最新ではない可能性があります。";
+      element.textContent = "オフライン · 情報が最新でない場合があります";
     } else if (staleSource) {
-      element.textContent = `データ更新が遅延しています（${staleSource}）。直前の取得結果を表示中です。`;
+      element.textContent = "更新が遅れています · 前回のデータを表示中";
     } else {
       element.textContent = "";
     }

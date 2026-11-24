@@ -1564,6 +1564,7 @@ html[data-theme="light"] #settings-modal .settings-modal-panel {
   flex-direction: column;
   min-height: 0;
   overscroll-behavior: contain;
+  overflow-anchor: none;
   gap: 0;
   padding: 14px 16px 16px;
   overflow-y: auto;

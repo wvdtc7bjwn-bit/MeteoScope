@@ -9,8 +9,8 @@ export async function fetchAmedasDailyTemperatureNormals(stationId, date) {
   if (!normalDataRequest) {
     normalDataRequest = fetchJson(AMEDAS_DAILY_TEMPERATURE_NORMALS_URL, {
       ttlMs: 24 * 60 * 60 * 1000,
-      cache: "no-store",
-      timeoutMs: 6000
+      cache: "force-cache",
+      timeoutMs: 15000
     }).catch((error) => {
       normalDataRequest = null;
       throw error;

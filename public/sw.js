@@ -53,6 +53,7 @@ self.addEventListener("fetch", (event) => {
     url.pathname.startsWith("/assets/")
     || url.pathname.startsWith("/icons/")
     || url.pathname === "/site.webmanifest"
+    || url.pathname === "/data/amedas-daily-high-low-temperature-normals-1991-2020.json"
   ) {
     event.respondWith(cacheFirstStatic(request));
   }

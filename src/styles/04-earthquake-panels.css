@@ -1887,13 +1887,77 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   line-height: 1.55;
 }
 
+/* The observation sheet uses clear sections and enough contrast over the map. */
+html #sidebar:has(.current-panel.is-amedas) {
+  --glass-shell-static-background: rgba(12, 22, 38, 0.98);
+}
+
+.current-panel.is-amedas .panel-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-bottom: 14px;
+}
+
+.current-panel.is-amedas #mode-label {
+  display: block;
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--text);
+  box-shadow: none;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.current-panel.is-amedas #panel-time {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.current-panel.is-amedas #panel-description {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.amedas-temperature-chart,
+.amedas-ranking {
+  box-sizing: border-box;
+  padding: 12px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: none;
+  box-shadow: none;
+}
+
 .amedas-temperature-chart {
-  margin-top: 14px;
-  padding: 12px;
-  border: 1px solid rgba(86, 183, 242, 0.18);
-  border-radius: 12px;
-  background: rgba(8, 17, 31, 0.42);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  margin: 16px -8px 0;
+}
+
+.amedas-chart-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.amedas-chart-toolbar h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .amedas-temperature-chart[hidden] {
@@ -1907,7 +1971,7 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   grid-template-columns: repeat(2, minmax(0, 1fr));
   width: min(136px, 100%);
   box-sizing: border-box;
-  margin: 0 0 9px auto;
+  margin: 0;
   padding: var(--amedas-chart-period-padding);
   border: 1px solid var(--segmented-track-border);
   border-radius: 999px;
@@ -1955,14 +2019,14 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   z-index: 1;
   min-width: 0;
   box-sizing: border-box;
-  min-height: 23px;
-  padding: 3px 8px;
+  min-height: 36px;
+  padding: 6px 8px;
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: #9faec4;
-  font-size: 10px;
-  font-weight: 900;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
 }
 
@@ -1974,10 +2038,10 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 
 .amedas-temperature-chart-head {
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 14px;
 }
 
 .amedas-temperature-chart-head > div:first-child {
@@ -1989,18 +2053,17 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 .amedas-temperature-chart-head span,
 .amedas-temperature-chart-current span,
 .amedas-temperature-chart-range {
-  color: #8fa0b8;
-  font-size: 10px;
-  font-weight: 800;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
 }
 
 .amedas-temperature-chart-head > div:first-child strong {
-  overflow: hidden;
-  color: #f8fbff;
-  font-size: 14px;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .amedas-temperature-chart-current {
@@ -2010,15 +2073,16 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   flex: 0 0 auto;
 }
 
-.amedas-temperature-chart-current strong {
-  font-size: 18px;
+.amedas-temperature-chart-current > .amedas-temperature-chart-value {
+  font-size: 28px;
   font-variant-numeric: tabular-nums;
   font-weight: 900;
   line-height: 1;
 }
 
 .amedas-temperature-chart-value {
-  color: var(--amedas-value-color, #f8fbff);
+  color: var(--text);
+  color: color-mix(in srgb, var(--amedas-value-color, var(--text)), var(--text) 72%);
   font: inherit;
 }
 
@@ -2026,11 +2090,11 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  margin: -2px 0 5px;
-  color: #9faec4;
-  font-size: 10px;
-  font-weight: 800;
+  gap: 7px 14px;
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
 }
 
 .amedas-temperature-chart-key > span {
@@ -2042,13 +2106,13 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   display: inline-block;
   width: 14px;
   margin-right: 5px;
-  border-top: 2px solid var(--amedas-series-color, #f4d35e);
+  border-top: 2px solid var(--amedas-series-ink, var(--amedas-series-color, #f4d35e));
   content: "";
   vertical-align: middle;
 }
 
 .amedas-temperature-chart-key span.gust::before {
-  border-color: var(--amedas-gust-color, var(--amedas-series-color, #f4d35e));
+  border-color: var(--amedas-gust-ink, var(--amedas-gust-color, var(--amedas-series-color, #f4d35e)));
   border-top-style: dashed;
 }
 
@@ -2064,16 +2128,70 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   border-color: #68aee8;
 }
 
-.amedas-temperature-chart-key span.reference small {
-  color: #7f92ad;
-  font-size: inherit;
-}
-
 .amedas-temperature-chart-plot {
   display: block;
   width: 100%;
   height: auto;
   overflow: visible;
+  touch-action: pan-y;
+  cursor: crosshair;
+}
+
+.amedas-temperature-chart-plot:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.amedas-chart-inspection-guide {
+  pointer-events: none;
+}
+
+.amedas-chart-inspection-guide line {
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.amedas-chart-inspection-guide circle {
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 1.5;
+}
+
+.amedas-chart-inspection {
+  min-height: 38px;
+  padding-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.amedas-chart-inspection-hint {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.amedas-chart-inspection-reading {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  align-items: baseline;
+}
+
+.amedas-chart-inspection-reading strong {
+  color: var(--text);
+  font-size: 16px;
+}
+
+.amedas-chart-inspection-reading small {
+  grid-column: 1 / -1;
+  text-align: right;
+}
+
+.amedas-chart-inspection-reading[hidden],
+.amedas-chart-inspection-hint[hidden] {
+  display: none;
 }
 
 .amedas-temperature-chart-grid line {
@@ -2083,9 +2201,27 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 
 .amedas-temperature-chart-grid text,
 .amedas-temperature-chart-axis text {
-  fill: #8fa0b8;
+  fill: var(--muted);
   font-size: 10px;
   font-weight: 700;
+}
+
+.amedas-temperature-chart-axis line {
+  stroke: var(--line);
+  stroke-width: 0.5;
+  stroke-dasharray: 2 4;
+}
+
+.amedas-chart-latest {
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+
+.amedas-normal-period {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
 }
 
 .amedas-temperature-chart-reference-lines line.maximum {
@@ -2102,24 +2238,24 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 
 .amedas-temperature-chart-line polyline {
   fill: none;
-  stroke: var(--amedas-series-color, #68dca5);
+  stroke: var(--amedas-series-ink, var(--amedas-series-color, #68dca5));
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2.4;
 }
 
 .amedas-temperature-chart-line circle {
-  fill: var(--amedas-series-color, #68dca5);
+  fill: var(--amedas-series-ink, var(--amedas-series-color, #68dca5));
 }
 
 .amedas-temperature-chart-line.is-bar rect {
-  fill: var(--amedas-series-color, #56b7f2);
+  fill: var(--amedas-series-ink, var(--amedas-series-color, #56b7f2));
   opacity: 0.88;
 }
 
 .amedas-temperature-chart-line-gust polyline {
   fill: none;
-  stroke: var(--amedas-gust-color, var(--amedas-series-color, #f4d35e));
+  stroke: var(--amedas-gust-ink, var(--amedas-gust-color, var(--amedas-series-color, #f4d35e)));
   stroke-dasharray: 5 4;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -2130,28 +2266,22 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 2px;
-}
-
-.amedas-temperature-chart-range.is-wind {
   flex-wrap: wrap;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
 }
 
 .amedas-temperature-chart-empty {
   margin: 0;
-  color: #aebbd0;
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.45;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.7;
 }
 
 .amedas-ranking {
-  margin-top: 16px;
-  padding: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  background: rgba(8, 17, 31, 0.42);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  margin: 20px -8px 0;
 }
 
 .amedas-ranking[hidden] {
@@ -2160,16 +2290,16 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 
 .amedas-ranking-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .amedas-ranking-head span {
-  color: #f8fbff;
-  font-size: 13px;
-  font-weight: 900;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .amedas-ranking-head small {
@@ -2247,8 +2377,8 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 
 .amedas-ranking-toggle button {
   min-width: 0;
-  min-height: 28px;
-  padding: 5px 8px;
+  min-height: 38px;
+  padding: 7px 8px;
   z-index: 1;
   border: 0;
   border-radius: 999px;
@@ -2271,7 +2401,7 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 
 .amedas-ranking-list {
   display: grid;
-  gap: 5px;
+  gap: 0;
 }
 
 .amedas-ranking-row {
@@ -2280,11 +2410,12 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   align-items: center;
   gap: 8px;
   min-width: 0;
-  min-height: 30px;
-  padding: 5px 7px;
+  min-height: 50px;
+  padding: 8px 2px;
   border: 0;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.055);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
   color: inherit;
   font: inherit;
   text-align: left;
@@ -2305,9 +2436,9 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
   place-items: center;
   width: 22px;
   height: 22px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #c9d6e8;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 900;
 }
@@ -2315,17 +2446,17 @@ html[data-language="en"] .earthquake-detail-button .earthquake-card-intensity sm
 .amedas-ranking-name {
   min-width: 0;
   overflow: hidden;
-  color: #edf4ff;
-  font-size: 12px;
-  font-weight: 900;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .amedas-ranking-value {
-  color: #f8fbff;
-  font-size: 13px;
-  font-weight: 900;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
   line-height: 1.2;
 }
 

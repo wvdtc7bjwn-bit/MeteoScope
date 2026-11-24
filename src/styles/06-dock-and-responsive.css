@@ -2105,7 +2105,7 @@
   }
 
   .mobile-dock-radar .weather-time-active-marker {
-    top: 13px;
+    top: 20px;
     bottom: 1px;
     width: 6px;
   }
@@ -2432,3 +2432,155 @@
   }
 }
 
+
+/* A selected station replaces the picker within the original summary size. */
+#mobile-context-dock.has-amedas-chart {
+  --glass-shell-static-background: rgba(12, 22, 38, 0.98);
+  cursor: default;
+  padding-bottom: 6px;
+}
+
+.mobile-dock-amedas-chart {
+  position: relative;
+  height: 100%;
+  padding-top: 2px;
+  box-sizing: border-box;
+}
+
+.mobile-amedas-chart-back {
+  position: absolute;
+  top: -2px;
+  right: 0;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  box-sizing: border-box;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--panel-soft);
+  color: var(--text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.mobile-amedas-chart-back > svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.mobile-amedas-chart-back:hover {
+  background: rgba(86, 183, 242, 0.14);
+}
+
+.mobile-amedas-chart-back:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+
+#amedas-summary-chart {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.is-summary-chart .amedas-temperature-chart-head {
+  min-height: 22px;
+  margin-bottom: 1px;
+  padding-right: 34px;
+  gap: 8px;
+}
+
+.is-summary-chart .amedas-temperature-chart-head > div:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+/* Past-day graphs have no latest-reading headline; leave room for inspection. */
+.is-summary-chart .amedas-temperature-chart-head:not(:has(.amedas-temperature-chart-current)) > div:first-child {
+  max-width: calc(100% - 130px);
+}
+
+.is-summary-chart .amedas-temperature-chart-current {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.is-summary-chart .amedas-temperature-chart-head > div:first-child strong {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.is-summary-chart .amedas-temperature-chart-head span {
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.is-summary-chart .amedas-temperature-chart-head > div:first-child span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.is-summary-chart .amedas-temperature-chart-current > .amedas-temperature-chart-value {
+  font-size: 18px;
+}
+
+.is-summary-chart .amedas-temperature-chart-grid text,
+.is-summary-chart .amedas-temperature-chart-axis text {
+  font-size: 8px;
+}
+
+.is-summary-chart .amedas-chart-inspection {
+  min-height: 0;
+  padding: 0;
+}
+
+.is-summary-chart .amedas-chart-inspection-hint,
+.is-summary-chart .amedas-temperature-chart-range {
+  display: none;
+}
+
+.is-summary-chart .amedas-chart-inspection-reading {
+  position: absolute;
+  top: 0;
+  right: 34px;
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+  background: var(--glass-shell-static-background);
+  line-height: 1.2;
+}
+
+.is-summary-chart .amedas-chart-inspection-reading[hidden] {
+  display: none;
+}
+
+.is-summary-chart .amedas-chart-inspection-reading strong {
+  font-size: 18px;
+}
+
+.is-summary-chart.is-inspecting .amedas-temperature-chart-current {
+  visibility: hidden;
+}
+
+.is-summary-chart .amedas-temperature-chart-empty {
+  min-height: 30px;
+  padding: 0 34px 0 0;
+  font-size: 12px;
+}
