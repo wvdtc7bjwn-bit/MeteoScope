@@ -1,6 +1,7 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+1本指やマウスで範囲を囲みます。2本指やホイールで拡大・縮小できます。|Trace the area with one finger or the mouse. Use two fingers or the wheel to zoom.
 更新が遅れています · 前回のデータを表示中|Updates delayed · Showing previous data
 オフライン · 情報が最新でない場合があります|Offline · Information may be out of date
 表示する観測項目|Observation metric

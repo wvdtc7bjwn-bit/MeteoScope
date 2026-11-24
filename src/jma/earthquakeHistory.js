@@ -28,13 +28,9 @@ export const EARTHQUAKE_HISTORY_INTENSITY_OPTIONS = Object.freeze([
   Object.freeze(["6+", "震度6強以上"]),
   Object.freeze(["7", "震度7"])
 ]);
-export const EARTHQUAKE_HISTORY_MAGNITUDE_OPTIONS = Object.freeze([
-  Object.freeze(["0", "指定なし"]),
-  ...[3, 4, 5, 6, 7, 8].map((value) => Object.freeze([String(value), `M${value}以上`]))
-]);
-export const EARTHQUAKE_HISTORY_DEPTH_OPTIONS = Object.freeze([
-  Object.freeze(["all", "指定なし"]),
-  ...[10, 30, 50, 100, 200, 500].map((value) => Object.freeze([String(value), `${value}km以内`]))
+export const EARTHQUAKE_HISTORY_PERIOD_PRESETS = Object.freeze([
+  Object.freeze(["month", "1か月"]), Object.freeze(["year", "1年"]),
+  Object.freeze(["decade", "10年"]), Object.freeze(["all", "全期間"])
 ]);
 export const EARTHQUAKE_HISTORY_SORT_OPTIONS = Object.freeze([
   Object.freeze(["newest", "新しい順"]),
@@ -262,8 +258,7 @@ export function normalizeEarthquakeHistoryFilters(filters) {
     startDate: minDate(maxDate(startDate, EARTHQUAKE_HISTORY_EARLIEST_DATE), latestDate),
     endDate: minDate(endDate, latestDate),
     ...conditions,
-    nearby: conditions.nearby,
-    areaPolygon: normalizeHistoryAreaPolygon(filters.areaPolygon)
+    nearby: conditions.nearby
   };
 }
 
@@ -272,6 +267,22 @@ export function getJmaLatestAvailableDate(now = Date.now()) {
     timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit"
   }).format(new Date(now));
   return shiftDate(todayInJapan, -2);
+}
+
+// Calendar periods include both dates and end at the selected end date.
+export function getEarthquakeHistoryPresetRange(preset, selectedEndDate = getJmaLatestAvailableDate()) {
+  const latest = getJmaLatestAvailableDate();
+  const endDate = minDate(maxDate(isJmaHistoryDate(selectedEndDate) ? selectedEndDate : latest,
+    EARTHQUAKE_HISTORY_EARLIEST_DATE), latest);
+  if (preset === "all") return { startDate: EARTHQUAKE_HISTORY_EARLIEST_DATE, endDate };
+  const months = { month: 1, year: 12, decade: 120 }[preset];
+  if (!Number.isInteger(months)) throw new TypeError("検索期間が不正です");
+  const [year, month, day] = endDate.split("-").map(Number);
+  const target = new Date(Date.UTC(year, month - 1 - months, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(day, lastDay));
+  const startDate = maxDate(EARTHQUAKE_HISTORY_EARLIEST_DATE, shiftDate(target.toISOString().slice(0, 10), 1));
+  return { startDate, endDate };
 }
 
 export function getHistoricalIntensityRank(value) {
@@ -294,12 +305,13 @@ async function loadHistoryYear(year, file, signal) {
 
 async function loadLiveHistoryRange(range, conditions, signal) {
   const query = new URLSearchParams({ start: range.startDate, end: range.endDate, startTime: range.startTime, endTime: range.endTime,
-    minIntensity: conditions.minIntensity, minMagnitude: conditions.minMagnitude, maxDepth: conditions.maxDepth, sort: conditions.sort, keyword: conditions.keyword, v: "3" });
+    minIntensity: conditions.minIntensity, minMagnitude: conditions.minMagnitude, maxDepth: conditions.maxDepth, sort: conditions.sort, keyword: conditions.keyword, v: "4" });
   if (conditions.nearby) {
     query.set("nearbyLat", String(conditions.nearby.latitude));
     query.set("nearbyLon", String(conditions.nearby.longitude));
     query.set("nearbyRadiusKm", String(conditions.nearby.radiusKm));
   }
+  if (conditions.areaPolygon.length) query.set("areaPolygon", JSON.stringify(conditions.areaPolygon));
   const payload = await fetchJson(`${LIVE_SEARCH_ENDPOINT}?${query}`, {
       ttlMs: 0,
       timeoutMs: 55_000,
@@ -381,20 +393,4 @@ function shiftDate(date, offset) {
   const [year, month, day] = String(date).split("-").map(Number);
   const timestamp = Date.UTC(year, month - 1, day) + offset * 86_400_000;
   return new Date(timestamp).toISOString().slice(0, 10);
-}
-
-
-function normalizeHistoryAreaPolygon(value) {
-  if (value == null || (Array.isArray(value) && value.length === 0)) return [];
-  if (!Array.isArray(value) || value.length < 3 || value.length > 200
-    || value.some((point) => !Array.isArray(point) || point.length !== 2
-      || !point.every(Number.isFinite) || Math.abs(point[0]) > 180 || Math.abs(point[1]) > 90)) {
-    throw new TypeError("検索範囲を地図上で囲み直してください");
-  }
-  const area = value.reduce((sum, point, i) => {
-    const next = value[(i + 1) % value.length];
-    return sum + point[0] * next[1] - next[0] * point[1];
-  }, 0);
-  if (Math.abs(area) < 1e-10) throw new TypeError("検索範囲を地図上で囲み直してください");
-  return value.map((point) => [...point]);
 }

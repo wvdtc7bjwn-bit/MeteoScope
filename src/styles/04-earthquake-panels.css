@@ -422,6 +422,10 @@
   gap: 7px;
 }
 
+.earthquake-archive-search .earthquake-archive-periods {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .earthquake-archive-search label {
   display: grid;
   gap: 4px;
@@ -432,17 +436,31 @@
 }
 
 .earthquake-archive-search :is(input) {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
-  height: 34px;
-  padding: 0 9px;
-  border: 1px solid rgba(137, 170, 220, 0.24);
-  border-radius: 9px;
-  background: rgba(7, 17, 31, 0.72);
-  color: #edf7ff;
-  font: inherit;
-  font-size: 11px;
-  box-sizing: border-box;
+  height: var(--select-height);
+  min-height: var(--select-height);
+  padding: 0 12px;
+  border: 1px solid var(--select-border);
+  border-radius: var(--select-radius);
+  background: var(--select-surface);
+  color: var(--select-text);
+  color-scheme: var(--select-scheme);
+  font-family: var(--font-jp-gothic);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.earthquake-archive-search input:enabled:hover:not(:focus-visible) {
+  border-color: var(--select-hover-border);
+}
+
+.earthquake-archive-search input:focus-visible {
+  border-color: var(--select-focus);
+  outline: 2px solid var(--select-focus);
+  outline-offset: 2px;
 }
 
 .earthquake-archive-search :is(select) {

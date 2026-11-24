@@ -53,10 +53,11 @@ import {
   isHypocenterDistributionRangeWithinLimit
 } from "../jma/hypocenterDistribution.js";
 import {
-  EARTHQUAKE_HISTORY_DEPTH_OPTIONS,
+  EARTHQUAKE_HISTORY_EARLIEST_DATE,
+  EARTHQUAKE_HISTORY_PERIOD_PRESETS,
   EARTHQUAKE_HISTORY_INTENSITY_OPTIONS,
   EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT,
-  EARTHQUAKE_HISTORY_MAGNITUDE_OPTIONS,
+  getEarthquakeHistoryPresetRange,
   EARTHQUAKE_HISTORY_RESULT_LIMIT,
   EARTHQUAKE_HISTORY_SORT_OPTIONS,
   formatHistoricalIntensity,
@@ -1403,8 +1404,8 @@ export function setupEarthquakeSelector({
       startDate: read("startDate"),
       endDate: read("endDate"),
       minIntensity: read("minIntensity"),
-      minMagnitude: read("minMagnitude"),
-      maxDepth: read("maxDepth"),
+      minMagnitude: read("minMagnitude") || "0",
+      maxDepth: read("maxDepth") || "all",
       sort: read("sort"),
       keyword: read("keyword"),
       ...(read("nearbyLat") && read("nearbyLon") && read("nearbyRadiusKm") ? {
@@ -1414,6 +1415,7 @@ export function setupEarthquakeSelector({
   };
 
   const submitArchiveSearch = (form) => {
+    if (!form.reportValidity()) return;
     onArchiveSearch?.(readArchiveSearchFilters(form));
   };
 
@@ -1478,6 +1480,24 @@ export function setupEarthquakeSelector({
         if (areaButton.hasAttribute("data-earthquake-archive-area-clear")) onArchiveAreaClear?.(filters);
         else onArchiveAreaSearch?.(filters);
       }
+      return;
+    }
+    const archivePeriodButton = event.target.closest("[data-earthquake-archive-period]");
+    if (archivePeriodButton) {
+      event.preventDefault();
+      event.stopPropagation();
+      const form = archivePeriodButton.closest("form");
+      if (!(form instanceof HTMLFormElement)) return;
+      const range = getEarthquakeHistoryPresetRange(archivePeriodButton.dataset.earthquakeArchivePeriod,
+        form.elements.namedItem("endDate")?.value);
+      form.elements.namedItem("startDate").value = range.startDate;
+      form.elements.namedItem("endDate").value = range.endDate;
+      form.querySelectorAll("[data-earthquake-archive-period]").forEach(button => {
+        const active = button === archivePeriodButton;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-pressed", String(active));
+      });
+      onArchiveFilterChange?.(readArchiveSearchFilters(form));
       return;
     }
     const archiveSearchButton = event.target.closest("[data-earthquake-archive-search]");
@@ -1618,6 +1638,12 @@ export function setupEarthquakeSelector({
       ? target.closest("[data-earthquake-archive-form]")
       : null;
     if (archiveForm instanceof HTMLFormElement) {
+      if (["startDate", "endDate"].includes(target.name)) {
+        archiveForm.querySelectorAll("[data-earthquake-archive-period]").forEach(button => {
+          button.classList.remove("active");
+          button.setAttribute("aria-pressed", "false");
+        });
+      }
       onArchiveFilterChange?.(readArchiveSearchFilters(archiveForm));
       return;
     }
@@ -1652,7 +1678,7 @@ export function setupEarthquakeSelector({
   mobileDock?.addEventListener("change", handleFilterChange);
   root.addEventListener("input", (event) => {
     const target = event.target;
-    if (!(target instanceof HTMLInputElement) || target.name !== "keyword") return;
+    if (!(target instanceof HTMLInputElement) || !["keyword", "minMagnitude", "maxDepth"].includes(target.name)) return;
     const archiveForm = target.closest("[data-earthquake-archive-form]");
     if (archiveForm instanceof HTMLFormElement) {
       onArchiveFilterChange?.(readArchiveSearchFilters(archiveForm));
@@ -6549,11 +6575,16 @@ function buildEarthquakeArchiveMarkup(data) {
   const latestDate = getJmaLatestAvailableDate();
   const loading = status === "loading" || status === "refreshing";
   const nearby = filters.nearby;
+  const activePeriod = startDate === EARTHQUAKE_HISTORY_EARLIEST_DATE ? "all"
+    : EARTHQUAKE_HISTORY_PERIOD_PRESETS.find(([preset]) => getEarthquakeHistoryPresetRange(preset, endDate).startDate === startDate)?.[0];
   const form = `
     <form class="earthquake-archive-search" data-earthquake-archive-form aria-label="過去の地震検索">
       <div class="earthquake-archive-head">
         <div><strong>気象庁 震度データベース</strong><span>1919年〜2日前・震度1以上の地震を検索</span></div>
         <a href="https://www.data.jma.go.jp/eqdb/data/shindo/" target="_blank" rel="noopener noreferrer">気象庁 ↗</a>
+      </div>
+      <div class="earthquake-archive-periods earthquake-distribution-range-presets" role="group" aria-label="検索期間（終了日を基準）">
+        ${EARTHQUAKE_HISTORY_PERIOD_PRESETS.map(([preset, label]) => `<button type="button" data-earthquake-archive-period="${preset}" class="${activePeriod === preset ? "active" : ""}" aria-pressed="${activePeriod === preset}">${label}</button>`).join("")}
       </div>
       <div class="earthquake-archive-date-grid earthquake-distribution-range-controls">
         <label><span>開始日</span><input type="date" name="startDate" value="${escapeHtml(startDate)}" min="1919-01-01" max="${escapeHtml(latestDate)}"></label>
@@ -6561,8 +6592,8 @@ function buildEarthquakeArchiveMarkup(data) {
       </div>
       <div class="earthquake-archive-filter-grid">
         ${buildArchiveSelect("minIntensity", "最大震度", filters.minIntensity ?? "1", EARTHQUAKE_HISTORY_INTENSITY_OPTIONS)}
-        ${buildArchiveSelect("minMagnitude", "マグニチュード", filters.minMagnitude ?? "0", EARTHQUAKE_HISTORY_MAGNITUDE_OPTIONS)}
-        ${buildArchiveSelect("maxDepth", "深さ", filters.maxDepth ?? "all", EARTHQUAKE_HISTORY_DEPTH_OPTIONS)}
+        <label><span>マグニチュード（M以上）</span><input type="number" name="minMagnitude" min="0" max="9" step="1" inputmode="numeric" placeholder="指定なし" value="${escapeHtml(Number(filters.minMagnitude) > 0 ? filters.minMagnitude : "")}"></label>
+        <label><span>深さ（km以内）</span><input type="number" name="maxDepth" min="0" max="999" step="1" inputmode="numeric" placeholder="指定なし" value="${escapeHtml(filters.maxDepth == null || filters.maxDepth === "all" ? "" : filters.maxDepth)}"></label>
         ${buildArchiveSelect("sort", "並び順", filters.sort ?? "newest", EARTHQUAKE_HISTORY_SORT_OPTIONS)}
       </div>
       <label class="earthquake-archive-keyword"><span>震央地名</span><input type="search" name="keyword" value="${escapeHtml(filters.keyword ?? "")}" maxlength="40" placeholder="例：能登、宮城県沖"></label>
@@ -6602,12 +6633,12 @@ function buildEarthquakeArchiveMarkup(data) {
   const incompleteNotice = snapshot?.searchFinished && !snapshot.complete && !snapshot.cancelled && snapshot?.unsearchedRanges?.length
     ? `<p class="earthquake-archive-list-note" role="status">${snapshot.filters.nearby && snapshot.filters.sort === "newest"
       ? "新しい地震から最大1,000件を表示しています。これより古い期間は未取得です。"
-      : `${snapshot.limitExceeded ? (snapshot.filters.keyword || snapshot.filters.areaPolygon?.length) ? "範囲・地名条件を適用する前の候補が気象庁の上限1,000件を超えています。" : "検索結果が上限の1,000件を超えています。" : "取得上限に達しました。"}未取得の地震があります（総件数は未確定）。${(snapshot.filters.keyword || snapshot.filters.areaPolygon?.length) ? `範囲・地名条件の追加取得は候補${snapshot.acquisitionLimit.toLocaleString("ja-JP")}件・64回まで。並び順は取得済み分に適用しています。` : "選択した並び順の先頭1,000件を表示しています。"}期間や条件を絞って再検索してください。`}</p>` : "";
+      : `${snapshot.limitExceeded ? snapshot.filters.keyword ? "地名条件を適用する前の候補が気象庁の上限1,000件を超えています。" : snapshot.filters.areaPolygon?.length ? "指定範囲内の検索候補が気象庁の上限1,000件を超えています。" : "検索結果が上限の1,000件を超えています。" : "取得上限に達しました。"}未取得の地震があります（総件数は未確定）。${(snapshot.filters.keyword || snapshot.filters.areaPolygon?.length) ? `範囲・地名条件の追加取得は候補${snapshot.acquisitionLimit.toLocaleString("ja-JP")}件・64回まで。並び順は取得済み分に適用しています。` : "選択した並び順の先頭1,000件を表示しています。"}期間や条件を絞って再検索してください。`}</p>` : "";
   const cancelledNotice = snapshot?.cancelled ? `<p class="earthquake-archive-list-note" role="status">条件変更のため検索を中断しました。取得済み分を表示しています。</p>` : "";
   const resultHead = `
     <div class="earthquake-archive-result-head" role="status">
       <strong>${snapshot?.complete ? "" : "取得済み "}${totalMatched.toLocaleString("ja-JP")}件</strong>
-      <span>${snapshot?.truncated
+      <span>${snapshot?.truncated && items.length >= EARTHQUAKE_HISTORY_RESULT_LIMIT
         ? `地図は先頭${resultLimit.toLocaleString("ja-JP")}件`
         : coverageLabel}${loading ? "・検索中" : snapshot?.complete === false ? "・未取得期間あり" : ""}</span>
     </div>
@@ -6862,7 +6893,7 @@ function buildDistributionAreaControls(hasArea, areaDrawing, scope = "distributi
         >${areaDrawing ? "範囲選択を中止" : hasArea ? "囲み直す" : "囲って検索"}</button>
         ${hasArea ? `<button type="button" class="earthquake-distribution-area-clear" data-earthquake-${scope}-area-clear>範囲解除</button>` : ""}
       </div>
-      <p>${areaDrawing ? "地図を指やマウスでなぞって、震央の検索範囲を囲んでください。" : hasArea ? "地図上の囲み範囲内の震央を検索します。" : "囲って検索すると、地図上で指定した範囲だけに絞れます。"}</p>
+      <p>${areaDrawing ? "1本指やマウスで範囲を囲みます。2本指やホイールで拡大・縮小できます。" : hasArea ? "地図上の囲み範囲内の震央を検索します。" : "囲って検索すると、地図上で指定した範囲だけに絞れます。"}</p>
     </div>
   `;
 }

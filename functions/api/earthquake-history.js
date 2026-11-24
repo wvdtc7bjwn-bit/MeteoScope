@@ -3,6 +3,7 @@ import {
   JMA_EARTHQUAKE_HISTORY_SOURCE_URL, JMA_EARTHQUAKE_INTENSITY_API_URL,
   isCoordinateWithinRadius
 } from "../../src/jma/earthquakeHistoryApi.js";
+import { pointInPolygon } from "../../src/jma/hypocenterDistribution.js";
 import { normalizeHistoricalEpicenterName } from "../../src/jma/historicalEpicenterNames.js";
 
 const CACHE_TTL_SECONDS = 6 * 60 * 60;
@@ -31,16 +32,17 @@ export async function onRequestGet(context) {
   if (endDate > latestAvailableDate) return jsonResponse({ ok: false, error: "date_not_yet_available", latestAvailableDate }, 400);
   let conditions;
   try {
-    conditions = validateJmaHistoryConditions(Object.fromEntries(
+    conditions = validateJmaHistoryConditions({ ...Object.fromEntries(
       ["minIntensity", "minMagnitude", "maxDepth", "sort", "keyword", "nearbyLat", "nearbyLon", "nearbyRadiusKm"].flatMap((key) => url.searchParams.has(key) ? [[key, url.searchParams.get(key)]] : [])
-    ));
+    ), areaPolygon: JSON.parse(url.searchParams.get("areaPolygon") ?? "[]") });
   } catch {
     return jsonResponse({ ok: false, error: "invalid_search_conditions" }, 400);
   }
-  // Versioning separates the former recursively-expanded annual cache.
+  // Keep polygon-filtered responses separate from older nationwide candidates.
   const cacheUrl = new URL("/api/earthquake-history", url.origin);
-  const { nearby, ...plainConditions } = conditions;
-  cacheUrl.search = new URLSearchParams({ v: "3", start: startDate, end: endDate, startTime, endTime, ...plainConditions,
+  const { nearby, areaPolygon, ...plainConditions } = conditions;
+  cacheUrl.search = new URLSearchParams({ v: "4", start: startDate, end: endDate, startTime, endTime, ...plainConditions,
+    ...(areaPolygon.length ? { areaPolygon: JSON.stringify(areaPolygon) } : {}),
     ...(nearby ? { nearbyLat: String(nearby.latitude), nearbyLon: String(nearby.longitude), nearbyRadiusKm: String(nearby.radiusKm) } : {}) });
   const cacheKey = new Request(cacheUrl);
   const cache = globalThis.caches?.default;
@@ -94,7 +96,8 @@ export async function onRequestGet(context) {
     const limited = limitExceeded || (candidates.length >= API_RESULT_LIMIT && Number(reportedCount?.[1]) !== candidates.length);
     const keyword = conditions.keyword.toLocaleLowerCase("ja-JP");
     const records = keyword ? candidates.filter((record) => normalizeHistoricalEpicenterName(String(record.id), record.name).toLocaleLowerCase("ja-JP").includes(keyword)) : candidates;
-    const matchedRecords = nearby ? records.filter((record) => isWithinNearbyRadius(record, nearby)) : records;
+    const matchedRecords = records.filter((record) => (!nearby || isWithinNearbyRadius(record, nearby))
+      && (!areaPolygon.length || pointInPolygon([Number(record.lon), Number(record.lat)], areaPolygon)));
     const result = jsonResponse({
       ok: true, startDate, endDate, startTime, endTime, conditions,
       sourceUrl: JMA_EARTHQUAKE_HISTORY_SOURCE_URL,

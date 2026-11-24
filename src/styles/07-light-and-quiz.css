@@ -1347,11 +1347,6 @@ html[data-theme="light"] .earthquake-archive-search {
   border-color: rgba(72, 100, 132, 0.16);
   background: rgba(246, 250, 255, 0.9);
 }
-html[data-theme="light"] .earthquake-archive-search :is(input) {
-  border-color: rgba(72, 100, 132, 0.22);
-  background: #fff;
-  color: #20364e;
-}
 html[data-theme="light"] :is(.earthquake-archive-head strong, .earthquake-archive-result-head strong) { color: #20364e; }
 html[data-theme="light"] :is(.earthquake-archive-head span, .earthquake-archive-search p, .earthquake-archive-list-note) { color: #536b82; }
 html[data-theme="light"] .earthquake-archive-item > a { border-color: rgba(72, 100, 132, 0.14); color: #2985ba; }

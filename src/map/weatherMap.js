@@ -521,6 +521,7 @@ export function createWeatherMap(elementId) {
   let currentLocationVisible = true;
   let hypocenterAreaPolygon = [];
   let hypocenterAreaOverlay = null;
+  let hypocenterAreaCleanup = null;
   let hypocenter3DEnabled = false;
   let previousHypocenterCamera = null;
   let plateDepth3DLayerAvailable = false;
@@ -1086,7 +1087,8 @@ export function createWeatherMap(elementId) {
     const source = map.getSource(SAMPLE_SOURCE_ID);
     const areaVisible = mode === "earthquake"
       && activeEews.length === 0
-      && ["distribution", "history"].includes(data?.earthquakeMapView);
+      && ["distribution", "history"].includes(data?.earthquakeMapView)
+      && !(data?.earthquakeMapView === "history" && data?.historicalEarthquakeDetailVisible === true);
     const areaPolygon = data?.earthquakeMapView === "history"
       ? data?.earthquakeArchiveFilters?.areaPolygon : data?.distributionFilters?.areaPolygon;
     if (JSON.stringify(hypocenterAreaPolygon) !== JSON.stringify(areaPolygon ?? [])) {
@@ -2921,7 +2923,9 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   function startHypocenterAreaSelection(onComplete) {
     if (!map) return false;
     cancelHypocenterAreaDrawing();
-    const container = map.getContainer();
+    // Native wheel/touch zoom listeners live on the canvas container. Events
+    // from this overlay must bubble there, just like events from the map canvas.
+    const container = map.getCanvasContainer();
     const overlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     overlay.classList.add("hypocenter-area-draw-overlay");
     overlay.setAttribute("aria-label", "地震の検索範囲を囲む");
@@ -2930,29 +2934,57 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     container.append(overlay);
     hypocenterAreaOverlay = overlay;
     const points = [];
+    const touches = new Set();
+    const panWasEnabled = map.dragPan.isEnabled();
     let drawing = false;
+    let navigating = false;
     let activePointerId = null;
+    const restorePan = () => {
+      if (panWasEnabled) map.dragPan.enable();
+      else map.dragPan.disable();
+    };
+    const cleanup = () => {
+      overlay.remove();
+      touches.clear();
+      restorePan();
+      if (hypocenterAreaOverlay === overlay) {
+        hypocenterAreaOverlay = null;
+        hypocenterAreaCleanup = null;
+      }
+    };
+    hypocenterAreaCleanup = cleanup;
     const screenPoint = (event) => {
       const rect = overlay.getBoundingClientRect();
       return { x: event.clientX - rect.left, y: event.clientY - rect.top };
     };
-
     const updateShape = () => {
       shape.setAttribute("points", points.map((point) => `${point.x},${point.y}`).join(" "));
     };
+    const discardDraft = () => {
+      drawing = false;
+      activePointerId = null;
+      points.length = 0;
+      updateShape();
+      restorePan();
+    };
+    const endNavigationPointer = (event) => {
+      touches.delete(event.pointerId);
+      if (!navigating) return false;
+      if (!touches.size) navigating = false;
+      return true;
+    };
     const finish = (event) => {
-      if (hypocenterAreaOverlay !== overlay || !drawing || event.pointerId !== activePointerId) return;
+      if (hypocenterAreaOverlay !== overlay || endNavigationPointer(event)
+        || !drawing || event.pointerId !== activePointerId) return;
       drawing = false;
       overlay.releasePointerCapture?.(event.pointerId);
-      map.dragPan.enable();
       const polygon = simplifyScreenPolygon(points)
         .map((point) => map.unproject([point.x, point.y]))
         .map((coordinate) => [
           Number(coordinate.lng.toFixed(5)),
           Number(coordinate.lat.toFixed(5))
         ]);
-      overlay.remove();
-      hypocenterAreaOverlay = null;
+      cleanup();
       if (polygon.length < 3) {
         onComplete?.([]);
         return;
@@ -2961,7 +2993,16 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       onComplete?.(polygon);
     };
     overlay.addEventListener("pointerdown", (event) => {
-      if (hypocenterAreaOverlay !== overlay || drawing || event.button !== 0) return;
+      if (hypocenterAreaOverlay !== overlay || event.button !== 0) return;
+      if (event.pointerType === "touch") {
+        touches.add(event.pointerId);
+        if (touches.size > 1) {
+          overlay.setPointerCapture?.(event.pointerId);
+          navigating = true;
+          discardDraft();
+        }
+      }
+      if (navigating || drawing) return;
       event.preventDefault();
       activePointerId = event.pointerId;
       drawing = true;
@@ -2972,28 +3013,31 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       updateShape();
     });
     overlay.addEventListener("pointermove", (event) => {
-      if (hypocenterAreaOverlay !== overlay || !drawing || event.pointerId !== activePointerId) return;
+      if (hypocenterAreaOverlay !== overlay || !drawing || navigating || event.pointerId !== activePointerId) return;
       const next = screenPoint(event);
       const previous = points.at(-1);
       if (previous && Math.hypot(next.x - previous.x, next.y - previous.y) < 5) return;
       points.push(next);
       updateShape();
     });
+    // Zooming changes screen-to-map coordinates: discard a partial stroke and
+    // keep selection mode ready for a new stroke after zooming.
+    overlay.addEventListener("wheel", () => {
+      if (hypocenterAreaOverlay === overlay && drawing) discardDraft();
+    }, { passive: true });
     overlay.addEventListener("pointerup", finish);
     overlay.addEventListener("pointercancel", (event) => {
-      if (hypocenterAreaOverlay !== overlay || !drawing || event.pointerId !== activePointerId) return;
+      if (hypocenterAreaOverlay !== overlay || endNavigationPointer(event)
+        || !drawing || event.pointerId !== activePointerId) return;
       drawing = false;
-      cancelHypocenterAreaDrawing();
+      cleanup();
       onComplete?.([]);
     });
     return true;
   }
 
   function cancelHypocenterAreaDrawing() {
-    if (!hypocenterAreaOverlay) return;
-    hypocenterAreaOverlay.remove();
-    hypocenterAreaOverlay = null;
-    map?.dragPan.enable();
+    hypocenterAreaCleanup?.();
   }
 
   function setEmergencyEarthquakeWarnings(events = []) {

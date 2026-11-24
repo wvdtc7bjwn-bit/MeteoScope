@@ -29,7 +29,8 @@ export function validateJmaHistoryConditions(value = {}) {
     || !Number.isInteger(nearby.radiusKm) || nearby.radiusKm < 10 || nearby.radiusKm > 300)) {
     throw new TypeError("近傍検索の条件が不正です");
   }
-  return { minIntensity, minMagnitude: String(Number(minMagnitude)), maxDepth: maxDepth === "all" ? "all" : String(Number(maxDepth)), sort, keyword, nearby };
+  const areaPolygon = normalizeHistoryAreaPolygon(value.areaPolygon);
+  return { areaPolygon, minIntensity, minMagnitude: String(Number(minMagnitude)), maxDepth: maxDepth === "all" ? "all" : String(Number(maxDepth)), sort, keyword, nearby };
 }
 
 export function isJmaHistoryDate(value) {
@@ -47,14 +48,17 @@ export function buildJmaIntensitySearchForm(startDate, endDate, startTime = "00:
     ["dateTimeT[]", endDate], ["dateTimeT[]", endTime],
     ["mag[]", Number(filters.minMagnitude).toFixed(1)], ["mag[]", "9.9"], ["dep[]", "000"], ["dep[]", filters.maxDepth === "all" ? "999" : filters.maxDepth.padStart(3, "0")],
     ["epi[]", "99"], ["pref[]", "99"], ["city[]", "99"], ["station[]", "99"],
-    ["obsInt", "1"], ["maxInt", JMA_HISTORY_INTENSITIES[filters.minIntensity]], ["additionalC", filters.minIntensity !== "1" || Number(filters.minMagnitude) > 0 || filters.maxDepth !== "all" || Boolean(filters.nearby) ? "true" : "false"],
+    ["obsInt", "1"], ["maxInt", JMA_HISTORY_INTENSITIES[filters.minIntensity]], ["additionalC", filters.minIntensity !== "1" || Number(filters.minMagnitude) > 0 || filters.maxDepth !== "all" || Boolean(filters.nearby) || filters.areaPolygon.length > 0 ? "true" : "false"],
     ["Sort", JMA_HISTORY_SORTS[filters.sort]], ["Comp", "C0"], ["seisCount", "false"], ["observed", "false"]
   ].forEach(([key, value]) => form.append(key, value));
-  if (filters.nearby) {
-    const points = buildNearbySearchPolygon(filters.nearby);
+  if (filters.areaPolygon.length || filters.nearby) {
+    const points = filters.areaPolygon.length
+      ? filters.areaPolygon.map(([longitude, latitude]) => [latitude, longitude])
+      : buildNearbySearchPolygon(filters.nearby);
+    const formatCoordinate = coordinate => filters.areaPolygon.length ? String(coordinate) : coordinate.toFixed(5);
     points.forEach(([latitude, longitude], index) => {
-      form.append(`boundsAr[${index}][]`, latitude.toFixed(5));
-      form.append(`boundsAr[${index}][]`, longitude.toFixed(5));
+      form.append(`boundsAr[${index}][]`, formatCoordinate(latitude));
+      form.append(`boundsAr[${index}][]`, formatCoordinate(longitude));
     });
   }
   return form;
@@ -114,4 +118,19 @@ export function splitJmaEarthquakeDateRange(startDate, endDate) {
 
 function formatUtcDate(timestamp) {
   return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+function normalizeHistoryAreaPolygon(value) {
+  if (value == null || (Array.isArray(value) && value.length === 0)) return [];
+  if (!Array.isArray(value) || value.length < 3 || value.length > 200
+    || value.some((point) => !Array.isArray(point) || point.length !== 2
+      || !point.every(Number.isFinite) || Math.abs(point[0]) > 180 || Math.abs(point[1]) > 90)) {
+    throw new TypeError("検索範囲を地図上で囲み直してください");
+  }
+  const area = value.reduce((sum, point, i) => {
+    const next = value[(i + 1) % value.length];
+    return sum + point[0] * next[1] - next[0] * point[1];
+  }, 0);
+  if (Math.abs(area) < 1e-10) throw new TypeError("検索範囲を地図上で囲み直してください");
+  return value.map((point) => [...point]);
 }
