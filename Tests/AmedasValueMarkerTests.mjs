@@ -7,7 +7,7 @@ import {
 } from "../src/map/amedasValueMarker.js";
 
 let zoom = 5.8, clock = 0, reads = 0, repaints = 0, nextFrame = 0;
-const images = new Map(), idle = [], draws = [], frames = new Map(), handlers = new Map(), paints = new Map(), visibility = new Map();
+const images = new Map(), idle = [], draws = [], textPositions = [], frames = new Map(), handlers = new Map(), paints = new Map(), visibility = new Map();
 const map = {
   getZoom: () => zoom, hasImage: id => images.has(id), getLayer: () => true,
   setLayoutProperty(id, property, value) { visibility.set(id,value); },
@@ -23,7 +23,7 @@ const context = {
   setTransform() {}, clearRect() { draws.push("clear"); }, beginPath() {}, moveTo() {}, lineTo() {}, arc() {}, closePath() {},
   fill() { draws.push(["background",this.globalAlpha]); },
   stroke() { draws.push(["outline",this.lineWidth,this.strokeStyle]); },
-  fillText(label) { draws.push(["text",label]); },
+  fillText(label,x,y) { draws.push(["text",label]); textPositions.push({label,x,y,baseline:this.textBaseline}); },
   getImageData(x,y,width,height) { reads++; return {data:new Uint8Array(width*height*4)}; }
 };
 const originals = {document:globalThis.document,performance:globalThis.performance,requestAnimationFrame:globalThis.requestAnimationFrame,cancelAnimationFrame:globalThis.cancelAnimationFrame};
@@ -47,6 +47,10 @@ try {
   const marker=createAmedasValueMarkerImage(map,"-12.4","#48c46b","#071426",context);
   assert.equal(marker.render,undefined,"completed numeric markers are static; zoom cannot rerasterize them");
   assert.deepEqual(draws.slice(-4),["clear",["background",1],["outline",0.75,"#41464d"],["text","-12.4"]],"number, outline and opaque background share one image");
+  const position=textPositions.at(-1);
+  assert.equal(position.baseline,"middle");
+  assert.equal(position.y,marker.height/4,"text uses the capsule's exact vertical center without a downward offset");
+  assert.equal(position.x,marker.width/4,"text uses the capsule's horizontal center");
   const temperature=Array.from({length:40},(_,i)=>feature((i/10).toFixed(1)));
   temperature.push(feature("1.0"));
   setupAmedasValueMarkerImages(map,temperature);

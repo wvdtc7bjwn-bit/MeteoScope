@@ -71,7 +71,8 @@ export function createAmedasValueMarkerImage(map, label, color, textColor, conte
   context.fillStyle = textColor;
   context.textAlign = "center";
   context.textBaseline = "middle";
-  context.fillText(label,cx,cy+0.5);
+  // Do not add a vertical offset: it leaves digits below the capsule center.
+  context.fillText(label,cx,cy);
   return {width,height,data:context.getImageData(0,0,width,height).data,capsuleWidth:pillWidth};
 }
 
