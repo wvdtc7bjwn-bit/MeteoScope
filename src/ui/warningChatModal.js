@@ -290,7 +290,9 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
     setBusy(false);
     button.setAttribute("aria-expanded", "false");
     if (!document.querySelector(".warning-modal:not([hidden])")) document.body.classList.remove("modal-open");
-    if (!button.hidden) button.focus();
+    const focusTarget = button.closest("#map-utility-actions")
+      ? document.getElementById("map-utility-menu-toggle") : button;
+    if (!button.hidden) focusTarget?.focus({ preventScroll: true });
   }
   function addQuestion(text) {
     byId("empty").hidden = true;

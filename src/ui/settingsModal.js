@@ -264,7 +264,7 @@ function renderSettingsEarthquake() {
   if (focusButton) {
     const state = settingsOptions.getState?.() ?? {};
     const enabled = state.eewAutoFocusEnabled !== false;
-    focusButton.closest(".settings-switch-row").hidden = !state.earlyAccessEnabled;
+    focusButton.closest(".settings-detail-item").hidden = !state.earlyAccessEnabled;
     focusButton.classList.toggle("is-enabled", enabled);
     focusButton.setAttribute("aria-checked", String(enabled));
   }

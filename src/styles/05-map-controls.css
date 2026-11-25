@@ -1664,24 +1664,29 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
   top: 20px;
   left: calc(var(--sidebar-width) + 72px);
   z-index: 1000;
-  display: flex;
-  gap: 8px;
-  padding: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 18px;
-  background: rgba(12, 25, 44, 0.67);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: start;
+  gap: 16px 12px;
+  width: min(398px, calc(100vw - var(--sidebar-width) - 84px));
+  max-height: calc(100dvh - 96px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  padding: 18px 14px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 22px;
+  background: var(--glass-shell-static-background);
   box-shadow: none;
   opacity: 0;
   filter: none;
   pointer-events: none;
-  transform: translate3d(-14px, 0, 0) scale(0.9);
-  transform-origin: left center;
-  transition:
-    opacity 170ms ease,
-    transform 260ms cubic-bezier(0.2, 1.18, 0.36, 1);
+  transform: translate3d(-8px, 0, 0) scale(.97);
+  transform-origin: top left;
+  transition: opacity 170ms ease, transform 240ms cubic-bezier(.2, 1, .36, 1);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  will-change: opacity, transform;
 }
 
 .map-utility-actions.is-open {
@@ -1699,18 +1704,42 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
   position: relative;
   top: auto;
   left: auto;
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(8, 19, 35, 0.46);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  min-height: 104px;
+  padding: 4px 2px;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  text-align: center;
   opacity: 0;
-  transform: translate3d(-10px, 0, 0) scale(0.78);
-  transition:
-    border-color 160ms ease,
-    background-color 160ms ease,
-    opacity 170ms ease,
-    transform 250ms cubic-bezier(0.2, 1.2, 0.36, 1);
+  transform: translate3d(0, 6px, 0) scale(.94);
+  transition: opacity 170ms ease, transform 210ms cubic-bezier(.2, 1, .36, 1);
   transition-delay: 0ms;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: pan-y pinch-zoom;
 }
+/* Override the shared static surface on the settings button as well. */
+#map-utility-actions .disaster-map-open-button { background: transparent !important; }
+.map-utility-actions .disaster-map-open-button[hidden] { display: none; }
+.map-utility-actions .disaster-map-open-button::before { display: none; }
+.map-utility-app-icon { display: flex; align-items: center; justify-content: center; flex: 0 0 58px; width: 58px; height: 58px; border: 1px solid rgba(255, 255, 255, .12); border-radius: 16px; color: #ffffff; background: #36566f; transition: transform 140ms ease; }
+.map-utility-icon { width: 31px; height: 31px; flex: none; }
+.map-utility-label { max-width: 100%; color: #e6edf3; font-size: 12px; font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; }
+.map-utility-actions .disaster-map-open-button:active .map-utility-app-icon { transform: scale(.93); }
+.map-utility-actions .disaster-map-open-button:focus-visible { outline: 2px solid #83c9ed; outline-offset: -1px; }
+.map-utility-actions .disaster-map-open-button:disabled { opacity: .55; }
+html[data-theme="light"] .map-utility-label { color: #293f52; }
 
 .map-utility-actions .disaster-map-open-button:nth-child(1) { --menu-item-index: 0; }
 .map-utility-actions .disaster-map-open-button:nth-child(2) { --menu-item-index: 1; }
@@ -1728,11 +1757,58 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
 .map-utility-actions.is-open .disaster-map-open-button {
   opacity: 1;
   transform: translate3d(0, 0, 0) scale(1);
-  transition-delay: calc(34ms + var(--menu-item-index, 0) * 22ms);
+  transition-delay: calc(34ms + var(--menu-item-index, 0) * 12ms);
 }
 
 .map-utility-actions.is-closing .disaster-map-open-button {
   transition-delay: 0ms;
+}
+
+.map-utility-reorder-hint,
+.map-utility-reorder-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.map-utility-actions.is-reordering .disaster-map-open-button {
+  transition: none;
+  cursor: grabbing;
+}
+
+.map-utility-actions.is-open .disaster-map-open-button.is-drag-source {
+  opacity: 0.3;
+  outline: 1px dashed currentColor;
+  outline-offset: -3px;
+}
+
+.map-utility-drag-preview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px;
+  box-sizing: border-box;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.3));
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+  #map-utility-actions {
+    top: calc(max(12px, env(safe-area-inset-top)) + 54px);
+    left: 12px;
+    width: min(660px, calc(100vw - 24px));
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top)) - 66px);
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
 }
 
 :root { --map-header-control-height: 48px; }
@@ -1814,12 +1890,12 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
   display: none;
 }
 
-.eew-connection-indicator[data-state="connected"] {
-  background: #25c565;
-  box-shadow: 0 0 0 2px rgba(37, 197, 101, 0.14), 0 0 8px rgba(37, 197, 101, 0.7);
+.eew-connection-indicator[data-state="reconnecting"] {
+  background: #f29b38;
+  box-shadow: 0 0 0 2px rgba(242, 155, 56, 0.14), 0 0 8px rgba(242, 155, 56, 0.72);
 }
 
-.eew-connection-indicator[data-state="error"] {
+.eew-connection-indicator:is([data-state="error"], [data-state="reconnecting"]) {
   animation: eew-connection-alert 1.4s ease-in-out infinite;
 }
 
@@ -1829,7 +1905,7 @@ html[data-theme="light"] :is(#earthquake-layer-toggle, #satellite-layer-toggle, 
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .eew-connection-indicator[data-state="error"] {
+  .eew-connection-indicator:is([data-state="error"], [data-state="reconnecting"]) {
     animation: none;
   }
 }

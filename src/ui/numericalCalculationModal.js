@@ -253,7 +253,7 @@ export function setupNumericalCalculationModal() {
     select.addEventListener("change", () => { mode = select.value; renderForm(); });
     const pane = element("section");
     pane.id = "numerical-pane";
-    form = element("form");
+    form = element("form", undefined, "modal-section");
     form.setAttribute("aria-label", "数値計算の入力条件");
     status = element("p", undefined, "numerical-status");
     status.setAttribute("role", "status");

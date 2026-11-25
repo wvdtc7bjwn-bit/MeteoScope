@@ -1005,8 +1005,8 @@ export function setupUpperAirModal(nextOptions = {}) {
     const active = Boolean(options.isEarlyAccessEnabled?.());
     button.hidden = !active;
     button.classList.toggle("is-early-access-locked", !active);
-    button.setAttribute("aria-label", active ? "高層気象観測のエマグラムを開く" : "高層気象観測のエマグラムを開く（アーリーアクセス）");
-    button.title = active ? "高層気象（エマグラム）" : "高層気象（アーリーアクセス）";
+    button.setAttribute("aria-label", active ? "エマグラムを開く" : "エマグラムを開く（アーリーアクセス）");
+    button.title = active ? "エマグラム" : "エマグラム（アーリーアクセス）";
     if (!active && !modal.hidden) closeUpperAirModal();
     if (!modal.hidden) {
       if (selectedMode === "model") void loadModelProfile();

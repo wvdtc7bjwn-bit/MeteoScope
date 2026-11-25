@@ -733,7 +733,7 @@ const STATIC_UI_TRANSLATIONS = new Map(Object.entries({
   "保存した市区町村を、現在地と同じように警報・雨雲・台風情報の補助表示に使います。": "Use saved municipalities as additional areas for warnings, radar, and typhoon information.",
   "現在地をマイエリアに追加": "Add current location to My Areas",
   "市区町村を検索": "Search municipalities",
-  "例: 京都市北区、長岡市": "e.g. Kita Ward, Kyoto or Nagaoka",
+  "例: 京都市、長岡市": "e.g. Kyoto or Nagaoka",
   "ボタンを選んでから移動先を押すと、横並びのまま順番を入れ替えます。": "Select a tab, then choose its destination to reorder the row.",
   "標準に戻す": "Restore default",
   "当日・前日の有感地震": "Felt earthquakes today and yesterday",

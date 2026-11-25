@@ -200,7 +200,7 @@
 
     <main id="map-area">
       <div id="map"></div>
-      <div id="clock"><button id="clock-feedback-button" class="clock-tool-button" type="button" aria-label="サポート・ご意見を開く" title="サポート・ご意見" aria-haspopup="dialog" aria-controls="feedback-modal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 1.5-2.5 3"/><path d="M12 16.5h.01"/></svg></button><button id="current-location-weather" class="current-location-weather" type="button" aria-label="週間天気予報を開く" aria-haspopup="dialog" aria-controls="weekly-weather-modal" hidden><span class="current-location-weather-icon" aria-hidden="true"></span><span class="current-location-weather-copy"><small>現在地・予報</small><span class="current-location-weather-text"></span></span></button><button id="clock-display-button" type="button" aria-label="時計表示モードを開く" title="時計表示モード"><span class="clock-face"></span></button><span id="eew-connection-indicator" class="eew-connection-indicator" role="status" aria-label="Wolfx未接続" title="Wolfx未接続" hidden></span><button id="warning-chat-button" class="clock-tool-button" type="button" aria-label="気象・地震・津波についてAIに質問する" title="防災チャット（先行機能）" aria-haspopup="dialog" aria-controls="warning-chat-modal" aria-expanded="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H10l-6 4V4Z"/><path d="M8 8h8M8 12h5"/></svg></button></div>
+      <div id="clock"><button id="clock-feedback-button" class="clock-tool-button" type="button" aria-label="サポート・ご意見を開く" title="サポート・ご意見" aria-haspopup="dialog" aria-controls="feedback-modal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 1.5-2.5 3"/><path d="M12 16.5h.01"/></svg></button><button id="current-location-weather" class="current-location-weather" type="button" aria-label="週間天気予報を開く" aria-haspopup="dialog" aria-controls="weekly-weather-modal" hidden><span class="current-location-weather-icon" aria-hidden="true"></span><span class="current-location-weather-copy"><small>現在地・予報</small><span class="current-location-weather-text"></span></span></button><button id="clock-display-button" type="button" aria-label="時計表示モードを開く" title="時計表示モード"><span class="clock-face"></span></button><span id="eew-connection-indicator" class="eew-connection-indicator" role="status" aria-label="Wolfx未接続" title="Wolfx未接続" hidden></span></div>
       <section id="clock-display-mode" class="clock-display-mode" aria-label="全国天気・時計表示モード" hidden>
         <div id="clock-display-board" class="clock-display-board">
           <p class="clock-display-label">NATIONAL WEATHER · JMA</p>
@@ -211,18 +211,19 @@
         <button id="clock-display-close" class="clock-display-close" type="button" data-clock-display-close aria-label="時計表示モードを終了">終了</button>
       </section>
       <button id="map-utility-menu-toggle" class="disaster-map-open-button map-utility-menu-toggle" type="button" aria-label="機能メニューを開く" title="機能メニュー" aria-expanded="false" aria-controls="map-utility-actions"></button>
-      <div id="map-utility-actions" class="map-utility-actions" aria-label="機能メニュー" hidden>
-        <button id="disaster-quiz-button" class="disaster-map-open-button disaster-quiz-open-button" type="button" aria-label="宇宙・気象クイズを開く" title="宇宙・気象クイズ"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 .7-1.5 1.2-1.5 2.5M12 17h.01"/></svg><span class="map-utility-label">宇宙・気象クイズ</span></button>
-        <button id="disaster-dashboard-button" class="disaster-map-open-button disaster-dashboard-open-button" type="button" aria-label="防災情報まとめを開く" title="防災情報まとめ" aria-haspopup="dialog" aria-controls="disaster-dashboard-modal" aria-expanded="false"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v5c0 5 3 8 8 10 5-2 8-5 8-10V6z"/><path d="M8 12h3l1.5-3 2 6 1.5-3H18"/></svg><span class="map-utility-label">防災情報まとめ</span></button>
-        <button id="disaster-timeline-button" class="disaster-map-open-button disaster-timeline-open-button" type="button" aria-label="災害の年表を開く" title="災害の年表" aria-haspopup="dialog" aria-controls="disaster-timeline-modal" aria-expanded="false"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4v16M10 6h10M10 12h8M10 18h10"/><circle cx="5" cy="6" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="5" cy="18" r="1"/></svg><span class="map-utility-label">災害の年表</span></button>
-        <button id="jma-disaster-archive-button" class="disaster-map-open-button jma-disaster-archive-open-button" type="button" aria-label="過去の気象災害を開く" title="過去の気象災害" aria-haspopup="dialog" aria-controls="jma-disaster-archive-modal" aria-expanded="false"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v15H4zM8 3v4M16 3v4M4 9h16"/><path d="M9 14h6M12 11v6"/></svg><span class="map-utility-label">過去の気象災害</span></button>
-        <button id="weekly-weather-button" class="disaster-map-open-button weekly-weather-open-button" type="button" aria-label="週間天気予報を開く" title="週間天気予報" aria-haspopup="dialog" aria-controls="weekly-weather-modal"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v15H4zM8 3v4M16 3v4M4 9h16"/><path d="M8 15a2 2 0 0 1 2-2 3 3 0 0 1 5.5 1A2 2 0 0 1 16 18H9a2 2 0 0 1-1-3z"/></svg><span class="map-utility-label">週間天気予報</span></button>
-        <button id="cloud-classification-button" class="disaster-map-open-button cloud-classification-open-button" type="button" aria-label="雲の分類図鑑を開く" title="雲の分類図鑑" aria-haspopup="dialog" aria-controls="cloud-classification-modal" aria-expanded="false"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12H7a3 3 0 0 0-3 3m0-3a3 3 0 0 1 3-3"/><path d="M9 11a2 2 0 0 1 2-2 2.5 2.5 0 0 1 4.5 1.5A1.5 1.5 0 0 1 15 13H9a1.5 1.5 0 0 1 0-3"/></svg><span class="map-utility-label">雲の分類図鑑</span></button>
-        <button id="numeric-weather-chart-button" class="disaster-map-open-button numeric-weather-chart-open-button" type="button" aria-label="高層天気図リンク集を開く" title="高層天気図リンク集" aria-haspopup="dialog" aria-controls="numeric-weather-chart-modal" aria-expanded="false"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4zM7 8h10M7 12h4M14 12h3M7 16h10"/><path d="m12 11 1.5-1.5L15 11"/></svg><span class="map-utility-label">高層天気図リンク集</span></button>
-        <button id="upper-air-button" class="disaster-map-open-button upper-air-open-button" type="button" aria-label="高層気象（エマグラム）を開く（アーリーアクセス）" title="高層気象（エマグラム）" aria-haspopup="dialog" aria-controls="upper-air-modal" aria-expanded="false" hidden><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16M7 17l3-4 3 1 4-8"/><path d="M7 8h4M7 11h2"/></svg><span class="map-utility-label">高層気象（エマグラム）</span></button>
-        <button id="numerical-calculation-button" class="disaster-map-open-button numerical-calculation-open-button" type="button" aria-label="気象の数値計算を開く" title="気象の数値計算" aria-haspopup="dialog" aria-controls="numerical-calculation-modal" aria-expanded="false"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01M16 18h.01"/></svg><span class="map-utility-label">気象の数値計算</span></button>
-        <button id="disaster-map-button" class="disaster-map-open-button" type="button" aria-label="防災マップを開く" title="防災マップ" aria-haspopup="dialog" aria-controls="disaster-map-modal" aria-expanded="false"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 5-3 8 3 5-3v15l-5 3-8-3-5 3zM8 3v15M16 6v15"/></svg><span class="map-utility-label">防災マップ</span></button>
-        <button id="settings-button" class="disaster-map-open-button map-settings-open-button" type="button" aria-label="設定を開く" title="設定" aria-haspopup="dialog" aria-controls="settings-modal" aria-expanded="false"><span class="map-utility-label">設定</span></button>
+      <div id="map-utility-actions" class="map-utility-actions" role="group" aria-label="機能メニュー" hidden>
+        <button id="disaster-quiz-button" class="disaster-map-open-button disaster-quiz-open-button" type="button" aria-label="宇宙・気象クイズを開く" title="宇宙・気象クイズ"><span class="map-utility-app-icon"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4 2c-1 .7-1.5 1.2-1.5 2.5M12 17h.01"/></svg></span><span class="map-utility-label">宇宙・気象クイズ</span></button>
+        <button id="disaster-dashboard-button" class="disaster-map-open-button disaster-dashboard-open-button" type="button" aria-label="防災情報まとめを開く" title="防災情報まとめ" aria-haspopup="dialog" aria-controls="disaster-dashboard-modal" aria-expanded="false"><span class="map-utility-app-icon"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v5c0 5 3 8 8 10 5-2 8-5 8-10V6z"/><path d="M8 12h3l1.5-3 2 6 1.5-3H18"/></svg></span><span class="map-utility-label">防災情報まとめ</span></button>
+        <button id="disaster-timeline-button" class="disaster-map-open-button disaster-timeline-open-button" type="button" aria-label="災害の年表を開く" title="災害の年表" aria-haspopup="dialog" aria-controls="disaster-timeline-modal" aria-expanded="false"><span class="map-utility-app-icon"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4v16M10 6h10M10 12h8M10 18h10"/><circle cx="5" cy="6" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="5" cy="18" r="1"/></svg></span><span class="map-utility-label">災害の年表</span></button>
+        <button id="jma-disaster-archive-button" class="disaster-map-open-button jma-disaster-archive-open-button" type="button" aria-label="過去の気象災害を開く" title="過去の気象災害" aria-haspopup="dialog" aria-controls="jma-disaster-archive-modal" aria-expanded="false"><span class="map-utility-app-icon"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v15H4zM8 3v4M16 3v4M4 9h16"/><path d="M9 14h6M12 11v6"/></svg></span><span class="map-utility-label">過去の気象災害</span></button>
+        <button id="weekly-weather-button" class="disaster-map-open-button weekly-weather-open-button" type="button" aria-label="週間天気予報を開く" title="週間天気予報" aria-haspopup="dialog" aria-controls="weekly-weather-modal"><span class="map-utility-app-icon"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v15H4zM8 3v4M16 3v4M4 9h16"/><path d="M8 15a2 2 0 0 1 2-2 3 3 0 0 1 5.5 1A2 2 0 0 1 16 18H9a2 2 0 0 1-1-3z"/></svg></span><span class="map-utility-label">週間天気予報</span></button>
+        <button id="cloud-classification-button" class="disaster-map-open-button cloud-classification-open-button" type="button" aria-label="雲の分類図鑑を開く" title="雲の分類図鑑" aria-haspopup="dialog" aria-controls="cloud-classification-modal" aria-expanded="false"><span class="map-utility-app-icon"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 18V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12H7a3 3 0 0 0-3 3m0-3a3 3 0 0 1 3-3"/><path d="M9 11a2 2 0 0 1 2-2 2.5 2.5 0 0 1 4.5 1.5A1.5 1.5 0 0 1 15 13H9a1.5 1.5 0 0 1 0-3"/></svg></span><span class="map-utility-label">雲の分類図鑑</span></button>
+        <button id="numeric-weather-chart-button" class="disaster-map-open-button numeric-weather-chart-open-button" type="button" aria-label="高層天気図リンク集を開く" title="高層天気図リンク集" aria-haspopup="dialog" aria-controls="numeric-weather-chart-modal" aria-expanded="false"><span class="map-utility-app-icon"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4zM7 8h10M7 12h4M14 12h3M7 16h10"/><path d="m12 11 1.5-1.5L15 11"/></svg></span><span class="map-utility-label">高層天気図リンク集</span></button>
+        <button id="upper-air-button" class="disaster-map-open-button upper-air-open-button" type="button" aria-label="エマグラムを開く（アーリーアクセス）" title="エマグラム" aria-haspopup="dialog" aria-controls="upper-air-modal" aria-expanded="false" hidden><span class="map-utility-app-icon"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4v16h16M7 17l3-4 3 1 4-8"/><path d="M7 8h4M7 11h2"/></svg></span><span class="map-utility-label">エマグラム</span></button>
+        <button id="numerical-calculation-button" class="disaster-map-open-button numerical-calculation-open-button" type="button" aria-label="気象の数値計算を開く" title="気象の数値計算" aria-haspopup="dialog" aria-controls="numerical-calculation-modal" aria-expanded="false"><span class="map-utility-app-icon"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 18h.01M12 18h.01M16 18h.01"/></svg></span><span class="map-utility-label">気象の数値計算</span></button>
+        <button id="disaster-map-button" class="disaster-map-open-button" type="button" aria-label="防災マップを開く" title="防災マップ" aria-haspopup="dialog" aria-controls="disaster-map-modal" aria-expanded="false"><span class="map-utility-app-icon"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 5-3 8 3 5-3v15l-5 3-8-3-5 3zM8 3v15M16 6v15"/></svg></span><span class="map-utility-label">防災マップ</span></button>
+        <button id="warning-chat-button" class="disaster-map-open-button" type="button" aria-label="気象・地震・津波についてAIに質問する" title="防災チャット（先行機能）" aria-haspopup="dialog" aria-controls="warning-chat-modal" aria-expanded="false" hidden><span class="map-utility-app-icon"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v12H10l-6 4V4Z"/><path d="M8 8h8M8 12h5"/></svg></span><span class="map-utility-label">AIチャット</span></button>
+        <button id="settings-button" class="disaster-map-open-button map-settings-open-button" type="button" aria-label="設定を開く" title="設定" aria-haspopup="dialog" aria-controls="settings-modal" aria-expanded="false"><span class="map-utility-app-icon"><svg class="map-utility-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.43 12.98c.04-.32.07-.65.07-.98s-.03-.66-.08-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.3 7.3 0 0 0-1.69-.98L14.5 2.42A.49.49 0 0 0 14 2h-4a.49.49 0 0 0-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1a.49.49 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.08.66-.08.98s.03.66.08.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46a.5.5 0 0 0 .61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.04.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.08.49 0 .61-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"/></svg></span><span class="map-utility-label">設定</span></button>
       </div>
       <button id="locate-button" class="map-locate-button" type="button" aria-label="現在地へ移動。長押しで現在地マーカーを非表示" title="現在地へ移動。長押しで現在地マーカーを非表示" aria-keyshortcuts="Shift+Enter"></button>
       <button id="world-typhoon-target-button" class="map-world-typhoon-target-button" type="button" aria-label="海外モデル資料の対象を選択" title="対象選択" aria-haspopup="dialog" aria-controls="world-typhoon-target-modal" aria-expanded="false" hidden></button>
@@ -327,15 +328,17 @@
         </header>
         <div class="settings-modal-body">
           <div class="settings-modal-tools">
-            <label class="settings-filter" for="settings-filter-input">
-              <span>設定を検索</span>
+            <div class="settings-filter">
+              <label for="settings-filter-input">設定を検索</label>
               <div>
+                <svg class="settings-search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg>
                 <input id="settings-filter-input" type="search" placeholder="項目名や機能で絞り込めます" autocomplete="off" data-settings-filter />
                 <button type="button" aria-label="検索をクリア" title="検索をクリア" data-settings-filter-clear hidden>×</button>
               </div>
-            </label>
+            </div>
             <p class="settings-filter-empty" role="status" data-settings-filter-empty hidden>一致する設定がありません</p>
           </div>
+          <section class="settings-overview" data-settings-overview hidden></section>
           <nav class="settings-navigation-list" data-settings-navigation-list aria-label="設定カテゴリ"></nav>
           <section class="settings-group settings-account-group" data-settings-section="account">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>MeteoScopeアカウント</strong><small>ログイン状態と登録情報</small></span></button>
@@ -432,7 +435,7 @@
               </div>
               <button id="settings-my-area-current" class="settings-my-area-current" type="button" data-settings-add-current-location>現在地をマイエリアに追加</button>
               <label class="settings-my-area-search-label" for="settings-my-area-search">市区町村を検索</label>
-              <input id="settings-my-area-search" class="settings-my-area-search" type="search" autocomplete="off" placeholder="例: 京都市北区、長岡市" />
+              <input id="settings-my-area-search" class="settings-my-area-search" type="search" autocomplete="off" placeholder="例: 京都市、長岡市" />
               <div id="settings-my-area-results" class="settings-my-area-results" aria-live="polite"></div>
               <div id="settings-my-area-list" class="settings-my-area-list"></div>
             </div>
@@ -454,7 +457,7 @@
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>データの配色</strong><small>AMeDAS・震度・長周期地震動階級</small></span></button>
             <div class="settings-group-content" hidden>
               <p class="settings-theme-help">項目ごとに配色を選べます。地図・凡例・パネルに反映し、この端末に保存します。</p>
-              <div class="settings-observation-color-row">
+              <div class="settings-observation-color-row settings-detail-item">
                 <strong>AMeDAS</strong>
                 <div class="settings-theme-options settings-color-options" role="radiogroup" aria-label="AMeDASの配色">
                   <button type="button" role="radio" aria-checked="false" data-settings-color-key="amedas" data-settings-color-scheme="meteoscope">MeteoScope独自配色</button>
@@ -470,7 +473,7 @@
                 </div>
                 <div data-settings-amedas-legend aria-live="polite"></div>
               </div>
-              <div class="settings-observation-color-row">
+              <div class="settings-observation-color-row settings-detail-item">
                 <strong>地震の震度</strong>
                 <div class="settings-theme-options settings-color-options" role="radiogroup" aria-label="震度の配色">
                   <button type="button" role="radio" aria-checked="false" data-settings-color-key="intensity" data-settings-color-scheme="meteoscope">MeteoScope独自配色</button>
@@ -478,7 +481,7 @@
                 </div>
                 <div class="settings-color-preview" data-settings-color-preview="intensity" aria-label="震度の配色例"></div>
               </div>
-              <div class="settings-observation-color-row">
+              <div class="settings-observation-color-row settings-detail-item">
                 <strong>長周期地震動階級</strong>
                 <div class="settings-theme-options settings-color-options" role="radiogroup" aria-label="長周期地震動階級の配色">
                   <button type="button" role="radio" aria-checked="false" data-settings-color-key="longPeriod" data-settings-color-scheme="meteoscope">MeteoScope独自配色</button>
@@ -494,14 +497,14 @@
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>地形表示</strong><small>色別標高図と陰影起伏図</small></span></button>
             <div class="settings-group-content" hidden>
               <p id="settings-terrain-status" class="settings-terrain-status">地図のレイヤーメニューにある「地形」でON/OFFを切り替えます。</p>
-              <div class="settings-terrain-color">
+              <div class="settings-terrain-color settings-detail-item">
                 <span>地形の色</span>
                 <div class="settings-theme-options settings-terrain-color-options" role="radiogroup" aria-label="地形の色">
                   <button type="button" data-settings-terrain-color="color" role="radio" aria-checked="false">カラー</button>
                   <button type="button" data-settings-terrain-color="grayscale" role="radio" aria-checked="false">グレー</button>
                 </div>
               </div>
-              <div class="settings-terrain-opacity">
+              <div class="settings-terrain-opacity settings-detail-item">
                 <span>濃さ</span>
                 <div id="settings-terrain-opacity-options" class="settings-theme-options settings-terrain-opacity-options" role="radiogroup" aria-label="地形の濃さ">
                   <button type="button" data-settings-terrain-opacity="0.32" role="radio" aria-checked="false">薄い</button>
@@ -524,6 +527,16 @@
               </div>
             </div>
           </section>
+          <section class="settings-group settings-clock-shortcut-group" data-settings-section="display">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>時計バーのボタン</strong><small>よく使う機能を割り当て</small></span></button>
+            <div class="settings-group-content" hidden>
+              <p class="settings-theme-help">時計バー左端のボタンから開く機能を選びます。初期設定はサポートです。</p>
+              <label class="settings-clock-shortcut-field" for="settings-clock-shortcut">開く機能
+                <select id="settings-clock-shortcut"><option value="support">サポート・ご意見</option></select>
+              </label>
+              <p id="settings-clock-shortcut-status" class="settings-theme-help" role="status" hidden></p>
+            </div>
+          </section>
           <section class="settings-group settings-tab-order-group" data-settings-section="display">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>表示切替ボタン</strong><small>ボタンの並び順</small></span></button>
             <div class="settings-group-content" hidden>
@@ -535,23 +548,23 @@
           <section class="settings-group settings-earthquake-group" data-settings-section="display">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>地震情報</strong><small>震央分布・速報の表示</small></span></button>
             <div class="settings-group-content" hidden>
-              <div class="settings-switch-row" hidden>
-                <div class="settings-switch-copy">
-                  <strong>EEW自動フォーカス</strong>
-                  <span>地震タブで速報の震源へ一度だけ移動します。移動中も地図を操作できます。</span>
-                </div>
-                <button id="settings-eew-auto-focus" class="settings-switch" type="button" role="switch" aria-checked="true" aria-label="EEW自動フォーカス" data-settings-eew-auto-focus>
+              <div class="settings-detail-item settings-toggle-item" hidden>
+                <div class="settings-switch-row">
+                  <div class="settings-switch-copy"><strong>EEW自動フォーカス</strong></div>
+                  <button id="settings-eew-auto-focus" aria-describedby="settings-eew-focus-note" class="settings-switch" type="button" role="switch" aria-checked="true" aria-label="EEW自動フォーカス" data-settings-eew-auto-focus>
                   <span class="settings-switch-thumb" aria-hidden="true"></span>
                 </button>
+                </div>
+                <p class="settings-item-note" id="settings-eew-focus-note">地震タブで速報の震源へ一度だけ移動します。移動中も地図を操作できます。</p>
               </div>
-              <div class="settings-switch-row">
-                <div class="settings-switch-copy">
-                  <strong>当日・前日の有感地震</strong>
-                  <span>震央分布に気象庁防災情報XMLで発表された有感地震を表示します。</span>
-                </div>
-                <button id="settings-earthquake-recent-xml-toggle" class="settings-switch" type="button" role="switch" aria-checked="true" aria-label="当日・前日の有感地震を表示" data-settings-earthquake-recent-xml-toggle>
+              <div class="settings-detail-item settings-toggle-item">
+                <div class="settings-switch-row">
+                  <div class="settings-switch-copy"><strong>当日・前日の有感地震</strong></div>
+                  <button id="settings-earthquake-recent-xml-toggle" aria-describedby="settings-recent-earthquake-note" class="settings-switch" type="button" role="switch" aria-checked="true" aria-label="当日・前日の有感地震を表示" data-settings-earthquake-recent-xml-toggle>
                   <span class="settings-switch-thumb" aria-hidden="true"></span>
                 </button>
+                </div>
+                <p class="settings-item-note" id="settings-recent-earthquake-note">震央分布に気象庁防災情報XMLで発表された有感地震を表示します。</p>
               </div>
             </div>
           </section>
@@ -982,7 +995,7 @@
         <header class="settings-modal-header">
           <div>
             <span class="settings-modal-kicker">気象庁 高層気象観測</span>
-            <h2 id="upper-air-title">高層気象（エマグラム）</h2>
+            <h2 id="upper-air-title">エマグラム</h2>
           </div>
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-upper-air-close>×</button>
         </header>

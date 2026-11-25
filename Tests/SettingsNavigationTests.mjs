@@ -24,7 +24,7 @@ assert.equal(navigation.current().query, "");
 
 const page = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const groups = [...page.matchAll(/<section\s+class="(settings-group(?: [^"]+)?)"([^>]*)>/g)];
-assert.equal(groups.length, 18, "all existing settings and the color preferences remain available");
+assert.equal(groups.length, 19, "all existing settings and the clock shortcut remain available");
 for (const [, classes, attributes] of groups) {
   const matches = SETTINGS_CATEGORIES.filter(category => category.selector.split(", ").some(selector =>
     selector.startsWith(".") ? classes.split(" ").includes(selector.slice(1)) : attributes.includes('data-settings-section="support"')));

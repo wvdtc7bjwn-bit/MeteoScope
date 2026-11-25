@@ -113,6 +113,7 @@ import { yieldToMainThread, yieldAfterPaint } from "./scheduling.js";
 import { setupLongPressButton } from "./ui/longPressButton.js";
 import { setupEarthquakeLongPressHint } from "./ui/earthquakeLongPressHint.js";
 import { setupMapUtilityMenu } from "./ui/mapUtilityMenu.js";
+import { setupClockShortcut } from "./ui/clockShortcut.js";
 import { getSocialSharePayload } from "./socialShareState.js";
 import { recordDiagnostic } from "./runtimeDiagnostics.js";
 import { createWolfxEewClient } from "./eew/wolfxEew.js";
@@ -684,14 +685,17 @@ export function createWeatherApp() {
     const indicator = document.getElementById("eew-connection-indicator");
     if (!indicator) return;
     const status = String(eewState.connection?.status ?? "stopped");
-    indicator.hidden = !earlyAccessEnabled;
+    const reconnecting = status === "reconnecting" || (status === "connecting"
+      && ["error", "reconnecting"].includes(indicator.dataset.state));
+    const isError = ["stale", "unsupported", "error", "disconnected"].includes(status);
+    indicator.hidden = !earlyAccessEnabled || (!isError && !reconnecting);
     const connected = status === "connected";
-    const label = connected
+    const label = reconnecting ? "Wolfxへ再接続中" : connected
       ? "Wolfx接続中"
       : status === "connecting"
         ? "Wolfxへ接続中"
         : "Wolfx接続異常";
-    indicator.dataset.state = connected ? "connected" : "error";
+    indicator.dataset.state = isError ? "error" : reconnecting ? "reconnecting" : "idle";
     indicator.setAttribute("aria-label", label);
     indicator.title = label;
   }
@@ -4794,6 +4798,7 @@ if (layerId === "river") {
       onOpenAccount: openDisasterQuizModal
     });
     setupFeedbackModal();
+    setupClockShortcut();
     document.addEventListener("click", (event) => {
       if (!(event.target instanceof Element)) return;
       const button = event.target.closest("[data-community-report-open]");

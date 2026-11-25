@@ -1,3 +1,6 @@
+.settings-clock-shortcut-field { display: grid; gap: 8px; color: var(--settings-ink); font-size: 14px; }
+.settings-clock-shortcut-field select { width: 100%; }
+
 .world-typhoon-target-panel .settings-modal-header > div {
   min-width: 0;
 }
@@ -52,9 +55,9 @@
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
   overflow: hidden;
-  border: 1px solid rgba(151, 181, 214, 0.18);
-  border-radius: 12px;
-  background: rgba(8, 24, 45, 0.2);
+  border: 0;
+  border-radius: var(--modal-card-radius);
+  background: var(--modal-card);
 }
 
 .world-typhoon-target-option {
@@ -1595,16 +1598,9 @@ html[data-theme="light"] .weekly-weather-issued strong {
 }
 
 .settings-switch-copy strong {
-  color: #f8fbff;
-  font-size: 14px;
-  font-weight: 900;
-}
-
-.settings-switch-copy span {
-  color: #aebbd0;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.55;
+  color: var(--settings-ink);
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .settings-switch {
@@ -1670,36 +1666,35 @@ html[data-theme="light"] .weekly-weather-issued strong {
 
 .settings-theme-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid rgba(207, 232, 255, 0.16);
-  border-radius: 12px;
-  background: rgba(7, 16, 34, 0.34);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px;
+  background: var(--settings-surface);
 }
-
-.settings-terrain-color-options {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 .settings-theme-options button {
+  position: relative;
   min-width: 0;
-  min-height: 36px;
-  padding: 7px 8px;
-  border: 1px solid transparent;
-  border-radius: 9px;
-  color: #aebbd0;
+  min-height: 48px;
+  padding: 12px 44px 12px 16px;
+  border: 0;
+  border-radius: 0;
+  color: var(--settings-ink);
   background: transparent;
-  font-size: 12px;
-  font-weight: 900;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: left;
   cursor: pointer;
 }
-
-.settings-theme-options button.active {
-  border-color: rgba(123, 215, 255, 0.48);
-  color: #f8fbff;
-  background: rgba(86, 183, 242, 0.2);
-}
+.settings-theme-options button + button::before { content: ""; position: absolute; top: 0; left: 16px; right: 16px; height: 1px; background: var(--settings-divider); }
+.settings-theme-options button.active { color: var(--settings-ink); background: transparent; }
+.settings-theme-options button[aria-checked="true"]::after { content: ""; position: absolute; top: 50%; right: 20px; width: 6px; height: 12px; border-right: 2px solid var(--settings-accent); border-bottom: 2px solid var(--settings-accent); transform: translateY(-65%) rotate(45deg); }
+.settings-theme-options button:hover { background: rgba(142, 173, 211, .08); }
+.settings-theme-options button:focus-visible { outline: 2px solid var(--settings-accent); outline-offset: -3px; }
 
 .settings-policy-copy {
   display: grid;
@@ -2077,11 +2072,10 @@ html[data-theme="light"] .numeric-weather-chart-panel {
 .numeric-weather-archive {
   display: grid;
   gap: 12px;
-  padding: 18px 0 20px;
+  padding: 16px;
   border: 0;
-  border-bottom: 1px solid rgba(115, 151, 188, 0.3);
-  border-radius: 0;
-  background: transparent;
+  border-radius: var(--modal-card-radius);
+  background: var(--modal-card);
 }
 
 .numeric-weather-archive h3,
@@ -2136,9 +2130,8 @@ html[data-theme="light"] .numeric-weather-chart-panel {
   min-height: 58px;
   padding: 0;
   border: 0;
-  border-bottom: 1px solid rgba(115, 151, 188, 0.2);
-  border-radius: 0;
-  background: transparent;
+  border-radius: var(--modal-card-radius);
+  background: var(--modal-card);
   overflow: hidden;
 }
 

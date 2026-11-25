@@ -8,12 +8,12 @@
 }
 
 .disaster-dashboard-panel {
-  --dashboard-surface: #101923;
-  --dashboard-card: #151f2a;
-  --dashboard-line: #33404d;
-  --dashboard-text: #f2f6fb;
-  --dashboard-muted: #9fb0c4;
-  --dashboard-accent: #55b8e8;
+  --dashboard-surface: var(--modal-surface);
+  --dashboard-card: var(--modal-card);
+  --dashboard-line: var(--modal-divider);
+  --dashboard-text: var(--modal-foreground);
+  --dashboard-muted: var(--modal-muted);
+  --dashboard-accent: var(--modal-focus);
   width: min(900px, 100%);
   max-width: 100%;
   max-height: min(90dvh, 780px);
@@ -687,12 +687,6 @@
 }
 
 html[data-theme="light"] .disaster-dashboard-panel {
-  --dashboard-surface: #edf1f3;
-  --dashboard-card: #f8fafb;
-  --dashboard-line: #c9d1d7;
-  --dashboard-text: #172b3e;
-  --dashboard-muted: #66798c;
-  --dashboard-accent: #1675a8;
   border-color: #c8d3de;
   background: var(--dashboard-surface);
   box-shadow: 0 18px 42px rgba(44, 62, 80, 0.2);
@@ -821,7 +815,6 @@ html[data-theme="light"] .settings-group-toggle::after { border-color: #54708c; 
 
 html[data-theme="light"] :is(
   .settings-theme-help,
-  .settings-switch-copy span,
   .settings-my-area-head p,
   .settings-push-note,
   .settings-tab-order-help,
@@ -830,7 +823,6 @@ html[data-theme="light"] :is(
   .settings-source-note
 ) { color: #4f667d; }
 
-html[data-theme="light"] .settings-switch-copy strong { color: #1e3852; }
 html[data-theme="light"] :is(.settings-terrain-opacity, .settings-terrain-color) > span { color: #4f667d; }
 
 html[data-theme="light"] :is(
@@ -907,18 +899,6 @@ html[data-theme="light"] .settings-my-area-item button {
   border-color: rgba(73, 99, 126, 0.2);
   background: rgba(255, 255, 255, 0.64);
   color: #4e647a;
-}
-
-html[data-theme="light"] .settings-theme-options {
-  border-color: rgba(66, 94, 125, 0.2);
-  background: rgba(218, 229, 239, 0.58);
-}
-
-html[data-theme="light"] .settings-theme-options button { color: #526a82; }
-html[data-theme="light"] .settings-theme-options button.active {
-  border-color: rgba(33, 128, 174, 0.42);
-  background: rgba(82, 174, 215, 0.2);
-  color: #125777;
 }
 
 html[data-theme="light"] .settings-tab-order-preview {

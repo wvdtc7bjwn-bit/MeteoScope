@@ -1,6 +1,5 @@
-/* Equal end controls keep the forecast/clock bar centered and easy to tap. */
-#clock { --clock-tool-width: 44px; padding-inline: 0; }
-#clock:not(:has(#warning-chat-button:not([hidden]))) { padding-inline-end: 12px; }
+/* The chat launcher lives in the feature menu; only support remains here. */
+#clock { --clock-tool-width: 44px; padding-inline: 0 12px; }
 .clock-tool-button {
   position: relative;
   box-sizing: border-box;
@@ -17,10 +16,8 @@
   cursor: pointer;
 }
 #clock-feedback-button { border-radius: inherit; border-start-end-radius: 0; border-end-end-radius: 0; }
-#warning-chat-button { border-radius: inherit; border-start-start-radius: 0; border-end-start-radius: 0; }
 .clock-tool-button::after { content: ""; position: absolute; inset-block: 25%; width: 1px; background: currentColor; opacity: .25; pointer-events: none; }
 #clock-feedback-button::after { inset-inline-end: 0; }
-#warning-chat-button::after { inset-inline-start: 0; }
 #warning-chat-button[hidden] { display: none; }
 .clock-tool-button svg { display: block; width: 22px; height: 22px; }
 .clock-tool-button:focus-visible { outline: 2px solid currentColor; outline-offset: -3px; }
@@ -120,7 +117,7 @@
   .warning-chat-panel #warning-chat-send { transition: none; }
 }
 @media (max-width: 420px) {
-  #clock { max-width: calc(100vw - 90px); box-sizing: border-box; gap: 5px; padding-inline: 0; }
+  #clock { max-width: calc(100vw - 90px); box-sizing: border-box; gap: 5px; }
   #clock .current-location-weather { flex: 1 1 auto; max-width: 100px; }
   #clock .clock-face { width: 100px; }
   .warning-chat-toolbar { grid-template-columns: 90px minmax(0, 1fr) auto; gap: 4px; padding-inline: 10px; }
@@ -130,7 +127,7 @@
   .warning-chat-title-row > span { font-size: 10px; }
 }
 @media (max-width: 360px) {
-  #clock { --clock-tool-width: 32px; gap: 4px; padding-inline: 0; }
+  #clock { --clock-tool-width: 32px; gap: 4px; }
   #clock .clock-face { width: 82px; }
   #clock .current-location-weather { max-width: 85px; }
 }

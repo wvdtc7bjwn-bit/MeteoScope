@@ -2,12 +2,12 @@ import { escapeHtml } from "../utils/html.js";
 import { localizeText } from "./locale.js";
 
 export const SETTINGS_CATEGORIES = Object.freeze([
-  { id: "general", title: "一般", description: "外観・言語・表示切替", selector: ".settings-theme-group, .settings-language-group, .settings-early-access-group, .settings-tab-order-group", icon: "M4 6h16M4 12h16M4 18h16M9 3v6M15 9v6M8 15v6" },
-  { id: "map", title: "地図・表示", description: "地形表示・配色・防災マップ", selector: ".settings-observation-colors-group, .settings-terrain-group, .settings-disaster-map-group", icon: "m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2ZM9 3v16M15 5v16" },
-  { id: "earthquake", title: "地震", description: "震央分布・緊急地震速報", selector: ".settings-earthquake-group", icon: "M2 12h4l3-8 5 16 3-8h5" },
-  { id: "area", title: "地域・通知", description: "マイエリア・お知らせ通知", selector: ".settings-my-area-group, .settings-push-group", icon: "M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0ZM9 10a3 3 0 1 0 6 0 3 3 0 0 0-6 0" },
-  { id: "account", title: "アカウント", description: "ログイン状態と登録情報", selector: ".settings-account-group", icon: "M8 7a4 4 0 1 0 8 0 4 4 0 0 0-8 0M4 21v-2a8 8 0 0 1 16 0v2" },
-  { id: "support", title: "サポート・情報", description: "使い方・ご意見・更新履歴", selector: '[data-settings-section="support"]', icon: "M9 8a3 3 0 0 1 6 0c0 2-3 2-3 5M12 17v.01M2 12a10 10 0 1 0 20 0 10 10 0 0 0-20 0" }
+  { id: "general", section: "display", summary: "表示の配色や言語、画面下のボタンの並び順を設定します。", title: "一般", description: "外観・言語・表示切替", selector: ".settings-theme-group, .settings-language-group, .settings-early-access-group, .settings-tab-order-group, .settings-clock-shortcut-group", icon: "M4 6h16M4 12h16M4 18h16M9 3v6M15 9v6M8 15v6" },
+  { id: "map", section: "display", summary: "観測データの配色や地形の見え方、防災マップの保存ファイルを管理します。", title: "地図・表示", description: "地形表示・配色・防災マップ", selector: ".settings-observation-colors-group, .settings-terrain-group, .settings-disaster-map-group", icon: "m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2ZM9 3v16M15 5v16" },
+  { id: "earthquake", section: "display", summary: "地震の震央分布や、緊急地震速報を受信したときの表示を設定します。", title: "地震", description: "震央分布・緊急地震速報", selector: ".settings-earthquake-group", icon: "M2 12h4l3-8 5 16 3-8h5" },
+  { id: "area", section: "personal", summary: "よく見る地域を保存し、お知らせ通知の受信を設定します。", title: "地域・通知", description: "マイエリア・お知らせ通知", selector: ".settings-my-area-group, .settings-push-group", icon: "M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0ZM9 10a3 3 0 1 0 6 0 3 3 0 0 0-6 0" },
+  { id: "account", section: "personal", summary: "ログイン状態や、MeteoScopeアカウントの登録情報を確認します。", title: "アカウント", description: "ログイン状態と登録情報", selector: ".settings-account-group", icon: "M8 7a4 4 0 1 0 8 0 4 4 0 0 0-8 0M4 21v-2a8 8 0 0 1 16 0v2" },
+  { id: "support", section: "about", summary: "使い方、情報の出典、利用条件や更新履歴を確認できます。", title: "サポート・情報", description: "使い方・ご意見・更新履歴", selector: '[data-settings-section="support"]', icon: "M9 8a3 3 0 0 1 6 0c0 2-3 2-3 5M12 17v.01M2 12a10 10 0 1 0 20 0 10 10 0 0 0-20 0" }
 ]);
 
 export function createSettingsNavigationState() {
@@ -35,6 +35,7 @@ export function createSettingsNavigator(modal, { onOpenGroup = () => {} } = {}) 
   const title = modal.querySelector("#settings-modal-title");
   const description = modal.querySelector("[data-settings-navigation-description]");
   const filter = modal.querySelector("#settings-filter-input");
+  const overview = modal.querySelector("[data-settings-overview]");
   const entries = [...modal.querySelectorAll(".settings-group")].map((group, index) => {
     const category = SETTINGS_CATEGORIES.find(item => group.matches(item.selector));
     if (!category) throw new Error("Uncategorized setting");
@@ -47,7 +48,7 @@ export function createSettingsNavigator(modal, { onOpenGroup = () => {} } = {}) 
     title: entry.group.querySelector(".settings-group-title-copy strong")?.textContent ?? "",
     description: entry.group.querySelector(".settings-group-title-copy small")?.textContent ?? ""
   });
-  const row = (key, heading, detail, icon = "") => `<button type="button" class="settings-navigation-row" data-settings-navigation-key="${escapeHtml(key)}">
+  const row = (key, heading, detail, icon = "") => `<button type="button" class="settings-navigation-row${icon ? " has-icon" : ""}" data-settings-navigation-key="${escapeHtml(key)}">
     ${icon ? `<span class="settings-navigation-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="${icon}"/></svg></span>` : ""}
     <span class="settings-navigation-copy"><strong>${escapeHtml(heading)}</strong><small>${escapeHtml(detail)}</small></span><span class="settings-navigation-chevron" aria-hidden="true"></span></button>`;
 
@@ -76,9 +77,13 @@ export function createSettingsNavigator(modal, { onOpenGroup = () => {} } = {}) 
     }
     modal.querySelector(".settings-source-note").hidden = view.kind !== "root";
     list.hidden = Boolean(selected);
+    overview.hidden = view.kind !== "category";
+    overview.innerHTML = view.kind === "category" && category ? `<span class="settings-overview-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${category.icon}"/></svg></span><h3>${escapeHtml(category.title)}</h3><p>${escapeHtml(category.summary)}</p>` : "";
     let rows = [];
     if (view.kind === "root" && !query) {
-      rows = SETTINGS_CATEGORIES.map(item => row(`category:${item.id}`, item.title, item.description, item.icon));
+      const sections = [...new Set(SETTINGS_CATEGORIES.map(item => item.section))]
+        .map(section => SETTINGS_CATEGORIES.filter(item => item.section === section));
+      rows = sections.map(items => `<div class="settings-navigation-section">${items.map(item => row(`category:${item.id}`, item.title, item.description, item.icon)).join("")}</div>`);
       list.setAttribute("aria-label", "設定カテゴリ");
     } else if (!selected) {
       const matches = entries.filter(entry => {
@@ -91,7 +96,7 @@ export function createSettingsNavigator(modal, { onOpenGroup = () => {} } = {}) 
         query ? `${localizeText(entry.category.title)} · ${copy(entry).description}` : copy(entry).description));
       list.setAttribute("aria-label", category?.title ?? "設定の検索結果");
     }
-    list.innerHTML = rows.join("");
+    list.innerHTML = view.kind === "root" && !query ? rows.join("") : `<div class="settings-navigation-section">${rows.join("")}</div>`;
     modal.querySelector("[data-settings-filter-clear]").hidden = !query;
     modal.querySelector("[data-settings-filter-empty]").hidden = view.kind !== "root" || !query || rows.length > 0;
     body.scrollTop = view.scrollTop;

@@ -1931,12 +1931,6 @@ html[data-theme="light"] .social-share-preview-shell {
     left: var(--shared-dock-left);
   }
 
-  .map-utility-actions {
-    top: max(10px, env(safe-area-inset-top));
-    left: calc(var(--shared-dock-left) + 56px);
-    gap: 6px;
-  }
-
   .map-community-report-button {
     left: var(--shared-dock-left);
     bottom: var(--shared-map-controls-bottom);
@@ -1997,8 +1991,7 @@ html[data-theme="light"] .social-share-preview-shell {
     --shared-map-control-gap: 12px;
   }
 
-  .map-utility-menu-toggle,
-  .map-utility-actions {
+  .map-utility-menu-toggle {
     top: 20px;
   }
 

@@ -752,7 +752,7 @@ html[data-theme="light"] .warning-detail-list .warning-area-row:nth-child(odd) {
 html[data-theme="light"] .disaster-dashboard-modal .warning-modal-panel.disaster-dashboard-panel {
   border-color: var(--dashboard-line);
   background: var(--dashboard-surface);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
@@ -763,13 +763,13 @@ html[data-theme="light"] .disaster-dashboard-modal .warning-modal-panel.disaster
 }
 
 .disaster-dashboard-modal .disaster-dashboard-header h2 {
-  font-size: clamp(20px, 3vw, 24px);
+  font-size: 18px;
   letter-spacing: 0;
 }
 
 .disaster-dashboard-modal .disaster-dashboard-overview,
 .disaster-dashboard-modal .disaster-dashboard-group {
-  border-radius: 2px;
+  border-radius: var(--modal-card-radius);
   box-shadow: none;
 }
 

@@ -1,3 +1,5 @@
+import { setupMapUtilityReorder } from "./mapUtilityReorder.js";
+
 export function setupMapUtilityMenu() {
   const toggle = document.getElementById("map-utility-menu-toggle");
   const actions = document.getElementById("map-utility-actions");
@@ -7,6 +9,7 @@ export function setupMapUtilityMenu() {
   const closeDurationMs = 260;
   let closeTimer = 0;
   let isOpen = false;
+  const reorder = setupMapUtilityReorder(actions);
 
   const finishClose = () => {
     if (isOpen) return;
@@ -32,6 +35,7 @@ export function setupMapUtilityMenu() {
       void actions.offsetWidth;
       actions.classList.add("is-open");
     } else {
+      reorder.cancel();
       actions.classList.remove("is-open");
       actions.classList.add("is-closing");
       closeTimer = window.setTimeout(finishClose, closeDurationMs);

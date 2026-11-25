@@ -478,7 +478,7 @@ assert.match(settingsModal, /createSettingsNavigator\(modal/u);
 assert.match(styles, /\.settings-filter input\s*\{[\s\S]*?height:\s*44px;/u);
 assert.match(styles, /\.settings-navigation-row\s*\{[\s\S]*?min-height:\s*64px;/u);
 assert.match(styles, /\.map-settings-open-button::before\s*\{[\s\S]*?mask:/u);
-assert.match(styles, /\.map-utility-actions\s*\{[\s\S]*?display:\s*flex;[\s\S]*?gap:\s*8px;/u);
+assert.match(styles, /\.map-utility-actions\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/u);
 assert.match(styles, /\.map-utility-actions\[hidden\]\s*\{[\s\S]*?display:\s*none;/u);
 assert.match(styles, /\.map-utility-menu-toggle\[aria-expanded="true"\]::before\s*\{[\s\S]*?opacity:\s*0;/u);
 assert.match(styles, /\.map-utility-menu-toggle\[aria-expanded="true"\]::after\s*\{[\s\S]*?opacity:\s*1;/u);

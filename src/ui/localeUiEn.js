@@ -1,7 +1,26 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+時計バーのボタン|Clock bar button
+よく使う機能を割り当て|Choose a shortcut
+時計バー左端のボタンから開く機能を選びます。初期設定はサポートです。|Choose what the left button in the clock bar opens. Support is the default.
+開く機能|Feature to open
+設定を保存できませんでした。再読み込みするまで適用されます。|Could not save the setting. It applies until you reload.
+選択した機能は現在利用できないため、サポートを表示しています。|The selected feature is unavailable, so Support is shown.
+AIチャット|AI chat
+Wolfxへ再接続中|Reconnecting to Wolfx
+長押しして並べ替え（キーボードは Alt＋矢印）|Hold to reorder (keyboard: Alt + arrow keys)
+並び順を保存しました。|Order saved.
+並び順を変更しました。この端末では保存できません。|Order changed. It cannot be saved on this device.
+並べ替え中。移動先で指を離してください。|Reordering. Release at the new position.
+並べ替えを取り消しました。|Reordering cancelled.
 一般|General
+表示の配色や言語、画面下のボタンの並び順を設定します。|Change the appearance, language and order of the bottom tabs.
+観測データの配色や地形の見え方、防災マップの保存ファイルを管理します。|Manage observation colors, terrain appearance and saved hazard maps.
+地震の震央分布や、緊急地震速報を受信したときの表示を設定します。|Choose how earthquake locations and earthquake early warnings are displayed.
+よく見る地域を保存し、お知らせ通知の受信を設定します。|Save areas you check often and manage announcement notifications.
+ログイン状態や、MeteoScopeアカウントの登録情報を確認します。|Check your sign-in status and MeteoScope account details.
+使い方、情報の出典、利用条件や更新履歴を確認できます。|Find help, data sources, terms of use and update history.
 地図・表示|Map & Display
 地域・通知|Areas & Notifications
 アカウント|Account
@@ -626,8 +645,7 @@ USGSの解析結果を開く ↗|USGS analysis ↗
 GFS地点モデル|GFS point model
 NOAA GFS地点モデル|NOAA GFS point model
 高層気象（アーリーアクセス）|Upper air (early access)
-高層気象観測のエマグラムを開く|Open upper-air emagram
-高層気象観測のエマグラムを開く（アーリーアクセス）|Open upper-air emagram (early access)
+エマグラムを開く|Open emagram
 同期高層解析ワークスペース|Upper-air analysis workspace
 鉛直分布|Vertical profile
 高層観測を再読み込み|Refresh upper-air observations
@@ -932,8 +950,9 @@ Wolfx再接続中|Reconnecting to Wolfx
 高層天気図リンク集を開く|Open upper-air charts
 気象庁 高層天気図|JMA upper-air charts
 気象庁 高層気象観測|JMA upper-air observations
-高層気象（エマグラム）|Upper air (emagram)
-高層気象（エマグラム）を開く（アーリーアクセス）|Open upper air (early access)
+エマグラム|Emagram
+エマグラムを開く（アーリーアクセス）|Open emagram (early access)
+エマグラム（アーリーアクセス）|Emagram (early access)
 過去の保存用高層天気図と、現在の実況・予報天気図を探せます。|Find archived upper-air charts and current analysis and forecast charts.
 気象庁の数値予報天気図をすべて見る|Browse all JMA model charts
 週間・長期予報|Weekly and long-range

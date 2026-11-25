@@ -323,8 +323,10 @@ const [html, ui, styles, privacy, consent] = await Promise.all([
   readFile(new URL("../src/ui/legalConsentModal.js", import.meta.url), "utf8")
 ]);
 const clockMarkup = html.slice(html.indexOf('id="clock"'), html.indexOf('id="clock-display-mode"'));
-assert.ok(clockMarkup.indexOf('id="warning-chat-button"') > clockMarkup.indexOf('id="eew-connection-indicator"'), "chat follows the forecast, clock and connection indicator");
-assert.match(clockMarkup, /id="warning-chat-button"[\s\S]*<\/button><\/div>\s*<section\s*$/u, "chat is the last control, matching visual and keyboard order");
+assert.doesNotMatch(clockMarkup, /id="warning-chat-button"/u, "chat no longer occupies the clock bar");
+const utilityMenuMarkup = html.match(/<div id="map-utility-actions"[^>]*>([\s\S]*?)<\/div>/u)?.[1] ?? "";
+assert.match(utilityMenuMarkup, /id="warning-chat-button"[^>]*class="disaster-map-open-button"[^>]*>[\s\S]*?class="map-utility-label">AIチャット<\/span>/u, "chat is an app icon in the feature menu");
+assert.equal((html.match(/id="warning-chat-button"/gu) ?? []).length, 1, "only one launcher owns the existing chat handlers");
 assert.match(html, /id="warning-chat-button"[^>]+hidden/u);
 assert.match(html, /id="warning-chat-consent"[^>]+required/u);
 assert.match(ui, /meteoscope:early-access-change/u);

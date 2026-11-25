@@ -49,7 +49,7 @@ export function setupFeedbackModal() {
   if (feedbackModalInitialized) return;
   feedbackModalInitialized = true;
 
-  const openButtons = document.querySelectorAll("#feedback-open, #clock-feedback-button");
+  const openButtons = document.querySelectorAll("#feedback-open");
   const modal = document.getElementById("feedback-modal");
   const form = document.getElementById("feedback-form");
   if (!openButtons.length || !modal || !form) return;
