@@ -1,6 +1,35 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+MeteoScopeデジタルカード|MeteoScope digital card
+アカウント固有ID|Account unique ID
+プレビュー|Preview
+保存機能がサーバーにまだ反映されていないため、変更は保存されていません。|Your changes have not been saved because profile saving is not yet available on the server.
+表示名|Display name
+表示名はランキングと投稿に表示されます。当日の合計得点・達成日はランキングで公開されます。|Your display name appears in rankings and posts. Your daily total score and completion date are public in rankings.
+2〜20文字。表示名はランキングと投稿に表示されます。|2–20 characters. Your display name appears in rankings and posts.
+アカウントのアイコン|Account picture
+画像を選択|Choose image
+アイコン画像を選択|Choose an account picture
+画像を削除|Remove image
+変更を保存|Save changes
+JPEG・PNG・WebP、10MBまで。中央を正方形に切り抜いて保存します。アイコンはアカウント情報に表示されます。|JPEG, PNG or WebP, up to 10 MB. The center is cropped to a square. The picture appears in your account details.
+「変更を保存」を押すと画像を削除します。|Choose Save changes to remove the image.
+画像を準備しています…|Preparing image…
+プレビューを確認し、「変更を保存」を押してください。|Check the preview, then choose Save changes.
+保存しています…|Saving…
+アカウント情報を更新しました。|Account details updated.
+アカウント情報を保存できませんでした。|Could not save account details.
+JPEG・PNG・WebPの画像を選択してください。|Choose a JPEG, PNG or WebP image.
+画像は10MB以下で選択してください。|Choose an image no larger than 10 MB.
+画像を読み込めませんでした。別の画像を選択してください。|Could not read the image. Choose another image.
+画像のサイズが大きすぎるか、読み込めません。|The image is too large or could not be read.
+この端末では画像を処理できません。|This device cannot process the image.
+画像を小さくして、もう一度選択してください。|Make the image smaller and try again.
+アイコン画像の形式またはサイズが正しくありません。|The account image format or size is invalid.
+アイコン画像を読み込めません。|Could not read the account image.
+アイコン画像が正しくありません。|The account image is invalid.
+アイコン画像は256px以内のJPEGで保存してください。|Save the account image as a JPEG up to 256 pixels.
 自動|Auto
 地形データの範囲|Terrain coverage
 日本付近のみ|Japan only

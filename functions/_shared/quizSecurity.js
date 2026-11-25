@@ -11,19 +11,23 @@ export function normalizeQuizDisplayName(value) {
   return String(value ?? "").normalize("NFKC").trim().replace(/\s+/gu, " ");
 }
 
+export function validateQuizDisplayName(value) {
+  const displayName = typeof value === "string" ? normalizeQuizDisplayName(value) : "";
+  return displayName.length < 2 || displayName.length > 20 || /[\p{Cc}<>]/u.test(displayName)
+    ? { error: "表示名は2〜20文字で入力してください。" } : { displayName };
+}
+
 export function validateQuizAccountInput({ username, displayName, password }) {
   const normalizedUsername = normalizeQuizUsername(username);
-  const normalizedDisplayName = normalizeQuizDisplayName(displayName);
   if (!/^[a-z0-9_]{4,24}$/u.test(normalizedUsername)) {
     return { error: "アカウントIDは4〜24文字の半角英数字と_で入力してください。" };
   }
-  if (normalizedDisplayName.length < 2 || normalizedDisplayName.length > 20 || /[\p{Cc}<>]/u.test(normalizedDisplayName)) {
-    return { error: "表示名は2〜20文字で入力してください。" };
-  }
+  const displayNameInput = validateQuizDisplayName(displayName);
+  if (displayNameInput.error) return displayNameInput;
   if (String(password ?? "").length < 10 || String(password ?? "").length > 128) {
     return { error: "パスワードは10〜128文字で入力してください。" };
   }
-  return { username: normalizedUsername, displayName: normalizedDisplayName, password: String(password) };
+  return { username: normalizedUsername, displayName: displayNameInput.displayName, password: String(password) };
 }
 
 export function validateQuizLoginInput({ username, password }) {

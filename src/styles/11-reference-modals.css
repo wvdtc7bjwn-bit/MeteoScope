@@ -928,10 +928,28 @@ html[data-theme="light"] .warning-modal .warning-modal-panel {
 .warning-modal-panel .modal-section > :last-child { margin-bottom: 0; }
 .warning-modal-panel .modal-section + .modal-section { margin-top: 20px; }
 
-/* This detail dialog has its heading inside the scrollable content. */
-#warning-modal-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; overflow-anchor: none; padding: 0 16px 24px; }
-#warning-modal-content .warning-modal-head { position: sticky; top: 0; z-index: 2; margin: 0 -16px 20px; padding: 16px 64px; background: var(--modal-surface); border-bottom-color: var(--modal-divider); text-align: center; }
-#warning-modal-content .warning-modal-head h2 { font-size: 18px; font-weight: 650; }
+/* Keep the header outside the body's scroll track, including native scrollbars. */
+#warning-modal-content { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 0; }
+#warning-modal-content > .warning-modal-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; overflow-anchor: none; padding: 20px 16px 24px; }
+#warning-modal-content > .warning-modal-body > :first-child { margin-top: 0; }
+#warning-modal-content .warning-modal-head {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  align-content: center;
+  justify-content: center;
+  gap: 3px 8px;
+  min-height: 68px;
+  margin: 0;
+  padding: 10px 64px;
+  background: var(--modal-surface);
+  border-bottom-color: var(--modal-divider);
+  text-align: center;
+}
+#warning-modal-content .warning-modal-head > span { margin: 0; color: var(--modal-muted); font-size: 11px; font-weight: 500; }
+#warning-modal-content .warning-modal-head h2 { max-width: 100%; margin: 0; font-size: 18px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
+#warning-modal-content .warning-modal-head p { flex-basis: 100%; margin: 0; font-size: 11.5px; line-height: 1.35; overflow-wrap: anywhere; }
 #warning-modal > .warning-modal-panel > .warning-modal-close { top: 12px; right: 16px; z-index: 3; }
 .warning-modal .warning-modal-panel :is(button, a, input, textarea, summary):focus-visible {
   outline: 2px solid var(--modal-focus);

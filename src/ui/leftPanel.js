@@ -5158,6 +5158,7 @@ function openRiverFloodModal(reportId, fallback = {}) {
       <h2 id="warning-modal-title">${escapeHtml(forecastAreaName)}</h2>
       ${report.updatedAt ? `<p>${escapeHtml(localizeText("更新時刻"))}: ${escapeHtml(formatWarningTime(report.updatedAt))}</p>` : ""}
     </header>
+    <div class="warning-modal-body">
     <section class="warning-modal-section">
       <h3>${escapeHtml(localizeText("発表状況"))}</h3>
       <span class="river-flood-level river-flood-level-${escapeHtml(report.level)}">${escapeHtml(localizeWarningDisplayText(report.levelLabel))}</span>
@@ -5166,6 +5167,7 @@ function openRiverFloodModal(reportId, fallback = {}) {
     ${buildRiverStationSection(report.stations)}
     ${buildRiverRainfallSection(report.rainfall)}
     ${buildRiverAffectedAreaSection(report.affectedAreas)}
+    </div>
   `;
   modal.hidden = false;
   document.body.classList.add("modal-open");
@@ -5227,6 +5229,7 @@ function openWarningModal(areaCode) {
       <h2 id="warning-modal-title">${escapeHtml(localizeWarningDisplayText(area.areaName))}</h2>
       <p>更新時刻: ${escapeHtml(formatWarningTime(area.updatedAt))}</p>
     </header>
+    <div class="warning-modal-body">
     <section class="warning-modal-section">
       <h3>発表中の警報・注意報</h3>
       <div class="warning-modal-warning-list">
@@ -5245,6 +5248,7 @@ function openWarningModal(areaCode) {
       <h3>今後の見通し</h3>
       ${buildWarningOutlookTable(outlookRows, { loading: !activeWarningDetailsLoaded })}
     </section>
+    </div>
   `;
   modal.hidden = false;
   document.body.classList.add("modal-open");
@@ -5257,6 +5261,7 @@ function openEarlyWarningModal(area, modal, content) {
       <h2 id="warning-modal-title">${escapeHtml(localizeWarningDisplayText(area.displayAreaName ?? area.areaName))}</h2>
       <p>${escapeHtml(localizeText("更新時刻"))}: ${escapeHtml(formatWarningTime(area.updatedAt))}</p>
     </header>
+    <div class="warning-modal-body">
     <section class="warning-modal-section">
       <h3>${escapeHtml(localizeText("早期注意情報（警報級の可能性）"))}</h3>
       <div class="warning-modal-warning-list">
@@ -5273,6 +5278,7 @@ function openEarlyWarningModal(area, modal, content) {
       <h3>${escapeHtml(localizeText("期間別の可能性"))}</h3>
       ${buildWarningOutlookTable(area.rows ?? [], { splitLongPeriods: false })}
     </section>
+    </div>
   `;
   modal.hidden = false;
   document.body.classList.add("modal-open");

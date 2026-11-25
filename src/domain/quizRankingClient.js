@@ -40,7 +40,9 @@ async function request(path, options = {}) {
   const result = await response.json().catch(() => ({}));
   if (!response.ok) {
     if (response.status === 401) saveToken("");
-    throw new Error(result.error || "ランキングを処理できませんでした。");
+    const error = new Error(result.error || "ランキングを処理できませんでした。");
+    error.status = response.status;
+    throw error;
   }
   if (result.sessionToken) saveToken(result.sessionToken);
   return result;
@@ -56,6 +58,16 @@ function accountPayload(values) {
 export const QuizRankingClient = Object.freeze({
   configuration: () => request("config"),
   account: () => request("account"),
+  async updateProfile(values) {
+    let result;
+    try { result = await request("account", { method: "PUT", body: JSON.stringify(values) }); }
+    catch (error) {
+      if (error.status === 404) throw new Error("保存機能がサーバーにまだ反映されていないため、変更は保存されていません。");
+      throw error;
+    }
+    globalThis.dispatchEvent?.(new Event("meteoscope:account-change"));
+    return result;
+  },
   async register(values) {
     const result = await request("register", { method: "POST", body: accountPayload(values) });
     globalThis.dispatchEvent?.(new Event("meteoscope:account-change"));

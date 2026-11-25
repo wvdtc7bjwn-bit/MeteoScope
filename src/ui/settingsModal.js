@@ -2,6 +2,7 @@ import { escapeHtml } from "../utils/html.js";
 import { loadLegalDocumentMarkup } from "./legalConsentModal.js";
 import { getDefaultTabOrder, normalizeTabOrder } from "./tabOrder.js";
 import { QuizRankingClient } from "../domain/quizRankingClient.js";
+import { prepareProfileImage } from "./profileImage.js";
 import { getCurrentLanguage } from "./locale.js";
 import { createSettingsNavigator } from "./settingsNavigation.js";
 import { getEarthquakeIntensityColor } from "../config.js";
@@ -19,6 +20,9 @@ let settingsAccount = null;
 let settingsAccountAvailable = false;
 let settingsAccountBusy = false;
 let settingsAccountMode = "login";
+let settingsProfileAvatar;
+let settingsProfileImageRequest = 0;
+let settingsProfileImageBusy = false;
 let settingsNavigator = null;
 
 export function setupSettingsModal(options = {}) {
@@ -35,6 +39,10 @@ export function setupSettingsModal(options = {}) {
   } });
 
   button.addEventListener("click", openSettingsModal);
+  document.getElementById("settings-profile-file")?.addEventListener("change", event => {
+    void chooseSettingsProfileImage(event.target);
+  });
+  document.getElementById("settings-profile-display-name")?.addEventListener("input", renderSettingsProfileImage);
   modal.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
     if (event.target.closest("[data-settings-modal-close]")) {
@@ -117,7 +125,16 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    if (event.target.closest("[data-settings-profile-remove]")) {
+      if (settingsAccountBusy || settingsProfileImageBusy) return;
+      settingsProfileAvatar = null;
+      renderSettingsProfileImage();
+      setSettingsAccountMessage("「変更を保存」を押すと画像を削除します。");
+      return;
+    }
+
     if (event.target.closest("[data-settings-account-refresh]")) {
+      if (settingsAccountBusy || settingsProfileImageBusy) return;
       void renderSettingsAccount();
       return;
     }
@@ -201,6 +218,12 @@ export function setupSettingsModal(options = {}) {
   });
 
   modal.addEventListener("submit", (event) => {
+    const profileForm = event.target.closest("[data-settings-account-profile]");
+    if (profileForm instanceof HTMLFormElement) {
+      event.preventDefault();
+      void saveSettingsProfile(profileForm);
+      return;
+    }
     if (!(event.target instanceof HTMLFormElement)) return;
     const accountForm = event.target.closest("[data-settings-account-form]");
     if (accountForm instanceof HTMLFormElement) {
@@ -559,6 +582,9 @@ async function renderSettingsAccount() {
   if (!name || !status || !(refreshButton instanceof HTMLButtonElement)) return;
 
   const requestId = ++settingsAccountRequestId;
+  settingsProfileImageRequest += 1;
+  settingsProfileImageBusy = false;
+  settingsProfileAvatar = undefined;
   name.textContent = "確認中...";
   status.textContent = "MeteoScopeアカウントの状態を確認しています。";
   status.dataset.state = "loading";
@@ -583,6 +609,8 @@ async function renderSettingsAccount() {
     if (requestId !== settingsAccountRequestId) return;
     if (result.authenticated && result.account?.displayName) {
       settingsAccount = result.account;
+      const displayNameInput = document.getElementById("settings-profile-display-name");
+      if (displayNameInput) displayNameInput.value = result.account.displayName;
       name.textContent = result.account.displayName;
       status.textContent = "MeteoScopeアカウントでログイン中";
       status.dataset.state = "authenticated";
@@ -611,6 +639,9 @@ function renderSettingsAccountControls() {
   const actions = document.getElementById("settings-account-actions");
   if (authPanel) authPanel.hidden = !settingsAccountAvailable || Boolean(settingsAccount);
   if (actions) actions.hidden = !settingsAccountAvailable || !settingsAccount;
+  const profile = document.getElementById("settings-account-profile");
+  if (profile) profile.querySelector("fieldset").disabled = settingsAccountBusy || settingsProfileImageBusy;
+  renderSettingsProfileImage();
 
   document.querySelectorAll("[data-settings-account-mode]").forEach((button) => {
     const active = button.dataset.settingsAccountMode === settingsAccountMode;
@@ -621,8 +652,80 @@ function renderSettingsAccountControls() {
     form.hidden = form.dataset.settingsAccountForm !== settingsAccountMode;
   });
   document.querySelectorAll("#settings-modal .settings-account-auth button, #settings-modal .settings-account-actions button").forEach((button) => {
-    button.disabled = settingsAccountBusy;
+    button.disabled = settingsAccountBusy || settingsProfileImageBusy;
   });
+}
+
+function renderSettingsProfileImage() {
+  const image = document.getElementById("settings-profile-image");
+  const initial = document.getElementById("settings-profile-initial");
+  if (!image || !initial) return;
+  const card = document.getElementById("settings-account-card");
+  if (card) card.hidden = !settingsAccountAvailable || !settingsAccount;
+  document.querySelector(".settings-account-row")?.classList.toggle("has-digital-card", Boolean(settingsAccount));
+  const draftName = document.getElementById("settings-profile-display-name")?.value ?? "";
+  const displayName = draftName.trim() || settingsAccount?.displayName || "";
+  const cardName = document.getElementById("settings-account-card-name");
+  if (cardName) cardName.textContent = displayName;
+  const cardId = document.getElementById("settings-account-card-id");
+  if (cardId) cardId.textContent = settingsAccount?.id ?? "";
+  const preview = document.getElementById("settings-account-card-preview");
+  if (preview) preview.hidden = settingsProfileAvatar === undefined && draftName === (settingsAccount?.displayName ?? "");
+  const avatar = settingsProfileAvatar === undefined ? settingsAccount?.avatarDataUrl : settingsProfileAvatar;
+  image.hidden = !avatar;
+  if (avatar) image.src = avatar; else image.removeAttribute("src");
+  initial.hidden = Boolean(avatar);
+  initial.textContent = Array.from(displayName)[0] ?? "";
+  const remove = document.querySelector("[data-settings-profile-remove]");
+  if (remove) remove.hidden = !avatar;
+}
+
+async function chooseSettingsProfileImage(input) {
+  const file = input.files?.[0];
+  if (!file || !settingsAccount || settingsAccountBusy || settingsProfileImageBusy) return;
+  const request = ++settingsProfileImageRequest;
+  const accountId = settingsAccount.id;
+  settingsProfileImageBusy = true;
+  setSettingsAccountMessage("画像を準備しています…");
+  renderSettingsAccountControls();
+  try {
+    const avatar = await prepareProfileImage(file);
+    if (request !== settingsProfileImageRequest || settingsAccount?.id !== accountId) return;
+    settingsProfileAvatar = avatar;
+    setSettingsAccountMessage("プレビューを確認し、「変更を保存」を押してください。");
+  } catch (error) {
+    if (request === settingsProfileImageRequest) setSettingsAccountMessage(error.message || "画像を読み込めませんでした。", "error");
+  } finally {
+    if (request === settingsProfileImageRequest) {
+      settingsProfileImageBusy = false;
+      input.value = "";
+      renderSettingsAccountControls();
+    }
+  }
+}
+
+async function saveSettingsProfile(form) {
+  if (!settingsAccount || settingsAccountBusy || settingsProfileImageBusy || !form.reportValidity()) return;
+  const accountId = settingsAccount.id;
+  const values = { displayName: String(new FormData(form).get("displayName") ?? "") };
+  if (settingsProfileAvatar !== undefined) values.avatarDataUrl = settingsProfileAvatar;
+  settingsAccountBusy = true;
+  setSettingsAccountMessage("保存しています…");
+  renderSettingsAccountControls();
+  try {
+    const result = await QuizRankingClient.updateProfile(values);
+    if (settingsAccount?.id !== accountId) return;
+    settingsAccount = result.account;
+    settingsProfileAvatar = undefined;
+    document.getElementById("settings-account-name").textContent = result.account.displayName;
+    document.getElementById("settings-profile-display-name").value = result.account.displayName;
+    setSettingsAccountMessage("アカウント情報を更新しました。", "success");
+  } catch (error) {
+    setSettingsAccountMessage(error.message || "アカウント情報を保存できませんでした。", "error");
+  } finally {
+    settingsAccountBusy = false;
+    renderSettingsAccountControls();
+  }
 }
 
 async function authenticateSettingsAccount(form, action) {

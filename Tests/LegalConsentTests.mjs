@@ -36,7 +36,9 @@ assert.match(settingsModule, /container\.innerHTML = await loadLegalDocumentMark
 assert.match(html, /data-settings-legal-document="terms"/);
 assert.match(html, /data-settings-legal-document="privacy"/);
 assert.match(terms, /最終更新日：2026年11月14日/);
-assert.match(privacy, /最終更新日：2026年11月16日/);
+assert.match(privacy, /最終更新日：2026年11月25日/);
+assert.match(privacy, /アイコン画像.*Cloudflare D1へ保存/u);
+assert.match(privacy, /アカウント削除時にはアイコン画像/u);
 assert.match(terms, /AIを呼び出さない照会を含め、1人1日10回/);
 assert.match(privacy, /気象庁の値や解説から直接回答できる一部の質問ではAIを呼び出しません/);
 assert.doesNotMatch(terms, /GEFS平均/);

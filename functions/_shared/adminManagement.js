@@ -60,6 +60,7 @@ export async function deleteMeteoScopeAccount(db, accountID) {
     db.prepare("DELETE FROM quiz_attempts WHERE account_id = ?1").bind(id),
     db.prepare("DELETE FROM quiz_sessions WHERE account_id = ?1").bind(id),
     db.prepare("DELETE FROM app_records WHERE key = 'early-access-account:' || ?1").bind(id),
+    db.prepare("DELETE FROM app_records WHERE key = 'account-profile:' || ?1").bind(id),
     db.prepare(
       `DELETE FROM app_records
        WHERE key LIKE 'early-access-activation:%'

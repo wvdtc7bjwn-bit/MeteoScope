@@ -48,10 +48,21 @@ function mergeAmedasData(currentData, nextData) {
 
 function mergeWarningTabData(currentData, nextData = {}) {
   if (!currentData) return nextData;
+  // Overview responses contain empty outlook arrays without fetching timelines.
+  // Only a successful detail fetch for that municipality may clear its rows.
+  const refreshedCodes = new Set(nextData.statusDetailsLoaded
+    ? (nextData.statusDetailAreaCodes ?? []).map(String) : []);
+  const currentOutlooks = mergeWarningOutlookAreas(currentData.outlookAreas,
+    (currentData.activeAreas ?? []).filter(area => area.outlook?.length));
+  const activeAreas = mergeWarningAreaDetails(currentOutlooks, nextData.activeAreas, refreshedCodes);
+  const activeCodes = new Set(activeAreas.map(area => String(area.areaCode)));
+  const outlookAreas = mergeWarningOutlookAreas(
+    currentOutlooks.filter(area => !refreshedCodes.has(String(area.areaCode)))
+      .map(area => ({ ...area, warnings: [] })),
+    mergeWarningAreaDetails(currentOutlooks, nextData.outlookAreas, refreshedCodes)
+  ).filter(area => !activeCodes.has(String(area.areaCode)) && area.outlook?.length);
+  const groups = mergeWarningGroupDetails(nextData.groups, activeAreas);
   if (nextData.detailsLoaded) {
-    const activeAreas = mergeWarningAreaDetails(currentData.activeAreas, nextData.activeAreas);
-    const outlookAreas = mergeWarningOutlookAreas(currentData.outlookAreas, nextData.outlookAreas);
-    const groups = mergeWarningGroupDetails(nextData.groups, activeAreas);
     const statusDetailAreaCodes = [...new Set([
       ...(currentData.statusDetailAreaCodes ?? []),
       ...(nextData.statusDetailAreaCodes ?? [])
@@ -80,6 +91,9 @@ function mergeWarningTabData(currentData, nextData = {}) {
   return {
     ...currentData,
     ...nextData,
+    activeAreas,
+    outlookAreas,
+    groups,
     earlyWarnings: currentData.earlyWarnings ?? nextData.earlyWarnings,
     earlyAreas: currentData.earlyAreas ?? nextData.earlyAreas,
     earlyMunicipalityAreas: currentData.earlyMunicipalityAreas ?? nextData.earlyMunicipalityAreas,
@@ -92,11 +106,11 @@ function mergeWarningTabData(currentData, nextData = {}) {
   };
 }
 
-function mergeWarningAreaDetails(currentAreas = [], nextAreas = []) {
+function mergeWarningAreaDetails(currentAreas = [], nextAreas = [], refreshedCodes = new Set()) {
   const currentByCode = new Map((currentAreas ?? []).map((area) => [String(area.areaCode), area]));
   return (nextAreas ?? []).map((area) => {
     const current = currentByCode.get(String(area.areaCode));
-    if (!current || area.outlook?.length) return area;
+    if (!current || area.outlook?.length || refreshedCodes.has(String(area.areaCode))) return area;
     return { ...area, outlook: current.outlook ?? [] };
   });
 }

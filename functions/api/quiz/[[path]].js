@@ -1,8 +1,9 @@
-import { requireD1 } from "../../_shared/d1Store.js";
+import { requireD1, readJson } from "../../_shared/d1Store.js";
+import { validateProfileAvatar } from "../../../src/domain/profileImagePolicy.js";
 import { deleteMeteoScopeAccount } from "../../_shared/adminManagement.js";
 import {
   QUIZ_SESSION_TTL_SECONDS, hashQuizPassword, hashQuizRateLimitKey, hashQuizToken,
-  normalizeQuizDisplayName, randomQuizToken, validateQuizAccountInput,
+  normalizeQuizDisplayName, randomQuizToken, validateQuizAccountInput, validateQuizDisplayName,
   validateQuizLoginInput, verifyQuizPassword
 } from "../../_shared/quizSecurity.js";
 import {
@@ -44,6 +45,7 @@ export async function onRequest({ request, env }) {
     let response;
     if (route === "config" && method === "GET") response = getConfiguration(env);
     else if (route === "account" && method === "GET") response = await getAccount(request, env);
+    else if (route === "account" && method === "PUT") response = await updateAccountProfile(request, env);
     else if (route === "register" && method === "POST") response = await register(request, env);
     else if (route === "login" && method === "POST") response = await login(request, env);
     else if (route === "logout" && method === "POST") response = await logout(request, env);
@@ -123,7 +125,34 @@ async function getAccount(request, env) {
   const headers = auth.source === "legacy"
     ? { "Set-Cookie": accountSessionCookie(auth.token, QUIZ_SESSION_TTL_SECONDS) }
     : undefined;
-  return json({ authenticated: true, account: publicAccount(auth.account) }, { headers });
+  const profile = await readJson(db, `account-profile:${auth.account.id}`, {});
+  return json({ authenticated: true, account: { ...publicAccount(auth.account), avatarDataUrl: profile.avatarDataUrl ?? null } }, { headers });
+}
+
+async function updateAccountProfile(request, env) {
+  const db = requireQuizConfiguration(env);
+  const auth = await requireAccountAuthentication(request, db);
+  await enforceRateLimit(request, env, db, "profile", 10, 10 * 60);
+  const payload = await readJSON(request, 96 * 1024);
+  const input = validateQuizDisplayName(payload.displayName);
+  if (input.error) throw json({ error: input.error }, { status: 400 });
+  const hasAvatar = Object.hasOwn(payload, "avatarDataUrl");
+  let avatarDataUrl;
+  try { if (hasAvatar) avatarDataUrl = validateProfileAvatar(payload.avatarDataUrl); }
+  catch (error) { throw json({ error: error.message }, { status: 400 }); }
+  const now = new Date().toISOString();
+  const updates = [db.prepare("UPDATE quiz_accounts SET display_name = ?1, updated_at = ?2 WHERE id = ?3")
+    .bind(input.displayName, now, auth.account.id)];
+  if (hasAvatar) updates.push(avatarDataUrl === null
+    ? db.prepare("DELETE FROM app_records WHERE key = ?1").bind(`account-profile:${auth.account.id}`)
+    : db.prepare(`INSERT INTO app_records (key, value, updated_at) VALUES (?1, ?2, ?3)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`)
+      .bind(`account-profile:${auth.account.id}`, JSON.stringify({ avatarDataUrl }), now));
+  await db.batch(updates);
+  await invalidateAllQuizLeaderboardCaches();
+  const profile = hasAvatar ? { avatarDataUrl } : await readJson(db, `account-profile:${auth.account.id}`, {});
+  return json({ authenticated: true, account: { id: auth.account.id, displayName: input.displayName,
+    avatarDataUrl: profile.avatarDataUrl ?? null } });
 }
 
 async function logout(request, env) {
@@ -326,14 +355,31 @@ function isConfigured(env) {
   return Boolean(env.NOTIFICATIONS_DB && env.QUIZ_PASSWORD_PEPPER && env.QUIZ_RATE_LIMIT_SECRET);
 }
 
-async function readJSON(request) {
+async function readJSON(request, limit = MAX_REQUEST_BYTES) {
   const declaredLength = Number(request.headers.get("Content-Length") ?? 0);
-  if (declaredLength > MAX_REQUEST_BYTES) throw json({ error: "リクエストが大きすぎます。" }, { status: 413 });
-  const text = await request.text();
-  if (new TextEncoder().encode(text).length > MAX_REQUEST_BYTES) {
-    throw json({ error: "リクエストが大きすぎます。" }, { status: 413 });
+  if (declaredLength > limit) throw json({ error: "リクエストが大きすぎます。" }, { status: 413 });
+  const chunks = [];
+  let size = 0;
+  const reader = request.body?.getReader();
+  if (reader) {
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > limit) {
+          await reader.cancel();
+          throw json({ error: "リクエストが大きすぎます。" }, { status: 413 });
+        }
+        chunks.push(value);
+      }
+    } finally { reader.releaseLock(); }
   }
-  try { return JSON.parse(text || "{}"); }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  const text = new TextDecoder().decode(bytes);
+  try { const value = JSON.parse(text || "{}"); if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError(); return value; }
   catch { throw json({ error: "JSONが正しくありません。" }, { status: 400 }); }
 }
 
@@ -347,7 +393,7 @@ function corsHeaders(request) {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
-    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     "Vary": "Origin"
   };
 }

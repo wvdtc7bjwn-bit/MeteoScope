@@ -96,7 +96,7 @@ const deleteDb = {
 };
 const deletion = await deleteMeteoScopeAccount(deleteDb, accountID);
 assert.equal(deletion.account.displayName, "天気ユーザー");
-assert.equal(deletion.deletedRows, 12);
+assert.equal(deletion.deletedRows, 13);
 const accountDeleteSql = accountDeleteStatements.map((statement) => statement.sql).join("\n");
 for (const table of [
   "community_report_flags", "community_reports", "community_post_daily", "quiz_best_scores", "quiz_daily_scores",
@@ -106,6 +106,7 @@ for (const table of [
 }
 assert.match(accountDeleteSql, /early-access-activation:%/u);
 assert.match(accountDeleteSql, /early-access-account:/u);
+assert.match(accountDeleteSql, /account-profile:/u);
 
 const currentSchemaStatements = [];
 const currentSchemaDb = {
@@ -127,7 +128,7 @@ const currentSchemaDb = {
   }
 };
 const currentSchemaDeletion = await deleteMeteoScopeAccount(currentSchemaDb, accountID);
-assert.equal(currentSchemaDeletion.deletedRows, 11);
+assert.equal(currentSchemaDeletion.deletedRows, 12);
 assert.doesNotMatch(currentSchemaStatements.map((statement) => statement.sql).join("\n"), /DELETE FROM quiz_best_scores/u);
 
 const pushDeleteBatches = [];
