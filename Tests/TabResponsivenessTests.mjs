@@ -153,7 +153,7 @@ const renderCtx = vm.createContext({
   getEarthquakeMapView: data => data.earthquakeMapView ?? 'recent',
   createSampleFeatureCollection: () => { generated++; return { type: 'FeatureCollection', features: [] }; },
   setGeoJsonSourceData: (target, data) => { if (sourceCache.get(target) !== data) { target.setData(data); sourceCache.set(target, data); } },
-  ...Object.fromEntries(['hideMapInfo','syncTsunamiBlink','updateHypocenter3D','updateTyphoonLayers',
+  ...Object.fromEntries(['syncAmedasValueMarkerVisibility','setupAmedasValueMarkerImages','hideMapInfo','syncTsunamiBlink','updateHypocenter3D','updateTyphoonLayers',
     'updateWarningAreaLookup','updateRadarLayer','updateWeatherDistributionLayer','updateLightningLayer',
     'updateLightningObservationLayer','updateWeatherChartSatelliteLayer','updateWeatherChartLayer',
     'setRadarOverlayZoomLimit','updateKikikuruLayer','updateEstimatedIntensityLayer','updateRiverFloodLayer',

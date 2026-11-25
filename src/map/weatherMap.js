@@ -1,4 +1,5 @@
 import { RAIN_RADAR_ZOOM_LEVELS } from "./radarRasterLevels.js";
+import { AMEDAS_DOT_LAYER_ID, AMEDAS_MORPH_LAYER_ID, AMEDAS_DOT_RADIUS, AMEDAS_MARKER_OUTLINE_COLOR, AMEDAS_MARKER_OUTLINE_WIDTH, getAmedasValueMarkerId, setupAmedasValueMarkerImages, syncAmedasValueMarkerVisibility, isAmedasMarkerLayerActive } from "./amedasValueMarker.js";
 import { calculateFocusPadding, createViewportFocus } from "./focusViewport.js";
 import { createEarthquakeCoordinateRange } from "../earthquake/coordinateRange.js";
 import { VECTOR_BASE_MAP_ENABLED, registerBaseMapProtocol, createMunicipalitySource, baseMapSourceLayer, municipalityStateTarget } from "./baseMapTiles.js";
@@ -149,8 +150,13 @@ const HYPOCENTER_CROSS_PAINT = {
 };
 let jma2001WaveDistanceCalculator = null;
 let jma2001WaveDistanceLoadPromise = null;
-const SAMPLE_LAYERS = ["earthquake-coordinate-range", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "sample-amedas-value", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
-const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", "sample-label"];
+const SAMPLE_LAYERS = ["earthquake-coordinate-range", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
+const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", AMEDAS_DOT_LAYER_ID, AMEDAS_MORPH_LAYER_ID, "sample-amedas-value", "sample-label"];
+const AMEDAS_VALUE_FILTER = ["all",
+  ["==", ["geometry-type"], "Point"],
+  ["==", ["get", "markerType"], "amedas"],
+  ["has", "amedasValueLabel"]
+];
 const EARTHQUAKE_INTERACTIVE_LAYERS = [EEW_AREA_FILL_LAYER_ID, "sample-circle", "sample-tsunami-coastal", "sample-cross", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line"];
 const TSUNAMI_BLINK_INTERVAL_MS = 1800;
 const TSUNAMI_DIMMED_OPACITY_FACTOR = 0.38;
@@ -1137,6 +1143,7 @@ export function createWeatherMap(elementId) {
         setGeoJsonSourceData(map.getSource(EARTHQUAKE_SHAPE_SOURCE_ID), parts.shapes);
         setGeoJsonSourceData(source, parts.points);
       } else {
+        setupAmedasValueMarkerImages(map, collection.features);
         setGeoJsonSourceData(source, collection);
       }
       sampleDataMode = mode;
@@ -1601,6 +1608,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       filter: ["all",
         ["==", ["geometry-type"], "Point"],
         ["!=", ["get", "markerType"], "wind"],
+        ["!=", ["get", "markerType"], "amedas"],
         ["!=", ["get", "markerType"], "cross"],
         ["!=", ["get", "markerType"], "volcano"],
         ["!=", ["get", "markerType"], "tsunami-coastal"],
@@ -1642,38 +1650,59 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     });
 
     map.addLayer({
-      id: "sample-amedas-value",
+      id: AMEDAS_DOT_LAYER_ID,
+      type: "circle",
+      source: SAMPLE_SOURCE_ID,
+      filter: AMEDAS_VALUE_FILTER,
+      layout: { visibility: "none", "circle-sort-key": ["coalesce", ["get", "sortKey"], 0] },
+      paint: {
+        "circle-color": ["get", "color"],
+        "circle-opacity": 0,
+        "circle-opacity-transition": { duration: 0 },
+        "circle-radius": AMEDAS_DOT_RADIUS,
+        "circle-stroke-color": AMEDAS_MARKER_OUTLINE_COLOR,
+        "circle-stroke-width": AMEDAS_MARKER_OUTLINE_WIDTH,
+        "circle-stroke-opacity": 0,
+        "circle-stroke-opacity-transition": { duration: 0 }
+      }
+    });
+    map.addLayer({
+      id: AMEDAS_MORPH_LAYER_ID,
       type: "symbol",
       source: SAMPLE_SOURCE_ID,
-      minzoom: 8.5,
-      filter: ["all",
-        ["==", ["geometry-type"], "Point"],
-        ["==", ["get", "markerType"], "amedas"],
-        ["has", "amedasValueLabel"]
-      ],
+      filter: AMEDAS_VALUE_FILTER,
       layout: {
-        "text-field": ["get", "amedasValueLabel"],
-        "text-font": ["Noto Sans JP"],
-        "text-size": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          8.5,
-          7.5,
-          10,
-          8.5,
-          12,
-          9.5
-        ],
-        "text-letter-spacing": -0.04,
-        "text-anchor": "center",
-        "text-allow-overlap": true,
-        "text-ignore-placement": true,
+        visibility: "none",
+        "icon-image": ["get", "amedasMorphImage"],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-padding": 0,
         "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
       },
       paint: {
-        "text-color": ["get", "amedasTextColor"],
-        "text-halo-width": 0
+        "icon-color": ["get", "color"],
+        "icon-opacity": 0,
+        "icon-opacity-transition": { duration: 0 },
+        "icon-halo-color": AMEDAS_MARKER_OUTLINE_COLOR,
+        "icon-halo-width": AMEDAS_MARKER_OUTLINE_WIDTH
+      }
+    });
+    map.addLayer({
+      id: "sample-amedas-value",
+      type: "symbol",
+      source: SAMPLE_SOURCE_ID,
+      filter: AMEDAS_VALUE_FILTER,
+      layout: {
+        visibility: "none",
+        "icon-image": ["get", "amedasMarkerImage"],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-padding": 0,
+        "symbol-sort-key": ["coalesce", ["get", "sortKey"], 0]
+      },
+      paint: {
+        "icon-opacity": 0,
+        "icon-opacity-transition": { duration: 0 }
       }
     });
 
@@ -1918,7 +1947,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
         if (activeMode === "amedas") map.getCanvas().style.cursor = "";
       });
       map.on("click", layerId, (event) => {
-        if (activeMode !== "amedas") return;
+        if (activeMode !== "amedas" || !isAmedasMarkerLayerActive(map, layerId)) return;
         const stationId = event.features?.[0]?.properties?.stationId;
         if (!stationId) return;
         window.dispatchEvent(new CustomEvent("amedas-station-select", {
@@ -3131,6 +3160,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility",
         visible && (!EARTHQUAKE_SHAPE_LAYERS.has(layerId) || activeMode === "earthquake") ? "visible" : "none");
     });
+    syncAmedasValueMarkerVisibility(map, visible && activeMode === "amedas");
   }
 
   function syncEewVisibility() {
@@ -5190,6 +5220,8 @@ function createAmedasFeatures(data) {
     if (metric.id === "wind" && !Number.isFinite(point.windDirection)) return [];
     const color = getAmedasColor(metric.id, value, data?.precipitationPeriod);
     const isWind = metric.id === "wind";
+    const valueLabel = formatAmedasValue(value);
+    const textColor = getAmedasTextColor(color);
     const stationName = getCurrentLanguage() === "en" ? (point.nameEn || localizeText(point.name)) : point.name;
 
     return [{
@@ -5207,8 +5239,9 @@ function createAmedasFeatures(data) {
         label: isWind
           ? `${stationName} ${formatAmedasValue(value)}${metric.unit}`
           : stationName,
-        amedasValueLabel: isWind ? "" : formatAmedasValue(value),
-        amedasTextColor: getAmedasTextColor(color),
+        amedasValueLabel: isWind ? "" : valueLabel,
+        amedasMarkerImage: isWind ? "" : getAmedasValueMarkerId(valueLabel, color, textColor),
+        amedasTextColor: textColor,
         popup: buildAmedasPopup(point, metric, value, data?.latestTime)
       }
     }];
