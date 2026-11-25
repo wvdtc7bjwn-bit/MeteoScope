@@ -563,6 +563,7 @@ html[data-theme="light"] .focal-mechanism-body a { color: #17658a; }
 .earthquake-archive-item > a { display: grid; width: 38px; place-items: center; border-left: 1px solid rgba(137, 170, 220, 0.18); color: #78c9fa; font-size: 17px; text-decoration: none; }
 .earthquake-archive-item > a:is(:hover, :focus-visible) { background: rgba(83, 184, 239, 0.14); color: #c0eeff; outline: none; }
 .earthquake-archive-list-note { padding: 9px 2px 2px; text-align: center; }
+.earthquake-archive-source { grid-column: 1 / -1; display: block; padding: 8px 12px 0; color: var(--muted); font-size: 11px; text-align: left; }
 
 .earthquake-distribution-control-card {
   padding: 10px;
@@ -2223,6 +2224,12 @@ html #sidebar:has(.current-panel.is-amedas) {
   fill: var(--muted);
   font-size: 10px;
   font-weight: 700;
+}
+
+.amedas-temperature-chart-axis .amedas-chart-day-boundary {
+  stroke: #94a3b8;
+  stroke-opacity: 0.6;
+  stroke-dasharray: 3 3;
 }
 
 .amedas-temperature-chart-axis line {

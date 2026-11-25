@@ -5,8 +5,8 @@ import { calculateFocusPadding, createViewportFocus } from "./focusViewport.js";
 import { createEarthquakeCoordinateRange } from "../earthquake/coordinateRange.js";
 import { VECTOR_BASE_MAP_ENABLED, registerBaseMapProtocol, createMunicipalitySource, baseMapSourceLayer, municipalityStateTarget } from "./baseMapTiles.js";
 import { waitForInitialMapGeometry } from "./initialMapReadiness.js";
-import { registerTerrainTileProtocol, terrainTileTemplate } from "./terrainTiles.js";
-import { normalizeTerrainLayerColorMode } from "../preferences/mapPreferences.js";
+import { JAPAN_TERRAIN_BOUNDS, getGlobalTerrainPaint, getTerrainBoundaryPaint, registerTerrainTileProtocol, terrainTileTemplate } from "./terrainTiles.js";
+import { normalizeTerrainCoverage, normalizeTerrainLayerColorMode } from "../preferences/mapPreferences.js";
 import { createSimulationMapOverlay } from "./simulationOverlay.js";
 import { createSimulationWaveCanvas } from "./simulationWaveCanvas.js";
 import { EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID } from "./earthquakeMarkerIds.js";
@@ -313,10 +313,13 @@ const GSI_HILLSHADE_SOURCE_ID = "gsi-hillshade";
 const GSI_RELIEF_LAYER_ID = "gsi-relief-raster";
 const GSI_RELIEF_OVERVIEW_LAYER_ID = "gsi-relief-overview-raster";
 const GSI_HILLSHADE_LAYER_ID = "gsi-hillshade-raster";
+const GSI_EARTH_HILLSHADE_SOURCE_ID = "gsi-earth-hillshade";
+const GSI_EARTH_HILLSHADE_LAYER_ID = "gsi-earth-hillshade-raster";
 const RELIEF_LAYER_IDS = [GSI_RELIEF_LAYER_ID, GSI_RELIEF_OVERVIEW_LAYER_ID];
-const TERRAIN_LAYER_IDS = [...RELIEF_LAYER_IDS, GSI_HILLSHADE_LAYER_ID];
+const TERRAIN_LAYER_IDS = [...RELIEF_LAYER_IDS, GSI_HILLSHADE_LAYER_ID, GSI_EARTH_HILLSHADE_LAYER_ID];
 const DEFAULT_TERRAIN_OPACITY = 0.48;
 const LIGHTNING_MAX_ZOOM = 8.9;
+const EARTHQUAKE_MAX_ZOOM = 14;
 const WEATHER_FRONT_COLD_IMAGE_ID = "weather-front-cold-triangle";
 const WEATHER_FRONT_WARM_IMAGE_ID = "weather-front-warm-semicircle";
 const WEATHER_FRONT_OCCLUDED_IMAGE_ID = "weather-front-occluded-pair";
@@ -501,7 +504,9 @@ export function createWeatherMap(elementId) {
   let terrainLayerVisible = false;
   let terrainLayerOpacity = DEFAULT_TERRAIN_OPACITY;
   let terrainLayerColorMode = "color";
+  let terrainCoverage = "auto";
   let terrainSyncPending = false;
+  let terrainTileLoader = null;
   let tsunamiBlinkTimer = 0;
   let tsunamiBlinkVisible = true;
   let eewHypocenterBlinkTimer = 0;
@@ -551,7 +556,7 @@ export function createWeatherMap(elementId) {
     performance.mark("meteoscope:map:init");
     const baseMapTiles = registerBaseMapProtocol(maplibregl);
     registerWorldTileProtocol(maplibregl);
-    registerTerrainTileProtocol(maplibregl);
+    terrainTileLoader = registerTerrainTileProtocol(maplibregl);
     map = new maplibregl.Map({
       container: elementId,
       center: [DEFAULT_VIEW.center[1], DEFAULT_VIEW.center[0]],
@@ -572,19 +577,26 @@ export function createWeatherMap(elementId) {
     map.touchZoomRotate.enableRotation();
     map.on("movestart", event => {
       baseMapTiles?.cancelPrefetch();
+      terrainTileLoader?.cancelPrefetch();
       if (event.originalEvent) { viewportFocus.clear(); simulationCameraInteractionHandler?.(); }
     });
-    const cancelPrefetchWhenHidden = () => { if (document.hidden) baseMapTiles?.cancelPrefetch(); };
+    const cancelPrefetchWhenHidden = () => {
+      if (!document.hidden) return;
+      baseMapTiles?.cancelPrefetch();
+      terrainTileLoader?.cancelPrefetch();
+    };
     document.addEventListener("visibilitychange", cancelPrefetchWhenHidden);
     map.once("remove", () => {
       baseMapTiles?.cancelPrefetch();
+      terrainTileLoader?.cancelPrefetch();
       document.removeEventListener("visibilitychange", cancelPrefetchWhenHidden);
     });
     map.on("idle", () => {
       const connection = navigator.connection;
-      if (!baseMapTiles || document.hidden || map.isMoving() || connection?.saveData
+      if (document.hidden || map.isMoving() || connection?.saveData
         || ["slow-2g", "2g"].includes(connection?.effectiveType)) return;
-      void baseMapTiles.prefetch(map.getBounds(), map.getZoom());
+      void baseMapTiles?.prefetch(map.getBounds(), map.getZoom());
+      if (terrainLayerVisible) void terrainTileLoader?.prefetch(map.getBounds(), map.getZoom(), terrainCoverage);
     });
     initialMapReady = waitForInitialMapGeometry(map, {
       sourceIds: INITIAL_GEOMETRY_SOURCE_IDS,
@@ -646,10 +658,14 @@ export function createWeatherMap(elementId) {
     if (mode === "typhoon") void ensureWorldGeometryLoaded();
   }
 
-  function setTerrainLayer({ visible, opacity, colorMode } = {}) {
+  function setTerrainLayer({ visible, opacity, colorMode, coverage = terrainCoverage } = {}) {
     terrainLayerVisible = Boolean(visible);
+    if (!terrainLayerVisible) terrainTileLoader?.cancelPrefetch();
     terrainLayerOpacity = normalizeTerrainOpacity(opacity);
     terrainLayerColorMode = normalizeTerrainLayerColorMode(colorMode);
+    const nextCoverage = normalizeTerrainCoverage(coverage);
+    if (nextCoverage !== terrainCoverage) terrainTileLoader?.cancelPrefetch();
+    terrainCoverage = nextCoverage;
     syncTerrainLayer();
   }
 
@@ -671,8 +687,20 @@ export function createWeatherMap(elementId) {
     const hillshadeOpacity = Math.min(0.52, terrainLayerOpacity * 0.72);
     TERRAIN_LAYER_IDS.forEach((layerId) => {
       if (!map.getLayer(layerId)) return;
-      map.setLayoutProperty(layerId, "visibility", terrainLayerVisible ? "visible" : "none");
+      const selected = layerId === GSI_EARTH_HILLSHADE_LAYER_ID ? terrainCoverage !== "japan" : terrainCoverage !== "global";
+      map.setLayoutProperty(layerId, "visibility", terrainLayerVisible && selected ? "visible" : "none");
     });
+    // Global mode uses the same raster on both sides of Japan's coast. Keep
+    // warning/earthquake fills independent of this neutral basemap surface.
+    for (const id of [MUNICIPALITY_FILL_LAYER_ID, MUNICIPALITY_FIX_FILL_LAYER_ID]) {
+      if (map.getLayer(id)) map.setPaintProperty(id, "fill-opacity", terrainLayerVisible && terrainCoverage === "global" ? 0 : 1);
+    }
+    if (map.getLayer("japan-prefecture-line")) {
+      const colors = MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark;
+      Object.entries(getTerrainBoundaryPaint(terrainLayerVisible, activeTheme, colors.municipalityLine)).forEach(([property, value]) => {
+        map.setPaintProperty("japan-prefecture-line", property, value);
+      });
+    }
     RELIEF_LAYER_IDS.forEach(layerId => {
       if (!map.getLayer(layerId)) return;
       map.setPaintProperty(layerId, "raster-opacity", reliefOpacity);
@@ -681,10 +709,26 @@ export function createWeatherMap(elementId) {
     if (map.getLayer(GSI_HILLSHADE_LAYER_ID)) {
       map.setPaintProperty(GSI_HILLSHADE_LAYER_ID, "raster-opacity", hillshadeOpacity);
     }
+    if (map.getLayer(GSI_EARTH_HILLSHADE_LAYER_ID)) {
+      Object.entries(getGlobalTerrainPaint(terrainLayerOpacity)).forEach(([property, value]) => {
+        map.setPaintProperty(GSI_EARTH_HILLSHADE_LAYER_ID, property, value);
+      });
+    }
   }
 
   function ensureTerrainLayers() {
     if (!map || map.getSource(GSI_RELIEF_SOURCE_ID)) return;
+    map.addSource(GSI_EARTH_HILLSHADE_SOURCE_ID, {
+      type: "raster", tiles: [terrainTileTemplate("earthhillshade")],
+      tileSize: 256, minzoom: 0, maxzoom: 8, attribution: "国土地理院"
+    });
+    // Japan's opaque base fills mask the global raster. Its existing detailed
+    // relief stays above those fills; foreign country borders stay above this.
+    map.addLayer({
+      id: GSI_EARTH_HILLSHADE_LAYER_ID, type: "raster", source: GSI_EARTH_HILLSHADE_SOURCE_ID,
+      layout: { visibility: "visible" },
+      paint: getGlobalTerrainPaint(terrainLayerOpacity)
+    }, map.getLayer("world-country-line") ? "world-country-line" : MUNICIPALITY_FILL_LAYER_ID);
     // Keep operational overlays and administrative borders readable, but place
     // terrain above the opaque municipality base fills so land relief is visible.
     const beforeLayerId = map.getLayer("japan-lake-fill")
@@ -698,6 +742,7 @@ export function createWeatherMap(elementId) {
       tileSize: 256,
       minzoom: 5,
       maxzoom: 15,
+      bounds: JAPAN_TERRAIN_BOUNDS,
       attribution: "国土地理院"
     });
     map.addSource(GSI_HILLSHADE_SOURCE_ID, {
@@ -706,6 +751,7 @@ export function createWeatherMap(elementId) {
       tileSize: 256,
       minzoom: 2,
       maxzoom: 16,
+      bounds: JAPAN_TERRAIN_BOUNDS,
       attribution: "国土地理院"
     });
     // GSI relief starts at native z5. Below map zoom 3.5 the normal 256px
@@ -718,7 +764,7 @@ export function createWeatherMap(elementId) {
       tileSize: 128,
       minzoom: 5,
       maxzoom: 5,
-      bounds: [122, 20, 154, 46],
+      bounds: JAPAN_TERRAIN_BOUNDS,
       attribution: "国土地理院"
     });
     RELIEF_LAYER_IDS.forEach(layerId => map.addLayer({
@@ -3222,6 +3268,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   function setTheme(theme) {
     activeTheme = theme === "light" ? "light" : "dark";
     applyMapTheme(map, activeTheme);
+    syncTerrainLayer();
   }
 
   function setEarthquakeSimulationFrame(frame) {
@@ -3718,31 +3765,7 @@ function createBaseStyle(theme = "dark") {
           "line-cap": "round",
           "line-join": "round"
         },
-        paint: {
-          "line-color": colors.municipalityLine,
-          "line-width": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            4,
-            1.45,
-            7,
-            2,
-            10,
-            2.8
-          ],
-          "line-opacity": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            4,
-            0.72,
-            7,
-            0.82,
-            10,
-            0.9
-          ]
-        }
+        paint: getTerrainBoundaryPaint(false, theme, colors.municipalityLine)
       }
     ]
   };
@@ -4951,7 +4974,9 @@ function setRadarOverlayZoomLimit(map, mode, data = {}) {
       ? LIGHTNING_MAX_ZOOM
       : weatherDistributionVisible
         ? 10
-      : DEFAULT_VIEW.maxZoom;
+        : mode === "earthquake"
+          ? EARTHQUAKE_MAX_ZOOM
+          : DEFAULT_VIEW.maxZoom;
   if (radarOverlayZoomLimitCache.get(map) === maxZoom) return;
 
   radarOverlayZoomLimitCache.set(map, maxZoom);
@@ -6045,6 +6070,7 @@ function buildHistoricalEarthquakePopup(item) {
     <strong>${escapePopup(item?.place ?? "震央地名不明")}</strong><br>
     <span>${escapePopup(formatDistributionOriginTime(item?.originTime, true))}</span><br>
     <span>${escapePopup(intensity)}・${escapePopup(magnitude)}・深さ ${escapePopup(depth)}</span>
+    ${item?.dataSource === "p2p" ? "<br><small>P2P地震情報で補完</small>" : ""}
     <br><small>タップすると観測点ごとの震度を地図に表示</small>
     ${sourceLink}
   `;

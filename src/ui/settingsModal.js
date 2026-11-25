@@ -89,14 +89,23 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    if (event.target.closest("[data-settings-earthquake-history-recent]")) {
+      const state = settingsOptions.getState?.() ?? {};
+      settingsOptions.onEarthquakeHistoryRecentChange?.(state.earthquakeHistoryRecentEnabled === false);
+      renderSettingsEarthquake();
+      return;
+    }
+
     const terrainOpacityButton = event.target.closest("[data-settings-terrain-opacity]");
     const terrainColorButton = event.target.closest("[data-settings-terrain-color]");
-    if (terrainOpacityButton || terrainColorButton) {
+    const terrainCoverageButton = event.target.closest("[data-settings-terrain-coverage]");
+    if (terrainOpacityButton || terrainColorButton || terrainCoverageButton) {
       const state = settingsOptions.getState?.() ?? {};
       settingsOptions.onTerrainLayerChange?.({
         ...state.terrainLayerSettings,
         visible: state.terrainLayerSettings?.visible === true,
-        ...(terrainOpacityButton ? { opacity: terrainOpacityButton.dataset.settingsTerrainOpacity }
+        ...(terrainCoverageButton ? { coverage: terrainCoverageButton.dataset.settingsTerrainCoverage }
+          : terrainOpacityButton ? { opacity: terrainOpacityButton.dataset.settingsTerrainOpacity }
           : { colorMode: terrainColorButton.dataset.settingsTerrainColor })
       });
       renderSettingsTerrain();
@@ -123,6 +132,14 @@ export function setupSettingsModal(options = {}) {
 
     if (event.target.closest("[data-settings-account-logout]")) {
       void logoutSettingsAccount();
+      return;
+    }
+
+    const amedasChartButton = event.target.closest("[data-settings-amedas-chart]");
+    if (amedasChartButton) {
+      if (amedasChartButton.getAttribute("aria-checked") === "true") return;
+      settingsOptions.onAmedasChartDisplayChange?.(amedasChartButton.dataset.settingsAmedasChart);
+      renderSettingsAmedasChart();
       return;
     }
 
@@ -220,6 +237,7 @@ export function refreshSettingsModalView() {
   renderSettingsTheme();
   renderSettingsTerrain();
   renderSettingsObservationColors();
+  renderSettingsAmedasChart();
   renderSettingsLanguage();
   renderSettingsEarlyAccess();
   void renderSettingsAccount();
@@ -242,6 +260,7 @@ export function openSettingsModal() {
   renderSettingsTheme();
   renderSettingsTerrain();
   renderSettingsObservationColors();
+  renderSettingsAmedasChart();
   renderSettingsLanguage();
   renderSettingsEarlyAccess();
   void renderSettingsAccount();
@@ -260,6 +279,12 @@ function closeSettingsModal() {
 }
 
 function renderSettingsEarthquake() {
+  const recentButton = document.getElementById("settings-earthquake-history-recent");
+  if (recentButton) {
+    const enabled = settingsOptions.getState?.()?.earthquakeHistoryRecentEnabled !== false;
+    recentButton.classList.toggle("is-enabled", enabled);
+    recentButton.setAttribute("aria-checked", String(enabled));
+  }
   const focusButton = document.getElementById("settings-eew-auto-focus");
   if (focusButton) {
     const state = settingsOptions.getState?.() ?? {};
@@ -388,6 +413,15 @@ function resetSettingsFilter({ focus = false } = {}) {
   if (focus) input?.focus({ preventScroll: true });
 }
 
+function renderSettingsAmedasChart() {
+  const state = settingsOptions.getState?.() ?? {};
+  document.querySelectorAll("[data-settings-amedas-chart]").forEach(button => {
+    button.setAttribute("aria-checked", String(button.dataset.settingsAmedasChart === (state.amedasChartDisplay ?? "continuous")));
+  });
+  const note = document.querySelector("[data-settings-amedas-chart-access]");
+  if (note) note.hidden = Boolean(state.earlyAccessEnabled);
+}
+
 function renderSettingsMyAreas() {
   const state = settingsOptions.getState?.() ?? {};
   const areas = state.myAreas ?? [];
@@ -471,10 +505,16 @@ function renderSettingsTerrain() {
   const terrain = state.terrainLayerSettings ?? {};
   const enabled = terrain.visible === true;
   const opacity = Number(terrain.opacity) || 0.48;
+  document.querySelectorAll("[data-settings-terrain-coverage]").forEach(button => {
+    const selected = button.dataset.settingsTerrainCoverage === (terrain.coverage ?? "auto");
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-checked", String(selected));
+  });
   document.querySelectorAll("[data-settings-terrain-color]").forEach((button) => {
     const selected = button.dataset.settingsTerrainColor === (terrain.colorMode ?? "color");
     button.classList.toggle("active", selected);
     button.setAttribute("aria-checked", String(selected));
+    button.disabled = terrain.coverage === "global";
   });
   const options = document.getElementById("settings-terrain-opacity-options");
   const status = document.getElementById("settings-terrain-status");

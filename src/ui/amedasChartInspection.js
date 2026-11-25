@@ -27,7 +27,8 @@ export function bindAmedasChartInspection(root, model) {
     if (!rect.width) return;
     const { width, inset } = current.layout ?? AMEDAS_CHART_LAYOUT;
     const x = (event.clientX - rect.left) / rect.width * width;
-    const minute = Math.max(0, Math.min(1440, (x - inset.left) / (width - inset.left - inset.right) * 1440));
+    const rangeMinutes = current.rangeMinutes ?? 1440;
+    const minute = Math.max(0, Math.min(rangeMinutes, (x - inset.left) / (width - inset.left - inset.right) * rangeMinutes));
     showObservation(root, current, findNearestAmedasObservation(current.points, minute));
   };
   root.addEventListener("pointerdown", event => {
@@ -69,7 +70,7 @@ function showObservation(root, model, point) {
   model.selected = point;
   root.classList.add("is-inspecting");
   const { width, height, inset } = model.layout ?? AMEDAS_CHART_LAYOUT;
-  const x = inset.left + point.minute / 1440 * (width - inset.left - inset.right);
+  const x = inset.left + point.minute / (model.rangeMinutes ?? 1440) * (width - inset.left - inset.right);
   const y = inset.top + (max - point.value) / (max - min) * (height - inset.top - inset.bottom);
   const line = guide.querySelector("line"), dot = guide.querySelector("circle");
   line.setAttribute("x1", x); line.setAttribute("x2", x);

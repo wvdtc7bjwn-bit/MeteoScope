@@ -2,6 +2,7 @@ import { parseCsvRows } from "../utils/csv.js";
 import { AUTO_REFRESH_INTERVAL_MS, JMA_ENDPOINTS, STATIC_DATA_CACHE_TTL_MS } from "../config.js";
 import { fetchAmedasDailyTemperatureNormals } from "../amedasTemperatureNormal.js";
 import { getAmedasObservationField } from "../amedasPrecipitationPeriod.js";
+import { combineAmedasDailySeries } from "../amedasChart.js";
 import { fetchArrayBuffer, fetchJson, fetchText, parseJmaTime } from "./jmaClient.js";
 
 const AMEDAS_POINT_DATA_TTL_MS = 5 * 60 * 1000;
@@ -201,6 +202,19 @@ function formatAmedasRankingObservationTime(row, hourIndex, minuteIndex) {
   return normalizeAmedasClock(`${row[hourIndex] ?? ""}:${row[minuteIndex] ?? ""}`);
 }
 
+
+export async function fetchAmedasChartSeries(stationId, referenceTime, metricId, dayOffset = 0, precipitationPeriodId = "1h", displayMode = "daily") {
+  if (displayMode !== "continuous") {
+    return { ...await fetchAmedasDailySeries(stationId, referenceTime, metricId, dayOffset, precipitationPeriodId), displayMode: "daily", rangeMinutes: 1440 };
+  }
+  const reference = new Date(referenceTime);
+  const dates = [1, 0].map(offset => getJstDateParts(new Date(reference.getTime() - offset * 86400000))?.date);
+  const results = await Promise.allSettled([1, 0].map(offset =>
+    fetchAmedasDailySeries(stationId, referenceTime, metricId, offset, precipitationPeriodId)
+  ));
+  if (results.every(result => result.status === "rejected")) throw results[1].reason;
+  return combineAmedasDailySeries(...results.map(result => result.status === "fulfilled" ? result.value : null), dates);
+}
 
 export async function fetchAmedasDailySeries(
   stationId,

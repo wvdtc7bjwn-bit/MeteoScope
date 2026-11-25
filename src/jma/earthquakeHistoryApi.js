@@ -47,10 +47,13 @@ export function isJmaHistoryDate(value) {
 // This is an upper bound for the date picker, not proof that JMA has published
 // that day. The API's availability response takes precedence over this estimate.
 export function getJmaHistoryLatestDate(now = Date.now()) {
-  const today = new Intl.DateTimeFormat("en-CA", {
+  return shiftHistoryDate(getJstHistoryDate(now), -2);
+}
+
+export function getJstHistoryDate(now = Date.now()) {
+  return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit"
   }).format(new Date(now));
-  return shiftHistoryDate(today, -2);
 }
 
 export function shiftHistoryDate(date, days) {

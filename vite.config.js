@@ -7,6 +7,7 @@ import { loadWarningChatContext } from "./functions/_shared/warningChatContext.j
 import { normalizeWarningChatSelection } from "./src/ai/warningChatPolicy.js";
 import { onRequestGet as handleEarthquakeHistoryRequest } from "./functions/api/earthquake-history.js";
 import { onRequestGet as handleEarthquakeHistoryEventRequest } from "./functions/api/earthquake-history-event.js";
+import { onRequestGet as handleEarthquakeRecentRequest } from "./functions/api/earthquake-recent.js";
 import { onRequest as handleJmaDisasterCasesRequest } from "./functions/api/jma-disaster-cases.js";
 import { onRequest as handleJmaUpperAirArchiveRequest } from "./functions/api/jma-upper-air-archive.js";
 import { findLatestUpperAirObservation } from "./functions/api/upper-air.js";
@@ -22,7 +23,7 @@ function isLoopbackRequest(request) {
 }
 
 export default defineConfig({
-  plugins: [baseMapPreloadHints(), localWarningChatApi(), localReadOnlyPagesApi("jma-focal-mechanism", "/api/jma-focal-mechanism", handleFocalMechanismRequest), localActiveFaultApi(), localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localJmaUpperAirArchiveApi(), localUpperAirApi(), localGfsProfileApi()],
+  plugins: [baseMapPreloadHints(), localWarningChatApi(), localReadOnlyPagesApi("jma-focal-mechanism", "/api/jma-focal-mechanism", handleFocalMechanismRequest), localReadOnlyPagesApi("earthquake-recent", "/api/earthquake-recent", handleEarthquakeRecentRequest), localActiveFaultApi(), localWeeklyWeatherApi(), localEarthquakeHistoryApi(), localEarthquakeHistoryEventApi(), localJmaDisasterCasesApi(), localJmaUpperAirArchiveApi(), localUpperAirApi(), localGfsProfileApi()],
   base: process.env.GITHUB_PAGES === "true" ? "/MeteoScope/" : "/",
   server: {
     fs: { deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "**/.cache/early-access/**", "**/.private-data/**"] },

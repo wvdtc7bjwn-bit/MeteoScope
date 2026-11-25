@@ -2,6 +2,7 @@ import { pointInPolygon } from "./hypocenterDistribution.js";
 import { fetchJson } from "./jmaClient.js";
 import { normalizeHistoricalEpicenterName } from "./historicalEpicenterNames.js";
 import { APP_BASE_URL } from "../config.js";
+import { fetchRecentEarthquakeHistory } from "./earthquakeRecent.js";
 import {
   normalizeJmaEarthquakeIntensity,
   normalizeJmaEarthquakeOriginTime,
@@ -9,7 +10,8 @@ import {
   validateJmaHistoryConditions,
   splitJmaEarthquakeDateRange,
   isCoordinateWithinRadius, getJmaHistoryLatestDate, parseHistoryNumber,
-  normalizeHistoryCoordinates, parseHistoryDepth, canonicalHistoryEventId, getEarthquakeHistoryApiUrl
+  normalizeHistoryCoordinates, parseHistoryDepth, canonicalHistoryEventId, getEarthquakeHistoryApiUrl,
+  getJstHistoryDate
 } from "./earthquakeHistoryApi.js";
 
 const DATA_BASE = `${APP_BASE_URL}data/earthquake-history`;
@@ -54,7 +56,70 @@ export async function fetchEarthquakeHistoryManifest({ signal } = {}) {
   return manifest;
 }
 
-export async function searchEarthquakeHistory(filters = {}, { onProgress, signal } = {}) {
+export async function searchEarthquakeHistory(filters = {}, options = {}) {
+  if (!options.includeRecent) return searchJmaEarthquakeHistory(filters, options);
+  const { signal, onProgress } = options;
+  signal?.throwIfAborted();
+  const normalized = normalizeEarthquakeHistoryFilters(filters, { includeRecent: true });
+  const upperJmaDate = getJmaLatestAvailableDate();
+  const probeEnd = minDate(normalized.endDate, upperJmaDate);
+  const jmaFilters = { ...normalized, startDate: minDate(normalized.startDate, probeEnd), endDate: probeEnd };
+  let supplement = null;
+  let supplementRange = null;
+  let supplementError = false;
+  const clipRange = range => {
+    const startDate = maxDate(range.startDate, normalized.startDate);
+    const endDate = minDate(range.endDate, normalized.endDate);
+    return startDate <= endDate ? [{ ...range, startDate, endDate }] : [];
+  };
+  function combine(jma, finished) {
+    const boundary = jma.availableThrough ?? upperJmaDate;
+    const records = [...(jma.items ?? []).filter(item => item.originTime.slice(0, 10) <= boundary),
+      ...(supplement?.items ?? []).filter(item => item.originTime.slice(0, 10) > boundary)];
+    const items = records.filter(item => recordMatchesHistorySearch(item, normalized, normalized))
+      .sort(getHistoryComparator(normalized.sort));
+    const missing = (jma.unavailableRanges ?? []).flatMap(clipRange)
+      .filter(range => range.reason !== "jma_not_yet_available");
+    const unsearched = (jma.unsearchedRanges ?? []).flatMap(clipRange);
+    if (supplementRange && finished && (supplementError || !supplement?.complete)) {
+      missing.push({ ...supplementRange, reason: supplement?.limited ? "p2p_limited" : "p2p_unavailable" });
+    }
+    const invalidRecordCount = jma.invalidRecordCount ?? 0;
+    const complete = finished && !missing.length && !unsearched.length && !invalidRecordCount;
+    return { ...jma, filters: normalized, rangeAdjusted: false, complete, searchFinished: finished,
+      totalMatched: complete ? items.length : null, matchedCount: items.length,
+      truncated: jma.truncated || items.length > EARTHQUAKE_HISTORY_RESULT_LIMIT || Boolean(supplement?.limited),
+      unavailableRanges: missing, unsearchedRanges: unsearched,
+      items: items.slice(0, EARTHQUAKE_HISTORY_RESULT_LIMIT),
+      supplementation: supplementRange ? { ...supplementRange,
+        status: !finished ? "loading" : supplementError ? "error" : supplement?.complete ? "ok" : "partial",
+        matchedCount: items.filter(item => item.dataSource === "p2p").length,
+        fetchedAt: supplement?.fetchedAt ?? null, limited: Boolean(supplement?.limited) } : null };
+  }
+  const jma = await searchJmaEarthquakeHistory(jmaFilters, { signal,
+    onProgress: onProgress ? partial => onProgress(combine(partial, false)) : undefined });
+  const boundary = jma.availableThrough ?? upperJmaDate;
+  if (normalized.endDate > boundary) {
+    supplementRange = { startDate: maxDate(normalized.startDate, shiftDate(boundary, 1)), endDate: normalized.endDate };
+    onProgress?.(combine(jma, false));
+    try {
+      // The proxy deliberately bounds acquisition. Missing older days remain
+      // explicit rather than being silently presented as a complete search.
+      const earliest = shiftDate(getJstHistoryDate(), -14);
+      supplement = await fetchRecentEarthquakeHistory(maxDate(supplementRange.startDate, earliest), { signal });
+      if (supplementRange.startDate < earliest) supplement = { ...supplement, complete: false };
+    } catch (error) {
+      signal?.throwIfAborted();
+      supplementError = true;
+    }
+  }
+  signal?.throwIfAborted();
+  const result = combine(jma, true);
+  onProgress?.(result);
+  return result;
+}
+
+async function searchJmaEarthquakeHistory(filters = {}, { onProgress, signal } = {}) {
   signal?.throwIfAborted();
   const normalized = normalizeEarthquakeHistoryFilters(filters);
   const latestWeek = !filters.startDate && !filters.endDate;
@@ -261,12 +326,12 @@ function recordMatchesHistorySearch(record, filters, range) {
   return !filters.keyword || record.place.toLocaleLowerCase("ja-JP").includes(filters.keyword.toLocaleLowerCase("ja-JP"));
 }
 
-export function normalizeEarthquakeHistoryFilters(filters) {
+export function normalizeEarthquakeHistoryFilters(filters, { includeRecent = false } = {}) {
   for (const field of ["startDate", "endDate"]) {
     if (filters[field] && !isJmaHistoryDate(filters[field])) throw new TypeError("検索日付が不正です");
   }
   const conditions = validateJmaHistoryConditions(filters);
-  const latestDate = getJmaLatestAvailableDate();
+  const latestDate = getEarthquakeHistoryLatestDate(includeRecent);
   const requestedStartDate = isJmaHistoryDate(filters.startDate)
     ? filters.startDate
     : shiftDate(latestDate, -(EARTHQUAKE_HISTORY_DEFAULT_RANGE_DAYS - 1));
@@ -285,9 +350,13 @@ export function getJmaLatestAvailableDate(now = Date.now()) {
   return getJmaHistoryLatestDate(now);
 }
 
+export function getEarthquakeHistoryLatestDate(includeRecent = false) {
+  return includeRecent ? getJstHistoryDate() : getJmaLatestAvailableDate();
+}
+
 // Calendar periods include both dates and end at the selected end date.
-export function getEarthquakeHistoryPresetRange(preset, selectedEndDate = getJmaLatestAvailableDate()) {
-  const latest = getJmaLatestAvailableDate();
+export function getEarthquakeHistoryPresetRange(preset, selectedEndDate = getJmaLatestAvailableDate(), { includeRecent = false } = {}) {
+  const latest = getEarthquakeHistoryLatestDate(includeRecent);
   const endDate = minDate(maxDate(isJmaHistoryDate(selectedEndDate) ? selectedEndDate : latest,
     EARTHQUAKE_HISTORY_EARLIEST_DATE), latest);
   if (preset === "all") return { startDate: EARTHQUAKE_HISTORY_EARLIEST_DATE, endDate };

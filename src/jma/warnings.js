@@ -18,6 +18,7 @@ const EARLY_WARNING_WIND_ONLY_CLASS10_CODES = new Set([
 ]);
 const WARNING_OFFICE_BATCH_SIZE = 8;
 const WARNING_MAP_TIME_TTL_MS = 20 * 1000;
+const WARNING_AREA_WORK_BUDGET_MS = 8;
 let warningMapSnapshot = null;
 
 export { getPrefectureNameByCode } from "./warningCore.js";
@@ -262,6 +263,7 @@ async function buildWarningAreaMap(warningReports, municipalityIndex, outlookByA
     ? [...warningReports].sort((a, b) => new Date(a.reportDatetime).getTime() - new Date(b.reportDatetime).getTime())
     : [];
   const areasByCode = new Map();
+  let workStartedAt = performance.now();
 
   for (let reportIndex = 0; reportIndex < reports.length; reportIndex += 1) {
     const report = reports[reportIndex];
@@ -291,7 +293,11 @@ async function buildWarningAreaMap(warningReports, municipalityIndex, outlookByA
         }
       });
     });
-    if (reportIndex > 0 && reportIndex % 4 === 0) await yieldToMainThread();
+    // Yield for actual work, rather than adding a timer wait every few reports.
+    if (reportIndex + 1 < reports.length && performance.now() - workStartedAt >= WARNING_AREA_WORK_BUDGET_MS) {
+      await yieldToMainThread();
+      workStartedAt = performance.now();
+    }
   }
 
   return areasByCode;

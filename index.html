@@ -493,10 +493,30 @@
               <a href="https://www.jma.go.jp/jma/kishou/info/colorguide/HPColorGuide_202007.pdf" target="_blank" rel="noopener noreferrer">気象庁の配色指針 ↗</a>
             </div>
           </section>
+          <section class="settings-group settings-amedas-chart-group" data-settings-section="display">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>AMeDAS</strong><small>観測グラフの表示</small></span></button>
+            <div class="settings-group-content" hidden>
+              <p class="settings-theme-help">昨日と今日の観測値を一続きで表示するか、日ごとに切り替えて表示するかを選びます。</p>
+              <div class="settings-theme-options" role="radiogroup" aria-label="AMeDASグラフの表示">
+                <button type="button" data-settings-amedas-chart="continuous" role="radio" aria-checked="false">昨日から連続</button>
+                <button type="button" data-settings-amedas-chart="daily" role="radio" aria-checked="false">日別</button>
+              </div>
+              <p class="settings-theme-help" data-settings-amedas-chart-access hidden>昨日のグラフはアーリーアクセスで利用できます。</p>
+            </div>
+          </section>
           <section class="settings-group settings-terrain-group" data-settings-section="display">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>地形表示</strong><small>色別標高図と陰影起伏図</small></span></button>
             <div class="settings-group-content" hidden>
               <p id="settings-terrain-status" class="settings-terrain-status">地図のレイヤーメニューにある「地形」でON/OFFを切り替えます。</p>
+              <div class="settings-detail-item">
+                <span>地形データの範囲</span>
+                <div class="settings-theme-options" role="radiogroup" aria-label="地形データの範囲">
+                  <button type="button" data-settings-terrain-coverage="auto" role="radio" aria-checked="false">自動</button>
+                  <button type="button" data-settings-terrain-coverage="japan" role="radio" aria-checked="false">日本付近のみ</button>
+                  <button type="button" data-settings-terrain-coverage="global" role="radio" aria-checked="false">全球版</button>
+                </div>
+                <p class="settings-theme-help">自動は日本の詳細地形と全球版を併用します。全球版はグレーで表示し、日本も含めて同じデータで統一しますが、拡大時の地形は粗くなります。</p>
+              </div>
               <div class="settings-terrain-color settings-detail-item">
                 <span>地形の色</span>
                 <div class="settings-theme-options settings-terrain-color-options" role="radiogroup" aria-label="地形の色">
@@ -512,7 +532,7 @@
                   <button type="button" data-settings-terrain-opacity="0.64" role="radio" aria-checked="false">濃い</button>
                 </div>
               </div>
-              <p class="settings-theme-help">国土地理院の色別標高図と陰影起伏図を使用します。海域部は海上保安庁海洋情報部の資料を使用して作成されています。</p>
+              <p class="settings-theme-help">地形には国土地理院の地理院タイルを使用します。色別標高図の海域部は海上保安庁海洋情報部の資料を使用して作成されています。</p>
             </div>
           </section>
           <section class="settings-group settings-disaster-map-group" data-settings-section="display">
@@ -565,6 +585,15 @@
                 </button>
                 </div>
                 <p class="settings-item-note" id="settings-recent-earthquake-note">震央分布に気象庁防災情報XMLで発表された有感地震を表示します。</p>
+              </div>
+              <div class="settings-detail-item settings-toggle-item">
+                <div class="settings-switch-row">
+                  <div class="settings-switch-copy"><strong>過去の地震に最新情報を補完</strong></div>
+                  <button id="settings-earthquake-history-recent" aria-describedby="settings-earthquake-history-recent-note" class="settings-switch" type="button" role="switch" aria-checked="true" aria-label="過去の地震に最新情報を補完" data-settings-earthquake-history-recent>
+                    <span class="settings-switch-thumb" aria-hidden="true"></span>
+                  </button>
+                </div>
+                <p class="settings-item-note" id="settings-earthquake-history-recent-note">過去の地震検索で、気象庁の公開済み最新日の翌日から今日までをP2P地震情報で補完します。公開後は気象庁のデータを優先します。オフでは気象庁データのみを検索します。</p>
               </div>
             </div>
           </section>

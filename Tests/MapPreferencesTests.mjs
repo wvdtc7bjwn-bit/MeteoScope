@@ -14,7 +14,7 @@ try {
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: session });
   const terrainKey = "meteoscope-terrain-layer-settings-v1";
   const sessionKey = "meteoscope-terrain-layer-settings-session-v1";
-  assert.deepEqual(preferences.loadTerrainLayerSettings(), { visible: false, opacity: 0.48, colorMode: "color" });
+  assert.deepEqual(preferences.loadTerrainLayerSettings(), { visible: false, opacity: 0.48, colorMode: "color", coverage: "auto" });
   for (const value of ["1", "true", "0", "false", "invalid", '{"visible":true,"opacity":0.63}']) {
     local.setItem(terrainKey, value);
     const result = preferences.loadTerrainLayerSettings();
@@ -24,13 +24,20 @@ try {
   preferences.saveTerrainLayerSettings({ visible: true, opacity: 0.49 });
   assert.equal(local.getItem(terrainKey), session.getItem(sessionKey));
   local.clear();
-  assert.deepEqual(preferences.loadTerrainLayerSettings(), { visible: true, opacity: 0.48, colorMode: "color" }, "same-tab fallback");
+  assert.deepEqual(preferences.loadTerrainLayerSettings(), { visible: true, opacity: 0.48, colorMode: "color", coverage: "auto" }, "same-tab fallback");
   preferences.saveTerrainLayerSettings({ visible: true, opacity: 0.64, colorMode: "grayscale" });
-  assert.deepEqual(preferences.loadTerrainLayerSettings(), { visible: true, opacity: 0.64, colorMode: "grayscale" });
+  assert.deepEqual(preferences.loadTerrainLayerSettings(), { visible: true, opacity: 0.64, colorMode: "grayscale", coverage: "auto" });
   local.clear();
   assert.equal(preferences.loadTerrainLayerSettings().colorMode, "grayscale", "session fallback preserves the color choice");
   local.setItem(terrainKey, '{"visible":true,"opacity":0.48,"colorMode":"invalid"}');
   assert.equal(preferences.loadTerrainLayerSettings().colorMode, "color");
+  for (const coverage of ["auto", "japan", "global"]) {
+    preferences.saveTerrainLayerSettings({visible:true,opacity:0.48,colorMode:"grayscale",coverage});
+    assert.equal(preferences.loadTerrainLayerSettings().coverage,coverage);
+    local.clear();
+    assert.equal(preferences.loadTerrainLayerSettings().coverage,coverage,"same-tab fallback preserves coverage");
+  }
+  assert.equal(preferences.normalizeTerrainCoverage("invalid"),"auto");
   for (const layer of ["activeFault", "plateBoundary", "plateDepthContours", "estimatedIntensity"]) {
     assert.equal(preferences.loadEarthquakeLayerVisibility(layer), true);
     preferences.saveEarthquakeLayerVisibility(layer, false);
@@ -49,9 +56,9 @@ try {
   // Some browsers throw on accessing storage itself, not only getItem/setItem.
   Object.defineProperty(globalThis, "localStorage", { configurable: true, get() { throw Error("denied"); } });
   preferences.saveTerrainLayerSettings({ visible: false, opacity: 0.32, colorMode: "color" });
-  assert.deepEqual(preferences.loadTerrainLayerSettings(), { visible: false, opacity: 0.32, colorMode: "color" });
+  assert.deepEqual(preferences.loadTerrainLayerSettings(), { visible: false, opacity: 0.32, colorMode: "color", coverage: "auto" });
   Object.defineProperty(globalThis, "sessionStorage", { configurable: true, get() { throw Error("denied"); } });
-  assert.deepEqual(preferences.loadTerrainLayerSettings(), { visible: false, opacity: 0.48, colorMode: "color" });
+  assert.deepEqual(preferences.loadTerrainLayerSettings(), { visible: false, opacity: 0.48, colorMode: "color", coverage: "auto" });
   assert.equal(preferences.loadEarthquakeLayerVisibility("activeFault"), true);
   assert.equal(preferences.loadOptionalLayerVisibility("community"), false);
   assert.equal(preferences.loadEarthquakeDistributionRecentXmlVisibility(), true);

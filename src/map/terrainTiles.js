@@ -10,10 +10,34 @@ export const TERRAIN_TILE_CACHE_LIMITS = Object.freeze({
   tileBytes: 512 * 1024,
   maxAgeMs: 24 * 60 * 60 * 1000
 });
-const registered = new WeakSet();
+const registered = new WeakMap();
+export const JAPAN_TERRAIN_BOUNDS = Object.freeze([122, 20, 154, 46]);
+export const TERRAIN_PREFETCH_LIMIT = 12;
+
+export function getTerrainBoundaryPaint(visible, theme, defaultColor) {
+  return {
+    "line-color": visible ? (theme === "light" ? "#4a6173" : "#303c49") : defaultColor,
+    "line-width": visible ? ["interpolate", ["linear"], ["zoom"], 4, 0.8, 7, 1.1, 10, 1.4]
+      : ["interpolate", ["linear"], ["zoom"], 4, 1.45, 7, 2, 10, 2.8],
+    "line-opacity": visible ? 0.95 : ["interpolate", ["linear"], ["zoom"], 4, 0.72, 7, 0.82, 10, 0.9]
+  };
+}
+
+// Match the combined relief + hillshade coverage in Japan. Global hillshade
+// has a much darker tonal range, so normalize it without modifying tile bytes.
+export function getGlobalTerrainPaint(opacity) {
+  const shadeOpacity = Math.min(0.52, opacity * 0.72);
+  return {
+    "raster-opacity": 1 - (1 - opacity) * (1 - shadeOpacity),
+    "raster-brightness-min": 0.5,
+    "raster-brightness-max": 0.7,
+    "raster-fade-duration": 0
+  };
+}
 const tileSets = {
-  relief: { template: MAP_DATA_ENDPOINTS.gsiReliefTiles, minZoom: 5, maxZoom: 15 },
-  hillshademap: { template: MAP_DATA_ENDPOINTS.gsiHillshadeTiles, minZoom: 2, maxZoom: 16 }
+  relief: { template: MAP_DATA_ENDPOINTS.gsiReliefTiles, minZoom: 5, maxZoom: 15, bounds: JAPAN_TERRAIN_BOUNDS },
+  hillshademap: { template: MAP_DATA_ENDPOINTS.gsiHillshadeTiles, minZoom: 2, maxZoom: 16, bounds: JAPAN_TERRAIN_BOUNDS },
+  earthhillshade: { template: MAP_DATA_ENDPOINTS.gsiEarthHillshadeTiles, minZoom: 0, maxZoom: 8 }
 };
 
 export function terrainTileTemplate(kind) {
@@ -22,11 +46,53 @@ export function terrainTileTemplate(kind) {
 }
 
 function resolveTile(url) {
-  const match = /^meteoscope-terrain:\/\/(relief|hillshademap)\/(\d+)\/(\d+)\/(\d+)\.png$/u.exec(url);
+  const match = /^meteoscope-terrain:\/\/(relief|hillshademap|earthhillshade)\/(\d+)\/(\d+)\/(\d+)\.png$/u.exec(url);
   if (!match) throw new Error("Invalid terrain tile URL");
   const [, kind, z, x, y] = match, set = tileSets[kind], zoom = Number(z);
   if (zoom < set.minZoom || zoom > set.maxZoom || Number(x) >= 2 ** zoom || Number(y) >= 2 ** zoom) throw new Error("Invalid terrain tile coordinates");
   return set.template.replace("{z}", z).replace("{x}", x).replace("{y}", y);
+}
+
+// One ring around the current raster LOD, ordered nearest first. Wrapped X
+// coordinates share cache keys at the date line; polar Y coordinates never wrap.
+export function planTerrainTilePrefetch(bounds, zoom, coverage = "auto") {
+  if (!bounds || !Number.isFinite(zoom)) return [];
+  let [west, south, east, north] = [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()];
+  if (![west, south, east, north].every(Number.isFinite) || north < south) return [];
+  if (east < west) east += 360;
+  if (east <= west || east - west > 360) return [];
+  const queues = Object.entries(tileSets).filter(([kind]) => coverage === "japan" ? kind !== "earthhillshade"
+    : coverage === "global" ? kind === "earthhillshade" : true).map(([kind, set]) => {
+    // Raster sources round their 512/256 tile-size-adjusted zoom in MapLibre.
+    const z = kind === "relief" && zoom < 3.5 ? 5 : Math.max(set.minZoom, Math.min(set.maxZoom, Math.round(zoom + 1)));
+    const n = 2 ** z;
+    const xFor = lng => Math.floor((lng + 180) / 360 * n);
+    const yFor = lat => Math.max(0, Math.min(n - 1, Math.floor((1 - Math.asinh(Math.tan(Math.max(-85.05112878, Math.min(85.05112878, lat)) * Math.PI / 180)) / Math.PI) / 2 * n)));
+    const latFor = y => Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n))) * 180 / Math.PI;
+    const left = xFor(west), right = xFor(east), top = yFor(north), bottom = yFor(south);
+    if (right - left > 64 || bottom - top > 64) return [];
+    const centerX = (left + right) / 2, centerY = (top + bottom) / 2;
+    const candidates = new Map();
+    for (let x = left - 1; x <= right + 1; x++) for (let y = Math.max(0, top - 1); y <= Math.min(n - 1, bottom + 1); y++) {
+      const wrappedX = ((x % n) + n) % n;
+      // The viewport itself is already being loaded by the renderer.
+      if (y >= top && y <= bottom && (right - left >= n - 1 || (x >= left && x <= right))) continue;
+      if (set.bounds) {
+        const [w, s, e, northLimit] = set.bounds;
+        if ((wrappedX + 1) / n * 360 - 180 <= w || wrappedX / n * 360 - 180 >= e
+          || latFor(y) <= s || latFor(y + 1) >= northLimit) continue;
+      }
+      const url = `${TERRAIN_TILE_PROTOCOL}://${kind}/${z}/${wrappedX}/${y}.png`;
+      const distance = (x - centerX) ** 2 + (y - centerY) ** 2;
+      candidates.set(url, Math.min(candidates.get(url) ?? Infinity, distance));
+    }
+    return [...candidates].sort((a, b) => a[1] - b[1]).map(([url]) => url);
+  });
+  const result = [];
+  while (queues.some(queue => queue.length) && result.length < TERRAIN_PREFETCH_LIMIT) {
+    for (const queue of queues) if (queue.length && result.length < TERRAIN_PREFETCH_LIMIT) result.push(queue.shift());
+  }
+  return result;
 }
 
 function abortError() { return new DOMException("Terrain tile request aborted", "AbortError"); }
@@ -50,6 +116,7 @@ export function createTerrainTileLoader({ fetcher = globalThis.fetch?.bind(globa
   const cap = { ...TERRAIN_TILE_CACHE_LIMITS, ...limits };
   const memory = new Map(), inFlight = new Map(), diskIndex = new Map();
   let memoryBytes = 0, diskBytes = 0, diskPromise, indexPromise, writes = Promise.resolve(), queuedBytes = 0;
+  let prefetchController = null;
   if (cacheStorage === undefined) { try { cacheStorage = globalThis.caches; } catch { cacheStorage = null; } }
 
   function remember(url, entry) {
@@ -169,12 +236,35 @@ export function createTerrainTileLoader({ fetcher = globalThis.fetch?.bind(globa
       }, error => { if (current.users.has(user)) { cleanup(); reject(error); } });
     });
   }
+  load.cancelPrefetch = () => { prefetchController?.abort(); prefetchController = null; };
+  load.prefetch = async (bounds, zoom, coverage = "auto") => {
+    load.cancelPrefetch();
+    const urls = planTerrainTilePrefetch(bounds, zoom, coverage).filter(url => {
+      const target = resolveTile(url);
+      return !inFlight.has(target) && !(memory.get(target)?.expires > now());
+    });
+    if (!urls.length) return;
+    const controller = new AbortController();
+    prefetchController = controller;
+    await Promise.all([0, 1].map(async () => {
+      while (urls.length && !controller.signal.aborted) {
+        try {
+          const request = {url:urls.shift()};
+          const data = await load(request, controller);
+        }
+        catch { /* Optional background tiles must not interrupt the map. */ }
+      }
+    }));
+    if (prefetchController === controller) prefetchController = null;
+  };
   load.flushPendingWrites = () => writes;
   return load;
 }
 
 export function registerTerrainTileProtocol(maplibre) {
-  if (registered.has(maplibre)) return;
-  maplibre.addProtocol(TERRAIN_TILE_PROTOCOL, createTerrainTileLoader());
-  registered.add(maplibre);
+  if (registered.has(maplibre)) return registered.get(maplibre);
+  const loader = createTerrainTileLoader();
+  maplibre.addProtocol(TERRAIN_TILE_PROTOCOL, loader);
+  registered.set(maplibre, loader);
+  return loader;
 }

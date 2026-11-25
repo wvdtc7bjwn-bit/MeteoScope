@@ -30,6 +30,7 @@ export const MAP_DATA_ENDPOINTS = {
   jshisMajorFaultTiles: "https://www.j-shis.bosai.go.jp/map/xyz/major_fault/Y2022/MAX/{z}/{x}/{y}.mvt?lang=ja",
   gsiReliefTiles: "https://cyberjapandata.gsi.go.jp/xyz/relief/{z}/{x}/{y}.png",
   gsiHillshadeTiles: "https://cyberjapandata.gsi.go.jp/xyz/hillshademap/{z}/{x}/{y}.png",
+  gsiEarthHillshadeTiles: "https://cyberjapandata.gsi.go.jp/xyz/earthhillshade/{z}/{x}/{y}.png",
   tectonicPlateBoundaries: publicAsset("data/usgs-plate-boundaries-japan.geojson"),
   slab2DepthContours: publicAsset("data/usgs-slab2-depth-contours-japan.geojson"),
   mriPlateDepthContours: publicAsset("data/mri-jma-plate-depth-contours.geojson"),

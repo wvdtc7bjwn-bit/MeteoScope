@@ -1,6 +1,18 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+自動|Auto
+地形データの範囲|Terrain coverage
+日本付近のみ|Japan only
+全球版|Global
+自動は日本の詳細地形と全球版を併用します。全球版はグレーで表示し、日本も含めて同じデータで統一しますが、拡大時の地形は粗くなります。|Auto combines detailed terrain in Japan with global hillshade. Global uses one grayscale dataset everywhere, including Japan, with less detail when zoomed in.
+AMeDASグラフの表示|AMeDAS chart display
+観測グラフの表示|Observation charts
+昨日から連続|Yesterday and today
+日別|Separate days
+昨日と今日の観測値を一続きで表示するか、日ごとに切り替えて表示するかを選びます。|Show yesterday and today on one timeline, or switch between separate daily charts.
+昨日のグラフはアーリーアクセスで利用できます。|Yesterday's chart is available with Early Access.
+観測点のグラフを、昨日から連続して表示するか日ごとに表示するかを選びます。|Choose a continuous timeline from yesterday or separate daily observation charts.
 時計バーのボタン|Clock bar button
 よく使う機能を割り当て|Choose a shortcut
 時計バー左端のボタンから開く機能を選びます。初期設定はサポートです。|Choose what the left button in the clock bar opens. Support is the default.
@@ -600,7 +612,7 @@ MeteoScopeは、公開データとオープンソースソフトウェア、な�
 の公開情報・データを利用しています。個別の出典・利用条件は「情報出典・加工」に記載しています。|public information and data. Individual sources and terms are listed under Sources and processing.
 を利用しています。管理者が個別に許可したアカウントでは、|is used by default. Accounts individually permitted by the administrator can view
 を利用しています。色別標高図の海域部は海上保安庁海洋情報部の資料を使用して作成されています。|are used. Offshore elevation tint is based on materials from the Japan Coast Guard’s Hydrographic and Oceanographic Department.
-国土地理院の色別標高図と陰影起伏図を使用します。海域部は海上保安庁海洋情報部の資料を使用して作成されています。|Uses GSI elevation tint and hillshade. Offshore coverage is based on Japan Coast Guard hydrographic materials.
+地形には国土地理院の地理院タイルを使用します。色別標高図の海域部は海上保安庁海洋情報部の資料を使用して作成されています。|Terrain uses GSI Tiles. Offshore elevation tint is based on Japan Coast Guard hydrographic materials.
 経由で取得します。P波・S波の円は震源時刻・深さとJMA2001走時表から算出した概算表示で、気象庁が発表した到達予想ではありません。仮定震源要素やPLUM法など、震源情報が不確かな場合は円を表示しません。通信遅延や欠測があり得るため、重要な判断では気象庁などの公式情報を確認してください。|feeds. P/S wave circles are estimates using origin time, depth and JMA2001 travel-time tables, not official JMA arrival forecasts. Circles are not displayed for uncertain source information, including assumed source parameters or PLUM. Delays or missing data can occur; confirm important information with official sources such as JMA.
 現在の状況|Current conditions
 発表・危険度|Alerts and risk
@@ -1106,6 +1118,14 @@ AIによる説明 · Gemma 4|AI explanation · Gemma 4
 ファイルを読み込み中...|Loading file...
 保存したファイルを復元しています...|Restoring your saved file...
 画像を表示しています。|Showing image.
+過去の地震に最新情報を補完|Include recent earthquakes in historical searches
+過去の地震検索で、気象庁の公開済み最新日の翌日から今日までをP2P地震情報で補完します。公開後は気象庁のデータを優先します。オフでは気象庁データのみを検索します。|Use P2P Quake from the day after JMA's latest published date through today. Replace with JMA data once published. Turn off to search JMA data only.
+1919年〜今日・最新情報はP2Pで補完|1919 through today, supplemented with recent P2P Quake reports
+P2P補完|P2P supplement
+P2P地震情報で補完|Supplemented with P2P Quake reports
+P2P地震情報を取得中です。|Loading recent P2P Quake reports.
+P2P地震情報で補完しています。気象庁の公開後に置き換えます。|Supplemented with P2P Quake reports. Replaced with JMA data once published.
+P2Pの最新情報を一部取得できませんでした。取得済み分を表示しています。|Some recent P2P reports could not be retrieved. Showing available data.
 `.trim().split("\n").map((line) => line.split("|"));
 
 export const UI_EN_TRANSLATIONS = new Map(UI_EN_ENTRIES);

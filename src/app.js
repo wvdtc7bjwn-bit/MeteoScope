@@ -9,6 +9,7 @@ import {
   saveAmedasPrecipitationPeriod,
   normalizeTerrainLayerOpacity,
   normalizeTerrainLayerColorMode,
+  normalizeTerrainCoverage,
   loadTerrainLayerSettings,
   saveTerrainLayerSettings,
   loadEarthquakeLayerVisibility,
@@ -19,6 +20,8 @@ import {
   saveEarthquakeDistributionRecentXmlVisibility
 } from "./preferences/mapPreferences.js";
 import { createEewAutoFocus } from "./eew/eewAutoFocus.js";
+import { loadEarthquakeHistoryRecentEnabled, saveEarthquakeHistoryRecentEnabled } from "./preferences/earthquakeHistory.js";
+import { fetchRecentEarthquakeDetail } from "./jma/earthquakeRecent.js";
 import { AMEDAS_METRICS, AUTO_REFRESH_INTERVAL_MS, AUTO_REFRESH_RESUME_THROTTLE_MS, EARTHQUAKE_REFRESH_INTERVAL_MS, KIKIKURU_LAYER_OPTIONS, MAP_DATA_ENDPOINTS, TABS, WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS } from "./config.js";
 import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
@@ -50,7 +53,8 @@ import { fetchRadarTimes, findLatestRadarObservationIndex, findRadarObservationF
 import { selectTyphoonRadarFrame } from "./typhoonRadarOverlay.js";
 import { fetchLightningTimes, findLatestLightningObservationIndex } from "./jma/lightning.js";
 import { activateNearestWeatherDistributionFrame, activateWeatherDistributionFrame, fetchWeatherDistribution, getWeatherDistributionLabel, isWeatherDistributionMode } from "./jma/weatherDistribution.js";
-import { fetchAmedasDailySeries, fetchAmedasLatestTime } from "./jma/amedas.js";
+import { fetchAmedasChartSeries, fetchAmedasLatestTime } from "./jma/amedas.js";
+import { loadAmedasChartDisplay, saveAmedasChartDisplay } from "./preferences/amedasChart.js";
 import { fetchWarningDetails, fetchWarningMap } from "./jma/warnings.js";
 import { fetchTyphoonList } from "./jma/typhoon.js";
 import {
@@ -88,7 +92,7 @@ import {
 } from "./jma/hypocenterDistribution.js";
 import {
   EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT,
-  getJmaLatestAvailableDate,
+  getEarthquakeHistoryLatestDate,
   searchEarthquakeHistory
 } from "./jma/earthquakeHistory.js";
 import { fetchEarthquakeHistoryEvent } from "./jma/earthquakeHistoryDetail.js";
@@ -266,6 +270,7 @@ export function createWeatherApp() {
   let earlyAccessEnabled = false;
   let earlyAccessRequestId = 0;
   let amedasDailyChartDayOffset = 0;
+  let amedasChartDisplay = loadAmedasChartDisplay();
   let amedasDailyChart = { status: "idle", stationId: "", stationName: "", metricId: "", precipitationPeriod: activeAmedasPrecipitationPeriod, dayOffset: 0, data: null };
   let amedasDailyChartRequestId = 0;
   let activeWarningView = "status";
@@ -327,6 +332,7 @@ export function createWeatherApp() {
   let earthquakeDistribution3DEnabled = loadOptionalLayerVisibility("earthquake-3d");
   let earthquakeDistributionRecentXmlVisible =
     loadEarthquakeDistributionRecentXmlVisibility();
+  let earthquakeHistoryRecentEnabled = loadEarthquakeHistoryRecentEnabled();
   let earthquakeDistributionFilters = {
     dayOffset: 0,
     minMagnitude: "0",
@@ -1004,7 +1010,8 @@ export function createWeatherApp() {
       earthquakeView = "recent";
       if (activeTab === "earthquake") updateCurrentView(TABS.find((item) => item.id === "earthquake"), latestDataByTab.earthquake ?? {});
     }
-    if (!earlyAccessEnabled && amedasDailyChartDayOffset === 1) {
+    if ((!earlyAccessEnabled && amedasDailyChartDayOffset === 1)
+      || amedasDailyChart.displayMode !== getAmedasChartDisplayMode()) {
       amedasDailyChartDayOffset = 0;
       const selectedPoint = findAmedasStation(selectedAmedasStationId);
       if (selectedPoint) void loadAmedasDailyChart(selectedPoint, activeAmedasMetric, 0);
@@ -1475,7 +1482,7 @@ if (layerId === "river") {
     const earthquake = latestDataByTab.earthquake?.earthquakes?.find((item) => String(item.id) === String(earthquakeId));
     const coordinates = earthquake?.coordinates?.map(Number);
     if (!earthquake || !Array.isArray(coordinates) || coordinates.length !== 2 || !coordinates.every(Number.isFinite)) return;
-    const endDate = getJmaLatestAvailableDate();
+    const endDate = getEarthquakeHistoryLatestDate(earthquakeHistoryRecentEnabled);
     earthquakeArchiveListVisibleCount = EARTHQUAKE_HISTORY_LIST_VISIBLE_LIMIT;
     selectedHistoricalEarthquakeId = "";
     earthquakeArchiveFilters = {
@@ -1843,6 +1850,7 @@ if (layerId === "river") {
     try {
       const data = await searchEarthquakeHistory(earthquakeArchiveFilters, {
         signal,
+        includeRecent: earthquakeHistoryRecentEnabled,
         onProgress: (partialData) => {
           if (requestId !== earthquakeArchiveRequestId) return;
           earthquakeArchiveFilters = partialData.filters;
@@ -1933,7 +1941,9 @@ if (layerId === "river") {
     selectedHistoricalEarthquakeDetail = { id, status: "loading", event: null, error: "" };
     if (isEarthquakeArchiveVisible()) updateCurrentView(TABS.find((candidate) => candidate.id === "earthquake"), latestDataByTab.earthquake ?? {});
     try {
-      const event = await fetchEarthquakeHistoryEvent(id, { signal: controller.signal });
+      const event = item.dataSource === "p2p"
+        ? await fetchRecentEarthquakeDetail(item, { signal: controller.signal })
+        : await fetchEarthquakeHistoryEvent(id, { signal: controller.signal });
       if (requestId !== historicalEarthquakeDetailRequestId || controller.signal.aborted
         || selectedHistoricalEarthquakeId !== id || !historicalEarthquakeDetailVisible) return;
       selectedHistoricalEarthquakeDetail = { id, status: "ok", event, error: "" };
@@ -2072,6 +2082,23 @@ if (layerId === "river") {
     weatherMap?.clearHypocenterAreaSelection();
     earthquakeDistributionAreaDrawing = false;
     updateEarthquakeDistributionFilters({ areaPolygon: [] });
+  }
+
+  function setEarthquakeHistoryRecentEnabled(enabled) {
+    const previousLatest = getEarthquakeHistoryLatestDate(earthquakeHistoryRecentEnabled);
+    earthquakeHistoryRecentEnabled = saveEarthquakeHistoryRecentEnabled(enabled);
+    const latest = getEarthquakeHistoryLatestDate(earthquakeHistoryRecentEnabled);
+    if (earthquakeArchiveFilters.endDate === previousLatest) earthquakeArchiveFilters = { ...earthquakeArchiveFilters, endDate: latest };
+    resetHistoricalEarthquakeDetail();
+    selectedHistoricalEarthquakeId = "";
+    historicalEarthquakeDetailVisible = false;
+    refreshSettingsModalView();
+    if (earthquakeView === "history") void refreshEarthquakeArchive();
+    else {
+      earthquakeArchiveAbortController?.abort();
+      earthquakeArchiveRequestId += 1;
+      earthquakeArchiveState = { status: "idle", data: null, error: "" };
+    }
   }
 
   function setEarthquakeDistributionRecentXmlVisible(visible) {
@@ -2290,6 +2317,8 @@ if (layerId === "river") {
     dayOffset = amedasDailyChartDayOffset,
     precipitationPeriod = activeAmedasPrecipitationPeriod
   ) {
+    const displayMode = getAmedasChartDisplayMode();
+    if (displayMode === "continuous") dayOffset = 0;
     const requestId = ++amedasDailyChartRequestId;
     amedasDailyChart = {
       status: "loading",
@@ -2297,18 +2326,20 @@ if (layerId === "river") {
       stationName: point.name,
       metricId,
       precipitationPeriod,
+      displayMode,
       dayOffset,
       data: null
     };
     refreshAmedasPanel();
 
     try {
-      const data = await fetchAmedasDailySeries(
+      const data = await fetchAmedasChartSeries(
         point.id,
         latestDataByTab.amedas?.latestRawTime,
         metricId,
         dayOffset,
-        precipitationPeriod
+        precipitationPeriod,
+        displayMode
       );
       if (requestId !== amedasDailyChartRequestId) return;
       amedasDailyChart = {
@@ -2317,6 +2348,7 @@ if (layerId === "river") {
         stationName: point.name,
         metricId,
         precipitationPeriod,
+        displayMode,
         dayOffset,
         data
       };
@@ -2329,6 +2361,7 @@ if (layerId === "river") {
         stationName: point.name,
         metricId,
         precipitationPeriod,
+        displayMode,
         dayOffset,
         data: null
       };
@@ -2703,6 +2736,7 @@ if (layerId === "river") {
     const archiveData = {
       earthquakeArchiveAreaDrawing,
       earthquakeArchiveFilters,
+      earthquakeHistoryRecentEnabled,
       earthquakeArchiveStatus: earthquakeArchiveState.status,
       earthquakeArchiveError: earthquakeArchiveState.error,
       earthquakeArchive: earthquakeArchiveState.data,
@@ -4262,18 +4296,33 @@ if (layerId === "river") {
       languagePreference: localeController.getPreference(),
       terrainLayerSettings,
       observationColors: getObservationColors(),
+      amedasChartDisplay,
       earthquakeDistributionRecentXmlVisible,
+      earthquakeHistoryRecentEnabled,
       eewAutoFocusEnabled: eewAutoFocus.enabled,
       earlyAccessEnabled,
       earlyAccessState
     };
   }
 
+  function getAmedasChartDisplayMode() {
+    return earlyAccessEnabled ? amedasChartDisplay : "daily";
+  }
+
+  function setAmedasChartDisplay(value) {
+    amedasChartDisplay = saveAmedasChartDisplay(value);
+    amedasDailyChartDayOffset = 0;
+    const point = findAmedasStation(selectedAmedasStationId);
+    if (point) void loadAmedasDailyChart(point, activeAmedasMetric, 0);
+    else refreshAmedasPanel();
+  }
+
   function setTerrainLayerSettings(nextSettings) {
     terrainLayerSettings = {
       visible: nextSettings?.visible === true,
       opacity: normalizeTerrainLayerOpacity(nextSettings?.opacity ?? terrainLayerSettings.opacity),
-      colorMode: normalizeTerrainLayerColorMode(nextSettings?.colorMode ?? terrainLayerSettings.colorMode)
+      colorMode: normalizeTerrainLayerColorMode(nextSettings?.colorMode ?? terrainLayerSettings.colorMode),
+      coverage: normalizeTerrainCoverage(nextSettings?.coverage ?? terrainLayerSettings.coverage)
     };
     saveTerrainLayerSettings(terrainLayerSettings);
     weatherMap?.setTerrainLayer(terrainLayerSettings);
@@ -4742,6 +4791,7 @@ if (layerId === "river") {
       onThemeChange: (theme) => themeController.setPreference(theme),
       onLanguageChange: (language) => localeController.setPreference(language),
       onTerrainLayerChange: setTerrainLayerSettings,
+      onAmedasChartDisplayChange: setAmedasChartDisplay,
       onObservationColorsChange: (next) => {
         setObservationColors(next);
         applyLongPeriodColors(document.documentElement);
@@ -4751,6 +4801,7 @@ if (layerId === "river") {
       },
       onEarthquakeDistributionRecentXmlChange:
         setEarthquakeDistributionRecentXmlVisible,
+      onEarthquakeHistoryRecentChange: setEarthquakeHistoryRecentEnabled,
       onEewAutoFocusChange: (enabled) => eewAutoFocus.setEnabled(enabled),
       onRefreshEarlyAccess: refreshEarlyAccess,
       onOpenGuide: onboarding.open,

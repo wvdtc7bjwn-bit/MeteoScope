@@ -14,7 +14,7 @@ const TERRAIN_LAYER_SETTINGS_STORAGE_KEY = "meteoscope-terrain-layer-settings-v1
 const TERRAIN_LAYER_SETTINGS_SESSION_KEY = "meteoscope-terrain-layer-settings-session-v1";
 const OPTIONAL_LAYER_VISIBILITY_STORAGE_PREFIX = "meteoscope-layer-visible-v1:";
 const TERRAIN_LAYER_OPACITY_OPTIONS = [0.32, 0.48, 0.64];
-const DEFAULT_TERRAIN_LAYER_SETTINGS = Object.freeze({ visible: false, opacity: 0.48, colorMode: "color" });
+const DEFAULT_TERRAIN_LAYER_SETTINGS = Object.freeze({ visible: false, opacity: 0.48, colorMode: "color", coverage: "auto" });
 
 export function loadAmedasPrecipitationPeriod() {
   try {
@@ -47,12 +47,17 @@ export function loadTerrainLayerSettings() {
   return {
     visible: stored?.visible === true,
     opacity: normalizeTerrainLayerOpacity(stored?.opacity),
-    colorMode: normalizeTerrainLayerColorMode(stored?.colorMode)
+    colorMode: normalizeTerrainLayerColorMode(stored?.colorMode),
+    coverage: normalizeTerrainCoverage(stored?.coverage)
   };
 }
 
 export function normalizeTerrainLayerColorMode(value) {
   return value === "grayscale" ? "grayscale" : DEFAULT_TERRAIN_LAYER_SETTINGS.colorMode;
+}
+
+export function normalizeTerrainCoverage(value) {
+  return value === "japan" || value === "global" ? value : "auto";
 }
 
 function readTerrainLayerSettingsValue() {
@@ -84,7 +89,8 @@ export function saveTerrainLayerSettings(settings) {
   const serialized = JSON.stringify({
     visible: settings?.visible === true,
     opacity: normalizeTerrainLayerOpacity(settings?.opacity),
-    colorMode: normalizeTerrainLayerColorMode(settings?.colorMode)
+    colorMode: normalizeTerrainLayerColorMode(settings?.colorMode),
+    coverage: normalizeTerrainCoverage(settings?.coverage)
   });
   try {
     localStorage.setItem(TERRAIN_LAYER_SETTINGS_STORAGE_KEY, serialized);

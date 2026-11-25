@@ -10,7 +10,7 @@ import { summarizeEewAreaNames } from "../eew/eewSummaryAreas.js";
 import { renderFocalMechanism } from "./focalMechanism.js";
 import { renderLongPeriodGroundMotion, renderLongPeriodSummary } from "./longPeriodGroundMotion.js";
 import { bindAmedasChartInspection } from "./amedasChartInspection.js";
-import { AMEDAS_CHART_LAYOUT, AMEDAS_SUMMARY_CHART_LAYOUT, getAmedasChartAxis, splitAmedasChartSegments } from "../amedasChart.js";
+import { AMEDAS_CHART_LAYOUT, AMEDAS_SUMMARY_CHART_LAYOUT, formatAmedasChartDate, getAmedasChartAxis, splitAmedasChartSegments } from "../amedasChart.js";
 import {
   AMEDAS_LEVELS_BY_METRIC,
   AMEDAS_METRICS,
@@ -62,7 +62,7 @@ import {
   EARTHQUAKE_HISTORY_RESULT_LIMIT,
   EARTHQUAKE_HISTORY_SORT_OPTIONS,
   formatHistoricalIntensity,
-  getJmaLatestAvailableDate
+  getEarthquakeHistoryLatestDate
 } from "../jma/earthquakeHistory.js";
 import {
   HYPOCENTER_DEPTH_STOPS,
@@ -1490,7 +1490,7 @@ export function setupEarthquakeSelector({
       const form = archivePeriodButton.closest("form");
       if (!(form instanceof HTMLFormElement)) return;
       const range = getEarthquakeHistoryPresetRange(archivePeriodButton.dataset.earthquakeArchivePeriod,
-        form.elements.namedItem("endDate")?.value);
+        form.elements.namedItem("endDate")?.value, { includeRecent: form.dataset?.includeRecent === "true" });
       form.elements.namedItem("startDate").value = range.startDate;
       form.elements.namedItem("endDate").value = range.endDate;
       form.querySelectorAll("[data-earthquake-archive-period]").forEach(button => {
@@ -5628,12 +5628,14 @@ function renderAmedasDailyChart(tab, state, metric, root = document.getElementBy
 
   const chart = state.amedasDailyChart ?? { status: "idle" };
   const dayOffset = chart.dayOffset === 1 || state.amedasDailyChartDayOffset === 1 ? 1 : 0;
+  const continuous = chart.displayMode === "continuous";
+  const seriesDayOffset = continuous ? -1 : dayOffset;
   const precipitationPeriod = getAmedasPrecipitationPeriod(
     state.amedasPrecipitationPeriod ?? state.data?.precipitationPeriod
   );
   const chartDoesNotMatch = chart.metricId !== metric.id
     || (metric.id === "precipitation" && chart.precipitationPeriod !== precipitationPeriod.id);
-  const periodToggle = compact ? "" : `<div class="amedas-chart-toolbar"><h2>${getCurrentLanguage() === "en" ? "Station observations" : "地点の観測"}</h2>${state.earlyAccessEnabled && state.selectedAmedasStationId ? buildAmedasDailyChartPeriodToggle(dayOffset) : ""}</div>`;
+  const periodToggle = compact ? "" : `<div class="amedas-chart-toolbar"><h2>${getCurrentLanguage() === "en" ? "Station observations" : "地点の観測"}</h2>${!continuous && state.earlyAccessEnabled && state.selectedAmedasStationId ? buildAmedasDailyChartPeriodToggle(dayOffset) : ""}</div>`;
   if (!state.selectedAmedasStationId || chart.status === "idle" || chartDoesNotMatch) {
     root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${getCurrentLanguage() === "en" ? "Select a station on the map or in the ranking below to view its observations and daily trend." : `地図や下のランキングから観測点を選ぶと、${escapeHtml(getAmedasDailySeriesTitle(metric.id, 0, precipitationPeriod.id))}と推移を確認できます。`}</p>`;
     return;
@@ -5642,20 +5644,20 @@ function renderAmedasDailyChart(tab, state, metric, root = document.getElementBy
     // Retain the previous chart's footprint so the ranking below cannot jump
     // into its place while the replacement observation is fetched.
     root.style.minHeight = `${root.getBoundingClientRect().height}px`;
-    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(chart.stationName || "観測点")}の${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriod.id))}を読み込んでいます...</p>`;
+    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(chart.stationName || "観測点")}の${escapeHtml(getAmedasDailySeriesTitle(metric.id, seriesDayOffset, precipitationPeriod.id))}を読み込んでいます...</p>`;
     return;
   }
   root.style.minHeight = "";
   if (chart.status === "error") {
     revealAmedasChartAfterLoad = false;
-    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriod.id))}を取得できませんでした。</p>`;
+    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(getAmedasDailySeriesTitle(metric.id, seriesDayOffset, precipitationPeriod.id))}を取得できませんでした。</p>`;
     return;
   }
 
   const points = chart.data?.points ?? [];
   if (!points.length) {
     revealAmedasChartAfterLoad = false;
-    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">この観測点では${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriod.id))}を観測していません。</p>`;
+    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">この観測点では${escapeHtml(getAmedasDailySeriesTitle(metric.id, seriesDayOffset, precipitationPeriod.id))}を観測していません。</p>`;
     return;
   }
 
@@ -5671,9 +5673,9 @@ function renderAmedasDailyChart(tab, state, metric, root = document.getElementBy
     <div class="amedas-temperature-chart-head">
       <div>
         <strong>${escapeHtml(chart.stationName || "観測点")}</strong>
-        <span>${escapeHtml(getAmedasDailySeriesTitle(metric.id, dayOffset, precipitationPeriod.id))}</span>
+        <span>${escapeHtml(getAmedasDailySeriesTitle(metric.id, seriesDayOffset, precipitationPeriod.id))}</span>
       </div>
-      ${dayOffset === 0 ? `<div class="amedas-temperature-chart-current">
+      ${dayOffset === 0 && latest ? `<div class="amedas-temperature-chart-current">
         ${formatAmedasDailyColoredValue(latest?.value, metric, precipitationPeriod.id)}
         <span>${escapeHtml(latest?.label ?? "--:--")}${compact ? "" : (getCurrentLanguage() === "en" ? " observed" : " 観測")}</span>
       </div>` : ""}
@@ -5686,10 +5688,11 @@ function renderAmedasDailyChart(tab, state, metric, root = document.getElementBy
     ` : !compact && metric.id === "temperature" ? `
       <div class="amedas-temperature-chart-key amedas-temperature-reference-key" aria-label="気温グラフの凡例">
         <span>実況</span>
-        ${buildAmedasTemperatureNormalLegend(temperatureNormal, metric)}
+        ${buildAmedasTemperatureNormalLegend(temperatureNormal, metric, chart.data?.normalSegments)}
       </div>
     ` : ""}
-    ${buildAmedasDailyChartSvg(points, chart.data?.min, chart.data?.max, metric, dayOffset, precipitationPeriod.id, temperatureNormal, chartLayout, inspectionId)}
+    ${buildAmedasDailyChartSvg(points, chart.data?.min, chart.data?.max, metric, seriesDayOffset, precipitationPeriod.id, temperatureNormal, chartLayout, inspectionId, chart.data)}
+    ${chart.data?.unavailableDates?.length ? `<p class="amedas-temperature-chart-note">${escapeHtml(chart.data.unavailableDates.map(formatAmedasChartDate).join("・"))}${getCurrentLanguage() === "en" ? ": observations unavailable" : "の観測値を取得できませんでした。"}</p>` : ""}
     <div class="amedas-chart-inspection" id="${inspectionId}">
       <p class="amedas-chart-inspection-hint">${getCurrentLanguage() === "en" ? (compact ? "Trace to inspect observations" : "Trace the graph to inspect observations. Use arrow keys when focused.") : (compact ? "なぞって時刻ごとの観測値を確認" : "グラフをなぞると観測値を表示（キーボードは←→）")}</p>
       <div class="amedas-chart-inspection-reading" hidden aria-live="off"><time></time><strong></strong><small></small></div>
@@ -5707,6 +5710,7 @@ function renderAmedasDailyChart(tab, state, metric, root = document.getElementBy
   bindAmedasChartInspection(root, {
     points,
     layout: chartLayout,
+    rangeMinutes: chart.data?.rangeMinutes ?? 1440,
     formatValue: value => formatAmedasDailyValue(value, metric),
     windLabel: !compact && metric.id === "wind" ? (getCurrentLanguage() === "en" ? "Gust" : "最大瞬間") : ""
   });
@@ -5731,14 +5735,16 @@ function buildAmedasDailyChartPeriodToggle(dayOffset) {
   `;
 }
 
-function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset = 0, precipitationPeriodId = "1h", temperatureNormal = null, layout = AMEDAS_CHART_LAYOUT, inspectionId = "amedas-daily-chart-inspection") {
+function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset = 0, precipitationPeriodId = "1h", temperatureNormal = null, layout = AMEDAS_CHART_LAYOUT, inspectionId = "amedas-daily-chart-inspection", timeline = {}) {
   const { width, height, inset } = layout;
   const plotWidth = width - inset.left - inset.right;
   const plotHeight = height - inset.top - inset.bottom;
   const isPrecipitation = metric.id === "precipitation";
   const isRollingPrecipitation = isPrecipitation && precipitationPeriodId === "24h";
+  const rangeMinutes = timeline.rangeMinutes ?? 1440;
+  const normalSegments = temperatureNormal ? timeline.normalSegments ?? [] : [];
   const normalValues = metric.id === "temperature"
-    ? [temperatureNormal?.minimum, temperatureNormal?.maximum].filter(Number.isFinite)
+    ? [temperatureNormal?.minimum, temperatureNormal?.maximum, ...normalSegments.flatMap(segment => [segment.normal?.minimum, segment.normal?.maximum])].filter(Number.isFinite)
     : [];
   const chartMinimum = Math.min(...[minValue, ...normalValues].filter(Number.isFinite));
   const chartMaximum = Math.max(...[maxValue, ...normalValues].filter(Number.isFinite));
@@ -5749,7 +5755,7 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
     chartMinimum, Math.max(chartMaximum, gustMax), metric.id
   );
   const span = Math.max(Number.EPSILON, max - min);
-  const xFor = (minute) => inset.left + (Math.max(0, Math.min(1440, minute)) / 1440) * plotWidth;
+  const xFor = (minute) => inset.left + (Math.max(0, Math.min(rangeMinutes, minute)) / rangeMinutes) * plotWidth;
   const yFor = (value) => inset.top + ((max - value) / span) * plotHeight;
 
   const buildSegments = (valueKey) => splitAmedasChartSegments(points, valueKey, metric.id)
@@ -5761,16 +5767,22 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
     const y = yFor(value).toFixed(1);
     return `<g><line x1="${inset.left}" x2="${width - inset.right}" y1="${y}" y2="${y}"/><text x="${inset.left - 8}" y="${Number(y) + 4}" text-anchor="end">${formatAmedasDailyAxis(value, metric)}</text></g>`;
   }).join("");
-  const times = [0, 360, 720, 1080, 1440].map((minute) => {
+  const times = [0, 1, 2, 3, 4].map(index => {
+    const minute = index * rangeMinutes / 4;
     const x = xFor(minute).toFixed(1);
-    const label = minute === 1440 ? "24時" : `${String(minute / 60).padStart(2, "0")}時`;
-    return `<line x1="${x}" x2="${x}" y1="${inset.top}" y2="${height - inset.bottom}"/><text x="${x}" y="${height - 5}" text-anchor="middle">${getCurrentLanguage() === "en" ? label.replace("時", "") : label}</text>`;
+    const hour = minute === rangeMinutes ? 24 : (minute / 60) % 24;
+    const date = rangeMinutes === 2880 && minute % 1440 === 0 && minute < rangeMinutes
+      ? `${formatAmedasChartDate(timeline.dates?.[minute / 1440])} ` : "";
+    const label = `${date}${String(hour).padStart(2, "0")}${getCurrentLanguage() === "en" ? "" : "時"}`;
+    const anchor = index === 0 ? "start" : index === 4 ? "end" : "middle";
+    return `<line${rangeMinutes === 2880 && minute === 1440 ? ' class="amedas-chart-day-boundary"' : ""} x1="${x}" x2="${x}" y1="${inset.top}" y2="${height - inset.bottom}"/><text x="${x}" y="${height - 5}" text-anchor="${anchor}">${label}</text>`;
   }).join("");
   const shapes = isPrecipitation && !isRollingPrecipitation
     ? points.filter(point => Number.isFinite(point.value) && point.value > 0).map((point) => {
-      const x = xFor(point.minute) - 1.1;
+      const barWidth = Math.min(2.2, plotWidth * 10 / rangeMinutes * 0.9);
+      const x = xFor(point.minute) - barWidth / 2;
       const y = yFor(point.value);
-      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="2.2" height="${Math.max(1, inset.top + plotHeight - y).toFixed(1)}" rx="1.1"/>`;
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(2)}" height="${Math.max(1, inset.top + plotHeight - y).toFixed(1)}" rx="${(barWidth / 2).toFixed(2)}"/>`;
     }).join("")
     : segments.map((items) => metric.id === "snow" && items.length === 1
       ? `<circle cx="${items[0].split(",")[0]}" cy="${items[0].split(",")[1]}" r="2"/>`
@@ -5778,7 +5790,7 @@ function buildAmedasDailyChartSvg(points, minValue, maxValue, metric, dayOffset 
   const gustPaths = metric.id === "wind" && layout !== AMEDAS_SUMMARY_CHART_LAYOUT
     ? buildSegments("gust").map((items) => `<polyline points="${items.join(" ")}"/>`).join("")
     : "";
-  const referenceLines = buildAmedasTemperatureNormalLines(temperatureNormal, metric, inset, width, yFor);
+  const referenceLines = buildAmedasTemperatureNormalLines(temperatureNormal, metric, inset, width, yFor, normalSegments, xFor);
   const latestPoint = points.filter(point => Number.isFinite(point.value)).at(-1);
   const latestMarker = latestPoint && (!isPrecipitation || isRollingPrecipitation)
     ? `<circle class="amedas-chart-latest" cx="${xFor(latestPoint.minute).toFixed(1)}" cy="${yFor(latestPoint.value).toFixed(1)}" r="3.5"/>` : "";
@@ -5803,18 +5815,25 @@ function getRadarFrameKindLabel(frame) {
   return frame?.isForecast ? "予測" : "観測";
 }
 
-function buildAmedasTemperatureNormalLegend(normal, metric) {
-  return getAmedasTemperatureNormalEntries(normal).map(([kind, label, value]) => `
-    <span class="reference ${kind}">${label} ${formatAmedasDailyValue(value, metric)}</span>
-  `).join("");
+function buildAmedasTemperatureNormalLegend(normal, metric, segments = []) {
+  return getAmedasTemperatureNormalEntries(normal).map(([kind, label, value]) => {
+    const values = segments.map(segment => segment.normal?.[kind]).filter(Number.isFinite);
+    const low = values.length ? Math.min(...values) : value;
+    const high = values.length ? Math.max(...values) : value;
+    const reading = low === high ? formatAmedasDailyValue(low, metric) : `${low}〜${formatAmedasDailyValue(high, metric)}`;
+    return `<span class="reference ${kind}">${label} ${reading}</span>`;
+  }).join("");
 }
 
-function buildAmedasTemperatureNormalLines(normal, metric, inset, width, yFor) {
+function buildAmedasTemperatureNormalLines(normal, metric, inset, width, yFor, segments = [], xFor) {
   if (!normal || metric.id !== "temperature") return "";
-  return getAmedasTemperatureNormalEntries(normal).map(([kind, label, value]) => {
+  const ranges = segments.length ? segments : [{ normal }];
+  return ranges.map(segment => getAmedasTemperatureNormalEntries(segment.normal).map(([kind, label, value]) => {
     const y = yFor(value).toFixed(1);
-    return `<line class="${kind}" x1="${inset.left}" x2="${width - inset.right}" y1="${y}" y2="${y}"><title>${escapeHtml(`${label}気温 ${formatAmedasDailyValue(value, metric)} (${normal.period})`)}</title></line>`;
-  }).join("");
+    const x1 = Number.isFinite(segment.startMinute) ? xFor(segment.startMinute) : inset.left;
+    const x2 = Number.isFinite(segment.endMinute) ? xFor(segment.endMinute) : width - inset.right;
+    return `<line class="${kind}" x1="${x1}" x2="${x2}" y1="${y}" y2="${y}"><title>${escapeHtml(`${label}気温 ${formatAmedasDailyValue(value, metric)} (${segment.normal.period})`)}</title></line>`;
+  }).join("")).join("");
 }
 
 function getAmedasTemperatureNormalEntries(normal) {
@@ -5843,7 +5862,8 @@ function formatAmedasDailyColoredValue(value, metric, precipitationPeriodId = "1
 
 function getAmedasDailySeriesTitle(metricId, dayOffset = 0, precipitationPeriodId = "1h") {
   const isEnglish = getCurrentLanguage() === "en";
-  const dayLabel = dayOffset === 1 ? (isEnglish ? "Yesterday's" : "昨日の") : (isEnglish ? "Today's" : "今日の");
+  const dayLabel = dayOffset === -1 ? (isEnglish ? "Yesterday–today" : "昨日から今日の")
+    : dayOffset === 1 ? (isEnglish ? "Yesterday's" : "昨日の") : (isEnglish ? "Today's" : "今日の");
   if (metricId === "precipitation") {
     const period = getAmedasPrecipitationPeriod(precipitationPeriodId);
     if (period.id === "24h") {
@@ -6567,15 +6587,16 @@ function buildEarthquakeArchiveMarkup(data) {
   const manifest = snapshot?.manifest;
   const startDate = filters.startDate ?? manifest?.startDate ?? "";
   const endDate = filters.endDate ?? manifest?.endDate ?? "";
-  const latestDate = getJmaLatestAvailableDate();
+  const includeRecent = data.earthquakeHistoryRecentEnabled === true;
+  const latestDate = getEarthquakeHistoryLatestDate(includeRecent);
   const loading = status === "loading" || status === "refreshing";
   const nearby = filters.nearby;
   const activePeriod = startDate === EARTHQUAKE_HISTORY_EARLIEST_DATE ? "all"
-    : EARTHQUAKE_HISTORY_PERIOD_PRESETS.find(([preset]) => getEarthquakeHistoryPresetRange(preset, endDate).startDate === startDate)?.[0];
+    : EARTHQUAKE_HISTORY_PERIOD_PRESETS.find(([preset]) => getEarthquakeHistoryPresetRange(preset, endDate, { includeRecent }).startDate === startDate)?.[0];
   const form = `
-    <form class="earthquake-archive-search" data-earthquake-archive-form aria-label="過去の地震検索">
+    <form class="earthquake-archive-search" data-earthquake-archive-form data-include-recent="${includeRecent}" aria-label="過去の地震検索">
       <div class="earthquake-archive-head">
-        <div><strong>気象庁 震度データベース</strong><span>1919年〜公開済みの最新日・震度1以上を検索</span></div>
+        <div><strong>気象庁 震度データベース</strong><span>${includeRecent ? "1919年〜今日・最新情報はP2Pで補完" : "1919年〜公開済みの最新日・震度1以上を検索"}</span></div>
         <a href="https://www.data.jma.go.jp/eqdb/data/shindo/" target="_blank" rel="noopener noreferrer">気象庁 ↗</a>
       </div>
       <div class="earthquake-archive-periods earthquake-distribution-range-presets" role="group" aria-label="検索期間（終了日を基準）">
@@ -6645,7 +6666,9 @@ function buildEarthquakeArchiveMarkup(data) {
   `;
   const nearbyNotice = snapshot?.filters?.nearby
     ? `<p class="earthquake-archive-list-note">震源から半径${escapeHtml(snapshot.filters.nearby.radiusKm)}km以内を検索しています。</p>` : "";
-  const notices = `${nearbyNotice}${adjustedNotice}${progressNotice}${fallbackNotice}${missingNotice}${incompleteNotice}${cancelledNotice}`;
+  const supplementation = snapshot?.supplementation;
+  const supplementNotice = supplementation ? `<p class="earthquake-archive-list-note" role="status">${escapeHtml(formatArchiveDate(supplementation.startDate))}〜${escapeHtml(formatArchiveDate(supplementation.endDate))}：${supplementation.status === "loading" ? "P2P地震情報を取得中です。" : supplementation.status === "ok" ? "P2P地震情報で補完しています。気象庁の公開後に置き換えます。" : "P2Pの最新情報を一部取得できませんでした。取得済み分を表示しています。"} <a href="https://www.p2pquake.net/" target="_blank" rel="noopener noreferrer">P2P地震情報 ↗</a></p>` : "";
+  const notices = `${nearbyNotice}${supplementNotice}${adjustedNotice}${progressNotice}${fallbackNotice}${missingNotice}${incompleteNotice}${cancelledNotice}`;
   if (!items.length) return `${form}${notices}${resultHead}${loading ? `<div class="earthquake-empty" role="status">取得済みの期間から順次表示します。</div>` : `<div class="earthquake-empty">${snapshot?.complete ? "条件に一致する地震はありません。" : "取得済み分には条件に一致する地震がありません。"}</div>`}`;
   const list = visibleItems.map((item) => {
     const active = String(item.id) === selectedId;
@@ -6664,6 +6687,7 @@ function buildEarthquakeArchiveMarkup(data) {
     });
     return `
       <article class="earthquake-archive-item${active ? " active" : ""}">
+        ${item.dataSource === "p2p" ? `<span class="earthquake-archive-source">P2P補完</span>` : ""}
         <button type="button" class="earthquake-select-button earthquake-detail-button" data-earthquake-archive-id="${escapeHtml(item.id)}" aria-pressed="${active ? "true" : "false"}">
           ${summaryMarkup}
         </button>

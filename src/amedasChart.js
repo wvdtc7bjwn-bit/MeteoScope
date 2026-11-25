@@ -60,5 +60,38 @@ export function findNearestAmedasObservation(points, minute) {
 
 export const AMEDAS_SUMMARY_CHART_LAYOUT = Object.freeze({
   ...AMEDAS_CHART_LAYOUT, height: 68,
-  inset: Object.freeze({ ...AMEDAS_CHART_LAYOUT.inset, top: 5, bottom: 14, left: 34, right: 12 })
+  inset: Object.freeze({ ...AMEDAS_CHART_LAYOUT.inset, top: 5, bottom: 20, left: 34, right: 12 })
 });
+
+export function formatAmedasChartDate(date) {
+  return /^\d{8}$/.test(date ?? "") ? `${Number(date.slice(4, 6))}/${Number(date.slice(6, 8))}` : "";
+}
+
+// Shift yesterday onto the first half of one timeline; never fill missing data.
+export function combineAmedasDailySeries(yesterday, today, dates) {
+  const days = [yesterday, today];
+  const points = days.flatMap((day, index) => (day?.points ?? []).map(point => ({
+    ...point,
+    minute: point.minute + index * 1440,
+    label: `${formatAmedasChartDate(dates[index])} ${point.label}`,
+    gustLabel: point.gustLabel ? `${formatAmedasChartDate(dates[index])} ${point.gustLabel}` : null
+  }))).sort((a, b) => a.minute - b.minute);
+  const values = points.map(point => point.value).filter(Number.isFinite);
+  const gusts = points.filter(point => Number.isFinite(point.gust));
+  const maximumGust = gusts.reduce((maximum, point) => !maximum || point.gust > maximum.gust ? point : maximum, null);
+  return {
+    ...(today ?? yesterday),
+    displayMode: "continuous", dayOffset: 0, rangeMinutes: 2880,
+    date: dates[1], dates, points,
+    latest: today?.latest ?? null,
+    min: values.length ? Math.min(...values) : null,
+    max: values.length ? Math.max(...values) : null,
+    maxGust: maximumGust?.gust ?? null, maxGustLabel: maximumGust?.gustLabel ?? null,
+    temperatureNormal: today?.temperatureNormal ?? yesterday?.temperatureNormal ?? null,
+    normalSegments: days.map((day, index) => ({
+      startMinute: index * 1440, endMinute: (index + 1) * 1440,
+      normal: day?.temperatureNormal ?? null
+    })),
+    unavailableDates: days.flatMap((day, index) => day ? [] : [dates[index]])
+  };
+}

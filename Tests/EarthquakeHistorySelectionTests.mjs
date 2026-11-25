@@ -15,6 +15,7 @@ const context = vm.createContext({
   earthquakeNearbySearchActive: false, TABS: [{ id: "earthquake" }], latestDataByTab: {},
   earthquakeArchiveRenderFrame: null, earthquakeArchiveAbortController: null, earthquakeArchiveRequestId: 0,
   earthquakeArchiveFilters: {}, earthquakeArchiveState: { status: "ok", data: { items: [] } },
+  earthquakeHistoryRecentEnabled: true,
   historicalEarthquakeDetailController: null, historicalEarthquakeDetailRequestId: 0,
   historicalEarthquakeDetailVisible: false, selectedHistoricalEarthquakeId: "",
   selectedHistoricalEarthquakeDetail: { status: "idle" },
@@ -71,6 +72,15 @@ await settle();
 context.closeHistoricalEarthquakeDetail();
 context.selectHistoricalEarthquake("first");
 assert.equal(requests.length, 6, "successfully loaded detail may be reused");
+context.fetchRecentEarthquakeDetail = (item, { signal }) => {
+  const request = { id: item.id, signal, ...deferred() }; requests.push(request); return request.promise;
+};
+context.earthquakeArchiveState.data.items.push({ id: "p2p:recent", dataSource: "p2p", coordinates: [130,32] });
+context.selectHistoricalEarthquake("p2p:recent");
+assert.equal(requests.at(-1).id, "p2p:recent", "supplementary selection uses its own detail loader");
+requests.at(-1).resolve(observations);
+await settle();
+assert.equal(context.selectedHistoricalEarthquakeDetail.id, "p2p:recent");
 console.log("Earthquake history selection: new search, rapid selection, close, stale replies and supplementary retry passed");
 
 const panelSource = await readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8");
