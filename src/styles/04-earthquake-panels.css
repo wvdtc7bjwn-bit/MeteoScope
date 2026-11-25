@@ -535,10 +535,11 @@ focal-mechanism summary:focus-visible { outline: 2px solid #369bc6; outline-offs
 .earthquake-long-period summary { padding: 10px 0; font-size: 13px; cursor: pointer; }
 .earthquake-long-period details + details { border-top: 1px solid var(--line); }
 .long-period-class { display: inline-block; padding: 3px 7px; border-radius: 5px; background: var(--panel-strong); font-size: 12px; font-weight: 700; white-space: nowrap; }
-.long-period-class.grade-1 { background: #00a9e8; color: #081628; }
-.long-period-class.grade-2 { background: #f2dd00; color: #141414; }
-.long-period-class.grade-3 { background: #ed4c17; color: #fff; }
-.long-period-class.grade-4 { background: #a50082; color: #fff; }
+:is(.long-period-class, .mobile-dock-earthquake-long-period).grade-1 { background: var(--long-period-1-bg); color: var(--long-period-1-ink); }
+:is(.long-period-class, .mobile-dock-earthquake-long-period).grade-2 { background: var(--long-period-2-bg); color: var(--long-period-2-ink); }
+:is(.long-period-class, .mobile-dock-earthquake-long-period).grade-3 { background: var(--long-period-3-bg); color: var(--long-period-3-ink); }
+:is(.long-period-class, .mobile-dock-earthquake-long-period).grade-4 { background: var(--long-period-4-bg); color: var(--long-period-4-ink); }
+.mobile-dock-earthquake-long-period { padding: 1px 4px; border-radius: 3px; }
 .long-period-table-scroll { overflow-x: auto; }
 .earthquake-long-period table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .earthquake-long-period :is(th, td) { padding: 8px 4px; text-align: left; vertical-align: middle; border-bottom: 1px solid var(--line); }

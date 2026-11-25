@@ -3,6 +3,10 @@ import { loadLegalDocumentMarkup } from "./legalConsentModal.js";
 import { getDefaultTabOrder, normalizeTabOrder } from "./tabOrder.js";
 import { QuizRankingClient } from "../domain/quizRankingClient.js";
 import { getCurrentLanguage } from "./locale.js";
+import { createSettingsNavigator } from "./settingsNavigation.js";
+import { getEarthquakeIntensityColor } from "../config.js";
+import { renderAmedasColorLegend } from "./amedasColorLegend.js";
+import { getLongPeriodClassStyle } from "../earthquake/longPeriodGroundMotion.js";
 import changelogMarkdown from "../../CHANGELOG.md?raw";
 
 let settingsModalInitialized = false;
@@ -15,7 +19,7 @@ let settingsAccount = null;
 let settingsAccountAvailable = false;
 let settingsAccountBusy = false;
 let settingsAccountMode = "login";
-const settingsGroupAnimations = new WeakMap();
+let settingsNavigator = null;
 
 export function setupSettingsModal(options = {}) {
   settingsOptions = options;
@@ -25,6 +29,10 @@ export function setupSettingsModal(options = {}) {
   const button = document.getElementById("settings-button");
   const modal = document.getElementById("settings-modal");
   if (!button || !modal) return;
+  settingsNavigator = createSettingsNavigator(modal, { onOpenGroup(group) {
+    if (group.matches(".settings-changelog-group")) renderSettingsChangelog();
+    void renderSettingsLegalDocument(group);
+  } });
 
   button.addEventListener("click", openSettingsModal);
   modal.addEventListener("click", (event) => {
@@ -33,21 +41,10 @@ export function setupSettingsModal(options = {}) {
       closeSettingsModal();
       return;
     }
+    if (settingsNavigator.handleClick(event)) return;
 
     if (event.target.closest("[data-settings-filter-clear]")) {
       resetSettingsFilter({ focus: true });
-      return;
-    }
-
-    const quickAccessButton = event.target.closest("[data-settings-open-group]");
-    if (quickAccessButton) {
-      openSettingsGroup(quickAccessButton.dataset.settingsOpenGroup);
-      return;
-    }
-
-    const groupToggle = event.target.closest("[data-settings-group-toggle]");
-    if (groupToggle) {
-      toggleSettingsGroup(groupToggle);
       return;
     }
 
@@ -129,6 +126,14 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    const colorButton = event.target.closest("[data-settings-color-key]");
+    if (colorButton) {
+      if (colorButton.getAttribute("aria-checked") === "true") return;
+      settingsOptions.onObservationColorsChange?.({ [colorButton.dataset.settingsColorKey]: colorButton.dataset.settingsColorScheme });
+      renderSettingsObservationColors();
+      return;
+    }
+
     const themeButton = event.target.closest("[data-settings-theme]");
     if (themeButton) {
       settingsOptions.onThemeChange?.(themeButton.dataset.settingsTheme);
@@ -174,6 +179,10 @@ export function setupSettingsModal(options = {}) {
     filterSettingsGroups(event.currentTarget.value);
   });
 
+  modal.querySelectorAll("[data-settings-color-metric], [data-settings-color-period]").forEach(select => {
+    select.addEventListener("change", renderSettingsAmedasColorLegend);
+  });
+
   modal.addEventListener("submit", (event) => {
     if (!(event.target instanceof HTMLFormElement)) return;
     const accountForm = event.target.closest("[data-settings-account-form]");
@@ -210,6 +219,7 @@ export function refreshSettingsModalView() {
   renderSettingsEarthquake();
   renderSettingsTheme();
   renderSettingsTerrain();
+  renderSettingsObservationColors();
   renderSettingsLanguage();
   renderSettingsEarlyAccess();
   void renderSettingsAccount();
@@ -223,8 +233,7 @@ export function openSettingsModal() {
   modal.hidden = false;
   button?.setAttribute("aria-expanded", "true");
   document.body.classList.add("modal-open");
-  resetSettingsGroups();
-  resetSettingsFilter();
+  settingsNavigator.reset();
   setSettingsAccountMessage("");
   renderSettingsMyAreas();
   renderSettingsTabOrder();
@@ -232,6 +241,7 @@ export function openSettingsModal() {
   renderSettingsEarthquake();
   renderSettingsTheme();
   renderSettingsTerrain();
+  renderSettingsObservationColors();
   renderSettingsLanguage();
   renderSettingsEarlyAccess();
   void renderSettingsAccount();
@@ -247,12 +257,6 @@ function closeSettingsModal() {
   document.body.classList.remove("modal-open");
   selectedTabOrderId = null;
   resetSettingsFilter();
-}
-
-function resetSettingsGroups() {
-  document.querySelectorAll("#settings-modal .settings-group").forEach((group) => {
-    setSettingsGroupExpanded(group, false);
-  });
 }
 
 function renderSettingsEarthquake() {
@@ -274,17 +278,6 @@ function renderSettingsEarthquake() {
     "aria-label",
     `当日・前日の有感地震を${enabled ? "表示" : "非表示"}`
   );
-}
-
-function toggleSettingsGroup(toggle) {
-  const group = toggle.closest(".settings-group");
-  if (!group) return;
-  const expanded = toggle.getAttribute("aria-expanded") !== "true";
-  setSettingsGroupExpanded(group, expanded);
-  if (expanded) {
-    if (group.matches(".settings-changelog-group")) renderSettingsChangelog();
-    void renderSettingsLegalDocument(group);
-  }
 }
 
 async function renderSettingsLegalDocument(group) {
@@ -357,95 +350,35 @@ function renderSettingsChangelog() {
   container.dataset.rendered = "true";
 }
 
-function setSettingsGroupExpanded(group, expanded) {
-  const toggle = group.querySelector("[data-settings-group-toggle]");
-  const content = group.querySelector(".settings-group-content");
-  const previous = settingsGroupAnimations.get(group);
-  const startHeight = group.getBoundingClientRect().height;
-  if (previous) {
-    cancelAnimationFrame(previous.frame);
-    previous.animation?.cancel();
-    settingsGroupAnimations.delete(group);
-  }
-  const canAnimate = content && group.animate && startHeight && !group.hidden
-    && !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  if (canAnimate) {
-    // Hold the visible size before changing the layout, including rapid reversals.
-    group.style.height = `${startHeight}px`;
-    group.style.overflow = "hidden";
-  } else {
-    group.style.removeProperty("height");
-    group.style.removeProperty("overflow");
-  }
-  group.classList.toggle("is-expanded", expanded);
-  toggle?.setAttribute("aria-expanded", expanded ? "true" : "false");
-  if (!content) return;
-  content.inert = !expanded;
-  content.hidden = !expanded;
-  if (!canAnimate) return;
-
-  // Lazy content is ready by the next frame. Measure without exposing its
-  // natural height for a frame or letting the temporary measurement move scroll.
-  const state = { frame: 0, animation: null };
-  settingsGroupAnimations.set(group, state);
-  state.frame = requestAnimationFrame(() => {
-    if (settingsGroupAnimations.get(group) !== state) return;
-    const scroller = group.closest(".settings-modal-body");
-    const scrollTop = scroller?.scrollTop;
-    group.style.removeProperty("height");
-    const endHeight = group.getBoundingClientRect().height;
-    group.style.height = `${startHeight}px`;
-    content.hidden = false;
-    if (scroller) scroller.scrollTop = scrollTop;
-    state.animation = group.animate([
-      { height: `${startHeight}px` },
-      { height: `${endHeight}px` }
-    ], { duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)", fill: "both" });
-    state.animation.onfinish = () => {
-      if (settingsGroupAnimations.get(group) !== state) return;
-      content.hidden = !expanded;
-      state.animation.cancel();
-      group.style.removeProperty("height");
-      group.style.removeProperty("overflow");
-      settingsGroupAnimations.delete(group);
-    };
+function renderSettingsObservationColors() {
+  const preferences = settingsOptions.getState?.().observationColors ?? {};
+  document.querySelectorAll("[data-settings-color-key]").forEach(button => {
+    const active = button.dataset.settingsColorScheme === (preferences[button.dataset.settingsColorKey] ?? "meteoscope");
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-checked", String(active));
   });
+  const previews = {
+    intensity: ["1", "2", "3", "4", "5-", "5+", "6-", "6+", "7"].map(value => ({ label: `震度${value}`, color: getEarthquakeIntensityColor(value) })),
+    longPeriod: [1, 2, 3, 4].map(value => ({ label: `階級${value}`, color: getLongPeriodClassStyle(value).color }))
+  };
+  for (const [key, colors] of Object.entries(previews)) {
+    const preview = document.querySelector(`[data-settings-color-preview="${key}"]`);
+    if (preview) preview.innerHTML = colors.map(({ label, color }) => `<span title="${escapeHtml(label)}" style="background:${color}"></span>`).join("");
+  }
+  renderSettingsAmedasColorLegend();
 }
 
-function normalizeSettingsFilter(value) {
-  return String(value ?? "").trim().toLocaleLowerCase(getCurrentLanguage() === "en" ? "en" : "ja");
+function renderSettingsAmedasColorLegend() {
+  const metric = document.querySelector("[data-settings-color-metric]")?.value ?? "temperature";
+  const period = document.querySelector("[data-settings-color-period]")?.value ?? "1h";
+  const periodLabel = document.querySelector("[data-settings-color-period-label]");
+  if (periodLabel) periodLabel.hidden = metric !== "precipitation";
+  const legend = document.querySelector("[data-settings-amedas-legend]");
+  if (legend) legend.innerHTML = renderAmedasColorLegend(metric, period);
 }
 
 function filterSettingsGroups(value) {
-  const modal = document.getElementById("settings-modal");
-  if (!modal) return;
-  const query = normalizeSettingsFilter(value);
-  let visibleCount = 0;
-
-  modal.querySelectorAll(".settings-group").forEach((group) => {
-    const searchableText = [
-      group.querySelector(".settings-group-title-copy")?.textContent ?? "",
-      ...Array.from(group.querySelectorAll(".settings-group-content label, .settings-theme-help"), (element) => element.textContent ?? "")
-    ].join(" ");
-    const matches = !query || normalizeSettingsFilter(searchableText).includes(query);
-    group.hidden = !matches;
-    if (!matches) setSettingsGroupExpanded(group, false);
-    if (matches) visibleCount += 1;
-  });
-
-  modal.querySelectorAll("[data-settings-section-label]").forEach((label) => {
-    const section = label.dataset.settingsSectionLabel;
-    label.hidden = !Array.from(
-      modal.querySelectorAll(`.settings-group[data-settings-section="${section}"]`)
-    ).some((group) => !group.hidden);
-  });
-
-  const clearButton = modal.querySelector("[data-settings-filter-clear]");
-  const quickAccess = modal.querySelector(".settings-quick-access");
-  const emptyMessage = modal.querySelector("[data-settings-filter-empty]");
-  if (clearButton) clearButton.hidden = !query;
-  if (quickAccess) quickAccess.hidden = Boolean(query);
-  if (emptyMessage) emptyMessage.hidden = visibleCount > 0;
+  settingsNavigator?.search(value);
 }
 
 function resetSettingsFilter({ focus = false } = {}) {
@@ -453,29 +386,6 @@ function resetSettingsFilter({ focus = false } = {}) {
   if (input) input.value = "";
   filterSettingsGroups("");
   if (focus) input?.focus({ preventScroll: true });
-}
-
-function openSettingsGroup(groupClass) {
-  if (!groupClass) return;
-  resetSettingsFilter();
-  const group = document.querySelector(`#settings-modal .${groupClass}`);
-  if (!group) return;
-  document.querySelectorAll("#settings-modal .settings-group.is-expanded").forEach((otherGroup) => {
-    if (otherGroup !== group) setSettingsGroupExpanded(otherGroup, false);
-  });
-  setSettingsGroupExpanded(group, true);
-  if (group.matches(".settings-changelog-group")) renderSettingsChangelog();
-  void renderSettingsLegalDocument(group);
-  scrollSettingsGroupIntoView(group);
-}
-
-function scrollSettingsGroupIntoView(group) {
-  requestAnimationFrame(() => {
-    group.scrollIntoView({
-      block: "start",
-      behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"
-    });
-  });
 }
 
 function renderSettingsMyAreas() {

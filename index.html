@@ -318,9 +318,10 @@
       <div class="warning-modal-backdrop settings-modal-overlay" data-settings-modal-close></div>
       <section class="warning-modal-panel settings-modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
         <header class="settings-modal-header">
+          <button class="settings-navigation-back" type="button" data-settings-navigation-back hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7"/></svg><span>設定</span></button>
           <div class="settings-modal-heading">
             <h2 id="settings-modal-title">設定</h2>
-            <p>表示や通知、地域の設定をまとめて変更できます</p>
+            <p data-settings-navigation-description>表示や通知、地域の設定をまとめて変更できます</p>
           </div>
           <button class="warning-modal-close settings-modal-close" type="button" aria-label="閉じる" data-settings-modal-close>×</button>
         </header>
@@ -333,18 +334,9 @@
                 <button type="button" aria-label="検索をクリア" title="検索をクリア" data-settings-filter-clear hidden>×</button>
               </div>
             </label>
-            <div class="settings-quick-access" aria-label="よく使う設定">
-              <span>よく使う設定</span>
-              <div>
-                <button type="button" data-settings-open-group="settings-theme-group">外観</button>
-                <button type="button" data-settings-open-group="settings-language-group">言語</button>
-                <button type="button" data-settings-open-group="settings-my-area-group">マイエリア</button>
-                <button type="button" data-settings-open-group="settings-push-group">通知</button>
-              </div>
-            </div>
             <p class="settings-filter-empty" role="status" data-settings-filter-empty hidden>一致する設定がありません</p>
           </div>
-          <h3 class="settings-section-label" data-settings-section-label="account">アカウントと表示</h3>
+          <nav class="settings-navigation-list" data-settings-navigation-list aria-label="設定カテゴリ"></nav>
           <section class="settings-group settings-account-group" data-settings-section="account">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>MeteoScopeアカウント</strong><small>ログイン状態と登録情報</small></span></button>
             <div class="settings-group-content" hidden>
@@ -431,7 +423,6 @@
               <p id="settings-early-access-status" class="settings-early-access-status" role="status"></p>
             </div>
           </section>
-          <h3 class="settings-section-label" data-settings-section-label="area">地域と通知</h3>
           <section class="settings-group settings-my-area-group" data-settings-section="area">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>マイエリア</strong><small>よく見る地域を保存</small></span></button>
             <div class="settings-group-content" hidden>
@@ -459,7 +450,46 @@
               <p class="settings-push-note">Web版では気象警報・注意報をプッシュ通知しません。気象情報はアプリ画面と気象庁などの公式情報で確認してください。</p>
             </div>
           </section>
-          <h3 class="settings-section-label" data-settings-section-label="display">地図と表示</h3>
+          <section class="settings-group settings-observation-colors-group" data-settings-section="display">
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>データの配色</strong><small>AMeDAS・震度・長周期地震動階級</small></span></button>
+            <div class="settings-group-content" hidden>
+              <p class="settings-theme-help">項目ごとに配色を選べます。地図・凡例・パネルに反映し、この端末に保存します。</p>
+              <div class="settings-observation-color-row">
+                <strong>AMeDAS</strong>
+                <div class="settings-theme-options settings-color-options" role="radiogroup" aria-label="AMeDASの配色">
+                  <button type="button" role="radio" aria-checked="false" data-settings-color-key="amedas" data-settings-color-scheme="meteoscope">MeteoScope独自配色</button>
+                  <button type="button" role="radio" aria-checked="false" data-settings-color-key="amedas" data-settings-color-scheme="jma">気象庁配色</button>
+                </div>
+                <div class="settings-color-legend-controls">
+                  <label>観測項目<select data-settings-color-metric aria-label="凡例の観測項目">
+                    <option value="temperature">気温</option><option value="precipitation">降水量</option><option value="wind">風速</option><option value="humidity">湿度</option><option value="pressure">気圧</option><option value="snow">積雪量</option>
+                  </select></label>
+                  <label data-settings-color-period-label hidden>集計時間<select data-settings-color-period aria-label="凡例の降水時間">
+                    <option value="10m">10分</option><option value="1h" selected>1時間</option><option value="3h">3時間</option><option value="24h">24時間</option>
+                  </select></label>
+                </div>
+                <div data-settings-amedas-legend aria-live="polite"></div>
+              </div>
+              <div class="settings-observation-color-row">
+                <strong>地震の震度</strong>
+                <div class="settings-theme-options settings-color-options" role="radiogroup" aria-label="震度の配色">
+                  <button type="button" role="radio" aria-checked="false" data-settings-color-key="intensity" data-settings-color-scheme="meteoscope">MeteoScope独自配色</button>
+                  <button type="button" role="radio" aria-checked="false" data-settings-color-key="intensity" data-settings-color-scheme="jma">気象庁配色</button>
+                </div>
+                <div class="settings-color-preview" data-settings-color-preview="intensity" aria-label="震度の配色例"></div>
+              </div>
+              <div class="settings-observation-color-row">
+                <strong>長周期地震動階級</strong>
+                <div class="settings-theme-options settings-color-options" role="radiogroup" aria-label="長周期地震動階級の配色">
+                  <button type="button" role="radio" aria-checked="false" data-settings-color-key="longPeriod" data-settings-color-scheme="meteoscope">MeteoScope独自配色</button>
+                  <button type="button" role="radio" aria-checked="false" data-settings-color-key="longPeriod" data-settings-color-scheme="jma">気象庁配色</button>
+                </div>
+                <div class="settings-color-preview" data-settings-color-preview="longPeriod" aria-label="長周期地震動階級の配色例"></div>
+              </div>
+              <p class="settings-theme-help">気象庁配色のAMeDASは、気象庁の区分に合わせて色分けします。気圧には階級別配色がないため単色で表示します。</p>
+              <a href="https://www.jma.go.jp/jma/kishou/info/colorguide/HPColorGuide_202007.pdf" target="_blank" rel="noopener noreferrer">気象庁の配色指針 ↗</a>
+            </div>
+          </section>
           <section class="settings-group settings-terrain-group" data-settings-section="display">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>地形表示</strong><small>色別標高図と陰影起伏図</small></span></button>
             <div class="settings-group-content" hidden>
@@ -525,7 +555,6 @@
               </div>
             </div>
           </section>
-          <h3 class="settings-section-label" data-settings-section-label="support">サポート・情報</h3>
           <section class="settings-group settings-feedback-group" data-settings-section="support">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>サポート・ご意見</strong><small>使い方・不具合・改善要望を送信</small></span></button>
             <div class="settings-group-content" hidden>

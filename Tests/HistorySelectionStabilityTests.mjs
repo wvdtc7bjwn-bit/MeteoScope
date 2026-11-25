@@ -1,6 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import vm from "node:vm";
 import { updateHistorySelection } from "../src/ui/historySelection.js";
 
 let removedHeight = 0;
@@ -42,17 +40,4 @@ assert.equal(second.card.mechanism, retained);
 updateHistorySelection(root, "a", [{ id: "a" }, { id: "b" }], detail);
 assert.equal(second.card.longPeriod, null, "observations must not remain on the previously selected earthquake");
 
-const source = readFileSync(new URL("../src/ui/settingsModal.js", import.meta.url), "utf8");
-const calls = [];
-const group = { matches: () => false };
-const context = vm.createContext({
-  setSettingsGroupExpanded: (g, value) => calls.push(value),
-  renderSettingsLegalDocument: () => {}, renderSettingsChangelog: () => {},
-  document: { querySelectorAll() { throw new Error("must not collapse groups above the clicked heading"); } },
-  scrollSettingsGroupIntoView() { throw new Error("ordinary toggles must not force scroll"); }
-});
-vm.runInContext(source.slice(source.indexOf("function toggleSettingsGroup("), source.indexOf("async function renderSettingsLegalDocument(")), context);
-context.toggleSettingsGroup({ closest: () => group, getAttribute: () => "false" });
-context.toggleSettingsGroup({ closest: () => group, getAttribute: () => "true" });
-assert.deepEqual(calls, [true, false]);
-console.log("History selection and settings scroll stability tests passed");
+console.log("History selection scroll stability tests passed");

@@ -807,5 +807,5 @@ export function setupEarthquakeSimulation({ getMap, activate, canStart, onFrame,
     else if (!modal.hidden && core && !preparation) { lastValues = readForm(); renderForm(); }
     if (player) { const state = player.snapshot(); player.pause(); renderPlayback(); playback.querySelector("[data-simulation-seek]").max = state.duration; playback.querySelector("[data-simulation-speed]").value = state.speed; player.seek(state.elapsed); }
   });
-  return { stop, pause: () => player?.pause(), get active() { return Boolean(player || preparation || picking || !modal.hidden); } };
+  return { stop, pause: () => player?.pause(), refreshColors: () => { if (player) player.seek(player.snapshot().elapsed); }, get active() { return Boolean(player || preparation || picking || !modal.hidden); } };
 }

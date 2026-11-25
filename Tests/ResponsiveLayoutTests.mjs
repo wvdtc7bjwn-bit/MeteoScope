@@ -469,16 +469,14 @@ assert.match(index, /id="map-utility-menu-toggle"[\s\S]*?aria-controls="map-util
 assert.match(index, /id="map-utility-actions"[\s\S]*?id="disaster-quiz-button"[\s\S]*?id="weekly-weather-button"[\s\S]*?id="disaster-map-button"[\s\S]*?id="settings-button"/u);
 assert.equal((index.match(/id="settings-button"/gu) ?? []).length, 1, "設定ボタンを機能メニュー内だけに置く");
 assert.match(index, /data-settings-filter[^>]*>[\s\S]*?data-settings-filter-clear/u);
-assert.match(index, /data-settings-open-group="settings-theme-group"[\s\S]*?data-settings-open-group="settings-push-group"/u);
+assert.match(index, /data-settings-navigation-back/u);
+assert.match(index, /data-settings-navigation-list/u);
 for (const section of ["account", "area", "display", "support"]) {
-  assert.match(index, new RegExp(`data-settings-section-label="${section}"`, "u"));
   assert.match(index, new RegExp(`data-settings-section="${section}"`, "u"));
 }
-assert.match(settingsModal, /function filterSettingsGroups\(value\)/u);
-assert.match(settingsModal, /function openSettingsGroup\(groupClass\)/u);
-assert.match(settingsModal, /\.settings-group\.is-expanded[\s\S]*?otherGroup !== group[\s\S]*?setSettingsGroupExpanded\(otherGroup, false\)/u);
+assert.match(settingsModal, /createSettingsNavigator\(modal/u);
 assert.match(styles, /\.settings-filter input\s*\{[\s\S]*?height:\s*44px;/u);
-assert.match(styles, /\.settings-group-toggle\s*\{[\s\S]*?min-height:\s*54px;/u);
+assert.match(styles, /\.settings-navigation-row\s*\{[\s\S]*?min-height:\s*64px;/u);
 assert.match(styles, /\.map-settings-open-button::before\s*\{[\s\S]*?mask:/u);
 assert.match(styles, /\.map-utility-actions\s*\{[\s\S]*?display:\s*flex;[\s\S]*?gap:\s*8px;/u);
 assert.match(styles, /\.map-utility-actions\[hidden\]\s*\{[\s\S]*?display:\s*none;/u);

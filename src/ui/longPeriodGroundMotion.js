@@ -12,7 +12,7 @@ export function renderLongPeriodSummary(report) {
   const grade = normalizeLongPeriodClass(report?.maxClass);
   if (report?.status === "cancelled" || grade === null || grade < 1) return "";
   const label = `${localizeText("長周期地震動")} ${localizeText("最大階級")}${grade}`;
-  return `<span class="mobile-dock-earthquake-long-period" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${text("最大階級")}${grade}</span>`;
+  return `<span class="mobile-dock-earthquake-long-period grade-${grade}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${text("最大階級")}${grade}</span>`;
 }
 
 export function renderLongPeriodGroundMotion(report) {

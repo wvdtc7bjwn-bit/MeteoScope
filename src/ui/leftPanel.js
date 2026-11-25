@@ -17,6 +17,7 @@ import {
   AMEDAS_PRECIPITATION_LEVELS,
   EARTHQUAKE_INTENSITY_LEVELS,
   getAmedasObservationColor,
+  getAmedasDisplayLevels,
   getEarthquakeIntensityColor,
   getEarthquakeIntensityTextClass,
   KIKIKURU_LAYER_OPTIONS,
@@ -24,7 +25,6 @@ import {
 } from "../config.js";
 import {
   AMEDAS_PRECIPITATION_PERIODS,
-  getAmedasPrecipitationLevels,
   getAmedasPrecipitationPeriod
 } from "../amedasPrecipitationPeriod.js";
 import { getDistanceKm } from "../location/distance.js";
@@ -2096,7 +2096,7 @@ function buildLegendItems(tabId, amedasMetricId, warningView = "status", data = 
       ];
     }
     if (data?.weatherDistributionMode === "temperature") {
-      return getAmedasLevels("temperature").map((level) => [level.label, "", level.color]);
+      return AMEDAS_LEVELS_BY_METRIC.temperature.map((level) => [level.label, "", level.color]);
     }
     if (data?.weatherDistributionMode === "weather") {
       return [
@@ -2271,7 +2271,7 @@ function renderAmedasSubTabs(tab, activeMetricId) {
 
 function buildAmedasPrecipitationLegend(periodId) {
   const period = getAmedasPrecipitationPeriod(periodId);
-  const levels = getAmedasPrecipitationLevels(period.id);
+  const levels = getAmedasDisplayLevels("precipitation", period.id);
   const isEnglish = getCurrentLanguage() === "en";
   const periodLabel = isEnglish ? period.primary : period.label;
   const title = isEnglish ? `${periodLabel} precipitation` : `${periodLabel}降水量`;
@@ -5968,7 +5968,7 @@ function formatAmedasRankingClock(value) {
 }
 
 function getAmedasLevels(metricId) {
-  return AMEDAS_LEVELS_BY_METRIC[metricId] ?? [];
+  return getAmedasDisplayLevels(metricId) ?? [];
 }
 
 function buildWorldTyphoonModelDetails(layer) {

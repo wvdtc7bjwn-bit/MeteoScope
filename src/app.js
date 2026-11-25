@@ -41,6 +41,8 @@ import { setupJmaDisasterArchiveModal } from "./ui/jmaDisasterArchiveModal.js";
 import { setupOnboardingModal } from "./ui/onboardingModal.js";
 import { setupLegalConsentModal } from "./ui/legalConsentModal.js";
 import { openSettingsModal, refreshSettingsModalView, setupSettingsModal } from "./ui/settingsModal.js";
+import { getObservationColors, setObservationColors } from "./preferences/observationColors.js";
+import { applyLongPeriodColors } from "./earthquake/longPeriodGroundMotion.js";
 import { startClock } from "./ui/time.js";
 import { createCurrentLocationWeather } from "./ui/currentLocationWeather.js";
 import { setupClockDisplayMode } from "./ui/clockDisplayMode.js";
@@ -247,6 +249,7 @@ async function fetchWarningTabData(options = {}) {
 }
 
 export function createWeatherApp() {
+  applyLongPeriodColors(document.documentElement);
   const localeController = setupLocale();
   const themeController = setupTheme();
   let terrainLayerSettings = loadTerrainLayerSettings();
@@ -4254,6 +4257,7 @@ if (layerId === "river") {
       themePreference: themeController.getPreference(),
       languagePreference: localeController.getPreference(),
       terrainLayerSettings,
+      observationColors: getObservationColors(),
       earthquakeDistributionRecentXmlVisible,
       eewAutoFocusEnabled: eewAutoFocus.enabled,
       earlyAccessEnabled,
@@ -4734,6 +4738,13 @@ if (layerId === "river") {
       onThemeChange: (theme) => themeController.setPreference(theme),
       onLanguageChange: (language) => localeController.setPreference(language),
       onTerrainLayerChange: setTerrainLayerSettings,
+      onObservationColorsChange: (next) => {
+        setObservationColors(next);
+        applyLongPeriodColors(document.documentElement);
+        if (next.intensity) weatherMap?.refreshObservationColors();
+        refreshActivePanel();
+        if (next.intensity) simulationController?.refreshColors();
+      },
       onEarthquakeDistributionRecentXmlChange:
         setEarthquakeDistributionRecentXmlVisible,
       onEewAutoFocusChange: (enabled) => eewAutoFocus.setEnabled(enabled),

@@ -1,3 +1,23 @@
+import { getObservationColorScheme } from "../preferences/observationColors.js";
+import { JMA_LONG_PERIOD_COLORS } from "../jma/observationColors.js";
+
+const METEOSCOPE_COLORS = { 1: "#00a9e8", 2: "#f2dd00", 3: "#ed4c17", 4: "#a50082" };
+export function getLongPeriodClassStyle(value) {
+  const jma = getObservationColorScheme("longPeriod") === "jma";
+  const grade = normalizeLongPeriodClass(value);
+  return { color: (jma ? JMA_LONG_PERIOD_COLORS : METEOSCOPE_COLORS)[grade] ?? null,
+    textColor: grade === 1 ? (jma ? "#ffffff" : "#081628") : grade === 2 ? "#141414" : "#ffffff" };
+}
+
+// CSS variables also update badges retained in an expanded history card.
+export function applyLongPeriodColors(root) {
+  for (let grade = 1; grade <= 4; grade++) {
+    const style = getLongPeriodClassStyle(grade);
+    root.style.setProperty(`--long-period-${grade}-bg`, style.color);
+    root.style.setProperty(`--long-period-${grade}-ink`, style.textColor);
+  }
+}
+
 // Long-period observations are a separate JMA product, not a seismic-intensity report.
 export function normalizeLongPeriodClass(value) {
   const text = String(value ?? "").trim();

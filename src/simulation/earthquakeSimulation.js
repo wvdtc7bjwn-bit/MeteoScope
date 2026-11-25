@@ -1,5 +1,6 @@
 import { FAULT_MODEL_PRESETS, NANKAI_RUPTURE_CASES } from "./faultPresets.js";
 import { classifyIntensity, createWeSimulatorModel } from "./weSimulatorModel.js";
+import { getObservationColorScheme } from "../preferences/observationColors.js";
 import { getTravelTimesByJma2001 } from "../eew/jma2001TravelTime.js";
 import { getDistanceKm } from "../location/distance.js";
 import { estimateSimulationIntensity, MAX_REFERENCE_INTENSITY_DEPTH_KM } from "./intensityModel.js";
@@ -204,6 +205,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
     options, sources, stations, duration, name, reports, groundCoverage, scenarioCoverage, intensityEstimateAvailable, deepApproximation, detectionStationCount: offshoreDetectors.length,
     frame(elapsedSeconds, { intensityDisplay = "current", renderOnly = false } = {}) {
       const elapsed = Math.max(0, Math.min(duration, elapsedSeconds));
+      const paletteBit = getObservationColorScheme("intensity") === "jma" ? 1 << 15 : 0;
       const features = stations.map((station, index) => {
         const shaking = model.getCurrentIntensityProperties(station, elapsed);
         const recordedClass = Number.isFinite(station.predictedIntensityValue) ? classifyIntensity(shaking.recordedIntensityValue) : null;
@@ -213,7 +215,7 @@ export async function prepareEarthquakeSimulation(input, rawStations, { signal, 
         // These ranks/flags determine every dynamic rendered property. Compare
         // them before allocating objects; numerical detail remains uncached.
         const key = display.rank | (shaking.intensityRank << 4) | ((recordedClass?.rank ?? 0) << 8)
-          | (Number(shaking.observed) << 12) | (Number(shaking.settled) << 13) | (Number(shaking.waveState === "s") << 14);
+          | (Number(shaking.observed) << 12) | (Number(shaking.settled) << 13) | (Number(shaking.waveState === "s") << 14) | paletteBit;
         if (renderOnly && renderCache[index] && renderKeys[index] === key) return renderCache[index];
         const dynamic = {
           intensity: shaking.observed ? display.label : "0", currentIntensity: shaking.observed ? shaking.intensityLabel : "0",

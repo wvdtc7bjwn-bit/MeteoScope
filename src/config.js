@@ -1,4 +1,6 @@
 import { getAmedasPrecipitationLevels } from "./amedasPrecipitationPeriod.js";
+import { getObservationColorScheme } from "./preferences/observationColors.js";
+import { JMA_AMEDAS_LEVELS, JMA_PRECIPITATION_LEVELS } from "./jma/observationColors.js";
 
 export { JMA_WARNING_OFFICE_CODES } from "./jma/warningOfficeCodes.js";
 export {
@@ -169,7 +171,11 @@ export const AMEDAS_TEMPERATURE_LEVELS = [
   { min: 5, label: "5〜10", color: "#16e7dc" },
   { min: 0, label: "0〜5", color: "#17a9f5" },
   { min: -5, label: "-5〜0", color: "#0b22ff" },
-  { min: -Infinity, label: "-5未満", color: "#2510b8" }
+  { min: -10, label: "-10〜-5", color: "#2510b8" },
+  { min: -15, label: "-15〜-10", color: "#5141c2" },
+  { min: -20, label: "-20〜-15", color: "#8b7ad8" },
+  { min: -25, label: "-25〜-20", color: "#c6bdef" },
+  { min: -Infinity, label: "-25未満", color: "#c6bdef" }
 ];
 
 export const AMEDAS_WIND_LEVELS = [
@@ -223,13 +229,27 @@ export const AMEDAS_LEVELS_BY_METRIC = {
   snow: AMEDAS_SNOW_LEVELS
 };
 
-export function getAmedasObservationColor(metricId, value, precipitationPeriodId = "1h") {
-  const levels = metricId === "precipitation"
+export function getAmedasDisplayLevels(metricId, precipitationPeriodId = "1h", scheme = getObservationColorScheme("amedas")) {
+  if (scheme === "jma") {
+    return metricId === "precipitation"
+      ? JMA_PRECIPITATION_LEVELS[precipitationPeriodId] ?? JMA_PRECIPITATION_LEVELS["1h"]
+      : JMA_AMEDAS_LEVELS[metricId] ?? [];
+  }
+  return metricId === "precipitation"
     ? getAmedasPrecipitationLevels(precipitationPeriodId)
     : AMEDAS_LEVELS_BY_METRIC[metricId];
+}
+
+export function getAmedasObservationColor(metricId, value, precipitationPeriodId = "1h") {
+  const levels = getAmedasDisplayLevels(metricId, precipitationPeriodId);
   if (!levels) return "#d8e6f7";
-  if (metricId === "precipitation" || metricId === "snow") return getDiscreteAmedasLevelColor(levels, value);
+  if (!isAmedasColorGradient(metricId)) return getDiscreteAmedasLevelColor(levels, value);
   return interpolateAmedasLevelColor(levels, value);
+}
+
+export function isAmedasColorGradient(metricId, scheme = getObservationColorScheme("amedas")) {
+  return scheme === "meteoscope"
+    && ["temperature", "wind", "humidity", "pressure"].includes(metricId);
 }
 
 function getDiscreteAmedasLevelColor(levels, value) {

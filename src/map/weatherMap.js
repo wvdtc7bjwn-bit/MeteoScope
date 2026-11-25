@@ -1,5 +1,6 @@
 import { RAIN_RADAR_ZOOM_LEVELS } from "./radarRasterLevels.js";
 import { AMEDAS_DOT_LAYER_ID, AMEDAS_MORPH_LAYER_ID, AMEDAS_DOT_RADIUS, AMEDAS_MARKER_OUTLINE_COLOR, AMEDAS_MARKER_OUTLINE_WIDTH, getAmedasValueMarkerId, setupAmedasValueMarkerImages, syncAmedasValueMarkerVisibility, isAmedasMarkerLayerActive } from "./amedasValueMarker.js";
+import { getObservationColorScheme } from "../preferences/observationColors.js";
 import { calculateFocusPadding, createViewportFocus } from "./focusViewport.js";
 import { createEarthquakeCoordinateRange } from "../earthquake/coordinateRange.js";
 import { VECTOR_BASE_MAP_ENABLED, registerBaseMapProtocol, createMunicipalitySource, baseMapSourceLayer, municipalityStateTarget } from "./baseMapTiles.js";
@@ -3211,6 +3212,13 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     map.setPaintProperty("eew-hypocenter-cross", "text-opacity", opacity);
   }
 
+  function refreshObservationColors() {
+    recentEarthquakeCollectionCache = null;
+    if (!map?.getSource(SAMPLE_SOURCE_ID)) return;
+    setupEarthquakeStationIntensityMarkerImage(map, true);
+    setEmergencyEarthquakeWarnings(activeEews);
+  }
+
   function setTheme(theme) {
     activeTheme = theme === "light" ? "light" : "dark";
     applyMapTheme(map, activeTheme);
@@ -3225,7 +3233,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   function pickSimulationEpicenter(onPick) { return simulationOverlay.pick(onPick); }
   function cancelSimulationEpicenterPick() { simulationOverlay.cancelPick(); }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarnings, setEarthquakeSimulationFrame, pickSimulationEpicenter, cancelSimulationEpicenterPick, whenCameraIdle, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, setSimulationCameraInteractionHandler, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarnings, setEarthquakeSimulationFrame, pickSimulationEpicenter, cancelSimulationEpicenterPick, whenCameraIdle, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, setSimulationCameraInteractionHandler, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection, refreshObservationColors };
 }
 
 function normalizeTerrainOpacity(value) {
@@ -3936,11 +3944,11 @@ function setupEarthquakeAreaIntensityMarkerImage(map) {
   );
 }
 
-function setupEarthquakeStationIntensityMarkerImage(map) {
+function setupEarthquakeStationIntensityMarkerImage(map, replace = false) {
   const levels = [...EARTHQUAKE_INTENSITY_LEVELS, { value: "unknown", color: "#4b5563" }];
   for (const level of levels) {
     const imageId = `${EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID}${level.value}`;
-    if (map.hasImage(imageId)) continue;
+    if (map.hasImage(imageId) && !replace) continue;
     const size = 64;
     const canvas = document.createElement("canvas");
     canvas.width = size;
@@ -3961,7 +3969,9 @@ function setupEarthquakeStationIntensityMarkerImage(map) {
       context.textBaseline = "middle";
       context.fillText(formatEarthquakeIntensityMarkerText(level.value), size / 2, size / 2, 48);
     }
-    map.addImage(imageId, context.getImageData(0, 0, size, size));
+    const image = context.getImageData(0, 0, size, size);
+    if (map.hasImage(imageId)) map.updateImage(imageId, image);
+    else map.addImage(imageId, image);
   }
 }
 
@@ -4583,7 +4593,7 @@ function updateEstimatedIntensityLayer(map, mode, data = {}) {
     && data?.estimatedIntensityVisible !== false
     && images.length > 0;
   const key = images.length > 0
-    ? `${earthquake.estimatedIntensity.id}:${images.map((image) => image.meshCode).join(",")}:palette-v1`
+    ? `${earthquake.estimatedIntensity.id}:${images.map((image) => image.meshCode).join(",")}:${getObservationColorScheme("intensity")}`
     : "";
   const current = estimatedIntensityLayerStateByMap.get(map);
 
@@ -4603,6 +4613,7 @@ function updateEstimatedIntensityLayer(map, mode, data = {}) {
   estimatedIntensityLayerStateByMap.delete(map);
   if (!shouldShow || !key || images.length === 0) return;
 
+  const scheme = getObservationColorScheme("intensity");
   const state = { key, entries: [], visible: shouldShow };
   estimatedIntensityLayerStateByMap.set(map, state);
   ensureEstimatedIntensityProtocol();
@@ -4614,7 +4625,7 @@ function updateEstimatedIntensityLayer(map, mode, data = {}) {
         const image = images[index];
         const sourceId = `${ESTIMATED_INTENSITY_SOURCE_PREFIX}-${index}`;
         const layerId = `${ESTIMATED_INTENSITY_LAYER_PREFIX}-${index}`;
-        const protocolKey = encodeURIComponent(image.url);
+        const protocolKey = encodeURIComponent(`${scheme}:${image.url}`);
         const protocolUrl = `${ESTIMATED_INTENSITY_PROTOCOL}://${protocolKey}`;
         estimatedIntensityImageDataByKey.set(protocolKey, imageData);
         removeMapLayerAndSource(map, layerId, sourceId);
@@ -5189,7 +5200,7 @@ function createAmedasFeatureCollection(data = {}) {
   if (!Array.isArray(points)) return EMPTY_GEOJSON;
 
   const metricId = data.activeMetric ?? "temperature";
-  const cacheKey = `${metricId}|${data.precipitationPeriod ?? ""}|${data.latestTime ?? ""}`;
+  const cacheKey = `${metricId}|${data.precipitationPeriod ?? ""}|${data.latestTime ?? ""}|${getObservationColorScheme("amedas")}`;
   let collections = amedasFeatureCollectionCache.get(points);
   const cached = collections?.get(cacheKey);
   if (cached) return cached;
@@ -5406,6 +5417,7 @@ function createEarthquakeFeatures(data) {
         ...feature,
         properties: {
           ...(feature.properties ?? {}),
+          color: getEarthquakeIntensityColor(feature.properties?.intensity),
           popup: `<strong>${escapePopup(feature.properties?.areaName ?? "細分区域")}</strong><br>最大震度 ${escapePopup(feature.properties?.intensityLabel ?? "不明")}`
         }
       }))
@@ -5493,7 +5505,7 @@ function createEarthquakeFeatures(data) {
     ...feature,
     properties: {
       ...(feature.properties ?? {}),
-      color: feature.properties?.color ?? getEarthquakeIntensityColor(feature.properties?.intensity),
+      color: getEarthquakeIntensityColor(feature.properties?.intensity),
       fillOpacity: feature.properties?.fillOpacity ?? 0.48,
       lineWidth: feature.properties?.lineWidth ?? 1.3
     }

@@ -1,20 +1,18 @@
 import { getEarthquakeIntensityColor, JMA_ENDPOINTS } from "../config.js";
 import { fetchJson } from "./jmaClient.js";
+import { getObservationColorScheme } from "../preferences/observationColors.js";
 
 const MATCH_TIME_TOLERANCE_MS = 2 * 60 * 1000;
 const MATCH_COORDINATE_TOLERANCE_DEGREES = 0.35;
 const RECOLORED_IMAGE_DATA_CACHE = new Map();
 const JMA_ESTIMATED_INTENSITY_PALETTE = [
-  { source: [250, 231, 151], target: getEarthquakeIntensityColor("4") },
-  { source: [255, 231, 0], target: getEarthquakeIntensityColor("5-") },
-  { source: [255, 154, 0], target: getEarthquakeIntensityColor("5+") },
-  { source: [255, 35, 0], target: getEarthquakeIntensityColor("6-") },
-  { source: [166, 0, 27], target: getEarthquakeIntensityColor("6+") },
-  { source: [181, 0, 104], target: getEarthquakeIntensityColor("7") }
-].map((entry) => ({
-  ...entry,
-  targetRgb: hexToRgb(entry.target)
-}));
+  { source: [250, 231, 151], intensity: "4" },
+  { source: [255, 231, 0], intensity: "5-" },
+  { source: [255, 154, 0], intensity: "5+" },
+  { source: [255, 35, 0], intensity: "6-" },
+  { source: [166, 0, 27], intensity: "6+" },
+  { source: [181, 0, 104], intensity: "7" }
+];
 
 export async function fetchEstimatedIntensityCatalog() {
   return fetchJson(JMA_ENDPOINTS.estimatedIntensityList, {
@@ -143,21 +141,26 @@ export function buildEstimatedIntensityImage(meshCode, eventDirectory, datum = 2
 export function getRecoloredEstimatedIntensityImageData(sourceUrl) {
   const url = String(sourceUrl ?? "").trim();
   if (!url) return Promise.resolve(null);
-  if (!RECOLORED_IMAGE_DATA_CACHE.has(url)) {
-    RECOLORED_IMAGE_DATA_CACHE.set(url, recolorEstimatedIntensityImage(url)
+  const scheme = getObservationColorScheme("intensity");
+  const key = `${scheme}:${url}`;
+  if (!RECOLORED_IMAGE_DATA_CACHE.has(key)) {
+    RECOLORED_IMAGE_DATA_CACHE.set(key, recolorEstimatedIntensityImage(url, scheme)
       .catch(() => null));
   }
-  return RECOLORED_IMAGE_DATA_CACHE.get(url);
+  return RECOLORED_IMAGE_DATA_CACHE.get(key);
 }
 
-export function recolorEstimatedIntensityPixels(pixelData) {
+export function recolorEstimatedIntensityPixels(pixelData, scheme = getObservationColorScheme("intensity")) {
   if (!pixelData || typeof pixelData.length !== "number") return pixelData;
+  // Resolve once per image, and capture the scheme across asynchronous fetches.
+  const palette = JMA_ESTIMATED_INTENSITY_PALETTE.map(entry => ({ ...entry,
+    targetRgb: hexToRgb(getEarthquakeIntensityColor(entry.intensity, scheme)) }));
   for (let index = 0; index + 3 < pixelData.length; index += 4) {
     if (pixelData[index + 3] === 0) continue;
     const paletteEntry = findNearestPaletteEntry(
       pixelData[index],
       pixelData[index + 1],
-      pixelData[index + 2]
+      pixelData[index + 2], palette
     );
     if (!paletteEntry?.targetRgb) continue;
     pixelData[index] = paletteEntry.targetRgb[0];
@@ -167,7 +170,7 @@ export function recolorEstimatedIntensityPixels(pixelData) {
   return pixelData;
 }
 
-async function recolorEstimatedIntensityImage(sourceUrl) {
+async function recolorEstimatedIntensityImage(sourceUrl, scheme) {
   if (typeof document === "undefined" || typeof createImageBitmap !== "function") {
     return null;
   }
@@ -183,7 +186,7 @@ async function recolorEstimatedIntensityImage(sourceUrl) {
   context.drawImage(bitmap, 0, 0);
   bitmap.close?.();
   const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-  recolorEstimatedIntensityPixels(imageData.data);
+  recolorEstimatedIntensityPixels(imageData.data, scheme);
   context.putImageData(imageData, 0, 0);
   const pngBlob = await canvasToBlob(canvas);
   return pngBlob ? pngBlob.arrayBuffer() : null;
@@ -195,10 +198,10 @@ function canvasToBlob(canvas) {
   });
 }
 
-function findNearestPaletteEntry(red, green, blue) {
+function findNearestPaletteEntry(red, green, blue, palette) {
   let nearest = null;
   let nearestDistance = Number.POSITIVE_INFINITY;
-  for (const entry of JMA_ESTIMATED_INTENSITY_PALETTE) {
+  for (const entry of palette) {
     const distance = ((red - entry.source[0]) ** 2)
       + ((green - entry.source[1]) ** 2)
       + ((blue - entry.source[2]) ** 2);

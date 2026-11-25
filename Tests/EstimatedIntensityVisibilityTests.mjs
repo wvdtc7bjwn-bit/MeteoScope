@@ -5,7 +5,9 @@ const source = readFileSync(new URL("../src/map/weatherMap.js", import.meta.url)
 const functionText = source.slice(source.indexOf("function updateEstimatedIntensityLayer("), source.indexOf("function ensureEstimatedIntensityProtocol("));
 const states = new WeakMap();
 let pending = [];
+let scheme = "meteoscope";
 const context = vm.createContext({
+  getObservationColorScheme: () => scheme,
   estimatedIntensityLayerStateByMap: states,
   estimatedIntensityImageDataByKey: new Map(),
   ESTIMATED_INTENSITY_SOURCE_PREFIX: "estimate-source",
@@ -39,4 +41,13 @@ render("recent"); render("history"); await settle();
 assert.equal(map.layers.size, 0, "画像取得中に過去へ切り替えても遅延描画しない");
 render("recent"); await settle();
 assert.equal(map.layers.get("estimate-layer-0").layout.visibility, "visible");
-console.log("Estimated intensity visibility: 7 scenarios passed.");
+scheme = "jma";
+render("recent");
+assert.equal(map.layers.size, 0, "old palette layers are removed before a replacement loads");
+scheme = "meteoscope";
+render("recent");
+await settle();
+assert.match(states.get(map).key, /meteoscope$/);
+assert.equal(map.layers.size, 1, "a superseded palette load cannot add a second layer");
+assert.equal(map.layers.get("estimate-layer-0").layout.visibility, "visible");
+console.log("Estimated intensity visibility, palette replacement and superseded image loads passed.");

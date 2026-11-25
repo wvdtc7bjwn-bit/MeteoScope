@@ -1,4 +1,7 @@
-export const EARTHQUAKE_INTENSITY_LEVELS = [
+import { getObservationColorScheme } from "./preferences/observationColors.js";
+import { JMA_INTENSITY_COLORS } from "./jma/observationColors.js";
+
+const METEOSCOPE_INTENSITY_LEVELS = [
   { value: "7", label: "震度7", color: "#420092", rank: 9 },
   { value: "6+", label: "震度6強", color: "#9e07cb", rank: 8 },
   { value: "6-", label: "震度6弱", color: "#c50886", rank: 7 },
@@ -14,6 +17,11 @@ export const EARTHQUAKE_INTENSITY_LEVELS = [
   { value: "1", label: "震度1", color: "#01aff9", rank: 1 }
 ];
 
+export const EARTHQUAKE_INTENSITY_LEVELS = METEOSCOPE_INTENSITY_LEVELS.map(level => ({
+  ...level,
+  get color() { return getEarthquakeIntensityColor(level.value); }
+}));
+
 export function getEarthquakeIntensityLevel(value) {
   return EARTHQUAKE_INTENSITY_LEVELS.find((level) => level.value === String(value));
 }
@@ -22,8 +30,9 @@ export function getEarthquakeIntensityLabel(value) {
   return getEarthquakeIntensityLevel(value)?.label ?? null;
 }
 
-export function getEarthquakeIntensityColor(value) {
-  return getEarthquakeIntensityLevel(value)?.color ?? "#4b5563";
+export function getEarthquakeIntensityColor(value, scheme = getObservationColorScheme("intensity")) {
+  return (scheme === "jma" ? JMA_INTENSITY_COLORS[String(value)]
+    : METEOSCOPE_INTENSITY_LEVELS.find(level => level.value === String(value))?.color) ?? "#4b5563";
 }
 
 export function getEarthquakeIntensityRank(value) {
@@ -33,6 +42,7 @@ export function getEarthquakeIntensityRank(value) {
 export function getEarthquakeIntensityTextClass(value) {
   const rank = getEarthquakeIntensityRank(value);
   if (rank === 0) return "is-bright-text";
+  if (getObservationColorScheme("intensity") === "jma") return rank === 3 || rank >= 7 ? "is-bright-text" : "is-dark-text";
   return rank >= 5 ? "is-bright-text" : "is-dark-text";
 }
 
@@ -49,6 +59,5 @@ export function formatEarthquakeIntensityMarkerText(value) {
 }
 
 export function getEarthquakeIntensityMarkerTextColor(value) {
-  const rank = getEarthquakeIntensityRank(normalizeEarthquakeIntensityCode(value));
-  return rank === 0 || rank >= 5 ? "#f8fbff" : "#07162b";
+  return getEarthquakeIntensityTextClass(normalizeEarthquakeIntensityCode(value)) === "is-bright-text" ? "#f8fbff" : "#07162b";
 }

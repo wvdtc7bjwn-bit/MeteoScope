@@ -1,6 +1,53 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+一般|General
+地図・表示|Map & Display
+地域・通知|Areas & Notifications
+アカウント|Account
+サポート・情報|Support & About
+外観・言語・表示切替|Appearance, language and tab order
+地形表示・防災マップ|Terrain and hazard maps
+地形表示・配色・防災マップ|Terrain, colors and hazard maps
+データの配色|Data colors
+観測項目|Observation metric
+集計時間|Accumulation period
+3時間|3 hours
+24時間|24 hours
+凡例の観測項目|Legend metric
+凡例の降水時間|Legend precipitation period
+色と値の対応|Colors and values
+上が高い値、下が低い値です。|Higher values at the top, lower values below.
+連続配色：値は色の目安です。|Continuous colors: values are reference points.
+色は値に応じて連続的に変わります。下の値は色の目安です。|Colors vary continuously with the value. The values below are reference points.
+値の区分ごとに色が変わります。|Colors change at the boundaries of each bin.
+この項目は単色で表示します。|This metric uses a single color.
+AMeDAS・震度・長周期地震動階級|AMeDAS, seismic intensity and long-period classes
+MeteoScope独自配色|MeteoScope colors
+気象庁配色|JMA colors
+AMeDASの配色|AMeDAS colors
+震度の配色|Seismic intensity colors
+長周期地震動階級の配色|Long-period ground-motion colors
+気温の配色例|Temperature color preview
+震度の配色例|Seismic intensity color preview
+長周期地震動階級の配色例|Long-period ground-motion color preview
+地震の震度|Seismic intensity
+項目ごとに配色を選べます。地図・凡例・パネルに反映し、この端末に保存します。|Choose colors for each product. They apply to maps, legends and panels, and are saved on this device.
+気象庁配色のAMeDASは、気象庁の区分に合わせて色分けします。気圧には階級別配色がないため単色で表示します。|JMA colors use JMA's AMeDAS bins. Pressure uses a single color because JMA has no classified pressure color scale.
+海面気圧（階級別配色なし）|Sea-level pressure (no classified color scale)
+気象庁の配色指針|JMA color guidelines
+気象庁の配色指針 ↗|JMA color guidelines ↗
+震央分布・緊急地震速報|Epicenter distribution and earthquake early warnings
+マイエリア・お知らせ通知|Saved areas and notifications
+使い方・ご意見・更新履歴|Help, feedback and update history
+設定カテゴリ|Settings categories
+設定の検索結果|Settings search results
+設定に戻る|Back to Settings
+一般に戻る|Back to General
+地図・表示に戻る|Back to Map & Display
+地域・通知に戻る|Back to Areas & Notifications
+サポート・情報に戻る|Back to Support & About
+検索結果に戻る|Back to Search results
 1本指やマウスで範囲を囲みます。2本指やホイールで拡大・縮小できます。|Trace the area with one finger or the mouse. Use two fingers or the wheel to zoom.
 更新が遅れています · 前回のデータを表示中|Updates delayed · Showing previous data
 オフライン · 情報が最新でない場合があります|Offline · Information may be out of date
