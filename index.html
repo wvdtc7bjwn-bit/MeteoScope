@@ -344,27 +344,36 @@
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>MeteoScopeアカウント</strong><small>ログイン状態と登録情報</small></span></button>
             <div class="settings-group-content" hidden>
               <section id="settings-account-card" class="settings-account-card" aria-label="MeteoScopeデジタルカード" hidden>
-                <svg class="settings-account-card-art" viewBox="0 0 480 300" fill="none" aria-hidden="true" focusable="false">
-                  <g stroke="currentColor" stroke-width="0.7">
-                    <circle cx="407" cy="144" r="106"/>
-                    <circle cx="407" cy="144" r="91"/>
-                    <circle cx="407" cy="144" r="60"/>
-                    <path d="M290 144h234M407 27v234M332 69l150 150M332 219 482 69"/>
-                    <path d="M407 38v7M460 52l-4 6M499 91l-6 4M513 144h-7M499 197l-6-4M460 236l-4-6M407 250v-7M354 236l4-6M315 197l6-4M301 144h7M315 91l6 4M354 52l4 6" stroke-width="1.4"/>
-                  </g>
-                  <path d="M407 144 459 52A106 106 0 0 1 513 144Z" fill="currentColor" opacity=".12"/>
-                  <path d="M407 144 459 52" stroke="currentColor" stroke-width="1.4"/>
-                  <circle cx="407" cy="144" r="3" fill="currentColor"/>
+                <svg class="settings-account-card-art" viewBox="0 0 512 512" aria-hidden="true" focusable="false">
+                  <defs>
+                    <filter id="settings-card-logo-outline" color-interpolation-filters="sRGB">
+                      <feColorMatrix type="saturate" values="0"/>
+                      <feComponentTransfer><feFuncR type="linear" slope="2" intercept="-.2"/><feFuncG type="linear" slope="2" intercept="-.2"/><feFuncB type="linear" slope="2" intercept="-.2"/></feComponentTransfer>
+                      <feColorMatrix type="luminanceToAlpha" result="logo"/>
+                      <feMorphology in="logo" operator="dilate" radius="1.3" result="outer"/>
+                      <feMorphology in="logo" operator="erode" radius="1.3" result="inner"/>
+                      <feComposite in="outer" in2="inner" operator="out" result="edge"/>
+                      <feFlood flood-color="white" result="ink"/>
+                      <feComposite in="ink" in2="edge" operator="in"/>
+                    </filter>
+                    <mask id="settings-card-logo-mask" x="0" y="0" width="512" height="512" maskUnits="userSpaceOnUse" style="mask-type: luminance">
+                      <image href="/icons/icon-512.png" width="512" height="512" filter="url(#settings-card-logo-outline)"/>
+                    </mask>
+                  </defs>
+                  <rect width="512" height="512" fill="currentColor" mask="url(#settings-card-logo-mask)"/>
                 </svg>
                 <div class="settings-account-card-top">
-                  <span class="settings-account-card-brand"><img src="/icons/icon-192.png" alt="" width="28" height="28">MeteoScope</span>
+                  <span class="settings-account-card-brand">MeteoScope</span>
                   <span class="settings-account-card-type">DIGITAL CARD</span>
                 </div>
                 <div class="settings-account-card-identity">
                   <span class="settings-profile-avatar"><img id="settings-profile-image" alt="アカウントのアイコン" hidden><span id="settings-profile-initial" aria-hidden="true" data-i18n-ignore></span></span>
-                  <div class="settings-account-card-holder"><strong id="settings-account-card-name" dir="auto" data-i18n-ignore></strong></div>
+                  <div class="settings-account-card-holder"><strong id="settings-account-card-name" dir="auto" data-i18n-ignore></strong><time id="settings-account-card-created" data-i18n-ignore hidden></time></div>
                 </div>
-                <div class="settings-account-card-footer"><span class="settings-account-card-id"><span>ID</span><span id="settings-account-card-id" aria-label="アカウント固有ID" data-i18n-ignore></span></span><span id="settings-account-card-preview" hidden>プレビュー</span></div>
+                <div class="settings-account-card-footer">
+                  <span class="settings-account-card-id-line"><span>ID</span><span id="settings-account-card-id" aria-label="アカウント固有ID" data-i18n-ignore></span></span>
+                  <span id="settings-account-card-preview" hidden>プレビュー</span>
+                </div>
               </section>
               <div class="settings-account-row">
                 <div class="settings-account-info">

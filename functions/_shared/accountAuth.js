@@ -7,7 +7,7 @@ export async function authenticateAccount(request, db) {
   const session = accountSessionToken(request);
   if (!session.token) return null;
   const account = await db.prepare(
-    `SELECT accounts.id, accounts.display_name
+    `SELECT accounts.id, accounts.display_name, accounts.created_at
      FROM quiz_sessions sessions JOIN quiz_accounts accounts ON accounts.id = sessions.account_id
      WHERE sessions.token_hash = ?1 AND sessions.expires_at > ?2`
   ).bind(await hashQuizToken(session.token), new Date().toISOString()).first();

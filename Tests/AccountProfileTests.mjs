@@ -5,6 +5,12 @@ import { onRequest } from "../functions/api/quiz/[[path]].js";
 import { hashQuizToken } from "../functions/_shared/quizSecurity.js";
 import { PUBLIC_QUIZ_LEADERBOARD_SQL, quizRankingDate } from "../functions/_shared/quizStorage.js";
 import { validateProfileAvatar, MAX_PROFILE_IMAGE_BYTES } from "../src/domain/profileImagePolicy.js";
+import { formatJstDate } from "../src/utils/jstDateTime.js";
+
+assert.equal(formatJstDate("2026-11-25T14:59:59Z"), "2026-11-25");
+assert.equal(formatJstDate("2026-11-25T15:00:00Z"), "2026-11-26");
+assert.equal(formatJstDate("2026-11-25T23:30:00-05:00"), "2026-11-26");
+for (const invalid of [null, undefined, "", "invalid"]) assert.equal(formatJstDate(invalid), "");
 
 const fixture = await readFile(new URL("./fixtures/profile-avatar.jpg", import.meta.url));
 const image = `data:image/jpeg;base64,${fixture.toString("base64")}`;
@@ -61,9 +67,10 @@ assert.equal((await send({ displayName: "changed" }, { auth: false })).status, 4
 assert.equal((await send({ displayName: "changed" }, { origin: "https://evil.example" })).status, 403);
 const preflight = await send(null, { method: "OPTIONS" });
 assert.match(preflight.headers.get("Access-Control-Allow-Methods"), /PUT/u);
-let response = await send({ displayName: "　防災 太郎　", avatarDataUrl: image, id: "bob" });
+let response = await send({ displayName: "　防災 太郎　", avatarDataUrl: image, id: "bob", createdAt: "1900-01-01T00:00:00Z" });
 assert.equal(response.status, 200);
-assert.deepEqual((await response.json()).account, { id: "alice", displayName: "防災 太郎", avatarDataUrl: image });
+assert.deepEqual((await response.json()).account, { id: "alice", displayName: "防災 太郎", avatarDataUrl: image, createdAt: now });
+assert.equal((await (await send(null, { method: "GET" })).json()).account.createdAt, now);
 assert(removedCaches.length > 0);
 assert.equal(sqlite.prepare("SELECT display_name FROM quiz_accounts WHERE id='bob'").get().display_name, "bob");
 assert.equal(sqlite.prepare("SELECT COUNT(*) AS total FROM app_records WHERE key='account-profile:bob'").get().total, 0);
@@ -86,6 +93,7 @@ sqlite.exec("DROP TRIGGER reject_profile");
 response = await send({ displayName: "削除後", avatarDataUrl: null });
 assert.equal(response.status, 200);
 assert.equal((await response.json()).account.avatarDataUrl, null);
+assert.equal((await (await send(null, { method: "GET" })).json()).account.createdAt, now, "Creation date must survive profile updates.");
 assert.equal(sqlite.prepare("SELECT COUNT(*) AS total FROM app_records WHERE key='account-profile:alice'").get().total, 0);
 assert.equal((await (await send(null, { method: "GET" })).json()).account.avatarDataUrl, null);
 assert.equal((await (await send(null, { method: "GET", auth: false })).json()).account, undefined);

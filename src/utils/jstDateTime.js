@@ -1,3 +1,9 @@
+export function formatJstDate(value) {
+  const iso = parseJstDateTime(value);
+  if (!iso) return "";
+  return new Date(Date.parse(iso) + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 export function parseJstDateTime(value) {
   const text = String(value ?? "").trim();
   if (!text) return null;

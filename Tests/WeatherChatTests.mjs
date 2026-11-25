@@ -131,10 +131,10 @@ for(const value of [context,early]) {
 
 // The real authenticated route: source extraction, inference and revision checking.
 const sql=new DatabaseSync(":memory:");
-sql.exec("CREATE TABLE app_records (key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL); CREATE TABLE quiz_accounts (id TEXT PRIMARY KEY,display_name TEXT); CREATE TABLE quiz_sessions (token_hash TEXT,account_id TEXT,expires_at TEXT);");
+sql.exec("CREATE TABLE app_records (key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL); CREATE TABLE quiz_accounts (id TEXT PRIMARY KEY,display_name TEXT,created_at TEXT); CREATE TABLE quiz_sessions (token_hash TEXT,account_id TEXT,expires_at TEXT);");
 const db={prepare(query){const statement=sql.prepare(query);let args=[];return{bind(...a){args=a;return this;},async first(){return statement.get(...args)??null;},async run(){return{meta:{changes:Number(statement.run(...args).changes)}};}};}};
 const token="fixture-weather-chat-session";
-sql.prepare("INSERT INTO quiz_accounts VALUES (?,?)").run("fixture-user","Fixture");
+sql.prepare("INSERT INTO quiz_accounts (id, display_name) VALUES (?,?)").run("fixture-user","Fixture");
 sql.prepare("INSERT INTO quiz_sessions VALUES (?,?,?)").run(await hashQuizToken(token),"fixture-user","2026-12-01T00:00:00Z");
 sql.prepare("INSERT INTO app_records VALUES (?,?,?)").run("early-access-account:fixture-user",'{"allowed":true}',ISSUE);
 const originalFetch=globalThis.fetch, originalNow=Date.now;

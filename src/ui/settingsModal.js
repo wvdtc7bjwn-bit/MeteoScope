@@ -1,4 +1,5 @@
 import { escapeHtml } from "../utils/html.js";
+import { formatJstDate } from "../utils/jstDateTime.js";
 import { loadLegalDocumentMarkup } from "./legalConsentModal.js";
 import { getDefaultTabOrder, normalizeTabOrder } from "./tabOrder.js";
 import { QuizRankingClient } from "../domain/quizRankingClient.js";
@@ -667,6 +668,13 @@ function renderSettingsProfileImage() {
   const displayName = draftName.trim() || settingsAccount?.displayName || "";
   const cardName = document.getElementById("settings-account-card-name");
   if (cardName) cardName.textContent = displayName;
+  const created = document.getElementById("settings-account-card-created");
+  if (created) {
+    const date = formatJstDate(settingsAccount?.createdAt);
+    created.hidden = !date;
+    created.dateTime = date;
+    created.textContent = date ? `MEMBER SINCE ${date.replaceAll("-", ".")}` : "";
+  }
   const cardId = document.getElementById("settings-account-card-id");
   if (cardId) cardId.textContent = settingsAccount?.id ?? "";
   const preview = document.getElementById("settings-account-card-preview");

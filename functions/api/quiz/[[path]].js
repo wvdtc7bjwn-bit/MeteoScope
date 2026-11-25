@@ -95,7 +95,7 @@ async function register(request, env) {
   }
   const session = await createSession(db, accountID);
   await recordQuizDailyActivity(db, accountID);
-  return accountResponse({ id: accountID, display_name: input.displayName }, session, payload.client);
+  return accountResponse({ id: accountID, display_name: input.displayName, created_at: now }, session, payload.client);
 }
 
 async function login(request, env) {
@@ -105,7 +105,7 @@ async function login(request, env) {
   const input = validateQuizLoginInput(payload);
   if (input.error) throw json({ error: input.error }, { status: 401 });
   const account = await db.prepare(
-    `SELECT id, display_name, password_salt, password_hash
+    `SELECT id, display_name, created_at, password_salt, password_hash
      FROM quiz_accounts WHERE username_normalized = ?1`
   ).bind(input.username).first();
   const valid = account && await verifyQuizPassword(
@@ -151,7 +151,7 @@ async function updateAccountProfile(request, env) {
   await db.batch(updates);
   await invalidateAllQuizLeaderboardCaches();
   const profile = hasAvatar ? { avatarDataUrl } : await readJson(db, `account-profile:${auth.account.id}`, {});
-  return json({ authenticated: true, account: { id: auth.account.id, displayName: input.displayName,
+  return json({ authenticated: true, account: { ...publicAccount({ ...auth.account, display_name: input.displayName }),
     avatarDataUrl: profile.avatarDataUrl ?? null } });
 }
 
@@ -319,7 +319,7 @@ function accountResponse(account, session, client) {
 }
 
 function publicAccount(account) {
-  return { id: account.id, displayName: normalizeQuizDisplayName(account.display_name) };
+  return { id: account.id, displayName: normalizeQuizDisplayName(account.display_name), createdAt: account.created_at ?? null };
 }
 
 async function requireAuthentication(request, db) {

@@ -2846,18 +2846,19 @@ html[data-theme="light"] .upper-air-annotation-item p { color: #19344e; }
 }
 .settings-account-card[hidden] { display: none; }
 .settings-account-card::after { content: ""; position: absolute; z-index: -1; inset: 0; border-radius: inherit; background: linear-gradient(115deg, transparent 24%, rgb(239 241 246 / 5%) 24.3%, transparent 64%), repeating-linear-gradient(0deg, transparent 0 3px, rgb(255 255 255 / 1%) 3px 4px); pointer-events: none; }
-.settings-account-card-art { position: absolute; z-index: -1; inset: 0; width: 100%; height: 100%; color: #b9c4d0; opacity: .18; pointer-events: none; }
+.settings-account-card-art { position: absolute; z-index: -1; top: 50%; right: -15%; width: 85%; height: auto; aspect-ratio: 1; transform: translateY(-50%); color: #dce3ee; opacity: .24; pointer-events: none; }
 .settings-account-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.settings-account-card-brand { display: flex; align-items: center; gap: 8px; font-size: clamp(15px, 3.9vw, 20px); font-weight: 600; letter-spacing: -.65px; }
-.settings-account-card-brand img { flex: 0 0 25px; width: 25px; height: 25px; border-radius: 6px; }
+.settings-account-card-brand { font-size: clamp(18px, 4.5vw, 23px); font-weight: 500; letter-spacing: -.6px; }
 .settings-account-card-type { color: #a9b0bd; font-size: 7px; font-weight: 500; letter-spacing: 1.4px; white-space: nowrap; }
-.settings-account-card-identity { display: flex; align-items: center; gap: 14px; min-width: 0; margin: 28px 0 24px; }
-.settings-account-card-holder { min-width: 0; }
-.settings-account-card-holder > strong { color: #f1f2f5; font-size: clamp(18px, 5.2vw, 26px); font-weight: 500; line-height: 1.5; letter-spacing: .02em; overflow-wrap: anywhere; }
-.settings-account-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-top: 14px; color: #bdc3cd; font-size: 9px; letter-spacing: .04em; background: linear-gradient(90deg, #80d6ea 0 26px, rgb(206 214 226 / 15%) 26px 100%) top / 100% 1px no-repeat; }
-.settings-account-card-id { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: clamp(8.5px, 2.7vw, 11.5px); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
-#settings-account-card-id { min-width: 0; overflow-wrap: anywhere; }
-#settings-account-card-preview { flex: 0 0 auto; color: #e6d1a2; }
+.settings-account-card-identity { display: flex; align-items: center; gap: 14px; min-width: 0; margin: 24px 0 16px; }
+.settings-account-card-holder { display: grid; gap: 6px; min-width: 0; }
+.settings-account-card-holder > strong { color: #f1f2f5; font-size: clamp(16px, 4.8vw, 24px); font-weight: 500; line-height: 1.4; letter-spacing: .025em; overflow-wrap: anywhere; }
+.settings-account-card-holder > time { color: #a7b0be; font-size: clamp(7.5px, 1.9vw, 9px); font-weight: 400; line-height: 1.5; letter-spacing: .11em; }
+.settings-account-card-footer { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; min-width: 0; padding-top: 14px; background: linear-gradient(90deg, #80d6ea 0 26px, rgb(206 214 226 / 15%) 26px 100%) top / 100% 1px no-repeat; }
+.settings-account-card-id-line { display: flex; align-items: baseline; gap: 7px; min-width: 0; color: #a6afbd; font-size: clamp(8px, 2.1vw, 10px); font-weight: 400; line-height: 1.4; }
+.settings-account-card-id-line > :first-child { flex: 0 0 auto; font-size: 7px; letter-spacing: .1em; }
+#settings-account-card-id { min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-variant-numeric: tabular-nums; letter-spacing: .025em; overflow-wrap: anywhere; }
+#settings-account-card-preview { flex: 0 0 auto; color: #e6d1a2; font-size: 9px; font-weight: 400; letter-spacing: .02em; }
 .settings-account-row.has-digital-card { padding: 4px 0 0; border: 0; background: transparent; }
 .settings-account-row.has-digital-card .settings-account-info > strong { display: none; }
 .settings-profile-image-row { display: flex; align-items: center; gap: 16px; }

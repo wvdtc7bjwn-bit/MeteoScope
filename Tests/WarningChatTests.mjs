@@ -36,7 +36,7 @@ function sourceFetcher({ warnings = [report()], outlook = timeline, failTimeline
 }
 function makeDb() {
   const sql = new DatabaseSync(":memory:");
-  sql.exec("CREATE TABLE app_records (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL); CREATE TABLE quiz_accounts (id TEXT PRIMARY KEY, display_name TEXT); CREATE TABLE quiz_sessions (token_hash TEXT, account_id TEXT, expires_at TEXT);");
+  sql.exec("CREATE TABLE app_records (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL); CREATE TABLE quiz_accounts (id TEXT PRIMARY KEY, display_name TEXT, created_at TEXT); CREATE TABLE quiz_sessions (token_hash TEXT, account_id TEXT, expires_at TEXT);");
   return {
     sql,
     prepare(query) {
@@ -155,7 +155,7 @@ const originalFetch = globalThis.fetch;
 globalThis.fetch = sourceFetcher();
 const db = makeDb();
 const session = "test-session-not-a-real-credential";
-db.sql.prepare("INSERT INTO quiz_accounts VALUES (?, ?)").run("user", "Test");
+db.sql.prepare("INSERT INTO quiz_accounts (id, display_name) VALUES (?, ?)").run("user", "Test");
 db.sql.prepare("INSERT INTO quiz_sessions VALUES (?, ?, ?)").run(await hashQuizToken(session), "user", "2026-12-01T00:00:00Z");
 db.sql.prepare("INSERT INTO app_records VALUES (?, ?, ?)").run("early-access-account:user", '{"allowed":true}', ISSUE);
 let calls = 0;
