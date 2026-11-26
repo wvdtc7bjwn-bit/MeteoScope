@@ -1,8 +1,8 @@
+import {validationConfig,saveValidationRun} from "./temperatureValidationRun.mjs";
 // Public station data only. No GPS, DEM requests, Cloudflare writes, or parameter auto-tuning.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { buildAmedasPoints } from "../src/jma/amedas.js";
 import { estimateLocalTemperature, temperatureErrorMetrics } from "../src/location/temperatureEstimation.js";
-import { TEMPERATURE_ESTIMATION } from "../src/location/temperatureEstimationPolicy.js";
 
 const cache = new URL("../.cache/temperature-validation/", import.meta.url);
 await mkdir(cache, { recursive: true });
@@ -50,7 +50,7 @@ function evaluate(frames, variants) {
       for (const target of frame.points) {
         const prediction = estimateLocalTemperature({ points: frame.points.filter(p => p.id !== target.id),
           coordinates: target.coordinates, elevation: target.elevation, observationTime: frame.time,
-          now: frame.timestamp + 5 * 60000, method, config });
+          now: frame.timestamp + 5 * 60000, method, config:validationConfig({heightSimilarityScaleM:0,environmentStrength:0,...config}) });
         total++;
         adopted[prediction.method] = (adopted[prediction.method] ?? 0) + 1;
         if (prediction.kind === "estimated") estimated++;
@@ -85,12 +85,10 @@ const sensitivity = {
   stations4: { method: "fixed", config: { maxStations: 4 } },
   lapse004: { method: "fixed", config: { lapseRate: .004 } }, lapse009: { method: "fixed", config: { lapseRate: .009 } }
 };
-const output = { manifest: recorded, defaults: TEMPERATURE_ESTIMATION,
+const output = { manifest: recorded, defaults: validationConfig({heightSimilarityScaleM:0,environmentStrength:0}),comparisonConfigs:Object.fromEntries(Object.entries(comparison).map(([name,v])=>[name,{...v,config:validationConfig({heightSimilarityScaleM:0,environmentStrength:0,...v.config})}])),
+  sensitivityConfigs:Object.fromEntries(Object.entries(sensitivity).map(([name,v])=>[name,{...v,config:validationConfig({heightSimilarityScaleM:0,environmentStrength:0,...v.config})}])),
   design: "Outer leave-one-station-out; dynamic model has inner LOO; earlier/later time split. Defaults not tuned. Reported errors include explicitly labelled nearest fallback. No water screen in this station-only benchmark.",
   limitations: ["One late-autumn 24-hour period; temporal frames are correlated.", "No independent seasonal evaluation or verified urban/basin/coastal labels.", "Station altitude is the LOO target altitude; this does not measure DEM or GPS errors.", "Municipal land-screen effects require separate field validation."],
   calibrationTimes: calibration.map(f => f.time), evaluationTimes: heldOut.map(f => f.time),
   calibration: evaluate(calibration, comparison), evaluation: evaluate(heldOut, comparison), sensitivity: evaluate(calibration, sensitivity) };
-const destination = new URL("../docs/data/local-temperature-validation.json", import.meta.url);
-await mkdir(new URL("./", destination), { recursive: true });
-await writeFile(destination, `${JSON.stringify(output, null, 2)}\n`);
-console.log(`Saved ${destination.pathname}`);
+await saveValidationRun("local",output,{inputFiles:[".cache/temperature-validation/manifest.json",".cache/temperature-validation/stations.json",...snapshots.map(f=>`.cache/temperature-validation/${f.time}.json`)]});

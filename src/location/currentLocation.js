@@ -3,21 +3,44 @@ import { getPrefectureNameByCode } from "../jma/warnings.js";
 import { findEarlyWarningAreaForMunicipality } from "../warningLocationInsights.js";
 import { getDistanceKm } from "./distance.js";
 
-let municipalityLookupPromise = null;
+import { createRetryableResource } from "../utils/retryableResource.js";
+import { normalizeLocationFix } from "./locationFix.js";
 
-export async function resolveCurrentLocationInfo(coordinates, warningData = {}) {
+export function createMunicipalityLookup({fetcher=(...args)=>globalThis.fetch(...args),now=Date.now,retryMs=30000,timeoutMs=10000}={}) {
+  return createRetryableResource(async signal=>{
+    const response=await fetcher(JMA_ENDPOINTS.warningMunicipalities,{signal});
+    if(!response.ok)throw new Error(`HTTP ${response.status}`);
+    const geoJson=await response.json();
+    if(!Array.isArray(geoJson.features)||!geoJson.features.length)throw new Error("Invalid municipality geometry");
+    return (geoJson.features??[]).map(feature=>{
+      const code=String(feature?.properties?.code??""),bounds=computeBounds(feature.geometry);
+      return {code,name:feature?.properties?.name??feature?.properties?.regionName??"",
+        prefecture:getPrefectureNameByCode(code),geometry:feature.geometry,bounds,
+        center:computeRepresentativeCenter(feature.geometry,bounds)};
+    }).filter(item=>item.code&&item.geometry);
+  },{now,retryMs,timeoutMs});
+}
+const readMunicipalities=createMunicipalityLookup();
+
+export async function resolveCurrentLocationInfo(coordinates, warningData = {}, fix = {}, {lookup=loadMunicipalityLookup}={}) {
   const [lng, lat] = coordinates ?? [];
-  const municipality = await findMunicipalityForPoint(lng, lat);
+  let municipality,geographyStatus="ready";
+  try {
+    municipality=await findMunicipalityForPoint(lng,lat,{lookup});
+  } catch { geographyStatus="unavailable"; }
+  const metadata=normalizeLocationFix(fix);
   if (!municipality) {
     return {
       status: "found",
       coordinates,
+      ...metadata,
+      geographyStatus,
       areaCode: "",
       areaName: "",
       prefecture: "",
       center: null,
       warnings: [],
-      message: "現在地の市区町村を特定できませんでした。"
+      message: geographyStatus==="unavailable"?"現在地の座標は取得済みです。地域情報を取得できませんでした。":"現在地の市区町村を特定できませんでした。"
     };
   }
 
@@ -28,6 +51,8 @@ export async function resolveCurrentLocationInfo(coordinates, warningData = {}) 
   return {
     status: "found",
     coordinates,
+    ...metadata,
+    geographyStatus,
     areaCode: municipality.code,
     areaName: municipality.name,
     prefecture: activeArea?.prefecture ?? earlyArea?.prefecture ?? getPrefectureNameByCode(municipality.code),
@@ -43,7 +68,9 @@ export async function resolveCurrentLocationInfo(coordinates, warningData = {}) 
     } : null,
     updatedAt: activeArea?.updatedAt ?? warningData.updatedAt ?? warningData.latestTime ?? "",
     earlyUpdatedAt: earlyArea?.updatedAt ?? warningData.earlyWarnings?.updatedAt ?? warningData.earlyWarnings?.latestTime ?? "",
-    message: activeArea?.warnings?.length
+    message: !Array.isArray(warningData.activeAreas)
+      ? "現在地の地域は特定できました。警報情報を取得できませんでした。"
+      : activeArea?.warnings?.length
       ? "現在地に発表中の警報・注意報があります。"
       : "現在地に発表中の警報・注意報はありません。"
   };
@@ -60,9 +87,9 @@ function buildCurrentLocationEarlyWarnings(area) {
       displayAreaName: area.displayAreaName ?? area.areaName
     }));
 }
-export async function findMunicipalityForPoint(lng, lat) {
+export async function findMunicipalityForPoint(lng, lat, {lookup=loadMunicipalityLookup}={}) {
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
-  const municipalities = await loadMunicipalityLookup();
+  const municipalities = await lookup();
   return municipalities.find((item) =>
     isPointInBounds(lng, lat, item.bounds) &&
     isPointInGeometry([lng, lat], item.geometry)
@@ -87,27 +114,8 @@ export async function searchMunicipalities(query, limit = 12) {
     }));
 }
 
-export async function loadMunicipalityLookup() {
-  if (!municipalityLookupPromise) {
-    municipalityLookupPromise = fetch(JMA_ENDPOINTS.warningMunicipalities)
-      .then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      })
-      .then((geoJson) => (geoJson.features ?? []).map((feature) => {
-        const code = String(feature?.properties?.code ?? "");
-        const bounds = computeBounds(feature.geometry);
-        return {
-          code,
-          name: feature?.properties?.name ?? feature?.properties?.regionName ?? "",
-          prefecture: getPrefectureNameByCode(code),
-          geometry: feature.geometry,
-          bounds,
-          center: computeRepresentativeCenter(feature.geometry, bounds)
-        };
-      }).filter((item) => item.code && item.geometry));
-  }
-  return municipalityLookupPromise;
+export function loadMunicipalityLookup() {
+  return readMunicipalities();
 }
 
 // A conservative water-crossing screen using the municipality geometry already loaded for GPS.

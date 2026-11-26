@@ -2783,7 +2783,7 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
       ? buildLocalTemperatureButton(state.localTemperature) : "";
     const nearestMarkup = estimatedMarkup || (amedasLoadingLabel
       ? buildMobileDockLoadingStatus(amedasLoadingLabel)
-      : `<span class="mobile-dock-amedas-nearest${nearest ? "" : " is-muted"}" title="${escapeHtml(nearestText)}">${escapeHtml(nearestText)}</span>`);
+      : `<span class="mobile-dock-amedas-nearest amedas-observation-value${nearest ? "" : " is-muted"}" title="${escapeHtml(nearestText)}">${escapeHtml(nearestText)}</span>`);
     return `
       <div class="mobile-dock-content mobile-dock-amedas${isPrecipitation ? " has-precipitation-period" : ""}" aria-busy="${Boolean(amedasLoadingLabel)}">
         <div class="mobile-dock-amedas-head">

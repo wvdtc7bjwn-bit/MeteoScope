@@ -2153,8 +2153,6 @@
     min-width: 0;
     overflow: hidden;
     color: rgba(242, 248, 255, 0.92);
-    font-size: 12px;
-    font-weight: 900;
     text-align: right;
     text-overflow: ellipsis;
     white-space: nowrap;

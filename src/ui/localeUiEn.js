@@ -1,6 +1,9 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+現在地の地域は特定できました。警報情報を取得できませんでした。|The local area is known, but warning information could not be loaded.
+現在地の座標は取得済みです。地域情報を取得できませんでした。|Location coordinates are available, but regional information could not be loaded.
+地域情報を取得できません|Regional information is unavailable
 観測グラフ・推定気温|Observation charts and local temperature
 観測グラフの表示と、現在地の推定気温を設定します。|Configure observation charts and estimated local temperature.
 現在地の推定気温|Estimated local temperature

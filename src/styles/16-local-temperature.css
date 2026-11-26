@@ -3,6 +3,7 @@
 .local-temperature-summary > span { color: var(--muted); font-size: 13px; }
 .local-temperature-button { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; padding: 3px 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
 .local-temperature-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.amedas-observation-value { font-family: var(--font-jp-gothic); font-size: 12px; font-weight: 900; font-variant-numeric: tabular-nums; }
 .local-temperature-button svg { flex: 0 0 16px; }
 .local-temperature-button:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
 .local-temperature-popover { position: fixed; z-index: 950; width: min(370px, calc(100vw - 24px)); max-height: min(620px, calc(100dvh - 24px)); overflow: auto; overscroll-behavior: contain; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-strong); color: var(--text); box-shadow: 0 12px 40px #0004; font-size: 13px; line-height: 1.65; box-sizing: border-box; }

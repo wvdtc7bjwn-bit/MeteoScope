@@ -69,3 +69,41 @@ test("early access gates runtime work and settings toggle uses the existing swit
   const settings = await readFile(new URL("../src/ui/settingsModal.js", import.meta.url), "utf8");
   assert.match(settings, /estimation.disabled = !state.earlyAccessEnabled/);
 });
+
+test("GPS accuracy-only updates change diagnostics without context requests or temperature correction",async()=>{
+  let reads=0;
+  const controller=createLocalTemperatureController({now:()=>now,readElevation:async()=>{reads++;return {elevation:100};},loadLand:async()=>()=>true});
+  controller.update({...input,location:{...input.location,accuracy:2000,positionTimestamp:1000}});await settle();
+  const coarse=controller.update({...input,location:{...input.location,accuracy:2000,positionTimestamp:1000}});
+  assert.ok(coarse.flags.includes("coarse-location"));assert.equal(coarse.confidence,"low");
+  const improved=controller.update({...input,location:{...input.location,accuracy:25,positionTimestamp:2000}});
+  assert.equal(improved.location.accuracy,25);assert.equal(improved.location.positionTimestamp,2000);
+  assert.ok(!improved.flags.includes("coarse-location"));assert.equal(improved.value,coarse.value);assert.equal(reads,1);
+  const unknown=controller.update({...input,location:{...input.location,accuracy:null}});
+  assert.equal(unknown.location.accuracy,null);assert.equal(unknown.location.positionTimestamp,null);
+});
+
+test("optional land failure recovers on a later update with the same observations",async()=>{
+  let clock=now,reads=0;
+  const controller=createLocalTemperatureController({now:()=>clock,readElevation:async()=>({elevation:100}),loadLand:async()=>{if(++reads===1)throw Error("temporary");return ()=>true;}});
+  controller.update(input);await settle();assert.ok(controller.update(input).flags.includes("land-screen-unavailable"));
+  controller.update({...input,data:{...data,points:[...data.points]}});await settle();assert.equal(reads,1);
+  clock+=60000;controller.update(input);await settle();
+  assert.ok(!controller.update(input).flags.includes("land-screen-unavailable"));assert.equal(reads,2);
+});
+
+test("summary shows only temperature, preserving status in the accessible label and details",()=>{
+  const base={kind:"estimated",value:12.6,confidence:"low",flags:[]};
+  assert.match(buildLocalTemperatureButton(base),/推定 12.6℃ · 参考/);
+  assert.match(buildLocalTemperatureButton({...base,loading:true}),/参考 · 更新中/);
+  assert.match(buildLocalTemperatureButton({...base,kind:"observed",loading:true,nearest:{name:"Sample"}}),/Sample 実測 12.6℃ · 推定計算中/);
+  const unavailable={...base,kind:"unavailable",value:null};
+  assert.match(buildLocalTemperatureButton(unavailable),/取得不可 —/);
+  assert.match(buildLocalTemperatureDetails(unavailable),/気温を取得できません/);
+  assert.match(buildLocalTemperatureDetails(unavailable),/class="local-temperature-value">気温 /);
+  const visible=result=>buildLocalTemperatureButton(result).match(/<span[^>]*>(.*?)<\/span>/)[1];
+  assert.equal(visible(base),"12.6℃");assert.equal(visible({...base,loading:true}),"12.6℃");
+  assert.equal(visible({...base,kind:"observed",nearest:{name:"Sample"}}),"12.6℃");
+  assert.equal(visible(unavailable),"—");assert.equal(visible({...base,value:0}),"0.0℃");
+  assert.match(buildLocalTemperatureButton(base),/class="amedas-observation-value"/);
+});

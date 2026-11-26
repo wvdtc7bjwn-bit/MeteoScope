@@ -58,7 +58,7 @@ export function createCurrentLocationWeather({ fetchForecast = fetchWeeklyForeca
     },
     async refresh(location) {
       const key = location?.status === "found" ? String(location.areaCode ?? "") : "";
-      if (!key) { this.clear("現在地を取得できません"); return; }
+      if (!key) { this.clear(location?.status==="found"?"地域情報を取得できません":"現在地を取得できません"); return; }
       if (pending && key === locationKey) return pending;
       if (key !== locationKey) { forecast = null; unavailable = ""; render(); }
       locationKey = key;

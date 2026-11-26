@@ -1,3 +1,4 @@
+import {validationConfig,saveValidationRun} from "./temperatureValidationRun.mjs";
 // Frozen candidate selection on earlier times, one acceptance check on later times.
 // All outputs and public observation inputs remain outside deployment assets.
 import {readFile,writeFile} from "node:fs/promises";
@@ -10,8 +11,8 @@ const connection=(a,b)=>paths.get([a.coordinates.join(","),b.coordinates.join(",
 const frames=inputs.frames.map(frame=>({...frame,prepared:prepareTemperatureAuditFrame({...frame,connection})}));
 const calibration=frames.filter(f=>historical.calibrationTimes.includes(f.observationTime));
 const evaluation=frames.filter(f=>!historical.calibrationTimes.includes(f.observationTime));
-const baselineConfig={heightSimilarityScaleM:0,directionalReachRatio:0};
-function evaluate(frames,config) {return frames.flatMap(frame=>auditTemperatureFrame({prepared:frame.prepared,config}));}
+const baselineConfig=validationConfig({heightSimilarityScaleM:0,directionalReachRatio:0});
+function evaluate(frames,config) {return frames.flatMap(frame=>auditTemperatureFrame({prepared:frame.prepared,config:validationConfig(config)}));}
 function metrics(rows) {return {...summarizeAudit(rows),estimated:rows.filter(r=>r.kind==="estimated").length,
   estimatesOnly:summarizeAudit(rows.filter(r=>r.kind==="estimated")),fallbackOnly:summarizeAudit(rows.filter(r=>r.kind==="observed")),
   byHeight:Object.fromEntries(["low","middle","high"].map(key=>[key,summarizeAudit(rows.filter(r=>(r.elevation<200?"low":r.elevation<800?"middle":"high")===key))]))};}
@@ -49,7 +50,7 @@ const checks={mae:c.mae<b.mae,rmse:c.rmse<=b.rmse,commonMae:common.candidate.mae
   heightGroups:Object.entries(c.byHeight).every(([key,m])=>m.count<50||m.mae<=b.byHeight[key].mae*1.05)};
 const result={design:"Earlier 4 times select one candidate; later 5 times only accept/reject frozen candidate. Outer station LOO, same land geometry and public environmental context. Known station altitude; no DEM/GPS errors.",
   baselineConfig,calibrationTimes:calibration.map(f=>f.observationTime),evaluationTimes:evaluation.map(f=>f.observationTime),
-  calibration:{baseline,trials},selectedConfig:selected.config,evaluation:{baseline:b,candidate:c,paired:common},checks,accepted:Object.values(checks).every(Boolean)};
-await writeFile(new URL("improvement-validation.json",directory),JSON.stringify(result,null,2)+"\n");
-await writeFile(new URL("improvement-paired.json",directory),JSON.stringify({before,after})+"\n");
+  calibration:{baseline,trials:trials.map(t=>({...t,config:validationConfig(t.config)}))},selectedConfig:validationConfig(selected.config),evaluation:{baseline:b,candidate:c,paired:common},checks,accepted:Object.values(checks).every(Boolean)};
+const run=await saveValidationRun("improvement",result,{inputFiles:[".cache/temperature-audit/inputs.json"]});
+await writeFile(new URL("predictions.json",run),JSON.stringify({before,after})+"\n");
 console.log(JSON.stringify({selected:result.selectedConfig,accepted:result.accepted,checks,before:b,after:c}));

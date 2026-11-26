@@ -1,5 +1,6 @@
 // Conservative operating limits, not validated error bounds. Tune with held-out data.
 export const TEMPERATURE_ESTIMATION = Object.freeze({
+  locationAccuracyWarningM: 1000, // Operational notice at the environmental mesh scale, not a temperature error bound.
   radiusKm: 50, maxStations: 8, minStations: 3, power: 2, lapseRate: .0065,
   coincidentKm: .1, minDistanceKm: .2, maxAgeMs: 30 * 60 * 1000,
   futureToleranceMs: 2 * 60 * 1000, maxNearestKm: 100,
@@ -13,6 +14,8 @@ export const TEMPERATURE_ESTIMATION = Object.freeze({
   environmentLandWeight: 1, environmentTerrainWeight: .5, environmentMinWeight: .2,
   heightSimilarityScaleM: 200, // Separated LOO + unseen next-frame check; scale is empirical, not an error bound.
   directionalReachRatio: 0, // Tested alternative remains disabled.
+  weatherEnabled: false, // Rejected: the tail error and some per-frame RMSEs worsened despite a tiny pooled MAE reduction.
+  weatherWindStrength: .5, // Research candidate only. Do not enable without independent non-degradation validation.
   regressionMinStations: 6, regressionHeightRange: 150, regressionMinR2: .35,
   maxAbsLapseRate: .015, maxLapseStd: .003, dynamicMinImprovementC: .15,
   dynamicMinImprovementRatio: .1, elevationMoveKm: .1, failureTtlMs: 15 * 60 * 1000

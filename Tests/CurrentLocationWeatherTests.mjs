@@ -71,5 +71,7 @@ assert.equal(text.textContent, "予報を取得できません");
 assert.equal(text.hidden, false);
 assert.equal(icon.hidden, true);
 assert.equal(weatherAttributes.get("data-has-forecast"), "false");
+await missing.refresh({status:"found",coordinates:[135,35],geographyStatus:"unavailable"});
+assert.equal(text.textContent,"地域情報を取得できません","regional data failure must not imply missing GPS");
 globalThis.document = originalDocument;
 console.log("Current location weather tests passed");

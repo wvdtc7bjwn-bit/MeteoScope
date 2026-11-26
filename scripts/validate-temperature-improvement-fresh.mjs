@@ -1,3 +1,4 @@
+import {validationConfig,saveValidationRun} from "./temperatureValidationRun.mjs";
 import {readFile,writeFile} from "node:fs/promises";
 import {buildAmedasPoints} from "../src/jma/amedas.js";
 import {createEnvironmentReader} from "../src/location/environmentData.js";
@@ -24,14 +25,14 @@ const connection=(a,b)=>{
   return paths.get(key);
 };
 const prepared=prepareTemperatureAuditFrame({points,connection,observationTime:manifest.stamp,now:Date.parse(manifest.latest)+5*60000});
-const before=auditTemperatureFrame({prepared,config:selection.baselineConfig}),after=auditTemperatureFrame({prepared,config:selection.selectedConfig});
+const before=auditTemperatureFrame({prepared,config:validationConfig(selection.baselineConfig)}),after=auditTemperatureFrame({prepared,config:validationConfig(selection.selectedConfig)});
 const metrics=rows=>({...summarizeAudit(rows),estimated:rows.filter(r=>r.kind==="estimated").length,
   estimatesOnly:summarizeAudit(rows.filter(r=>r.kind==="estimated")),fallbackOnly:summarizeAudit(rows.filter(r=>r.kind==="observed"))});
 const b=metrics(before),c=metrics(after);
 const checks={mae:c.mae<b.mae,rmse:c.rmse<=b.rmse,estimatedMae:c.estimatesOnly.mae<b.estimatesOnly.mae,
   coverage:c.estimated>=b.estimated*.99,maxEstimated:c.estimatesOnly.maxAbsoluteError<=b.estimatesOnly.maxAbsoluteError*1.05};
-const result={manifest,selectedConfig:selection.selectedConfig,accepted:selection.accepted&&Object.values(checks).every(Boolean),checks,baseline:b,candidate:c,
+const result={manifest,baselineConfig:validationConfig(selection.baselineConfig),selectedConfig:validationConfig(selection.selectedConfig),accepted:selection.accepted&&Object.values(checks).every(Boolean),checks,baseline:b,candidate:c,
   limitations:"One subsequent 10-minute snapshot is unseen but strongly correlated; not a seasonal or independent-weather validation."};
-await writeFile(new URL("improvement-fresh-validation.json",directory),JSON.stringify(result,null,2)+"\n");
-await writeFile(new URL("improvement-fresh-paired.json",directory),JSON.stringify({before,after})+"\n");
+const run=await saveValidationRun("fresh",result,{inputFiles:[".cache/temperature-audit/improvement-validation.json",".cache/temperature-audit/inputs.json",".cache/temperature-audit/stations.json",`.cache/temperature-audit/${manifest.stamp}.json`]});
+await writeFile(new URL("predictions.json",run),JSON.stringify({before,after})+"\n");
 console.log(JSON.stringify(result));

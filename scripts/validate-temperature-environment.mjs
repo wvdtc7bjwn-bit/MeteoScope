@@ -1,3 +1,4 @@
+import {validationConfig,saveValidationRun} from "./temperatureValidationRun.mjs";
 import { readFile, writeFile } from "node:fs/promises";
 import { buildAmedasPoints } from "../src/jma/amedas.js";
 import { estimateLocalTemperature, temperatureErrorMetrics } from "../src/location/temperatureEstimation.js";
@@ -29,7 +30,7 @@ function evaluate(frames,config) {
     total++;
     const result=estimateLocalTemperature({points:frame.points.filter(p=>p.id!==target.id),coordinates:target.coordinates,elevation:target.elevation,
       observationTime:frame.time,now:frame.now,method:"environment",environment:target.environment,
-      config:{heightSimilarityScaleM:0,directionalReachRatio:0,...config}});
+      config:validationConfig({heightSimilarityScaleM:0,directionalReachRatio:0,...config})});
     if(result.value==null)continue;
     const error=result.value-target.values.temperature;errors.push(error);
     if(result.environmentAdjusted)adjusted++;
@@ -59,6 +60,6 @@ const accepted=selected.config.environmentStrength>0&&c.mae<b.mae&&c.rmse<=b.rms
 const output={schema:1,calibrationTimes:original.calibrationTimes,evaluationTimes:original.evaluationTimes,
   method:"Outer station LOO; environment data are static predictors, no target temperatures. Earlier times select candidate; later times only accept/reject it.",
   limitations:["One autumn 21-hour period; no seasonal guarantee.","No municipal water-route screening in this station-only benchmark.","Land classifications are approximate, with 2016/2021 coverage years; terrain source is 2011, based on 2009 DEM.","Urban/forest/coastal groups describe the source mesh, not a validated local-climate classification."],
-  trials,selectedConfig:selected.config,evaluation,accepted};
-await writeFile(new URL("docs/data/temperature-environment-validation.json",root),JSON.stringify(output,null,2)+"\n");
+  trials:trials.map(t=>({...t,config:validationConfig({heightSimilarityScaleM:0,...t.config})})),selectedConfig:validationConfig({heightSimilarityScaleM:0,...selected.config}),evaluation,accepted};
+await saveValidationRun("environment",output,{inputFiles:[".cache/temperature-validation/stations.json",...original.calibrationTimes.concat(original.evaluationTimes).map(t=>`.cache/temperature-validation/${t}.json`)]});
 console.log(JSON.stringify({selected:selected.config,accepted,evaluation}));

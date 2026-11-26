@@ -1,3 +1,4 @@
+import {saveValidationRun} from "./temperatureValidationRun.mjs";
 // Offline LOO audit of the exact application engine. Outputs stay in ignored .cache/.
 // Public national station data only; no personal locations and no parameter tuning.
 import { readFile, writeFile, mkdir } from "node:fs/promises";
@@ -32,11 +33,11 @@ export function prepareTemperatureAuditFrame({points,observationTime,now,connect
       landConnected:getDistanceKm(target.coordinates,point.coordinates)<=TEMPERATURE_ESTIMATION.radiusKm
         ? connection(target,point) : null })),coordinates:target.coordinates,elevation:target.elevation,environment:target.environment,observationTime,now}}));
 }
-export function auditTemperatureFrame({prepared,config={},onProgress=()=>{},...input}) {
+export function auditTemperatureFrame({prepared,config={},onProgress=()=>{},estimator=estimateLocalTemperature,...input}) {
   const cases=prepared??prepareTemperatureAuditFrame(input),records=[];
   for(const {target,options} of cases) {
     const train=options.points,observationTime=options.observationTime;
-    const result=estimateLocalTemperature({...options,config}), nearest=estimateLocalTemperature({...options,config,method:"nearest"});
+    const result=estimator({...options,config:{...TEMPERATURE_ESTIMATION,...config}}), nearest=estimator({...options,config:{...TEMPERATURE_ESTIMATION,...config},method:"nearest"});
     if(result.stations?.some(s=>String(s.id)===String(target.id))||String(result.nearest?.id)===String(target.id)) throw Error("Target leaked into training");
     const flags=[...result.flags];
     if(result.stations?.some(s=>train.find(p=>p.id===s.id)?.landConnected===null)) flags.push("land-screen-unavailable");
@@ -48,14 +49,15 @@ export function auditTemperatureFrame({prepared,config={},onProgress=()=>{},...i
       kind:result.kind,method:result.method,environmentAdjusted:result.environmentAdjusted===true,
       confidence:flags.includes("land-screen-unavailable")&&result.kind==="estimated"?"low":result.confidence,
       stationCount:result.stationCount,nearestDistanceKm:result.nearest?.distanceKm??null,
-      meanDistanceKm:result.diagnostics?.meanDistanceKm??null,spreadC:result.diagnostics?.correctedSpreadC??null,
+      nearestUsedDistanceKm:result.nearestUsed?.distanceKm??null,maximumContribution:result.diagnostics?.maximumContribution??null,
+      effectiveStationCount:result.diagnostics?.effectiveStationCount??null,meanDistanceKm:result.diagnostics?.meanDistanceKm??null,spreadC:result.diagnostics?.correctedSpreadC??null,
       flags,stations:result.stations??[],fallbackStation:result.kind==="observed"?result.nearest:null});
     if(records.length%100===0) onProgress(records.length,cases.length);
   }
   return records;
 }
 
-function frameSummary(records) {
+export function frameSummary(records) {
   const estimates=records.filter(r=>r.kind==="estimated"),fallback=records.filter(r=>r.kind==="observed");
   const group = select => Object.fromEntries([...new Set(records.map(select))].map(key=>{
     const subset=records.filter(r=>select(r)===key);return [key,{...summarizeAudit(subset),estimates:subset.filter(r=>r.kind==="estimated").length}];
@@ -138,15 +140,15 @@ async function main() {
     frames:byFrame,latest:frameSummary(latest),all:frameSummary(all),
     landScreen:{pairs:paths.size,connected:[...paths.values()].filter(v=>v===true).length,crossing:[...paths.values()].filter(v=>v===false).length,unknown:[...paths.values()].filter(v=>v===null).length},
     worstLatest:[...latest].filter(r=>finite(r.errorC)).sort((a,b)=>Math.abs(b.errorC)-Math.abs(a.errorC)).slice(0,30)};
-  await writeFile(new URL("summary.json",directory),JSON.stringify(output,null,2)+"\n");
-  await writeFile(new URL("inputs.json",directory),JSON.stringify({frames:frameInputs,landPaths:[...paths],codeHashes})+"\n");
-  await writeFile(new URL("predictions.json",directory),JSON.stringify(all)+"\n");
+  const run=await saveValidationRun("audit",output,{inputFiles:[".cache/temperature-audit/source-manifest.json",".cache/temperature-audit/stations.json",...frames.map(time=>`.cache/${time===manifest.stamp?"temperature-audit":"temperature-validation"}/${time}.json`)]});
+  await writeFile(new URL("inputs.json",run),JSON.stringify({frames:frameInputs,landPaths:[...paths],codeHashes})+"\n");
+  await writeFile(new URL("predictions.json",run),JSON.stringify(all)+"\n");
   // Preserve the fresh station source under its recorded name; use a separate inventory output.
-  await writeFile(new URL("station-results.json",directory),JSON.stringify(stations,null,2)+"\n");
+  await writeFile(new URL("station-results.json",run),JSON.stringify(stations,null,2)+"\n");
   const fields=["time","stationId","stationName","elevation","observedC","predictedC","errorC","kind","method","environmentAdjusted","confidence","stationCount","nearestDistanceKm","spreadC","flags"];
-  await writeFile(new URL("all-predictions.csv",directory),csv([fields,...all.map(r=>fields.map(f=>r[f]))]));
+  await writeFile(new URL("all-predictions.csv",run),csv([fields,...all.map(r=>fields.map(f=>r[f]))]));
   const stationFields=["stationId","stationName","elevation","latestStatus","latestObservedC","latestPredictedC","latestErrorC","count","estimates","mae","rmse","bias","maxAbsoluteError","latestFlags"];
-  await writeFile(new URL("all-stations.csv",directory),csv([stationFields,...stations.map(r=>stationFields.map(f=>r[f]))]));
+  await writeFile(new URL("all-stations.csv",run),csv([stationFields,...stations.map(r=>stationFields.map(f=>r[f]))]));
   console.log(JSON.stringify({latest:output.latest,all:output.all,landScreen:output.landScreen}));
 }
 if(process.argv[1]&&pathToFileURL(process.argv[1]).href===import.meta.url) await main();

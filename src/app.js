@@ -100,6 +100,7 @@ import {
 import { fetchEarthquakeHistoryEvent } from "./jma/earthquakeHistoryDetail.js";
 import { activateWeatherChartFrame, fetchWeatherChart, findLatestWeatherChartFrameIndex } from "./jma/weatherChart.js";
 import { fetchHimawariSatelliteFrames, isHimawariTimestampEqualToJstTime } from "./jma/himawariSatellite.js";
+import { normalizeLocationFix } from "./location/locationFix.js";
 import { resolveCurrentLocationInfo, searchMunicipalities } from "./location/currentLocation.js";
 import { addMyArea, getMyAreaLimit, loadMyAreas, removeMyArea } from "./location/myAreas.js";
 import { buildLocationRadarTimeline, sampleRadarAtLocation } from "./location/radarTimeline.js";
@@ -3920,15 +3921,28 @@ if (layerId === "river") {
       weatherMap?.flyToLocation(coordinates);
     }
 
-    if (!shouldResolveCurrentLocation(coordinates, options.forceResolve)) return;
+    const fix=normalizeLocationFix({accuracy:position.coords.accuracy,positionTimestamp:position.timestamp});
+    const previous=currentLocationInfo;
+    const keepArea=previous.coordinates&&getDistanceMeters(previous.coordinates,coordinates)<LOCATION_RESOLVE_MIN_DISTANCE_METERS;
+    currentLocationInfo={...(keepArea?previous:{status:"found",geographyStatus:"loading"}),coordinates,...fix};
+    if (!shouldResolveCurrentLocation(coordinates, options.forceResolve)) {
+      if(activeTab==="amedas"&&earlyAccessEnabled&&temperatureEstimationEnabled)refreshAmedasPanel();
+      return;
+    }
+    refreshActivePanel();
 
     const requestId = ++locationResolveRequestId;
+    const resolvingLocation=currentLocationInfo;
     try {
-      const warningData = latestDataByTab.warnings ?? await fetchWarningTabData();
+      const warningData = latestDataByTab.warnings ?? await fetchWarningTabData().catch(()=>null);
       if (requestId !== locationResolveRequestId) return;
-      latestDataByTab.warnings = warningData;
-      const nextInfo = await resolveCurrentLocationInfo(coordinates, warningData);
-      if (requestId !== locationResolveRequestId) return;
+      if(warningData)latestDataByTab.warnings = warningData;
+      const nextInfo = await resolveCurrentLocationInfo(coordinates, warningData??{}, fix);
+      if (requestId !== locationResolveRequestId||currentLocationInfo.status!=="found") return;
+      if(currentLocationInfo!==resolvingLocation) {
+        nextInfo.coordinates=currentLocationInfo.coordinates;
+        Object.assign(nextInfo,normalizeLocationFix(currentLocationInfo));
+      }
       currentLocationInfo = nextInfo;
       void currentLocationWeather.refresh(nextInfo);
       lastResolvedLocation = {
@@ -3941,8 +3955,8 @@ if (layerId === "river") {
       refreshActivePanel();
     } catch (error) {
       if (requestId !== locationResolveRequestId) return;
-      currentLocationInfo = buildCurrentLocationError(error);
-      currentLocationWeather.clear("現在地を取得できません");
+      currentLocationInfo = {status:"found",coordinates,...fix,geographyStatus:"unavailable",message:"現在地の座標は取得済みです。地域情報を取得できませんでした。"};
+      currentLocationWeather.clear("地域情報を取得できません");
       refreshSettingsModalView();
       refreshActivePanel();
     }
@@ -4147,7 +4161,9 @@ if (layerId === "river") {
   async function refreshCurrentLocationWarningInfo(warningData) {
     if (currentLocationInfo?.status !== "found" || !Array.isArray(currentLocationInfo.coordinates)) return;
     try {
-      currentLocationInfo = await resolveCurrentLocationInfo(currentLocationInfo.coordinates, warningData);
+      const previous=currentLocationInfo;
+      const next=await resolveCurrentLocationInfo(previous.coordinates, warningData, previous);
+      if(currentLocationInfo===previous)currentLocationInfo=next;
       refreshSettingsModalView();
     } catch (error) {
       console.warn("[MeteoScope] current location warning refresh failed", error);
