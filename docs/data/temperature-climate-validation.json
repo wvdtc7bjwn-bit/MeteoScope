@@ -1,0 +1,498 @@
+{
+  "design": "Fixed baseline cases; station historical normal removed as well as current observation; no target-temperature gates or coefficient fitting.",
+  "configuration": {
+    "radiusKm": 150,
+    "maxStations": 32,
+    "minStations": 8,
+    "minimumDistanceKm": 10,
+    "ridge": 0.01,
+    "strength": 0.5,
+    "maxCorrectionC": 2,
+    "coastalSeaFraction": 0.1
+  },
+  "cases": 7324,
+  "estimatedCases": 6276,
+  "adjusted": 1333,
+  "estimates": {
+    "before": {
+      "count": 6276,
+      "total": 6276,
+      "coverage": 1,
+      "mae": 0.9310046580757902,
+      "rmse": 1.305454415631029,
+      "bias": -0.08672207461581014,
+      "maxAbsoluteError": 8.139889052695658,
+      "medianAbsoluteError": 0.6610708769364049,
+      "p90AbsoluteError": 2.1118166979075053,
+      "p95AbsoluteError": 2.752270142353133,
+      "within1C": 0.667144678138942,
+      "within2C": 0.8889420012746972,
+      "above3C": 0.03792224346717655
+    },
+    "after": {
+      "count": 6276,
+      "total": 6276,
+      "coverage": 1,
+      "mae": 0.9119335997969029,
+      "rmse": 1.2774619008193304,
+      "bias": -0.04732729502851286,
+      "maxAbsoluteError": 7.932816356183617,
+      "medianAbsoluteError": 0.6466486126728839,
+      "p90AbsoluteError": 2.064617891959787,
+      "p95AbsoluteError": 2.6968884000035964,
+      "within1C": 0.6744741873804971,
+      "within2C": 0.8934034416826003,
+      "above3C": 0.035850860420650096
+    }
+  },
+  "fallback": {
+    "before": {
+      "count": 1032,
+      "total": 1032,
+      "coverage": 1,
+      "mae": 1.5589147286821703,
+      "rmse": 2.5907969202873726,
+      "bias": -0.05445736434108533,
+      "maxAbsoluteError": 25.1,
+      "medianAbsoluteError": 0.8999999999999986,
+      "p90AbsoluteError": 3.8000000000000003,
+      "p95AbsoluteError": 5.3,
+      "within1C": 0.5658914728682171,
+      "within2C": 0.7635658914728682,
+      "above3C": 0.1385658914728682
+    },
+    "after": {
+      "count": 1032,
+      "total": 1032,
+      "coverage": 1,
+      "mae": 1.5589147286821703,
+      "rmse": 2.5907969202873726,
+      "bias": -0.05445736434108533,
+      "maxAbsoluteError": 25.1,
+      "medianAbsoluteError": 0.8999999999999986,
+      "p90AbsoluteError": 3.8000000000000003,
+      "p95AbsoluteError": 5.3,
+      "within1C": 0.5658914728682171,
+      "within2C": 0.7635658914728682,
+      "above3C": 0.1385658914728682
+    }
+  },
+  "groups": {
+    "heldSpatial": {
+      "before": {
+        "count": 872,
+        "total": 872,
+        "coverage": 1,
+        "mae": 0.9092038680049812,
+        "rmse": 1.3078480768399354,
+        "bias": -0.13813113107920758,
+        "maxAbsoluteError": 7.366934733152601,
+        "medianAbsoluteError": 0.6684611666064582,
+        "p90AbsoluteError": 2.024305581410662,
+        "p95AbsoluteError": 2.654470143258095,
+        "within1C": 0.6834862385321101,
+        "within2C": 0.8990825688073395,
+        "above3C": 0.03555045871559633
+      },
+      "after": {
+        "count": 872,
+        "total": 872,
+        "coverage": 1,
+        "mae": 0.8911412253349316,
+        "rmse": 1.2787699400851238,
+        "bias": -0.10645216957356679,
+        "maxAbsoluteError": 7.366934733152601,
+        "medianAbsoluteError": 0.6423548696776642,
+        "p90AbsoluteError": 1.9770372095389614,
+        "p95AbsoluteError": 2.622107529761477,
+        "within1C": 0.6926605504587156,
+        "within2C": 0.9036697247706422,
+        "above3C": 0.03096330275229358
+      }
+    },
+    "coastal": {
+      "before": {
+        "count": 472,
+        "total": 472,
+        "coverage": 1,
+        "mae": 1.2685312929946664,
+        "rmse": 1.7092891762749953,
+        "bias": -0.9334537233504501,
+        "maxAbsoluteError": 6.8319894021544565,
+        "medianAbsoluteError": 0.9563703151631433,
+        "p90AbsoluteError": 2.7552704501649377,
+        "p95AbsoluteError": 3.5795257754559673,
+        "within1C": 0.5190677966101694,
+        "within2C": 0.798728813559322,
+        "above3C": 0.0826271186440678
+      },
+      "after": {
+        "count": 472,
+        "total": 472,
+        "coverage": 1,
+        "mae": 1.1387091575107584,
+        "rmse": 1.5594236262576051,
+        "bias": -0.6620777616313493,
+        "maxAbsoluteError": 6.227245880713587,
+        "medianAbsoluteError": 0.8556350486609179,
+        "p90AbsoluteError": 2.5390266665966106,
+        "p95AbsoluteError": 3.346589949346056,
+        "within1C": 0.5614406779661016,
+        "within2C": 0.8389830508474576,
+        "above3C": 0.06779661016949153
+      }
+    },
+    "mountain": {
+      "before": {
+        "count": 144,
+        "total": 144,
+        "coverage": 1,
+        "mae": 1.0680156492583848,
+        "rmse": 1.400728204393446,
+        "bias": -0.0657318246898071,
+        "maxAbsoluteError": 3.9027105061166867,
+        "medianAbsoluteError": 0.9219643725644343,
+        "p90AbsoluteError": 2.3975748827589305,
+        "p95AbsoluteError": 2.8593861396849856,
+        "within1C": 0.5277777777777778,
+        "within2C": 0.8541666666666666,
+        "above3C": 0.034722222222222224
+      },
+      "after": {
+        "count": 144,
+        "total": 144,
+        "coverage": 1,
+        "mae": 1.0680156492583848,
+        "rmse": 1.400728204393446,
+        "bias": -0.0657318246898071,
+        "maxAbsoluteError": 3.9027105061166867,
+        "medianAbsoluteError": 0.9219643725644343,
+        "p90AbsoluteError": 2.3975748827589305,
+        "p95AbsoluteError": 2.8593861396849856,
+        "within1C": 0.5277777777777778,
+        "within2C": 0.8541666666666666,
+        "above3C": 0.034722222222222224
+      }
+    },
+    "outsideHull": {
+      "before": {
+        "count": 1333,
+        "total": 1333,
+        "coverage": 1,
+        "mae": 1.176407630761364,
+        "rmse": 1.6185038411395365,
+        "bias": -0.7286152513705951,
+        "maxAbsoluteError": 8.139889052695658,
+        "medianAbsoluteError": 0.8562330273578738,
+        "p90AbsoluteError": 2.6531365916463585,
+        "p95AbsoluteError": 3.565350012449138,
+        "within1C": 0.5768942235558889,
+        "within2C": 0.8244561140285072,
+        "above3C": 0.07351837959489872
+      },
+      "after": {
+        "count": 1333,
+        "total": 1333,
+        "coverage": 1,
+        "mae": 1.0935873964808605,
+        "rmse": 1.5198512741459522,
+        "bias": -0.5647820485370096,
+        "maxAbsoluteError": 7.932816356183617,
+        "medianAbsoluteError": 0.7785719468778787,
+        "p90AbsoluteError": 2.4942569065657603,
+        "p95AbsoluteError": 3.346589949346056,
+        "within1C": 0.6106526631657915,
+        "within2C": 0.8417104276069017,
+        "above3C": 0.06451612903225806
+      }
+    }
+  },
+  "frames": {
+    "20261125000000": {
+      "before": {
+        "count": 786,
+        "total": 786,
+        "coverage": 1,
+        "mae": 0.694571218034401,
+        "rmse": 0.9658970873598829,
+        "bias": -0.03911524410136985,
+        "maxAbsoluteError": 4.892140580138121,
+        "medianAbsoluteError": 0.5068001239480855,
+        "p90AbsoluteError": 1.5530579736939139,
+        "p95AbsoluteError": 2.0792780695276285,
+        "within1C": 0.7913486005089059,
+        "within2C": 0.9478371501272265,
+        "above3C": 0.015267175572519083
+      },
+      "after": {
+        "count": 786,
+        "total": 786,
+        "coverage": 1,
+        "mae": 0.6804114151010666,
+        "rmse": 0.9519389393858192,
+        "bias": 0.00017872977634482364,
+        "maxAbsoluteError": 4.892140580138121,
+        "medianAbsoluteError": 0.5029479622748294,
+        "p90AbsoluteError": 1.4935545056314403,
+        "p95AbsoluteError": 1.984325699718668,
+        "within1C": 0.8002544529262087,
+        "within2C": 0.950381679389313,
+        "above3C": 0.01653944020356234
+      }
+    },
+    "20261125060000": {
+      "before": {
+        "count": 786,
+        "total": 786,
+        "coverage": 1,
+        "mae": 0.794826796240057,
+        "rmse": 1.093701488366195,
+        "bias": -0.06131509913637992,
+        "maxAbsoluteError": 5.553237406219627,
+        "medianAbsoluteError": 0.5576474712322317,
+        "p90AbsoluteError": 1.825210746869409,
+        "p95AbsoluteError": 2.2712006319801565,
+        "within1C": 0.7175572519083969,
+        "within2C": 0.9249363867684478,
+        "above3C": 0.019083969465648856
+      },
+      "after": {
+        "count": 786,
+        "total": 786,
+        "coverage": 1,
+        "mae": 0.7788726511554482,
+        "rmse": 1.071320905270297,
+        "bias": -0.02202112525866526,
+        "maxAbsoluteError": 5.535926612472634,
+        "medianAbsoluteError": 0.5358418564357326,
+        "p90AbsoluteError": 1.8057178693843658,
+        "p95AbsoluteError": 2.242466487175574,
+        "within1C": 0.7251908396946565,
+        "within2C": 0.9287531806615776,
+        "above3C": 0.01653944020356234
+      }
+    },
+    "20261125120000": {
+      "before": {
+        "count": 785,
+        "total": 785,
+        "coverage": 1,
+        "mae": 0.6491751307552831,
+        "rmse": 0.8502118949956784,
+        "bias": -0.010120915826299152,
+        "maxAbsoluteError": 3.3307641132733945,
+        "medianAbsoluteError": 0.49257416834615064,
+        "p90AbsoluteError": 1.374316808015882,
+        "p95AbsoluteError": 1.7300913418882846,
+        "within1C": 0.7961783439490446,
+        "within2C": 0.9694267515923567,
+        "above3C": 0.0025477707006369425
+      },
+      "after": {
+        "count": 785,
+        "total": 785,
+        "coverage": 1,
+        "mae": 0.6393356854045017,
+        "rmse": 0.8350210876279549,
+        "bias": 0.02904810989782272,
+        "maxAbsoluteError": 3.3307641132733945,
+        "medianAbsoluteError": 0.48390791646306597,
+        "p90AbsoluteError": 1.3642441074966238,
+        "p95AbsoluteError": 1.657382949995009,
+        "within1C": 0.7949044585987262,
+        "within2C": 0.9732484076433121,
+        "above3C": 0.0025477707006369425
+      }
+    },
+    "20261125180000": {
+      "before": {
+        "count": 786,
+        "total": 786,
+        "coverage": 1,
+        "mae": 0.8588297882169704,
+        "rmse": 1.1135229846456802,
+        "bias": -0.05973559453705421,
+        "maxAbsoluteError": 3.9180190279142204,
+        "medianAbsoluteError": 0.6926813194452532,
+        "p90AbsoluteError": 1.8780305022421109,
+        "p95AbsoluteError": 2.25882333165694,
+        "within1C": 0.6641221374045801,
+        "within2C": 0.9198473282442748,
+        "above3C": 0.01272264631043257
+      },
+      "after": {
+        "count": 786,
+        "total": 786,
+        "coverage": 1,
+        "mae": 0.8358446729199083,
+        "rmse": 1.082815625615363,
+        "bias": -0.02044162065933952,
+        "maxAbsoluteError": 3.965096092279997,
+        "medianAbsoluteError": 0.6707624541540032,
+        "p90AbsoluteError": 1.8508299666345014,
+        "p95AbsoluteError": 2.267253133413319,
+        "within1C": 0.6730279898218829,
+        "within2C": 0.9185750636132316,
+        "above3C": 0.007633587786259542
+      }
+    },
+    "20261126020000": {
+      "before": {
+        "count": 786,
+        "total": 786,
+        "coverage": 1,
+        "mae": 1.2622585111998286,
+        "rmse": 1.6948586057121522,
+        "bias": -0.16548297957821181,
+        "maxAbsoluteError": 6.803731131767792,
+        "medianAbsoluteError": 0.9177933266034637,
+        "p90AbsoluteError": 2.822753255582226,
+        "p95AbsoluteError": 3.63230249125234,
+        "within1C": 0.5279898218829516,
+        "within2C": 0.7837150127226463,
+        "above3C": 0.08524173027989822
+      },
+      "after": {
+        "count": 786,
+        "total": 786,
+        "coverage": 1,
+        "mae": 1.2403528055218804,
+        "rmse": 1.6512597265270572,
+        "bias": -0.12613939627049178,
+        "maxAbsoluteError": 6.198987610326924,
+        "medianAbsoluteError": 0.9166728853783794,
+        "p90AbsoluteError": 2.799738544559659,
+        "p95AbsoluteError": 3.5161740828692998,
+        "within1C": 0.5330788804071247,
+        "within2C": 0.7913486005089059,
+        "above3C": 0.08396946564885496
+      }
+    },
+    "20261126080000": {
+      "before": {
+        "count": 781,
+        "total": 781,
+        "coverage": 1,
+        "mae": 1.410014180183237,
+        "rmse": 1.9020839868512127,
+        "bias": -0.19761490029805823,
+        "maxAbsoluteError": 8.139889052695658,
+        "medianAbsoluteError": 1.0364388496242167,
+        "p90AbsoluteError": 3.002305983850764,
+        "p95AbsoluteError": 3.8634503190743033,
+        "within1C": 0.48655569782330343,
+        "within2C": 0.7477592829705506,
+        "above3C": 0.10115236875800256
+      },
+      "after": {
+        "count": 781,
+        "total": 781,
+        "coverage": 1,
+        "mae": 1.3828585431612985,
+        "rmse": 1.8643720940704989,
+        "bias": -0.15882429729929526,
+        "maxAbsoluteError": 7.932816356183617,
+        "medianAbsoluteError": 1.0294653914230367,
+        "p90AbsoluteError": 3.002305983850764,
+        "p95AbsoluteError": 3.8283137191665624,
+        "within1C": 0.49167733674775926,
+        "within2C": 0.7554417413572343,
+        "above3C": 0.10115236875800256
+      }
+    },
+    "20261126140000": {
+      "before": {
+        "count": 782,
+        "total": 782,
+        "coverage": 1,
+        "mae": 0.745708832525166,
+        "rmse": 1.0347393381601238,
+        "bias": -0.05564497123344525,
+        "maxAbsoluteError": 6.358755018285599,
+        "medianAbsoluteError": 0.5575121224860631,
+        "p90AbsoluteError": 1.6344307375495823,
+        "p95AbsoluteError": 2.107550259385622,
+        "within1C": 0.7531969309462916,
+        "within2C": 0.9450127877237852,
+        "above3C": 0.01918158567774936
+      },
+      "after": {
+        "count": 782,
+        "total": 782,
+        "coverage": 1,
+        "mae": 0.7287408651505397,
+        "rmse": 1.0189938625429713,
+        "bias": -0.015114041321651306,
+        "maxAbsoluteError": 6.358755018285599,
+        "medianAbsoluteError": 0.528797415935264,
+        "p90AbsoluteError": 1.56189348013897,
+        "p95AbsoluteError": 2.027779363996258,
+        "within1C": 0.7595907928388747,
+        "within2C": 0.948849104859335,
+        "above3C": 0.01918158567774936
+      }
+    },
+    "20261126180000": {
+      "before": {
+        "count": 784,
+        "total": 784,
+        "coverage": 1,
+        "mae": 1.0346621583184294,
+        "rmse": 1.410328759652869,
+        "bias": -0.10524383633721042,
+        "maxAbsoluteError": 6.092841403856153,
+        "medianAbsoluteError": 0.7892803675033413,
+        "p90AbsoluteError": 2.275719508832598,
+        "p95AbsoluteError": 2.9348843249329786,
+        "within1C": 0.5994897959183674,
+        "within2C": 0.8724489795918368,
+        "above3C": 0.04846938775510204
+      },
+      "after": {
+        "count": 784,
+        "total": 784,
+        "coverage": 1,
+        "mae": 1.0110209010118152,
+        "rmse": 1.3780110292567573,
+        "bias": -0.06579988674554238,
+        "maxAbsoluteError": 5.933961718775555,
+        "medianAbsoluteError": 0.7522331644615985,
+        "p90AbsoluteError": 2.2500818514897776,
+        "p95AbsoluteError": 2.8377113165804797,
+        "within1C": 0.6173469387755102,
+        "within2C": 0.8801020408163265,
+        "above3C": 0.039540816326530615
+      }
+    }
+  },
+  "individualChanges": {
+    "improved": 852,
+    "worsened": 481,
+    "worsenedOver1C": 1
+  },
+  "maximumImplementationDifferenceC": 4.760636329592671e-13,
+  "provenance": {
+    "createdAt": "2026-11-26T15:31:44.304Z",
+    "inputSha256": "65818bcaa002d342a6fdf7b22f3b015a17916ed4d67c4557f50288ddacfe6f5e",
+    "sources": {
+      "src/location/temperatureClimate.js": "73c8c2ab87124948daa2ad7179111a4ef3c2fc8eb6508aba07f3882df6213cf5",
+      "src/location/temperatureClimateData.js": "d8b0f6f8271d0efc7b6a3c78a0b4a1b36b9d2a2483681637831f0a525454fa22",
+      "src/location/temperatureEstimation.js": "dcd7bd1c50076f0afedb37c94172bd075ef83bb9b96ffa0a0941ddea50ca370a",
+      "src/location/temperatureEstimationPolicy.js": "a8b1730b75d7cf27143f974feac2c7b17ddb1a05f01bf1c762d28bdf53fc62e1",
+      "src/location/localTemperatureController.js": "947554290dde49d11322d1b06ee79358a9f83dd3fde85687e28bde86bc1e54c2",
+      "src/location/temperatureClimateData.generated.js": "73ab868f424f8bd00d38605b8f7f57513fb1f4ae4227a2509ba50f2233a0f7d4",
+      "src/amedasTemperatureNormal.js": "17d1c600b9a3cbcb78605c64ba9908b48f34d622b3bd1db7a85463f7c925e35f",
+      "src/ui/localTemperatureView.js": "1a4e3ab1c0641bb165c99ae787bb2d4ac5ac0f0f4e3e5bd51c29ebe3d8cc402f",
+      "src/utils/linearSystem.js": "36ab10b73a9d505a3feeb44ce80beb71dde52d64ce495c805847ba230e12fe3b",
+      "scripts/lib/amedasTemperatureNormals.mjs": "4f5bfde9a85ec2d31ea6c61e970bfdd7ad1c9ac956ebd0f8d355eac17493c094",
+      "scripts/build-temperature-climate-data.mjs": "e313de5e6fbcd68a2e4631414073a4a1b55f18c25969a6292167eea3f7a54f32",
+      "scripts/validate-temperature-climate.mjs": "e116e6f0cfd59b3acc217efaa3a29e1c8deff84902f86ff46b116515f558876d",
+      "public/data/temperature-climate/stations-5c21c4f2282a.json": "5c21c4f2282a43de4bfcfebb11c865c28784366e2ff816e13d49c065122caa75",
+      "public/data/amedas-daily-high-low-temperature-normals-1991-2020.json": "78d44a8d9ddfd8cb1a5c58ad217d26f8b7f36ad3cdf666c5aa0c60886c30fada"
+    }
+  },
+  "aggregateGate": {
+    "rule": "No increase in pooled or reserved-spatial/coastal/mountain/outside-hull MAE, RMSE, p95 or maximum; not a guarantee for every case or time.",
+    "passed": true
+  }
+}

@@ -52,12 +52,14 @@ const start = source.indexOf("  async function selectTab(tabId) {");
 const end = source.indexOf("    const cachedData =", start);
 const pending = [];
 const modes = [];
+const temperatureStops = [];
 const noop = () => {};
 const context = vm.createContext({
   performance, console, TABS: [{ id: "radar" }, { id: "earthquake" }, { id: "amedas" }],
   activeTab: "radar", tabAutoFocusGeneration: 0, activeLoadRequestId: 0,
   warningDetailsRequest: null, communityReportsVisible: false,
   simulationController: null,
+  jmaTemperatureController: { update: input => temperatureStops.push(input.enabled) },
   earthquakeArchiveAreaDrawing: true,
   cancelEarthquakeArchiveAreaDrawing: () => { context.earthquakeArchiveAreaDrawing = false; },
   yieldAfterPaint: () => new Promise((resolve) => pending.push(resolve)),
@@ -74,6 +76,7 @@ vm.runInContext(`${source.slice(start, end)} return requestId; }`, context);
 const first = context.selectTab("earthquake");
 assert.equal(context.earthquakeArchiveAreaDrawing, false, "tab changes cancel the active history drawing");
 const second = context.selectTab("amedas");
+assert.deepEqual(temperatureStops, [false], "leaving AMeDAS stops pending official temperature work without delaying navigation");
 assert.deepEqual(modes, [], "map preparation must yield before running");
 pending.shift()();
 await first;

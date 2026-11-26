@@ -63,11 +63,12 @@ test("fallback is explicitly observed, with station altitude and a prominent dis
   const html=buildLocalTemperatureDetails(result);assert.match(html,/現在地の推定気温は表示できません/);assert.match(html,/860 m/);
   assert.ok(!buildLocalTemperatureDetails({...result,loading:true}).includes("現在地の推定気温は表示できません"));
 });
-test("early access gates runtime work and settings toggle uses the existing switch", async () => {
+test("early access gates custom estimation while source choices use the shared settings UI", async () => {
   const app = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
   assert.match(app, /enabled: earlyAccessEnabled && temperatureEstimationEnabled/);
   const settings = await readFile(new URL("../src/ui/settingsModal.js", import.meta.url), "utf8");
   assert.match(settings, /estimation.disabled = !state.earlyAccessEnabled/);
+  assert.match(settings, /data-settings-temperature-source/);
 });
 
 test("GPS accuracy-only updates change diagnostics without context requests or temperature correction",async()=>{

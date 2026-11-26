@@ -5,6 +5,19 @@ export const UI_EN_ENTRIES = `
 現在地の座標は取得済みです。地域情報を取得できませんでした。|Location coordinates are available, but regional information could not be loaded.
 地域情報を取得できません|Regional information is unavailable
 観測グラフ・推定気温|Observation charts and local temperature
+観測グラフ・気温の表示元|Observation charts and temperature source
+観測グラフと、要約パネルに表示する気温の取得元を設定します。|Configure observation charts and the summary panel's temperature source.
+要約パネルの気温|Summary panel temperature
+要約パネルの気温の表示元|Summary panel temperature source
+最寄り観測点の実測値|Nearest station observation
+現在地に近いAMeDAS観測点|An AMeDAS station near your location
+MeteoScope独自推定|MeteoScope estimate
+現在地の標高・周辺環境を考慮 · アーリーアクセス|Local elevation and environment · early access
+気象庁の推計気象分布|JMA estimated weather distribution
+現在地を含む約1km格子の気温区分|Temperature category for your approx. 1 km mesh
+位置情報を使います。気象庁の気温は公開表示用データの1℃区分で表示し、詳細でデータの対象時刻を確認できます。取得できない場合は「—」と表示します。湿度・風・降水量と観測グラフはこれまでどおりです。|Location is required. JMA temperature uses public display categories of 1°C; analysis time is available in details. Unavailable data shows “—”. Humidity, wind, precipitation and observation charts keep their existing sources.
+独自推定はアーリーアクセス限定です。選択するときに利用規約を表示します。|The MeteoScope estimate requires early access. Terms are shown when you select it.
+独自推定の利用規約・出典|MeteoScope estimate terms and sources
 観測グラフの表示と、現在地の推定気温を設定します。|Configure observation charts and estimated local temperature.
 現在地の推定気温|Estimated local temperature
 現在地の気象情報|Local weather

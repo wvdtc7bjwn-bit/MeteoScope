@@ -4,6 +4,7 @@ export { temperatureObservationTime } from "./temperatureObservation.js";
 import { TEMPERATURE_ESTIMATION } from "./temperatureEstimationPolicy.js";
 import { environmentDifference, environmentSimilarity } from "./environmentProfile.js";
 import { temperatureWeatherContext, applyTemperatureWeather } from "./temperatureWeather.js";
+import { solveLinearSystem as solve } from "../utils/linearSystem.js";
 
 const finite = value => typeof value === "number" && Number.isFinite(value);
 const median = values => { const sorted = [...values].sort((a, b) => a - b); const i = Math.floor(sorted.length / 2); return sorted.length % 2 ? sorted[i] : (sorted[i - 1] + sorted[i]) / 2; };
@@ -88,23 +89,6 @@ function idw(points, target, elevation, lapse, policy, environment = null, weath
     corrected: entry.corrected, weight: entry.weight / sum })) };
 }
 
-// Small pivoted normal-equation solve on standardized predictors; reject ill-conditioned geometry.
-function solve(matrix, vector) {
-  const rows = matrix.map((row, i) => [...row, vector[i]]), size = vector.length;
-  let largest = 0, smallest = Infinity;
-  for (let col = 0; col < size; col++) {
-    let pivot = col;
-    for (let row = col + 1; row < size; row++) if (Math.abs(rows[row][col]) > Math.abs(rows[pivot][col])) pivot = row;
-    [rows[col], rows[pivot]] = [rows[pivot], rows[col]];
-    const value = rows[col][col]; largest = Math.max(largest, Math.abs(value)); smallest = Math.min(smallest, Math.abs(value));
-    if (!finite(value) || Math.abs(value) < 1e-8 || largest / smallest > 1e5) return null;
-    for (let j = col; j <= size; j++) rows[col][j] /= value;
-    for (let row = 0; row < size; row++) if (row !== col) {
-      const scale = rows[row][col]; for (let j = col; j <= size; j++) rows[row][j] -= scale * rows[col][j];
-    }
-  }
-  return rows.map(row => row[size]);
-}
 export function fitTemperatureLapse(points, { plane = false, config = {} } = {}) {
   const p = { ...TEMPERATURE_ESTIMATION, ...config };
   if (points.length < (plane ? 7 : p.regressionMinStations) || points.some(s => !finite(s.elevation))) return null;

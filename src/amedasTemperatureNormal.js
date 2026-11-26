@@ -1,11 +1,16 @@
 import { fetchJson } from "./jma/jmaClient.js";
+import { APP_BASE_URL } from "./config.js";
 
 export const AMEDAS_TEMPERATURE_NORMAL_PERIOD = "1991-2020";
-export const AMEDAS_DAILY_TEMPERATURE_NORMALS_URL = "/data/amedas-daily-high-low-temperature-normals-1991-2020.json?v=2020-5-high-low";
+export const AMEDAS_DAILY_TEMPERATURE_NORMALS_URL = `${APP_BASE_URL}data/amedas-daily-high-low-temperature-normals-1991-2020.json?v=2020-6-quality`;
 
 let normalDataRequest = null;
 
 export async function fetchAmedasDailyTemperatureNormals(stationId, date) {
+  return getAmedasDailyTemperatureNormals(await fetchAmedasTemperatureNormalData(), stationId, date);
+}
+
+export async function fetchAmedasTemperatureNormalData() {
   if (!normalDataRequest) {
     normalDataRequest = fetchJson(AMEDAS_DAILY_TEMPERATURE_NORMALS_URL, {
       ttlMs: 24 * 60 * 60 * 1000,
@@ -16,8 +21,7 @@ export async function fetchAmedasDailyTemperatureNormals(stationId, date) {
       throw error;
     });
   }
-  const data = await normalDataRequest;
-  return getAmedasDailyTemperatureNormals(data, stationId, date);
+  return normalDataRequest;
 }
 
 export function getAmedasDailyTemperatureNormals(data, stationId, date) {
@@ -37,8 +41,8 @@ export function getAmedasDailyTemperatureNormals(data, stationId, date) {
 }
 
 function readTemperatureNormalValue(values, index) {
-  const value = Number(values?.[index]);
-  return Number.isFinite(value) && Math.abs(value) < 9000 ? value / 10 : null;
+  const value = values?.[index];
+  return typeof value === "number" && Number.isFinite(value) && Math.abs(value) < 9000 ? value / 10 : null;
 }
 
 function getDateParts(value) {

@@ -1,5 +1,7 @@
 import { mergeRefreshedData, mergeWarningTabData } from "./app/refreshedData.js";
 import { createLocalTemperatureController } from "./location/localTemperatureController.js";
+import { createJmaTemperatureController } from "./location/jmaTemperatureController.js";
+import { loadTemperatureSource, saveTemperatureSource, effectiveTemperatureSource } from "./preferences/temperatureSource.js";
 import { loadTemperatureEstimationEnabled, saveTemperatureEstimationEnabled } from "./location/temperatureEstimationPolicy.js";
 import {
   buildTyphoonFocusCoordinates,
@@ -275,7 +277,9 @@ export function createWeatherApp() {
   let amedasDailyChartDayOffset = 0;
   let amedasChartDisplay = loadAmedasChartDisplay();
   let temperatureEstimationEnabled = loadTemperatureEstimationEnabled();
+  let temperatureSource = loadTemperatureSource();
   const localTemperatureController = createLocalTemperatureController({ onChange: () => refreshAmedasPanel() });
+  const jmaTemperatureController = createJmaTemperatureController({ onChange: () => refreshAmedasPanel() });
   let amedasDailyChart = { status: "idle", stationId: "", stationName: "", metricId: "", precipitationPeriod: activeAmedasPrecipitationPeriod, dayOffset: 0, data: null };
   let amedasDailyChartRequestId = 0;
   let activeWarningView = "status";
@@ -813,6 +817,7 @@ export function createWeatherApp() {
       warningDetailsRequest.controller.abort();
     }
     activeTab = tab.id;
+    if (activeTab !== "amedas") jmaTemperatureController.update({ enabled: false });
     syncSimulationButton();
     syncTyphoonRadarOverlayButton();
     renderCommunityReportLayerToggle();
@@ -2399,13 +2404,18 @@ if (layerId === "river") {
       displayData.lightning = lightningData;
     }
     if (tab.id === "radar") ensureLocationRadarTimeline(displayData);
+    const activeTemperatureSource = effectiveTemperatureSource(temperatureSource, earlyAccessEnabled);
+    const localTemperature = tab.id === "amedas" ? localTemperatureController.update({
+      enabled: earlyAccessEnabled && temperatureEstimationEnabled && activeTemperatureSource === "meteoscope" && activeAmedasMetric === "temperature",
+      data, location: currentLocationInfo
+    }) : null;
+    const jmaTemperature = tab.id === "amedas" ? jmaTemperatureController.update({
+      enabled: activeTemperatureSource === "jma" && activeAmedasMetric === "temperature", location: currentLocationInfo
+    }) : null;
     const panelState = {
       status: "ok",
       data: displayData,
-      localTemperature: tab.id === "amedas" ? localTemperatureController.update({
-        enabled: earlyAccessEnabled && temperatureEstimationEnabled && activeAmedasMetric === "temperature",
-        data, location: currentLocationInfo
-      }) : null,
+      localTemperature: localTemperature ?? jmaTemperature,
       amedasMetric: activeAmedasMetric,
       amedasPrecipitationPeriod: activeAmedasPrecipitationPeriod,
       selectedAmedasStationId,
@@ -3926,7 +3936,7 @@ if (layerId === "river") {
     const keepArea=previous.coordinates&&getDistanceMeters(previous.coordinates,coordinates)<LOCATION_RESOLVE_MIN_DISTANCE_METERS;
     currentLocationInfo={...(keepArea?previous:{status:"found",geographyStatus:"loading"}),coordinates,...fix};
     if (!shouldResolveCurrentLocation(coordinates, options.forceResolve)) {
-      if(activeTab==="amedas"&&earlyAccessEnabled&&temperatureEstimationEnabled)refreshAmedasPanel();
+      if(activeTab==="amedas"&&effectiveTemperatureSource(temperatureSource,earlyAccessEnabled)!=="nearest")refreshAmedasPanel();
       return;
     }
     refreshActivePanel();
@@ -4333,6 +4343,7 @@ if (layerId === "river") {
       observationColors: getObservationColors(),
       amedasChartDisplay,
       temperatureEstimationEnabled,
+      temperatureSource,
       earthquakeDistributionRecentXmlVisible,
       earthquakeHistoryRecentEnabled,
       eewAutoFocusEnabled: eewAutoFocus.enabled,
@@ -4828,9 +4839,11 @@ if (layerId === "river") {
       onLanguageChange: (language) => localeController.setPreference(language),
       onTerrainLayerChange: setTerrainLayerSettings,
       onAmedasChartDisplayChange: setAmedasChartDisplay,
-      onTemperatureEstimationChange: enabled => {
-        temperatureEstimationEnabled = saveTemperatureEstimationEnabled(enabled);
-        if (!temperatureEstimationEnabled) localTemperatureController.update({ enabled: false });
+      onTemperatureSourceChange: source => {
+        temperatureSource = saveTemperatureSource(source);
+        temperatureEstimationEnabled = saveTemperatureEstimationEnabled(temperatureSource === "meteoscope");
+        localTemperatureController.update({ enabled: false });
+        jmaTemperatureController.update({ enabled: false });
         refreshAmedasPanel();
       },
       onObservationColorsChange: (next) => {

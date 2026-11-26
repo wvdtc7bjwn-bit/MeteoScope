@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import vm from "node:vm";
+import { buildAmedasTemperatureNormalData } from "../scripts/lib/amedasTemperatureNormals.mjs";
 import { readFile } from "node:fs/promises";
 import {
   AMEDAS_TEMPERATURE_NORMAL_PERIOD,
+  AMEDAS_DAILY_TEMPERATURE_NORMALS_URL,
   getAmedasDailyTemperatureNormals
 } from "../src/amedasTemperatureNormal.js";
 
@@ -22,6 +24,17 @@ assert.deepEqual(
 );
 assert.equal(getAmedasDailyTemperatureNormals(normalData, "11001", "20261301"), null);
 assert.equal(getAmedasDailyTemperatureNormals(normalData, "missing", "20260928"), null);
+const dailyRow = (id, element, values) => [25, id, element, 30, 1991, 2020, 11, ...values.flat()].join(",");
+const parsed = buildAmedasTemperatureNormalData([{text: [
+  dailyRow("11001", "0600", [["0", "0"], ["0", "8"], ["", "8"], ["45", "1"]]),
+  dailyRow("11001", "0700", [["-25", "8"], ["0", "0"]]),
+  dailyRow("11002", "0600", [["0", "0"]])
+].join("\n")}]);
+assert.deepEqual(getAmedasDailyTemperatureNormals(parsed, "11001", "20261101"), {maximum:null,minimum:-2.5,period:"1991-2020"});
+assert.deepEqual(getAmedasDailyTemperatureNormals(parsed, "11001", "20261102"), {maximum:0,minimum:null,period:"1991-2020"});
+assert.equal(getAmedasDailyTemperatureNormals(parsed, "11001", "20261103"), null);
+assert.equal(getAmedasDailyTemperatureNormals(parsed, "11001", "20261104"), null);
+assert.equal(parsed.stations["11002"], undefined);
 
 const [amedasSource, panelSource, scriptSource] = await Promise.all([
   readFile(new URL("../src/jma/amedas.js", import.meta.url), "utf8"),
@@ -35,8 +48,9 @@ assert.match(panelSource, /平年最低/);
 assert.doesNotMatch(panelSource, /観測平均/);
 assert.match(panelSource, /amedas-temperature-chart-reference-lines/);
 assert.match(scriptSource, /normal_amedas_daily\.zip/);
-for (const element of ["0600", "0700"]) assert.match(scriptSource, new RegExp(`"${element}"`));
-assert.doesNotMatch(scriptSource, /"0500"/);
+const parserSource = await readFile(new URL("../scripts/lib/amedasTemperatureNormals.mjs", import.meta.url), "utf8");
+for (const element of ["0600", "0700"]) assert.match(parserSource, new RegExp(`"${element}"`));
+assert.doesNotMatch(parserSource, /"0500"/);
 
 console.log("AMeDAS temperature normal tests passed");
 
@@ -61,7 +75,7 @@ function requestStatic(url) {
   listeners.get("fetch")({ request: { method: "GET", mode: "cors", url }, respondWith: promise => { result = promise; } });
   return result;
 }
-const staticUrl = "https://example.test/data/amedas-daily-high-low-temperature-normals-1991-2020.json?v=2020-5-high-low";
+const staticUrl = new URL(AMEDAS_DAILY_TEMPERATURE_NORMALS_URL,"https://example.test").href;
 const firstNormalResponse = await requestStatic(staticUrl);
 assert.equal(firstNormalResponse.ok, true);
 online = false;

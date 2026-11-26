@@ -3,7 +3,7 @@ import { temperatureWeatherContext, selectTemperatureHistory, applyTemperatureWe
 const finite = value => typeof value === "number" && Number.isFinite(value);
 const clamp = value => Math.min(1, Math.max(0, value));
 
-function solarAltitude(coordinates, timeMs) {
+export function solarAltitude(coordinates, timeMs) {
   const date = new Date(timeMs), rad = Math.PI / 180;
   const angle = 2 * Math.PI / 365 * (timeMs - Date.UTC(date.getUTCFullYear(), 0, 1)) / 86400000;
   const declination = .006918 - .399912 * Math.cos(angle) + .070257 * Math.sin(angle)

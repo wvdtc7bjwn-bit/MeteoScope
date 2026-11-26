@@ -3130,3 +3130,20 @@ html[data-theme="light"] .upper-air-annotation-item p { color: #19344e; }
   line-height: 1.55;
 }
 
+.settings-theme-options.settings-temperature-source-options {
+  grid-template-columns: minmax(0, 1fr);
+  margin-top: 12px;
+}
+.settings-temperature-source-options button {
+  display: grid;
+  gap: 5px;
+  text-align: left;
+  white-space: normal;
+}
+.settings-temperature-source-options button small {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.5;
+  opacity: .8;
+}
+

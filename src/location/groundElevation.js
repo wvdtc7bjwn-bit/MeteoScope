@@ -1,6 +1,7 @@
 import { getTerrainTileLoader } from "../map/terrainTiles.js";
 import { getDistanceKm } from "./distance.js";
 import { TEMPERATURE_ESTIMATION } from "./temperatureEstimationPolicy.js";
+import { readPngPixel as readPixelBytes } from "../utils/pngPixel.js";
 
 export function decodeElevationPixel(r, g, b, alpha = 255) {
   if (!alpha || (r === 128 && g === 0 && b === 0)) return null;
@@ -18,17 +19,7 @@ export function elevationTilePosition([longitude, latitude], zoom = 14) {
 }
 
 async function readPngPixel(data, x, y) {
-  const bitmap = await createImageBitmap(new Blob([data], { type: "image/png" }), { colorSpaceConversion: "none", premultiplyAlpha: "none" });
-  try {
-    if (bitmap.width !== 256 || bitmap.height !== 256) throw new Error("Invalid DEM dimensions");
-    const canvas = typeof OffscreenCanvas === "function" ? new OffscreenCanvas(1, 1) : document.createElement("canvas");
-    canvas.width = canvas.height = 1;
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    if (!context) throw new Error("Canvas unavailable");
-    context.imageSmoothingEnabled = false;
-    context.drawImage(bitmap, x, y, 1, 1, 0, 0, 1, 1);
-    return decodeElevationPixel(...context.getImageData(0, 0, 1, 1).data);
-  } finally { bitmap.close(); }
+  return decodeElevationPixel(...await readPixelBytes(data, x, y, 256));
 }
 
 // Keep only a few location anchors in memory; disk holds shared tile bytes, never GPS coordinates.

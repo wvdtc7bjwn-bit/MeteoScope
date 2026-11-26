@@ -1,5 +1,5 @@
 self.__meteoscopePendingNotificationTask = null;
-const APP_SHELL_CACHE = "meteoscope-shell-v9";
+const APP_SHELL_CACHE = "meteoscope-shell-v10";
 const APP_SHELL_URLS = [
   "/",
   "/index.html",
@@ -54,6 +54,7 @@ self.addEventListener("fetch", (event) => {
     || url.pathname.startsWith("/icons/")
     || url.pathname === "/site.webmanifest"
     || url.pathname === "/data/amedas-daily-high-low-temperature-normals-1991-2020.json"
+    || url.pathname.startsWith("/data/temperature-climate/")
   ) {
     event.respondWith(cacheFirstStatic(request));
   }

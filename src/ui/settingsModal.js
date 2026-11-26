@@ -7,7 +7,8 @@ import { prepareProfileImage } from "./profileImage.js";
 import { setupAccountCardMotion } from "./accountCardMotion.js";
 import { getCurrentLanguage } from "./locale.js";
 import { createSettingsNavigator } from "./settingsNavigation.js";
-import { createLocalTemperatureToggle, openLocalTemperatureTerms } from "./localTemperatureTerms.js";
+import { openLocalTemperatureTerms } from "./localTemperatureTerms.js";
+import { createTemperatureSourceSelector, effectiveTemperatureSource } from "../preferences/temperatureSource.js";
 import { getEarthquakeIntensityColor } from "../config.js";
 import { renderAmedasColorLegend } from "./amedasColorLegend.js";
 import { getLongPeriodClassStyle } from "../earthquake/longPeriodGroundMotion.js";
@@ -27,9 +28,10 @@ let settingsProfileAvatar;
 let settingsProfileImageRequest = 0;
 let settingsProfileImageBusy = false;
 let settingsNavigator = null;
-const toggleLocalTemperature = createLocalTemperatureToggle({
+const selectTemperatureSource = createTemperatureSourceSelector({
   getState: () => settingsOptions.getState?.() ?? {},
-  onChange: enabled => settingsOptions.onTemperatureEstimationChange?.(enabled)
+  onChange: source => settingsOptions.onTemperatureSourceChange?.(source),
+  confirm: () => openLocalTemperatureTerms()
 });
 
 export function setupSettingsModal(options = {}) {
@@ -51,6 +53,16 @@ export function setupSettingsModal(options = {}) {
   } });
 
   button.addEventListener("click", openSettingsModal);
+  modal.addEventListener("keydown", event => {
+    const option = event.target.closest?.("[data-settings-temperature-source]");
+    if (!option || !["ArrowDown","ArrowUp","ArrowLeft","ArrowRight","Home","End"].includes(event.key)) return;
+    event.preventDefault();
+    const options = [...modal.querySelectorAll("[data-settings-temperature-source]")].filter(button => !button.disabled);
+    const index = options.indexOf(option);
+    const next = event.key === "Home" ? options[0] : event.key === "End" ? options.at(-1)
+      : options[(index + (["ArrowUp","ArrowLeft"].includes(event.key) ? -1 : 1) + options.length) % options.length];
+    next?.focus(); next?.click();
+  });
   document.getElementById("settings-profile-file")?.addEventListener("change", event => {
     void chooseSettingsProfileImage(event.target);
   });
@@ -164,9 +176,10 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
-    const temperatureEstimationButton = event.target.closest("[data-settings-temperature-estimation]");
-    if (temperatureEstimationButton) {
-      void toggleLocalTemperature().catch(error=>console.warn("[MeteoScope] Temperature terms unavailable",error)).finally(renderSettingsAmedasChart);
+    const temperatureSourceButton = event.target.closest("[data-settings-temperature-source]");
+    if (temperatureSourceButton) {
+      void selectTemperatureSource(temperatureSourceButton.dataset.settingsTemperatureSource)
+        .catch(error=>console.warn("[MeteoScope] Temperature terms unavailable",error)).finally(renderSettingsAmedasChart);
       return;
     }
     if (event.target.closest("[data-settings-temperature-terms]")) {
@@ -459,13 +472,14 @@ function resetSettingsFilter({ focus = false } = {}) {
 
 function renderSettingsAmedasChart() {
   const state = settingsOptions.getState?.() ?? {};
-  const estimation = document.querySelector("[data-settings-temperature-estimation]");
+  const estimation = document.querySelector('[data-settings-temperature-source="meteoscope"]');
   if (estimation) {
-    const enabled = state.temperatureEstimationEnabled === true;
-    estimation.setAttribute("aria-checked", String(enabled));
-    estimation.classList.toggle("is-enabled", enabled);
     estimation.disabled = !state.earlyAccessEnabled;
   }
+  const source = effectiveTemperatureSource(state.temperatureSource, state.earlyAccessEnabled);
+  document.querySelectorAll("[data-settings-temperature-source]").forEach(button => {
+    button.setAttribute("aria-checked", String(button.dataset.settingsTemperatureSource === source));
+  });
   document.querySelectorAll("[data-settings-amedas-chart]").forEach(button => {
     button.setAttribute("aria-checked", String(button.dataset.settingsAmedasChart === (state.amedasChartDisplay ?? "continuous")));
   });

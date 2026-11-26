@@ -1,0 +1,68 @@
+{
+  "design": "Descriptive agreement with prior JMA 1C raster categories, not independent accuracy; these timestamps informed development. Target historical normals removed. No JMA inputs used by the estimator.",
+  "count": 2349,
+  "before": {
+    "midpoint": {
+      "count": 2349,
+      "total": 2349,
+      "coverage": 1,
+      "mae": 1.1437270728647104,
+      "rmse": 1.56417546914295,
+      "bias": -0.11241752057805818,
+      "maxAbsoluteError": 6.932090813065402,
+      "medianAbsoluteError": 0.8361816102037388,
+      "p90AbsoluteError": 2.566518046695859,
+      "p95AbsoluteError": 3.3352555291024704,
+      "within1C": 0.5717326521924223,
+      "within2C": 0.8382290336313325,
+      "above3C": 0.06726266496381439
+    },
+    "interval": {
+      "count": 2349,
+      "total": 2349,
+      "coverage": 1,
+      "mae": 0.7240696205713207,
+      "rmse": 1.2352751541034412,
+      "bias": 0.7240696205713207,
+      "maxAbsoluteError": 6.432090813065402,
+      "medianAbsoluteError": 0.3361816102037388,
+      "p90AbsoluteError": 2.066518046695859,
+      "p95AbsoluteError": 2.8352555291024704,
+      "within1C": 0.7386121753937845,
+      "within2C": 0.8935717326521925,
+      "above3C": 0.04171988080034057
+    }
+  },
+  "after": {
+    "midpoint": {
+      "count": 2349,
+      "total": 2349,
+      "coverage": 1,
+      "mae": 1.120653145731804,
+      "rmse": 1.5297817071705855,
+      "bias": -0.07356593182262178,
+      "maxAbsoluteError": 6.932090813065402,
+      "medianAbsoluteError": 0.8240360170494929,
+      "p90AbsoluteError": 2.4807714072219014,
+      "p95AbsoluteError": 3.291612062292266,
+      "within1C": 0.5759897828863346,
+      "within2C": 0.8433375904640272,
+      "above3C": 0.06428267347807577
+    },
+    "interval": {
+      "count": 2349,
+      "total": 2349,
+      "coverage": 1,
+      "mae": 0.7031574905989655,
+      "rmse": 1.2006975235121669,
+      "bias": 0.7031574905989655,
+      "maxAbsoluteError": 6.432090813065402,
+      "medianAbsoluteError": 0.3240360170494929,
+      "p90AbsoluteError": 1.9807714072219014,
+      "p95AbsoluteError": 2.791612062292266,
+      "within1C": 0.7462750106428268,
+      "within2C": 0.9016602809706258,
+      "above3C": 0.04044274159216688
+    }
+  }
+}

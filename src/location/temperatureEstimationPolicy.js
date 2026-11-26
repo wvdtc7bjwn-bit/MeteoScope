@@ -15,6 +15,7 @@ export const TEMPERATURE_ESTIMATION = Object.freeze({
   heightSimilarityScaleM: 200, // Separated LOO + unseen next-frame check; scale is empirical, not an error bound.
   directionalReachRatio: 0, // Tested alternative remains disabled.
   weatherEnabled: false, // Rejected: the tail error and some per-frame RMSEs worsened despite a tiny pooled MAE reduction.
+  climateEnabled: true, // Early-access only; bounded historical-background adjustment on coastal / outside-hull estimates.
   weatherWindStrength: .5, // Research candidate only. Do not enable without independent non-degradation validation.
   regressionMinStations: 6, regressionHeightRange: 150, regressionMinR2: .35,
   maxAbsLapseRate: .015, maxLapseStd: .003, dynamicMinImprovementC: .15,

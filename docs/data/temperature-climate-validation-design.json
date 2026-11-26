@@ -1,0 +1,403 @@
+{
+  "firstProtocol": {
+    "createdAt": "2026-11-26T15:12:13.693Z",
+    "calibration": "Previously used 12 frames; spatial fold !=0. Target historical normal is removed before background fitting.",
+    "evaluationTimes": [
+      "20261125030000",
+      "20261125090000",
+      "20261125150000",
+      "20261126220000",
+      "20261126230000"
+    ],
+    "evaluation": "Freeze candidates on calibration before reading new observation responses. Report whole frames plus held-out spatial fold 0 (fixed 20km-ish blocks).",
+    "selection": "Lower calibration MAE/RMSE/p95/max among baseline estimates, no regional MAE increase >0.03C or max increase >0.1C. If no candidate passes, do not replace the estimator. On evaluation require pooled and held-spatial MAE/RMSE and tails non-degradation; disclose per-frame exceptions.",
+    "spatialFold": "((floor(latitude*3)*3 + floor(longitude*2)*5) modulo 7) == 0 reserved for evaluation",
+    "candidates": "Static climate background fit to held-out historical normals; locality, terrain and coast features; bounded anomaly correction. No target current temperature used for selection, no JMA product input."
+  },
+  "firstSelection": {
+    "selected": "mid-r0.01-s0.5",
+    "candidates": {
+      "baseline": null,
+      "mid-r0.01-s0.5": {
+        "mode": "mid",
+        "ridge": 0.01,
+        "strength": 0.5
+      }
+    },
+    "accepted": [
+      "mid-r0.01-s0.5",
+      "mid-r0.01-s1",
+      "mid-r0.1-s0.5",
+      "mid-r0.1-s1",
+      "min-r0.1-s0.5"
+    ],
+    "calibrationOnly": true
+  },
+  "firstEvaluation": {
+    "phase": "evaluation",
+    "count": 4576,
+    "estimates": {
+      "baseline": {
+        "count": 3911,
+        "mae": 0.8877341481466876,
+        "rmse": 1.309927551617424,
+        "bias": -0.09136684203920385,
+        "p95": 2.693039578769186,
+        "max": 8.214474595125235,
+        "above3C": 158
+      },
+      "mid-r0.01-s0.5": {
+        "count": 3911,
+        "mae": 0.8735282151697639,
+        "rmse": 1.2805810279443612,
+        "bias": -0.024844069590439978,
+        "p95": 2.626823918424636,
+        "max": 7.493707253222036,
+        "above3C": 147
+      }
+    },
+    "groups": {
+      "coastal": {
+        "baseline": {
+          "count": 294,
+          "mae": 1.4002716923517629,
+          "rmse": 2.0746189105900763,
+          "bias": -1.0844011175960893,
+          "p95": 4.906893626052613,
+          "max": 8.214474595125235,
+          "above3C": 37
+        },
+        "mid-r0.01-s0.5": {
+          "count": 294,
+          "mae": 1.2912333113609216,
+          "rmse": 1.91524730490214,
+          "bias": -0.8134113162869697,
+          "p95": 4.569558747348321,
+          "max": 7.047438252546454,
+          "above3C": 32
+        }
+      },
+      "mountain": {
+        "baseline": {
+          "count": 89,
+          "mae": 0.855816440504277,
+          "rmse": 1.034144764252669,
+          "bias": -0.06394814996749636,
+          "p95": 2.0393560920429086,
+          "max": 2.288133116461303,
+          "above3C": 0
+        },
+        "mid-r0.01-s0.5": {
+          "count": 89,
+          "mae": 0.8318497099518685,
+          "rmse": 1.0159951291908484,
+          "bias": -0.05200526844627638,
+          "p95": 2.016109990832988,
+          "max": 2.288133116461303,
+          "above3C": 0
+        }
+      },
+      "outsideHull": {
+        "baseline": {
+          "count": 829,
+          "mae": 1.1937723739930548,
+          "rmse": 1.8170088092499168,
+          "bias": -0.7566489576136696,
+          "p95": 4.338605706126537,
+          "max": 8.214474595125235,
+          "above3C": 75
+        },
+        "mid-r0.01-s0.5": {
+          "count": 829,
+          "mae": 1.1276600868204079,
+          "rmse": 1.7206006011539998,
+          "bias": -0.5930180779277113,
+          "p95": 4.1347463142390914,
+          "max": 7.493707253222036,
+          "above3C": 68
+        }
+      },
+      "heldSpatial": {
+        "baseline": {
+          "count": 541,
+          "mae": 0.8546238328308926,
+          "rmse": 1.1760178206447378,
+          "bias": -0.07451956773114232,
+          "p95": 2.524410909922251,
+          "max": 5.142581553748228,
+          "above3C": 16
+        },
+        "mid-r0.01-s0.5": {
+          "count": 541,
+          "mae": 0.8265297906542776,
+          "rmse": 1.143757374056043,
+          "bias": -0.030233385991557494,
+          "p95": 2.5282935753639655,
+          "max": 4.947235253790822,
+          "above3C": 13
+        }
+      }
+    },
+    "frames": {
+      "20261125030000": {
+        "baseline": {
+          "count": 786,
+          "mae": 0.6801617359884569,
+          "rmse": 0.9387468996520953,
+          "bias": -0.028797623628647476,
+          "p95": 2.065270140182035,
+          "max": 4.038175650767065,
+          "above3C": 11
+        },
+        "mid-r0.01-s0.5": {
+          "count": 786,
+          "mae": 0.6647585481132069,
+          "rmse": 0.9211022736200399,
+          "bias": 0.037404828581613016,
+          "p95": 2.029177559140724,
+          "max": 4.0232852542254705,
+          "above3C": 10
+        }
+      },
+      "20261125090000": {
+        "baseline": {
+          "count": 785,
+          "mae": 0.6985556515693583,
+          "rmse": 0.9450423423686982,
+          "bias": -0.03885638705485374,
+          "p95": 1.8255982097873218,
+          "max": 4.338605706126537,
+          "above3C": 8
+        },
+        "mid-r0.01-s0.5": {
+          "count": 785,
+          "mae": 0.6937184888025513,
+          "rmse": 0.9316839337847584,
+          "bias": 0.02734816208619359,
+          "p95": 1.8384357926146944,
+          "max": 4.294989034425035,
+          "above3C": 8
+        }
+      },
+      "20261125150000": {
+        "baseline": {
+          "count": 784,
+          "mae": 0.5743796990289318,
+          "rmse": 0.7712191830031301,
+          "bias": -0.0061373608493873345,
+          "p95": 1.4604170184001042,
+          "max": 4.1663855330859505,
+          "above3C": 3
+        },
+        "mid-r0.01-s0.5": {
+          "count": 784,
+          "mae": 0.5640353693011405,
+          "rmse": 0.7535630209874721,
+          "bias": 0.060194848521229416,
+          "p95": 1.4354314921046605,
+          "max": 4.137792388397253,
+          "above3C": 3
+        }
+      },
+      "20261126220000": {
+        "baseline": {
+          "count": 778,
+          "mae": 1.2196894044407502,
+          "rmse": 1.7075504817396077,
+          "bias": -0.17734369698698857,
+          "p95": 3.8398404773322623,
+          "max": 7.550113510346457,
+          "above3C": 65
+        },
+        "mid-r0.01-s0.5": {
+          "count": 778,
+          "mae": 1.1971896183267028,
+          "rmse": 1.6666830854680779,
+          "bias": -0.11035730254084058,
+          "p95": 3.668663370026633,
+          "max": 6.933179393661949,
+          "above3C": 61
+        }
+      },
+      "20261126230000": {
+        "baseline": {
+          "count": 778,
+          "mae": 1.2721374058344925,
+          "rmse": 1.8219013587222017,
+          "bias": -0.20747228283207236,
+          "p95": 3.9908970367136023,
+          "max": 8.214474595125235,
+          "above3C": 71
+        },
+        "mid-r0.01-s0.5": {
+          "count": 778,
+          "mae": 1.2540904426885535,
+          "rmse": 1.7778176028572208,
+          "bias": -0.1405763991451034,
+          "p95": 4.02090314136783,
+          "max": 7.493707253222036,
+          "above3C": 65
+        }
+      }
+    },
+    "applied": {
+      "baseline": 0,
+      "mid-r0.01-s0.5": 3586
+    }
+  },
+  "gatedSelection": {
+    "createdFor": "second, separate evaluation",
+    "method": "mid-r0.01-s0.5",
+    "selectedGate": "coastalOrHull",
+    "calibrationResult": {
+      "all": {
+        "count": 8086,
+        "mae": 1.0963700620915362,
+        "rmse": 1.5011032677019054,
+        "bias": -0.05911749461161672,
+        "p95": 3.1504497328457552,
+        "max": 8.430442536776102,
+        "above3C": 463
+      },
+      "coastal": {
+        "count": 8086,
+        "mae": 1.1020796338427095,
+        "rmse": 1.5138096270968873,
+        "bias": -0.10757471741715592,
+        "p95": 3.1872764481192633,
+        "max": 8.637515233288145,
+        "above3C": 484
+      },
+      "outsideHull": {
+        "count": 8086,
+        "mae": 1.093897315038284,
+        "rmse": 1.5012790132480236,
+        "bias": -0.09268417306637876,
+        "p95": 3.15814784867999,
+        "max": 8.430442536776102,
+        "above3C": 476
+      },
+      "coastalOrHull": {
+        "count": 8086,
+        "mae": 1.0912177461703914,
+        "rmse": 1.4972179375966659,
+        "bias": -0.08873819992424085,
+        "p95": 3.1522795597666304,
+        "max": 8.430442536776102,
+        "above3C": 472
+      }
+    },
+    "initialCandidateFailed": "held spatial p95 slightly higher; no first evaluation reused as independent evidence for this gate",
+    "evaluationTimes": [
+      "20261125000000",
+      "20261125060000",
+      "20261125120000",
+      "20261125180000",
+      "20261126020000",
+      "20261126080000",
+      "20261126140000",
+      "20261126180000"
+    ],
+    "rule": "Pooled, spatial fold 0, coastal and >=800m MAE/RMSE/p95/max must not increase. Any failure retains research-only status."
+  },
+  "finalInputSources": [
+    {
+      "time": "20261125000000",
+      "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261125000000.json",
+      "status": "ok",
+      "bytes": 349252,
+      "sha256": "8c19cdcb6464eed06547d95c43b9875cead74695e66c7d6bb75dc139d79c42c2"
+    },
+    {
+      "time": "20261125060000",
+      "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261125060000.json",
+      "status": "ok",
+      "bytes": 349208,
+      "sha256": "52c4f255d48209c54481abadac21f996ce997208b63decbab365c3fececd9b41"
+    },
+    {
+      "time": "20261125120000",
+      "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261125120000.json",
+      "status": "ok",
+      "bytes": 349239,
+      "sha256": "384b233ea53701e898cfa3e44bfaac754aed6160a842f1133e0291ea52059806"
+    },
+    {
+      "time": "20261125180000",
+      "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261125180000.json",
+      "status": "ok",
+      "bytes": 348410,
+      "sha256": "9151b10af2c8d638a35d11e6e22547bc0389871e1394781e9364aef66774e388"
+    },
+    {
+      "time": "20261126020000",
+      "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261126020000.json",
+      "status": "ok",
+      "bytes": 348320,
+      "sha256": "cc98ef4808baf67681e5451d55ccaa18c1c8740a58d5e2a7ec3137aa730885f5"
+    },
+    {
+      "time": "20261126080000",
+      "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261126080000.json",
+      "status": "ok",
+      "bytes": 348455,
+      "sha256": "289820b3c28058d276e29940c67cc35da1d4f6ac20326274a1c7d6825cc476c1"
+    },
+    {
+      "time": "20261126140000",
+      "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261126140000.json",
+      "status": "ok",
+      "bytes": 348846,
+      "sha256": "cba0d2de080ae554e1529a50922dc6d92a74f6c0f0a0ec14e83aaef0e260fb04"
+    },
+    {
+      "time": "20261126180000",
+      "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261126180000.json",
+      "status": "ok",
+      "bytes": 348426,
+      "sha256": "dd8ec88a826b552c4ad8fd6bca8b23814fef65345cd9ecf68d6ec4beda782261"
+    }
+  ],
+  "firstInputSources": [
+    {
+      "time": "20261125030000",
+      "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261125030000.json",
+      "status": "ok",
+      "bytes": 349281,
+      "sha256": "fd4fd88c846b56864e63c0f244099fad2ff0be8b8249430da449fb9505becf30"
+    },
+    {
+      "time": "20261125090000",
+      "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261125090000.json",
+      "status": "ok",
+      "bytes": 349095,
+      "sha256": "0734a260ede0a8390e6dfe748327e9f98c0eb6cdabcb933f0e5fbb8668ef7080"
+    },
+    {
+      "time": "20261125150000",
+      "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261125150000.json",
+      "status": "ok",
+      "bytes": 349223,
+      "sha256": "54fdda61cfeb87042515620814201292ca4d800aa1b907044cb093a634e1f844"
+    },
+    {
+      "time": "20261126220000",
+      "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261126220000.json",
+      "status": "ok",
+      "bytes": 348301,
+      "sha256": "fbf3118e62e6ec0ecaebb1ef282107f58c441526cf35dd468ea0fd92b9e96aab"
+    },
+    {
+      "time": "20261126230000",
+      "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261126230000.json",
+      "status": "ok",
+      "bytes": 348324,
+      "sha256": "e2cf181b8e2633e35632bf84300539b454236ffb5dca289f92cafb4e974fa66d"
+    }
+  ],
+  "limitations": [
+    "Two late-autumn days, not independent seasonal generalization.",
+    "Regional fold separates calibration targets; other published neighboring observations and historical normals remain available.",
+    "Final evaluation did not select coefficients or eligibility gates. Per-frame and individual deteriorations are disclosed."
+  ]
+}

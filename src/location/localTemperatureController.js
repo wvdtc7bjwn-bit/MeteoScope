@@ -7,9 +7,12 @@ import { createEnvironmentReader } from "./environmentData.js";
 import { createRetryableResource } from "../utils/retryableResource.js";
 import { normalizeLocationFix } from "./locationFix.js";
 import { createTemperatureHistory } from "./temperatureWeather.js";
+import { createTemperatureClimateReader } from "./temperatureClimateData.js";
+import { applyTemperatureClimate, shouldUseTemperatureClimate } from "./temperatureClimate.js";
 
 export function createLocalTemperatureController({ readElevation = createGroundElevationReader(),
   loadLand = () => loadMunicipalityLookup().then(buildLandConnectionChecker), readEnvironment = createEnvironmentReader(),
+  readClimate = createTemperatureClimateReader(),
   onChange = () => {}, now = Date.now } = {}) {
   let lastInput, rawResult=null, result=null, publishedRaw, latestLocation, generation=0, elevationController;
   const readLand=createRetryableResource(loadLand,{now});
@@ -92,7 +95,17 @@ export function createLocalTemperatureController({ readElevation = createGroundE
             flags: [...rawResult.flags, "land-screen-unavailable"] };
         }
         rawResult.loading = false;
+        // Publish the existing estimate first. Optional static data must not delay it.
+        const baseline = rawResult, environment = profiles[0]??null;
         onChange(publish());
+        if (token === generation && policy.climateEnabled && shouldUseTemperatureClimate(baseline,environment)) {
+          const signal = elevationController.signal;
+          Promise.resolve().then(()=>readClimate(observationTime,{signal})).then(climate=>{
+            if (token !== generation || signal.aborted || now()-Date.parse(baseline.observationTime)>policy.maxAgeMs) return;
+            const adjusted = applyTemperatureClimate(baseline,{coordinates,elevation:value,environment,climate,lapseRate:policy.lapseRate});
+            if (adjusted !== baseline) { rawResult = adjusted; onChange(publish()); }
+          }).catch(()=>{ /* Retain the current estimate; shared resource throttles failed retries. */ });
+        }
       }).catch(() => {
         if (token !== generation) return;
         rawResult = { ...fallback, loading: false }; onChange(publish());
