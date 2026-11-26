@@ -4,6 +4,7 @@ import { loadLegalDocumentMarkup } from "./legalConsentModal.js";
 import { getDefaultTabOrder, normalizeTabOrder } from "./tabOrder.js";
 import { QuizRankingClient } from "../domain/quizRankingClient.js";
 import { prepareProfileImage } from "./profileImage.js";
+import { setupAccountCardMotion } from "./accountCardMotion.js";
 import { getCurrentLanguage } from "./locale.js";
 import { createSettingsNavigator } from "./settingsNavigation.js";
 import { getEarthquakeIntensityColor } from "../config.js";
@@ -34,6 +35,11 @@ export function setupSettingsModal(options = {}) {
   const button = document.getElementById("settings-button");
   const modal = document.getElementById("settings-modal");
   if (!button || !modal) return;
+  setupAccountCardMotion(document.getElementById("settings-account-card"), {
+    root: modal,
+    toggle: document.getElementById("settings-account-card-motion"),
+    status: document.getElementById("settings-account-card-motion-status")
+  });
   settingsNavigator = createSettingsNavigator(modal, { onOpenGroup(group) {
     if (group.matches(".settings-changelog-group")) renderSettingsChangelog();
     void renderSettingsLegalDocument(group);

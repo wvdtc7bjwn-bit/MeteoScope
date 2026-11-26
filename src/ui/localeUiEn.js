@@ -10,6 +10,9 @@ MeteoScopeデジタルカード|MeteoScope digital card
 2〜20文字。表示名はランキングと投稿に表示されます。|2–20 characters. Your display name appears in rankings and posts.
 アカウントのアイコン|Account picture
 画像を選択|Choose image
+端末の傾きに連動|Follow device tilt
+傾きの利用が許可されませんでした。指でなぞって光を動かせます。|Device motion permission was not granted. Move your finger across the card to shift the light.
+端末の傾きを利用できません。指でなぞって光を動かせます。|Device tilt is unavailable. Move your finger across the card to shift the light.
 アイコン画像を選択|Choose an account picture
 画像を削除|Remove image
 変更を保存|Save changes

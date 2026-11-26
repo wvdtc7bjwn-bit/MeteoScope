@@ -2825,6 +2825,7 @@ html[data-theme="light"] .upper-air-annotation-item p { color: #19344e; }
 .settings-account-card {
   position: relative;
   isolation: isolate;
+  container: account-card / inline-size;
   display: grid;
   grid-template-rows: auto minmax(min-content, 1fr) auto;
   gap: 12px;
@@ -2841,23 +2842,38 @@ html[data-theme="light"] .upper-air-annotation-item p { color: #19344e; }
   color: #f0f1f4;
   background: linear-gradient(132deg, #25282e 0%, #1b1e24 48%, #14191f 100%);
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%), 0 14px 28px rgb(0 0 0 / 24%);
+  transform: perspective(1000px) rotateX(var(--card-rotate-x, 0deg)) rotateY(var(--card-rotate-y, 0deg));
+  transition: transform 180ms ease-out;
 }
 .settings-account-card[hidden] { display: none; }
+.settings-account-card::before { content: ""; position: absolute; z-index: 2; inset: 0; border-radius: inherit; background: radial-gradient(ellipse at var(--card-light-x, 50%) var(--card-light-y, 50%), rgb(222 238 249 / 10%), transparent 68%); opacity: 0; transition: opacity 240ms ease-out; pointer-events: none; }
+.settings-account-card.is-motion-active { will-change: transform; }
+.settings-account-card.is-motion-active::before { opacity: 1; }
 .settings-account-card::after { content: ""; position: absolute; z-index: -1; inset: 0; border-radius: inherit; background: linear-gradient(125deg, rgb(255 255 255 / 3%), transparent 60%); pointer-events: none; }
 /* Center the watermark in the identity row, away from the text and footer. */
-.settings-account-card-art { position: absolute; z-index: -1; grid-area: 2 / 1 / 3 / 2; top: 50%; right: 0; width: 36%; height: auto; aspect-ratio: 304 / 232; transform: translateY(-50%); color: #dce3ee; opacity: .14; pointer-events: none; }
+.settings-account-card-art { position: absolute; z-index: -1; grid-area: 2 / 1 / 3 / 2; top: 50%; right: 0; width: 32%; height: auto; aspect-ratio: 304 / 232; transform: translateY(-50%); color: #dce3ee; opacity: .14; pointer-events: none; }
 .settings-account-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; background: linear-gradient(90deg, rgb(128 214 234 / 65%), rgb(206 214 226 / 16%)) bottom / 100% 1px no-repeat; }
 .settings-account-card-brand { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 15px; font-weight: 500; line-height: 1.15; letter-spacing: -.2px; white-space: nowrap; }
 .settings-account-card-type { color: #a9b0bd; font-size: 7px; font-weight: 500; letter-spacing: 1.4px; white-space: nowrap; }
-.settings-account-card-identity { display: flex; align-items: center; align-self: center; gap: 14px; width: calc(64% - 16px); min-width: 0; margin: 0; }
-.settings-account-card-holder { display: grid; gap: 8px; min-width: 0; }
+.settings-account-card-identity { display: flex; align-items: center; align-self: center; gap: 14px; width: calc(68% - 12px); min-width: 0; margin: 0; }
+.settings-account-card-holder { display: grid; flex: 1; gap: 8px; min-width: 0; }
 .settings-account-card-holder > strong { color: #f1f2f5; font-size: clamp(16px, 4.8vw, 24px); font-weight: 500; line-height: 1.4; letter-spacing: .025em; overflow-wrap: anywhere; }
-.settings-account-card-holder > time { color: #a7b0be; font-size: clamp(7.5px, 1.9vw, 9px); font-weight: 400; line-height: 1.5; letter-spacing: .11em; }
+.settings-account-card-holder > time { color: #a7b0be; font-size: clamp(7.5px, 1.9vw, 9px); font-weight: 400; line-height: 1.5; letter-spacing: .08em; white-space: nowrap; }
 .settings-account-card-footer { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; min-width: 0; padding-top: 8px; }
 .settings-account-card-id-line { display: flex; align-items: baseline; gap: 7px; min-width: 0; color: #a6afbd; font-size: clamp(8px, 2.1vw, 10px); font-weight: 400; line-height: 1.4; }
 .settings-account-card-id-line > :first-child { flex: 0 0 auto; font-size: 7px; letter-spacing: .1em; }
 #settings-account-card-id { min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-variant-numeric: tabular-nums; letter-spacing: .025em; overflow-wrap: anywhere; }
 #settings-account-card-preview { flex: 0 0 auto; color: #e6d1a2; font-size: 9px; font-weight: 400; letter-spacing: .02em; }
+.settings-account-card-motion-controls { display: grid; justify-items: end; gap: 8px; max-width: 480px; margin-inline: auto; }
+.settings-account-card-motion-controls > button { padding: 6px 0; border: 0; background: none; color: var(--modal-muted); font: inherit; font-size: 11px; cursor: pointer; }
+.settings-account-card-motion-controls > button[aria-pressed="true"] { color: var(--modal-focus); }
+.settings-account-card-motion-controls > button:focus-visible { outline: 2px solid var(--modal-focus); outline-offset: 4px; border-radius: 4px; }
+.settings-account-card-motion-controls > span { color: var(--modal-muted); font-size: 11px; line-height: 1.6; }
+.settings-account-card-motion-controls:has(> button[hidden]):has(> span[hidden]) { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .settings-account-card { transform: none; transition: none; }
+  .settings-account-card::before { display: none; }
+}
 .settings-account-row.has-digital-card { padding: 4px 0 0; border: 0; background: transparent; }
 .settings-account-row.has-digital-card .settings-account-info > strong { display: none; }
 .settings-profile-image-row { display: flex; align-items: center; gap: 16px; }
@@ -2869,9 +2885,13 @@ html[data-theme="light"] .upper-air-annotation-item p { color: #19344e; }
 .settings-profile-image-actions > label:focus-within { outline: 2px solid var(--modal-focus); outline-offset: 2px; }
 .settings-profile-remove { border: 0; background: transparent; color: var(--modal-muted); font: inherit; font-size: 12px; cursor: pointer; }
 
-@media (max-width: 360px) {
+@container account-card (max-width: 280px) {
+  .settings-account-card-identity { gap: 10px; }
+  .settings-account-card .settings-profile-avatar { flex-basis: 40px; width: 40px; height: 40px; }
+}
+
+@container account-card (max-width: 250px) {
   .settings-account-card-identity { display: grid; gap: 10px; }
-  .settings-profile-avatar { width: 40px; height: 40px; }
 }
 
 .settings-account-actions details {
