@@ -350,8 +350,8 @@
                       <feColorMatrix type="saturate" values="0"/>
                       <feComponentTransfer><feFuncR type="linear" slope="2" intercept="-.2"/><feFuncG type="linear" slope="2" intercept="-.2"/><feFuncB type="linear" slope="2" intercept="-.2"/></feComponentTransfer>
                       <feColorMatrix type="luminanceToAlpha" result="logo"/>
-                      <feMorphology in="logo" operator="dilate" radius="1.3" result="outer"/>
-                      <feMorphology in="logo" operator="erode" radius="1.3" result="inner"/>
+                      <feMorphology in="logo" operator="dilate" radius="2" result="outer"/>
+                      <feMorphology in="logo" operator="erode" radius="2" result="inner"/>
                       <feComposite in="outer" in2="inner" operator="out" result="edge"/>
                       <feFlood flood-color="white" result="ink"/>
                       <feComposite in="ink" in2="edge" operator="in"/>
