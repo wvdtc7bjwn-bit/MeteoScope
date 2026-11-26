@@ -7,6 +7,7 @@ import { prepareProfileImage } from "./profileImage.js";
 import { setupAccountCardMotion } from "./accountCardMotion.js";
 import { getCurrentLanguage } from "./locale.js";
 import { createSettingsNavigator } from "./settingsNavigation.js";
+import { createLocalTemperatureToggle, openLocalTemperatureTerms } from "./localTemperatureTerms.js";
 import { getEarthquakeIntensityColor } from "../config.js";
 import { renderAmedasColorLegend } from "./amedasColorLegend.js";
 import { getLongPeriodClassStyle } from "../earthquake/longPeriodGroundMotion.js";
@@ -26,6 +27,10 @@ let settingsProfileAvatar;
 let settingsProfileImageRequest = 0;
 let settingsProfileImageBusy = false;
 let settingsNavigator = null;
+const toggleLocalTemperature = createLocalTemperatureToggle({
+  getState: () => settingsOptions.getState?.() ?? {},
+  onChange: enabled => settingsOptions.onTemperatureEstimationChange?.(enabled)
+});
 
 export function setupSettingsModal(options = {}) {
   settingsOptions = options;
@@ -159,6 +164,15 @@ export function setupSettingsModal(options = {}) {
       return;
     }
 
+    const temperatureEstimationButton = event.target.closest("[data-settings-temperature-estimation]");
+    if (temperatureEstimationButton) {
+      void toggleLocalTemperature().catch(error=>console.warn("[MeteoScope] Temperature terms unavailable",error)).finally(renderSettingsAmedasChart);
+      return;
+    }
+    if (event.target.closest("[data-settings-temperature-terms]")) {
+      void openLocalTemperatureTerms({review:true});
+      return;
+    }
     const amedasChartButton = event.target.closest("[data-settings-amedas-chart]");
     if (amedasChartButton) {
       if (amedasChartButton.getAttribute("aria-checked") === "true") return;
@@ -445,6 +459,13 @@ function resetSettingsFilter({ focus = false } = {}) {
 
 function renderSettingsAmedasChart() {
   const state = settingsOptions.getState?.() ?? {};
+  const estimation = document.querySelector("[data-settings-temperature-estimation]");
+  if (estimation) {
+    const enabled = state.temperatureEstimationEnabled === true;
+    estimation.setAttribute("aria-checked", String(enabled));
+    estimation.classList.toggle("is-enabled", enabled);
+    estimation.disabled = !state.earlyAccessEnabled;
+  }
   document.querySelectorAll("[data-settings-amedas-chart]").forEach(button => {
     button.setAttribute("aria-checked", String(button.dataset.settingsAmedasChart === (state.amedasChartDisplay ?? "continuous")));
   });

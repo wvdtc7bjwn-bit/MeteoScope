@@ -1,0 +1,113 @@
+{
+  "manifest": {
+    "latest": "2026-11-26T18:20:00+09:00",
+    "stamp": "20261126182000",
+    "url": "https://www.jma.go.jp/bosai/amedas/data/map/20261126182000.json",
+    "retrievedAt": "2026-11-26T09:31:04.557Z"
+  },
+  "selectedConfig": {
+    "heightSimilarityScaleM": 200,
+    "directionalReachRatio": 0
+  },
+  "accepted": true,
+  "checks": {
+    "mae": true,
+    "rmse": true,
+    "estimatedMae": true,
+    "coverage": true,
+    "maxEstimated": true
+  },
+  "baseline": {
+    "count": 913,
+    "total": 915,
+    "coverage": 0.9978142076502732,
+    "mae": 1.1510011657098784,
+    "rmse": 1.633899989302599,
+    "bias": -0.13837933026817556,
+    "maxAbsoluteError": 11.7,
+    "medianAbsoluteError": 0.8191427964248543,
+    "p90AbsoluteError": 2.5480205382172465,
+    "p95AbsoluteError": 3.3999999999999986,
+    "within1C": 0.5991237677984665,
+    "within2C": 0.8389923329682366,
+    "above3C": 0.06571741511500548,
+    "estimated": 783,
+    "estimatesOnly": {
+      "count": 783,
+      "total": 783,
+      "coverage": 1,
+      "mae": 1.0816910144228848,
+      "rmse": 1.4734870313956956,
+      "bias": -0.13185227143658257,
+      "maxAbsoluteError": 6.369783593507897,
+      "medianAbsoluteError": 0.7997092768912601,
+      "p90AbsoluteError": 2.3107775025550303,
+      "p95AbsoluteError": 2.9698694252584024,
+      "within1C": 0.6091954022988506,
+      "within2C": 0.8569604086845466,
+      "above3C": 0.04853128991060025
+    },
+    "fallbackOnly": {
+      "count": 130,
+      "total": 130,
+      "coverage": 1,
+      "mae": 1.5684615384615372,
+      "rmse": 2.381579953921992,
+      "bias": -0.17769230769230787,
+      "maxAbsoluteError": 11.7,
+      "medianAbsoluteError": 0.9000000000000004,
+      "p90AbsoluteError": 4.1,
+      "p95AbsoluteError": 5.199999999999999,
+      "within1C": 0.5384615384615384,
+      "within2C": 0.7307692307692307,
+      "above3C": 0.16923076923076924
+    }
+  },
+  "candidate": {
+    "count": 913,
+    "total": 915,
+    "coverage": 0.9978142076502732,
+    "mae": 1.1437187041573993,
+    "rmse": 1.6286440515663905,
+    "bias": -0.1269554356849119,
+    "maxAbsoluteError": 11.7,
+    "medianAbsoluteError": 0.8065183667486142,
+    "p90AbsoluteError": 2.599198873467843,
+    "p95AbsoluteError": 3.351979179007949,
+    "within1C": 0.592552026286966,
+    "within2C": 0.8335158817086528,
+    "above3C": 0.06681270536692223,
+    "estimated": 784,
+    "estimatesOnly": {
+      "count": 784,
+      "total": 784,
+      "coverage": 1,
+      "mae": 1.0750193582853391,
+      "rmse": 1.468467704455881,
+      "bias": -0.12156927650551608,
+      "maxAbsoluteError": 6.380584907605758,
+      "medianAbsoluteError": 0.7759203584316312,
+      "p90AbsoluteError": 2.3856942902947997,
+      "p95AbsoluteError": 2.9209067395128976,
+      "within1C": 0.6007653061224489,
+      "within2C": 0.8494897959183674,
+      "above3C": 0.04974489795918367
+    },
+    "fallbackOnly": {
+      "count": 129,
+      "total": 129,
+      "coverage": 1,
+      "mae": 1.561240310077518,
+      "rmse": 2.380638960545071,
+      "bias": -0.15968992248062033,
+      "maxAbsoluteError": 11.7,
+      "medianAbsoluteError": 0.9000000000000004,
+      "p90AbsoluteError": 4.2,
+      "p95AbsoluteError": 5.199999999999999,
+      "within1C": 0.5426356589147286,
+      "within2C": 0.7364341085271318,
+      "above3C": 0.17054263565891473
+    }
+  },
+  "limitations": "One subsequent 10-minute snapshot is unseen but strongly correlated; not a seasonal or independent-weather validation."
+}

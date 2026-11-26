@@ -1,6 +1,7 @@
 import { JMA_ENDPOINTS } from "../config.js";
 import { getPrefectureNameByCode } from "../jma/warnings.js";
 import { findEarlyWarningAreaForMunicipality } from "../warningLocationInsights.js";
+import { getDistanceKm } from "./distance.js";
 
 let municipalityLookupPromise = null;
 
@@ -107,6 +108,29 @@ export async function loadMunicipalityLookup() {
       }).filter((item) => item.code && item.geometry));
   }
   return municipalityLookupPromise;
+}
+
+// A conservative water-crossing screen using the municipality geometry already loaded for GPS.
+// This does not model mountains, climate regions, or narrow channels below the sampling interval.
+export function buildLandConnectionChecker(municipalities) {
+  const cache = new Map();
+  function onLand(point) {
+    const key = point.map(v => v.toFixed(4)).join(",");
+    if (cache.has(key)) return cache.get(key);
+    const found = municipalities.some(item => isPointInBounds(...point, item.bounds) && isPointInGeometry(point, item.geometry));
+    if (cache.size >= 2048) cache.clear();
+    cache.set(key, found);
+    return found;
+  }
+  return (from, to) => {
+    if (!onLand(from) || !onLand(to)) return null;
+    const steps = Math.max(2, Math.ceil(getDistanceKm(from, to) / 3));
+    for (let i = 1; i < steps; i++) {
+      const point = from.map((v, j) => v + (to[j] - v) * i / steps);
+      if (!onLand(point)) return false;
+    }
+    return true;
+  };
 }
 
 function normalizeSearchText(value) {

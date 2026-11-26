@@ -1,4 +1,6 @@
 import { mergeRefreshedData, mergeWarningTabData } from "./app/refreshedData.js";
+import { createLocalTemperatureController } from "./location/localTemperatureController.js";
+import { loadTemperatureEstimationEnabled, saveTemperatureEstimationEnabled } from "./location/temperatureEstimationPolicy.js";
 import {
   buildTyphoonFocusCoordinates,
   buildWorldTyphoonFocusCoordinates,
@@ -271,6 +273,8 @@ export function createWeatherApp() {
   let earlyAccessRequestId = 0;
   let amedasDailyChartDayOffset = 0;
   let amedasChartDisplay = loadAmedasChartDisplay();
+  let temperatureEstimationEnabled = loadTemperatureEstimationEnabled();
+  const localTemperatureController = createLocalTemperatureController({ onChange: () => refreshAmedasPanel() });
   let amedasDailyChart = { status: "idle", stationId: "", stationName: "", metricId: "", precipitationPeriod: activeAmedasPrecipitationPeriod, dayOffset: 0, data: null };
   let amedasDailyChartRequestId = 0;
   let activeWarningView = "status";
@@ -996,6 +1000,7 @@ export function createWeatherApp() {
   }
 
   function applyEarlyAccessState() {
+    if (!earlyAccessEnabled) localTemperatureController.update({ enabled: false });
     document.documentElement.dataset.earlyAccess = earlyAccessEnabled ? "active" : "inactive";
     document.dispatchEvent(new CustomEvent("meteoscope:early-access-change"));
     syncEewEarlyAccess();
@@ -1016,9 +1021,8 @@ export function createWeatherApp() {
       amedasDailyChartDayOffset = 0;
       const selectedPoint = findAmedasStation(selectedAmedasStationId);
       if (selectedPoint) void loadAmedasDailyChart(selectedPoint, activeAmedasMetric, 0);
-    } else if (activeTab === "amedas") {
-      refreshAmedasPanel();
     }
+    if (activeTab === "amedas") refreshAmedasPanel();
     refreshSettingsModalView();
   }
 
@@ -2397,6 +2401,10 @@ if (layerId === "river") {
     const panelState = {
       status: "ok",
       data: displayData,
+      localTemperature: tab.id === "amedas" ? localTemperatureController.update({
+        enabled: earlyAccessEnabled && temperatureEstimationEnabled && activeAmedasMetric === "temperature",
+        data, location: currentLocationInfo
+      }) : null,
       amedasMetric: activeAmedasMetric,
       amedasPrecipitationPeriod: activeAmedasPrecipitationPeriod,
       selectedAmedasStationId,
@@ -4308,6 +4316,7 @@ if (layerId === "river") {
       terrainLayerSettings,
       observationColors: getObservationColors(),
       amedasChartDisplay,
+      temperatureEstimationEnabled,
       earthquakeDistributionRecentXmlVisible,
       earthquakeHistoryRecentEnabled,
       eewAutoFocusEnabled: eewAutoFocus.enabled,
@@ -4803,6 +4812,11 @@ if (layerId === "river") {
       onLanguageChange: (language) => localeController.setPreference(language),
       onTerrainLayerChange: setTerrainLayerSettings,
       onAmedasChartDisplayChange: setAmedasChartDisplay,
+      onTemperatureEstimationChange: enabled => {
+        temperatureEstimationEnabled = saveTemperatureEstimationEnabled(enabled);
+        if (!temperatureEstimationEnabled) localTemperatureController.update({ enabled: false });
+        refreshAmedasPanel();
+      },
       onObservationColorsChange: (next) => {
         setObservationColors(next);
         applyLongPeriodColors(document.documentElement);

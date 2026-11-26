@@ -1,0 +1,771 @@
+{
+  "schema": 1,
+  "calibrationTimes": [
+    "20261125194000",
+    "20261125224000",
+    "20261126014000",
+    "20261126044000"
+  ],
+  "evaluationTimes": [
+    "20261126074000",
+    "20261126104000",
+    "20261126134000",
+    "20261126164000"
+  ],
+  "method": "Outer station LOO; environment data are static predictors, no target temperatures. Earlier times select candidate; later times only accept/reject it.",
+  "limitations": [
+    "One autumn 21-hour period; no seasonal guarantee.",
+    "No municipal water-route screening in this station-only benchmark.",
+    "Land classifications are approximate, with 2016/2021 coverage years; terrain source is 2011, based on 2009 DEM.",
+    "Urban/forest/coastal groups describe the source mesh, not a validated local-climate classification."
+  ],
+  "trials": [
+    {
+      "config": {
+        "name": "baseline",
+        "environmentStrength": 0
+      },
+      "metrics": {
+        "count": 3656,
+        "total": 3664,
+        "coverage": 0.9978165938864629,
+        "mae": 1.2574615908762092,
+        "rmse": 1.7089598465934916,
+        "bias": -0.040352361053052704,
+        "maxAbsoluteError": 15.3,
+        "p95AbsoluteError": 3.4540591556792175,
+        "adjusted": 0,
+        "estimatesOnly": {
+          "count": 3453,
+          "total": 3664,
+          "coverage": 0.9424126637554585,
+          "mae": 1.2268692662158756,
+          "rmse": 1.6209261775031083,
+          "bias": -0.08642578395886508,
+          "maxAbsoluteError": 7.436470619236851
+        },
+        "groups": {
+          "below200m": {
+            "count": 2760,
+            "total": 2760,
+            "coverage": 1,
+            "mae": 1.2422280716890526,
+            "rmse": 1.6535350622009861,
+            "bias": -0.18565800448858383,
+            "maxAbsoluteError": 7.436470619236851
+          },
+          "coastalMesh": {
+            "count": 448,
+            "total": 448,
+            "coverage": 1,
+            "mae": 1.612492299986619,
+            "rmse": 2.0884816493803244,
+            "bias": -1.2273976165999028,
+            "maxAbsoluteError": 6.882900025720666
+          },
+          "urban30plus": {
+            "count": 1472,
+            "total": 1472,
+            "coverage": 1,
+            "mae": 1.1607147540259597,
+            "rmse": 1.5421434749818217,
+            "bias": -0.2351135505236998,
+            "maxAbsoluteError": 7.436470619236851
+          },
+          "forest50plus": {
+            "count": 668,
+            "total": 668,
+            "coverage": 1,
+            "mae": 1.4400517600341567,
+            "rmse": 1.9245095890553716,
+            "bias": 0.19254632454002965,
+            "maxAbsoluteError": 7.800000000000001
+          },
+          "200to800m": {
+            "count": 800,
+            "total": 800,
+            "coverage": 1,
+            "mae": 1.1922830152040227,
+            "rmse": 1.5899868269203976,
+            "bias": 0.342683906414404,
+            "maxAbsoluteError": 6.490285791524012
+          },
+          "above800m": {
+            "count": 96,
+            "total": 96,
+            "coverage": 1,
+            "mae": 2.2385800647751757,
+            "rmse": 3.3984212808874203,
+            "bias": 0.9452159921563327,
+            "maxAbsoluteError": 15.3
+          }
+        }
+      }
+    },
+    {
+      "config": {
+        "name": "combined-0.5",
+        "environmentStrength": 0.5,
+        "environmentLandWeight": 1,
+        "environmentTerrainWeight": 0.5
+      },
+      "metrics": {
+        "count": 3656,
+        "total": 3664,
+        "coverage": 0.9978165938864629,
+        "mae": 1.2432187594391921,
+        "rmse": 1.6956028235544784,
+        "bias": -0.05734630267023163,
+        "maxAbsoluteError": 15.3,
+        "p95AbsoluteError": 3.4592959849334837,
+        "adjusted": 3456,
+        "estimatesOnly": {
+          "count": 3456,
+          "total": 3664,
+          "coverage": 0.9432314410480349,
+          "mae": 1.2103321135734078,
+          "rmse": 1.603448795657308,
+          "bias": -0.10473324148216641,
+          "maxAbsoluteError": 7.495556701515895
+        },
+        "groups": {
+          "below200m": {
+            "count": 2760,
+            "total": 2760,
+            "coverage": 1,
+            "mae": 1.2274066438989584,
+            "rmse": 1.6362934504462545,
+            "bias": -0.19896583553435673,
+            "maxAbsoluteError": 7.495556701515895
+          },
+          "coastalMesh": {
+            "count": 448,
+            "total": 448,
+            "coverage": 1,
+            "mae": 1.5827092754468193,
+            "rmse": 2.0538742252896784,
+            "bias": -1.1918807211927687,
+            "maxAbsoluteError": 6.864307171413145
+          },
+          "urban30plus": {
+            "count": 1472,
+            "total": 1472,
+            "coverage": 1,
+            "mae": 1.150400164670463,
+            "rmse": 1.5328641944400012,
+            "bias": -0.24239007392370848,
+            "maxAbsoluteError": 7.495556701515895
+          },
+          "forest50plus": {
+            "count": 668,
+            "total": 668,
+            "coverage": 1,
+            "mae": 1.424373076128161,
+            "rmse": 1.91122666470982,
+            "bias": 0.15584337778920354,
+            "maxAbsoluteError": 7.800000000000001
+          },
+          "200to800m": {
+            "count": 800,
+            "total": 800,
+            "coverage": 1,
+            "mae": 1.1780126323070776,
+            "rmse": 1.585933571703104,
+            "bias": 0.3099182463992618,
+            "maxAbsoluteError": 6.572518122535241
+          },
+          "above800m": {
+            "count": 96,
+            "total": 96,
+            "coverage": 1,
+            "mae": 2.241201473988576,
+            "rmse": 3.3993328476714546,
+            "bias": 0.9536773582609127,
+            "maxAbsoluteError": 15.3
+          }
+        }
+      }
+    },
+    {
+      "config": {
+        "name": "combined-1",
+        "environmentStrength": 1,
+        "environmentLandWeight": 1,
+        "environmentTerrainWeight": 0.5
+      },
+      "metrics": {
+        "count": 3656,
+        "total": 3664,
+        "coverage": 0.9978165938864629,
+        "mae": 1.2327330824851361,
+        "rmse": 1.6860507328024144,
+        "bias": -0.06693783630069466,
+        "maxAbsoluteError": 15.3,
+        "p95AbsoluteError": 3.4672745931297078,
+        "adjusted": 3457,
+        "estimatesOnly": {
+          "count": 3457,
+          "total": 3664,
+          "coverage": 0.943504366812227,
+          "mae": 1.1998183828653894,
+          "rmse": 1.593456973415704,
+          "bias": -0.1139209515520218,
+          "maxAbsoluteError": 7.5540990192119
+        },
+        "groups": {
+          "below200m": {
+            "count": 2760,
+            "total": 2760,
+            "coverage": 1,
+            "mae": 1.215200515120594,
+            "rmse": 1.6245605479723693,
+            "bias": -0.2063484247781426,
+            "maxAbsoluteError": 7.5540990192119
+          },
+          "coastalMesh": {
+            "count": 448,
+            "total": 448,
+            "coverage": 1,
+            "mae": 1.5611180243933962,
+            "rmse": 2.0280140530571678,
+            "bias": -1.1615622096246547,
+            "maxAbsoluteError": 6.845207255953849
+          },
+          "urban30plus": {
+            "count": 1472,
+            "total": 1472,
+            "coverage": 1,
+            "mae": 1.140555651328093,
+            "rmse": 1.5263295918044788,
+            "bias": -0.23486841949394027,
+            "maxAbsoluteError": 7.5540990192119
+          },
+          "forest50plus": {
+            "count": 668,
+            "total": 668,
+            "coverage": 1,
+            "mae": 1.4257970178584398,
+            "rmse": 1.9120005113769767,
+            "bias": 0.14359922728898306,
+            "maxAbsoluteError": 7.800000000000001
+          },
+          "200to800m": {
+            "count": 800,
+            "total": 800,
+            "coverage": 1,
+            "mae": 1.170248012841231,
+            "rmse": 1.5794068125566212,
+            "bias": 0.29363500868075204,
+            "maxAbsoluteError": 6.654989733666731
+          },
+          "above800m": {
+            "count": 96,
+            "total": 96,
+            "coverage": 1,
+            "mae": 2.2575033079148716,
+            "rmse": 3.4054981113010925,
+            "bias": 0.9363428742472197,
+            "maxAbsoluteError": 15.3
+          }
+        }
+      }
+    },
+    {
+      "config": {
+        "name": "combined-2",
+        "environmentStrength": 2,
+        "environmentLandWeight": 1,
+        "environmentTerrainWeight": 0.5
+      },
+      "metrics": {
+        "count": 3656,
+        "total": 3664,
+        "coverage": 0.9978165938864629,
+        "mae": 1.2207015892027817,
+        "rmse": 1.6744606798669983,
+        "bias": -0.07812278973865465,
+        "maxAbsoluteError": 15.3,
+        "p95AbsoluteError": 3.404467543469154,
+        "adjusted": 3457,
+        "estimatesOnly": {
+          "count": 3457,
+          "total": 3664,
+          "coverage": 0.943504366812227,
+          "mae": 1.1882513769526695,
+          "rmse": 1.5813575020729551,
+          "bias": -0.12407200442132521,
+          "maxAbsoluteError": 7.43647061923685
+        },
+        "groups": {
+          "below200m": {
+            "count": 2760,
+            "total": 2760,
+            "coverage": 1,
+            "mae": 1.20500471056534,
+            "rmse": 1.6124709925690484,
+            "bias": -0.21421275512944102,
+            "maxAbsoluteError": 7.43647061923685
+          },
+          "coastalMesh": {
+            "count": 448,
+            "total": 448,
+            "coverage": 1,
+            "mae": 1.5231371554837625,
+            "rmse": 1.9855646267713987,
+            "bias": -1.1086965041632422,
+            "maxAbsoluteError": 6.822473329928523
+          },
+          "urban30plus": {
+            "count": 1472,
+            "total": 1472,
+            "coverage": 1,
+            "mae": 1.132024181436443,
+            "rmse": 1.5196535983466293,
+            "bias": -0.22075933440880902,
+            "maxAbsoluteError": 7.43647061923685
+          },
+          "forest50plus": {
+            "count": 668,
+            "total": 668,
+            "coverage": 1,
+            "mae": 1.4212046128742997,
+            "rmse": 1.907616025110536,
+            "bias": 0.125809181114888,
+            "maxAbsoluteError": 7.800000000000001
+          },
+          "200to800m": {
+            "count": 800,
+            "total": 800,
+            "coverage": 1,
+            "mae": 1.1596450039667703,
+            "rmse": 1.5761335683100657,
+            "bias": 0.26105726062296086,
+            "maxAbsoluteError": 6.815807921112811
+          },
+          "above800m": {
+            "count": 96,
+            "total": 96,
+            "coverage": 1,
+            "mae": 2.1807917269959787,
+            "rmse": 3.3653101776981176,
+            "bias": 1.007963295566329,
+            "maxAbsoluteError": 15.3
+          }
+        }
+      }
+    },
+    {
+      "config": {
+        "name": "combined-4",
+        "environmentStrength": 4,
+        "environmentLandWeight": 1,
+        "environmentTerrainWeight": 0.5
+      },
+      "metrics": {
+        "count": 3656,
+        "total": 3664,
+        "coverage": 0.9978165938864629,
+        "mae": 1.2362339660973871,
+        "rmse": 1.6853506600986197,
+        "bias": -0.058451969805647874,
+        "maxAbsoluteError": 15.3,
+        "p95AbsoluteError": 3.4170096247964636,
+        "adjusted": 3453,
+        "estimatesOnly": {
+          "count": 3453,
+          "total": 3664,
+          "coverage": 0.9424126637554585,
+          "mae": 1.2039013553582545,
+          "rmse": 1.593287708152625,
+          "bias": -0.10608178442208198,
+          "maxAbsoluteError": 7.43647061923685
+        },
+        "groups": {
+          "below200m": {
+            "count": 2760,
+            "total": 2760,
+            "coverage": 1,
+            "mae": 1.22021578547233,
+            "rmse": 1.6239810606988192,
+            "bias": -0.19830721583129557,
+            "maxAbsoluteError": 7.43647061923685
+          },
+          "coastalMesh": {
+            "count": 448,
+            "total": 448,
+            "coverage": 1,
+            "mae": 1.575925884375779,
+            "rmse": 2.0419718722537827,
+            "bias": -1.183774787282858,
+            "maxAbsoluteError": 6.882900025720666
+          },
+          "urban30plus": {
+            "count": 1472,
+            "total": 1472,
+            "coverage": 1,
+            "mae": 1.151001015155513,
+            "rmse": 1.5322141704130596,
+            "bias": -0.22260642904351438,
+            "maxAbsoluteError": 7.43647061923685
+          },
+          "forest50plus": {
+            "count": 668,
+            "total": 668,
+            "coverage": 1,
+            "mae": 1.4307778790872248,
+            "rmse": 1.9117549985257367,
+            "bias": 0.16580397420047685,
+            "maxAbsoluteError": 7.800000000000001
+          },
+          "200to800m": {
+            "count": 800,
+            "total": 800,
+            "coverage": 1,
+            "mae": 1.1684724891127711,
+            "rmse": 1.577033726929235,
+            "bias": 0.3067519576389401,
+            "maxAbsoluteError": 6.842262913023497
+          },
+          "above800m": {
+            "count": 96,
+            "total": 96,
+            "coverage": 1,
+            "mae": 2.2614356339396484,
+            "rmse": 3.409409702298148,
+            "bias": 0.9190202913935049,
+            "maxAbsoluteError": 15.3
+          }
+        }
+      }
+    },
+    {
+      "config": {
+        "name": "land-only",
+        "environmentStrength": 1,
+        "environmentLandWeight": 1,
+        "environmentTerrainWeight": 0
+      },
+      "metrics": {
+        "count": 3656,
+        "total": 3664,
+        "coverage": 0.9978165938864629,
+        "mae": 1.2335200596588003,
+        "rmse": 1.6866125656903266,
+        "bias": -0.06729830453550698,
+        "maxAbsoluteError": 15.3,
+        "p95AbsoluteError": 3.461063017703973,
+        "adjusted": 3460,
+        "estimatesOnly": {
+          "count": 3460,
+          "total": 3664,
+          "coverage": 0.9443231441048034,
+          "mae": 1.200678999454501,
+          "rmse": 1.5937363012942187,
+          "bias": -0.11313369982133333,
+          "maxAbsoluteError": 7.4913263379224375
+        },
+        "groups": {
+          "below200m": {
+            "count": 2760,
+            "total": 2760,
+            "coverage": 1,
+            "mae": 1.2160089959630245,
+            "rmse": 1.6255684674051964,
+            "bias": -0.20738390302216592,
+            "maxAbsoluteError": 7.4913263379224375
+          },
+          "coastalMesh": {
+            "count": 448,
+            "total": 448,
+            "coverage": 1,
+            "mae": 1.5626545673295689,
+            "rmse": 2.031323901663367,
+            "bias": -1.1645516862975287,
+            "maxAbsoluteError": 6.849873676837746
+          },
+          "urban30plus": {
+            "count": 1472,
+            "total": 1472,
+            "coverage": 1,
+            "mae": 1.1400000239718966,
+            "rmse": 1.5242589143933676,
+            "bias": -0.2364794025395692,
+            "maxAbsoluteError": 7.4913263379224375
+          },
+          "forest50plus": {
+            "count": 668,
+            "total": 668,
+            "coverage": 1,
+            "mae": 1.4251372114617835,
+            "rmse": 1.911449676600833,
+            "bias": 0.1456361099859836,
+            "maxAbsoluteError": 7.800000000000001
+          },
+          "200to800m": {
+            "count": 800,
+            "total": 800,
+            "coverage": 1,
+            "mae": 1.1736211584677632,
+            "rmse": 1.5814894204816328,
+            "bias": 0.2988053377097945,
+            "maxAbsoluteError": 6.6419298676341025
+          },
+          "above800m": {
+            "count": 96,
+            "total": 96,
+            "coverage": 1,
+            "mae": 2.2361206508376736,
+            "rmse": 3.3941923485330987,
+            "bias": 0.909298966578414,
+            "maxAbsoluteError": 15.3
+          }
+        }
+      }
+    },
+    {
+      "config": {
+        "name": "terrain-only",
+        "environmentStrength": 1,
+        "environmentLandWeight": 0,
+        "environmentTerrainWeight": 1
+      },
+      "metrics": {
+        "count": 3656,
+        "total": 3664,
+        "coverage": 0.9978165938864629,
+        "mae": 1.2517898425358673,
+        "rmse": 1.7041250377978376,
+        "bias": -0.04082023120948755,
+        "maxAbsoluteError": 15.3,
+        "p95AbsoluteError": 3.4633547934497093,
+        "adjusted": 3453,
+        "estimatesOnly": {
+          "count": 3453,
+          "total": 3664,
+          "coverage": 0.9424126637554585,
+          "mae": 1.220371753348139,
+          "rmse": 1.614293065880737,
+          "bias": -0.08741348546246343,
+          "maxAbsoluteError": 7.5580456478054465
+        },
+        "groups": {
+          "below200m": {
+            "count": 2760,
+            "total": 2760,
+            "coverage": 1,
+            "mae": 1.2356384175851387,
+            "rmse": 1.6446291608404584,
+            "bias": -0.18481520840337234,
+            "maxAbsoluteError": 7.5580456478054465
+          },
+          "coastalMesh": {
+            "count": 448,
+            "total": 448,
+            "coverage": 1,
+            "mae": 1.6091413983293872,
+            "rmse": 2.0806522594379113,
+            "bias": -1.2190323973748476,
+            "maxAbsoluteError": 6.873795340238639
+          },
+          "urban30plus": {
+            "count": 1472,
+            "total": 1472,
+            "coverage": 1,
+            "mae": 1.15833837593195,
+            "rmse": 1.542750684457879,
+            "bias": -0.2327120776801789,
+            "maxAbsoluteError": 7.5580456478054465
+          },
+          "forest50plus": {
+            "count": 668,
+            "total": 668,
+            "coverage": 1,
+            "mae": 1.4306026935883354,
+            "rmse": 1.918348840643455,
+            "bias": 0.17656201984958786,
+            "maxAbsoluteError": 7.800000000000001
+          },
+          "200to800m": {
+            "count": 800,
+            "total": 800,
+            "coverage": 1,
+            "mae": 1.1894649630576966,
+            "rmse": 1.5974826099451649,
+            "bias": 0.3382602961013784,
+            "maxAbsoluteError": 6.519886130535519
+          },
+          "above800m": {
+            "count": 96,
+            "total": 96,
+            "coverage": 1,
+            "mae": 2.2355173055206126,
+            "rmse": 3.400912128247734,
+            "bias": 0.9400309688574806,
+            "maxAbsoluteError": 15.3
+          }
+        }
+      }
+    }
+  ],
+  "selectedConfig": {
+    "name": "combined-2",
+    "environmentStrength": 2,
+    "environmentLandWeight": 1,
+    "environmentTerrainWeight": 0.5
+  },
+  "evaluation": {
+    "baseline": {
+      "count": 3644,
+      "total": 3652,
+      "coverage": 0.9978094194961665,
+      "mae": 1.0729391625788531,
+      "rmse": 1.6000080281162912,
+      "bias": -0.0013002486143320268,
+      "maxAbsoluteError": 18.5,
+      "p95AbsoluteError": 3.123028090073547,
+      "adjusted": 0,
+      "estimatesOnly": {
+        "count": 3428,
+        "total": 3652,
+        "coverage": 0.9386637458926615,
+        "mae": 1.027214208995724,
+        "rmse": 1.428394298716562,
+        "bias": -0.05473690371955245,
+        "maxAbsoluteError": 8.757556896445584
+      },
+      "groups": {
+        "below200m": {
+          "count": 2750,
+          "total": 2750,
+          "coverage": 1,
+          "mae": 0.9821754694072682,
+          "rmse": 1.407549815058296,
+          "bias": -0.1558447849256452,
+          "maxAbsoluteError": 8.757556896445584
+        },
+        "coastalMesh": {
+          "count": 447,
+          "total": 447,
+          "coverage": 1,
+          "mae": 0.9868450664508425,
+          "rmse": 1.4119898391047565,
+          "bias": -0.6185163265358874,
+          "maxAbsoluteError": 8.6
+        },
+        "urban30plus": {
+          "count": 1465,
+          "total": 1465,
+          "coverage": 1,
+          "mae": 1.005654337103368,
+          "rmse": 1.4099717507804594,
+          "bias": -0.1535529726300977,
+          "maxAbsoluteError": 8.757556896445584
+        },
+        "forest50plus": {
+          "count": 666,
+          "total": 666,
+          "coverage": 1,
+          "mae": 1.3702115664679748,
+          "rmse": 1.9652704267326326,
+          "bias": 0.3130799469441532,
+          "maxAbsoluteError": 11.7
+        },
+        "200to800m": {
+          "count": 798,
+          "total": 798,
+          "coverage": 1,
+          "mae": 1.2147559436810624,
+          "rmse": 1.6382612977403521,
+          "bias": 0.3814074841731026,
+          "maxAbsoluteError": 6.6
+        },
+        "above800m": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.4940887969777257,
+          "rmse": 4.255744923249412,
+          "bias": 1.244498752341272,
+          "maxAbsoluteError": 18.5
+        }
+      }
+    },
+    "candidate": {
+      "count": 3644,
+      "total": 3652,
+      "coverage": 0.9978094194961665,
+      "mae": 1.0579771363301296,
+      "rmse": 1.5900135947351743,
+      "bias": -0.030054460373988248,
+      "maxAbsoluteError": 18.5,
+      "p95AbsoluteError": 3.1203818706847306,
+      "adjusted": 3432,
+      "estimatesOnly": {
+        "count": 3432,
+        "total": 3652,
+        "coverage": 0.9397590361445783,
+        "mae": 1.0130736261034363,
+        "rmse": 1.4175714170472058,
+        "bias": -0.08150304592156585,
+        "maxAbsoluteError": 8.489678820795493
+      },
+      "groups": {
+        "below200m": {
+          "count": 2750,
+          "total": 2750,
+          "coverage": 1,
+          "mae": 0.9664591596285484,
+          "rmse": 1.3905863603966704,
+          "bias": -0.17513788844955303,
+          "maxAbsoluteError": 8.6
+        },
+        "coastalMesh": {
+          "count": 447,
+          "total": 447,
+          "coverage": 1,
+          "mae": 0.9521377987922841,
+          "rmse": 1.3801470667810571,
+          "bias": -0.5670778971838715,
+          "maxAbsoluteError": 8.6
+        },
+        "urban30plus": {
+          "count": 1465,
+          "total": 1465,
+          "coverage": 1,
+          "mae": 0.9904270153772693,
+          "rmse": 1.3846333182885002,
+          "bias": -0.148365375912947,
+          "maxAbsoluteError": 8.6
+        },
+        "forest50plus": {
+          "count": 666,
+          "total": 666,
+          "coverage": 1,
+          "mae": 1.3521659492913431,
+          "rmse": 1.9727955344281627,
+          "bias": 0.2167903818529346,
+          "maxAbsoluteError": 11.7
+        },
+        "200to800m": {
+          "count": 798,
+          "total": 798,
+          "coverage": 1,
+          "mae": 1.2073887402326562,
+          "rmse": 1.653238368783372,
+          "bias": 0.32726962165711126,
+          "maxAbsoluteError": 6.6
+        },
+        "above800m": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.437601886487856,
+          "rmse": 4.22505421025094,
+          "bias": 1.1557248078237805,
+          "maxAbsoluteError": 18.5
+        }
+      }
+    }
+  },
+  "accepted": true
+}

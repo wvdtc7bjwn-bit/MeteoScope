@@ -1,0 +1,3697 @@
+{
+  "schema": 1,
+  "description": "MeteoScope processed MLIT land-use and terrain attributes; not a temperature product",
+  "sources": [
+    {
+      "name": "G04-a-11_3036-jgd_GML.zip",
+      "year": 11,
+      "primary": "3036",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3036-jgd_GML.zip",
+      "sha256": "dab4144a67e4257272e50eb04b35fab33814065c59fb2e1e86f0845c46a05c38"
+    },
+    {
+      "name": "G04-a-11_3622-jgd_GML.zip",
+      "year": 11,
+      "primary": "3622",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3622-jgd_GML.zip",
+      "sha256": "b4aaf9d55653e756e6c2637a0b563e7038d06820c364afa9879a10d36e0e5568"
+    },
+    {
+      "name": "G04-a-11_3623-jgd_GML.zip",
+      "year": 11,
+      "primary": "3623",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3623-jgd_GML.zip",
+      "sha256": "925651bd0da01135ea16bdd643345f7acd2095853dd522b1dd89ee7e92041053"
+    },
+    {
+      "name": "G04-a-11_3624-jgd_GML.zip",
+      "year": 11,
+      "primary": "3624",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3624-jgd_GML.zip",
+      "sha256": "0dcedbffe626f2d09644fa0bf258bb42ed0b6be07795ebddfcbb3b35b15a5447"
+    },
+    {
+      "name": "G04-a-11_3631-jgd_GML.zip",
+      "year": 11,
+      "primary": "3631",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3631-jgd_GML.zip",
+      "sha256": "3deb77dfa8dbf1ad8a659b1890c190e4438ec6d542341fa3725bb2004acd4440"
+    },
+    {
+      "name": "G04-a-11_3641-jgd_GML.zip",
+      "year": 11,
+      "primary": "3641",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3641-jgd_GML.zip",
+      "sha256": "b1bd40871999bc34a766b604607fc263cd1aa95990458f7525500e46d94b6fb6"
+    },
+    {
+      "name": "G04-a-11_3653-jgd_GML.zip",
+      "year": 11,
+      "primary": "3653",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3653-jgd_GML.zip",
+      "sha256": "03a80720b4e80cac49390ef3305751ed131d72f180d8b62f411302c238cbd5aa"
+    },
+    {
+      "name": "G04-a-11_3724-jgd_GML.zip",
+      "year": 11,
+      "primary": "3724",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3724-jgd_GML.zip",
+      "sha256": "58fe110472e25d32fd990f72b25e003cfaacff2f6afed77d7a0270540c47b928"
+    },
+    {
+      "name": "G04-a-11_3725-jgd_GML.zip",
+      "year": 11,
+      "primary": "3725",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3725-jgd_GML.zip",
+      "sha256": "5f37d66dddcea4f373ad267faf625a740e60281a3aa45609acf2e6d282425291"
+    },
+    {
+      "name": "G04-a-11_3741-jgd_GML.zip",
+      "year": 11,
+      "primary": "3741",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3741-jgd_GML.zip",
+      "sha256": "69856a612e07f557bd3ee3b79285d1de1e1edd3a5631956ba76bdd207817273c"
+    },
+    {
+      "name": "G04-a-11_3823-jgd_GML.zip",
+      "year": 11,
+      "primary": "3823",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3823-jgd_GML.zip",
+      "sha256": "d6bc545b50bb4dd1b1b35bd22b18f731b8ff170f2130560af5aeeda28a0c7eaa"
+    },
+    {
+      "name": "G04-a-11_3824-jgd_GML.zip",
+      "year": 11,
+      "primary": "3824",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3824-jgd_GML.zip",
+      "sha256": "9676ae1d2f077db55d76a30d037792d92342e781a0ca967c47c8345f30021ee3"
+    },
+    {
+      "name": "G04-a-11_3831-jgd_GML.zip",
+      "year": 11,
+      "primary": "3831",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3831-jgd_GML.zip",
+      "sha256": "3c06647b6eeef326ca34c6b734c03d31c26328226f93e41a2fd6b9f0231a8da8"
+    },
+    {
+      "name": "G04-a-11_3841-jgd_GML.zip",
+      "year": 11,
+      "primary": "3841",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3841-jgd_GML.zip",
+      "sha256": "acb9af18f073967b4fc68f73941b162f7ae90c55c801e83ccc5f2496dd753ba8"
+    },
+    {
+      "name": "G04-a-11_3926-jgd_GML.zip",
+      "year": 11,
+      "primary": "3926",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3926-jgd_GML.zip",
+      "sha256": "c2fbc3c760bad25ba81a1ab517d8d7512a35a05a1f03d72be9f6f463c1bc699e"
+    },
+    {
+      "name": "G04-a-11_3927-jgd_GML.zip",
+      "year": 11,
+      "primary": "3927",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3927-jgd_GML.zip",
+      "sha256": "df7fbd84fd3de242932e5bc0efa2dea3f7de1d0d1882ed91d0e326acac889956"
+    },
+    {
+      "name": "G04-a-11_3928-jgd_GML.zip",
+      "year": 11,
+      "primary": "3928",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3928-jgd_GML.zip",
+      "sha256": "32a0e35300ca790b0b9a3fa58a7861276622c42a3866d167785552d3fd2772b9"
+    },
+    {
+      "name": "G04-a-11_3942-jgd_GML.zip",
+      "year": 11,
+      "primary": "3942",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_3942-jgd_GML.zip",
+      "sha256": "bd2c837c6c7dee4243d19e12759e4d41347519f0d8d812b001a0020da8dce11e"
+    },
+    {
+      "name": "G04-a-11_4027-jgd_GML.zip",
+      "year": 11,
+      "primary": "4027",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4027-jgd_GML.zip",
+      "sha256": "884af97b926388b394c4f37bc55fa6204730cb6de0e0bb9f30471c539f99311d"
+    },
+    {
+      "name": "G04-a-11_4028-jgd_GML.zip",
+      "year": 11,
+      "primary": "4028",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4028-jgd_GML.zip",
+      "sha256": "6f171998dfb30e1274bc3c4f42ed7dc3ceb07597bdab15b30c7c97356826def4"
+    },
+    {
+      "name": "G04-a-11_4040-jgd_GML.zip",
+      "year": 11,
+      "primary": "4040",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4040-jgd_GML.zip",
+      "sha256": "a0c0a2d21e319f6d59b314452537e43772f0b27cd47a2b7107c57fb936d0ccf3"
+    },
+    {
+      "name": "G04-a-11_4042-jgd_GML.zip",
+      "year": 11,
+      "primary": "4042",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4042-jgd_GML.zip",
+      "sha256": "6221f361651363421515b7c238b9460e071c494ea759b277c2a6591ceb4a8c60"
+    },
+    {
+      "name": "G04-a-11_4128-jgd_GML.zip",
+      "year": 11,
+      "primary": "4128",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4128-jgd_GML.zip",
+      "sha256": "79433c480ab9fa9ea96648c373dd88cb36daa3e547c3e5de96aff332f20a5c12"
+    },
+    {
+      "name": "G04-a-11_4129-jgd_GML.zip",
+      "year": 11,
+      "primary": "4129",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4129-jgd_GML.zip",
+      "sha256": "b55ce906c4c4128d76beab495ae756a9744f54d705951d78d650eec4036db190"
+    },
+    {
+      "name": "G04-a-11_4142-jgd_GML.zip",
+      "year": 11,
+      "primary": "4142",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4142-jgd_GML.zip",
+      "sha256": "940d015917ae8af0e83baa6ef2ddd37c15021c270024643549b77a606143e445"
+    },
+    {
+      "name": "G04-a-11_4229-jgd_GML.zip",
+      "year": 11,
+      "primary": "4229",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4229-jgd_GML.zip",
+      "sha256": "22168ded794dd353b196f6d8c97aa19a56285c1d3fae5a1c80275d039885998d"
+    },
+    {
+      "name": "G04-a-11_4230-jgd_GML.zip",
+      "year": 11,
+      "primary": "4230",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4230-jgd_GML.zip",
+      "sha256": "e57a963e06b1d27faec42daf871f56e71aa05576ee2a9b6f9545c8bf4cc6da81"
+    },
+    {
+      "name": "G04-a-11_4328-jgd_GML.zip",
+      "year": 11,
+      "primary": "4328",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4328-jgd_GML.zip",
+      "sha256": "bb5d02e27da69a1f41ee6436d1d7be148f311706ceeb068bd38da3398855d7a3"
+    },
+    {
+      "name": "G04-a-11_4329-jgd_GML.zip",
+      "year": 11,
+      "primary": "4329",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4329-jgd_GML.zip",
+      "sha256": "7879bac031dd21cb589f22b00a66d065aa3a0db5bdf3512ba2c3d59007fdc452"
+    },
+    {
+      "name": "G04-a-11_4429-jgd_GML.zip",
+      "year": 11,
+      "primary": "4429",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4429-jgd_GML.zip",
+      "sha256": "f1ed1378a63dac4573ed7b503c549155aff8e550823cfb7472b1c6bfb9007b0a"
+    },
+    {
+      "name": "G04-a-11_4440-jgd_GML.zip",
+      "year": 11,
+      "primary": "4440",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4440-jgd_GML.zip",
+      "sha256": "e330e28a60ed1642b8582dc5f221c2d4a2bb27f43c75325de380d1d98781d914"
+    },
+    {
+      "name": "G04-a-11_4529-jgd_GML.zip",
+      "year": 11,
+      "primary": "4529",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4529-jgd_GML.zip",
+      "sha256": "e63e7959dc84af028043b8de8c4888724631cafbb3a41270155b208224c4dd32"
+    },
+    {
+      "name": "G04-a-11_4530-jgd_GML.zip",
+      "year": 11,
+      "primary": "4530",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4530-jgd_GML.zip",
+      "sha256": "bc99085ec8e0fbaf1b076c2bd4f111eef55bf2d7964215c3babf9c17f654da06"
+    },
+    {
+      "name": "G04-a-11_4531-jgd_GML.zip",
+      "year": 11,
+      "primary": "4531",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4531-jgd_GML.zip",
+      "sha256": "c68a02e34dfd540fe166f70e30cd76e4c7b62996e9a862e93eaed99abea38d59"
+    },
+    {
+      "name": "G04-a-11_4540-jgd_GML.zip",
+      "year": 11,
+      "primary": "4540",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4540-jgd_GML.zip",
+      "sha256": "5a3303c574114d5950ba8fde401ca34f9527dcae42aca68596d1c806667830c9"
+    },
+    {
+      "name": "G04-a-11_4629-jgd_GML.zip",
+      "year": 11,
+      "primary": "4629",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4629-jgd_GML.zip",
+      "sha256": "64af5a7de7a3acb2ac5859cdc2b2f45b5d3511367d20a7c9d51ce7e727079c5b"
+    },
+    {
+      "name": "G04-a-11_4630-jgd_GML.zip",
+      "year": 11,
+      "primary": "4630",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4630-jgd_GML.zip",
+      "sha256": "102254f5af2d10303e53e0c55e068996381fb69bdc2cad1296db866645b99711"
+    },
+    {
+      "name": "G04-a-11_4631-jgd_GML.zip",
+      "year": 11,
+      "primary": "4631",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4631-jgd_GML.zip",
+      "sha256": "116848f7209b8ae91503773ce59001f7763a5fb3234f0c4e532202cf8d1dcef2"
+    },
+    {
+      "name": "G04-a-11_4728-jgd_GML.zip",
+      "year": 11,
+      "primary": "4728",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4728-jgd_GML.zip",
+      "sha256": "e87f60141327a64677d4672fba1f0df7543f3768248ca414d12b3a5bdb10c126"
+    },
+    {
+      "name": "G04-a-11_4729-jgd_GML.zip",
+      "year": 11,
+      "primary": "4729",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4729-jgd_GML.zip",
+      "sha256": "112233419fa4073a4d7cda24b41ab7325a45515cdff15ec50f9b277376dba6f5"
+    },
+    {
+      "name": "G04-a-11_4730-jgd_GML.zip",
+      "year": 11,
+      "primary": "4730",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4730-jgd_GML.zip",
+      "sha256": "c7b075ad9d3247453bce2bda8b629ea529a732c341d2e82aecb796322148770b"
+    },
+    {
+      "name": "G04-a-11_4731-jgd_GML.zip",
+      "year": 11,
+      "primary": "4731",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4731-jgd_GML.zip",
+      "sha256": "458d72ba339ecaa49a5c8a4a46002d526b52eff3f9f1592a41cfeec7cf5a7f71"
+    },
+    {
+      "name": "G04-a-11_4739-jgd_GML.zip",
+      "year": 11,
+      "primary": "4739",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4739-jgd_GML.zip",
+      "sha256": "f5ec2a3f55c0ab025ab783560da67e41a70657cfc10e9644c4520a3c7ee793ae"
+    },
+    {
+      "name": "G04-a-11_4740-jgd_GML.zip",
+      "year": 11,
+      "primary": "4740",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4740-jgd_GML.zip",
+      "sha256": "92551e22c0c5ba29cd71a5fc1cd674148d96ec7b0bcf5bd0da9d726e4261cf8e"
+    },
+    {
+      "name": "G04-a-11_4828-jgd_GML.zip",
+      "year": 11,
+      "primary": "4828",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4828-jgd_GML.zip",
+      "sha256": "59e6964c35a07ae8fef872e8ab9cebd455e2800d85911d58ed1b7aec93abf111"
+    },
+    {
+      "name": "G04-a-11_4829-jgd_GML.zip",
+      "year": 11,
+      "primary": "4829",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4829-jgd_GML.zip",
+      "sha256": "d7fc2e31ff029d256297b9d8fcbdb07bfa15021c992e49a048de7cf5f7757b8e"
+    },
+    {
+      "name": "G04-a-11_4830-jgd_GML.zip",
+      "year": 11,
+      "primary": "4830",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4830-jgd_GML.zip",
+      "sha256": "b38a2ea543d9f893ccc41ca2e10d86c655920da6d7519b8bf0a9e998fffaf1e1"
+    },
+    {
+      "name": "G04-a-11_4831-jgd_GML.zip",
+      "year": 11,
+      "primary": "4831",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4831-jgd_GML.zip",
+      "sha256": "0380d291139f500c6749781bf239ca6e5170853658a08e78352a15179f4a8ed1"
+    },
+    {
+      "name": "G04-a-11_4839-jgd_GML.zip",
+      "year": 11,
+      "primary": "4839",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4839-jgd_GML.zip",
+      "sha256": "3ed96c2eb0eff4e6711311f06ab4939bd49eba279758aab5f74519ddc3d86ab7"
+    },
+    {
+      "name": "G04-a-11_4928-jgd_GML.zip",
+      "year": 11,
+      "primary": "4928",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4928-jgd_GML.zip",
+      "sha256": "0b273496a771bf4df1580a7ebbf10ff05d442b7c207ddca524c205db74815284"
+    },
+    {
+      "name": "G04-a-11_4929-jgd_GML.zip",
+      "year": 11,
+      "primary": "4929",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4929-jgd_GML.zip",
+      "sha256": "1137c46d1165a5a71ae2b22dacd779161825649309df549f64743f158c693eb8"
+    },
+    {
+      "name": "G04-a-11_4930-jgd_GML.zip",
+      "year": 11,
+      "primary": "4930",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4930-jgd_GML.zip",
+      "sha256": "9a376954379dec0fc6c00efe09a403bce385b18ac5842dd570e65142b8130fbc"
+    },
+    {
+      "name": "G04-a-11_4931-jgd_GML.zip",
+      "year": 11,
+      "primary": "4931",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4931-jgd_GML.zip",
+      "sha256": "455de9212c708585a51eb074f35b50a26c210ecdacb68514ad9b6db04f58698f"
+    },
+    {
+      "name": "G04-a-11_4932-jgd_GML.zip",
+      "year": 11,
+      "primary": "4932",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4932-jgd_GML.zip",
+      "sha256": "96d79a43d865c9b34530f6f75898cd4126d39e77b35c837344e704090417d8c7"
+    },
+    {
+      "name": "G04-a-11_4933-jgd_GML.zip",
+      "year": 11,
+      "primary": "4933",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4933-jgd_GML.zip",
+      "sha256": "72b70f41408c91c030df79e746dd54408d9625f94339e0038d2acf5cca9892c5"
+    },
+    {
+      "name": "G04-a-11_4934-jgd_GML.zip",
+      "year": 11,
+      "primary": "4934",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4934-jgd_GML.zip",
+      "sha256": "2151fdeca70bf99557c1bd6015031bb49d9280a50ddf60cefebee29f89e05979"
+    },
+    {
+      "name": "G04-a-11_4939-jgd_GML.zip",
+      "year": 11,
+      "primary": "4939",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_4939-jgd_GML.zip",
+      "sha256": "28424ee6d6dda90ca093bb49317a606bbaa8f0ff07e8f6bad5ff8e163e572ee8"
+    },
+    {
+      "name": "G04-a-11_5029-jgd_GML.zip",
+      "year": 11,
+      "primary": "5029",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5029-jgd_GML.zip",
+      "sha256": "0b1315dfe1ad30f6c3ccb2044e09a3ec197e38d65c3482c734ec242b973b164a"
+    },
+    {
+      "name": "G04-a-11_5030-jgd_GML.zip",
+      "year": 11,
+      "primary": "5030",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5030-jgd_GML.zip",
+      "sha256": "14e5467022b52865d4048d3e330d3dda85a11840358cc7ef4853b77acb191781"
+    },
+    {
+      "name": "G04-a-11_5031-jgd_GML.zip",
+      "year": 11,
+      "primary": "5031",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5031-jgd_GML.zip",
+      "sha256": "45e42ea01b0e74bf2558f84f649b241bd812a90ae2230dd789c175234c158a21"
+    },
+    {
+      "name": "G04-a-11_5032-jgd_GML.zip",
+      "year": 11,
+      "primary": "5032",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5032-jgd_GML.zip",
+      "sha256": "1928295db0b462d36958c34e658842339c2702f52ce1c54fe9eb66de156b0279"
+    },
+    {
+      "name": "G04-a-11_5033-jgd_GML.zip",
+      "year": 11,
+      "primary": "5033",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5033-jgd_GML.zip",
+      "sha256": "d5f2568c0c4c2739f44facef769dddad06dea194d2aa9539b0547e59f285b86d"
+    },
+    {
+      "name": "G04-a-11_5034-jgd_GML.zip",
+      "year": 11,
+      "primary": "5034",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5034-jgd_GML.zip",
+      "sha256": "5c6dffb4943245e9f88cdaf40a489411f50e83a0ea3b97f67bc0e19a1e440d31"
+    },
+    {
+      "name": "G04-a-11_5035-jgd_GML.zip",
+      "year": 11,
+      "primary": "5035",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5035-jgd_GML.zip",
+      "sha256": "365cd4abf24b9ae4fb78ab4da1bb0d4f77973edbf999b7bc5302ba3033a970f0"
+    },
+    {
+      "name": "G04-a-11_5036-jgd_GML.zip",
+      "year": 11,
+      "primary": "5036",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5036-jgd_GML.zip",
+      "sha256": "d2f108b21be64b954e93adbafa0b9cc14937affdcce372689a9ed82a7d3dda01"
+    },
+    {
+      "name": "G04-a-11_5038-jgd_GML.zip",
+      "year": 11,
+      "primary": "5038",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5038-jgd_GML.zip",
+      "sha256": "1ca5894a2ea0df06190ede88c723178927e53a88e5e9f75de2aad6928a7b443d"
+    },
+    {
+      "name": "G04-a-11_5039-jgd_GML.zip",
+      "year": 11,
+      "primary": "5039",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5039-jgd_GML.zip",
+      "sha256": "ff740e82f15d8ddade573989300eafa836cec1dae3bdecfe4226cab67ef586f0"
+    },
+    {
+      "name": "G04-a-11_5129-jgd_GML.zip",
+      "year": 11,
+      "primary": "5129",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5129-jgd_GML.zip",
+      "sha256": "8b6a1cd8ecc8ee3645664081d5753b25f6584ff33549aa84e194c11ae4c240ce"
+    },
+    {
+      "name": "G04-a-11_5130-jgd_GML.zip",
+      "year": 11,
+      "primary": "5130",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5130-jgd_GML.zip",
+      "sha256": "5a5a3f0d116bdae5eb2a3e6012db312b9b6c15bf429cdaa421800b73548eb732"
+    },
+    {
+      "name": "G04-a-11_5131-jgd_GML.zip",
+      "year": 11,
+      "primary": "5131",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5131-jgd_GML.zip",
+      "sha256": "61f76dd06c3ed656df9e630d08762a74fbd014099b9ca833a7cd6f6a6fdfb6e6"
+    },
+    {
+      "name": "G04-a-11_5132-jgd_GML.zip",
+      "year": 11,
+      "primary": "5132",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5132-jgd_GML.zip",
+      "sha256": "772b313c4e484b3567d58e5b7b173168426d76c64c5e5aad167b5a644248a21e"
+    },
+    {
+      "name": "G04-a-11_5133-jgd_GML.zip",
+      "year": 11,
+      "primary": "5133",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5133-jgd_GML.zip",
+      "sha256": "842fc62ff8a04eea10c1d7e610ab5c58eb4ba9e1a7532c3eb6400294f498fa96"
+    },
+    {
+      "name": "G04-a-11_5134-jgd_GML.zip",
+      "year": 11,
+      "primary": "5134",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5134-jgd_GML.zip",
+      "sha256": "af55d3478f233d20294b2cba34d2af945d638b441d4ec3a21c57f86fe451d07b"
+    },
+    {
+      "name": "G04-a-11_5135-jgd_GML.zip",
+      "year": 11,
+      "primary": "5135",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5135-jgd_GML.zip",
+      "sha256": "3098ff1fb27ce0e85945a3ba86fa07af24d2b8475e24190d5a52562ffe2c2fe1"
+    },
+    {
+      "name": "G04-a-11_5136-jgd_GML.zip",
+      "year": 11,
+      "primary": "5136",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5136-jgd_GML.zip",
+      "sha256": "85ab4cd794f6af88eb15018f52549f35996e36faad75e775e6430f91006240ac"
+    },
+    {
+      "name": "G04-a-11_5137-jgd_GML.zip",
+      "year": 11,
+      "primary": "5137",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5137-jgd_GML.zip",
+      "sha256": "fb3df3512f93ff592ab87d771c74bc5f95a804924011beb5ff6b7e4a47bc6af3"
+    },
+    {
+      "name": "G04-a-11_5138-jgd_GML.zip",
+      "year": 11,
+      "primary": "5138",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5138-jgd_GML.zip",
+      "sha256": "27c3f145fe5f35de462fc6edfdf17485d7a8c13710f77caaee6f62e6891a8336"
+    },
+    {
+      "name": "G04-a-11_5139-jgd_GML.zip",
+      "year": 11,
+      "primary": "5139",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5139-jgd_GML.zip",
+      "sha256": "837462dc4242f3c55653db6ff09150c24aae369b774b2b810179f5d8eaf808b3"
+    },
+    {
+      "name": "G04-a-11_5229-jgd_GML.zip",
+      "year": 11,
+      "primary": "5229",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5229-jgd_GML.zip",
+      "sha256": "9e034d0e4529a43463fe443dc892bccab5c83f115bad309ccba174a65e5d253f"
+    },
+    {
+      "name": "G04-a-11_5231-jgd_GML.zip",
+      "year": 11,
+      "primary": "5231",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5231-jgd_GML.zip",
+      "sha256": "fc23f8e591f1a509eccca63e870b4d3f229cc416e1a258c6aabe7bcbd421e9c9"
+    },
+    {
+      "name": "G04-a-11_5232-jgd_GML.zip",
+      "year": 11,
+      "primary": "5232",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5232-jgd_GML.zip",
+      "sha256": "d75cb67f523badf5411564af0dd39570ac3fc1ed9ad643494faad337031602ff"
+    },
+    {
+      "name": "G04-a-11_5233-jgd_GML.zip",
+      "year": 11,
+      "primary": "5233",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5233-jgd_GML.zip",
+      "sha256": "7f2b7c8e8a75b752ecfb8b9ea48ccabbe53f767d6b6d518c0ecc361aef6dd23f"
+    },
+    {
+      "name": "G04-a-11_5234-jgd_GML.zip",
+      "year": 11,
+      "primary": "5234",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5234-jgd_GML.zip",
+      "sha256": "370e604551e960be197ef061222f7b6b9f87c912162224a4eace27e9d8444271"
+    },
+    {
+      "name": "G04-a-11_5235-jgd_GML.zip",
+      "year": 11,
+      "primary": "5235",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5235-jgd_GML.zip",
+      "sha256": "567653ac5722f612e7ee34ee464af47f1e4794d3422cb47b17ad1e418be791ea"
+    },
+    {
+      "name": "G04-a-11_5236-jgd_GML.zip",
+      "year": 11,
+      "primary": "5236",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5236-jgd_GML.zip",
+      "sha256": "2f772bf4531849a09e24eb36065f9157cb31c78a0c1af9394deef94ec4d579a2"
+    },
+    {
+      "name": "G04-a-11_5237-jgd_GML.zip",
+      "year": 11,
+      "primary": "5237",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5237-jgd_GML.zip",
+      "sha256": "e785b9c63067ae22628757f7d0baad5af968883efcb10211441e05e174a64df8"
+    },
+    {
+      "name": "G04-a-11_5238-jgd_GML.zip",
+      "year": 11,
+      "primary": "5238",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5238-jgd_GML.zip",
+      "sha256": "8fb754ecff7e7859b38963596450c90a1e81f2aaf39704809c1c9af6d62715dd"
+    },
+    {
+      "name": "G04-a-11_5239-jgd_GML.zip",
+      "year": 11,
+      "primary": "5239",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5239-jgd_GML.zip",
+      "sha256": "6721ae8755d1f028d25dc64a2a73cfd138ac0099da207e72c060e19788bdc721"
+    },
+    {
+      "name": "G04-a-11_5240-jgd_GML.zip",
+      "year": 11,
+      "primary": "5240",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5240-jgd_GML.zip",
+      "sha256": "aa2362ebdb05ac69a13d68bbb2ae63fa82719f1fe6463101f0d5c54f7deaf797"
+    },
+    {
+      "name": "G04-a-11_5332-jgd_GML.zip",
+      "year": 11,
+      "primary": "5332",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5332-jgd_GML.zip",
+      "sha256": "a75e225266045eea45ef420c855f49dfa5b9ebc69053bfed4cbf582f18e9c831"
+    },
+    {
+      "name": "G04-a-11_5333-jgd_GML.zip",
+      "year": 11,
+      "primary": "5333",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5333-jgd_GML.zip",
+      "sha256": "6128535c578e8fd1648212ae6227cfb6d158e7e7ab22321de10444e0850404eb"
+    },
+    {
+      "name": "G04-a-11_5334-jgd_GML.zip",
+      "year": 11,
+      "primary": "5334",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5334-jgd_GML.zip",
+      "sha256": "929fa765a4280b3b59a3c38ac209051bfd0194024695f1f88337468454330b9f"
+    },
+    {
+      "name": "G04-a-11_5335-jgd_GML.zip",
+      "year": 11,
+      "primary": "5335",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5335-jgd_GML.zip",
+      "sha256": "cb71c7fc30e6423fb1f6e6c171482ae18fc93037a42df7a1bb16aea50050a3ff"
+    },
+    {
+      "name": "G04-a-11_5336-jgd_GML.zip",
+      "year": 11,
+      "primary": "5336",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5336-jgd_GML.zip",
+      "sha256": "53b5ff0e34bd9b210d2ad5a8be2d082a35d70da57ac42eed276d71d8b2eae13b"
+    },
+    {
+      "name": "G04-a-11_5337-jgd_GML.zip",
+      "year": 11,
+      "primary": "5337",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5337-jgd_GML.zip",
+      "sha256": "f69c4df0f721d80509e44b4ef814a0bd6964002d636ff874120b919c88487f83"
+    },
+    {
+      "name": "G04-a-11_5338-jgd_GML.zip",
+      "year": 11,
+      "primary": "5338",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5338-jgd_GML.zip",
+      "sha256": "306b2b8c7b02202af055fe847f643f9df4a2790b834bba661bff2c561e914046"
+    },
+    {
+      "name": "G04-a-11_5339-jgd_GML.zip",
+      "year": 11,
+      "primary": "5339",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5339-jgd_GML.zip",
+      "sha256": "847f4932a29b3070aacff9b656e5db22d5e0b799113a023263f46d3811155336"
+    },
+    {
+      "name": "G04-a-11_5340-jgd_GML.zip",
+      "year": 11,
+      "primary": "5340",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5340-jgd_GML.zip",
+      "sha256": "5ce88536489ae910c25ac91c23dcb1f67e69370e8bdafe7a27c763fcb5d8c8b8"
+    },
+    {
+      "name": "G04-a-11_5432-jgd_GML.zip",
+      "year": 11,
+      "primary": "5432",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5432-jgd_GML.zip",
+      "sha256": "95a482b2d847499f461c9075cb1c0761ed343a79c6f2db8ae4693162b65eb1d0"
+    },
+    {
+      "name": "G04-a-11_5433-jgd_GML.zip",
+      "year": 11,
+      "primary": "5433",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5433-jgd_GML.zip",
+      "sha256": "6c7bc5ea9692ac4b540d1dba6f3f2000d70fa19aa2582fbf59a5547fb35cc473"
+    },
+    {
+      "name": "G04-a-11_5435-jgd_GML.zip",
+      "year": 11,
+      "primary": "5435",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5435-jgd_GML.zip",
+      "sha256": "cccda1a981a96735053997cc613da59e19b14622cd729e3f102f3074414586d4"
+    },
+    {
+      "name": "G04-a-11_5436-jgd_GML.zip",
+      "year": 11,
+      "primary": "5436",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5436-jgd_GML.zip",
+      "sha256": "d677b7cc6dfa555a50d4726aa82ff2127f7ea29851a567a6523c07ed4ee815d9"
+    },
+    {
+      "name": "G04-a-11_5437-jgd_GML.zip",
+      "year": 11,
+      "primary": "5437",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5437-jgd_GML.zip",
+      "sha256": "3b81d0dfbfba90972443cda746327f225c42cdf779f8e0a300a43905fa323ac1"
+    },
+    {
+      "name": "G04-a-11_5438-jgd_GML.zip",
+      "year": 11,
+      "primary": "5438",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5438-jgd_GML.zip",
+      "sha256": "abe2e5652e561dd9f853e247b158ce435685b4c8ebab6391365190f8ac94e3a9"
+    },
+    {
+      "name": "G04-a-11_5439-jgd_GML.zip",
+      "year": 11,
+      "primary": "5439",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5439-jgd_GML.zip",
+      "sha256": "eaf387177c8a5a03d7cb782eb55b3f23c964dda4fb3c64dfb1831cefb7e0bfa6"
+    },
+    {
+      "name": "G04-a-11_5440-jgd_GML.zip",
+      "year": 11,
+      "primary": "5440",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5440-jgd_GML.zip",
+      "sha256": "e192c97a711fa2e85409d413336303e1ac78f7cbe49ee16bcb051d0a90b87f82"
+    },
+    {
+      "name": "G04-a-11_5531-jgd_GML.zip",
+      "year": 11,
+      "primary": "5531",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5531-jgd_GML.zip",
+      "sha256": "1cc939be94049d3c0c4029ebd6d1b127a70537f655a2fbe537f79eeb6dd0f8ca"
+    },
+    {
+      "name": "G04-a-11_5536-jgd_GML.zip",
+      "year": 11,
+      "primary": "5536",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5536-jgd_GML.zip",
+      "sha256": "3877de186c558baa9bcec29459dfeecada52969d7ded87a8839fcb244fad5fb8"
+    },
+    {
+      "name": "G04-a-11_5537-jgd_GML.zip",
+      "year": 11,
+      "primary": "5537",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5537-jgd_GML.zip",
+      "sha256": "353e3e1c5fad9bc3bca1d1d34c42fdbbcfabbab2c756794e564078540242bf1e"
+    },
+    {
+      "name": "G04-a-11_5538-jgd_GML.zip",
+      "year": 11,
+      "primary": "5538",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5538-jgd_GML.zip",
+      "sha256": "79cf5b40edb7f7fc08bfeb329aa4661aa75092ddf4f543d09828fe0d5589840f"
+    },
+    {
+      "name": "G04-a-11_5539-jgd_GML.zip",
+      "year": 11,
+      "primary": "5539",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5539-jgd_GML.zip",
+      "sha256": "d2a2b9a1c0731379e3f8f4ef4b198384a21c6a707688613b995999dd459735be"
+    },
+    {
+      "name": "G04-a-11_5540-jgd_GML.zip",
+      "year": 11,
+      "primary": "5540",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5540-jgd_GML.zip",
+      "sha256": "a2eea636533253ea95558f42f3e83a6c95e8bbc74a4c0086b01cbc391aadeab7"
+    },
+    {
+      "name": "G04-a-11_5541-jgd_GML.zip",
+      "year": 11,
+      "primary": "5541",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5541-jgd_GML.zip",
+      "sha256": "669739c4161d8495eb6a2ff5828080a901500703a4faecdc2aba1812e8c1c3c9"
+    },
+    {
+      "name": "G04-a-11_5636-jgd_GML.zip",
+      "year": 11,
+      "primary": "5636",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5636-jgd_GML.zip",
+      "sha256": "b70a3c329029840035a8e16750bdedab6875c53e7d85a7ac60feadab57cae549"
+    },
+    {
+      "name": "G04-a-11_5637-jgd_GML.zip",
+      "year": 11,
+      "primary": "5637",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5637-jgd_GML.zip",
+      "sha256": "ef913b9cb18a600da7cea386a8db3551b57f6e94707482adc92acebd2e230298"
+    },
+    {
+      "name": "G04-a-11_5638-jgd_GML.zip",
+      "year": 11,
+      "primary": "5638",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5638-jgd_GML.zip",
+      "sha256": "85ca2e4f370e86f470fe52ca874f692abe33f2558fdc0a29aee6d8275c327728"
+    },
+    {
+      "name": "G04-a-11_5639-jgd_GML.zip",
+      "year": 11,
+      "primary": "5639",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5639-jgd_GML.zip",
+      "sha256": "b97694c6aa5d6e1c6c5847a77d54398d37ea9099a1c884c14dfda580637cff7d"
+    },
+    {
+      "name": "G04-a-11_5640-jgd_GML.zip",
+      "year": 11,
+      "primary": "5640",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5640-jgd_GML.zip",
+      "sha256": "b95e4a135bdf7ee93c95cb1529873bec0a64a18b614c3bb4fc868b653a9f5c6d"
+    },
+    {
+      "name": "G04-a-11_5641-jgd_GML.zip",
+      "year": 11,
+      "primary": "5641",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5641-jgd_GML.zip",
+      "sha256": "e8b436795ce73989a37761913e1317e20ba89fcb3b20ef84651d24142dc5082b"
+    },
+    {
+      "name": "G04-a-11_5738-jgd_GML.zip",
+      "year": 11,
+      "primary": "5738",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5738-jgd_GML.zip",
+      "sha256": "b936cb582918c6dd97983cf5cdd1e6f43f4335ac09d74948389685a643386ebc"
+    },
+    {
+      "name": "G04-a-11_5739-jgd_GML.zip",
+      "year": 11,
+      "primary": "5739",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5739-jgd_GML.zip",
+      "sha256": "6964f12d746d59a6146ee47fcc087c60679bcd118f050778c85b90a14da03991"
+    },
+    {
+      "name": "G04-a-11_5740-jgd_GML.zip",
+      "year": 11,
+      "primary": "5740",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5740-jgd_GML.zip",
+      "sha256": "75a47e8837151b8cceaef5166470d71619e264eda660c95de1f0b84243a80f66"
+    },
+    {
+      "name": "G04-a-11_5741-jgd_GML.zip",
+      "year": 11,
+      "primary": "5741",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5741-jgd_GML.zip",
+      "sha256": "12847d6b9bc265057e4d20fb1bed44b1bde5de958510781127cb0c36ae32538e"
+    },
+    {
+      "name": "G04-a-11_5839-jgd_GML.zip",
+      "year": 11,
+      "primary": "5839",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5839-jgd_GML.zip",
+      "sha256": "85ba770a06a6507159499baaf662010878eb1dfd97361d843f106c0330069c0d"
+    },
+    {
+      "name": "G04-a-11_5840-jgd_GML.zip",
+      "year": 11,
+      "primary": "5840",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5840-jgd_GML.zip",
+      "sha256": "84cc9eddfa885c6e54ba9f0dd30a1cd01daed11bb0cc25fa67a0246211f86ee5"
+    },
+    {
+      "name": "G04-a-11_5841-jgd_GML.zip",
+      "year": 11,
+      "primary": "5841",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5841-jgd_GML.zip",
+      "sha256": "0633ea74cb16606d0ff2e222b2cce8dda5f01d09d00ff05a06b58b037ad1d2c8"
+    },
+    {
+      "name": "G04-a-11_5939-jgd_GML.zip",
+      "year": 11,
+      "primary": "5939",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5939-jgd_GML.zip",
+      "sha256": "3466ff4f4335f960ceb2c686c43acc9b41ed9ba18a4fae31e55f07f7d0d0442a"
+    },
+    {
+      "name": "G04-a-11_5940-jgd_GML.zip",
+      "year": 11,
+      "primary": "5940",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5940-jgd_GML.zip",
+      "sha256": "b6a81ca0f7bc56074dfe28085457987c510c4482a31d815a3e697867dea1db32"
+    },
+    {
+      "name": "G04-a-11_5941-jgd_GML.zip",
+      "year": 11,
+      "primary": "5941",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5941-jgd_GML.zip",
+      "sha256": "2388a0a05562446e400d02e986ff02a4ae1347be28ff19aeadc64ee159b5487c"
+    },
+    {
+      "name": "G04-a-11_5942-jgd_GML.zip",
+      "year": 11,
+      "primary": "5942",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_5942-jgd_GML.zip",
+      "sha256": "33bfece24ced56e42263639e5dd8446e91f4440d7002bb4c01c546516bb9bdf6"
+    },
+    {
+      "name": "G04-a-11_6039-jgd_GML.zip",
+      "year": 11,
+      "primary": "6039",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6039-jgd_GML.zip",
+      "sha256": "f0faeae6a0cf2232025bc3d655b34df80f2649fb223f66bd41a9b00e924c6a87"
+    },
+    {
+      "name": "G04-a-11_6040-jgd_GML.zip",
+      "year": 11,
+      "primary": "6040",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6040-jgd_GML.zip",
+      "sha256": "9e2f96c97bb6baacc5a33b022acacde5a3ba4a1aafb45a29d0a958b9afe4cf45"
+    },
+    {
+      "name": "G04-a-11_6041-jgd_GML.zip",
+      "year": 11,
+      "primary": "6041",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6041-jgd_GML.zip",
+      "sha256": "7c610e727286a28482c18d2c311178e8878226f1e5241e100dcdbe3a736a0e84"
+    },
+    {
+      "name": "G04-a-11_6139-jgd_GML.zip",
+      "year": 11,
+      "primary": "6139",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6139-jgd_GML.zip",
+      "sha256": "fda33ce13bd6a3f693d64460160993652a4b8c1bcc2f0e3e115f5d5868fd684b"
+    },
+    {
+      "name": "G04-a-11_6140-jgd_GML.zip",
+      "year": 11,
+      "primary": "6140",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6140-jgd_GML.zip",
+      "sha256": "785ad8a4dd5750cfd522f03c7a819cd51cbfb191a174daed596c9c9f7a5ed72f"
+    },
+    {
+      "name": "G04-a-11_6141-jgd_GML.zip",
+      "year": 11,
+      "primary": "6141",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6141-jgd_GML.zip",
+      "sha256": "32f25bdf115292cb23513a0b6627b007cce379b0fff9693427678c23c1543adb"
+    },
+    {
+      "name": "G04-a-11_6239-jgd_GML.zip",
+      "year": 11,
+      "primary": "6239",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6239-jgd_GML.zip",
+      "sha256": "fffe07ead4ea1a1d755830c7ef87cd55228ddfeb5ffa83841b2b2f2a9139268c"
+    },
+    {
+      "name": "G04-a-11_6240-jgd_GML.zip",
+      "year": 11,
+      "primary": "6240",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6240-jgd_GML.zip",
+      "sha256": "66cf53bf52b67541e620fa42dd139ee14125d99de7ebc8ab9f4dfd65be4180b4"
+    },
+    {
+      "name": "G04-a-11_6241-jgd_GML.zip",
+      "year": 11,
+      "primary": "6241",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6241-jgd_GML.zip",
+      "sha256": "4a32858b869e9f00f9b9efaabc8f5b86f55c4795572144e57f846bd1c21f2ae4"
+    },
+    {
+      "name": "G04-a-11_6243-jgd_GML.zip",
+      "year": 11,
+      "primary": "6243",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6243-jgd_GML.zip",
+      "sha256": "95ac67c2be004e89246dca7fa2fb86509b4e78c6be8b7b2b0726974a160b4acd"
+    },
+    {
+      "name": "G04-a-11_6339-jgd_GML.zip",
+      "year": 11,
+      "primary": "6339",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6339-jgd_GML.zip",
+      "sha256": "6d691ce51550436b9b3c3b7c1da7952db1d4cabad354a0bc2031dd062e5070e5"
+    },
+    {
+      "name": "G04-a-11_6340-jgd_GML.zip",
+      "year": 11,
+      "primary": "6340",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6340-jgd_GML.zip",
+      "sha256": "822fdd540d7d8a0b698a332fcec24f48b9057a5d28e39f2f5500a2ae4d4c9bc5"
+    },
+    {
+      "name": "G04-a-11_6341-jgd_GML.zip",
+      "year": 11,
+      "primary": "6341",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6341-jgd_GML.zip",
+      "sha256": "1b7c884d576deb50b55d75fbab8b7ce8f7046b18d683217e8664fb3db0873362"
+    },
+    {
+      "name": "G04-a-11_6342-jgd_GML.zip",
+      "year": 11,
+      "primary": "6342",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6342-jgd_GML.zip",
+      "sha256": "56a3e5cb3234714d3df2f9526d119706f40529839a3d025585dec500e901cd9c"
+    },
+    {
+      "name": "G04-a-11_6343-jgd_GML.zip",
+      "year": 11,
+      "primary": "6343",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6343-jgd_GML.zip",
+      "sha256": "24fc736ebddd1e48781d4bbb1f938e72697697206fac0d1ceea6bd7c82783687"
+    },
+    {
+      "name": "G04-a-11_6439-jgd_GML.zip",
+      "year": 11,
+      "primary": "6439",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6439-jgd_GML.zip",
+      "sha256": "d4dc068530feeb9af8c7028e74c8986490407a205efdfe9e21c196a08bcf3b14"
+    },
+    {
+      "name": "G04-a-11_6440-jgd_GML.zip",
+      "year": 11,
+      "primary": "6440",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6440-jgd_GML.zip",
+      "sha256": "2f3a5c37cb644ce4adad73ed6c8033613cf6e658c253b859d18b4ae7bb5d810e"
+    },
+    {
+      "name": "G04-a-11_6441-jgd_GML.zip",
+      "year": 11,
+      "primary": "6441",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6441-jgd_GML.zip",
+      "sha256": "f837e6d1f8a2c17a7de86d0b85cd9d3ba991d3ea900219c60e1aed84da38d3b4"
+    },
+    {
+      "name": "G04-a-11_6442-jgd_GML.zip",
+      "year": 11,
+      "primary": "6442",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6442-jgd_GML.zip",
+      "sha256": "f8c2eec083fa62c9f6704594c37c70587e90e6f6e9ea240bb8f3c70206db2d2f"
+    },
+    {
+      "name": "G04-a-11_6443-jgd_GML.zip",
+      "year": 11,
+      "primary": "6443",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6443-jgd_GML.zip",
+      "sha256": "f3f5c398f325f69ee73478703873ba0209a7398b4556759c73b1a9840a1435ed"
+    },
+    {
+      "name": "G04-a-11_6444-jgd_GML.zip",
+      "year": 11,
+      "primary": "6444",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6444-jgd_GML.zip",
+      "sha256": "17126cba261142c1b0f8feac3da6762d994f705d7c2ec06d9b6d9893064d530d"
+    },
+    {
+      "name": "G04-a-11_6445-jgd_GML.zip",
+      "year": 11,
+      "primary": "6445",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6445-jgd_GML.zip",
+      "sha256": "e4e751c9264a290c1f308e7c26795eaa8dd1204911288044a7af34049efe771a"
+    },
+    {
+      "name": "G04-a-11_6540-jgd_GML.zip",
+      "year": 11,
+      "primary": "6540",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6540-jgd_GML.zip",
+      "sha256": "31c3f2c046c868ee100c5a7aa0cccbd27aadb99fa297ccf2da2d87063878c872"
+    },
+    {
+      "name": "G04-a-11_6541-jgd_GML.zip",
+      "year": 11,
+      "primary": "6541",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6541-jgd_GML.zip",
+      "sha256": "967169b5435ee3cfa6b20ac86c37e578aa54259206d615cf26d43e7fd58749f8"
+    },
+    {
+      "name": "G04-a-11_6542-jgd_GML.zip",
+      "year": 11,
+      "primary": "6542",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6542-jgd_GML.zip",
+      "sha256": "3ecacde42b038a62fe492c13743883e3afa50b33da12466dc71f65be72ace4b1"
+    },
+    {
+      "name": "G04-a-11_6543-jgd_GML.zip",
+      "year": 11,
+      "primary": "6543",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6543-jgd_GML.zip",
+      "sha256": "9682a35037ba3ea13eec02621b2dadb4981b724395a553dd69126ccf57229cc2"
+    },
+    {
+      "name": "G04-a-11_6544-jgd_GML.zip",
+      "year": 11,
+      "primary": "6544",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6544-jgd_GML.zip",
+      "sha256": "1b05fb643f8b05f0732005cb2d35425a159bf972bd6c8692700152fc7f38e474"
+    },
+    {
+      "name": "G04-a-11_6545-jgd_GML.zip",
+      "year": 11,
+      "primary": "6545",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6545-jgd_GML.zip",
+      "sha256": "5287410a46e836322b31019fcfea77c6e440bdfb071d410ca08bcde87978adcd"
+    },
+    {
+      "name": "G04-a-11_6546-jgd_GML.zip",
+      "year": 11,
+      "primary": "6546",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6546-jgd_GML.zip",
+      "sha256": "5b81e810f849f72af91e4faa0fc8725a26043194322a48375a4787e7b2514715"
+    },
+    {
+      "name": "G04-a-11_6641-jgd_GML.zip",
+      "year": 11,
+      "primary": "6641",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6641-jgd_GML.zip",
+      "sha256": "c267d609c8c4b2543cc7b5f0ef48b59346fa00c910a3f29323bde74c36d6f7e6"
+    },
+    {
+      "name": "G04-a-11_6642-jgd_GML.zip",
+      "year": 11,
+      "primary": "6642",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6642-jgd_GML.zip",
+      "sha256": "8a63bb28f6e8370e5d6498f536fd83e3944def2cc009e421d42c880488ce08da"
+    },
+    {
+      "name": "G04-a-11_6643-jgd_GML.zip",
+      "year": 11,
+      "primary": "6643",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6643-jgd_GML.zip",
+      "sha256": "1166186adf9d04f06dd48f35e6f91ba04d3de44897bb3be5e866e48d9e9e48e6"
+    },
+    {
+      "name": "G04-a-11_6644-jgd_GML.zip",
+      "year": 11,
+      "primary": "6644",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6644-jgd_GML.zip",
+      "sha256": "dfb39c4eeffb4c9285d11b69dcc8e9590d107688cc08048196a5bbcca6f2e66b"
+    },
+    {
+      "name": "G04-a-11_6645-jgd_GML.zip",
+      "year": 11,
+      "primary": "6645",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6645-jgd_GML.zip",
+      "sha256": "2aa2007778a81281b4f2bbf129f75fdb570c15a62da3bd1a7c04d52257e594ba"
+    },
+    {
+      "name": "G04-a-11_6646-jgd_GML.zip",
+      "year": 11,
+      "primary": "6646",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6646-jgd_GML.zip",
+      "sha256": "0e89d75c681d35b4e1967668a32b9b852d39fe85cbe95380bd5dda9fd8c60de8"
+    },
+    {
+      "name": "G04-a-11_6647-jgd_GML.zip",
+      "year": 11,
+      "primary": "6647",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6647-jgd_GML.zip",
+      "sha256": "314ba78402fe0f40ec5ab9b6854e063ccc5b150be1a7e6b03cbf5a35345b22d9"
+    },
+    {
+      "name": "G04-a-11_6740-jgd_GML.zip",
+      "year": 11,
+      "primary": "6740",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6740-jgd_GML.zip",
+      "sha256": "3c870d398717f7d5e1475e318ee7491a1b4af1e9141845575a5028aecf6ab8d1"
+    },
+    {
+      "name": "G04-a-11_6741-jgd_GML.zip",
+      "year": 11,
+      "primary": "6741",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6741-jgd_GML.zip",
+      "sha256": "2e885709feebd08ce12600a83dc43a3e90a13a58b97f839ae3d526805711057f"
+    },
+    {
+      "name": "G04-a-11_6742-jgd_GML.zip",
+      "year": 11,
+      "primary": "6742",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6742-jgd_GML.zip",
+      "sha256": "2321e78fa93d5e20f43e82ecf30896ee09207403683097b6444f7d89806e333a"
+    },
+    {
+      "name": "G04-a-11_6747-jgd_GML.zip",
+      "year": 11,
+      "primary": "6747",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6747-jgd_GML.zip",
+      "sha256": "80b347a756172a9ae8bf533effc7a39c0e5f7ff5fbca1c3991c8129e96d57dae"
+    },
+    {
+      "name": "G04-a-11_6748-jgd_GML.zip",
+      "year": 11,
+      "primary": "6748",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6748-jgd_GML.zip",
+      "sha256": "77d9c14de5b01f37d51355fd01c2376c8d994483b0bfbd1a4ec0c834bf483e11"
+    },
+    {
+      "name": "G04-a-11_6840-jgd_GML.zip",
+      "year": 11,
+      "primary": "6840",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6840-jgd_GML.zip",
+      "sha256": "5204efc9e42306ea8eba02d165e8a5f486370f4d17137e029ffcc769395d9a42"
+    },
+    {
+      "name": "G04-a-11_6841-jgd_GML.zip",
+      "year": 11,
+      "primary": "6841",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6841-jgd_GML.zip",
+      "sha256": "f4a20aecd62de6e27b28848f6a4502a95d9939cc1f2af0889beea088c9cfd48b"
+    },
+    {
+      "name": "G04-a-11_6842-jgd_GML.zip",
+      "year": 11,
+      "primary": "6842",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6842-jgd_GML.zip",
+      "sha256": "f36029a7213c308199e94e21ca9bb198c1b5c8de69c0b4d38bef5f76fb3cc079"
+    },
+    {
+      "name": "G04-a-11_6847-jgd_GML.zip",
+      "year": 11,
+      "primary": "6847",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6847-jgd_GML.zip",
+      "sha256": "3e6d7ce283f1e60f3cc3bc0eaf9f321798536a2393990046fa187f73cdf0ed2f"
+    },
+    {
+      "name": "G04-a-11_6848-jgd_GML.zip",
+      "year": 11,
+      "primary": "6848",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/G04-a/G04-a-11/G04-a-11_6848-jgd_GML.zip",
+      "sha256": "750b3a86710168b6c4fe8f82530b7ecafc4cb5fdbe143f03c2bb375f755496b7"
+    },
+    {
+      "name": "L03-a-16_5640-jgd_GML.zip",
+      "year": 16,
+      "primary": "5640",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_5640-jgd_GML.zip",
+      "sha256": "58b520d69986d7a5b8be7115be47201114ec7bc2c54deb5e4e587106e18dd6ed"
+    },
+    {
+      "name": "L03-a-16_5641-jgd_GML.zip",
+      "year": 16,
+      "primary": "5641",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_5641-jgd_GML.zip",
+      "sha256": "0cdfc35059b64fa358cba2d1d9f3470a8251ed48de6b01862647111788a25a8b"
+    },
+    {
+      "name": "L03-a-16_5740-jgd_GML.zip",
+      "year": 16,
+      "primary": "5740",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_5740-jgd_GML.zip",
+      "sha256": "9707c4beb83aee6d614d1b3314a219efe3a6e6e24b427fc3a4165463f794a215"
+    },
+    {
+      "name": "L03-a-16_5741-jgd_GML.zip",
+      "year": 16,
+      "primary": "5741",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_5741-jgd_GML.zip",
+      "sha256": "96563b88c5be7724333e6b5c6f9914f384804a2409ae7bf46a8c6e9cb362fa3b"
+    },
+    {
+      "name": "L03-a-16_5839-jgd_GML.zip",
+      "year": 16,
+      "primary": "5839",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_5839-jgd_GML.zip",
+      "sha256": "4e954e39f337b35e6d31751d9c5f1e3fd4776822835c1c6ad1639d9f381ae089"
+    },
+    {
+      "name": "L03-a-16_5840-jgd_GML.zip",
+      "year": 16,
+      "primary": "5840",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_5840-jgd_GML.zip",
+      "sha256": "d00061b702af03126939cd5ecf614898f18efcb8c28b34c4e8e83cd2cec45e19"
+    },
+    {
+      "name": "L03-a-16_5841-jgd_GML.zip",
+      "year": 16,
+      "primary": "5841",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_5841-jgd_GML.zip",
+      "sha256": "019bbc0b19b0399ba57d4a0dc71230e2a5d1307d9637f6612176dcc1fb0268d9"
+    },
+    {
+      "name": "L03-a-16_5939-jgd_GML.zip",
+      "year": 16,
+      "primary": "5939",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_5939-jgd_GML.zip",
+      "sha256": "1a49abb1718b77faacada4e2e222f97a4b55f16cddd86b5dcefaa638032d0d38"
+    },
+    {
+      "name": "L03-a-16_5940-jgd_GML.zip",
+      "year": 16,
+      "primary": "5940",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_5940-jgd_GML.zip",
+      "sha256": "c7df80b844d14120a362b9962d008dd1fa4255e0a6073fa2a6d8d43442d5ad83"
+    },
+    {
+      "name": "L03-a-16_5941-jgd_GML.zip",
+      "year": 16,
+      "primary": "5941",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_5941-jgd_GML.zip",
+      "sha256": "c3a718b859fd165b5f92c4efb2a89aa7f296c90d529ab225488ef930dc145bf5"
+    },
+    {
+      "name": "L03-a-16_5942-jgd_GML.zip",
+      "year": 16,
+      "primary": "5942",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_5942-jgd_GML.zip",
+      "sha256": "9e96964aa6e061bba4a9f499ed84a2d67a3191685bcd73e0ed91d5bd81cdaf89"
+    },
+    {
+      "name": "L03-a-16_6039-jgd_GML.zip",
+      "year": 16,
+      "primary": "6039",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6039-jgd_GML.zip",
+      "sha256": "0a7c4d5fddfb820bf94e43ca9dabe775924b418e0e38bf941734391c2b4e22c6"
+    },
+    {
+      "name": "L03-a-16_6040-jgd_GML.zip",
+      "year": 16,
+      "primary": "6040",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6040-jgd_GML.zip",
+      "sha256": "41c3745e5a9acd75976fef7c550a0ac3053400f59b9ca7f6a83894961fc2e4aa"
+    },
+    {
+      "name": "L03-a-16_6041-jgd_GML.zip",
+      "year": 16,
+      "primary": "6041",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6041-jgd_GML.zip",
+      "sha256": "edcc1b7ac46d72ed5d0abe547322c840792d223ac69c5b5277963fcc341c78ad"
+    },
+    {
+      "name": "L03-a-16_6139-jgd_GML.zip",
+      "year": 16,
+      "primary": "6139",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6139-jgd_GML.zip",
+      "sha256": "126c3a296981fb4c424fc2084da62a93ae6035d3f828342823d9de63dbf124eb"
+    },
+    {
+      "name": "L03-a-16_6140-jgd_GML.zip",
+      "year": 16,
+      "primary": "6140",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6140-jgd_GML.zip",
+      "sha256": "e1b6ab3739b98a268538951f62dac809d4332d6c78d5e94ed413db6ea0efdfb7"
+    },
+    {
+      "name": "L03-a-16_6141-jgd_GML.zip",
+      "year": 16,
+      "primary": "6141",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6141-jgd_GML.zip",
+      "sha256": "d4db20f2edfa38fc4f24a9bc32f563b88c83b46d3318f564d985b312f65dbdba"
+    },
+    {
+      "name": "L03-a-16_6239-jgd_GML.zip",
+      "year": 16,
+      "primary": "6239",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6239-jgd_GML.zip",
+      "sha256": "316ee999d8d9914a8a1188b367aa92e839695a53787f986caa38836a37626bdb"
+    },
+    {
+      "name": "L03-a-16_6240-jgd_GML.zip",
+      "year": 16,
+      "primary": "6240",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6240-jgd_GML.zip",
+      "sha256": "6595ab87b14dfd94666e41b6d66f45bb4cf89ce8a09806a12dda3707901f8463"
+    },
+    {
+      "name": "L03-a-16_6241-jgd_GML.zip",
+      "year": 16,
+      "primary": "6241",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6241-jgd_GML.zip",
+      "sha256": "94437a8acdf0c63d72ded85353829e8684ebb5f8ffc22e2ff1c34e2ed9492243"
+    },
+    {
+      "name": "L03-a-16_6243-jgd_GML.zip",
+      "year": 16,
+      "primary": "6243",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6243-jgd_GML.zip",
+      "sha256": "a964dcfe4e1b66a4008e23bb3b75b42c9d8250028fa40c4576050f25bf0a61b5"
+    },
+    {
+      "name": "L03-a-16_6339-jgd_GML.zip",
+      "year": 16,
+      "primary": "6339",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6339-jgd_GML.zip",
+      "sha256": "63af8ffc3939374fd8a076dcfaf4a335e213f1c33ba674def86066fed05c56f7"
+    },
+    {
+      "name": "L03-a-16_6340-jgd_GML.zip",
+      "year": 16,
+      "primary": "6340",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6340-jgd_GML.zip",
+      "sha256": "0e2c28b6748c2f4ff4680685bfa488b49f409ca435786cd0c090b4f772f697db"
+    },
+    {
+      "name": "L03-a-16_6341-jgd_GML.zip",
+      "year": 16,
+      "primary": "6341",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6341-jgd_GML.zip",
+      "sha256": "acd3a04ff78c10f6bc0dd73f9c5100364fcc0415f51fa7dc43a395743d8b5365"
+    },
+    {
+      "name": "L03-a-16_6342-jgd_GML.zip",
+      "year": 16,
+      "primary": "6342",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6342-jgd_GML.zip",
+      "sha256": "e8848518c5ace515cffa934cd4a14ec9322e470e58df58f9f24a1f23e860520f"
+    },
+    {
+      "name": "L03-a-16_6343-jgd_GML.zip",
+      "year": 16,
+      "primary": "6343",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6343-jgd_GML.zip",
+      "sha256": "8d88dcdaa4a2f41fd4438d6c4b8e1bfe7857c3f78ff2f9408de08640c11ef550"
+    },
+    {
+      "name": "L03-a-16_6439-jgd_GML.zip",
+      "year": 16,
+      "primary": "6439",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6439-jgd_GML.zip",
+      "sha256": "3e12485fc7929a3b6a5d0e5aa98143d547671cd2b0e0780be5d2621338cbbb68"
+    },
+    {
+      "name": "L03-a-16_6440-jgd_GML.zip",
+      "year": 16,
+      "primary": "6440",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6440-jgd_GML.zip",
+      "sha256": "cbb8e71df9bf0501ff3c0accec6f78e2e5b1a1e483b054317a6fa0aa8b2e7b1a"
+    },
+    {
+      "name": "L03-a-16_6441-jgd_GML.zip",
+      "year": 16,
+      "primary": "6441",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6441-jgd_GML.zip",
+      "sha256": "cf104f09200e8a0cd95c03c4006a1024b995503d100a265482b5e36a5a70e2e7"
+    },
+    {
+      "name": "L03-a-16_6442-jgd_GML.zip",
+      "year": 16,
+      "primary": "6442",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6442-jgd_GML.zip",
+      "sha256": "385b51c552d3a04f01134f536e093fc18103b7aca87f1e777c33c6745080bd99"
+    },
+    {
+      "name": "L03-a-16_6443-jgd_GML.zip",
+      "year": 16,
+      "primary": "6443",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6443-jgd_GML.zip",
+      "sha256": "5f2be4174eec479fa569e15096b164a34c3005e4f4a4f7889e5f0e643a388c93"
+    },
+    {
+      "name": "L03-a-16_6444-jgd_GML.zip",
+      "year": 16,
+      "primary": "6444",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6444-jgd_GML.zip",
+      "sha256": "024863fae62402a3f85b6479a459ded93c59bd2b3706cc8833bf56cebc526f45"
+    },
+    {
+      "name": "L03-a-16_6445-jgd_GML.zip",
+      "year": 16,
+      "primary": "6445",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6445-jgd_GML.zip",
+      "sha256": "b4d1d551f36a2831b25c30527437a0b72ad2133d3b09f7bf1f45e06047894a2c"
+    },
+    {
+      "name": "L03-a-16_6540-jgd_GML.zip",
+      "year": 16,
+      "primary": "6540",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6540-jgd_GML.zip",
+      "sha256": "c6c88d03cc62b072eebc36fe630bb51daacb73aa160d60aa5b3b812627d26afd"
+    },
+    {
+      "name": "L03-a-16_6541-jgd_GML.zip",
+      "year": 16,
+      "primary": "6541",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6541-jgd_GML.zip",
+      "sha256": "5976095cf9b101fc21d9c5f3246eb4138305a3269da95fc559644aa05f001094"
+    },
+    {
+      "name": "L03-a-16_6542-jgd_GML.zip",
+      "year": 16,
+      "primary": "6542",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6542-jgd_GML.zip",
+      "sha256": "216be08e47478a6f04077db1c812f3cdf91d441613dfae9e7312eae4c6ac2ea0"
+    },
+    {
+      "name": "L03-a-16_6543-jgd_GML.zip",
+      "year": 16,
+      "primary": "6543",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6543-jgd_GML.zip",
+      "sha256": "3d1717742ece2cd64656415b4f7493841be045ddc6e076ccb425f994b31f4385"
+    },
+    {
+      "name": "L03-a-16_6544-jgd_GML.zip",
+      "year": 16,
+      "primary": "6544",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6544-jgd_GML.zip",
+      "sha256": "fa7fb1f44ea334e5ebae73076aa282a2a8b8e087cd979317309adcc6d88931d2"
+    },
+    {
+      "name": "L03-a-16_6545-jgd_GML.zip",
+      "year": 16,
+      "primary": "6545",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6545-jgd_GML.zip",
+      "sha256": "7e1b5cfd9f03e22492ce0533c15901b7627a5895f1a0e7feb9cb1f6da2c7d5d1"
+    },
+    {
+      "name": "L03-a-16_6546-jgd_GML.zip",
+      "year": 16,
+      "primary": "6546",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6546-jgd_GML.zip",
+      "sha256": "732c9fb4d3efa5c201e8046fcbf3a6c058ef04258cb6359fc9ad7ced8cdadff7"
+    },
+    {
+      "name": "L03-a-16_6641-jgd_GML.zip",
+      "year": 16,
+      "primary": "6641",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6641-jgd_GML.zip",
+      "sha256": "3333a6cefa76bed0951c15fa0663d5ef8a866254306f1d8ef494b5c78ed5f274"
+    },
+    {
+      "name": "L03-a-16_6642-jgd_GML.zip",
+      "year": 16,
+      "primary": "6642",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6642-jgd_GML.zip",
+      "sha256": "50a98632959795317b9b95f8e0743254b016e064d59906e30678f3ad8e7bb8fe"
+    },
+    {
+      "name": "L03-a-16_6643-jgd_GML.zip",
+      "year": 16,
+      "primary": "6643",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6643-jgd_GML.zip",
+      "sha256": "b83606a7a55c117ae6a3366ae6c4eb106b21ac430341e5ae62ada1ee7bd5c223"
+    },
+    {
+      "name": "L03-a-16_6644-jgd_GML.zip",
+      "year": 16,
+      "primary": "6644",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6644-jgd_GML.zip",
+      "sha256": "e5c6a0c6e3ea9b5f56f1a0106fc042dfa5fb4acd8e431e4171423abd5b4979fb"
+    },
+    {
+      "name": "L03-a-16_6645-jgd_GML.zip",
+      "year": 16,
+      "primary": "6645",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6645-jgd_GML.zip",
+      "sha256": "b442e7bcf688e923352b674a758f7cecc7a6d44b8ef75899fe5f9c45ededf9bd"
+    },
+    {
+      "name": "L03-a-16_6646-jgd_GML.zip",
+      "year": 16,
+      "primary": "6646",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6646-jgd_GML.zip",
+      "sha256": "e8136d4a716edfb36fc66ffb76680e80ff8264aa60f3fad142a2e40fd95015ca"
+    },
+    {
+      "name": "L03-a-16_6647-jgd_GML.zip",
+      "year": 16,
+      "primary": "6647",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6647-jgd_GML.zip",
+      "sha256": "31ef5ed69091cc707029a98a75f3997fdc4dbcfcc491ce9683906a436fe6d2d0"
+    },
+    {
+      "name": "L03-a-16_6741-jgd_GML.zip",
+      "year": 16,
+      "primary": "6741",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6741-jgd_GML.zip",
+      "sha256": "437c44c88ca96a2cab834729736b987dd0419998656830ecc81e10fe8e7a6a2d"
+    },
+    {
+      "name": "L03-a-16_6742-jgd_GML.zip",
+      "year": 16,
+      "primary": "6742",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6742-jgd_GML.zip",
+      "sha256": "67468b33db33c03366b5487dca7d94b75b2ae4b8c2eda9f0be00a41359448b9f"
+    },
+    {
+      "name": "L03-a-16_6747-jgd_GML.zip",
+      "year": 16,
+      "primary": "6747",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6747-jgd_GML.zip",
+      "sha256": "cd4b69e832b23a5a959ea7c5df8f72ddad2c7f1dc69d5786efe57956a6353259"
+    },
+    {
+      "name": "L03-a-16_6748-jgd_GML.zip",
+      "year": 16,
+      "primary": "6748",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6748-jgd_GML.zip",
+      "sha256": "db52760423e10e440e7c938514b3984d07aae56d495883a00b2ccd412902a496"
+    },
+    {
+      "name": "L03-a-16_6840-jgd_GML.zip",
+      "year": 16,
+      "primary": "6840",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6840-jgd_GML.zip",
+      "sha256": "89e1e211b30af950bf1efe888f87e8532e3493ce8ac6c20e734bd1bc70116985"
+    },
+    {
+      "name": "L03-a-16_6841-jgd_GML.zip",
+      "year": 16,
+      "primary": "6841",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6841-jgd_GML.zip",
+      "sha256": "a4e6190f5d2b2a3a88deb03b1155161b9b1a034925f88f28cc4f13669ce0d458"
+    },
+    {
+      "name": "L03-a-16_6842-jgd_GML.zip",
+      "year": 16,
+      "primary": "6842",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6842-jgd_GML.zip",
+      "sha256": "718ec289ffce0b6b1cff9457f746e13e6951a07cef7a20b64a6d5fb8f45e8ecc"
+    },
+    {
+      "name": "L03-a-16_6847-jgd_GML.zip",
+      "year": 16,
+      "primary": "6847",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6847-jgd_GML.zip",
+      "sha256": "9e548b36276ba216e824818629f4d2b99bb4d9024defdd3a185812e5321a2aa2"
+    },
+    {
+      "name": "L03-a-16_6848-jgd_GML.zip",
+      "year": 16,
+      "primary": "6848",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-16/L03-a-16_6848-jgd_GML.zip",
+      "sha256": "ca0a5077a799d4a128e5884ec4b8773521401d917463e6294a4c0c186b6858d2"
+    },
+    {
+      "name": "L03-a-21_3036-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3036",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3036-jgd2011_GML.zip",
+      "sha256": "9723dfc6031a22fccec66fdc2536ff06b63c798fd4123053eafe28ce247de97f"
+    },
+    {
+      "name": "L03-a-21_3622-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3622",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3622-jgd2011_GML.zip",
+      "sha256": "142b4d83cd95b3c8be52c1b740eb6703f97517bb5bdf7b242a94d4dd15044d7d"
+    },
+    {
+      "name": "L03-a-21_3623-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3623",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3623-jgd2011_GML.zip",
+      "sha256": "4d4f8b7829271ca3ba1dbc529f34da0a24f4d522c52038d94614c5852b26f4a9"
+    },
+    {
+      "name": "L03-a-21_3624-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3624",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3624-jgd2011_GML.zip",
+      "sha256": "c4ef4e1d5e7c652ef194d03b739f831ec088183a0685cba0901156f4beba67b0"
+    },
+    {
+      "name": "L03-a-21_3631-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3631",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3631-jgd2011_GML.zip",
+      "sha256": "73dd6286db36b7534e61203868f179df82ce15ff2e6875528e4b6904aaa42a39"
+    },
+    {
+      "name": "L03-a-21_3641-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3641",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3641-jgd2011_GML.zip",
+      "sha256": "dc4e65be562f890745119f4749865578834350c83d8bf4e0178b0eba089a7f3b"
+    },
+    {
+      "name": "L03-a-21_3653-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3653",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3653-jgd2011_GML.zip",
+      "sha256": "6aafb964d5725fc65d81ae1f42a0ad6c9c83067d8cee079a6bcb70b195e9c827"
+    },
+    {
+      "name": "L03-a-21_3724-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3724",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3724-jgd2011_GML.zip",
+      "sha256": "46106dec3b548ef196b8c52aca14944305cd566dc2ad4ac958d908bb1ec74678"
+    },
+    {
+      "name": "L03-a-21_3725-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3725",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3725-jgd2011_GML.zip",
+      "sha256": "edd348dba5d6a7b1de8e08d1dfab88f29a3715cf5a974d552af44be7385052a5"
+    },
+    {
+      "name": "L03-a-21_3741-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3741",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3741-jgd2011_GML.zip",
+      "sha256": "532c370d8b1a148ef9d2e69dadc662380d4a33bc32d8d223d646a223a7614c01"
+    },
+    {
+      "name": "L03-a-21_3823-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3823",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3823-jgd2011_GML.zip",
+      "sha256": "3b2f9bb1b892dcdb8ccb80539f5447c348e38515d97cf9938bf35c27cf71e703"
+    },
+    {
+      "name": "L03-a-21_3824-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3824",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3824-jgd2011_GML.zip",
+      "sha256": "99fc18be1a3dda240d9eb15b10de938f173388a7ee5aa8e85209962bd3c7d361"
+    },
+    {
+      "name": "L03-a-21_3831-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3831",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3831-jgd2011_GML.zip",
+      "sha256": "85dcd8854f7b3634778a5edad2b9afa2a7d788323f180227b039722fae19346c"
+    },
+    {
+      "name": "L03-a-21_3841-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3841",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3841-jgd2011_GML.zip",
+      "sha256": "b411cd1bae622947b7fa4bb0ddf1e019ee650e90a0bba433d06a1bd2b2ee10e4"
+    },
+    {
+      "name": "L03-a-21_3926-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3926",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3926-jgd2011_GML.zip",
+      "sha256": "c76a1ab6509890a7d1e2de58262668245ab1e9d3baed01ab7244c17fbf1d2cba"
+    },
+    {
+      "name": "L03-a-21_3927-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3927",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3927-jgd2011_GML.zip",
+      "sha256": "e3c5f79c1751e3e72d9a8d447c488de38937d921df430feb20211cb78c642b83"
+    },
+    {
+      "name": "L03-a-21_3928-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3928",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3928-jgd2011_GML.zip",
+      "sha256": "25421f0b6892d0e4d79a766513cfd84c0f0345d8a70a6e0604ec439173e9246f"
+    },
+    {
+      "name": "L03-a-21_3942-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "3942",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_3942-jgd2011_GML.zip",
+      "sha256": "0cd9ab31039fe8ab6d0a1eb23079b2e15fd205b88794aa6be6b16ecbe28baaf1"
+    },
+    {
+      "name": "L03-a-21_4027-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4027",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4027-jgd2011_GML.zip",
+      "sha256": "6c39f354566f52623a38c9057146683c7709b7cdaf7fa97da24f8693b2114eb4"
+    },
+    {
+      "name": "L03-a-21_4028-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4028",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4028-jgd2011_GML.zip",
+      "sha256": "172e4ef5a2cbe09f0425deb73039680284a054ad722e34237d47b54ea5b4df3b"
+    },
+    {
+      "name": "L03-a-21_4040-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4040",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4040-jgd2011_GML.zip",
+      "sha256": "9287b7e2b2ee031a695ce63ef75a5d386cbefe31093432933e5770572bc94428"
+    },
+    {
+      "name": "L03-a-21_4042-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4042",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4042-jgd2011_GML.zip",
+      "sha256": "01951ecb8927341976aa08fad5ae0801ecbfce294260f43a2586333fca50cdc2"
+    },
+    {
+      "name": "L03-a-21_4128-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4128",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4128-jgd2011_GML.zip",
+      "sha256": "8bff841826c6a20e010955551a65de7c0ebd42ec5b8789ad219d065197df4057"
+    },
+    {
+      "name": "L03-a-21_4129-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4129",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4129-jgd2011_GML.zip",
+      "sha256": "dd6c8999cdc3fc0559c88c7287f6d654f87a309ceb0d2fded5dd579b11cb4daf"
+    },
+    {
+      "name": "L03-a-21_4142-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4142",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4142-jgd2011_GML.zip",
+      "sha256": "53becb9be1d20639f7103f16f73a516b2ef8e35a751714dea1604216d17f7781"
+    },
+    {
+      "name": "L03-a-21_4229-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4229",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4229-jgd2011_GML.zip",
+      "sha256": "c167dab3d76e039ae9aca3f8188b722ecda2310aa6f2c6b3e5965b80163f470c"
+    },
+    {
+      "name": "L03-a-21_4230-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4230",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4230-jgd2011_GML.zip",
+      "sha256": "4a1afdf68e62a2d1cfc85bffc0e60ef860fc28efd3864659b7a888ed41721421"
+    },
+    {
+      "name": "L03-a-21_4328-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4328",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4328-jgd2011_GML.zip",
+      "sha256": "c99bc8d7bbc56182fece7a15c21809982a8969ad9fcbcf53253e0b0b1cf04f71"
+    },
+    {
+      "name": "L03-a-21_4329-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4329",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4329-jgd2011_GML.zip",
+      "sha256": "1798290a48f12d5d54c95886bce7ea00b209d120db5b545954e26ffb1f107b1e"
+    },
+    {
+      "name": "L03-a-21_4429-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4429",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4429-jgd2011_GML.zip",
+      "sha256": "4b9b021304df8c501349f5a6785baf3c9dac8447becb5a16e8c2c72b49794005"
+    },
+    {
+      "name": "L03-a-21_4440-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4440",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4440-jgd2011_GML.zip",
+      "sha256": "924047d5002a02cdd848193fd43eb38f4931750711b47bf24e5af40106790d0c"
+    },
+    {
+      "name": "L03-a-21_4529-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4529",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4529-jgd2011_GML.zip",
+      "sha256": "ef3bbbee34551e16676fb42c7eeb82ebcfc2d2f5aabab019f0c5d47ca9ed3000"
+    },
+    {
+      "name": "L03-a-21_4530-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4530",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4530-jgd2011_GML.zip",
+      "sha256": "779ff63322c60eb688ad07995a9298adfaf37f87efd017daaedd905dbc694fc3"
+    },
+    {
+      "name": "L03-a-21_4531-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4531",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4531-jgd2011_GML.zip",
+      "sha256": "a1fd7b499879cb45fb6a95d79ce2c4cfa265f48bb2ec723c1fe67ab592113438"
+    },
+    {
+      "name": "L03-a-21_4540-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4540",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4540-jgd2011_GML.zip",
+      "sha256": "6093d4369bd9c57130095a6540acb42dd8c402cbc46ef78adca60f5f824dd5da"
+    },
+    {
+      "name": "L03-a-21_4629-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4629",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4629-jgd2011_GML.zip",
+      "sha256": "8385fcfff562272e0b3c0cfb4d19246daf8e03e9f4e2363461061d738890f149"
+    },
+    {
+      "name": "L03-a-21_4630-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4630",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4630-jgd2011_GML.zip",
+      "sha256": "08acd2ef79a0d0730ae3302e28eb1618338e3fc87df47b483a439309f49f51e6"
+    },
+    {
+      "name": "L03-a-21_4631-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4631",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4631-jgd2011_GML.zip",
+      "sha256": "cb53c85b2e4c686fa8419bb287157f756491e8c8db1811ee78a8f6bc12204384"
+    },
+    {
+      "name": "L03-a-21_4728-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4728",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4728-jgd2011_GML.zip",
+      "sha256": "d2bcb269d2946a839bb9bbe19759fad298749270133e13aa7074dab878e7ae8c"
+    },
+    {
+      "name": "L03-a-21_4729-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4729",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4729-jgd2011_GML.zip",
+      "sha256": "f6426fee36b12093d5afe15eeadd2cb3160b0c851c1e94060928769dc561b029"
+    },
+    {
+      "name": "L03-a-21_4730-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4730",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4730-jgd2011_GML.zip",
+      "sha256": "cc82cb690255e74a5461de18437e4cc04a14af81385b38c66d898134eafdc04c"
+    },
+    {
+      "name": "L03-a-21_4731-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4731",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4731-jgd2011_GML.zip",
+      "sha256": "31ffb209d6f63f28de4194a27a3ed4d1b47c5340ff10085e3973d1b63a20bbda"
+    },
+    {
+      "name": "L03-a-21_4739-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4739",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4739-jgd2011_GML.zip",
+      "sha256": "b3d5cb292307a59255b760e9a9daadbbb0cb4d38bc0031039969d4e959d1cd33"
+    },
+    {
+      "name": "L03-a-21_4740-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4740",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4740-jgd2011_GML.zip",
+      "sha256": "cc14d74fc17e986e025afdd08d65e9e8e55f830291aad0108e43d425a734cdcf"
+    },
+    {
+      "name": "L03-a-21_4828-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4828",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4828-jgd2011_GML.zip",
+      "sha256": "fc635aebf74cfda5a62608edf55828ea092be9e741baebb7663873a72bd29536"
+    },
+    {
+      "name": "L03-a-21_4829-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4829",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4829-jgd2011_GML.zip",
+      "sha256": "d49794560d244651162a36e057f7f54bbb7605b1ce33ec88253bbaa2f435d5a2"
+    },
+    {
+      "name": "L03-a-21_4830-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4830",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4830-jgd2011_GML.zip",
+      "sha256": "aa7100b9d1ff30cd69d741d53cdc2ae14c09d4dc8b7aea3cbfbee58ce9aec6a6"
+    },
+    {
+      "name": "L03-a-21_4831-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4831",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4831-jgd2011_GML.zip",
+      "sha256": "39b36c10adab7df25e86641ef379cce985af20448420818cd89533e314a57c33"
+    },
+    {
+      "name": "L03-a-21_4839-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4839",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4839-jgd2011_GML.zip",
+      "sha256": "af1e19fc3b00ff00b312e734f76b2d8561f19c8c6c8ba730c9028fe08917dc5d"
+    },
+    {
+      "name": "L03-a-21_4928-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4928",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4928-jgd2011_GML.zip",
+      "sha256": "e6fad558912b5b156a4b040ec0aaa01af9652415960609749a616448e3802219"
+    },
+    {
+      "name": "L03-a-21_4929-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4929",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4929-jgd2011_GML.zip",
+      "sha256": "a8c27f636fe863e87f632443a3ecb33da6d7c8068485f6075d3d28990f8722aa"
+    },
+    {
+      "name": "L03-a-21_4930-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4930",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4930-jgd2011_GML.zip",
+      "sha256": "a51d90335ba6465c4cec723d64dc2f1ef8eb085cd6888d93c0d8883087748ffc"
+    },
+    {
+      "name": "L03-a-21_4931-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4931",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4931-jgd2011_GML.zip",
+      "sha256": "937303d107c62e943fed3c6f593cef715449098ec5259c6c5da4c54ae03e1419"
+    },
+    {
+      "name": "L03-a-21_4932-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4932",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4932-jgd2011_GML.zip",
+      "sha256": "cb2e95fd10145624b47f474db54d76160fd2511ef15a0765bb0a61e494e4a778"
+    },
+    {
+      "name": "L03-a-21_4933-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4933",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4933-jgd2011_GML.zip",
+      "sha256": "4d278bcb277b80d36a42891942a2cab559fbe2a150efe13191007fb74b729172"
+    },
+    {
+      "name": "L03-a-21_4934-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4934",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4934-jgd2011_GML.zip",
+      "sha256": "7cf0ac411b3f733c122199cbf08974fcf0fc07d94fe2cc7dfac451ca678327d2"
+    },
+    {
+      "name": "L03-a-21_4939-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "4939",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_4939-jgd2011_GML.zip",
+      "sha256": "3789eb95c6decccaaeb2ecec13e5bcba0fe54446cd642e3f9d873b76ae7d2d26"
+    },
+    {
+      "name": "L03-a-21_5029-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5029",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5029-jgd2011_GML.zip",
+      "sha256": "9817c70c59b7980661a06ebc4db696a6e417e7c7376d94d56ea4b09a3b5b5fc7"
+    },
+    {
+      "name": "L03-a-21_5030-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5030",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5030-jgd2011_GML.zip",
+      "sha256": "c49a43af9de44788c3d48451ccccb60afe8f00672467bdf842149852df826d5f"
+    },
+    {
+      "name": "L03-a-21_5031-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5031",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5031-jgd2011_GML.zip",
+      "sha256": "9dd46fe541ca2d1c23ceb96c01a9f0cc408b24b22052957a49f398a8e5d5e573"
+    },
+    {
+      "name": "L03-a-21_5032-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5032",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5032-jgd2011_GML.zip",
+      "sha256": "faf0d668276a6aa88994aa68f04859d40ace4f9dc3688c3dd856cbcdbb6ec7f5"
+    },
+    {
+      "name": "L03-a-21_5033-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5033",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5033-jgd2011_GML.zip",
+      "sha256": "dd79fa6f7b6b976a10c4cb616041b97e43cdbe64594ee4d834e7faf4995f3a85"
+    },
+    {
+      "name": "L03-a-21_5034-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5034",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5034-jgd2011_GML.zip",
+      "sha256": "2b90cdece2777ea198cb1a2dbc921c3acc7e6c4a2ee383e69c2dceec0dca0ea0"
+    },
+    {
+      "name": "L03-a-21_5035-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5035",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5035-jgd2011_GML.zip",
+      "sha256": "ecf8159d1266b603f17c95ad894a4824098df5d5329de726ca5e191b18e52a3f"
+    },
+    {
+      "name": "L03-a-21_5036-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5036",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5036-jgd2011_GML.zip",
+      "sha256": "38f8a451c350b4b6dc5c84ea9fa7c72fb540753c8ab71224c4a53bea3eddbe64"
+    },
+    {
+      "name": "L03-a-21_5038-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5038",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5038-jgd2011_GML.zip",
+      "sha256": "7e32b8a282f9bf5ff94110ea229297f32d3e8df8a2626058904880cf46426db3"
+    },
+    {
+      "name": "L03-a-21_5039-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5039",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5039-jgd2011_GML.zip",
+      "sha256": "3c428c766d59a0af429853909a45106d5b854d2afdd77ef10b917373f6282ee4"
+    },
+    {
+      "name": "L03-a-21_5129-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5129",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5129-jgd2011_GML.zip",
+      "sha256": "185ada3b67f47aecfbe516532bfcfe2ce22e35c45b32a2a58dd1ab50da76289b"
+    },
+    {
+      "name": "L03-a-21_5130-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5130",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5130-jgd2011_GML.zip",
+      "sha256": "dd05f8363e09e378858f4cd1455223fec28daad1869a75160544f60c1c51fb69"
+    },
+    {
+      "name": "L03-a-21_5131-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5131",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5131-jgd2011_GML.zip",
+      "sha256": "3b389928bd0928b2b169ccf927ee4658950db7c82f22377f35628b48d72b253f"
+    },
+    {
+      "name": "L03-a-21_5132-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5132",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5132-jgd2011_GML.zip",
+      "sha256": "9c929958c2623af8759ebf93d86221b141866dab851b808fd005b3f008d38ab2"
+    },
+    {
+      "name": "L03-a-21_5133-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5133",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5133-jgd2011_GML.zip",
+      "sha256": "b8aaf84b232357cd397e554c3130feea849de3894007293c84b488d03ef75336"
+    },
+    {
+      "name": "L03-a-21_5134-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5134",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5134-jgd2011_GML.zip",
+      "sha256": "42bd66872d9be2b2c8200f50b47508a05d8f1446e638a6648288b952821882bd"
+    },
+    {
+      "name": "L03-a-21_5135-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5135",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5135-jgd2011_GML.zip",
+      "sha256": "85b82f2261b21ca87e66bc1b6c0d253dc82b55dfa92ff19592367851ee5e417c"
+    },
+    {
+      "name": "L03-a-21_5136-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5136",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5136-jgd2011_GML.zip",
+      "sha256": "41215278649d4f95d53637907bc01f6a0372ce88cafae409c9de519f1657daeb"
+    },
+    {
+      "name": "L03-a-21_5137-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5137",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5137-jgd2011_GML.zip",
+      "sha256": "792261f7bb224c54b431913a86d1cfca608b81dbe8cfb53ab8cc39447b5be38f"
+    },
+    {
+      "name": "L03-a-21_5138-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5138",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5138-jgd2011_GML.zip",
+      "sha256": "d36dce5c3bc172ba2ddc1cd584617033ae134a1b308d2941b0552ee79e9f4a00"
+    },
+    {
+      "name": "L03-a-21_5139-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5139",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5139-jgd2011_GML.zip",
+      "sha256": "528cffb709dd572da037ec54efad940089532a103f48b4d677fa6f160ac1479a"
+    },
+    {
+      "name": "L03-a-21_5229-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5229",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5229-jgd2011_GML.zip",
+      "sha256": "a18cd152dbb050c0484ad31260e779271c46e59ae0c604f02216b95c31579fe8"
+    },
+    {
+      "name": "L03-a-21_5231-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5231",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5231-jgd2011_GML.zip",
+      "sha256": "b3002edfe7c87701c9a0e55461149ecf9ab7833d376dc9411b96fa0d3f25f7ff"
+    },
+    {
+      "name": "L03-a-21_5232-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5232",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5232-jgd2011_GML.zip",
+      "sha256": "51cb70218c84229e6c8058e915a2db39024e2159534398b17f79cdf44745fd48"
+    },
+    {
+      "name": "L03-a-21_5233-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5233",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5233-jgd2011_GML.zip",
+      "sha256": "d87345e1b955e6639dd2c9eb76048ac59b97ca42f3ad2db3cb63377823e51e3e"
+    },
+    {
+      "name": "L03-a-21_5234-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5234",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5234-jgd2011_GML.zip",
+      "sha256": "a22fcce48290bd10cd6750e06442bd3d2b87fcceb5895715f33c3f7486850a66"
+    },
+    {
+      "name": "L03-a-21_5235-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5235",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5235-jgd2011_GML.zip",
+      "sha256": "dfe1983b0d65f5f37cc0db4c783ce6bceceb7776d6060dcaf3e4cdc3a45a49bc"
+    },
+    {
+      "name": "L03-a-21_5236-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5236",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5236-jgd2011_GML.zip",
+      "sha256": "d87ed43a795682c215ee58f93ab88c3dd690f359880cfa660b3d1dc34502c60f"
+    },
+    {
+      "name": "L03-a-21_5237-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5237",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5237-jgd2011_GML.zip",
+      "sha256": "3d243ea726438efe59d22b3aca233a672cb7e4791711a944b832924969257f4c"
+    },
+    {
+      "name": "L03-a-21_5238-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5238",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5238-jgd2011_GML.zip",
+      "sha256": "ba0c09ba302736b48d5709a5c4262ae155fa17b223bb88180c277decb9bf2bbc"
+    },
+    {
+      "name": "L03-a-21_5239-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5239",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5239-jgd2011_GML.zip",
+      "sha256": "65e8e72e51484b60cdb228fc9fda7f0756ccbbd84032a4d5f52ca0cc41e78908"
+    },
+    {
+      "name": "L03-a-21_5240-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5240",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5240-jgd2011_GML.zip",
+      "sha256": "afea4523ae1edac4a21291c7d206f8e42f73b8c06f3ce093d5b3fe268a18fc53"
+    },
+    {
+      "name": "L03-a-21_5332-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5332",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5332-jgd2011_GML.zip",
+      "sha256": "66fdde95e22c9a356010258432cdbf9f4d80bb03e14084a5c9100ab755141a9c"
+    },
+    {
+      "name": "L03-a-21_5333-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5333",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5333-jgd2011_GML.zip",
+      "sha256": "ff4ae7c45301c822d9a46c9d52795dbe49ce806a308f5c891394bd58c1fdc801"
+    },
+    {
+      "name": "L03-a-21_5334-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5334",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5334-jgd2011_GML.zip",
+      "sha256": "683713b81582ad76ba09ed5c70051ce2dca0d432184e733a8b95ad4b5dcdf097"
+    },
+    {
+      "name": "L03-a-21_5335-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5335",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5335-jgd2011_GML.zip",
+      "sha256": "2006ddc68fd2313709f0eb7e60167daed982992c0f72a800e71ba0e19a3f1151"
+    },
+    {
+      "name": "L03-a-21_5336-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5336",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5336-jgd2011_GML.zip",
+      "sha256": "97c4a463198606b985222c4c51eba0d4dd166779c00df5a523b56c976164275a"
+    },
+    {
+      "name": "L03-a-21_5337-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5337",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5337-jgd2011_GML.zip",
+      "sha256": "d1c9175382506476a7d9ba8d3b5695e9dd08620fab710717c39ca4b46b757cb7"
+    },
+    {
+      "name": "L03-a-21_5338-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5338",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5338-jgd2011_GML.zip",
+      "sha256": "f6587d9cb0960d4874654c163af3de34129bd935cb434b885194287cc0480d1b"
+    },
+    {
+      "name": "L03-a-21_5339-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5339",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5339-jgd2011_GML.zip",
+      "sha256": "ed7c5a56a1750a59237a96e706af7b666899191b71d4fd050e79395187025b7a"
+    },
+    {
+      "name": "L03-a-21_5340-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5340",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5340-jgd2011_GML.zip",
+      "sha256": "da30f8b6ce74782f41fcedf268507cf3051f10950b07878326f6c3a9eef64871"
+    },
+    {
+      "name": "L03-a-21_5432-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5432",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5432-jgd2011_GML.zip",
+      "sha256": "b319299eea9803fb267d1d22750f75a0a20b7718860eb9d5ae7c170e7ec1cf1d"
+    },
+    {
+      "name": "L03-a-21_5433-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5433",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5433-jgd2011_GML.zip",
+      "sha256": "6f1bf093f9bcd15f9be77aa3021ae12bca5373bc5775867027d4d0330cd5327a"
+    },
+    {
+      "name": "L03-a-21_5435-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5435",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5435-jgd2011_GML.zip",
+      "sha256": "a74f93f5b3f85906edd5799aa6f77b0081cbd15a6c2b63703910c3ab4eb32c27"
+    },
+    {
+      "name": "L03-a-21_5436-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5436",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5436-jgd2011_GML.zip",
+      "sha256": "a3e437d0e4d1691e13bb247c7021773813192156548601cc1ce2fdb72adf97b7"
+    },
+    {
+      "name": "L03-a-21_5437-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5437",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5437-jgd2011_GML.zip",
+      "sha256": "3a1cc3874296d32f4ae7d5790b2b6aadabfed6153079a7b464f08e73ebc00f75"
+    },
+    {
+      "name": "L03-a-21_5438-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5438",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5438-jgd2011_GML.zip",
+      "sha256": "cbb0d41049740d8cf5b0a58362da53f5725f4ff438cfd2e2ec6a4351707216c2"
+    },
+    {
+      "name": "L03-a-21_5439-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5439",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5439-jgd2011_GML.zip",
+      "sha256": "54f093936e8b8dc0c9ff30ae3c434c51af908f99d789aa4414a54399dde468fa"
+    },
+    {
+      "name": "L03-a-21_5440-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5440",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5440-jgd2011_GML.zip",
+      "sha256": "6371655058c7ef62b52db7be692b6cd489011e855a2292d758aff56a2ad033ae"
+    },
+    {
+      "name": "L03-a-21_5531-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5531",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5531-jgd2011_GML.zip",
+      "sha256": "89285bcc50fc4d7284c065ce2788bcade2db7a7851a96e65b29a2875ddf662d0"
+    },
+    {
+      "name": "L03-a-21_5536-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5536",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5536-jgd2011_GML.zip",
+      "sha256": "250f7c68c81ccc2ae0dfb99567012b9cb57567b29376d09b2289759152220122"
+    },
+    {
+      "name": "L03-a-21_5537-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5537",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5537-jgd2011_GML.zip",
+      "sha256": "f8d0c9d1ee7bc11be141f7a1e996030bb8a47469196bdf57cf0c26d22de8ab04"
+    },
+    {
+      "name": "L03-a-21_5538-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5538",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5538-jgd2011_GML.zip",
+      "sha256": "0cfa6cd4e2c056aa4dd9b567c4a358e0f3bc15e01ad87e40c4482e06ff6c4476"
+    },
+    {
+      "name": "L03-a-21_5539-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5539",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5539-jgd2011_GML.zip",
+      "sha256": "4a5c561e56bd22ad3ce91bb5aaa841b479ff66e20a021b5546bcfe207fc6b79d"
+    },
+    {
+      "name": "L03-a-21_5540-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5540",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5540-jgd2011_GML.zip",
+      "sha256": "3cba1142fa763eaaa4343e4a5423c5c234b8dc160a805cbc4d0f8cfed1ba295f"
+    },
+    {
+      "name": "L03-a-21_5541-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5541",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5541-jgd2011_GML.zip",
+      "sha256": "5eed6b5266e86960f29cad11342cb4e3749b87bd7aad56ed5d46c5449345e766"
+    },
+    {
+      "name": "L03-a-21_5636-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5636",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5636-jgd2011_GML.zip",
+      "sha256": "1f9aacd2e863a0fca63cfec84d8fbd5d3e6aee65ab95c1c7c4d65c59a5663b91"
+    },
+    {
+      "name": "L03-a-21_5637-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5637",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5637-jgd2011_GML.zip",
+      "sha256": "ac14c299f22d6b6f5b1c8aba2e6deef7fcf9f392131299ade10f4daa55d483a3"
+    },
+    {
+      "name": "L03-a-21_5638-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5638",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5638-jgd2011_GML.zip",
+      "sha256": "19af0bc95e104beaed3613d657108f2cfb8b2c23552c67a1667a9884a6ebc72f"
+    },
+    {
+      "name": "L03-a-21_5639-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5639",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5639-jgd2011_GML.zip",
+      "sha256": "2dc3898d70e2d2618c6999876fde359f72085f15c1c0944d992cd09384656212"
+    },
+    {
+      "name": "L03-a-21_5738-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5738",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5738-jgd2011_GML.zip",
+      "sha256": "eee107b8263b49bffbee2da16c7edc803461e882d5f50d42d0e39bee8b9f4df4"
+    },
+    {
+      "name": "L03-a-21_5739-jgd2011_GML.zip",
+      "year": 21,
+      "primary": "5739",
+      "url": "https://nlftp.mlit.go.jp/ksj/gml/data/L03-a/L03-a-21/L03-a-21_5739-jgd2011_GML.zip",
+      "sha256": "43bbc26c6a67ebdca6658b7ec0b2dcf2651f7839e2e23a403e4cfbbae0a61492"
+    }
+  ],
+  "tiles": [
+    {
+      "primary": "3036",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 200,
+      "terrainCells": 110
+    },
+    {
+      "primary": "3622",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 25
+    },
+    {
+      "primary": "3623",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1100,
+      "terrainCells": 402
+    },
+    {
+      "primary": "3624",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1300,
+      "terrainCells": 327
+    },
+    {
+      "primary": "3631",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 4
+    },
+    {
+      "primary": "3641",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 7
+    },
+    {
+      "primary": "3653",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 4
+    },
+    {
+      "primary": "3724",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 200,
+      "terrainCells": 15
+    },
+    {
+      "primary": "3725",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1100,
+      "terrainCells": 263
+    },
+    {
+      "primary": "3741",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 300,
+      "terrainCells": 39
+    },
+    {
+      "primary": "3823",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 500,
+      "terrainCells": 22
+    },
+    {
+      "primary": "3824",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 1
+    },
+    {
+      "primary": "3831",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 500,
+      "terrainCells": 58
+    },
+    {
+      "primary": "3841",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 12
+    },
+    {
+      "primary": "3926",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 600,
+      "terrainCells": 92
+    },
+    {
+      "primary": "3927",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 3400,
+      "terrainCells": 986
+    },
+    {
+      "primary": "3928",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 700,
+      "terrainCells": 255
+    },
+    {
+      "primary": "3942",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 300,
+      "terrainCells": 58
+    },
+    {
+      "primary": "4027",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 700,
+      "terrainCells": 163
+    },
+    {
+      "primary": "4028",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1100,
+      "terrainCells": 327
+    },
+    {
+      "primary": "4040",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 400,
+      "terrainCells": 4
+    },
+    {
+      "primary": "4042",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 600,
+      "terrainCells": 117
+    },
+    {
+      "primary": "4128",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 900,
+      "terrainCells": 359
+    },
+    {
+      "primary": "4129",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 300,
+      "terrainCells": 35
+    },
+    {
+      "primary": "4142",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 500,
+      "terrainCells": 37
+    },
+    {
+      "primary": "4229",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 2100,
+      "terrainCells": 1102
+    },
+    {
+      "primary": "4230",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 200,
+      "terrainCells": 19
+    },
+    {
+      "primary": "4328",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 200,
+      "terrainCells": 9
+    },
+    {
+      "primary": "4329",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 500,
+      "terrainCells": 28
+    },
+    {
+      "primary": "4429",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1000,
+      "terrainCells": 147
+    },
+    {
+      "primary": "4440",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 1
+    },
+    {
+      "primary": "4529",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 3
+    },
+    {
+      "primary": "4530",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1900,
+      "terrainCells": 856
+    },
+    {
+      "primary": "4531",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 200,
+      "terrainCells": 66
+    },
+    {
+      "primary": "4540",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 12
+    },
+    {
+      "primary": "4629",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 700,
+      "terrainCells": 59
+    },
+    {
+      "primary": "4630",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 2900,
+      "terrainCells": 1199
+    },
+    {
+      "primary": "4631",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 600,
+      "terrainCells": 244
+    },
+    {
+      "primary": "4728",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 5
+    },
+    {
+      "primary": "4729",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 800,
+      "terrainCells": 212
+    },
+    {
+      "primary": "4730",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 5700,
+      "terrainCells": 4370
+    },
+    {
+      "primary": "4731",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 3100,
+      "terrainCells": 2583
+    },
+    {
+      "primary": "4739",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 1
+    },
+    {
+      "primary": "4740",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 1
+    },
+    {
+      "primary": "4828",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1000,
+      "terrainCells": 219
+    },
+    {
+      "primary": "4829",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 900,
+      "terrainCells": 153
+    },
+    {
+      "primary": "4830",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6300,
+      "terrainCells": 5060
+    },
+    {
+      "primary": "4831",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 4600,
+      "terrainCells": 4061
+    },
+    {
+      "primary": "4839",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 11
+    },
+    {
+      "primary": "4928",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1300,
+      "terrainCells": 482
+    },
+    {
+      "primary": "4929",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 5000,
+      "terrainCells": 2717
+    },
+    {
+      "primary": "4930",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6200,
+      "terrainCells": 5205
+    },
+    {
+      "primary": "4931",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 5727
+    },
+    {
+      "primary": "4932",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 4800,
+      "terrainCells": 2925
+    },
+    {
+      "primary": "4933",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1300,
+      "terrainCells": 647
+    },
+    {
+      "primary": "4934",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 300,
+      "terrainCells": 65
+    },
+    {
+      "primary": "4939",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 300,
+      "terrainCells": 95
+    },
+    {
+      "primary": "5029",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 2500,
+      "terrainCells": 948
+    },
+    {
+      "primary": "5030",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 5500,
+      "terrainCells": 4399
+    },
+    {
+      "primary": "5031",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 4000,
+      "terrainCells": 2490
+    },
+    {
+      "primary": "5032",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 5700,
+      "terrainCells": 3706
+    },
+    {
+      "primary": "5033",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 5800,
+      "terrainCells": 5382
+    },
+    {
+      "primary": "5034",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 3800,
+      "terrainCells": 3042
+    },
+    {
+      "primary": "5035",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 4300,
+      "terrainCells": 3533
+    },
+    {
+      "primary": "5036",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 700,
+      "terrainCells": 344
+    },
+    {
+      "primary": "5038",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 3
+    },
+    {
+      "primary": "5039",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 300,
+      "terrainCells": 32
+    },
+    {
+      "primary": "5129",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1600,
+      "terrainCells": 862
+    },
+    {
+      "primary": "5130",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1300,
+      "terrainCells": 476
+    },
+    {
+      "primary": "5131",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 5800,
+      "terrainCells": 5199
+    },
+    {
+      "primary": "5132",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 5233
+    },
+    {
+      "primary": "5133",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6100,
+      "terrainCells": 4271
+    },
+    {
+      "primary": "5134",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 5200,
+      "terrainCells": 3027
+    },
+    {
+      "primary": "5135",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6100,
+      "terrainCells": 5119
+    },
+    {
+      "primary": "5136",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 5100,
+      "terrainCells": 4069
+    },
+    {
+      "primary": "5137",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 800,
+      "terrainCells": 238
+    },
+    {
+      "primary": "5138",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 500,
+      "terrainCells": 193
+    },
+    {
+      "primary": "5139",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1200,
+      "terrainCells": 186
+    },
+    {
+      "primary": "5229",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 200,
+      "terrainCells": 41
+    },
+    {
+      "primary": "5231",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 900,
+      "terrainCells": 260
+    },
+    {
+      "primary": "5232",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 5400,
+      "terrainCells": 4967
+    },
+    {
+      "primary": "5233",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6400
+    },
+    {
+      "primary": "5234",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6024
+    },
+    {
+      "primary": "5235",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6371
+    },
+    {
+      "primary": "5236",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6200,
+      "terrainCells": 5535
+    },
+    {
+      "primary": "5237",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6119
+    },
+    {
+      "primary": "5238",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 5500,
+      "terrainCells": 4755
+    },
+    {
+      "primary": "5239",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 3800,
+      "terrainCells": 1912
+    },
+    {
+      "primary": "5240",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1200,
+      "terrainCells": 882
+    },
+    {
+      "primary": "5332",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 900,
+      "terrainCells": 559
+    },
+    {
+      "primary": "5333",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 2800,
+      "terrainCells": 1890
+    },
+    {
+      "primary": "5334",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 3400,
+      "terrainCells": 2796
+    },
+    {
+      "primary": "5335",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 4000,
+      "terrainCells": 2830
+    },
+    {
+      "primary": "5336",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6311
+    },
+    {
+      "primary": "5337",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6400
+    },
+    {
+      "primary": "5338",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6400
+    },
+    {
+      "primary": "5339",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6300,
+      "terrainCells": 5844
+    },
+    {
+      "primary": "5340",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 4600,
+      "terrainCells": 3865
+    },
+    {
+      "primary": "5432",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 200,
+      "terrainCells": 37
+    },
+    {
+      "primary": "5433",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1300,
+      "terrainCells": 459
+    },
+    {
+      "primary": "5435",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 6
+    },
+    {
+      "primary": "5436",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 5200,
+      "terrainCells": 4572
+    },
+    {
+      "primary": "5437",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6400
+    },
+    {
+      "primary": "5438",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6400
+    },
+    {
+      "primary": "5439",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6400
+    },
+    {
+      "primary": "5440",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 4500,
+      "terrainCells": 4003
+    },
+    {
+      "primary": "5531",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 4
+    },
+    {
+      "primary": "5536",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 2400,
+      "terrainCells": 1775
+    },
+    {
+      "primary": "5537",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 3800,
+      "terrainCells": 2766
+    },
+    {
+      "primary": "5538",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6200,
+      "terrainCells": 5862
+    },
+    {
+      "primary": "5539",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6400
+    },
+    {
+      "primary": "5540",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6100,
+      "terrainCells": 5801
+    },
+    {
+      "primary": "5541",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 300,
+      "terrainCells": 48
+    },
+    {
+      "primary": "5636",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 800,
+      "terrainCells": 185
+    },
+    {
+      "primary": "5637",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 800,
+      "terrainCells": 491
+    },
+    {
+      "primary": "5638",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 3000,
+      "terrainCells": 1924
+    },
+    {
+      "primary": "5639",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6321
+    },
+    {
+      "primary": "5640",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6293
+    },
+    {
+      "primary": "5641",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 600,
+      "terrainCells": 145
+    },
+    {
+      "primary": "5738",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 1500,
+      "terrainCells": 624
+    },
+    {
+      "primary": "5739",
+      "landYear": 2021,
+      "terrainYear": 2011,
+      "landCells": 4300,
+      "terrainCells": 3569
+    },
+    {
+      "primary": "5740",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6291
+    },
+    {
+      "primary": "5741",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 2700,
+      "terrainCells": 1742
+    },
+    {
+      "primary": "5839",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 1800,
+      "terrainCells": 1181
+    },
+    {
+      "primary": "5840",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6400
+    },
+    {
+      "primary": "5841",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 5500,
+      "terrainCells": 4899
+    },
+    {
+      "primary": "5939",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 700,
+      "terrainCells": 348
+    },
+    {
+      "primary": "5940",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6247
+    },
+    {
+      "primary": "5941",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6319
+    },
+    {
+      "primary": "5942",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 600,
+      "terrainCells": 129
+    },
+    {
+      "primary": "6039",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 1200,
+      "terrainCells": 349
+    },
+    {
+      "primary": "6040",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6386
+    },
+    {
+      "primary": "6041",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 5200,
+      "terrainCells": 4682
+    },
+    {
+      "primary": "6139",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 100,
+      "terrainCells": 27
+    },
+    {
+      "primary": "6140",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 5000,
+      "terrainCells": 3442
+    },
+    {
+      "primary": "6141",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 3000,
+      "terrainCells": 1923
+    },
+    {
+      "primary": "6239",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 600,
+      "terrainCells": 53
+    },
+    {
+      "primary": "6240",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 4800,
+      "terrainCells": 3656
+    },
+    {
+      "primary": "6241",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 1200,
+      "terrainCells": 586
+    },
+    {
+      "primary": "6243",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 200,
+      "terrainCells": 55
+    },
+    {
+      "primary": "6339",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 1900,
+      "terrainCells": 1113
+    },
+    {
+      "primary": "6340",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 4800,
+      "terrainCells": 3771
+    },
+    {
+      "primary": "6341",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 1900,
+      "terrainCells": 1299
+    },
+    {
+      "primary": "6342",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 4300,
+      "terrainCells": 3715
+    },
+    {
+      "primary": "6343",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 3100,
+      "terrainCells": 2484
+    },
+    {
+      "primary": "6439",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 200,
+      "terrainCells": 28
+    },
+    {
+      "primary": "6440",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 4600,
+      "terrainCells": 3949
+    },
+    {
+      "primary": "6441",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 6200,
+      "terrainCells": 5902
+    },
+    {
+      "primary": "6442",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6400
+    },
+    {
+      "primary": "6443",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 6100,
+      "terrainCells": 5957
+    },
+    {
+      "primary": "6444",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 4000,
+      "terrainCells": 3520
+    },
+    {
+      "primary": "6445",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 1900,
+      "terrainCells": 1106
+    },
+    {
+      "primary": "6540",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 300,
+      "terrainCells": 44
+    },
+    {
+      "primary": "6541",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 4400,
+      "terrainCells": 3675
+    },
+    {
+      "primary": "6542",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6400
+    },
+    {
+      "primary": "6543",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6400
+    },
+    {
+      "primary": "6544",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6081
+    },
+    {
+      "primary": "6545",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 3500,
+      "terrainCells": 1903
+    },
+    {
+      "primary": "6546",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 1900,
+      "terrainCells": 521
+    },
+    {
+      "primary": "6641",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 2500,
+      "terrainCells": 1959
+    },
+    {
+      "primary": "6642",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 6400,
+      "terrainCells": 6345
+    },
+    {
+      "primary": "6643",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 3500,
+      "terrainCells": 2993
+    },
+    {
+      "primary": "6644",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 700,
+      "terrainCells": 369
+    },
+    {
+      "primary": "6645",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 2000,
+      "terrainCells": 1011
+    },
+    {
+      "primary": "6646",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 2000,
+      "terrainCells": 1068
+    },
+    {
+      "primary": "6647",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 600,
+      "terrainCells": 283
+    },
+    {
+      "primary": "6740",
+      "landYear": null,
+      "terrainYear": 2011,
+      "landCells": 0,
+      "terrainCells": 1
+    },
+    {
+      "primary": "6741",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 3100,
+      "terrainCells": 2369
+    },
+    {
+      "primary": "6742",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 4000,
+      "terrainCells": 3403
+    },
+    {
+      "primary": "6747",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 3100,
+      "terrainCells": 1921
+    },
+    {
+      "primary": "6748",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 1400,
+      "terrainCells": 666
+    },
+    {
+      "primary": "6840",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 200,
+      "terrainCells": 33
+    },
+    {
+      "primary": "6841",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 900,
+      "terrainCells": 499
+    },
+    {
+      "primary": "6842",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 300,
+      "terrainCells": 109
+    },
+    {
+      "primary": "6847",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 300,
+      "terrainCells": 115
+    },
+    {
+      "primary": "6848",
+      "landYear": 2016,
+      "terrainYear": 2011,
+      "landCells": 1500,
+      "terrainCells": 723
+    }
+  ]
+}

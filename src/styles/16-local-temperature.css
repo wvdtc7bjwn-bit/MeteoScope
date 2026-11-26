@@ -1,0 +1,37 @@
+.local-temperature-summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px; margin-block: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-soft); }
+.local-temperature-summary[hidden] { display: none; }
+.local-temperature-summary > span { color: var(--muted); font-size: 13px; }
+.local-temperature-button { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; min-width: 0; padding: 3px 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
+.local-temperature-button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.local-temperature-button svg { flex: 0 0 16px; }
+.local-temperature-button:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 4px; }
+.local-temperature-popover { position: fixed; z-index: 950; width: min(370px, calc(100vw - 24px)); max-height: min(620px, calc(100dvh - 24px)); overflow: auto; overscroll-behavior: contain; padding: 18px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-strong); color: var(--text); box-shadow: 0 12px 40px #0004; font-size: 13px; line-height: 1.65; box-sizing: border-box; }
+.local-temperature-popover header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.local-temperature-popover h2 { margin: 0; font-size: 17px; }
+.local-temperature-popover header button { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; box-sizing: border-box; line-height: 1; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--text); font-size: 25px; cursor: pointer; }
+.local-temperature-popover header button svg { display: block; width: 20px; height: 20px; pointer-events: none; }
+.local-temperature-value { margin-bottom: 0; }
+.local-temperature-value strong { font-size: 26px; margin-left: 8px; font-variant-numeric: tabular-nums; }
+.local-temperature-popover dl { margin-block: 16px; border-top: 1px solid var(--line); }
+.local-temperature-popover dl > div { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-block: 6px; border-bottom: 1px solid var(--line); }
+.local-temperature-popover dt, .local-temperature-note { color: var(--muted); }
+.local-temperature-popover dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.local-temperature-popover ul { padding-left: 20px; }
+.local-temperature-popover summary { cursor: pointer; color: var(--blue); }
+.local-temperature-popover a { color: var(--blue); }
+.local-temperature-caution { color: var(--warning); }
+html[data-theme="light"] .local-temperature-caution { color: #805500; }
+@media (max-width: 900px) { .local-temperature-summary { display: none; } }
+.local-temperature-terms-link { padding: 6px 0; border: 0; background: transparent; color: var(--blue); font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
+.temperature-estimation-terms-modal { z-index: 1350; }
+.temperature-estimation-terms-modal .temperature-estimation-terms-panel { color: var(--text); background: var(--panel-strong); }
+.warning-modal .temperature-estimation-terms-panel > .settings-modal-header { display: flex; flex-shrink: 0; gap: 12px; padding: 14px 16px; }
+.warning-modal .temperature-estimation-terms-panel > .settings-modal-header h2 { flex: 1; min-width: 0; color: var(--text); font-size: clamp(15px, 4.2vw, 20px); white-space: nowrap; text-align: left; }
+.temperature-estimation-terms-body { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 18px 22px; font-size: 14px; line-height: 1.75; }
+.temperature-estimation-terms-body section + section { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.temperature-estimation-terms-body h3 { margin: 0 0 8px; font-size: 15px; }
+.temperature-estimation-terms-body p { margin: 0 0 12px; }
+.temperature-estimation-terms-body a { color: var(--blue); }
+.temperature-estimation-terms-actions { display: flex; flex-shrink: 0; gap: 12px; padding: 14px 22px; border-top: 1px solid var(--line); }
+.temperature-estimation-terms-actions button { min-height: 44px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-soft); color: var(--text); font: inherit; cursor: pointer; }
+.temperature-estimation-terms-actions button:last-child { flex: 1; min-width: 0; border-color: var(--blue); }

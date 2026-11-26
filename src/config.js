@@ -21,6 +21,7 @@ export const AUTO_REFRESH_RESUME_THROTTLE_MS = 60 * 1000;
 export const WORLD_TYPHOON_DATA_REFRESH_INTERVAL_MS = 15 * 60 * 1000;
 export const EARTHQUAKE_REFRESH_INTERVAL_MS = 15 * 1000;
 export const STATIC_DATA_CACHE_TTL_MS = 60 * 60 * 1000;
+export const AMEDAS_STATION_TABLE_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 function publicAsset(path) {
   return `${APP_BASE_URL}${path.replace(/^\/+/, "")}`;

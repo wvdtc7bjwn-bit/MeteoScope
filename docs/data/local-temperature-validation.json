@@ -1,0 +1,1872 @@
+{
+  "manifest": {
+    "latest": "2026-11-26T16:40:00+09:00",
+    "retrievedAt": "2026-11-26T07:55:17.424Z"
+  },
+  "defaults": {
+    "radiusKm": 50,
+    "maxStations": 8,
+    "minStations": 3,
+    "power": 2,
+    "lapseRate": 0.0065,
+    "coincidentKm": 0.1,
+    "minDistanceKm": 0.2,
+    "maxAgeMs": 1800000,
+    "futureToleranceMs": 120000,
+    "maxNearestKm": 100,
+    "maxStationHeightDifference": 1200,
+    "maxHeightExtrapolation": 300,
+    "maxMedianHeightDifference": 600,
+    "maxSpreadC": 4,
+    "warningSpreadC": 2,
+    "warningHeightDifference": 300,
+    "distantKm": 15,
+    "highConfidenceNearestKm": 5,
+    "highConfidenceStations": 5,
+    "warningBearingGap": 240,
+    "rejectBearingGap": 300,
+    "dynamicEnabled": false,
+    "regressionMinStations": 6,
+    "regressionHeightRange": 150,
+    "regressionMinR2": 0.35,
+    "maxAbsLapseRate": 0.015,
+    "maxLapseStd": 0.003,
+    "dynamicMinImprovementC": 0.15,
+    "dynamicMinImprovementRatio": 0.1,
+    "elevationMoveKm": 0.1,
+    "failureTtlMs": 900000
+  },
+  "design": "Outer leave-one-station-out; dynamic model has inner LOO; earlier/later time split. Defaults not tuned. Reported errors include explicitly labelled nearest fallback. No water screen in this station-only benchmark.",
+  "limitations": [
+    "One late-autumn 24-hour period; temporal frames are correlated.",
+    "No independent seasonal evaluation or verified urban/basin/coastal labels.",
+    "Station altitude is the LOO target altitude; this does not measure DEM or GPS errors.",
+    "Municipal land-screen effects require separate field validation."
+  ],
+  "calibrationTimes": [
+    "20261125194000",
+    "20261125224000",
+    "20261126014000",
+    "20261126044000"
+  ],
+  "evaluationTimes": [
+    "20261126074000",
+    "20261126104000",
+    "20261126134000",
+    "20261126164000"
+  ],
+  "calibration": {
+    "nearest": {
+      "count": 3656,
+      "total": 3664,
+      "coverage": 0.9978165938864629,
+      "mae": 1.6855306345733072,
+      "rmse": 2.307834980580937,
+      "bias": -0.040235229759299766,
+      "maxAbsoluteError": 15.3,
+      "estimatedCoverage": 0,
+      "adopted": {
+        "nearest": 3656,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 0,
+        "total": 3664,
+        "coverage": 0,
+        "mae": null,
+        "rmse": null,
+        "bias": null,
+        "maxAbsoluteError": null
+      },
+      "observedFallbackOnly": {
+        "count": 3656,
+        "total": 3664,
+        "coverage": 0.9978165938864629,
+        "mae": 1.6855306345733072,
+        "rmse": 2.307834980580937,
+        "bias": -0.040235229759299766,
+        "maxAbsoluteError": 15.3
+      },
+      "byGroup": {
+        "18-06_JST": {
+          "count": 3656,
+          "total": 3664,
+          "coverage": 0.9978165938864629,
+          "mae": 1.6855306345733072,
+          "rmse": 2.307834980580937,
+          "bias": -0.040235229759299766,
+          "maxAbsoluteError": 15.3
+        },
+        "elevation_below_200m": {
+          "count": 2760,
+          "total": 2768,
+          "coverage": 0.9971098265895953,
+          "mae": 1.6063043478260826,
+          "rmse": 2.193319897760711,
+          "bias": -0.2889130434782605,
+          "maxAbsoluteError": 9.3
+        },
+        "elevation_200-800m": {
+          "count": 800,
+          "total": 800,
+          "coverage": 1,
+          "mae": 1.8158749999999977,
+          "rmse": 2.450349464872308,
+          "bias": 0.5888749999999997,
+          "maxAbsoluteError": 9.3
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.8770833333333345,
+          "rmse": 3.807147882601882,
+          "bias": 1.8666666666666665,
+          "maxAbsoluteError": 15.3
+        }
+      },
+      "frames": [
+        {
+          "time": "20261125194000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.5795404814004377,
+          "rmse": 2.164157499010911,
+          "bias": -0.005361050328227521,
+          "maxAbsoluteError": 15.3
+        },
+        {
+          "time": "20261125224000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.6797592997811799,
+          "rmse": 2.2749828671776533,
+          "bias": -0.058096280087527284,
+          "maxAbsoluteError": 12.3
+        },
+        {
+          "time": "20261126014000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.7173960612691446,
+          "rmse": 2.3542665770837727,
+          "bias": -0.027899343544857756,
+          "maxAbsoluteError": 10.799999999999999
+        },
+        {
+          "time": "20261126044000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.7654266958424505,
+          "rmse": 2.4295500299276034,
+          "bias": -0.06958424507658646,
+          "maxAbsoluteError": 9
+        }
+      ]
+    },
+    "idw": {
+      "count": 3656,
+      "total": 3664,
+      "coverage": 0.9978165938864629,
+      "mae": 1.3871421245342719,
+      "rmse": 1.8952890032906913,
+      "bias": -0.09256313648911907,
+      "maxAbsoluteError": 19.179712252630193,
+      "estimatedCoverage": 0.94132096069869,
+      "adopted": {
+        "idw": 3449,
+        "nearest": 207,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 3449,
+        "total": 3664,
+        "coverage": 0.94132096069869,
+        "mae": 1.3812964938525074,
+        "rmse": 1.8778270234615406,
+        "bias": -0.08631801304848358,
+        "maxAbsoluteError": 19.179712252630193
+      },
+      "observedFallbackOnly": {
+        "count": 207,
+        "total": 3664,
+        "coverage": 0.056495633187772926,
+        "mae": 1.4845410628019315,
+        "rmse": 2.165618475549771,
+        "bias": -0.19661835748792264,
+        "maxAbsoluteError": 7.9
+      },
+      "byGroup": {
+        "18-06_JST": {
+          "count": 3656,
+          "total": 3664,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3871421245342719,
+          "rmse": 1.8952890032906913,
+          "bias": -0.09256313648911907,
+          "maxAbsoluteError": 19.179712252630193
+        },
+        "elevation_below_200m": {
+          "count": 2760,
+          "total": 2768,
+          "coverage": 0.9971098265895953,
+          "mae": 1.3123826235849019,
+          "rmse": 1.7525480742205686,
+          "bias": -0.39612549126354135,
+          "maxAbsoluteError": 7.883898832818428
+        },
+        "elevation_200-800m": {
+          "count": 800,
+          "total": 800,
+          "coverage": 1,
+          "mae": 1.4924620766236774,
+          "rmse": 1.960471738515891,
+          "bias": 0.6981372212993365,
+          "maxAbsoluteError": 7.9
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.6588115094168376,
+          "rmse": 4.058042859463197,
+          "bias": 2.0456849150383856,
+          "maxAbsoluteError": 19.179712252630193
+        }
+      },
+      "frames": [
+        {
+          "time": "20261125194000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3036380706744266,
+          "rmse": 1.7780903143349276,
+          "bias": -0.05977799302996715,
+          "maxAbsoluteError": 19.179712252630193
+        },
+        {
+          "time": "20261125224000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3707177606337175,
+          "rmse": 1.8710338847958916,
+          "bias": -0.1021685243421995,
+          "maxAbsoluteError": 16.03027595229432
+        },
+        {
+          "time": "20261126014000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.4066752423351785,
+          "rmse": 1.9232928112708227,
+          "bias": -0.09972954931335275,
+          "maxAbsoluteError": 14.360876493203568
+        },
+        {
+          "time": "20261126044000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.46753742449376,
+          "rmse": 2.001762578855537,
+          "bias": -0.10857647927095732,
+          "maxAbsoluteError": 12.28737380755283
+        }
+      ]
+    },
+    "fixed": {
+      "count": 3656,
+      "total": 3664,
+      "coverage": 0.9978165938864629,
+      "mae": 1.2574615908762092,
+      "rmse": 1.7089598465934916,
+      "bias": -0.040352361053052704,
+      "maxAbsoluteError": 15.3,
+      "estimatedCoverage": 0.9424126637554585,
+      "adopted": {
+        "fixed-idw": 3453,
+        "nearest": 203,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 3453,
+        "total": 3664,
+        "coverage": 0.9424126637554585,
+        "mae": 1.2268692662158756,
+        "rmse": 1.6209261775031083,
+        "bias": -0.08642578395886508,
+        "maxAbsoluteError": 7.436470619236851
+      },
+      "observedFallbackOnly": {
+        "count": 203,
+        "total": 3664,
+        "coverage": 0.055403930131004364,
+        "mae": 1.7778325123152696,
+        "rmse": 2.8119116790255676,
+        "bias": 0.7433497536945811,
+        "maxAbsoluteError": 15.3
+      },
+      "byGroup": {
+        "18-06_JST": {
+          "count": 3656,
+          "total": 3664,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2574615908762092,
+          "rmse": 1.7089598465934916,
+          "bias": -0.040352361053052704,
+          "maxAbsoluteError": 15.3
+        },
+        "elevation_below_200m": {
+          "count": 2760,
+          "total": 2768,
+          "coverage": 0.9971098265895953,
+          "mae": 1.2422280716890526,
+          "rmse": 1.6535350622009861,
+          "bias": -0.18565800448858383,
+          "maxAbsoluteError": 7.436470619236851
+        },
+        "elevation_200-800m": {
+          "count": 800,
+          "total": 800,
+          "coverage": 1,
+          "mae": 1.1922830152040227,
+          "rmse": 1.5899868269203976,
+          "bias": 0.342683906414404,
+          "maxAbsoluteError": 6.490285791524012
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.2385800647751757,
+          "rmse": 3.3984212808874203,
+          "bias": 0.9452159921563327,
+          "maxAbsoluteError": 15.3
+        }
+      },
+      "frames": [
+        {
+          "time": "20261125194000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.0912900589637993,
+          "rmse": 1.5179404505705154,
+          "bias": -0.0013269107622557745,
+          "maxAbsoluteError": 15.3
+        },
+        {
+          "time": "20261125224000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2233545787511122,
+          "rmse": 1.6660560137950338,
+          "bias": -0.04028009591146011,
+          "maxAbsoluteError": 12.3
+        },
+        {
+          "time": "20261126014000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3208206490802776,
+          "rmse": 1.7728861433775642,
+          "bias": -0.04503944961571934,
+          "maxAbsoluteError": 10.799999999999999
+        },
+        {
+          "time": "20261126044000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.394381076709651,
+          "rmse": 1.8598827648845064,
+          "bias": -0.07476298792277535,
+          "maxAbsoluteError": 9
+        }
+      ]
+    },
+    "dynamic": {
+      "count": 3656,
+      "total": 3664,
+      "coverage": 0.9978165938864629,
+      "mae": 1.2566711953711591,
+      "rmse": 1.7095010040928593,
+      "bias": -0.04515849163087067,
+      "maxAbsoluteError": 15.3,
+      "estimatedCoverage": 0.9424126637554585,
+      "adopted": {
+        "fixed-idw": 3353,
+        "nearest": 203,
+        "dynamic-idw": 100,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 3453,
+        "total": 3664,
+        "coverage": 0.9424126637554585,
+        "mae": 1.2260324037871284,
+        "rmse": 1.621530250958042,
+        "bias": -0.09151446435055403,
+        "maxAbsoluteError": 7.436470619236851
+      },
+      "observedFallbackOnly": {
+        "count": 203,
+        "total": 3664,
+        "coverage": 0.055403930131004364,
+        "mae": 1.7778325123152696,
+        "rmse": 2.8119116790255676,
+        "bias": 0.7433497536945811,
+        "maxAbsoluteError": 15.3
+      },
+      "byGroup": {
+        "18-06_JST": {
+          "count": 3656,
+          "total": 3664,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2566711953711591,
+          "rmse": 1.7095010040928593,
+          "bias": -0.04515849163087067,
+          "maxAbsoluteError": 15.3
+        },
+        "elevation_below_200m": {
+          "count": 2760,
+          "total": 2768,
+          "coverage": 0.9971098265895953,
+          "mae": 1.2423744097850038,
+          "rmse": 1.6546059593729174,
+          "bias": -0.18833369911224387,
+          "maxAbsoluteError": 7.436470619236851
+        },
+        "elevation_200-800m": {
+          "count": 800,
+          "total": 800,
+          "coverage": 1,
+          "mae": 1.1872909483712424,
+          "rmse": 1.5844478352635,
+          "bias": 0.3278721437816472,
+          "maxAbsoluteError": 6.490285791524012
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.245872505972406,
+          "rmse": 3.4153173960360768,
+          "bias": 0.9625400950209615,
+          "maxAbsoluteError": 15.3
+        }
+      },
+      "frames": [
+        {
+          "time": "20261125194000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.0911285029987867,
+          "rmse": 1.5175556127558587,
+          "bias": 0.0014320251896850292,
+          "maxAbsoluteError": 15.3
+        },
+        {
+          "time": "20261125224000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2213133380425703,
+          "rmse": 1.6640988711649085,
+          "bias": -0.045953572515222266,
+          "maxAbsoluteError": 12.3
+        },
+        {
+          "time": "20261126014000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3226452933788235,
+          "rmse": 1.7785633527221074,
+          "bias": -0.05415864479539166,
+          "maxAbsoluteError": 10.799999999999999
+        },
+        {
+          "time": "20261126044000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3915976470644582,
+          "rmse": 1.8585174310489438,
+          "bias": -0.08195377440255318,
+          "maxAbsoluteError": 9
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "nearest": {
+      "count": 3644,
+      "total": 3652,
+      "coverage": 0.9978094194961665,
+      "mae": 1.4682766190998864,
+      "rmse": 2.142853745227565,
+      "bias": 0.025850713501646555,
+      "maxAbsoluteError": 18.5,
+      "estimatedCoverage": 0,
+      "adopted": {
+        "nearest": 3644,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 0,
+        "total": 3652,
+        "coverage": 0,
+        "mae": null,
+        "rmse": null,
+        "bias": null,
+        "maxAbsoluteError": null
+      },
+      "observedFallbackOnly": {
+        "count": 3644,
+        "total": 3652,
+        "coverage": 0.9978094194961665,
+        "mae": 1.4682766190998864,
+        "rmse": 2.142853745227565,
+        "bias": 0.025850713501646555,
+        "maxAbsoluteError": 18.5
+      },
+      "byGroup": {
+        "06-18_JST": {
+          "count": 3644,
+          "total": 3652,
+          "coverage": 0.9978094194961665,
+          "mae": 1.4682766190998864,
+          "rmse": 2.142853745227565,
+          "bias": 0.025850713501646555,
+          "maxAbsoluteError": 18.5
+        },
+        "elevation_below_200m": {
+          "count": 2750,
+          "total": 2758,
+          "coverage": 0.9970993473531544,
+          "mae": 1.284036363636358,
+          "rmse": 1.8813834368261133,
+          "bias": -0.23240000000000005,
+          "maxAbsoluteError": 9.5
+        },
+        "elevation_200-800m": {
+          "count": 798,
+          "total": 798,
+          "coverage": 1,
+          "mae": 1.8952380952380963,
+          "rmse": 2.496021897596895,
+          "bias": 0.6436090225563913,
+          "maxAbsoluteError": 11.7
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 3.196875000000001,
+          "rmse": 4.595117426863721,
+          "bias": 2.2885416666666667,
+          "maxAbsoluteError": 18.5
+        }
+      },
+      "frames": [
+        {
+          "time": "20261126074000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.8048140043763656,
+          "rmse": 2.54667157384552,
+          "bias": -0.03238512035010938,
+          "maxAbsoluteError": 10.5
+        },
+        {
+          "time": "20261126104000",
+          "count": 906,
+          "total": 908,
+          "coverage": 0.9977973568281938,
+          "mae": 1.4641280353200916,
+          "rmse": 2.147109047694867,
+          "bias": 0.034105960264900564,
+          "maxAbsoluteError": 18.1
+        },
+        {
+          "time": "20261126134000",
+          "count": 911,
+          "total": 913,
+          "coverage": 0.9978094194961665,
+          "mae": 1.227003293084525,
+          "rmse": 1.8569476743309357,
+          "bias": 0.055104281009879255,
+          "maxAbsoluteError": 18.5
+        },
+        {
+          "time": "20261126164000",
+          "count": 913,
+          "total": 915,
+          "coverage": 0.9978142076502732,
+          "mae": 1.3762322015334107,
+          "rmse": 1.9542214255466848,
+          "bias": 0.0467688937568455,
+          "maxAbsoluteError": 13
+        }
+      ]
+    },
+    "idw": {
+      "count": 3644,
+      "total": 3652,
+      "coverage": 0.9978094194961665,
+      "mae": 1.256400313094599,
+      "rmse": 1.8086371821151062,
+      "bias": -0.06657830761473499,
+      "maxAbsoluteError": 19.326188355304417,
+      "estimatedCoverage": 0.9323658269441402,
+      "adopted": {
+        "idw": 3405,
+        "nearest": 239,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 3405,
+        "total": 3652,
+        "coverage": 0.9323658269441402,
+        "mae": 1.2313135802985964,
+        "rmse": 1.727679799797772,
+        "bias": -0.04655252656331687,
+        "maxAbsoluteError": 19.326188355304417
+      },
+      "observedFallbackOnly": {
+        "count": 239,
+        "total": 3652,
+        "coverage": 0.06544359255202628,
+        "mae": 1.6138075313807514,
+        "rmse": 2.711072909014368,
+        "bias": -0.35188284518828433,
+        "maxAbsoluteError": 11.7
+      },
+      "byGroup": {
+        "06-18_JST": {
+          "count": 3644,
+          "total": 3652,
+          "coverage": 0.9978094194961665,
+          "mae": 1.256400313094599,
+          "rmse": 1.8086371821151062,
+          "bias": -0.06657830761473499,
+          "maxAbsoluteError": 19.326188355304417
+        },
+        "elevation_below_200m": {
+          "count": 2750,
+          "total": 2758,
+          "coverage": 0.9970993473531544,
+          "mae": 1.1012416254979724,
+          "rmse": 1.5530523382225632,
+          "bias": -0.3726099772805423,
+          "maxAbsoluteError": 9.3
+        },
+        "elevation_200-800m": {
+          "count": 798,
+          "total": 798,
+          "coverage": 1,
+          "mae": 1.609685801662243,
+          "rmse": 2.0796314459657634,
+          "bias": 0.7096426197279132,
+          "maxAbsoluteError": 11.7
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.764364594487722,
+          "rmse": 4.373180841068327,
+          "bias": 2.2476174378179627,
+          "maxAbsoluteError": 19.326188355304417
+        }
+      },
+      "frames": [
+        {
+          "time": "20261126074000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.5502889288938881,
+          "rmse": 2.1410546785726283,
+          "bias": -0.12896947879361464,
+          "maxAbsoluteError": 12.47845903662356
+        },
+        {
+          "time": "20261126104000",
+          "count": 906,
+          "total": 908,
+          "coverage": 0.9977973568281938,
+          "mae": 1.245693302571197,
+          "rmse": 1.8015752013971913,
+          "bias": -0.07838582516594539,
+          "maxAbsoluteError": 17.40912481356827
+        },
+        {
+          "time": "20261126134000",
+          "count": 911,
+          "total": 913,
+          "coverage": 0.9978094194961665,
+          "mae": 1.064599493411465,
+          "rmse": 1.629015996605767,
+          "bias": -0.031120523579123253,
+          "maxAbsoluteError": 19.326188355304417
+        },
+        {
+          "time": "20261126164000",
+          "count": 913,
+          "total": 915,
+          "coverage": 0.9978142076502732,
+          "mae": 1.1641953880398181,
+          "rmse": 1.6118952217681957,
+          "bias": -0.027781921960352715,
+          "maxAbsoluteError": 15.110693909018888
+        }
+      ]
+    },
+    "fixed": {
+      "count": 3644,
+      "total": 3652,
+      "coverage": 0.9978094194961665,
+      "mae": 1.0729391625788531,
+      "rmse": 1.6000080281162912,
+      "bias": -0.0013002486143320268,
+      "maxAbsoluteError": 18.5,
+      "estimatedCoverage": 0.9386637458926615,
+      "adopted": {
+        "fixed-idw": 3428,
+        "nearest": 216,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 3428,
+        "total": 3652,
+        "coverage": 0.9386637458926615,
+        "mae": 1.027214208995724,
+        "rmse": 1.428394298716562,
+        "bias": -0.05473690371955245,
+        "maxAbsoluteError": 8.757556896445584
+      },
+      "observedFallbackOnly": {
+        "count": 216,
+        "total": 3652,
+        "coverage": 0.05914567360350493,
+        "mae": 1.7986111111111096,
+        "rmse": 3.287567771446218,
+        "bias": 0.8467592592592588,
+        "maxAbsoluteError": 18.5
+      },
+      "byGroup": {
+        "06-18_JST": {
+          "count": 3644,
+          "total": 3652,
+          "coverage": 0.9978094194961665,
+          "mae": 1.0729391625788531,
+          "rmse": 1.6000080281162912,
+          "bias": -0.0013002486143320268,
+          "maxAbsoluteError": 18.5
+        },
+        "elevation_below_200m": {
+          "count": 2750,
+          "total": 2758,
+          "coverage": 0.9970993473531544,
+          "mae": 0.9821754694072682,
+          "rmse": 1.407549815058296,
+          "bias": -0.1558447849256452,
+          "maxAbsoluteError": 8.757556896445584
+        },
+        "elevation_200-800m": {
+          "count": 798,
+          "total": 798,
+          "coverage": 1,
+          "mae": 1.2147559436810624,
+          "rmse": 1.6382612977403521,
+          "bias": 0.3814074841731026,
+          "maxAbsoluteError": 6.6
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.4940887969777257,
+          "rmse": 4.255744923249412,
+          "bias": 1.244498752341272,
+          "maxAbsoluteError": 18.5
+        }
+      },
+      "frames": [
+        {
+          "time": "20261126074000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.4581895111111391,
+          "rmse": 2.0038275776016166,
+          "bias": -0.07312897649450419,
+          "maxAbsoluteError": 10.5
+        },
+        {
+          "time": "20261126104000",
+          "count": 906,
+          "total": 908,
+          "coverage": 0.9977973568281938,
+          "mae": 1.123035730146506,
+          "rmse": 1.6464814227713176,
+          "bias": 0.007561629500177331,
+          "maxAbsoluteError": 18.1
+        },
+        {
+          "time": "20261126134000",
+          "count": 911,
+          "total": 913,
+          "coverage": 0.9978094194961665,
+          "mae": 0.8040879224605282,
+          "rmse": 1.3331795747005475,
+          "bias": 0.039970920573365966,
+          "maxAbsoluteError": 18.5
+        },
+        {
+          "time": "20261126164000",
+          "count": 913,
+          "total": 915,
+          "coverage": 0.9978142076502732,
+          "mae": 0.9058166773356846,
+          "rmse": 1.3169499844585697,
+          "bias": 0.02063245738866771,
+          "maxAbsoluteError": 13
+        }
+      ]
+    },
+    "dynamic": {
+      "count": 3644,
+      "total": 3652,
+      "coverage": 0.9978094194961665,
+      "mae": 1.069788759887755,
+      "rmse": 1.600046866812535,
+      "bias": 0.0004911587923447807,
+      "maxAbsoluteError": 18.5,
+      "estimatedCoverage": 0.9386637458926615,
+      "adopted": {
+        "fixed-idw": 3306,
+        "nearest": 216,
+        "dynamic-idw": 122,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 3428,
+        "total": 3652,
+        "coverage": 0.9386637458926615,
+        "mae": 1.0238652978503446,
+        "rmse": 1.4284405447503608,
+        "bias": -0.052832618833341796,
+        "maxAbsoluteError": 8.757556896445584
+      },
+      "observedFallbackOnly": {
+        "count": 216,
+        "total": 3652,
+        "coverage": 0.05914567360350493,
+        "mae": 1.7986111111111096,
+        "rmse": 3.287567771446218,
+        "bias": 0.8467592592592588,
+        "maxAbsoluteError": 18.5
+      },
+      "byGroup": {
+        "06-18_JST": {
+          "count": 3644,
+          "total": 3652,
+          "coverage": 0.9978094194961665,
+          "mae": 1.069788759887755,
+          "rmse": 1.600046866812535,
+          "bias": 0.0004911587923447807,
+          "maxAbsoluteError": 18.5
+        },
+        "elevation_below_200m": {
+          "count": 2750,
+          "total": 2758,
+          "coverage": 0.9970993473531544,
+          "mae": 0.9778641369292624,
+          "rmse": 1.404735159835468,
+          "bias": -0.15179152137547347,
+          "maxAbsoluteError": 8.757556896445584
+        },
+        "elevation_200-800m": {
+          "count": 798,
+          "total": 798,
+          "coverage": 1,
+          "mae": 1.2103828935965384,
+          "rmse": 1.6354900010882547,
+          "bias": 0.37167895830642106,
+          "maxAbsoluteError": 6.6
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.5343574519319634,
+          "rmse": 4.291648554383446,
+          "bias": 1.2772568509722102,
+          "maxAbsoluteError": 18.5
+        }
+      },
+      "frames": [
+        {
+          "time": "20261126074000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.4597878309166143,
+          "rmse": 2.0113195960036276,
+          "bias": -0.07626397618052333,
+          "maxAbsoluteError": 10.5
+        },
+        {
+          "time": "20261126104000",
+          "count": 906,
+          "total": 908,
+          "coverage": 0.9977973568281938,
+          "mae": 1.1157909420675913,
+          "rmse": 1.6407666867534625,
+          "bias": 0.007831537244581754,
+          "maxAbsoluteError": 18.1
+        },
+        {
+          "time": "20261126134000",
+          "count": 911,
+          "total": 913,
+          "coverage": 0.9978094194961665,
+          "mae": 0.8007477697849135,
+          "rmse": 1.3308241341443663,
+          "bias": 0.04498607181588322,
+          "maxAbsoluteError": 18.5
+        },
+        {
+          "time": "20261126164000",
+          "count": 913,
+          "total": 915,
+          "coverage": 0.9978142076502732,
+          "mae": 0.9021646788454525,
+          "rmse": 1.315158428750405,
+          "bias": 0.025648820044295566,
+          "maxAbsoluteError": 13
+        }
+      ]
+    }
+  },
+  "sensitivity": {
+    "defaults": {
+      "count": 3656,
+      "total": 3664,
+      "coverage": 0.9978165938864629,
+      "mae": 1.2574615908762092,
+      "rmse": 1.7089598465934916,
+      "bias": -0.040352361053052704,
+      "maxAbsoluteError": 15.3,
+      "estimatedCoverage": 0.9424126637554585,
+      "adopted": {
+        "fixed-idw": 3453,
+        "nearest": 203,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 3453,
+        "total": 3664,
+        "coverage": 0.9424126637554585,
+        "mae": 1.2268692662158756,
+        "rmse": 1.6209261775031083,
+        "bias": -0.08642578395886508,
+        "maxAbsoluteError": 7.436470619236851
+      },
+      "observedFallbackOnly": {
+        "count": 203,
+        "total": 3664,
+        "coverage": 0.055403930131004364,
+        "mae": 1.7778325123152696,
+        "rmse": 2.8119116790255676,
+        "bias": 0.7433497536945811,
+        "maxAbsoluteError": 15.3
+      },
+      "byGroup": {
+        "18-06_JST": {
+          "count": 3656,
+          "total": 3664,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2574615908762092,
+          "rmse": 1.7089598465934916,
+          "bias": -0.040352361053052704,
+          "maxAbsoluteError": 15.3
+        },
+        "elevation_below_200m": {
+          "count": 2760,
+          "total": 2768,
+          "coverage": 0.9971098265895953,
+          "mae": 1.2422280716890526,
+          "rmse": 1.6535350622009861,
+          "bias": -0.18565800448858383,
+          "maxAbsoluteError": 7.436470619236851
+        },
+        "elevation_200-800m": {
+          "count": 800,
+          "total": 800,
+          "coverage": 1,
+          "mae": 1.1922830152040227,
+          "rmse": 1.5899868269203976,
+          "bias": 0.342683906414404,
+          "maxAbsoluteError": 6.490285791524012
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.2385800647751757,
+          "rmse": 3.3984212808874203,
+          "bias": 0.9452159921563327,
+          "maxAbsoluteError": 15.3
+        }
+      },
+      "frames": [
+        {
+          "time": "20261125194000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.0912900589637993,
+          "rmse": 1.5179404505705154,
+          "bias": -0.0013269107622557745,
+          "maxAbsoluteError": 15.3
+        },
+        {
+          "time": "20261125224000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2233545787511122,
+          "rmse": 1.6660560137950338,
+          "bias": -0.04028009591146011,
+          "maxAbsoluteError": 12.3
+        },
+        {
+          "time": "20261126014000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3208206490802776,
+          "rmse": 1.7728861433775642,
+          "bias": -0.04503944961571934,
+          "maxAbsoluteError": 10.799999999999999
+        },
+        {
+          "time": "20261126044000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.394381076709651,
+          "rmse": 1.8598827648845064,
+          "bias": -0.07476298792277535,
+          "maxAbsoluteError": 9
+        }
+      ]
+    },
+    "power1": {
+      "count": 3656,
+      "total": 3664,
+      "coverage": 0.9978165938864629,
+      "mae": 1.284411461363987,
+      "rmse": 1.7254085256027558,
+      "bias": -0.04991533821817163,
+      "maxAbsoluteError": 15.3,
+      "estimatedCoverage": 0.9426855895196506,
+      "adopted": {
+        "fixed-idw": 3454,
+        "nearest": 202,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 3454,
+        "total": 3664,
+        "coverage": 0.9426855895196506,
+        "mae": 1.2559665034009075,
+        "rmse": 1.639939096106515,
+        "bias": -0.09559654792288229,
+        "maxAbsoluteError": 7.354752834097832
+      },
+      "observedFallbackOnly": {
+        "count": 202,
+        "total": 3664,
+        "coverage": 0.055131004366812224,
+        "mae": 1.7707920792079197,
+        "rmse": 2.8098571190903927,
+        "bias": 0.731188118811881,
+        "maxAbsoluteError": 15.3
+      },
+      "byGroup": {
+        "18-06_JST": {
+          "count": 3656,
+          "total": 3664,
+          "coverage": 0.9978165938864629,
+          "mae": 1.284411461363987,
+          "rmse": 1.7254085256027558,
+          "bias": -0.04991533821817163,
+          "maxAbsoluteError": 15.3
+        },
+        "elevation_below_200m": {
+          "count": 2760,
+          "total": 2768,
+          "coverage": 0.9971098265895953,
+          "mae": 1.2702499112792656,
+          "rmse": 1.6689413858262745,
+          "bias": -0.1999529500397365,
+          "maxAbsoluteError": 7.354752834097832
+        },
+        "elevation_200-800m": {
+          "count": 800,
+          "total": 800,
+          "coverage": 1,
+          "mae": 1.2205380898337292,
+          "rmse": 1.6158237275913494,
+          "bias": 0.35460393702726145,
+          "maxAbsoluteError": 6.3465798245654925
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.2238341223851763,
+          "rmse": 3.3968751054015134,
+          "bias": 0.8926720412732149,
+          "maxAbsoluteError": 15.3
+        }
+      },
+      "frames": [
+        {
+          "time": "20261125194000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.1136676070701557,
+          "rmse": 1.5304055081197971,
+          "bias": -0.011277616708251769,
+          "maxAbsoluteError": 15.3
+        },
+        {
+          "time": "20261125224000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2449225959375871,
+          "rmse": 1.6812970187617486,
+          "bias": -0.046541994257465226,
+          "maxAbsoluteError": 12.3
+        },
+        {
+          "time": "20261126014000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3463312294408303,
+          "rmse": 1.7845813924472824,
+          "bias": -0.0586733587728517,
+          "maxAbsoluteError": 10.799999999999999
+        },
+        {
+          "time": "20261126044000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.432724413007366,
+          "rmse": 1.8853399932216688,
+          "bias": -0.08316838313411799,
+          "maxAbsoluteError": 9
+        }
+      ]
+    },
+    "power3": {
+      "count": 3656,
+      "total": 3664,
+      "coverage": 0.9978165938864629,
+      "mae": 1.2570787808458814,
+      "rmse": 1.7240665126953887,
+      "bias": -0.0343165008836215,
+      "maxAbsoluteError": 15.3,
+      "estimatedCoverage": 0.9426855895196506,
+      "adopted": {
+        "fixed-idw": 3454,
+        "nearest": 202,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 3454,
+        "total": 3664,
+        "coverage": 0.9426855895196506,
+        "mae": 1.2270353279596247,
+        "rmse": 1.6384444657806319,
+        "bias": -0.07908544505805454,
+        "maxAbsoluteError": 7.485637254279591
+      },
+      "observedFallbackOnly": {
+        "count": 202,
+        "total": 3664,
+        "coverage": 0.055131004366812224,
+        "mae": 1.7707920792079197,
+        "rmse": 2.8098571190903927,
+        "bias": 0.731188118811881,
+        "maxAbsoluteError": 15.3
+      },
+      "byGroup": {
+        "18-06_JST": {
+          "count": 3656,
+          "total": 3664,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2570787808458814,
+          "rmse": 1.7240665126953887,
+          "bias": -0.0343165008836215,
+          "maxAbsoluteError": 15.3
+        },
+        "elevation_below_200m": {
+          "count": 2760,
+          "total": 2768,
+          "coverage": 0.9971098265895953,
+          "mae": 1.2415462952190495,
+          "rmse": 1.6716978904779431,
+          "bias": -0.17812477915535463,
+          "maxAbsoluteError": 7.485637254279591
+        },
+        "elevation_200-800m": {
+          "count": 800,
+          "total": 800,
+          "coverage": 1,
+          "mae": 1.1917036939931442,
+          "rmse": 1.5977794590886265,
+          "bias": 0.34004951509905695,
+          "maxAbsoluteError": 6.6349424556943815
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.248430133056854,
+          "rmse": 3.4030788352481376,
+          "bias": 0.98045469957305,
+          "maxAbsoluteError": 15.3
+        }
+      },
+      "frames": [
+        {
+          "time": "20261125194000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.0928246022127748,
+          "rmse": 1.5305958189222315,
+          "bias": 0.005405559428200667,
+          "maxAbsoluteError": 15.3
+        },
+        {
+          "time": "20261125224000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2268526534499813,
+          "rmse": 1.68451920178094,
+          "bias": -0.036063900262237034,
+          "maxAbsoluteError": 12.3
+        },
+        {
+          "time": "20261126014000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3185612028932598,
+          "rmse": 1.7891490760534023,
+          "bias": -0.04042147662642625,
+          "maxAbsoluteError": 10.799999999999999
+        },
+        {
+          "time": "20261126044000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3900766648275151,
+          "rmse": 1.8730292155695039,
+          "bias": -0.0661861860740233,
+          "maxAbsoluteError": 9
+        }
+      ]
+    },
+    "radius30": {
+      "count": 3656,
+      "total": 3664,
+      "coverage": 0.9978165938864629,
+      "mae": 1.336893622197178,
+      "rmse": 1.88318396485103,
+      "bias": -0.02944766126663693,
+      "maxAbsoluteError": 15.3,
+      "estimatedCoverage": 0.7797489082969432,
+      "adopted": {
+        "fixed-idw": 2857,
+        "nearest": 799,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 2857,
+        "total": 3664,
+        "coverage": 0.7797489082969432,
+        "mae": 1.1551218350552674,
+        "rmse": 1.5348252323605833,
+        "bias": 0.04957625145578413,
+        "maxAbsoluteError": 7.343986001687194
+      },
+      "observedFallbackOnly": {
+        "count": 799,
+        "total": 3664,
+        "coverage": 0.21806768558951964,
+        "mae": 1.9868585732165216,
+        "rmse": 2.793558207613394,
+        "bias": -0.312015018773467,
+        "maxAbsoluteError": 15.3
+      },
+      "byGroup": {
+        "18-06_JST": {
+          "count": 3656,
+          "total": 3664,
+          "coverage": 0.9978165938864629,
+          "mae": 1.336893622197178,
+          "rmse": 1.88318396485103,
+          "bias": -0.02944766126663693,
+          "maxAbsoluteError": 15.3
+        },
+        "elevation_below_200m": {
+          "count": 2760,
+          "total": 2768,
+          "coverage": 0.9971098265895953,
+          "mae": 1.315913680239198,
+          "rmse": 1.824676235656709,
+          "bias": -0.19891831327419635,
+          "maxAbsoluteError": 8.4
+        },
+        "elevation_200-800m": {
+          "count": 800,
+          "total": 800,
+          "coverage": 1,
+          "mae": 1.2796020496021872,
+          "rmse": 1.7977332301988802,
+          "bias": 0.41048917110048405,
+          "maxAbsoluteError": 9.3
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.4174967251141033,
+          "rmse": 3.5220030495186885,
+          "bias": 1.1766933142246876,
+          "maxAbsoluteError": 15.3
+        }
+      },
+      "frames": [
+        {
+          "time": "20261125194000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.1797934885343344,
+          "rmse": 1.6901102261817482,
+          "bias": 0.016521024687660275,
+          "maxAbsoluteError": 15.3
+        },
+        {
+          "time": "20261125224000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3086363415953401,
+          "rmse": 1.836247944234716,
+          "bias": -0.03123847226838926,
+          "maxAbsoluteError": 12.3
+        },
+        {
+          "time": "20261126014000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3860447893089922,
+          "rmse": 1.9424151299698469,
+          "bias": -0.03933111479016024,
+          "maxAbsoluteError": 10.799999999999999
+        },
+        {
+          "time": "20261126044000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.4730998693500466,
+          "rmse": 2.045549255188459,
+          "bias": -0.06374208269565847,
+          "maxAbsoluteError": 9
+        }
+      ]
+    },
+    "radius75": {
+      "count": 3656,
+      "total": 3664,
+      "coverage": 0.9978165938864629,
+      "mae": 1.2562288552872112,
+      "rmse": 1.7157973760111431,
+      "bias": -0.04965018934189298,
+      "maxAbsoluteError": 15.3,
+      "estimatedCoverage": 0.9675218340611353,
+      "adopted": {
+        "fixed-idw": 3545,
+        "nearest": 111,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 3545,
+        "total": 3664,
+        "coverage": 0.9675218340611353,
+        "mae": 1.2222207884146823,
+        "rmse": 1.624955252371694,
+        "bias": -0.10418084407163908,
+        "maxAbsoluteError": 7.331058994511817
+      },
+      "observedFallbackOnly": {
+        "count": 111,
+        "total": 3664,
+        "coverage": 0.030294759825327512,
+        "mae": 2.34234234234234,
+        "rmse": 3.554745590927178,
+        "bias": 1.6918918918918917,
+        "maxAbsoluteError": 15.3
+      },
+      "byGroup": {
+        "18-06_JST": {
+          "count": 3656,
+          "total": 3664,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2562288552872112,
+          "rmse": 1.7157973760111431,
+          "bias": -0.04965018934189298,
+          "maxAbsoluteError": 15.3
+        },
+        "elevation_below_200m": {
+          "count": 2760,
+          "total": 2768,
+          "coverage": 0.9971098265895953,
+          "mae": 1.2422818654248167,
+          "rmse": 1.6644208372508416,
+          "bias": -0.19528599902242713,
+          "maxAbsoluteError": 7.331058994511817
+        },
+        "elevation_200-800m": {
+          "count": 800,
+          "total": 800,
+          "coverage": 1,
+          "mae": 1.1864638251739195,
+          "rmse": 1.5844444906914568,
+          "bias": 0.3334094122761633,
+          "maxAbsoluteError": 6.388721419051931
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.2385800647751757,
+          "rmse": 3.3984212808874203,
+          "bias": 0.9452159921563327,
+          "maxAbsoluteError": 15.3
+        }
+      },
+      "frames": [
+        {
+          "time": "20261125194000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.0873856426388566,
+          "rmse": 1.5186529632670298,
+          "bias": -0.007912328936492756,
+          "maxAbsoluteError": 15.3
+        },
+        {
+          "time": "20261125224000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2215462734341405,
+          "rmse": 1.6744560905393249,
+          "bias": -0.049295963702313976,
+          "maxAbsoluteError": 12.3
+        },
+        {
+          "time": "20261126014000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.322250197740891,
+          "rmse": 1.7847519509616092,
+          "bias": -0.05700125591767364,
+          "maxAbsoluteError": 10.799999999999999
+        },
+        {
+          "time": "20261126044000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3937333073349667,
+          "rmse": 1.8655811410018261,
+          "bias": -0.08439120881109083,
+          "maxAbsoluteError": 9
+        }
+      ]
+    },
+    "stations4": {
+      "count": 3656,
+      "total": 3664,
+      "coverage": 0.9978165938864629,
+      "mae": 1.2450080037912714,
+      "rmse": 1.7110835441902634,
+      "bias": -0.01610651490354396,
+      "maxAbsoluteError": 15.3,
+      "estimatedCoverage": 0.9380458515283843,
+      "adopted": {
+        "fixed-idw": 3437,
+        "nearest": 219,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 3437,
+        "total": 3664,
+        "coverage": 0.9380458515283843,
+        "mae": 1.2072590229446858,
+        "rmse": 1.6123109812549765,
+        "bias": -0.07200623173912046,
+        "maxAbsoluteError": 6.882900025720666
+      },
+      "observedFallbackOnly": {
+        "count": 219,
+        "total": 3664,
+        "coverage": 0.0597707423580786,
+        "mae": 1.8374429223744286,
+        "rmse": 2.8424537602211624,
+        "bias": 0.8611872146118721,
+        "maxAbsoluteError": 15.3
+      },
+      "byGroup": {
+        "18-06_JST": {
+          "count": 3656,
+          "total": 3664,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2450080037912714,
+          "rmse": 1.7110835441902634,
+          "bias": -0.01610651490354396,
+          "maxAbsoluteError": 15.3
+        },
+        "elevation_below_200m": {
+          "count": 2760,
+          "total": 2768,
+          "coverage": 0.9971098265895953,
+          "mae": 1.2191025024275062,
+          "rmse": 1.6425700948510529,
+          "bias": -0.16318942481073873,
+          "maxAbsoluteError": 6.882900025720666
+        },
+        "elevation_200-800m": {
+          "count": 800,
+          "total": 800,
+          "coverage": 1,
+          "mae": 1.19767755733058,
+          "rmse": 1.6109908413258993,
+          "bias": 0.33931391197093425,
+          "maxAbsoluteError": 6.680832293193004
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.3842115551719503,
+          "rmse": 3.5078008760245454,
+          "bias": 1.2506902543076508,
+          "maxAbsoluteError": 15.3
+        }
+      },
+      "frames": [
+        {
+          "time": "20261125194000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.0949843954232834,
+          "rmse": 1.5413829475607388,
+          "bias": 0.018562897352161933,
+          "maxAbsoluteError": 15.3
+        },
+        {
+          "time": "20261125224000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2121100534690596,
+          "rmse": 1.6742568350854812,
+          "bias": -0.016164386946335676,
+          "maxAbsoluteError": 12.3
+        },
+        {
+          "time": "20261126014000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3015387558674854,
+          "rmse": 1.7611852820754363,
+          "bias": -0.028341989699083046,
+          "maxAbsoluteError": 10.799999999999999
+        },
+        {
+          "time": "20261126044000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3713988104052617,
+          "rmse": 1.8521491954306044,
+          "bias": -0.038482580320919044,
+          "maxAbsoluteError": 9
+        }
+      ]
+    },
+    "lapse004": {
+      "count": 3656,
+      "total": 3664,
+      "coverage": 0.9978165938864629,
+      "mae": 1.2741997744075308,
+      "rmse": 1.7290745399992578,
+      "bias": -0.059056081944525586,
+      "maxAbsoluteError": 15.3,
+      "estimatedCoverage": 0.9424126637554585,
+      "adopted": {
+        "fixed-idw": 3453,
+        "nearest": 203,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 3453,
+        "total": 3664,
+        "coverage": 0.9424126637554585,
+        "mae": 1.244099152978264,
+        "rmse": 1.6421432426257747,
+        "bias": -0.10672141198644243,
+        "maxAbsoluteError": 7.608558393691304
+      },
+      "observedFallbackOnly": {
+        "count": 203,
+        "total": 3664,
+        "coverage": 0.055403930131004364,
+        "mae": 1.7862068965517228,
+        "rmse": 2.8239475566935828,
+        "bias": 0.7517241379310343,
+        "maxAbsoluteError": 15.3
+      },
+      "byGroup": {
+        "18-06_JST": {
+          "count": 3656,
+          "total": 3664,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2741997744075308,
+          "rmse": 1.7290745399992578,
+          "bias": -0.059056081944525586,
+          "maxAbsoluteError": 15.3
+        },
+        "elevation_below_200m": {
+          "count": 2760,
+          "total": 2768,
+          "coverage": 0.9971098265895953,
+          "mae": 1.2538143757594715,
+          "rmse": 1.671655070049906,
+          "bias": -0.2706125964127657,
+          "maxAbsoluteError": 7.608558393691304
+        },
+        "elevation_200-800m": {
+          "count": 800,
+          "total": 800,
+          "coverage": 1,
+          "mae": 1.2284008846989318,
+          "rmse": 1.6249208584043524,
+          "bias": 0.4962291354345523,
+          "maxAbsoluteError": 6.299999999999999
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.2419373997775414,
+          "rmse": 3.3933387403040216,
+          "bias": 1.3958168975250664,
+          "maxAbsoluteError": 15.3
+        }
+      },
+      "frames": [
+        {
+          "time": "20261125194000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.1402854830434803,
+          "rmse": 1.5667742342283346,
+          "bias": -0.02036615182960182,
+          "maxAbsoluteError": 15.3
+        },
+        {
+          "time": "20261125224000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2438809389713115,
+          "rmse": 1.695146983886731,
+          "bias": -0.05931933697880616,
+          "maxAbsoluteError": 12.3
+        },
+        {
+          "time": "20261126014000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.31451203293365,
+          "rmse": 1.7750681715476342,
+          "bias": -0.06801967159325525,
+          "maxAbsoluteError": 10.799999999999999
+        },
+        {
+          "time": "20261126044000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.3981206426816835,
+          "rmse": 1.8653748277038196,
+          "bias": -0.08851916737643917,
+          "maxAbsoluteError": 9
+        }
+      ]
+    },
+    "lapse009": {
+      "count": 3656,
+      "total": 3664,
+      "coverage": 0.9978165938864629,
+      "mae": 1.274506619645204,
+      "rmse": 1.7309938401762983,
+      "bias": -0.022281577059610824,
+      "maxAbsoluteError": 15.3,
+      "estimatedCoverage": 0.9418668122270742,
+      "adopted": {
+        "fixed-idw": 3451,
+        "nearest": 205,
+        "unavailable": 8
+      },
+      "estimatesOnly": {
+        "count": 3451,
+        "total": 3664,
+        "coverage": 0.9418668122270742,
+        "mae": 1.2452901192184485,
+        "rmse": 1.6458801380432193,
+        "bias": -0.06698390197911833,
+        "maxAbsoluteError": 7.264382844782398
+      },
+      "observedFallbackOnly": {
+        "count": 205,
+        "total": 3664,
+        "coverage": 0.055949781659388645,
+        "mae": 1.7663414634146328,
+        "rmse": 2.7990677890692233,
+        "bias": 0.7302439024390244,
+        "maxAbsoluteError": 15.3
+      },
+      "byGroup": {
+        "18-06_JST": {
+          "count": 3656,
+          "total": 3664,
+          "coverage": 0.9978165938864629,
+          "mae": 1.274506619645204,
+          "rmse": 1.7309938401762983,
+          "bias": -0.022281577059610824,
+          "maxAbsoluteError": 15.3
+        },
+        "elevation_below_200m": {
+          "count": 2760,
+          "total": 2768,
+          "coverage": 0.9971098265895953,
+          "mae": 1.2414154447967658,
+          "rmse": 1.651079296328102,
+          "bias": -0.10199757395638272,
+          "maxAbsoluteError": 7.264382844782398
+        },
+        "elevation_200-800m": {
+          "count": 800,
+          "total": 800,
+          "coverage": 1,
+          "mae": 1.2528534947475325,
+          "rmse": 1.6760811559745044,
+          "bias": 0.190711012572587,
+          "maxAbsoluteError": 7.102640442879954
+        },
+        "elevation_800m_plus": {
+          "count": 96,
+          "total": 96,
+          "coverage": 1,
+          "mae": 2.4063206040183913,
+          "rmse": 3.5108254781485484,
+          "bias": 0.4946150867875976,
+          "maxAbsoluteError": 15.3
+        }
+      },
+      "frames": [
+        {
+          "time": "20261125194000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.0847124878967611,
+          "rmse": 1.5150487558259178,
+          "bias": 0.017712330305090312,
+          "maxAbsoluteError": 15.3
+        },
+        {
+          "time": "20261125224000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.2320148294876736,
+          "rmse": 1.6782728126485273,
+          "bias": -0.023352284055398253,
+          "maxAbsoluteError": 12.3
+        },
+        {
+          "time": "20261126014000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.357036450218638,
+          "rmse": 1.807371405392848,
+          "bias": -0.027936342965085688,
+          "maxAbsoluteError": 10.799999999999999
+        },
+        {
+          "time": "20261126044000",
+          "count": 914,
+          "total": 916,
+          "coverage": 0.9978165938864629,
+          "mae": 1.424262710977746,
+          "rmse": 1.89915637472973,
+          "bias": -0.05555001152304957,
+          "maxAbsoluteError": 9
+        }
+      ]
+    }
+  }
+}

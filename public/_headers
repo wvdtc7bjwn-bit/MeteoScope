@@ -32,3 +32,7 @@
 /data/base-map-tiles/*
   ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable
+
+/data/temperature-environment/v1/*
+  ! Cache-Control
+  Cache-Control: public, max-age=31536000, immutable

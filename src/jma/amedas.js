@@ -1,5 +1,5 @@
 import { parseCsvRows } from "../utils/csv.js";
-import { AUTO_REFRESH_INTERVAL_MS, JMA_ENDPOINTS, STATIC_DATA_CACHE_TTL_MS } from "../config.js";
+import { AMEDAS_STATION_TABLE_CACHE_TTL_MS, AUTO_REFRESH_INTERVAL_MS, JMA_ENDPOINTS } from "../config.js";
 import { fetchAmedasDailyTemperatureNormals } from "../amedasTemperatureNormal.js";
 import { getAmedasObservationField } from "../amedasPrecipitationPeriod.js";
 import { combineAmedasDailySeries } from "../amedasChart.js";
@@ -37,14 +37,14 @@ export async function fetchAmedasLatestTime() {
   });
   const [observations, stations, temperatureRankings, windRankings, pressureDailyHtml, hourlySnowObservations] = await Promise.all([
     fetchJson(`${JMA_ENDPOINTS.amedasMapBase}/${mapTime}.json`),
-    fetchJson(JMA_ENDPOINTS.amedasStationTable, { ttlMs: STATIC_DATA_CACHE_TTL_MS, cache: "force-cache" }),
+    fetchJson(JMA_ENDPOINTS.amedasStationTable, { ttlMs: AMEDAS_STATION_TABLE_CACHE_TTL_MS, cache: "force-cache" }),
     temperatureRankingsRequest,
     windRankingsRequest,
     pressureDailyHtmlRequest,
     snowObservationsRequest
   ]);
   const snowObservations = snowMapTime === mapTime ? observations : hourlySnowObservations;
-  const points = buildAmedasPoints(observations, stations, snowObservations);
+  const points = buildAmedasPoints(observations, stations, snowObservations, mapTime);
 
   return {
     latestRawTime: latestTime,
@@ -298,7 +298,7 @@ export function getAmedasSnowMapTime(mapTime) {
   return `${String(mapTime).slice(0, 10)}0000`;
 }
 
-export function buildAmedasPoints(observations, stations, snowObservations = observations) {
+export function buildAmedasPoints(observations, stations, snowObservations = observations, observationTime = null) {
   const stationIds = new Set([...Object.keys(observations ?? {}), ...Object.keys(snowObservations ?? {})]);
   return [...stationIds].flatMap((stationId) => {
     const observation = observations?.[stationId] ?? {};
@@ -311,6 +311,10 @@ export function buildAmedasPoints(observations, stations, snowObservations = obs
       name: station.kjName ?? station.enName ?? stationId,
       nameEn: station.enName ?? null,
       coordinates,
+      elevation: typeof station.alt === "number" && Number.isFinite(station.alt) ? station.alt : null,
+      elements: typeof station.elems === "string" ? station.elems : "",
+      observationTime,
+      temperatureQuality: Array.isArray(observation.temp) && observation.temp[1] === 0 ? 0 : null,
       values: {
         temperature: readObservedValue(observation.temp),
         precipitation: readObservedValue(observation.precipitation1h),
@@ -330,6 +334,7 @@ export function buildAmedasPoints(observations, stations, snowObservations = obs
 
 function readObservedValue(value) {
   if (!Array.isArray(value)) return null;
+  if (value[0] === null || value[0] === undefined || (typeof value[0] === "string" && !value[0].trim()) || typeof value[0] === "boolean") return null;
   const quality = value.length > 1 ? Number(value[1]) : 0;
   if (!Number.isFinite(quality) || quality !== 0) return null;
   const observed = Number(value[0]);
@@ -340,13 +345,14 @@ function getStationCoordinates(station) {
   if (!station?.lat || !station?.lon) return null;
   const lat = convertDegreeMinute(station.lat);
   const lon = convertDegreeMinute(station.lon);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
   return [lon, lat];
 }
 
 function convertDegreeMinute(value) {
   if (!Array.isArray(value) || value.length < 2) return NaN;
-  return Number(value[0]) + Number(value[1]) / 60;
+  if (value.some(part => typeof part !== "number" || !Number.isFinite(part)) || value[1] < 0 || value[1] >= 60) return NaN;
+  return value[0] + (value[0] < 0 ? -1 : 1) * value[1] / 60;
 }
 
 function formatAmedasMapTime(value) {

@@ -150,6 +150,7 @@
           <p id="panel-time">更新時刻を取得中...</p>
         </header>
         <div id="current-location-card" class="current-location-card" hidden></div>
+        <section id="local-temperature-summary" class="local-temperature-summary" hidden aria-label="現在地の気象情報"></section>
         <div id="warning-location-insight-panel" class="location-insight-panel" hidden></div>
         <div id="amedas-sub-tabs" class="amedas-sub-tabs mobile-dock-segmented" role="group" aria-label="表示する観測項目" hidden>
           <button class="amedas-sub-button active" data-amedas-metric="temperature" aria-label="気温" title="気温">気温</button>
@@ -467,6 +468,7 @@
                   <li>緊急地震速報とP波・S波の概算表示</li>
                   <li>気象庁の気象・地震・津波情報について質問できるAIチャット</li>
                   <li>過去の地震と震源付近の地震の検索</li>
+                  <li>現在地の推定気温</li>
                   <li>アメダス観測点の前日のグラフ</li>
                   <li>過去7日分の天気図</li>
                   <li>高層気象のエマグラムとGFS地点モデル</li>
@@ -544,7 +546,7 @@
             </div>
           </section>
           <section class="settings-group settings-amedas-chart-group" data-settings-section="display">
-            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>AMeDAS</strong><small>観測グラフの表示</small></span></button>
+            <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>AMeDAS</strong><small>観測グラフ・推定気温</small></span></button>
             <div class="settings-group-content" hidden>
               <p class="settings-theme-help">昨日と今日の観測値を一続きで表示するか、日ごとに切り替えて表示するかを選びます。</p>
               <div class="settings-theme-options" role="radiogroup" aria-label="AMeDASグラフの表示">
@@ -552,6 +554,14 @@
                 <button type="button" data-settings-amedas-chart="daily" role="radio" aria-checked="false">日別</button>
               </div>
               <p class="settings-theme-help" data-settings-amedas-chart-access hidden>昨日のグラフはアーリーアクセスで利用できます。</p>
+              <div class="settings-detail-item settings-toggle-item">
+                <div class="settings-switch-row">
+                  <div class="settings-switch-copy"><strong>現在地の推定気温</strong></div>
+                  <button class="settings-switch" type="button" role="switch" aria-checked="false" aria-label="現在地の推定気温" aria-describedby="settings-temperature-estimation-note" data-settings-temperature-estimation><span class="settings-switch-thumb" aria-hidden="true"></span></button>
+                </div>
+                <p class="settings-item-note" id="settings-temperature-estimation-note">アーリーアクセス限定・初期設定はOFF。位置情報を使って気温を独自に推定します。オンにするときに利用規約を表示します。</p>
+                <button class="local-temperature-terms-link" type="button" data-settings-temperature-terms>利用規約・出典を確認</button>
+              </div>
             </div>
           </section>
           <section class="settings-group settings-terrain-group" data-settings-section="display">

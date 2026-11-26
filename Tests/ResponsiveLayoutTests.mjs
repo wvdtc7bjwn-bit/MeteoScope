@@ -869,7 +869,7 @@ for (const loadingLabel of [
 ]) {
   assert.match(panel, new RegExp(`"${loadingLabel}"`));
 }
-assert.match(panel, /const nearestMarkup = amedasLoadingLabel[\s\S]*?buildMobileDockLoadingStatus\(amedasLoadingLabel\)/);
+assert.match(panel, /const nearestMarkup = estimatedMarkup \|\| \(amedasLoadingLabel[\s\S]*?buildMobileDockLoadingStatus\(amedasLoadingLabel\)/);
 assert.match(panel, /mobile-dock-warning-main is-loading[\s\S]*?buildMobileDockLoadingStatus\(loadingLabel\)/);
 assert.match(panel, /status === "loading"[\s\S]*?buildMobileDockLoadingStatus\("台風情報を読み込み中"\)/);
 assert.match(panel, /mobile-dock-earthquake-empty-state\$\{isLoading[\s\S]*?buildMobileDockLoadingStatus\("地震情報を読み込み中"\)/);

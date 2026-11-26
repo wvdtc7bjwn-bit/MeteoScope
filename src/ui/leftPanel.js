@@ -1,4 +1,5 @@
 import { getEarthquakeHistoryStatus } from "./earthquakeHistoryStatus.js";
+import { buildLocalTemperatureButton, updateLocalTemperatureView } from "./localTemperatureView.js";
 import { renderMobileWeatherTimelineToolbar, getMobileWeatherFocusSelector } from "./mobileWeatherTimeline.js";
 import { renderLightningLegendSymbol } from "./lightningLegend.js";
 import { VOLCANO_ALERT_LEVEL_GUIDE, renderVolcanoList } from "./panels/volcanoPanel.js";
@@ -212,6 +213,7 @@ export function updateLeftPanel(tab, state = {}) {
   renderAmedasDailyChart(tab, state, amedasMetric);
   renderAmedasRanking(tab, state, amedasMetric);
   renderMobileContextDock(tab, state, { amedasMetric, warningView });
+  updateLocalTemperatureView(tab.id === "amedas" && amedasMetric.id === "temperature" ? state.localTemperature : null);
   renderLegend(tab.id, amedasMetric.id, warningView, state.data);
 }
 
@@ -2777,9 +2779,11 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     const amedasLoadingLabel = state.status === "loading"
       ? "AMeDAS観測値を読み込み中"
       : (!nearest && state.currentLocation?.status === "loading" ? "現在地を読み込み中" : "");
-    const nearestMarkup = amedasLoadingLabel
+    const estimatedMarkup = metric.id === "temperature" && state.localTemperature
+      ? buildLocalTemperatureButton(state.localTemperature) : "";
+    const nearestMarkup = estimatedMarkup || (amedasLoadingLabel
       ? buildMobileDockLoadingStatus(amedasLoadingLabel)
-      : `<span class="mobile-dock-amedas-nearest${nearest ? "" : " is-muted"}" title="${escapeHtml(nearestText)}">${escapeHtml(nearestText)}</span>`;
+      : `<span class="mobile-dock-amedas-nearest${nearest ? "" : " is-muted"}" title="${escapeHtml(nearestText)}">${escapeHtml(nearestText)}</span>`);
     return `
       <div class="mobile-dock-content mobile-dock-amedas${isPrecipitation ? " has-precipitation-period" : ""}" aria-busy="${Boolean(amedasLoadingLabel)}">
         <div class="mobile-dock-amedas-head">

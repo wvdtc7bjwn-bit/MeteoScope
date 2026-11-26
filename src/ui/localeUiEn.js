@@ -1,6 +1,12 @@
 // Reviewed application copy. Exact messages are translated as units so safety
 // notices do not become a mixture of translated words and Japanese grammar.
 export const UI_EN_ENTRIES = `
+観測グラフ・推定気温|Observation charts and local temperature
+観測グラフの表示と、現在地の推定気温を設定します。|Configure observation charts and estimated local temperature.
+現在地の推定気温|Estimated local temperature
+現在地の気象情報|Local weather
+アーリーアクセス限定・初期設定はOFF。位置情報を使って気温を独自に推定します。オンにするときに利用規約を表示します。|Early access only; off by default. Estimate temperature using your location. Terms are shown when enabling this feature.
+利用規約・出典を確認|Review terms and sources
 MeteoScopeデジタルカード|MeteoScope digital card
 アカウント固有ID|Account unique ID
 プレビュー|Preview

@@ -11,6 +11,7 @@ export const TERRAIN_TILE_CACHE_LIMITS = Object.freeze({
   maxAgeMs: 24 * 60 * 60 * 1000
 });
 const registered = new WeakMap();
+let sharedLoader;
 export const JAPAN_TERRAIN_BOUNDS = Object.freeze([122, 20, 154, 46]);
 export const TERRAIN_PREFETCH_LIMIT = 12;
 
@@ -35,6 +36,7 @@ export function getGlobalTerrainPaint(opacity) {
   };
 }
 const tileSets = {
+  dem: { template: "https://cyberjapandata.gsi.go.jp/xyz/dem_png/{z}/{x}/{y}.png", minZoom: 1, maxZoom: 14, bounds: JAPAN_TERRAIN_BOUNDS },
   relief: { template: MAP_DATA_ENDPOINTS.gsiReliefTiles, minZoom: 5, maxZoom: 15, bounds: JAPAN_TERRAIN_BOUNDS },
   hillshademap: { template: MAP_DATA_ENDPOINTS.gsiHillshadeTiles, minZoom: 2, maxZoom: 16, bounds: JAPAN_TERRAIN_BOUNDS },
   earthhillshade: { template: MAP_DATA_ENDPOINTS.gsiEarthHillshadeTiles, minZoom: 0, maxZoom: 8 }
@@ -46,7 +48,7 @@ export function terrainTileTemplate(kind) {
 }
 
 function resolveTile(url) {
-  const match = /^meteoscope-terrain:\/\/(relief|hillshademap|earthhillshade)\/(\d+)\/(\d+)\/(\d+)\.png$/u.exec(url);
+  const match = /^meteoscope-terrain:\/\/(dem|relief|hillshademap|earthhillshade)\/(\d+)\/(\d+)\/(\d+)\.png$/u.exec(url);
   if (!match) throw new Error("Invalid terrain tile URL");
   const [, kind, z, x, y] = match, set = tileSets[kind], zoom = Number(z);
   if (zoom < set.minZoom || zoom > set.maxZoom || Number(x) >= 2 ** zoom || Number(y) >= 2 ** zoom) throw new Error("Invalid terrain tile coordinates");
@@ -61,7 +63,7 @@ export function planTerrainTilePrefetch(bounds, zoom, coverage = "auto") {
   if (![west, south, east, north].every(Number.isFinite) || north < south) return [];
   if (east < west) east += 360;
   if (east <= west || east - west > 360) return [];
-  const queues = Object.entries(tileSets).filter(([kind]) => coverage === "japan" ? kind !== "earthhillshade"
+  const queues = Object.entries(tileSets).filter(([kind]) => kind !== "dem").filter(([kind]) => coverage === "japan" ? kind !== "earthhillshade"
     : coverage === "global" ? kind === "earthhillshade" : true).map(([kind, set]) => {
     // Raster sources round their 512/256 tile-size-adjusted zoom in MapLibre.
     const z = kind === "relief" && zoom < 3.5 ? 5 : Math.max(set.minZoom, Math.min(set.maxZoom, Math.round(zoom + 1)));
@@ -263,8 +265,12 @@ export function createTerrainTileLoader({ fetcher = globalThis.fetch?.bind(globa
 
 export function registerTerrainTileProtocol(maplibre) {
   if (registered.has(maplibre)) return registered.get(maplibre);
-  const loader = createTerrainTileLoader();
+  const loader = getTerrainTileLoader();
   maplibre.addProtocol(TERRAIN_TILE_PROTOCOL, loader);
   registered.set(maplibre, loader);
   return loader;
+}
+
+export function getTerrainTileLoader() {
+  return sharedLoader ??= createTerrainTileLoader();
 }
