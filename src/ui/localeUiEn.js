@@ -4,6 +4,7 @@ export const UI_EN_ENTRIES = `
 MeteoScopeデジタルカード|MeteoScope digital card
 アカウント固有ID|Account unique ID
 プレビュー|Preview
+参照資料|Reference sources
 保存機能がサーバーにまだ反映されていないため、変更は保存されていません。|Your changes have not been saved because profile saving is not yet available on the server.
 表示名|Display name
 表示名はランキングと投稿に表示されます。当日の合計得点・達成日はランキングで公開されます。|Your display name appears in rankings and posts. Your daily total score and completion date are public in rankings.

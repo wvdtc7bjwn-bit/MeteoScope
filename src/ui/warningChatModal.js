@@ -58,6 +58,12 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
     if (button.hidden) close();
   }
   function setStatus(text) { status.textContent = text; }
+  function hideHelp({ focus = false } = {}) {
+    byId("help").hidden = true;
+    byId("help").open = false;
+    byId("info").setAttribute("aria-expanded", "false");
+    if (focus) byId("info").focus({ preventScroll: true });
+  }
   function showHelp() {
     byId("help").hidden = false;
     byId("help").open = true;
@@ -274,13 +280,13 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
       syncTopic();
       byId("settings").open = false;
       byId("official").open = false;
-      byId("help").hidden = true;
-      byId("info").setAttribute("aria-expanded", "false");
+      hideHelp();
       await refreshContext();
     } catch (error) { if (id === sequence && error.name !== "AbortError") { configured = false; setStatus(error.message); setBusy(false); if ([401, 403].includes(error.status)) showHelp(); } }
   }
   function close() {
     if (modal.hidden) return;
+    hideHelp();
     modal.hidden = true;
     ++sequence;
     controller?.abort();
@@ -347,9 +353,10 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
   byId("refresh").addEventListener("click", () => { if (!busy) void refreshContext(); });
   byId("info").addEventListener("click", () => {
     if (byId("help").hidden) showHelp();
-    else { byId("help").hidden = true; byId("info").setAttribute("aria-expanded", "false"); }
+    else hideHelp();
   });
   byId("privacy").addEventListener("click", () => {
+    hideHelp();
     byId("consent-details").hidden = false;
     byId("consent-details").open = true;
     byId("consent").focus();
@@ -369,7 +376,7 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
     void refreshContext();
   });
   forecastAreaSelect.addEventListener("change", () => { syncSelection(); void refreshContext(); });
-  byId("subject").addEventListener("click", () => { byId("official").open = false; byId("help").hidden = true; byId("info").setAttribute("aria-expanded", "false"); byId("settings").open = true; eventSelect.focus(); });
+  byId("subject").addEventListener("click", () => { byId("official").open = false; hideHelp(); byId("settings").open = true; eventSelect.focus(); });
   byId("consent").addEventListener("change", () => {
     byId("consent-summary").textContent = byId("consent").checked ? "送信について確認済み" : "送信前に確認してください";
     byId("consent-details").open = !byId("consent").checked;
@@ -384,19 +391,22 @@ export function setupWarningChatModal({ isEarlyAccessEnabled = () => false, getC
   });
   modal.addEventListener("click", (event) => {
     if (event.target === modal) close();
-    else if (!event.target.closest(".warning-chat-toolbar, #warning-chat-info, #warning-chat-subject")) {
-      byId("settings").open = false;
-      byId("official").open = false;
-      byId("help").open = false;
-      byId("help").hidden = true;
-      byId("info").setAttribute("aria-expanded", "false");
+    else {
+      if (!event.target.closest("#warning-chat-help, #warning-chat-info")) hideHelp();
+      if (!event.target.closest(".warning-chat-toolbar, #warning-chat-info, #warning-chat-help, #warning-chat-subject")) {
+        byId("settings").open = false;
+        byId("official").open = false;
+      }
     }
   });
   modal.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       event.stopPropagation();
       const tool = [byId("settings"), byId("official"), byId("help")].find((element) => element.open && !element.hidden);
-      if (tool) { tool.open = false; if (tool === byId("help")) { tool.hidden = true; byId("info").setAttribute("aria-expanded", "false"); } }
+      if (tool) {
+        if (tool === byId("help")) hideHelp({ focus: true });
+        else { tool.open = false; tool.querySelector("summary")?.focus({ preventScroll: true }); }
+      }
       else close();
     }
     if (event.key === "Tab") {

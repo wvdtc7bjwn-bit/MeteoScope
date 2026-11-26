@@ -406,6 +406,7 @@ export function createWeatherApp() {
   let latestDataByTab = {};
   const tabDataLoadedAt = {};
   let radarPlayTimer = null;
+  let radarSelectionFrame = null;
   let lightningPlayTimer = null;
   let weatherChartPlayTimer = null;
   let autoRefreshTimer = null;
@@ -2548,6 +2549,8 @@ if (layerId === "river") {
       radarTileUrl: weatherChartEnabled || (satellite.enabled && !satelliteRadarFrame) || lightningEnabled || weatherDistributionMode
         ? null
         : ((satellite.enabled ? satelliteRadarFrame : activeFrame)?.radarTileUrl ?? data.radarTileUrl),
+      radarNextTileUrl: !weatherChartEnabled && !satellite.enabled && !lightningEnabled && !weatherDistributionMode && frames.length > 1
+        ? frames[(activeFrameIndex + (data.prefetchDirection ?? 1) + frames.length) % frames.length]?.radarTileUrl ?? null : null,
       weatherDistributionMode,
       weatherDistributionStatus,
       weatherDistribution: distribution,
@@ -2902,9 +2905,17 @@ if (layerId === "river") {
     if (activeTab !== "radar") return;
     const radarData = latestDataByTab.radar;
     if (!radarData?.frames?.length) return;
-    radarData.activeFrameIndex = clampRadarIndex(index, radarData.frames);
-    const tab = TABS.find((item) => item.id === "radar");
-    updateCurrentView(tab, radarData);
+    const selected = clampRadarIndex(index, radarData.frames);
+    if (selected === radarData.activeFrameIndex) return;
+    radarData.prefetchDirection = selected < (radarData.activeFrameIndex ?? 0) ? -1 : 1;
+    radarData.activeFrameIndex = selected;
+    if (radarSelectionFrame !== null) return;
+    radarSelectionFrame = window.requestAnimationFrame(() => {
+      radarSelectionFrame = null;
+      if (activeTab !== "radar" || latestDataByTab.radar !== radarData) return;
+      const tab = TABS.find((item) => item.id === "radar");
+      updateCurrentView(tab, radarData);
+    });
   }
 
   function getActiveWeatherDistribution() {

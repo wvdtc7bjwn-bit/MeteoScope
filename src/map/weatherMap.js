@@ -1,4 +1,5 @@
 import { RAIN_RADAR_ZOOM_LEVELS } from "./radarRasterLevels.js";
+import { createRadarFrameRenderer } from "./radarFrameRenderer.js";
 import { AMEDAS_DOT_LAYER_ID, AMEDAS_MORPH_LAYER_ID, AMEDAS_DOT_RADIUS, AMEDAS_MARKER_OUTLINE_COLOR, AMEDAS_MARKER_OUTLINE_WIDTH, getAmedasValueMarkerId, setupAmedasValueMarkerImages, syncAmedasValueMarkerVisibility, isAmedasMarkerLayerActive } from "./amedasValueMarker.js";
 import { getObservationColorScheme } from "../preferences/observationColors.js";
 import { calculateFocusPadding, createViewportFocus } from "./focusViewport.js";
@@ -473,6 +474,7 @@ const EMPTY_GEOJSON = { type: "FeatureCollection", features: [] };
 const warningFeatureStateCache = new WeakMap();
 const kikikuruTileUrlCache = new Map();
 const radarOverlayZoomLimitCache = new WeakMap();
+const rainRadarRenderers = new WeakMap();
 const geoJsonSourceDataCache = new WeakMap();
 const amedasFeatureCollectionCache = new WeakMap();
 
@@ -4576,12 +4578,19 @@ function updateRadarLayer(map, mode, data = {}) {
     && data?.typhoonRadarOverlay?.visible === true;
   const shouldShow = (radarTabVisible || typhoonBulletinRadarVisible)
     && Boolean(data?.radarTileUrl);
-  updateNowcastRasterLayer(map, {
-    shouldShow,
+  let renderer = rainRadarRenderers.get(map);
+  if (!renderer && shouldShow) {
+    renderer = createRadarFrameRenderer(map, {
+      levels: RAIN_RADAR_ZOOM_LEVELS,
+      sourcePrefix: RADAR_SOURCE_PREFIX,
+      layerPrefix: RADAR_LAYER_PREFIX
+    });
+    rainRadarRenderers.set(map, renderer);
+  }
+  renderer?.update({
+    visible: shouldShow,
     tileUrl: data?.radarTileUrl,
-    sourcePrefix: RADAR_SOURCE_PREFIX,
-    layerPrefix: RADAR_LAYER_PREFIX,
-    zoomLevels: RAIN_RADAR_ZOOM_LEVELS,
+    nextTileUrl: radarTabVisible ? data?.radarNextTileUrl : null,
     opacity: typhoonBulletinRadarVisible ? 0.78 : 0.9
   });
 }
@@ -4600,6 +4609,10 @@ function updateWeatherDistributionLayer(map, mode, data = {}) {
 }
 
 function setRadarVisible(map, isVisible) {
+  if (rainRadarRenderers.has(map)) {
+    if (!isVisible) rainRadarRenderers.get(map).hide();
+    return;
+  }
   setNowcastRasterVisible(map, RADAR_LAYER_PREFIX, isVisible);
 }
 
