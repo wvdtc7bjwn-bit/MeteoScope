@@ -2289,7 +2289,7 @@
     box-shadow: var(--segmented-indicator-shadow);
     opacity: 1;
     pointer-events: none;
-    transform: translate3d(var(--tab-indicator-x), 0, 0);
+    transform: translate3d(var(--tab-indicator-x), 0, 0) scale(var(--segmented-press-scale, 1));
     backdrop-filter: var(--segmented-indicator-filter);
     -webkit-backdrop-filter: var(--segmented-indicator-filter);
     transition:

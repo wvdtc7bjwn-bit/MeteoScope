@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
+import { CUSTOMIZATION_DEFAULTS } from "../src/preferences/customization.js";
 
 const source = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
 const deferred = () => {
@@ -11,6 +12,7 @@ const deferred = () => {
 const requests = [], fits = [];
 let nextSearch = deferred();
 const context = vm.createContext({
+  customization: CUSTOMIZATION_DEFAULTS,
   AbortController, earlyAccessEnabled: true, activeTab: "earthquake", earthquakeView: "history",
   earthquakeNearbySearchActive: false, TABS: [{ id: "earthquake" }], latestDataByTab: {},
   earthquakeArchiveRenderFrame: null, earthquakeArchiveAbortController: null, earthquakeArchiveRequestId: 0,

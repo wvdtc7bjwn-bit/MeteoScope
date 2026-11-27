@@ -766,7 +766,7 @@ html[data-theme="light"] .focal-mechanism-body a { color: #17658a; }
   box-sizing: border-box;
   background: var(--segmented-indicator-background);
   box-shadow: var(--segmented-indicator-shadow);
-  transform: translate3d(calc(var(--mobile-dock-indicator-x) + var(--mobile-dock-drag-x)), 0, 0);
+  transform: translate3d(calc(var(--mobile-dock-indicator-x) + var(--mobile-dock-drag-x)), 0, 0) scale(var(--segmented-press-scale, 1));
   backdrop-filter: var(--segmented-indicator-filter);
   -webkit-backdrop-filter: var(--segmented-indicator-filter);
   pointer-events: none;
@@ -2020,7 +2020,7 @@ html #sidebar:has(.current-panel.is-amedas) {
   -webkit-backdrop-filter: var(--segmented-indicator-filter);
   content: "";
   pointer-events: none;
-  transform: translate3d(calc((var(--amedas-chart-period-index, 0) * 100%) + var(--amedas-chart-period-drag-x, 0px)), 0, 0);
+  transform: translate3d(calc((var(--amedas-chart-period-index, 0) * 100%) + var(--amedas-chart-period-drag-x, 0px)), 0, 0) scale(var(--segmented-press-scale, 1));
   transition: transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
 }
@@ -2387,7 +2387,7 @@ html #sidebar:has(.current-panel.is-amedas) {
   backdrop-filter: var(--segmented-indicator-filter);
   -webkit-backdrop-filter: var(--segmented-indicator-filter);
   pointer-events: none;
-  transform: translate3d(calc(var(--ranking-index-offset) + var(--ranking-gap-offset) + var(--ranking-drag-x, 0px)), 0, 0);
+  transform: translate3d(calc(var(--ranking-index-offset) + var(--ranking-gap-offset) + var(--ranking-drag-x, 0px)), 0, 0) scale(var(--segmented-press-scale, 1));
   transition: transform 380ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform;
 }

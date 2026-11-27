@@ -771,7 +771,7 @@ html[data-theme="light"] .map-info-connector {
   box-shadow: var(--tab-lens-shadow);
   opacity: var(--tab-lens-opacity);
   pointer-events: none;
-  transform: translate3d(0, var(--tab-indicator-y), 0);
+  transform: translate3d(0, var(--tab-indicator-y), 0) scale(var(--segmented-press-scale, 1));
   backdrop-filter: var(--tab-lens-filter);
   -webkit-backdrop-filter: var(--tab-lens-filter);
   transition: transform 200ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 140ms ease;

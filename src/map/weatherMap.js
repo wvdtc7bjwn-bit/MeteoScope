@@ -1,3 +1,5 @@
+import { normalizeCustomization, cameraDuration } from "../preferences/customization.js";
+import { createMapInformationController } from "./mapInformation.js";
 import { RAIN_RADAR_ZOOM_LEVELS } from "./radarRasterLevels.js";
 import { createRadarFrameRenderer } from "./radarFrameRenderer.js";
 import { AMEDAS_DOT_LAYER_ID, AMEDAS_MORPH_LAYER_ID, AMEDAS_DOT_RADIUS, AMEDAS_MARKER_OUTLINE_COLOR, AMEDAS_MARKER_OUTLINE_WIDTH, getAmedasValueMarkerId, setupAmedasValueMarkerImages, syncAmedasValueMarkerVisibility, isAmedasMarkerLayerActive } from "./amedasValueMarker.js";
@@ -478,7 +480,9 @@ const rainRadarRenderers = new WeakMap();
 const geoJsonSourceDataCache = new WeakMap();
 const amedasFeatureCollectionCache = new WeakMap();
 
-export function createWeatherMap(elementId) {
+export function createWeatherMap(elementId, options = {}) {
+  let customization = normalizeCustomization(options.customization);
+  const informationController = createMapInformationController();
   let map = null;
   let simulationCameraInteractionHandler = null;
   const simulationOverlay = createSimulationMapOverlay(
@@ -563,6 +567,7 @@ export function createWeatherMap(elementId) {
       container: elementId,
       center: [DEFAULT_VIEW.center[1], DEFAULT_VIEW.center[0]],
       zoom: DEFAULT_VIEW.zoom,
+      ...(options.initialView ?? {}),
       minZoom: DEFAULT_VIEW.minZoom,
       maxZoom: DEFAULT_VIEW.maxZoom,
       renderWorldCopies: true,
@@ -576,6 +581,7 @@ export function createWeatherMap(elementId) {
       style: createBaseStyle(activeTheme)
     });
     map.getContainer().dataset.theme = activeTheme;
+    map.on("moveend", () => options.onViewChange?.(getCameraView()));
     map.touchZoomRotate.enableRotation();
     map.on("movestart", event => {
       baseMapTiles?.cancelPrefetch();
@@ -658,6 +664,7 @@ export function createWeatherMap(elementId) {
     syncEewVisibility();
     if (activeMode !== "earthquake") updateHypocenter3DPresentation(false);
     if (mode === "typhoon") void ensureWorldGeometryLoaded();
+    syncMapInformation();
   }
 
   function setTerrainLayer({ visible, opacity, colorMode, coverage = terrainCoverage } = {}) {
@@ -716,6 +723,7 @@ export function createWeatherMap(elementId) {
         map.setPaintProperty(GSI_EARTH_HILLSHADE_LAYER_ID, property, value);
       });
     }
+    syncMapInformation();
   }
 
   function ensureTerrainLayers() {
@@ -1312,7 +1320,7 @@ export function createWeatherMap(elementId) {
     map.flyTo({
       center: coordinates,
       zoom,
-      duration: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : Number.isFinite(options.duration) ? options.duration : 850,
+      duration: cameraDuration(customization.controls.cameraSpeed, Number.isFinite(options.duration) ? options.duration : 850, window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches),
       padding: 0,
       offset: getFocusOffset(options),
       essential: true
@@ -1346,7 +1354,7 @@ export function createWeatherMap(elementId) {
     map.fitBounds(bounds, {
       padding: getFocusPadding(options),
       maxZoom: Number.isFinite(options.maxZoom) ? options.maxZoom : 7.2,
-      duration: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? 0 : Number.isFinite(options.duration) ? options.duration : 850,
+      duration: cameraDuration(customization.controls.cameraSpeed, Number.isFinite(options.duration) ? options.duration : 850, window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches),
       essential: true
     });
   }
@@ -3207,9 +3215,11 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       && !(activeMode === "earthquake" && activeEews.length > 0);
     SAMPLE_LAYERS.forEach((layerId) => {
       if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility",
-        visible && (!EARTHQUAKE_SHAPE_LAYERS.has(layerId) || activeMode === "earthquake") ? "visible" : "none");
+        visible && (layerId !== "sample-label" || activeMode !== "amedas" || customization.information.stationNames)
+          && (!EARTHQUAKE_SHAPE_LAYERS.has(layerId) || activeMode === "earthquake") ? "visible" : "none");
     });
-    syncAmedasValueMarkerVisibility(map, visible && activeMode === "amedas");
+    syncAmedasValueMarkerVisibility(map, visible && activeMode === "amedas", customization.information.stationValues);
+    syncMapInformation();
   }
 
   function syncEewVisibility() {
@@ -3273,6 +3283,25 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
     syncTerrainLayer();
   }
 
+  function getCameraView() {
+    if (!map) return null;
+    const center = map.getCenter();
+    return { center: [center.lng, center.lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
+  }
+
+  function syncMapInformation() {
+    const colors = MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark;
+    informationController.apply(map, customization.information, activeMode,
+      getTerrainBoundaryPaint(terrainLayerVisible, activeTheme, colors.municipalityLine)["line-opacity"]);
+  }
+
+  function setCustomization(value) {
+    customization = normalizeCustomization(value);
+    if (!customization.controls.earthquakeFocus) viewportFocus.clear();
+    if (map?.getSource(SAMPLE_SOURCE_ID)) syncSampleVisibility();
+    else syncMapInformation();
+  }
+
   function setEarthquakeSimulationFrame(frame) {
     if (frame && activeMode === "earthquake") return simulationOverlay.render(frame);
     simulationOverlay.clear();
@@ -3282,7 +3311,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   function pickSimulationEpicenter(onPick) { return simulationOverlay.pick(onPick); }
   function cancelSimulationEpicenterPick() { simulationOverlay.cancelPick(); }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarnings, setEarthquakeSimulationFrame, pickSimulationEpicenter, cancelSimulationEpicenterPick, whenCameraIdle, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, setSimulationCameraInteractionHandler, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection, refreshObservationColors };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarnings, setEarthquakeSimulationFrame, pickSimulationEpicenter, cancelSimulationEpicenterPick, whenCameraIdle, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, setSimulationCameraInteractionHandler, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection, refreshObservationColors, setCustomization, getCameraView };
 }
 
 function normalizeTerrainOpacity(value) {

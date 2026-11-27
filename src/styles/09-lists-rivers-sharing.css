@@ -1395,7 +1395,7 @@ html[data-theme="light"] .river-affected-cities span {
     left: calc(var(--tab-shell-padding) + var(--tab-active-edge-inset));
     width: calc((100% - (var(--tab-shell-padding) * 2) - (var(--tab-shell-gap) * 4) - (var(--tab-active-edge-inset) * 2)) / 5);
     height: auto;
-    transform: translate3d(var(--tab-indicator-x), 0, 0);
+    transform: translate3d(var(--tab-indicator-x), 0, 0) scale(var(--segmented-press-scale, 1));
   }
 
   .tab-button {

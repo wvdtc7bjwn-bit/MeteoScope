@@ -10,15 +10,25 @@ export function accountAuthHeaders() {
 }
 
 export async function validateEarlyAccess() {
-  if (import.meta.env?.DEV && ["localhost", "127.0.0.1", "[::1]"].includes(globalThis.location?.hostname)) {
-    return { status: "active", active: true, label: "ローカル開発", activeFaultSource: "jshis", message: "localhostでは先行機能を利用できます。" };
-  }
+  const localDevelopment = Boolean(import.meta.env?.DEV && ["localhost", "127.0.0.1", "[::1]"].includes(globalThis.location?.hostname));
+  // Explicit local-development exception; this branch is absent from production builds.
+  if (localDevelopment) return buildEarlyAccessState(null, { localDevelopment });
   try {
     const result = await requestAccess("status");
-    return { status: "active", active: true, label: "許可済み", activeFaultSource: result.activeFaultSource === "gsj" ? "gsj" : "jshis", message: "このアカウントはアーリーアクセスを利用できます。" };
+    return buildEarlyAccessState(result, { localDevelopment });
   } catch (error) {
-    return { status: "inactive", active: false, label: "", message: error.message || "認証状態を確認できませんでした。" };
+    return buildEarlyAccessState(null, { localDevelopment, message: error.message });
   }
+}
+
+export function buildEarlyAccessState(access, { localDevelopment = false, message = "" } = {}) {
+  const allowed = access?.active === true && access?.authenticated === true;
+  if (localDevelopment) return { status: "active", active: true, label: "ローカル開発", activeFaultSource: "jshis",
+    temperatureEstimationAllowed: true, message: "localhostでは先行機能を利用できます。" };
+  return allowed
+    ? { status: "active", active: true, label: "許可済み", temperatureEstimationAllowed: true,
+      activeFaultSource: access.activeFaultSource === "gsj" ? "gsj" : "jshis", message: "このアカウントはアーリーアクセスを利用できます。" }
+    : { status: "inactive", active: false, label: "", temperatureEstimationAllowed: false, message: message || "認証状態を確認できませんでした。" };
 }
 
 export async function fetchEarlyAccessActiveFaultSegments() {

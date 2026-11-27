@@ -66,20 +66,25 @@ function buildWorldTyphoonFocusCoordinates(displayData = {}) {
 function buildEarthquakeFocusCoordinates(earthquake) {
   if (!earthquake) return [];
   const estimatedIntensityBounds = earthquake.estimatedIntensity?.bounds;
+  const stations = (earthquake.intensityStations ?? []).map((station) => station.coordinates)
+    .filter(isFocusCoordinate);
+  // Detailed observations locate the shaking more precisely than a whole
+  // administrative area, which may also include distant, unobserved islands.
+  // Keep area bounds for preliminary reports without usable station positions.
   const coordinates = [
     earthquake.coordinates,
-    ...(earthquake.intensityStations ?? []).map((station) => station.coordinates),
-    ...(earthquake.estimatedIntensity
+    ...stations,
+    ...(earthquake.estimatedIntensity || stations.length
       ? []
       : (earthquake.intensityAreaFeatures ?? []).flatMap(getFeatureBoundsCoordinates)),
     ...(Array.isArray(estimatedIntensityBounds) ? estimatedIntensityBounds : [])
   ];
 
-  return coordinates.filter((point) =>
-    Array.isArray(point)
-    && point.length === 2
-    && point.every((value) => Number.isFinite(value))
-  );
+  return coordinates.filter(isFocusCoordinate);
+}
+
+function isFocusCoordinate(point) {
+  return Array.isArray(point) && point.length === 2 && point.every(Number.isFinite);
 }
 
 function getFeatureBoundsCoordinates(feature) {

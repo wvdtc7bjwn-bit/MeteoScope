@@ -1,4 +1,5 @@
 import { setupMapUtilityReorder } from "./mapUtilityReorder.js";
+import { loadCustomization } from "../preferences/customization.js";
 
 export function setupMapUtilityMenu() {
   const toggle = document.getElementById("map-utility-menu-toggle");
@@ -10,6 +11,13 @@ export function setupMapUtilityMenu() {
   let closeTimer = 0;
   let isOpen = false;
   const reorder = setupMapUtilityReorder(actions);
+  let customization = loadCustomization();
+  const applyCustomization = () => reorder.customize(customization.menu);
+  applyCustomization();
+  document.addEventListener("meteoscope:customization-change", event => {
+    customization = event.detail ?? loadCustomization();
+    applyCustomization();
+  });
 
   const finishClose = () => {
     if (isOpen) return;
@@ -29,6 +37,7 @@ export function setupMapUtilityMenu() {
     actions.inert = !open;
 
     if (open) {
+      applyCustomization();
       actions.hidden = false;
       actions.classList.remove("is-closing");
       // hidden解除後の初期状態を確定させ、展開アニメーションを確実に開始する。

@@ -140,12 +140,12 @@ assert.match(
 );
 assert.match(
   panel,
-  /suppressedCompatibilitySource = null;[\s\S]*?sourceButton: pointerButton && segment\.contains\(pointerButton\) \? pointerButton : null,[\s\S]*?suppressedCompatibilitySource = state\.sourceButton;[\s\S]*?if \(!targetButton\.disabled\) targetButton\.click\(\);/,
+  /suppressedCompatibilitySource = null;[\s\S]*?sourceButton: pointerButton && segment\.contains\(pointerButton\) \? pointerButton : null,[\s\S]*?suppressedCompatibilitySource = state\.sourceButton;[\s\S]*?if \(!targetButton\.disabled && !returnedToPicker\) targetButton\.click\(\);/,
   "segmented controls must clear stale suppression at gesture start and scope it to the pressed source button"
 );
 assert.match(
   panel,
-  /if \(targetButton !== state\.previewButton\) renderPreview\(segment, targetButton, \{ sync: false \}\);[\s\S]*?suppressedCompatibilitySource = state\.sourceButton;[\s\S]*?if \(!targetButton\.disabled\) targetButton\.click\(\);[\s\S]*?clearDragPresentation\(segment, \{ resetOffset: false \}\);[\s\S]*?window\.requestAnimationFrame\(\(\) => syncMobileDockSegmentIndicators\(root\)\);/,
+  /if \(targetButton !== state\.previewButton\) renderPreview\(segment, targetButton, \{ sync: false \}\);[\s\S]*?suppressedCompatibilitySource = state\.sourceButton;[\s\S]*?if \(!targetButton\.disabled && !returnedToPicker\) targetButton\.click\(\);[\s\S]*?clearDragPresentation\(segment, \{ resetOffset: false \}\);[\s\S]*?window\.requestAnimationFrame\(\(\) => syncMobileDockSegmentIndicators\(root\)\);/,
   "segmented controls must preserve the glass indicator through release before settling it"
 );
 assert.match(

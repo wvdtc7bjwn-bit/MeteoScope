@@ -2,6 +2,28 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import { calculateFocusPadding, createViewportFocus } from "../src/map/focusViewport.js";
+import { buildEarthquakeFocusCoordinates } from "../src/app/focusCoordinates.js";
+
+// Ogasawara includes Minamitorishima, far east of the stations reporting
+// shaking at Chichijima and Hahajima. It must not shift their camera.
+const areas = JSON.parse(await readFile(new URL("../public/data/earthquake-areas.geojson", import.meta.url), "utf8"));
+const ogasawara = areas.features.find(feature => feature.properties.code === "359");
+assert.ok(ogasawara);
+const epicenter = [141.7, 27.4];
+const stationCoordinates = [[142.18, 27.1], [142.19, 27.09], [142.16, 26.64]];
+const event = { coordinates: epicenter, intensityStations: stationCoordinates.map(coordinates => ({ coordinates })),
+  intensityAreaFeatures: [ogasawara] };
+assert.deepEqual(buildEarthquakeFocusCoordinates(event), [epicenter, ...stationCoordinates],
+  "Detailed focus includes all observed stations without unrelated islands");
+const preliminary = buildEarthquakeFocusCoordinates({ ...event, intensityStations: [{ coordinates: [NaN, 27] }, { coordinates: null }] });
+assert.equal(preliminary.length, 3, "Area-only reports still focus the reported region");
+assert.ok(preliminary.some(([longitude]) => longitude > 153), "Unavailable station positions retain the fallback area");
+const estimatedBounds = [[140, 25], [144, 29]];
+assert.deepEqual(buildEarthquakeFocusCoordinates({ ...event, estimatedIntensity: { bounds: estimatedBounds } }),
+  [epicenter, ...stationCoordinates, ...estimatedBounds], "Keep the estimated-intensity distribution in view");
+const distantStation = [135, 34];
+assert.ok(buildEarthquakeFocusCoordinates({ ...event, intensityStations: [...event.intensityStations, { coordinates: distantStation }] })
+  .includes(distantStation), "Actual distant observations must never be discarded");
 
 const closed = { width: 430, height: 932, top: 60, bottom: 202 };
 const padding = calculateFocusPadding(closed);

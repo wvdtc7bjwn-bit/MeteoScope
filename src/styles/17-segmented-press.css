@@ -1,0 +1,15 @@
+/* Scale the lens after its translation so its center never drifts while pressed.
+   Share the press state across all sliding controls, including dynamic docks. */
+:where(#main-tabs, .mobile-dock-segmented, .amedas-chart-period-toggle, .amedas-ranking-slider) {
+  --segmented-press-scale: 1;
+}
+
+:where(#main-tabs, .mobile-dock-segmented, .amedas-chart-period-toggle, .amedas-ranking-slider)[data-segmented-press] {
+  --segmented-press-scale: 1.07;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(#main-tabs, .mobile-dock-segmented, .amedas-chart-period-toggle, .amedas-ranking-slider)[data-segmented-press] {
+    --segmented-press-scale: 1;
+  }
+}

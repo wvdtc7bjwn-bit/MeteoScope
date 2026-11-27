@@ -31,7 +31,7 @@ class Target {
   }
 }
 class Element extends Target {
-  children = []; attrs = new Map(); style = {}; hidden = false; inert = false; scrollTop = 0;
+  children = []; attrs = new Map(); style = {}; dataset = {}; hidden = false; inert = false; scrollTop = 0;
   constructor(tag, doc, id = "") {
     super(); Object.assign(this, { tag, ownerDocument: doc, id });
     const values = new Set();
@@ -197,4 +197,27 @@ test("drag scrolls at menu edge and stops its animation loop on cancellation", (
   f.doc.emit("touchmove", { touches: [touch(50, 235)] }); f.frame();
   assert.ok(f.menu.scrollTop > 0); assert.equal(f.frames.size, 1);
   f.controller.cancel(); assert.equal(f.frames.size, 0);
+});
+
+test("menu preferences pin favorites without unhiding permission-controlled features or losing saved order", () => {
+  const f = fixture('["c","b","a"]', { hidden: ["i"] });
+  f.controller.customize({ pinned: ["f", "i"], hidden: ["b"] });
+  assert.deepEqual(f.ids().slice(0, 5), ["f", "i", "c", "b", "a"]);
+  assert.equal(f.buttons.i.hidden, true, "permissions remain authoritative");
+  assert.equal(f.buttons.b.dataset.customHidden, "true");
+  assert.equal(f.writes(), 0, "pinning does not overwrite manual ordering");
+  f.controller.customize({ pinned: [], hidden: [] });
+  assert.deepEqual(f.ids().slice(0, 3), ["c", "b", "a"]);
+  assert.equal(f.buttons.b.dataset.customHidden, "false");
+  assert.equal(f.buttons.i.hidden, true);
+});
+
+test("blocked storage retains manual ordering in memory when reopening or pinning", () => {
+  const f = fixture(null, { blocked: true });
+  f.buttons.a.emit("keydown", { altKey: true, key: "ArrowRight" });
+  assert.deepEqual(f.ids().slice(0, 3), ["b", "a", "c"]);
+  f.controller.customize({ pinned: ["f"], hidden: [] });
+  assert.deepEqual(f.ids().slice(0, 4), ["f", "b", "a", "c"]);
+  f.controller.customize({ pinned: [], hidden: [] });
+  assert.deepEqual(f.ids().slice(0, 3), ["b", "a", "c"]);
 });

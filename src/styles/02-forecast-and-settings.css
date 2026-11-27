@@ -3134,6 +3134,27 @@ html[data-theme="light"] .upper-air-annotation-item p { color: #19344e; }
   grid-template-columns: minmax(0, 1fr);
   margin-top: 12px;
 }
+[data-settings-temperature-access][hidden] {
+  display: none !important;
+}
+.settings-customization-field { display: grid; gap: 10px; margin: 0; }
+.settings-customization-field > span { font-weight: 600; }
+.settings-customization-field select {
+  box-sizing: border-box; width: 100%; min-width: 0; min-height: 46px;
+  padding: 10px 12px; border: 1px solid var(--border-color, #33465a); border-radius: 12px;
+  color: inherit; background: var(--panel-bg, #1b2b3d); font: inherit;
+}
+.settings-customization-toggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; }
+.settings-customization-toggle .settings-switch { flex-shrink: 0; }
+.settings-customization-menu-row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center;
+  gap: 12px; padding: 16px 0; border-bottom: 1px solid rgba(130, 150, 175, .2);
+}
+.settings-customization-menu-row strong { font-size: 14px; overflow-wrap: anywhere; }
+.settings-customization-menu-row label { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+.settings-customization-menu-row input { width: 18px; height: 18px; accent-color: #54bce5; }
+#map-utility-actions > [data-custom-hidden="true"] { display: none !important; }
+:root[data-theme="light"] .settings-customization-field select { background: #f0f4f8; color: #162538; border-color: #c5d0dc; }
 .settings-temperature-source-options button {
   display: grid;
   gap: 5px;

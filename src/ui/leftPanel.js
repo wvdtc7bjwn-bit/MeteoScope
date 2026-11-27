@@ -650,10 +650,6 @@ function setupSegmentedControls(root) {
   root.addEventListener("pointerdown", (event) => {
     if (event.isPrimary === false || (event.pointerType === "mouse" && event.button !== 0)) return;
     if (!(event.target instanceof Element)) return;
-    // The active weather-distribution item opens its separate map picker.
-    // It is not a segmented-state change, so let its native click reach the
-    // dedicated handler instead of starting a dock-slider gesture.
-    if (event.target.closest("[data-weather-distribution-picker]")) return;
     // Mirror the bottom tab slider: a new gesture clears only the previous
     // gesture's compatibility click, never a later intentional tap.
     suppressedCompatibilitySource = null;
@@ -743,7 +739,11 @@ function setupSegmentedControls(root) {
       // Existing per-panel handlers own application state. The currently
       // active segment is disabled, so there is nothing to commit when the
       // gesture returns to it; still keep the compatibility-click guard above.
-      if (!targetButton.disabled) targetButton.click();
+      // A tap on the selected distribution item opens its picker. Sliding
+      // back to it only restores the current mode, without opening the picker.
+      const returnedToPicker = moved && targetButton === state.committedButton
+        && targetButton.hasAttribute("data-weather-distribution-picker");
+      if (!targetButton.disabled && !returnedToPicker) targetButton.click();
       clearDragPresentation(segment, { resetOffset: false });
     } else {
       restoreCommittedButton(state, { sync: false });

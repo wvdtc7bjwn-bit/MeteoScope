@@ -91,6 +91,14 @@ try {
   changeZoom(9);
   syncAmedasValueMarkerVisibility(map,true);
   assert.equal(paints.get("sample-amedas-value"),1,"returning at high zoom shows the value immediately");
+  syncAmedasValueMarkerVisibility(map,true,false);
+  tick(clock+AMEDAS_VALUE_MORPH_MS);
+  assert.equal(paints.get(AMEDAS_DOT_LAYER_ID),1,"hiding numbers keeps a selectable dot at high zoom");
+  changeZoom(10);
+  assert.equal(frames.size,0,"hidden values must not restart zoom morphing");
+  syncAmedasValueMarkerVisibility(map,true,true);
+  tick(clock+AMEDAS_VALUE_MORPH_MS);
+  assert.equal(paints.get("sample-amedas-value"),1,"showing numbers restores capsules");
   setupAmedasValueMarkerImages(map,[feature("1014.4")]);
   idle.splice(0).forEach(fn=>fn());
   assert.equal(images.size,2,"retire old metric sprites after old source tiles leave, preserving the active value and its shared background");

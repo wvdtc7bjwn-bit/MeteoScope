@@ -61,6 +61,7 @@ const map = {
 };
 const terrainMethods = weatherMap.slice(weatherMap.indexOf("  function setTerrainLayer("), weatherMap.indexOf("  function scheduleWorldGeometryLoad("));
 const context = vm.createContext({
+  syncMapInformation() {},
   map, normalizeTerrainCoverage, normalizeTerrainLayerColorMode, terrainTileTemplate, JAPAN_TERRAIN_BOUNDS, getGlobalTerrainPaint, getTerrainBoundaryPaint,
   MAP_THEME_COLORS:{dark:{municipalityLine:"original-line"}},
   activeTheme:"dark", VECTOR_BASE_MAP_ENABLED:false, baseMapSourceLayer:()=>({}), PREFECTURE_SOURCE_ID:"prefecture",

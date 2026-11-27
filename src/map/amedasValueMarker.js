@@ -128,7 +128,7 @@ function stopAnimation(state) {
 }
 
 function updateTarget(map,state) {
-  const target=map.getZoom()>=AMEDAS_VALUE_ZOOM ? 1 : 0;
+  const target=state.valuesVisible!==false && map.getZoom()>=AMEDAS_VALUE_ZOOM ? 1 : 0;
   if(!state.visible) {
     stopAnimation(state);
     state.progress=state.target=target;
@@ -151,9 +151,10 @@ function updateTarget(map,state) {
   state.frame=requestAnimationFrame(tick);
 }
 
-export function syncAmedasValueMarkerVisibility(map,visible) {
+export function syncAmedasValueMarkerVisibility(map,visible,valuesVisible=true) {
   const state=markerStates.get(map);
   if(!state)return;
+  state.valuesVisible=valuesVisible;
   state.visible=Boolean(visible && state.hasMarkers);
   updateTarget(map,state);
   syncLayers(map,state);

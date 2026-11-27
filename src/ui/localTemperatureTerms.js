@@ -1,4 +1,5 @@
 import { getCurrentLanguage } from "./locale.js";
+import { canUseTemperatureEstimation } from "../preferences/temperatureSource.js";
 
 export function buildLocalTemperatureTerms({ english = getCurrentLanguage() === "en", review = false } = {}) {
   const t = (ja,en) => english ? en : ja;
@@ -63,10 +64,10 @@ export function createLocalTemperatureToggle({ getState, onChange, confirm = ope
     if(pending)return false;
     const state=getState();
     if(state.temperatureEstimationEnabled) {onChange(false);return true;}
-    if(!state.earlyAccessEnabled)return false;
+    if(!canUseTemperatureEstimation(state))return false;
     pending=true;
     try {
-      if(!await confirm()||!getState().earlyAccessEnabled)return false;
+      if(!await confirm()||!canUseTemperatureEstimation(getState()))return false;
       onChange(true);return true;
     } finally {pending=false;}
   };

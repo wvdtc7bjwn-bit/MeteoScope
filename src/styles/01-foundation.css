@@ -1768,7 +1768,10 @@ html[data-theme="light"] .settings-filter-empty {
 #settings-modal[data-settings-view="detail"] .settings-group.is-expanded { padding: 0; gap: 0; border: 0; border-radius: 0; background: transparent; }
 #settings-modal[data-settings-view="detail"] .settings-group-content { padding-top: 0; border-top: 0; gap: 24px; }
 /* Divide adjacent logical sections; explanatory notes stay with their controls. */
-#settings-modal[data-settings-view="detail"] .settings-group-content > .settings-detail-item:not(.settings-toggle-item):not([hidden]) ~ .settings-detail-item:not(.settings-toggle-item):not([hidden]) { padding-top: 20px; border-top: 1px solid var(--settings-divider); }
+#settings-modal[data-settings-view="detail"] .settings-group-content > :is(.settings-detail-item, .settings-customization-field):not([hidden]) ~ :is(.settings-detail-item, .settings-customization-field):not([hidden]) {
+  padding-top: 20px;
+  border-top: 1px solid var(--settings-divider);
+}
 .settings-toggle-item .settings-switch-row { min-height: 60px; padding: 14px 16px; border-radius: 18px; background: var(--settings-surface); }
 .settings-item-note { margin: 8px 16px 0; color: var(--settings-muted); font-size: 13px; font-weight: 400; line-height: 1.6; }
 

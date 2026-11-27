@@ -3,6 +3,7 @@ import { mergeRefreshedData } from "../src/app/refreshedData.js";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import { yieldAfterPaint } from "../src/scheduling.js";
+import { CUSTOMIZATION_DEFAULTS } from "../src/preferences/customization.js";
 
 const keys = ["requestAnimationFrame", "cancelAnimationFrame", "setTimeout", "clearTimeout", "document"];
 const originals = keys.map((key) => Object.getOwnPropertyDescriptor(globalThis, key));
@@ -55,6 +56,7 @@ const modes = [];
 const temperatureStops = [];
 const noop = () => {};
 const context = vm.createContext({
+  customization: CUSTOMIZATION_DEFAULTS,
   performance, console, TABS: [{ id: "radar" }, { id: "earthquake" }, { id: "amedas" }],
   activeTab: "radar", tabAutoFocusGeneration: 0, activeLoadRequestId: 0,
   warningDetailsRequest: null, communityReportsVisible: false,
@@ -144,6 +146,7 @@ const shapeSource = { setData() { shapesTransferred++; } };
 const sourceCache = new WeakMap();
 const visibility = [];
 const renderCtx = vm.createContext({
+  customization: CUSTOMIZATION_DEFAULTS, syncMapInformation: noop,
   map: { getSource: id => id === "shapes" ? shapeSource : sampleSource, getLayer: () => true, setLayoutProperty: (...args) => visibility.push(args) },
   viewportFocus: { clear() {} }, EARTHQUAKE_SHAPE_SOURCE_ID: 'shapes', EARTHQUAKE_SHAPE_LAYERS: new Set(['sample-fill']),
   SAMPLE_SOURCE_ID: 'samples', SAMPLE_LAYERS: ['sample-fill'],

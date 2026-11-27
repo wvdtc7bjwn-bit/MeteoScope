@@ -1,7 +1,8 @@
 import { mergeRefreshedData, mergeWarningTabData } from "./app/refreshedData.js";
+import { loadCustomization, saveCustomization, resolveStartup, storeCustomizationValue, LAST_TAB_KEY, LAST_VIEW_KEY } from "./preferences/customization.js";
 import { createLocalTemperatureController } from "./location/localTemperatureController.js";
 import { createJmaTemperatureController } from "./location/jmaTemperatureController.js";
-import { loadTemperatureSource, saveTemperatureSource, effectiveTemperatureSource } from "./preferences/temperatureSource.js";
+import { loadTemperatureSource, saveTemperatureSource, effectiveTemperatureSource, canUseTemperatureEstimation } from "./preferences/temperatureSource.js";
 import { loadTemperatureEstimationEnabled, saveTemperatureEstimationEnabled } from "./location/temperatureEstimationPolicy.js";
 import {
   buildTyphoonFocusCoordinates,
@@ -265,7 +266,8 @@ export function createWeatherApp() {
   let terrainLayerSettings = loadTerrainLayerSettings();
   setupRemoteConfig();
 
-  const launchOptions = getLaunchOptions();
+  let customization = loadCustomization();
+  const launchOptions = getLaunchOptions(customization);
   let activeTab = launchOptions.initialTab;
   let activeAmedasMetric = AMEDAS_METRICS[0].id;
   let activeAmedasPrecipitationPeriod = loadAmedasPrecipitationPeriod();
@@ -817,6 +819,7 @@ export function createWeatherApp() {
       warningDetailsRequest.controller.abort();
     }
     activeTab = tab.id;
+    if (customization.startup.tab === "previous") storeCustomizationValue(LAST_TAB_KEY, activeTab);
     if (activeTab !== "amedas") jmaTemperatureController.update({ enabled: false });
     syncSimulationButton();
     syncTyphoonRadarOverlayButton();
@@ -1005,8 +1008,12 @@ export function createWeatherApp() {
     return result;
   }
 
+  function hasTemperatureEstimationAccess() {
+    return canUseTemperatureEstimation({ earlyAccessEnabled, temperatureEstimationAllowed: earlyAccessState.temperatureEstimationAllowed });
+  }
+
   function applyEarlyAccessState() {
-    if (!earlyAccessEnabled) localTemperatureController.update({ enabled: false });
+    if (!hasTemperatureEstimationAccess()) localTemperatureController.update({ enabled: false });
     document.documentElement.dataset.earlyAccess = earlyAccessEnabled ? "active" : "inactive";
     document.dispatchEvent(new CustomEvent("meteoscope:early-access-change"));
     syncEewEarlyAccess();
@@ -1919,7 +1926,9 @@ if (layerId === "river") {
     historicalEarthquakeDetailVisible = true;
     if (isEarthquakeArchiveVisible()) {
       updateCurrentView(TABS.find((candidate) => candidate.id === "earthquake"), latestDataByTab.earthquake ?? {});
-      weatherMap?.flyToLocation(item.coordinates, { minZoom: 6.5, duration: 750 });
+      if (customization.controls.earthquakeFocus) weatherMap?.flyToLocation(item.coordinates, {
+        ...(customization.controls.earthquakeZoom === 7.4 ? { minZoom: 6.5 } : { zoom: customization.controls.earthquakeZoom }), duration: 750
+      });
     }
     void loadSelectedHistoricalEarthquakeDetail(item);
   }
@@ -1964,7 +1973,9 @@ if (layerId === "river") {
           item.coordinates,
           ...(event.stations ?? []).map((station) => station.coordinates)
         ].filter((point) => Array.isArray(point) && point.length === 2 && point.every(Number.isFinite));
-        if (coordinates.length > 1) weatherMap?.fitToCoordinates(coordinates, { maxZoom: 8.8, duration: 850 });
+        if (customization.controls.earthquakeFocus && coordinates.length > 1) weatherMap?.fitToCoordinates(coordinates, {
+          maxZoom: customization.controls.earthquakeZoom === 7.4 ? 8.8 : customization.controls.earthquakeZoom, duration: 850
+        });
       }
     } catch (error) {
       if (requestId !== historicalEarthquakeDetailRequestId || controller.signal.aborted
@@ -2248,20 +2259,21 @@ if (layerId === "river") {
   }
 
   function focusSelectedEarthquake() {
+    if (!customization.controls.earthquakeFocus) return;
     const earthquakes = latestDataByTab.earthquake?.earthquakes ?? [];
     const selected = earthquakes.find((earthquake) => String(earthquake.id) === String(activeEarthquakeId)) ?? earthquakes[0];
     const coordinates = buildEarthquakeFocusCoordinates(selected);
     if (!coordinates.length) return;
     if (coordinates.length > 1) {
       weatherMap?.fitToCoordinates(coordinates, {
-        maxZoom: 7.4,
+        maxZoom: customization.controls.earthquakeZoom,
         followViewport: true,
         duration: 850
       });
       return;
     }
     weatherMap?.flyToLocation(coordinates[0], {
-      zoom: 7,
+      zoom: customization.controls.earthquakeZoom === 7.4 ? 7 : customization.controls.earthquakeZoom,
       followViewport: true,
       duration: 850
     });
@@ -2404,9 +2416,9 @@ if (layerId === "river") {
       displayData.lightning = lightningData;
     }
     if (tab.id === "radar") ensureLocationRadarTimeline(displayData);
-    const activeTemperatureSource = effectiveTemperatureSource(temperatureSource, earlyAccessEnabled);
+    const activeTemperatureSource = effectiveTemperatureSource(temperatureSource, hasTemperatureEstimationAccess());
     const localTemperature = tab.id === "amedas" ? localTemperatureController.update({
-      enabled: earlyAccessEnabled && temperatureEstimationEnabled && activeTemperatureSource === "meteoscope" && activeAmedasMetric === "temperature",
+      enabled: hasTemperatureEstimationAccess() && temperatureEstimationEnabled && activeTemperatureSource === "meteoscope" && activeAmedasMetric === "temperature",
       data, location: currentLocationInfo
     }) : null;
     const jmaTemperature = tab.id === "amedas" ? jmaTemperatureController.update({
@@ -3894,7 +3906,7 @@ if (layerId === "river") {
 
     locationWatchId = navigator.geolocation.watchPosition(
       (position) => {
-        const shouldFocus = !hasFocusedInitialLocation && Boolean(getPositionCoordinates(position));
+        const shouldFocus = !launchOptions.initialView && !hasFocusedInitialLocation && Boolean(getPositionCoordinates(position));
         applyCurrentPosition(position, { flyTo: shouldFocus }).catch((error) => {
           console.warn("[MeteoScope] current location watch update failed", error);
         });
@@ -3936,7 +3948,7 @@ if (layerId === "river") {
     const keepArea=previous.coordinates&&getDistanceMeters(previous.coordinates,coordinates)<LOCATION_RESOLVE_MIN_DISTANCE_METERS;
     currentLocationInfo={...(keepArea?previous:{status:"found",geographyStatus:"loading"}),coordinates,...fix};
     if (!shouldResolveCurrentLocation(coordinates, options.forceResolve)) {
-      if(activeTab==="amedas"&&effectiveTemperatureSource(temperatureSource,earlyAccessEnabled)!=="nearest")refreshAmedasPanel();
+      if(activeTab==="amedas"&&effectiveTemperatureSource(temperatureSource,hasTemperatureEstimationAccess())!=="nearest")refreshAmedasPanel();
       return;
     }
     refreshActivePanel();
@@ -4333,6 +4345,7 @@ if (layerId === "river") {
 
   function getSettingsState() {
     return {
+      customization,
       myAreas,
       currentLocation: currentLocationInfo,
       adminNoticePush: adminNoticePush.getState(),
@@ -4343,6 +4356,7 @@ if (layerId === "river") {
       observationColors: getObservationColors(),
       amedasChartDisplay,
       temperatureEstimationEnabled,
+      temperatureEstimationAllowed: hasTemperatureEstimationAccess(),
       temperatureSource,
       earthquakeDistributionRecentXmlVisible,
       earthquakeHistoryRecentEnabled,
@@ -4503,7 +4517,13 @@ if (layerId === "river") {
   }
 
   function start() {
-    weatherMap = createWeatherMap("map");
+    weatherMap = createWeatherMap("map", {
+      customization,
+      initialView: launchOptions.initialView,
+      onViewChange: view => {
+        if (customization.startup.viewport === "previous") storeCustomizationValue(LAST_VIEW_KEY, view);
+      }
+    });
     weatherMap.setCommunityReportDeleteHandler(async (reportID) => {
       await CommunityReportClient.remove(reportID);
       communityReports = communityReports.filter((report) => report.id !== reportID);
@@ -4828,6 +4848,16 @@ if (layerId === "river") {
     const legalConsent = setupLegalConsentModal({ onAccepted: startUserServices });
     setupSettingsModal({
       getState: getSettingsState,
+      getMapView: () => weatherMap?.getCameraView(),
+      onCustomizationChange: (group, patch) => {
+        customization = saveCustomization({ ...customization, [group]: { ...customization[group], ...patch } });
+        if (group === "startup") {
+          if (customization.startup.tab === "previous") storeCustomizationValue(LAST_TAB_KEY, activeTab);
+          if (customization.startup.viewport === "previous") storeCustomizationValue(LAST_VIEW_KEY, weatherMap?.getCameraView());
+        }
+        weatherMap?.setCustomization(customization);
+        document.dispatchEvent(new CustomEvent("meteoscope:customization-change", { detail: customization }));
+      },
       onSearchArea: searchSettingsAreas,
       onAddArea: addSettingsMyArea,
       onAddCurrentLocation: addCurrentLocationToMyAreas,
@@ -4840,6 +4870,7 @@ if (layerId === "river") {
       onTerrainLayerChange: setTerrainLayerSettings,
       onAmedasChartDisplayChange: setAmedasChartDisplay,
       onTemperatureSourceChange: source => {
+        if (source === "meteoscope" && !hasTemperatureEstimationAccess()) return;
         temperatureSource = saveTemperatureSource(source);
         temperatureEstimationEnabled = saveTemperatureEstimationEnabled(temperatureSource === "meteoscope");
         localTemperatureController.update({ enabled: false });
@@ -5019,11 +5050,10 @@ function buildCurrentLocationError(error) {
   };
 }
 
-function getLaunchOptions() {
+function getLaunchOptions(customization) {
   const params = new URLSearchParams(window.location.search);
   const tabParam = params.get("tab");
-  const initialTab = TABS.some((tab) => tab.id === tabParam) ? tabParam : "radar";
-  return { initialTab };
+  return resolveStartup(customization, tabParam);
 }
 
 function syncActiveTabToUrl(tabId) {

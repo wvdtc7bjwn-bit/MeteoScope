@@ -11,7 +11,7 @@ test("terms contain the moved precision notice, independent estimate attribution
   const review=buildLocalTemperatureTerms({english:false,review:true});assert.ok(!review.includes("data-temperature-terms-accept"));assert.ok(review.includes("data-temperature-terms-close"));
 });
 test("enable only follows confirmation; cancel remains off; disabling needs no confirmation; next enable prompts again",async()=>{
-  const state={earlyAccessEnabled:true,temperatureEstimationEnabled:false};let reply,prompts=0;const changes=[];
+  const state={earlyAccessEnabled:true,temperatureEstimationAllowed:true,temperatureEstimationEnabled:false};let reply,prompts=0;const changes=[];
   const toggle=createLocalTemperatureToggle({getState:()=>state,onChange:enabled=>{state.temperatureEstimationEnabled=enabled;changes.push(enabled);},confirm:()=>{prompts++;return new Promise(r=>reply=r);}});
   let pending=toggle();assert.equal(state.temperatureEstimationEnabled,false);assert.equal(changes.length,0);reply(false);assert.equal(await pending,false);
   pending=toggle();reply(true);assert.equal(await pending,true);assert.equal(state.temperatureEstimationEnabled,true);
@@ -19,7 +19,7 @@ test("enable only follows confirmation; cancel remains off; disabling needs no c
   pending=toggle();assert.equal(prompts,3);reply(false);await pending;assert.deepEqual(changes,[true,false]);
 });
 test("duplicate requests and loss of early access cannot enable the feature",async()=>{
-  const state={earlyAccessEnabled:true,temperatureEstimationEnabled:false};let reply,prompts=0,changes=0;
+  const state={earlyAccessEnabled:true,temperatureEstimationAllowed:true,temperatureEstimationEnabled:false};let reply,prompts=0,changes=0;
   const toggle=createLocalTemperatureToggle({getState:()=>state,onChange:()=>changes++,confirm:()=>{prompts++;return new Promise(r=>reply=r);}});
   const pending=toggle();assert.equal(await toggle(),false);assert.equal(prompts,1);
   state.earlyAccessEnabled=false;reply(true);assert.equal(await pending,false);assert.equal(changes,0);

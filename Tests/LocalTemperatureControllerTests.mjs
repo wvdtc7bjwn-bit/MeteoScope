@@ -65,9 +65,9 @@ test("fallback is explicitly observed, with station altitude and a prominent dis
 });
 test("early access gates custom estimation while source choices use the shared settings UI", async () => {
   const app = await readFile(new URL("../src/app.js", import.meta.url), "utf8");
-  assert.match(app, /enabled: earlyAccessEnabled && temperatureEstimationEnabled/);
+  assert.match(app, /enabled: hasTemperatureEstimationAccess\(\) && temperatureEstimationEnabled/);
   const settings = await readFile(new URL("../src/ui/settingsModal.js", import.meta.url), "utf8");
-  assert.match(settings, /estimation.disabled = !state.earlyAccessEnabled/);
+  assert.match(settings, /estimation.disabled = !temperatureAllowed/);
   assert.match(settings, /data-settings-temperature-source/);
 });
 

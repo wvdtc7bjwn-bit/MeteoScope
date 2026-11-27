@@ -18,8 +18,11 @@ export function saveTemperatureSource(value, storage) {
   try { (storage ?? globalThis.localStorage)?.setItem(KEY, source); } catch { /* Storage may be unavailable. */ }
   return source;
 }
-export function effectiveTemperatureSource(source, earlyAccessEnabled) {
-  return source === "meteoscope" && !earlyAccessEnabled ? "nearest" : normalizeTemperatureSource(source);
+export function canUseTemperatureEstimation(state) {
+  return state?.earlyAccessEnabled === true && state?.temperatureEstimationAllowed === true;
+}
+export function effectiveTemperatureSource(source, allowed) {
+  return source === "meteoscope" && allowed !== true ? "nearest" : normalizeTemperatureSource(source);
 }
 
 // Changing to another source while consent is pending invalidates that consent action.
@@ -31,11 +34,11 @@ export function createTemperatureSourceSelector({ getState, onChange, confirm })
     if (value === "meteoscope" && pending) return false;
     const token = ++generation;
     if (value === "meteoscope") {
-      if (!state.earlyAccessEnabled) return false;
+      if (!canUseTemperatureEstimation(state)) return false;
       if (!state.temperatureEstimationEnabled) {
         pending = true;
         try {
-          if (!await confirm() || token !== generation || !getState().earlyAccessEnabled) return false;
+          if (!await confirm() || token !== generation || !canUseTemperatureEstimation(getState())) return false;
         } finally { pending = false; }
       }
     }

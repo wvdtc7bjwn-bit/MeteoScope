@@ -1,9 +1,11 @@
 import { createWeatherApp } from "./app.js";
 import { setupRuntimeDiagnostics } from "./runtimeDiagnostics.js";
 import { applyWarningPalette } from "./warningMapColors.js";
+import { setupSegmentedPressFeedback } from "./ui/segmentedPress.js";
 
 applyWarningPalette(document.documentElement);
 setupRuntimeDiagnostics();
+setupSegmentedPressFeedback();
 registerAppServiceWorker();
 setupConnectionStatus();
 const app = createWeatherApp();

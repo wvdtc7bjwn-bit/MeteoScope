@@ -124,7 +124,7 @@ test("source preference migrates legacy opt-in, preserves explicit choice and ha
 });
 
 test("custom source requires consent and early access; pending consent cannot overwrite another source", async () => {
-  const state={earlyAccessEnabled:true,temperatureEstimationEnabled:false};let reply;const changes=[];
+  const state={earlyAccessEnabled:true,temperatureEstimationAllowed:true,temperatureEstimationEnabled:false};let reply;const changes=[];
   const select=createTemperatureSourceSelector({getState:()=>state,onChange:v=>changes.push(v),confirm:()=>new Promise(r=>reply=r)});
   let p=select("meteoscope");assert.equal(await select("meteoscope"),false);await select("jma");reply(true);assert.equal(await p,false);assert.deepEqual(changes,["jma"]);
   p=select("meteoscope");reply(false);assert.equal(await p,false);

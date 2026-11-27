@@ -24,12 +24,14 @@ export function setupMapUtilityReorder(actions) {
 
   const order = () => [...actions.querySelectorAll("button[id]")].map((button) => button.id);
   const apply = (ids) => normalizeTabOrder(ids, buttons).forEach((id) => actions.insertBefore(byId.get(id), hint));
+  let savedOrder;
   try {
-    apply(JSON.parse(view.localStorage.getItem(UTILITY_ORDER_STORAGE_KEY) ?? "null"));
+    savedOrder = normalizeTabOrder(JSON.parse(view.localStorage.getItem(UTILITY_ORDER_STORAGE_KEY) ?? "null"), buttons);
   } catch {
     // A malformed preference or blocked storage must not disable the menu.
-    apply([]);
+    savedOrder = normalizeTabOrder([], buttons);
   }
+  apply(savedOrder);
 
   let gesture = null;
   let timer = 0;
@@ -47,8 +49,9 @@ export function setupMapUtilityReorder(actions) {
     return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
   };
   const announceSaved = () => {
+    savedOrder = order();
     try {
-      view.localStorage.setItem(UTILITY_ORDER_STORAGE_KEY, JSON.stringify(order()));
+      view.localStorage.setItem(UTILITY_ORDER_STORAGE_KEY, JSON.stringify(savedOrder));
       status.textContent = "並び順を保存しました。";
     } catch {
       status.textContent = "並び順を変更しました。この端末では保存できません。";
@@ -249,5 +252,12 @@ export function setupMapUtilityReorder(actions) {
   view.addEventListener("pagehide", () => finish());
   doc.addEventListener("visibilitychange", () => { if (doc.hidden) finish(); });
 
-  return { cancel: () => finish() };
+  return { cancel: () => finish(), customize(menu) {
+    finish();
+    apply([...savedOrder.filter(id => menu.pinned.includes(id)), ...savedOrder.filter(id => !menu.pinned.includes(id))]);
+    buttons.forEach(button => {
+      // Keep permission-controlled hidden attributes independent of preferences.
+      button.dataset.customHidden = String(button.id !== "settings-button" && menu.hidden.includes(button.id));
+    });
+  } };
 }
