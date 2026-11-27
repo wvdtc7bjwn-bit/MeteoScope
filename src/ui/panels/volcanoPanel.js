@@ -136,22 +136,13 @@ function renderVolcanoList(state, render) {
   const selectedReport = reports.find((report) =>
     String(report.volcanoCode ?? report.code ?? "") === selectedCode
   );
-  const selectedBulletin = (selectedReport?.relatedReports ?? [])
-    .find((item) => String(item.id ?? "") === selectedBulletinId);
   render(`
-    ${selectedBulletin
-      ? ""
-      : selectedReport
-        ? `<div class="volcano-bulletin-detail-nav volcano-selection-nav">
-            <button type="button" data-volcano-clear-selection>${escapeHtml(localizeText("← 火山情報の見方"))}</button>
-            <span>${escapeHtml(localizeText("地図で選択中"))}</span>
-          </div>`
-        : `<section class="volcano-panel-intro">
-            <div>
-              <strong>${escapeHtml(localizeText("火山防災情報"))}</strong>
-              <span>${escapeHtml(localizeText("噴火警戒レベルと、必要な行動を確認できます。"))}</span>
-            </div>
-          </section>`}
+    ${!selectedReport ? `<section class="volcano-panel-intro">
+      <div>
+        <strong>${escapeHtml(localizeText("火山防災情報"))}</strong>
+        <span>${escapeHtml(localizeText("噴火警戒レベルと、必要な行動を確認できます。"))}</span>
+      </div>
+    </section>` : ""}
     <div class="volcano-report-list">
       ${selectedReport
         ? buildSelectedVolcanoDetail(selectedReport, selectedBulletinId)
@@ -184,61 +175,38 @@ function buildSelectedVolcanoDetail(report, selectedBulletinId = "") {
   const craterName = relatedReports.find((item) => item.craterName)?.craterName ?? "";
   const volcanoName = report.volcanoName ? localizeText(report.volcanoName) : localizeText("火山名不明");
   const localizedCraterName = craterName ? localizeText(craterName) : "";
-  const displayName = craterName && !volcanoName.includes(craterName)
-    ? `${volcanoName}${localizedCraterName ? ` (${localizedCraterName})` : ""}`
-    : volcanoName;
   const referenceLinks = buildVolcanoReferenceLinks(report);
-  const hasLongVolcanoName = Array.from(displayName).length >= 7;
   return `
     <article class="volcano-selected-detail level-${priority}">
-      <header class="volcano-selected-header${hasLongVolcanoName ? " is-long-name" : ""}">
-        <div>
-          <h2>${escapeHtml(displayName)}</h2>
-          <time>${escapeHtml(detailReport.reportTime ?? report.reportTime ?? localizeText("発表時刻不明"))}</time>
+      <section class="volcano-overview" aria-label="${escapeHtml(localizeText("現在の噴火警報・予報"))}">
+        <header class="volcano-selected-header volcano-status-heading">
+          <div class="volcano-status-copy">
+            <h2>${escapeHtml(volcanoName)}</h2>
+            ${craterName && !volcanoName.includes(craterName) ? `<span class="volcano-crater-name">${escapeHtml(localizedCraterName)}</span>` : ""}
+          </div>
+          <div class="volcano-status-value">
+            ${level > 0 ? `<span class="volcano-alert-level" role="img" aria-label="${escapeHtml(localizeText(`噴火警戒レベル${level}`))}"><small aria-hidden="true">${escapeHtml(localizeText("レベル"))}</small><b aria-hidden="true">${level}</b></span>` : `<span class="volcano-status-kind">${escapeHtml(localizeVolcanoText(detailReport.infoKind, localizeText("火山情報")))}</span>`}
+            <strong>${escapeHtml(restriction)}</strong>
+            ${referenceLinks}
+          </div>
+        </header>
+        <div class="volcano-overview-meta">
+          <span>${escapeHtml(localizeText("気象庁発表"))} <time>${escapeHtml(detailReport.reportTime ?? report.reportTime ?? localizeText("発表時刻不明"))}</time></span>
         </div>
-        ${referenceLinks}
-      </header>
+      </section>
       ${buildVolcanoSummaryNotice()}
-      <section class="volcano-alert-summary" aria-label="${escapeHtml(localizeText("現在の噴火警報・予報"))}">
-        <span>${level > 0 ? escapeHtml(localizeText(`噴火警戒レベル${level}`)) : escapeHtml(localizeVolcanoText(detailReport.infoKind, localizeText("火山情報")))}</span>
-        <strong>${escapeHtml(restriction)}</strong>
-      </section>
-      ${warningText ? `
-        <section class="volcano-detail-section">
-          <h3>${escapeHtml(localizeText("現在の警戒事項等"))}</h3>
-          ${formatVolcanoParagraphs(
-            warningText,
-            localizeText(levelGuide?.action ?? "発表内容は気象庁の原文で確認してください。")
-          )}
-        </section>` : ""}
-      ${detailReport.activity ? `
-        <section class="volcano-detail-section">
-          <h3>${escapeHtml(localizeText("火山活動の状況"))}</h3>
-          ${formatVolcanoParagraphs(
-            detailReport.activity,
-            "Detailed volcanic activity is available in the original JMA bulletin."
-          )}
-        </section>` : ""}
-      ${targetMunicipalities.length ? `
-        <section class="volcano-detail-section">
-          <h3>${escapeHtml(localizeText("対象市区町村"))}</h3>
-          ${buildVolcanoTargetMunicipalityList(targetMunicipalities)}
-        </section>` : ""}
-      ${detailReport.nextAdvisory ? `
-        <section class="volcano-detail-section volcano-next-advisory">
-          <h3>${escapeHtml(localizeText("次回の情報"))}</h3>
-          ${formatVolcanoParagraphs(
-            detailReport.nextAdvisory,
-            "The next bulletin schedule is available in the original JMA bulletin. Updates may be issued sooner if conditions change."
-          )}
-        </section>` : ""}
-      ${buildVolcanoOriginalSourceLink(detailReport.sourceUrl)}
-      <section class="volcano-detail-section volcano-history-section">
-        <h3>${escapeHtml(localizeText("関連する発表"))}</h3>
-        <div class="volcano-detail-history">
-          ${latestRelatedReports.map((item) => buildVolcanoHistoryItem(item, selectedBulletinId)).join("")}
-        </div>
-      </section>
+      ${buildVolcanoDetailSection("現在の警戒事項等", warningText ? formatVolcanoParagraphs(
+        warningText, localizeText(levelGuide?.action ?? "発表内容は気象庁の原文で確認してください。")
+      ) : "", { className: "volcano-safety-section" })}
+      ${buildVolcanoDetailSection("火山活動の状況", detailReport.activity ? formatVolcanoParagraphs(
+        detailReport.activity, "Detailed volcanic activity is available in the original JMA bulletin."
+      ) : "", { key: "activity" })}
+      ${buildVolcanoDetailSection("対象市区町村", targetMunicipalities.length ? buildVolcanoTargetMunicipalityList(targetMunicipalities) : "", { key: "municipalities" })}
+      ${buildVolcanoDetailSection("次回の情報", detailReport.nextAdvisory ? formatVolcanoParagraphs(
+        detailReport.nextAdvisory, "The next bulletin schedule is available in the original JMA bulletin. Updates may be issued sooner if conditions change."
+      ) : "", { key: "next", className: "volcano-next-advisory" })}
+      ${buildVolcanoDetailSection("関連する発表", `<div class="volcano-detail-history">${latestRelatedReports.map((item) => buildVolcanoHistoryItem(item, selectedBulletinId)).join("")}</div>`, { key: "history", count: latestRelatedReports.length })}
+      <div class="volcano-detail-links">${buildVolcanoOriginalSourceLink(detailReport.sourceUrl)}<button type="button" class="volcano-guide-link" data-volcano-clear-selection>${escapeHtml(localizeText("火山情報の見方"))}</button></div>
     </article>`;
 }
 
@@ -251,22 +219,16 @@ function buildVolcanoBulletinDetail(volcano, bulletin) {
     : volcanoName;
   const targetMunicipalities = getLatestVolcanoTargetMunicipalities(bulletin);
   const sections = [
-    bulletin.volcanoHeadline || bulletin.headline
-      ? `<section class="volcano-detail-section"><h3>${escapeHtml(localizeText("発表内容"))}</h3>${formatVolcanoParagraphs(bulletin.volcanoHeadline || bulletin.headline, "See the original JMA bulletin for the full announcement.")}</section>`
-      : "",
-    bulletin.activity
-      ? `<section class="volcano-detail-section"><h3>${escapeHtml(localizeText("火山活動の状況"))}</h3>${formatVolcanoParagraphs(bulletin.activity, "Detailed volcanic activity is available in the original JMA bulletin.")}</section>`
-      : "",
-    bulletin.prevention
-      ? `<section class="volcano-detail-section"><h3>${escapeHtml(localizeText("警戒事項等"))}</h3>${formatVolcanoParagraphs(bulletin.prevention, "Follow the current restrictions and safety instructions from JMA and local authorities.")}</section>`
-      : "",
-    targetMunicipalities.length
-      ? `<section class="volcano-detail-section"><h3>${escapeHtml(localizeText("対象市区町村"))}</h3>${buildVolcanoTargetMunicipalityList(targetMunicipalities)}</section>`
-      : "",
-    bulletin.nextAdvisory
-      ? `<section class="volcano-detail-section volcano-next-advisory"><h3>${escapeHtml(localizeText("次回の情報"))}</h3>${formatVolcanoParagraphs(bulletin.nextAdvisory, "The next bulletin schedule is available in the original JMA bulletin. Updates may be issued sooner if conditions change.")}</section>`
-      : ""
-  ].filter(Boolean).join("");
+    buildVolcanoDetailSection("発表内容", bulletin.volcanoHeadline || bulletin.headline
+      ? formatVolcanoParagraphs(bulletin.volcanoHeadline || bulletin.headline, "See the original JMA bulletin for the full announcement.") : ""),
+    buildVolcanoDetailSection("警戒事項等", bulletin.prevention
+      ? formatVolcanoParagraphs(bulletin.prevention, "Follow the current restrictions and safety instructions from JMA and local authorities.") : "", { className: "volcano-safety-section" }),
+    buildVolcanoDetailSection("火山活動の状況", bulletin.activity
+      ? formatVolcanoParagraphs(bulletin.activity, "Detailed volcanic activity is available in the original JMA bulletin.") : "", { key: "activity" }),
+    buildVolcanoDetailSection("対象市区町村", targetMunicipalities.length ? buildVolcanoTargetMunicipalityList(targetMunicipalities) : "", { key: "municipalities" }),
+    buildVolcanoDetailSection("次回の情報", bulletin.nextAdvisory
+      ? formatVolcanoParagraphs(bulletin.nextAdvisory, "The next bulletin schedule is available in the original JMA bulletin. Updates may be issued sooner if conditions change.") : "", { key: "next", className: "volcano-next-advisory" })
+  ].join("");
   return `
     <article class="volcano-selected-detail volcano-bulletin-detail">
       <div class="volcano-bulletin-detail-nav">
@@ -285,6 +247,16 @@ function buildVolcanoBulletinDetail(volcano, bulletin) {
       ${sections || `<section class="volcano-detail-section"><p>${escapeHtml(localizeText("この発表の本文は取得できませんでした。気象庁XML原文を確認してください。"))}</p></section>`}
       ${buildVolcanoOriginalSourceLink(bulletin.sourceUrl)}
     </article>`;
+}
+
+function buildVolcanoDetailSection(title, content, { key = "", className = "", count = null } = {}) {
+  if (!content) return "";
+  const heading = escapeHtml(localizeText(title));
+  if (!key) return `<section class="volcano-detail-section ${escapeHtml(className)}"><h3>${heading}</h3>${content}</section>`;
+  return `<details class="volcano-detail-section volcano-expandable-section ${escapeHtml(className)}" data-volcano-section="${escapeHtml(key)}">
+    <summary>${heading}${count !== null ? `<span class="volcano-section-count">${count}</span>` : ""}<span class="volcano-section-chevron" aria-hidden="true">›</span></summary>
+    <div class="volcano-section-body">${content}</div>
+  </details>`;
 }
 
 function buildVolcanoSummaryNotice() {

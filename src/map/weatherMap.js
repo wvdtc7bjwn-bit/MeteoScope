@@ -82,6 +82,7 @@ import { formatCommunityReportTemperature } from "../domain/communityReportForma
 import { getRecoloredEstimatedIntensityImageData } from "../jma/estimatedIntensity.js";
 import {
   getVolcanoAshfallLevel,
+  getVolcanoAshfallAreasForDisplay,
   VOLCANO_SMALL_CINDERS_STYLE
 } from "../volcanoAshfall.js";
 import { WORLD_TYPHOON_MODELS, isWorldTyphoonControlMember } from "../worldTyphoon.js";
@@ -154,14 +155,14 @@ const HYPOCENTER_CROSS_PAINT = {
 };
 let jma2001WaveDistanceCalculator = null;
 let jma2001WaveDistanceLoadPromise = null;
-const SAMPLE_LAYERS = ["earthquake-coordinate-range", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano", "sample-label"];
+const SAMPLE_LAYERS = ["earthquake-coordinate-range", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line", "sample-line-dashed", "sample-circle", "sample-tsunami-coastal", "hypocenter-distribution-count", "earthquake-area-intensity-marker", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-wind-arrow", "sample-cross", "sample-volcano-selection", "sample-volcano-hit", "sample-volcano", "sample-volcano-label", "sample-label"];
 const AMEDAS_INTERACTIVE_LAYERS = ["sample-circle", "sample-wind-arrow", AMEDAS_DOT_LAYER_ID, AMEDAS_MORPH_LAYER_ID, "sample-amedas-value", "sample-label"];
 const AMEDAS_VALUE_FILTER = ["all",
   ["==", ["geometry-type"], "Point"],
   ["==", ["get", "markerType"], "amedas"],
   ["has", "amedasValueLabel"]
 ];
-const EARTHQUAKE_INTERACTIVE_LAYERS = [EEW_AREA_FILL_LAYER_ID, "sample-circle", "sample-tsunami-coastal", "sample-cross", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-volcano", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line"];
+const EARTHQUAKE_INTERACTIVE_LAYERS = [EEW_AREA_FILL_LAYER_ID, "sample-circle", "sample-tsunami-coastal", "sample-cross", "earthquake-station-intensity-marker", "sample-tsunami-offshore", "sample-volcano-hit", "sample-fill", "sample-tsunami-area-fill", "sample-line", "sample-tsunami-area-line"];
 const TSUNAMI_BLINK_INTERVAL_MS = 1800;
 const TSUNAMI_DIMMED_OPACITY_FACTOR = 0.38;
 const EARTHQUAKE_STATION_RADIUS = 10;
@@ -441,9 +442,9 @@ const MAP_THEME_COLORS = {
     plateTransform: "#b77aff",
     plateOther: "#41c7b5",
     plateDepthLabelHalo: "rgba(5, 9, 20, 0.9)",
-    volcanoLevel1: "#f0f0f8",
-    volcanoBaseHalo: "rgba(5, 9, 20, 0.42)",
-    volcanoBaseHaloWidth: 0.65
+    volcanoLevel1: "#c6d1dc",
+    volcanoBaseHalo: "rgba(5, 9, 20, 0.9)",
+    volcanoBaseHaloWidth: 1
   },
   light: {
     background: "#e3edf6",
@@ -467,8 +468,8 @@ const MAP_THEME_COLORS = {
     plateOther: "#148b7b",
     plateDepthLabelHalo: "rgba(248, 252, 255, 0.94)",
     volcanoLevel1: "#8fa5b9",
-    volcanoBaseHalo: "rgba(0, 0, 0, 0)",
-    volcanoBaseHaloWidth: 0
+    volcanoBaseHalo: "rgba(255, 255, 255, 0.9)",
+    volcanoBaseHaloWidth: 0.75
   }
 };
 
@@ -1942,6 +1943,31 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       }
     });
 
+    // A quiet ring identifies the same volcano shown in the summary panel.
+    map.addLayer({
+      id: "sample-volcano-selection",
+      type: "circle",
+      source: SAMPLE_SOURCE_ID,
+      filter: ["all", ["==", ["get", "markerType"], "volcano"], ["==", ["get", "selected"], true]],
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 4, 16, 8, 19, 11, 22],
+        "circle-color": (MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark).background,
+        "circle-opacity": 0.72,
+        "circle-stroke-width": 2,
+        "circle-stroke-color": activeTheme === "light" ? "#167997" : "#61d7ff",
+        "circle-stroke-opacity": 0.95
+      }
+    });
+    // Keep the tap area generous even though the visible mountain is compact.
+    // Only this layer handles volcano taps, preventing duplicate selection events.
+    map.addLayer({
+      id: "sample-volcano-hit",
+      type: "circle",
+      source: SAMPLE_SOURCE_ID,
+      filter: ["all", ["==", ["geometry-type"], "Point"], ["==", ["get", "markerType"], "volcano"]],
+      layout: { "circle-sort-key": ["get", "sortKey"] },
+      paint: { "circle-radius": 16, "circle-opacity": 0 }
+    });
     map.addLayer({
       id: "sample-volcano",
       type: "symbol",
@@ -1957,9 +1983,36 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
       },
       paint: {
         "icon-color": buildVolcanoIconColorExpression(activeTheme),
-        "icon-opacity": 0.96,
+        "icon-opacity": ["case", ["any", ["==", ["get", "selected"], true], [">=", ["get", "level"], 2]], 1, 0.82],
         "icon-halo-color": (MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark).volcanoBaseHalo,
         "icon-halo-width": (MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark).volcanoBaseHaloWidth
+      }
+    });
+
+    map.addLayer({
+      id: "sample-volcano-label",
+      type: "symbol",
+      source: SAMPLE_SOURCE_ID,
+      filter: ["all", ["==", ["geometry-type"], "Point"], ["==", ["get", "markerType"], "volcano"]],
+      layout: {
+        "text-field": ["step", ["zoom"], ["case", ["any", ["==", ["get", "selected"], true], [">=", ["get", "level"], 2]], ["get", "volcanoName"], ""], 7, ["get", "volcanoName"]],
+        "text-font": ["Noto Sans JP"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 4, 11, 9, 13],
+        "text-anchor": "top",
+        "text-offset": [0, 1.55],
+        "text-max-width": 100,
+        "text-writing-mode": ["horizontal"],
+        "text-padding": 5,
+        "text-allow-overlap": false,
+        "text-ignore-placement": false,
+        // Placement uses ascending keys; selection gets first choice of label space.
+        "symbol-sort-key": ["-", 0, ["get", "sortKey"]]
+      },
+      paint: {
+        "text-color": (MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark).typhoonLabel,
+        "text-halo-color": (MAP_THEME_COLORS[activeTheme] ?? MAP_THEME_COLORS.dark).typhoonLabelHalo,
+        "text-halo-width": 2,
+        "text-halo-blur": 0.4
       }
     });
 
@@ -2662,7 +2715,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           return;
         }
         const volcanoCode = String(feature?.properties?.volcanoCode ?? "").trim();
-        if (layerID === "sample-volcano" && volcanoCode) {
+        if (layerID === "sample-volcano-hit" && volcanoCode) {
           window.dispatchEvent(new CustomEvent("volcano-select", {
             detail: { volcanoCode }
           }));
@@ -2687,12 +2740,12 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           "earthquake-distribution",
           event.lngLat,
           popup,
-          (layerID === "sample-volcano" || feature?.properties?.markerType === "ashfall") ? "volcano" : ""
+          (layerID === "sample-volcano-hit" || feature?.properties?.markerType === "ashfall") ? "volcano" : ""
         );
       });
       map.on("mouseenter", layerID, (event) => {
         if (activeMode === "earthquake" && (
-          layerID === "sample-volcano"
+          layerID === "sample-volcano-hit"
           || event.features?.some((feature) => feature?.properties?.tideStationCode)
           || event.features?.some((feature) =>
             feature?.properties?.popup && (layerID !== "sample-fill" || feature?.properties?.markerType === "ashfall")
@@ -3870,6 +3923,10 @@ function applyMapTheme(map, theme) {
     ["sample-volcano", "icon-color", buildVolcanoIconColorExpression(theme)],
     ["sample-volcano", "icon-halo-color", colors.volcanoBaseHalo],
     ["sample-volcano", "icon-halo-width", colors.volcanoBaseHaloWidth],
+    ["sample-volcano-selection", "circle-color", colors.background],
+    ["sample-volcano-selection", "circle-stroke-color", theme === "light" ? "#167997" : "#61d7ff"],
+    ["sample-volcano-label", "text-color", colors.typhoonLabel],
+    ["sample-volcano-label", "text-halo-color", colors.typhoonLabelHalo],
     [JSHIS_MAJOR_FAULT_FILL_LAYER_ID, "fill-color", colors.activeFaultFill],
     [JSHIS_MAJOR_FAULT_LINE_LAYER_ID, "line-color", colors.activeFault],
     [GSJ_ACTIVE_FAULT_LINE_LAYER_ID, "line-color", colors.activeFault],
@@ -3889,18 +3946,27 @@ function applyMapTheme(map, theme) {
 }
 
 function buildVolcanoIconSizeExpression(theme) {
-  const levelOneScale = theme === "light" ? 1.15 : 1;
-  return [
-    "interpolate",
-    ["linear"],
-    ["zoom"],
-    4,
-    ["case", buildVolcanoLevelOneCondition(), 0.34 * levelOneScale, 0.34],
-    8,
-    ["case", buildVolcanoLevelOneCondition(), 0.46 * levelOneScale, 0.46],
-    11,
-    ["case", buildVolcanoLevelOneCondition(), 0.56 * levelOneScale, 0.56]
+  const levelOneScale = theme === "light" ? 1.08 : 1;
+  const sizeAtZoom = (normal, alert, selected) => [
+    "case", ["==", ["get", "selected"], true], selected,
+    [">=", ["get", "level"], 2], alert,
+    buildVolcanoLevelOneCondition(), normal * levelOneScale, normal
   ];
+  return [
+    "interpolate", ["linear"], ["zoom"],
+    4, sizeAtZoom(0.23, 0.3, 0.37),
+    8, sizeAtZoom(0.32, 0.38, 0.44),
+    11, sizeAtZoom(0.4, 0.46, 0.52)
+  ];
+}
+
+// Compact map labels keep parenthetical peaks readable in the map glyph font.
+// Full bulletin names are retained in the detail and summary panels.
+function formatVolcanoMapName(name) {
+  return localizeText(String(name || "火山名不明"))
+    .replace(/\s*[（(]\s*/gu, "・")
+    .replace(/\s*[）)]/gu, "")
+    .trim();
 }
 
 function buildVolcanoIconColorExpression(theme) {
@@ -3956,9 +4022,11 @@ function setupVolcanoMarkerImage(map) {
   context.clearRect(0, 0, size, size);
   context.fillStyle = "#ffffff";
   context.beginPath();
-  context.moveTo(32, 4);
-  context.lineTo(60, 57);
-  context.lineTo(4, 57);
+  context.moveTo(5, 54);
+  context.lineTo(25, 13);
+  context.lineTo(32, 21);
+  context.lineTo(39, 13);
+  context.lineTo(59, 54);
   context.closePath();
   context.fill();
 
@@ -5381,7 +5449,7 @@ function createEarthquakeFeatures(data) {
       Number(data?.selectedVolcanoAshForecastIndex) || 0
     ));
     const ashForecast = ashForecasts[ashForecastIndex];
-    const ashFeatures = ashForecast?.areas.map((area) => ({
+    const ashFeatures = getVolcanoAshfallAreasForDisplay(ashForecast).map((area) => ({
       type: "Feature",
       geometry: {
         type: "Polygon",
@@ -5396,7 +5464,7 @@ function createEarthquakeFeatures(data) {
         markerType: "ashfall",
         volcanoCode: activeVolcanoCode
       }
-    })) ?? [];
+    }));
     const volcanoFeatures = reports
       .sort((left, right) => (Number(left.alertPriority || left.level) || 0) - (Number(right.alertPriority || right.level) || 0))
       .flatMap((report) => {
@@ -5412,10 +5480,12 @@ function createEarthquakeFeatures(data) {
           strokeWidth: 1.5,
           markerType: "volcano",
           level: priority,
+          selected: String(report.volcanoCode ?? report.code ?? "") === activeVolcanoCode,
+          volcanoName: formatVolcanoMapName(report.volcanoName),
           volcanoCode: String(report.volcanoCode ?? report.code ?? ""),
           markerScaleMode: "fixed",
           radius: 7 + Math.max(0, level - 1),
-          sortKey: 100 + priority,
+          sortKey: (String(report.volcanoCode ?? report.code ?? "") === activeVolcanoCode ? 1000 : 100) + priority,
           label: ""
         }
       }];

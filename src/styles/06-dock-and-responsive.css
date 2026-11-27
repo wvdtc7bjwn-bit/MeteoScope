@@ -430,7 +430,7 @@
   .mobile-weather-control svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .mobile-weather-control:disabled { opacity: 0.35; cursor: default; }
   .mobile-weather-control[aria-pressed="true"] { color: var(--accent); border-color: currentColor; }
-  .mobile-weather-control:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .mobile-weather-control:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 1px; }
   .mobile-weather-readout > .mobile-dock-loading-status { min-width: 0; }
 
   .mobile-dock-loading-status {
@@ -664,23 +664,23 @@
 
   .mobile-dock-typhoon {
     display: grid;
-    grid-template-rows: 34px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     align-content: center;
     gap: 5px;
   }
 
   .mobile-dock-typhoon-main {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 10px;
+    grid-template-rows: minmax(0, 1fr) auto;
+    align-content: center;
+    gap: 5px;
     min-width: 0;
   }
 
   .mobile-dock-typhoon-switch {
     flex: 0 0 auto;
-    min-width: 52px;
-    padding: 6px 12px;
+    min-width: 42px;
+    padding: 3px 9px;
     border: 1px solid rgba(211, 239, 255, 0.34);
     border-radius: 999px;
     color: rgba(232, 246, 255, 0.9);
@@ -708,8 +708,8 @@
     min-width: 0;
     overflow: hidden;
     color: #f5fbff;
-    font-size: 14px;
-    font-weight: 950;
+    font-size: 18px;
+    font-weight: 800;
     line-height: 1.18;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -724,7 +724,7 @@
 
   .mobile-dock-typhoon-title-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 52px;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
     gap: 7px;
     min-width: 0;
@@ -737,9 +737,9 @@
 
   .mobile-dock-typhoon-classifications {
     display: inline-flex;
-    flex-direction: column;
-    width: 52px;
-    align-items: stretch;
+    flex-direction: row;
+    width: auto;
+    align-items: center;
     gap: 3px;
   }
 
@@ -752,7 +752,7 @@
     border: 1px solid rgba(255, 151, 139, 0.34);
     border-radius: 7px;
     color: #fff;
-    font-size: 8.5px;
+    font-size: 9px;
     font-weight: 900;
     line-height: 1;
     white-space: nowrap;
@@ -795,17 +795,8 @@
 
   .mobile-dock-typhoon-values {
     display: grid;
-    grid-template-columns: repeat(2, 62px);
-    gap: 5px;
-  }
-
-  .mobile-dock-typhoon-values .mobile-dock-typhoon-switch {
-    min-width: 0;
-    padding-inline: 5px;
-  }
-
-  .mobile-dock-typhoon-values.has-switch {
-    grid-template-columns: 62px 62px 40px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
   }
 
   .mobile-dock-typhoon-values span {
@@ -813,21 +804,19 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 2px;
+    gap: 3px;
     min-width: 0;
-    padding: 6px 0;
-    border: 1px solid rgba(199, 224, 248, 0.16);
-    border-radius: 12px;
+    padding: 4px 2px;
+    border: 1px solid rgba(199, 224, 248, .12);
+    border-radius: 8px;
     color: #f4fbff;
     overflow: hidden;
-    font-size: clamp(10.5px, 3.1vw, 11.5px);
-    font-weight: 950;
+    font-size: 13px;
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.025em;
     line-height: 1.1;
-    text-align: center;
     white-space: nowrap;
-    background: rgba(255, 255, 255, 0.045);
+    background: rgba(255, 255, 255, .035);
   }
 
   .mobile-dock-typhoon-values em {
@@ -968,7 +957,7 @@
     grid-template-rows: 26px 66px;
   }
 
-  .mobile-dock-earthquake-summary-dots {
+  .mobile-dock-summary-dots {
     position: absolute;
     right: 84px;
     bottom: 0;
@@ -977,7 +966,7 @@
     pointer-events: auto;
   }
 
-  .mobile-dock-earthquake-summary-dots button {
+  .mobile-dock-summary-dots button {
     width: 10px;
     height: 2px;
     padding: 0;
@@ -988,11 +977,14 @@
     transition: width 180ms ease, background-color 180ms ease;
   }
 
-  .mobile-dock-earthquake-summary-dots button.active {
+  .mobile-dock-summary-dots button.active {
     width: 16px;
     background: #61d7ff;
   }
 
+  .mobile-dock-summary-dots button:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 3px; }
+
+  .mobile-dock-typhoon-page-heading > span,
   .mobile-dock-tsunami-heading,
   .mobile-tide-empty-heading {
     display: grid;
@@ -1408,6 +1400,8 @@
 
   .is-event-summary .mobile-dock-earthquake-long-period {
     flex: 0 0 auto;
+    align-self: center;
+    line-height: 16px;
     white-space: nowrap;
   }
 
@@ -1543,151 +1537,120 @@
     min-width: 0;
   }
 
-  .mobile-dock-typhoon-mode {
-    width: 100%;
+  .mobile-dock-typhoon-carousel { position: relative; height: 100%; min-height: 0; }
+  .mobile-dock-typhoon-viewport { position: relative; height: 100%; overflow: hidden; margin-inline: -18px; }
+  .mobile-dock-typhoon-track {
+    display: flex;
+    width: 200%;
+    height: 100%;
+    transform: translate3d(calc(var(--mobile-typhoon-summary-position, 0%) + var(--mobile-summary-drag-x, 0px)), 0, 0);
+    transition: transform 360ms cubic-bezier(.22, 1, .36, 1);
+    contain: layout paint style;
   }
-
-  .mobile-dock-typhoon-world {
-    grid-template-rows: 34px 18px 36px;
-    gap: 2px;
-    padding-top: 5px;
+  .is-horizontal-swiping .mobile-dock-typhoon-track { transition: none; }
+  .mobile-dock-typhoon-page {
+    flex: 0 0 50%;
+    width: 50%;
+    height: 100%;
+    min-width: 0;
+    padding: 1px 18px 4px;
     box-sizing: border-box;
+    display: grid;
+    grid-template-rows: 22px minmax(0, 1fr);
+    gap: 3px;
   }
+  .mobile-dock-typhoon-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; font-weight: 700; }
+  .mobile-dock-typhoon-page-heading > span { height: 22px; }
+  .mobile-dock-typhoon-page-heading .mobile-dock-typhoon-switch { font-size: 10px; line-height: 1.1; min-height: 22px; }
+  .mobile-dock-typhoon-page-heading > small { font-size: 10px; font-weight: 500; }
+  .mobile-dock-typhoon-page .mobile-dock-typhoon { height: 100%; min-height: 0; padding: 0; }
+  .mobile-dock-typhoon-page .mobile-dock-typhoon-world { grid-template-rows: 24px minmax(0, 1fr); gap: 4px; }
+  @media (prefers-reduced-motion: reduce) { .mobile-dock-typhoon-track { transition: none; } }
 
   .mobile-dock-world-model-toggles {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 3px;
-    width: 83.333%;
-    margin-inline: auto;
+    gap: 4px;
+    width: 100%;
     min-width: 0;
-    height: 18px;
   }
 
   .mobile-dock-world-model-toggle {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 21px;
+    display: flex;
     align-items: center;
+    justify-content: center;
     gap: 3px;
     min-width: 0;
-    grid-template-columns: minmax(0, 1fr) 15px;
-    min-height: 18px;
-    padding: 1px 2px 1px 4px;
-    border: 1px solid rgba(199, 224, 248, 0.2);
+    min-height: 24px;
+    padding: 2px;
+    border: 1px solid rgba(199, 224, 248, .2);
     border-radius: 999px;
-    color: rgba(211, 228, 244, 0.68);
+    color: rgba(211, 228, 244, .68);
     font: inherit;
-    background: rgba(255, 255, 255, 0.035);
+    background: rgba(255, 255, 255, .035);
     cursor: pointer;
     touch-action: manipulation;
   }
 
   .mobile-dock-world-model-toggle > span {
-    overflow: hidden;
-    font-size: 6.5px;
-    font-weight: 900;
-    line-height: 1;
-    text-overflow: ellipsis;
+    font-size: clamp(9px, 2.35vw, 11px);
+    font-weight: 700;
+    line-height: 1.1;
     white-space: nowrap;
   }
 
   .mobile-dock-world-model-toggle > i {
-    position: relative;
-    display: block;
-    width: 15px;
-    height: 9px;
-    border-radius: 999px;
-    background: rgba(159, 179, 200, 0.3);
-    transition: background-color 180ms ease;
-  }
-
-  .mobile-dock-world-model-toggle > i::after {
-    content: "";
-    position: absolute;
-    top: 1.5px;
-    left: 1.5px;
-    width: 6px;
-    height: 6px;
+    order: -1;
+    flex: 0 0 5px;
+    width: 5px;
+    height: 5px;
+    box-sizing: border-box;
+    border: 1px solid currentColor;
     border-radius: 50%;
-    background: #d7e3ed;
-    transform: translateX(0);
-    transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), background-color 180ms ease;
   }
 
   .mobile-dock-world-model-toggle[aria-pressed="true"] {
     border-color: var(--world-model-color, #38bdf8);
     color: var(--world-model-color, #38bdf8);
-    background: rgba(39, 154, 219, 0.14);
-    box-shadow: inset 0 -1px 0 var(--world-model-color, #38bdf8);
+    background: rgba(39, 154, 219, .14);
   }
 
   .mobile-dock-world-model-toggle[aria-pressed="true"] > i {
+    border-color: var(--world-model-color, #38bdf8);
     background: var(--world-model-color, #38bdf8);
   }
 
-  .mobile-dock-world-model-toggle[aria-pressed="true"] > i::after {
-    background: #ffffff;
-    transform: translateX(6px);
+  .mobile-dock-world-model-toggle:focus-visible {
+    outline: 2px solid var(--accent, #7dd3fc);
+    outline-offset: 2px;
   }
 
   .mobile-dock-world-time-control {
     position: relative;
     min-width: 0;
-    height: 36px;
-    color: rgba(218, 233, 247, 0.78);
-    font-size: 8.5px;
-    font-weight: 900;
-    line-height: 1;
+    display: grid;
+    height: 100%;
+    min-height: 0;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
   }
 
   .mobile-dock-world-time-control.is-empty {
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 12px;
   }
 
   .mobile-dock-world-time-control .weather-time-timeline {
-    width: calc(100% - 68px);
-    height: 36px;
-    margin: 0 34px;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
   }
 
-  .mobile-dock-world-time-control .mobile-dock-date {
-    left: 0;
-    width: 30px;
-  }
-
-  .mobile-dock-world-time-control .weather-time-labels {
-    height: 17px;
-  }
-
-  .mobile-dock-world-time-control .weather-time-labels span {
-    max-width: 48px;
-    font-size: 9px;
-  }
-
-  .mobile-dock-world-time-control .weather-time-labels span.is-current {
-    padding: 2px 4px;
-  }
-
-  .mobile-dock-world-time-control .weather-time-ticks {
-    top: 20px;
-    bottom: 1px;
-  }
-
-  .mobile-dock-world-time-control .weather-time-ticks span {
-    width: 2px;
-    height: 11px;
-  }
-
-  .mobile-dock-world-time-control .weather-time-ticks span.major {
-    height: 20px;
-  }
-
-  .mobile-dock-world-time-control .weather-time-active-marker {
-    top: 15px;
-    bottom: 1px;
-    width: 6px;
+  @media (max-width: 360px) {
+    .mobile-dock-world-model-toggle > i { display: none; }
   }
 
   .mobile-dock-typhoon-empty {
@@ -2076,34 +2039,34 @@
     border-radius: 4px;
   }
 
-  .mobile-dock-radar .weather-time-labels {
+  .mobile-weather-timeline-axis .weather-time-labels {
     height: 17px;
   }
 
-  .mobile-dock-radar .weather-time-labels span {
+  .mobile-weather-timeline-axis .weather-time-labels span {
     max-width: 52px;
     font-size: 9px;
   }
 
-  .mobile-dock-radar .weather-time-labels span.is-current {
+  .mobile-weather-timeline-axis .weather-time-labels span.is-current {
     padding: 2px 4px;
   }
 
-  .mobile-dock-radar .weather-time-ticks {
+  .mobile-weather-timeline-axis .weather-time-ticks {
     top: 16px;
     bottom: 1px;
   }
 
-  .mobile-dock-radar .weather-time-ticks span {
+  .mobile-weather-timeline-axis .weather-time-ticks span {
     width: 2px;
     height: 11px;
   }
 
-  .mobile-dock-radar .weather-time-ticks span.major {
+  .mobile-weather-timeline-axis .weather-time-ticks span.major {
     height: 16px;
   }
 
-  .mobile-dock-radar .weather-time-active-marker {
+  .mobile-weather-timeline-axis .weather-time-active-marker {
     top: 20px;
     bottom: 1px;
     width: 6px;

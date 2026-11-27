@@ -26,7 +26,11 @@ export function getMobileWeatherFocusSelector(root) {
     const action = active.getAttribute(attribute);
     if (["prev", "next", "play", "latest"].includes(action)) return `[${attribute}="${action}"]`;
   }
-  for (const attribute of ["data-mobile-radar-slider", "data-mobile-lightning-slider", "data-mobile-weather-distribution-slider", "data-mobile-weather-chart-slider", "data-mobile-weather-satellite-slider"]) {
+  for (const attribute of ["data-world-typhoon-model-toggle"]) {
+    const value = active.getAttribute(attribute);
+    if (value && /^[-a-z0-9]+$/.test(value)) return `[${attribute}="${value}"]`;
+  }
+  for (const attribute of ["data-mobile-radar-slider", "data-mobile-lightning-slider", "data-mobile-weather-distribution-slider", "data-mobile-weather-chart-slider", "data-mobile-weather-satellite-slider", "data-world-typhoon-time-slider"]) {
     if (active.hasAttribute(attribute)) return `[${attribute}]`;
   }
   return "";

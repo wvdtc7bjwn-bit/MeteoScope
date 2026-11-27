@@ -79,6 +79,7 @@ import {
 } from "../jma/volcanoXml.js";
 import {
   getVolcanoAshfallLegendItems,
+  getVolcanoAshForecastLabel,
   VOLCANO_SMALL_CINDERS_STYLE
 } from "../volcanoAshfall.js";
 import { findLatestRadarObservationIndex } from "../jma/radar.js";
@@ -1227,10 +1228,26 @@ export function setupTyphoonSelector({ onChange }) {
 export function setupTyphoonForecastModeControls({ onChange, onModelToggle, onTimeChange }) {
   const root = document.getElementById("mobile-context-dock");
   if (!root) return;
+  let modeCommitTimer = 0;
   const selectMode = (mode) => {
     if (!["jma", "world"].includes(mode)) return;
-    onChange?.(mode);
+    const changed = root.dataset.mobileTyphoonSummaryPage !== mode;
+    applyMobileTyphoonSummaryPage(root, mode);
+    if (!changed) return;
+    window.clearTimeout(modeCommitTimer);
+    modeCommitTimer = window.setTimeout(() => {
+      modeCommitTimer = 0;
+      if (root.dataset.tab === "typhoon" && root.dataset.mobileTyphoonSummaryPage === mode) onChange?.(mode);
+    }, 360);
   };
+  root.addEventListener("keydown", (event) => {
+    if (root.dataset.tab !== "typhoon") return;
+    if (event.target instanceof Element && event.target.closest("[data-mobile-dock-control]")) return;
+    if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    selectMode(event.key === "ArrowRight" ? "world" : "jma");
+  });
   root.addEventListener("click", (event) => {
     if (!(event.target instanceof Element)) return;
     const modelToggle = event.target.closest("[data-world-typhoon-model-toggle]");
@@ -1248,7 +1265,10 @@ export function setupTyphoonForecastModeControls({ onChange, onModelToggle, onTi
     if (root.dataset.tab !== "typhoon") return;
     const deltaX = Number(event.detail?.deltaX) || 0;
     const velocityX = Number(event.detail?.velocityX) || 0;
-    if (Math.abs(deltaX) < 36 && Math.abs(velocityX) < 0.35) return;
+    if (Math.abs(deltaX) < 36 && Math.abs(velocityX) < 0.35) {
+      applyMobileTyphoonSummaryPage(root, root.dataset.mobileTyphoonSummaryPage);
+      return;
+    }
     const direction = Math.abs(velocityX) >= 0.35 ? velocityX : deltaX;
     const buttons = [...root.querySelectorAll("[data-typhoon-forecast-mode]")];
     const activeIndex = Math.max(0, buttons.findIndex((button) => button.getAttribute("aria-pressed") === "true"));
@@ -1269,6 +1289,21 @@ export function setupTyphoonForecastModeControls({ onChange, onModelToggle, onTi
     target instanceof HTMLInputElement
     && target.matches("[data-world-typhoon-time-slider]")
   );
+  const updateTimeReadout = (slider, validTime) => {
+    const page = slider.closest(".mobile-dock-typhoon-page");
+    const dateElement = page?.querySelector("[data-world-typhoon-time-date]");
+    const timeElement = page?.querySelector("[data-world-typhoon-time]");
+    const fullTime = formatWorldForecastTime(validTime);
+    if (dateElement) {
+      dateElement.dateTime = validTime;
+      dateElement.textContent = compactWeatherDateLabel(fullTime);
+    }
+    if (timeElement) {
+      timeElement.textContent = compactWeatherTimeLabel(fullTime);
+      timeElement.title = fullTime;
+    }
+    slider.setAttribute("aria-valuetext", fullTime);
+  };
   const updateTimePresentation = (slider, value, { updateTimeline = true } = {}) => {
     const times = parseJsonArray(slider.dataset.worldTyphoonTimes);
     const index = clampIndex(value, times.length);
@@ -1277,13 +1312,7 @@ export function setupTyphoonForecastModeControls({ onChange, onModelToggle, onTi
     const timeline = slider.closest(".weather-time-timeline");
     if (updateTimeline) updateWeatherTimelinePosition(timeline, index);
     syncWeatherTimelineActiveTick(timeline, index);
-    const dateElement = slider.closest(".mobile-dock-world-time-control")
-      ?.querySelector("[data-world-typhoon-time-date]");
-    if (dateElement) {
-      dateElement.dateTime = validTime;
-      dateElement.textContent = compactWeatherDateLabel(formatWorldForecastTime(validTime));
-    }
-    slider.setAttribute("aria-valuetext", formatWorldForecastTime(validTime));
+    updateTimeReadout(slider, validTime);
     return validTime;
   };
   const previewTimeSlider = (slider, clientX) => {
@@ -1305,7 +1334,10 @@ export function setupTyphoonForecastModeControls({ onChange, onModelToggle, onTi
       parseJsonArray(slider.dataset.worldTyphoonTimes),
       fractionalIndex
     );
-    if (previewTime) onTimeChange?.(previewTime);
+    if (previewTime) {
+      updateTimeReadout(slider, previewTime);
+      onTimeChange?.(previewTime);
+    }
   };
   const scheduleTimeSliderPreview = (slider, clientX) => {
     activeTimePointerX = clientX;
@@ -1689,6 +1721,9 @@ export function setupEarthquakeSelector({
     const label = slider.closest(".mobile-dock-volcano-forecast")?.querySelector("strong");
     if (label && forecastTime) label.textContent = forecastTime;
     if (forecastTime) slider.setAttribute("aria-valuetext", forecastTime);
+    slider.closest(".volcano-ash-timeline")?.querySelectorAll(".volcano-ash-timeline-labels time").forEach((label, position) => {
+      label.classList.toggle("active", position === index);
+    });
     onVolcanoAshForecastChange?.(index);
   };
 
@@ -1827,7 +1862,7 @@ function buildDescription(tab, state) {
     if (state.earthquakeContentMode === "volcano" || state.data?.earthquakeContentMode === "volcano") {
       if (state.status === "loading") return "気象庁防災情報XMLから火山情報を取得中です。";
       if (state.status === "error") return "火山情報を取得できませんでした。前回取得した情報の最新性を確認できていません。";
-      return "気象庁発表の噴火警報・予報、解説情報、観測報、降灰予報を表示しています。";
+      return `気象庁発表の噴火警報・予報、解説情報、観測報、${getVolcanoAshForecastLabel()}を表示しています。`;
     }
     if (state.status === "loading") {
       return localizeText("気象庁防災情報XMLから地震情報を取得中です。");
@@ -2702,7 +2737,7 @@ function renderMobileContextDock(tab, state, context = {}) {
   root.dataset.tab = tab.id;
   const showAmedasChart = tab.id === "amedas" && Boolean(state.selectedAmedasStationId && state.amedasSummaryChartVisible);
   root.classList.toggle("has-amedas-chart", showAmedasChart);
-  const focusSelector = tab.id === "radar" ? getMobileWeatherFocusSelector(root) : "";
+  const focusSelector = ["radar", "typhoon"].includes(tab.id) ? getMobileWeatherFocusSelector(root) : "";
   root.innerHTML = buildMobileContextDockContent(tab, state, context);
   const summaryChart = root.querySelector("#amedas-summary-chart");
   if (summaryChart) renderAmedasDailyChart(tab, state, context.amedasMetric ?? getAmedasMetric(state.amedasMetric), summaryChart, { compact: true });
@@ -2711,8 +2746,11 @@ function renderMobileContextDock(tab, state, context = {}) {
     window.requestAnimationFrame(() => syncMobileTsunamiAreaTickers(root));
   } else {
     delete root.dataset.mobileEarthquakeSummaryPage;
-    root.style.removeProperty("--mobile-summary-drag-x");
+    if (!root.querySelector(".mobile-dock-typhoon-track")) root.style.removeProperty("--mobile-summary-drag-x");
   }
+  const typhoonCarousel = root.querySelector(".mobile-dock-typhoon-carousel");
+  if (typhoonCarousel) applyMobileTyphoonSummaryPage(root, typhoonCarousel.dataset.typhoonMode);
+  else delete root.dataset.mobileTyphoonSummaryPage;
   if (focusSelector) root.querySelector(focusSelector)?.focus({ preventScroll: true });
   initializeMobileDockSegmentIndicators(root);
 }
@@ -3249,14 +3287,64 @@ function formatTideAxisTime(value, includeDate = false) {
 }
 
 function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
+  const mode = data.forecastMode === "world" ? "world" : "jma";
   const isEnglish = getCurrentLanguage() === "en";
-  const forecastMode = data.forecastMode === "world" ? "world" : "jma";
-  const modeSwitch = `
-    <div class="mobile-dock-action-row mobile-dock-mode-switch mobile-dock-segmented mobile-dock-typhoon-mode" role="group" aria-label="台風進路の表示">
-      <button type="button" class="mobile-dock-action${forecastMode === "jma" ? " active" : ""}" data-mobile-dock-control data-typhoon-forecast-mode="jma" aria-pressed="${forecastMode === "jma"}">気象庁</button>
-      <button type="button" class="mobile-dock-action${forecastMode === "world" ? " active" : ""}" data-mobile-dock-control data-typhoon-forecast-mode="world" aria-pressed="${forecastMode === "world"}">海外モデル</button>
+  const pages = [["jma", isEnglish ? "JMA" : "気象庁"], ["world", isEnglish ? "Global models" : "海外モデル"]];
+  return `
+    <div class="mobile-dock-typhoon-carousel" data-typhoon-mode="${mode}" role="group" aria-roledescription="${isEnglish ? "carousel" : "カルーセル"}" aria-label="${isEnglish ? "Typhoon information" : "台風情報"}">
+      <div class="mobile-dock-typhoon-viewport">
+        <div class="mobile-dock-typhoon-track">
+          ${pages.map(([id, label]) => `
+            <section class="mobile-dock-typhoon-page" data-typhoon-page="${id}" aria-label="${label}" aria-hidden="${id !== mode}"${id !== mode ? " inert" : ""}>
+              <header class="mobile-dock-typhoon-page-heading"><span>${label}</span>${buildTyphoonMobilePageStatus(data, id)}</header>
+              ${buildTyphoonMobilePageMarkup({ ...data, forecastMode: id }, status)}
+            </section>
+          `).join("")}
+        </div>
+        <div class="mobile-dock-typhoon-dots mobile-dock-summary-dots" role="group" aria-label="${isEnglish ? "Display source" : "表示元"}">
+          ${pages.map(([id, label]) => `<button type="button" class="${id === mode ? "active" : ""}" data-mobile-dock-control data-typhoon-forecast-mode="${id}" aria-pressed="${id === mode}" aria-label="${label}"></button>`).join("")}
+        </div>
+      </div>
     </div>
   `;
+}
+
+function buildTyphoonMobilePageStatus(data, mode) {
+  if (mode === "world") {
+    const time = data.worldForecastTime ?? data.worldForecastTimes?.[0];
+    if (!time) return "";
+    const fullTime = formatWorldForecastTime(time);
+    return `<div class="mobile-weather-readout"><time datetime="${escapeHtml(time)}" data-world-typhoon-time-date>${escapeHtml(compactWeatherDateLabel(fullTime))}</time><strong data-world-typhoon-time title="${escapeHtml(fullTime)}">${escapeHtml(compactWeatherTimeLabel(fullTime))}</strong><span>${getCurrentLanguage() === "en" ? "JST" : "日本時間"}</span></div>`;
+  }
+  const typhoons = data.typhoons ?? [];
+  if (typhoons.length < 2 || data.hasTyphoon === false) return "";
+  const { activeIndex } = getActiveTyphoonSelection(typhoons, data.selectedTyphoonId);
+  const nextIndex = (activeIndex + 1) % typhoons.length;
+  const next = typhoons[nextIndex];
+  const nextName = next.details?.name ?? next.name ?? `台風 ${nextIndex + 1}`;
+  return `<button type="button" class="mobile-dock-typhoon-switch" data-mobile-dock-control data-typhoon-id="${escapeHtml(String(next.id ?? `typhoon-${nextIndex}`))}" aria-label="${escapeHtml(`次の台風 ${nextName} に切り替え`)}">${activeIndex + 1}/${typhoons.length} <span aria-hidden="true">›</span></button>`;
+}
+
+function applyMobileTyphoonSummaryPage(root, mode) {
+  if (!root || !["jma", "world"].includes(mode)) return;
+  root.dataset.mobileTyphoonSummaryPage = mode;
+  root.style.setProperty("--mobile-typhoon-summary-position", mode === "world" ? "-50%" : "0%");
+  root.style.setProperty("--mobile-summary-drag-x", "0px");
+  root.querySelectorAll("[data-typhoon-page]").forEach((page) => {
+    const active = page.dataset.typhoonPage === mode;
+    page.setAttribute("aria-hidden", String(!active));
+    page.inert = !active;
+  });
+  root.querySelectorAll("[data-typhoon-forecast-mode]").forEach((button) => {
+    const active = button.dataset.typhoonForecastMode === mode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+}
+
+function buildTyphoonMobilePageMarkup(data = {}, status = "ok") {
+  const isEnglish = getCurrentLanguage() === "en";
+  const forecastMode = data.forecastMode === "world" ? "world" : "jma";
   if (forecastMode === "world") {
     const worldStatus = data.worldForecastStatus ?? "idle";
     const worldLoading = ["idle", "loading"].includes(worldStatus);
@@ -3319,12 +3407,7 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
       )
       : "";
     const timeControl = forecastTimes.length > 0 ? `
-      <div class="mobile-dock-world-time-control">
-        <time
-          class="mobile-dock-date"
-          datetime="${escapeHtml(selectedForecastTime)}"
-          data-world-typhoon-time-date
-        >${escapeHtml(compactWeatherDateLabel(formatWorldForecastTime(selectedForecastTime)))}</time>
+      <div class="mobile-dock-world-time-control mobile-weather-timeline-axis">
         ${timelineMarkup}
       </div>
     ` : `
@@ -3336,7 +3419,7 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
     `;
     return `
       <div class="mobile-dock-content mobile-dock-typhoon mobile-dock-typhoon-world" aria-busy="${worldLoading}">
-        ${modeSwitch}
+
         <div class="mobile-dock-world-model-toggles" role="group" aria-label="${escapeHtml(`${title}・${enabledModels.length}モデル`)}">
           ${modelToggles}
         </div>
@@ -3347,20 +3430,17 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
 
   const typhoons = data.typhoons ?? [];
   if (status === "loading") {
-    return `<div class="mobile-dock-content mobile-dock-typhoon" aria-busy="true">${modeSwitch}${buildMobileDockLoadingStatus("台風情報を読み込み中")}</div>`;
+    return `<div class="mobile-dock-content mobile-dock-typhoon" aria-busy="true">${buildMobileDockLoadingStatus("台風情報を読み込み中")}</div>`;
   }
   if (!typhoons.length || data.hasTyphoon === false) {
-    return `<div class="mobile-dock-content mobile-dock-typhoon">${modeSwitch}<div class="mobile-dock-typhoon-empty">${escapeHtml(NO_TYPHOON_MESSAGE)}</div></div>`;
+    return `<div class="mobile-dock-content mobile-dock-typhoon"><div class="mobile-dock-typhoon-empty">${escapeHtml(NO_TYPHOON_MESSAGE)}</div></div>`;
   }
   const selectedTyphoonId = data.selectedTyphoonId ?? "";
   const { activeIndex, activeTyphoon } = getActiveTyphoonSelection(typhoons, selectedTyphoonId);
-  const nextIndex = typhoons.length > 1 ? (activeIndex + 1) % typhoons.length : activeIndex;
-  const nextTyphoon = typhoons[nextIndex] ?? activeTyphoon;
   const name = activeTyphoon?.details?.name ?? activeTyphoon?.name ?? `台風 ${activeIndex + 1}`;
   const summaryName = formatTyphoonSummaryName(name);
-  const nextName = nextTyphoon?.details?.name ?? nextTyphoon?.name ?? `台風 ${nextIndex + 1}`;
-  const nextId = String(nextTyphoon?.id ?? `typhoon-${nextIndex}`);
   const pressure = normalizeSummaryValue(activeTyphoon?.details?.pressure);
+  const maxWind = normalizeSummaryValue(activeTyphoon?.details?.maxWind);
   const maxGust = normalizeSummaryValue(activeTyphoon?.details?.maxGust);
   const summaryClassificationItems = getTyphoonClassificationItems(activeTyphoon?.details);
   const summaryClassificationMarkup = summaryClassificationItems.length ? `
@@ -3370,15 +3450,11 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
       `).join("")}
     </span>
   ` : "";
-  const count = typhoons.length > 1 ? `${activeIndex + 1}/${typhoons.length}` : "選択中";
   const transitionStatus = activeTyphoon?.transitionStatus ?? activeTyphoon?.details?.transitionStatus ?? "";
-  const switchButton = typhoons.length > 1
-    ? `<button type="button" class="mobile-dock-typhoon-switch" data-mobile-dock-control data-typhoon-id="${escapeHtml(nextId)}" aria-label="${escapeHtml(`次の台風 ${nextName} に切り替え`)}">${escapeHtml(count)}</button>`
-    : `<span class="mobile-dock-typhoon-switch is-static">${escapeHtml(count)}</span>`;
 
   return `
     <div class="mobile-dock-content mobile-dock-typhoon">
-      ${modeSwitch}
+
       <div class="mobile-dock-typhoon-main">
         <div class="mobile-dock-typhoon-text">
           <div class="mobile-dock-typhoon-title-row">
@@ -3387,10 +3463,10 @@ function buildTyphoonMobileContextMarkup(data = {}, status = "ok") {
           </div>
           ${transitionStatus ? `<span class="mobile-dock-typhoon-status">${escapeHtml(transitionStatus)}</span>` : ""}
         </div>
-        <div class="mobile-dock-typhoon-values${typhoons.length > 1 ? " has-switch" : ""}" aria-label="台風の解析値">
-          <span><em>気圧</em>${escapeHtml(pressure)}</span>
-          <span><em>最大瞬間</em>${escapeHtml(maxGust)}</span>
-          ${typhoons.length > 1 ? switchButton : ""}
+        <div class="mobile-dock-typhoon-values" aria-label="台風の解析値">
+          <span><em>中心気圧</em>${escapeHtml(pressure)}</span>
+          <span><em>最大風速</em>${escapeHtml(maxWind)}</span>
+          <span><em>最大瞬間風速</em>${escapeHtml(maxGust)}</span>
         </div>
       </div>
     </div>
@@ -3696,7 +3772,7 @@ function buildMobileEarthquakeSummaryCarousel({
             ${buildTideObservationMobileContextMarkup(tideObservation)}
           </section>
         </div>
-        <div class="mobile-dock-earthquake-summary-dots" aria-label="${isEnglish ? "Choose a summary" : "要約表示の切り替え"}">
+        <div class="mobile-dock-earthquake-summary-dots mobile-dock-summary-dots" aria-label="${isEnglish ? "Choose a summary" : "要約表示の切り替え"}">
           ${summaryPages.map(([page, label]) => `
             <button
               type="button"
@@ -4282,7 +4358,7 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
         <button type="button" class="mobile-dock-action${isSatelliteMode ? " active" : ""}" data-mobile-dock-control data-radar-overlay="satellite" aria-pressed="${isSatelliteMode ? "true" : "false"}"${isSatelliteMode ? " disabled" : ""}>雲画像</button>
         <button type="button" class="mobile-dock-action${lightningEnabled ? " active" : ""}" data-mobile-dock-control data-radar-overlay="lightning" aria-pressed="${lightningEnabled ? "true" : "false"}"${lightningEnabled ? " disabled" : ""}>雷</button>
       </div>
-      <div class="mobile-dock-weather-timeline${loadingLabel ? " is-loading" : ""}" aria-busy="${loadingLabel ? "true" : "false"}">
+      <div class="mobile-dock-weather-timeline mobile-weather-timeline-axis${loadingLabel ? " is-loading" : ""}" aria-busy="${loadingLabel ? "true" : "false"}">
         ${toolbar}
         ${range}
       </div>
@@ -6263,7 +6339,17 @@ function renderEarthquakeList(tab, state) {
   if (state.earthquakeContentMode === "volcano" || state.data?.earthquakeContentMode === "volcano") {
     historyListMarkup.delete(root);
     setSocialSharePayload("earthquake", null);
-    renderVolcanoList(state, render);
+    const detailKey = `${state.selectedVolcanoCode ?? state.data?.selectedVolcanoCode ?? ""}:${state.selectedVolcanoBulletinId ?? ""}`;
+    const expandedSections = root.dataset.volcanoDetailKey === detailKey
+      ? new Map([...root.querySelectorAll("details[data-volcano-section]")].map((section) => [section.dataset.volcanoSection, section.open]))
+      : new Map();
+    renderVolcanoList(state, (markup) => {
+      render(markup);
+      root.dataset.volcanoDetailKey = detailKey;
+      root.querySelectorAll("details[data-volcano-section]").forEach((section) => {
+        if (expandedSections.has(section.dataset.volcanoSection)) section.open = expandedSections.get(section.dataset.volcanoSection);
+      });
+    });
     return;
   }
 
@@ -6490,6 +6576,7 @@ function buildVolcanoMobileContextMarkup(state) {
     Number(state.selectedVolcanoAshForecastIndex ?? state.data?.selectedVolcanoAshForecastIndex) || 0
   ));
   const forecast = forecasts[forecastIndex];
+  const forecastLabel = getVolcanoAshForecastLabel(forecast);
   const forecastTime = forecast
     ? `${formatVolcanoForecastTime(forecast.startTime)}～${formatVolcanoForecastTime(forecast.endTime)}`
     : "";
@@ -6522,34 +6609,39 @@ function buildVolcanoMobileContextMarkup(state) {
             <time>${escapeHtml(displayReportTime)}</time>
           </div>
           <div class="mobile-dock-volcano-title">
-            <strong>${escapeHtml(displayVolcanoName)}</strong>
-            <span>${escapeHtml(displayStatus)}</span>
+            <strong title="${escapeHtml(displayVolcanoName)}">${escapeHtml(displayVolcanoName)}</strong>
+            <div class="mobile-dock-volcano-status">
+              <em class="mobile-dock-volcano-level" aria-label="${escapeHtml(level > 0 ? localizeText(`レベル${level}`) : localizeText("火山情報"))}">${level > 0 ? `<small>${escapeHtml(localizeText("レベル"))}</small><strong>${level}</strong>` : escapeHtml(localizeText("火山情報"))}</em>
+              <span title="${escapeHtml(displayStatus)}">${escapeHtml(displayStatus)}</span>
+            </div>
           </div>
         </div>
-        <em>${level > 0 ? escapeHtml(localizeText(`レベル${level}`)) : escapeHtml(localizeText("火山情報"))}</em>
       </div>
       ${forecasts.length > 1 ? `
         <div class="mobile-dock-volcano-forecast">
-          <span><b>${escapeHtml(localizeText("降灰予報"))}</b><strong>${escapeHtml(forecastTime)}</strong></span>
+          <span><b>${escapeHtml(localizeText(forecastLabel))}</b><strong>${escapeHtml(forecastTime)}</strong></span>
           <div class="volcano-ash-timeline">
+            <div class="volcano-ash-timeline-labels" aria-hidden="true">
+              ${forecasts.map((item, index) => `<time class="${index === forecastIndex ? "active" : ""}" datetime="${escapeHtml(item.startTime)}">${index % Math.max(1, Math.ceil((forecasts.length - 1) / 5)) === 0 || index === forecasts.length - 1 ? escapeHtml(formatVolcanoForecastTime(item.startTime, false)) : ""}</time>`).join("")}
+            </div>
             <div class="volcano-ash-timeline-rail" aria-hidden="true">
               ${forecasts.map(() => "<i></i>").join("")}
             </div>
-            <input class="volcano-ash-slider" type="range" min="0" max="${forecasts.length - 1}" step="1" value="${forecastIndex}" data-mobile-dock-control data-volcano-ash-forecast-index data-volcano-ash-forecast-times="${escapeHtml(JSON.stringify(forecastTimes))}" aria-label="${escapeHtml(localizeText("降灰予報の予測時間"))}" aria-valuetext="${escapeHtml(forecastTime)}">
+            <input class="volcano-ash-slider" type="range" min="0" max="${forecasts.length - 1}" step="1" value="${forecastIndex}" data-mobile-dock-control data-volcano-ash-forecast-index data-volcano-ash-forecast-times="${escapeHtml(JSON.stringify(forecastTimes))}" aria-label="${escapeHtml(localizeText(`${forecastLabel}の予測時間`))}" aria-valuetext="${escapeHtml(forecastTime)}">
           </div>
-        </div>` : forecast ? `<div class="mobile-dock-volcano-forecast"><span><b>${escapeHtml(localizeText("降灰予報"))}</b><strong>${escapeHtml(forecastTime)}</strong></span></div>` : ""}
+        </div>` : forecast ? `<div class="mobile-dock-volcano-forecast"><span><b>${escapeHtml(localizeText(forecastLabel))}</b><strong>${escapeHtml(forecastTime)}</strong></span></div>` : ""}
     </div>`;
 }
 
-function formatVolcanoForecastTime(value) {
+function formatVolcanoForecastTime(value, includeDate = true) {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return String(value ?? localizeText("時刻不明"));
   return new Intl.DateTimeFormat(getCurrentLanguage() === "en" ? "en-US" : "ja-JP", {
     timeZone: "Asia/Tokyo",
-    month: "numeric",
-    day: "numeric",
+    ...(includeDate ? { month: "numeric", day: "numeric" } : {}),
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    hourCycle: "h23"
   }).format(date);
 }
 

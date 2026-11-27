@@ -1,0 +1,1668 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Report xmlns="http://xml.kishou.go.jp/jmaxml1/" xmlns:jmx="http://xml.kishou.go.jp/jmaxml1/">
+<Control>
+  <Title>火山灰予報（詳細）</Title>
+  <DateTime>2025-08-27T20:17:00Z</DateTime>
+  <Status>通常</Status>
+  <EditorialOffice>気象庁本庁</EditorialOffice>
+  <PublishingOffice>気象庁</PublishingOffice>
+</Control>
+<Head xmlns="http://xml.kishou.go.jp/jmaxml1/informationBasis1/">
+  <Title>火山名　霧島山（新燃岳）　火山灰予報（詳細）</Title>
+  <ReportDateTime>2025-08-28T05:17:00+09:00</ReportDateTime>
+  <TargetDateTime>2025-08-28T04:53:00+09:00</TargetDateTime>
+  <ValidDateTime>2025-08-28T11:00:00+09:00</ValidDateTime>
+  <EventID>551</EventID>
+  <InfoType>発表</InfoType>
+  <Serial>1</Serial>
+  <InfoKind>火山灰予報</InfoKind>
+  <InfoKindVersion>1.1_1</InfoKindVersion>
+  <Headline>
+    <Text>　２８日１１時までに小林市では３０ｃｍ以上の火山灰が降り、火山灰は鹿児島県南九州市まで到達することが予想されます。</Text>
+    <Information type="火山灰予報（対象火山）">
+      <Item>
+        <Kind>
+          <Name>火山灰予報（詳細）</Name>
+          <Code>23</Code>
+        </Kind>
+        <Areas codeType="火山名">
+          <Area>
+            <Name>霧島山（新燃岳）</Name>
+            <Code>551</Code>
+          </Area>
+        </Areas>
+      </Item>
+    </Information>
+    <Information type="火山灰予報（対象市町村等）">
+      <Item>
+        <Kind>
+          <Name>３０ｃｍ以上の火山灰</Name>
+          <Code>37</Code>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１０ｃｍ以上の火山灰</Name>
+          <Code>36</Code>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>３ｃｍ以上の火山灰</Name>
+          <Code>35</Code>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｃｍ以上の火山灰</Name>
+          <Code>34</Code>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｍｍ以上の火山灰</Name>
+          <Code>33</Code>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ以上の火山灰</Name>
+          <Code>32</Code>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ未満の火山灰</Name>
+          <Code>31</Code>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県えびの市</Name>
+            <Code>4520900</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県高原町</Name>
+            <Code>4536100</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県鹿児島市</Name>
+            <Code>4620100</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県鹿屋市</Name>
+            <Code>4620300</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県垂水市</Name>
+            <Code>4621400</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県薩摩川内市</Name>
+            <Code>4621500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県日置市</Name>
+            <Code>4621600</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県曽於市</Name>
+            <Code>4621700</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県南さつま市</Name>
+            <Code>4622000</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県南九州市</Name>
+            <Code>4622300</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県伊佐市</Name>
+            <Code>4622400</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県姶良市</Name>
+            <Code>4622500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県さつま町</Name>
+            <Code>4639200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県湧水町</Name>
+            <Code>4645200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県大崎町</Name>
+            <Code>4646800</Code>
+          </Area>
+        </Areas>
+      </Item>
+    </Information>
+  </Headline>
+</Head>
+<Body xmlns="http://xml.kishou.go.jp/jmaxml1/body/volcanology1/" xmlns:jmx_eb="http://xml.kishou.go.jp/jmaxml1/elementBasis1/">
+  <VolcanoInfo type="火山灰予報（対象火山）">
+    <Item>
+      <Kind>
+        <Name>火山灰予報（詳細）</Name>
+        <Code>23</Code>
+      </Kind>
+      <Areas codeType="火山名">
+        <Area>
+          <Name>霧島山（新燃岳）</Name>
+          <Code>551</Code>
+          <Coordinate description="北緯３１度５４．５７分　東経１３０度５３．１８分　標高１４２１ｍ">+3154.57+13053.18+1421/</Coordinate>
+          <CraterName>新燃岳</CraterName>
+          <CraterCoordinate description="北緯３１度５４．５７分　東経１３０度５３．１８分　標高１４２１ｍ">+3154.57+13053.18+1421/</CraterCoordinate>
+        </Area>
+      </Areas>
+    </Item>
+  </VolcanoInfo>
+  <VolcanoInfo type="火山灰予報（対象市町村等）">
+    <Item>
+      <Kind>
+        <Name>３０ｃｍ以上の火山灰</Name>
+        <Code>37</Code>
+      </Kind>
+      <Areas codeType="気象・地震・火山情報／市町村等">
+        <Area>
+          <Name>宮崎県小林市</Name>
+          <Code>4520500</Code>
+        </Area>
+      </Areas>
+    </Item>
+    <Item>
+      <Kind>
+        <Name>１０ｃｍ以上の火山灰</Name>
+        <Code>36</Code>
+      </Kind>
+      <Areas codeType="気象・地震・火山情報／市町村等">
+        <Area>
+          <Name>宮崎県小林市</Name>
+          <Code>4520500</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県霧島市</Name>
+          <Code>4621800</Code>
+        </Area>
+      </Areas>
+    </Item>
+    <Item>
+      <Kind>
+        <Name>３ｃｍ以上の火山灰</Name>
+        <Code>35</Code>
+      </Kind>
+      <Areas codeType="気象・地震・火山情報／市町村等">
+        <Area>
+          <Name>宮崎県小林市</Name>
+          <Code>4520500</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県霧島市</Name>
+          <Code>4621800</Code>
+        </Area>
+      </Areas>
+    </Item>
+    <Item>
+      <Kind>
+        <Name>１ｃｍ以上の火山灰</Name>
+        <Code>34</Code>
+      </Kind>
+      <Areas codeType="気象・地震・火山情報／市町村等">
+        <Area>
+          <Name>宮崎県小林市</Name>
+          <Code>4520500</Code>
+        </Area>
+        <Area>
+          <Name>宮崎県都城市</Name>
+          <Code>4520200</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県霧島市</Name>
+          <Code>4621800</Code>
+        </Area>
+      </Areas>
+    </Item>
+    <Item>
+      <Kind>
+        <Name>１ｍｍ以上の火山灰</Name>
+        <Code>33</Code>
+      </Kind>
+      <Areas codeType="気象・地震・火山情報／市町村等">
+        <Area>
+          <Name>宮崎県小林市</Name>
+          <Code>4520500</Code>
+        </Area>
+        <Area>
+          <Name>宮崎県都城市</Name>
+          <Code>4520200</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県霧島市</Name>
+          <Code>4621800</Code>
+        </Area>
+      </Areas>
+    </Item>
+    <Item>
+      <Kind>
+        <Name>０．１ｍｍ以上の火山灰</Name>
+        <Code>32</Code>
+      </Kind>
+      <Areas codeType="気象・地震・火山情報／市町村等">
+        <Area>
+          <Name>宮崎県都城市</Name>
+          <Code>4520200</Code>
+        </Area>
+        <Area>
+          <Name>宮崎県小林市</Name>
+          <Code>4520500</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県霧島市</Name>
+          <Code>4621800</Code>
+        </Area>
+      </Areas>
+    </Item>
+    <Item>
+      <Kind>
+        <Name>０．１ｍｍ未満の火山灰</Name>
+        <Code>31</Code>
+      </Kind>
+      <Areas codeType="気象・地震・火山情報／市町村等">
+        <Area>
+          <Name>宮崎県都城市</Name>
+          <Code>4520200</Code>
+        </Area>
+        <Area>
+          <Name>宮崎県小林市</Name>
+          <Code>4520500</Code>
+        </Area>
+        <Area>
+          <Name>宮崎県えびの市</Name>
+          <Code>4520900</Code>
+        </Area>
+        <Area>
+          <Name>宮崎県高原町</Name>
+          <Code>4536100</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県鹿児島市</Name>
+          <Code>4620100</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県鹿屋市</Name>
+          <Code>4620300</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県垂水市</Name>
+          <Code>4621400</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県薩摩川内市</Name>
+          <Code>4621500</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県日置市</Name>
+          <Code>4621600</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県曽於市</Name>
+          <Code>4621700</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県霧島市</Name>
+          <Code>4621800</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県南さつま市</Name>
+          <Code>4622000</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県南九州市</Name>
+          <Code>4622300</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県伊佐市</Name>
+          <Code>4622400</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県姶良市</Name>
+          <Code>4622500</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県さつま町</Name>
+          <Code>4639200</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県湧水町</Name>
+          <Code>4645200</Code>
+        </Area>
+        <Area>
+          <Name>鹿児島県大崎町</Name>
+          <Code>4646800</Code>
+        </Area>
+      </Areas>
+    </Item>
+  </VolcanoInfo>
+  <AshInfos type="火山灰予報（詳細）">
+    <AshInfo type="予報　１時間後">
+      <StartTime>2025-08-28T04:53:00+09:00</StartTime>
+      <EndTime>2025-08-28T06:00:00+09:00</EndTime>
+      <Item>
+        <Kind>
+          <Name>３０ｃｍ以上の火山灰</Name>
+          <Code>37</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">300.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9200+130.8900/+31.9150+130.8950/+31.9050+130.8960/+31.8980+130.8900/+31.9020+130.8820/+31.9080+130.8800/+31.9150+130.8820/+31.9200+130.8900/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">1</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１０ｃｍ以上の火山灰</Name>
+          <Code>36</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">100.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9250+130.8950/+31.9200+130.9010/+31.9050+130.9030/+31.8900+130.8950/+31.8920+130.8750/+31.9000+130.8680/+31.9100+130.8700/+31.9200+130.8750/+31.9250+130.8950/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">2</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>３ｃｍ以上の火山灰</Name>
+          <Code>35</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">30.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9300+130.9000/+31.9200+130.9100/+31.9000+130.9120/+31.8820+130.9000/+31.8830+130.8800/+31.8900+130.8650/+31.9000+130.8600/+31.9150+130.8630/+31.9280+130.8800/+31.9300+130.9000/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">2</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｃｍ以上の火山灰</Name>
+          <Code>34</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">10.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9345+130.8800/+31.9200+130.8964/+31.9000+130.8987/+31.8818+130.8800/+31.8945+130.8600/+31.9000+130.8556/+31.9137+130.8600/+31.9200+130.8609/+31.9345+130.8800/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">3</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｍｍ以上の火山灰</Name>
+          <Code>33</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">1.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9345+130.8800/+31.9200+130.8964/+31.9000+130.8987/+31.8818+130.8800/+31.8945+130.8600/+31.9000+130.8556/+31.9137+130.8600/+31.9200+130.8609/+31.9345+130.8800/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">3</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ以上の火山灰</Name>
+          <Code>32</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">0.1</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9213+130.8400/+31.9379+130.8600/+31.9395+130.8800/+31.9353+130.9000/+31.9200+130.9153/+31.9000+130.9171/+31.8815+130.9000/+31.8800+130.8982/+31.8610+130.8800/+31.8618+130.8600/+31.8800+130.8448/+31.9000+130.8401/+31.9109+130.8400/+31.9200+130.8387/+31.9213+130.8400/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">5</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ未満の火山灰</Name>
+          <Code>31</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">0.0001</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9495+130.8000/+31.9594+130.8200/+31.9599+130.8400/+31.9597+130.8600/+31.9568+130.8800/+31.9400+130.8968/+31.9400+130.9000/+31.9200+130.9200/+31.9000+130.9200/+31.8808+130.9200/+31.8800+130.9206/+31.8792+130.9200/+31.8600+130.9198/+31.8400+130.9122/+31.8278+130.9000/+31.8203+130.8800/+31.8200+130.8611/+31.8192+130.8600/+31.8200+130.8582/+31.8206+130.8400/+31.8400+130.8207/+31.8488+130.8200/+31.8600+130.8127/+31.8800+130.8034/+31.9000+130.8001/+31.9023+130.8000/+31.9200+130.7898/+31.9400+130.7907/+31.9495+130.8000/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">10</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県えびの市</Name>
+            <Code>4520900</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県高原町</Name>
+            <Code>4536100</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県湧水町</Name>
+            <Code>4645200</Code>
+          </Area>
+        </Areas>
+      </Item>
+    </AshInfo>
+    <AshInfo type="予報　２時間後">
+      <StartTime>2025-08-28T04:53:00+09:00</StartTime>
+      <EndTime>2025-08-28T07:00:00+09:00</EndTime>
+      <Item>
+        <Kind>
+          <Name>３０ｃｍ以上の火山灰</Name>
+          <Code>37</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">300.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9200+130.8900/+31.9150+130.8950/+31.9050+130.8960/+31.8980+130.8900/+31.9020+130.8820/+31.9080+130.8800/+31.9150+130.8820/+31.9200+130.8900/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">1</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１０ｃｍ以上の火山灰</Name>
+          <Code>36</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">100.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9250+130.8950/+31.9200+130.9010/+31.9050+130.9030/+31.8900+130.8950/+31.8920+130.8750/+31.9000+130.8680/+31.9100+130.8700/+31.9200+130.8750/+31.9250+130.8950/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">2</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>３ｃｍ以上の火山灰</Name>
+          <Code>35</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">30.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9300+130.9000/+31.9200+130.9100/+31.9000+130.9120/+31.8820+130.9000/+31.8830+130.8800/+31.8900+130.8650/+31.9000+130.8600/+31.9150+130.8630/+31.9280+130.8800/+31.9300+130.9000/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">2</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｃｍ以上の火山灰</Name>
+          <Code>34</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">10.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9345+130.8800/+31.9200+130.8964/+31.9000+130.8987/+31.8815+130.8800/+31.8917+130.8600/+31.9000+130.8541/+31.9158+130.8600/+31.9200+130.8607/+31.9345+130.8800/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">3</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｍｍ以上の火山灰</Name>
+          <Code>33</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">1.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9345+130.8800/+31.9200+130.8964/+31.9000+130.8987/+31.8815+130.8800/+31.8917+130.8600/+31.9000+130.8541/+31.9158+130.8600/+31.9200+130.8607/+31.9345+130.8800/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">3</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ以上の火山灰</Name>
+          <Code>32</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">0.1</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9260+130.8400/+31.9380+130.8600/+31.9395+130.8800/+31.9353+130.9000/+31.9200+130.9153/+31.9000+130.9171/+31.8811+130.9000/+31.8800+130.8988/+31.8600+130.8886/+31.8497+130.8800/+31.8406+130.8600/+31.8548+130.8400/+31.8600+130.8382/+31.8800+130.8354/+31.9000+130.8302/+31.9200+130.8333/+31.9260+130.8400/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">7</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ未満の火山灰</Name>
+          <Code>31</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">0.0001</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9637+130.7600/+31.9770+130.7800/+31.9779+130.8000/+31.9768+130.8200/+31.9780+130.8400/+31.9723+130.8600/+31.9600+130.8766/+31.9595+130.8800/+31.9404+130.9000/+31.9400+130.9004/+31.9200+130.9200/+31.9160+130.9200/+31.9000+130.9324/+31.8800+130.9372/+31.8600+130.9366/+31.8400+130.9333/+31.8200+130.9299/+31.8080+130.9200/+31.8000+130.9149/+31.7836+130.9000/+31.7800+130.8974/+31.7600+130.8870/+31.7526+130.8800/+31.7400+130.8617/+31.7371+130.8600/+31.7222+130.8400/+31.7270+130.8200/+31.7400+130.8022/+31.7406+130.8000/+31.7480+130.7800/+31.7600+130.7634/+31.7800+130.7601/+31.7803+130.7600/+31.8000+130.7408/+31.8200+130.7406/+31.8400+130.7424/+31.8600+130.7447/+31.8800+130.7510/+31.9000+130.7561/+31.9164+130.7400/+31.9200+130.7373/+31.9264+130.7400/+31.9391+130.7600/+31.9400+130.7602/+31.9434+130.7600/+31.9600+130.7549/+31.9637+130.7600/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">20</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県えびの市</Name>
+            <Code>4520900</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県高原町</Name>
+            <Code>4536100</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県曽於市</Name>
+            <Code>4621700</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県湧水町</Name>
+            <Code>4645200</Code>
+          </Area>
+        </Areas>
+      </Item>
+    </AshInfo>
+    <AshInfo type="予報　３時間後">
+      <StartTime>2025-08-28T04:53:00+09:00</StartTime>
+      <EndTime>2025-08-28T08:00:00+09:00</EndTime>
+      <Item>
+        <Kind>
+          <Name>３０ｃｍ以上の火山灰</Name>
+          <Code>37</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">300.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9200+130.8900/+31.9150+130.8950/+31.9050+130.8960/+31.8980+130.8900/+31.9020+130.8820/+31.9080+130.8800/+31.9150+130.8820/+31.9200+130.8900/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">1</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１０ｃｍ以上の火山灰</Name>
+          <Code>36</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">100.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9250+130.8950/+31.9200+130.9010/+31.9050+130.9030/+31.8900+130.8950/+31.8920+130.8750/+31.9000+130.8680/+31.9100+130.8700/+31.9200+130.8750/+31.9250+130.8950/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">2</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>３ｃｍ以上の火山灰</Name>
+          <Code>35</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">30.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9300+130.9000/+31.9200+130.9100/+31.9000+130.9120/+31.8820+130.9000/+31.8830+130.8800/+31.8900+130.8650/+31.9000+130.8600/+31.9150+130.8630/+31.9280+130.8800/+31.9300+130.9000/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">2</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｃｍ以上の火山灰</Name>
+          <Code>34</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">10.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9345+130.8800/+31.9200+130.8964/+31.9000+130.8987/+31.8814+130.8800/+31.8915+130.8600/+31.9000+130.8540/+31.9158+130.8600/+31.9200+130.8607/+31.9345+130.8800/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">3</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｍｍ以上の火山灰</Name>
+          <Code>33</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">1.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9345+130.8800/+31.9200+130.8964/+31.9000+130.8987/+31.8814+130.8800/+31.8915+130.8600/+31.9000+130.8540/+31.9158+130.8600/+31.9200+130.8607/+31.9345+130.8800/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">3</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ以上の火山灰</Name>
+          <Code>32</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">0.1</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9262+130.8400/+31.9380+130.8600/+31.9395+130.8800/+31.9353+130.9000/+31.9200+130.9153/+31.9000+130.9171/+31.8811+130.9000/+31.8800+130.8989/+31.8600+130.8894/+31.8484+130.8800/+31.8400+130.8642/+31.8360+130.8600/+31.8362+130.8400/+31.8400+130.8365/+31.8600+130.8326/+31.8800+130.8328/+31.9000+130.8293/+31.9200+130.8330/+31.9262+130.8400/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">9</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ未満の火山灰</Name>
+          <Code>31</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">0.0001</Size>
+            <jmx_eb:Polygon type="位置（度）">+32.0076+130.8600/+32.0000+130.8636/+31.9821+130.8600/+32.0000+130.8561/+32.0076+130.8600/</jmx_eb:Polygon>
+            <jmx_eb:Polygon type="位置（度）">+31.9850+130.7200/+31.9837+130.7400/+31.9800+130.7440/+31.9753+130.7600/+31.9800+130.7800/+31.9941+130.8000/+31.9800+130.8112/+31.9783+130.8200/+31.9800+130.8386/+31.9810+130.8400/+31.9800+130.8530/+31.9798+130.8600/+31.9600+130.8792/+31.9599+130.8800/+31.9414+130.9000/+31.9400+130.9014/+31.9200+130.9200/+31.9195+130.9200/+31.9000+130.9348/+31.8800+130.9393/+31.8676+130.9400/+31.8600+130.9432/+31.8489+130.9400/+31.8400+130.9396/+31.8200+130.9353/+31.8000+130.9350/+31.7800+130.9204/+31.7600+130.9235/+31.7564+130.9200/+31.7400+130.9105/+31.7200+130.9001/+31.7199+130.9000/+31.7047+130.8800/+31.7000+130.8775/+31.6800+130.8683/+31.6717+130.8600/+31.6746+130.8400/+31.6627+130.8200/+31.6645+130.8000/+31.6600+130.7888/+31.6537+130.7800/+31.6448+130.7600/+31.6500+130.7400/+31.6600+130.7300/+31.6663+130.7200/+31.6617+130.7000/+31.6800+130.6832/+31.7000+130.6854/+31.7089+130.6800/+31.7200+130.6680/+31.7296+130.6600/+31.7400+130.6481/+31.7600+130.6589/+31.7800+130.6503/+31.7927+130.6600/+31.8000+130.6668/+31.8200+130.6767/+31.8400+130.6718/+31.8482+130.6800/+31.8585+130.7000/+31.8600+130.7021/+31.8800+130.7021/+31.9000+130.7001/+31.9200+130.7060/+31.9373+130.7200/+31.9400+130.7213/+31.9600+130.7337/+31.9775+130.7200/+31.9800+130.7172/+31.9850+130.7200/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">30</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県えびの市</Name>
+            <Code>4520900</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県高原町</Name>
+            <Code>4536100</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県曽於市</Name>
+            <Code>4621700</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県姶良市</Name>
+            <Code>4622500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県湧水町</Name>
+            <Code>4645200</Code>
+          </Area>
+        </Areas>
+      </Item>
+    </AshInfo>
+    <AshInfo type="予報　４時間後">
+      <StartTime>2025-08-28T04:53:00+09:00</StartTime>
+      <EndTime>2025-08-28T09:00:00+09:00</EndTime>
+      <Item>
+        <Kind>
+          <Name>３０ｃｍ以上の火山灰</Name>
+          <Code>37</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">300.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9200+130.8900/+31.9150+130.8950/+31.9050+130.8960/+31.8980+130.8900/+31.9020+130.8820/+31.9080+130.8800/+31.9150+130.8820/+31.9200+130.8900/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">1</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１０ｃｍ以上の火山灰</Name>
+          <Code>36</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">100.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9250+130.8950/+31.9200+130.9010/+31.9050+130.9030/+31.8900+130.8950/+31.8920+130.8750/+31.9000+130.8680/+31.9100+130.8700/+31.9200+130.8750/+31.9250+130.8950/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">2</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>３ｃｍ以上の火山灰</Name>
+          <Code>35</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">30.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9300+130.9000/+31.9200+130.9100/+31.9000+130.9120/+31.8820+130.9000/+31.8830+130.8800/+31.8900+130.8650/+31.9000+130.8600/+31.9150+130.8630/+31.9280+130.8800/+31.9300+130.9000/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">2</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｃｍ以上の火山灰</Name>
+          <Code>34</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">10.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9345+130.8800/+31.9200+130.8964/+31.9000+130.8987/+31.8814+130.8800/+31.8915+130.8600/+31.9000+130.8540/+31.9159+130.8600/+31.9200+130.8607/+31.9345+130.8800/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">3</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｍｍ以上の火山灰</Name>
+          <Code>33</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">1.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9345+130.8800/+31.9200+130.8964/+31.9000+130.8987/+31.8814+130.8800/+31.8915+130.8600/+31.9000+130.8540/+31.9159+130.8600/+31.9200+130.8607/+31.9345+130.8800/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">3</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ以上の火山灰</Name>
+          <Code>32</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">0.1</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9262+130.8400/+31.9380+130.8600/+31.9395+130.8800/+31.9353+130.9000/+31.9200+130.9153/+31.9000+130.9171/+31.8811+130.9000/+31.8800+130.8989/+31.8600+130.8895/+31.8483+130.8800/+31.8400+130.8648/+31.8354+130.8600/+31.8345+130.8400/+31.8400+130.8347/+31.8600+130.8317/+31.8800+130.8324/+31.9000+130.8291/+31.9200+130.8330/+31.9262+130.8400/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">9</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ未満の火山灰</Name>
+          <Code>31</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">0.0001</Size>
+            <jmx_eb:Polygon type="位置（度）">+32.0180+130.7200/+32.0000+130.7335/+31.9868+130.7400/+31.9800+130.7461/+31.9775+130.7600/+31.9800+130.7792/+31.9808+130.7800/+31.9941+130.8000/+31.9800+130.8112/+31.9783+130.8200/+31.9800+130.8375/+31.9818+130.8400/+32.0000+130.8561/+32.0076+130.8600/+32.0000+130.8636/+31.9800+130.8619/+31.9600+130.8796/+31.9599+130.8800/+31.9509+130.9000/+31.9400+130.9041/+31.9200+130.9200/+31.9195+130.9200/+31.9000+130.9348/+31.8888+130.9400/+31.8800+130.9574/+31.8600+130.9564/+31.8400+130.9552/+31.8200+130.9415/+31.8153+130.9400/+31.8000+130.9395/+31.7800+130.9351/+31.7709+130.9400/+31.7600+130.9511/+31.7483+130.9400/+31.7400+130.9313/+31.7269+130.9200/+31.7200+130.9165/+31.7000+130.9122/+31.6800+130.9115/+31.6693+130.9000/+31.6600+130.8925/+31.6400+130.8865/+31.6316+130.8800/+31.6308+130.8600/+31.6200+130.8579/+31.6018+130.8400/+31.6000+130.8334/+31.5900+130.8200/+31.5851+130.8000/+31.5800+130.7850/+31.5707+130.7800/+31.5800+130.7678/+31.5812+130.7600/+31.5800+130.7567/+31.5600+130.7506/+31.5400+130.7452/+31.5234+130.7600/+31.5200+130.7632/+31.5174+130.7600/+31.5200+130.7418/+31.5211+130.7400/+31.5205+130.7200/+31.5400+130.7114/+31.5432+130.7000/+31.5486+130.6800/+31.5600+130.6604/+31.5605+130.6600/+31.5763+130.6400/+31.5600+130.6320/+31.5415+130.6200/+31.5600+130.6077/+31.5797+130.6200/+31.5800+130.6216/+31.6000+130.6210/+31.6019+130.6200/+31.6000+130.6122/+31.5842+130.6000/+31.5800+130.5927/+31.5766+130.5800/+31.5736+130.5600/+31.5800+130.5420/+31.6000+130.5535/+31.6130+130.5600/+31.6000+130.5710/+31.5883+130.5800/+31.6000+130.5879/+31.6200+130.5812/+31.6250+130.5800/+31.6400+130.5728/+31.6600+130.5765/+31.6632+130.5800/+31.6800+130.5839/+31.7000+130.5844/+31.7151+130.5800/+31.7200+130.5747/+31.7266+130.5800/+31.7400+130.5873/+31.7503+130.6000/+31.7600+130.6106/+31.7708+130.6000/+31.7800+130.5830/+31.7962+130.6000/+31.8000+130.6040/+31.8033+130.6000/+31.8200+130.5920/+31.8363+130.6000/+31.8400+130.6069/+31.8457+130.6200/+31.8600+130.6298/+31.8731+130.6400/+31.8800+130.6451/+31.8932+130.6600/+31.9000+130.6668/+31.9200+130.6622/+31.9339+130.6800/+31.9389+130.7000/+31.9400+130.7025/+31.9561+130.7200/+31.9600+130.7237/+31.9705+130.7200/+31.9800+130.7079/+32.0000+130.7019/+32.0180+130.7200/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">50</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県えびの市</Name>
+            <Code>4520900</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県高原町</Name>
+            <Code>4536100</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県鹿児島市</Name>
+            <Code>4620100</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県鹿屋市</Name>
+            <Code>4620300</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県垂水市</Name>
+            <Code>4621400</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県曽於市</Name>
+            <Code>4621700</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県姶良市</Name>
+            <Code>4622500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県湧水町</Name>
+            <Code>4645200</Code>
+          </Area>
+        </Areas>
+      </Item>
+    </AshInfo>
+    <AshInfo type="予報　５時間後">
+      <StartTime>2025-08-28T04:53:00+09:00</StartTime>
+      <EndTime>2025-08-28T10:00:00+09:00</EndTime>
+      <Item>
+        <Kind>
+          <Name>３０ｃｍ以上の火山灰</Name>
+          <Code>37</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">300.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9200+130.8900/+31.9150+130.8950/+31.9050+130.8960/+31.8980+130.8900/+31.9020+130.8820/+31.9080+130.8800/+31.9150+130.8820/+31.9200+130.8900/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">1</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１０ｃｍ以上の火山灰</Name>
+          <Code>36</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">100.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9250+130.8950/+31.9200+130.9010/+31.9050+130.9030/+31.8900+130.8950/+31.8920+130.8750/+31.9000+130.8680/+31.9100+130.8700/+31.9200+130.8750/+31.9250+130.8950/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">2</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>３ｃｍ以上の火山灰</Name>
+          <Code>35</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">30.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9300+130.9000/+31.9200+130.9100/+31.9000+130.9120/+31.8820+130.9000/+31.8830+130.8800/+31.8900+130.8650/+31.9000+130.8600/+31.9150+130.8630/+31.9280+130.8800/+31.9300+130.9000/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">2</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｃｍ以上の火山灰</Name>
+          <Code>34</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">10.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9345+130.8800/+31.9200+130.8964/+31.9000+130.8987/+31.8814+130.8800/+31.8915+130.8600/+31.9000+130.8540/+31.9159+130.8600/+31.9200+130.8607/+31.9345+130.8800/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">3</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｍｍ以上の火山灰</Name>
+          <Code>33</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">1.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9345+130.8800/+31.9200+130.8964/+31.9000+130.8987/+31.8814+130.8800/+31.8915+130.8600/+31.9000+130.8540/+31.9159+130.8600/+31.9200+130.8607/+31.9345+130.8800/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">3</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ以上の火山灰</Name>
+          <Code>32</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">0.1</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9262+130.8400/+31.9380+130.8600/+31.9395+130.8800/+31.9353+130.9000/+31.9200+130.9153/+31.9000+130.9171/+31.8811+130.9000/+31.8800+130.8989/+31.8600+130.8895/+31.8482+130.8800/+31.8400+130.8649/+31.8353+130.8600/+31.8341+130.8400/+31.8400+130.8343/+31.8600+130.8315/+31.8800+130.8323/+31.9000+130.8291/+31.9200+130.8329/+31.9262+130.8400/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">9</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ未満の火山灰</Name>
+          <Code>31</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">0.0001</Size>
+            <jmx_eb:Polygon type="位置（度）">+32.0169+130.7000/+32.0181+130.7200/+32.0000+130.7371/+31.9967+130.7400/+31.9800+130.7523/+31.9775+130.7600/+31.9800+130.7792/+32.0000+130.7794/+32.0007+130.7800/+32.0000+130.7816/+31.9951+130.8000/+31.9800+130.8189/+31.9798+130.8200/+31.9800+130.8280/+31.9818+130.8400/+32.0000+130.8561/+32.0076+130.8600/+32.0000+130.8636/+31.9800+130.8619/+31.9703+130.8800/+31.9600+130.8988/+31.9580+130.9000/+31.9400+130.9049/+31.9200+130.9200/+31.9197+130.9200/+31.9000+130.9394/+31.8991+130.9400/+31.8866+130.9600/+31.8800+130.9664/+31.8600+130.9601/+31.8400+130.9552/+31.8200+130.9415/+31.8000+130.9395/+31.7800+130.9361/+31.7600+130.9568/+31.7400+130.9353/+31.7200+130.9311/+31.7000+130.9320/+31.6800+130.9273/+31.6600+130.9148/+31.6400+130.9352/+31.6200+130.8893/+31.6000+130.9086/+31.5800+130.8815/+31.5600+130.8491/+31.5400+130.8350/+31.5200+130.8054/+31.5000+130.8088/+31.4800+130.8032/+31.4600+130.7800/+31.4800+130.7622/+31.4900+130.7400/+31.4800+130.7000/+31.4800+130.6800/+31.4800+130.6400/+31.5000+130.5546/+31.5200+130.5765/+31.5600+130.4379/+31.6000+130.4719/+31.6600+130.5166/+31.7000+130.5122/+31.7400+130.5113/+31.7800+130.5426/+31.8200+130.5454/+31.8600+130.5907/+31.9000+130.6189/+31.9200+130.6350/+31.9400+130.6864/+31.9600+130.7137/+31.9800+130.6853/+32.0000+130.6975/+32.0169+130.7000/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">60</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県えびの市</Name>
+            <Code>4520900</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県高原町</Name>
+            <Code>4536100</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県鹿児島市</Name>
+            <Code>4620100</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県鹿屋市</Name>
+            <Code>4620300</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県垂水市</Name>
+            <Code>4621400</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県薩摩川内市</Name>
+            <Code>4621500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県曽於市</Name>
+            <Code>4621700</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県伊佐市</Name>
+            <Code>4622400</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県姶良市</Name>
+            <Code>4622500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県さつま町</Name>
+            <Code>4639200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県湧水町</Name>
+            <Code>4645200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県大崎町</Name>
+            <Code>4646800</Code>
+          </Area>
+        </Areas>
+      </Item>
+    </AshInfo>
+    <AshInfo type="予報　６時間後">
+      <StartTime>2025-08-28T04:53:00+09:00</StartTime>
+      <EndTime>2025-08-28T11:00:00+09:00</EndTime>
+      <Item>
+        <Kind>
+          <Name>３０ｃｍ以上の火山灰</Name>
+          <Code>37</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">300.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9200+130.8900/+31.9150+130.8950/+31.9050+130.8960/+31.8980+130.8900/+31.9020+130.8820/+31.9080+130.8800/+31.9150+130.8820/+31.9200+130.8900/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">1</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１０ｃｍ以上の火山灰</Name>
+          <Code>36</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">100.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9250+130.8950/+31.9200+130.9010/+31.9050+130.9030/+31.8900+130.8950/+31.8920+130.8750/+31.9000+130.8680/+31.9100+130.8700/+31.9200+130.8750/+31.9250+130.8950/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">2</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>３ｃｍ以上の火山灰</Name>
+          <Code>35</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">30.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9300+130.9000/+31.9200+130.9100/+31.9000+130.9120/+31.8820+130.9000/+31.8830+130.8800/+31.8900+130.8650/+31.9000+130.8600/+31.9150+130.8630/+31.9280+130.8800/+31.9300+130.9000/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">2</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｃｍ以上の火山灰</Name>
+          <Code>34</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">10.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9345+130.8800/+31.9200+130.8964/+31.9000+130.8987/+31.8814+130.8800/+31.8915+130.8600/+31.9000+130.8540/+31.9159+130.8600/+31.9200+130.8607/+31.9345+130.8800/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">3</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>１ｍｍ以上の火山灰</Name>
+          <Code>33</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">1.0</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9345+130.8800/+31.9200+130.8964/+31.9000+130.8987/+31.8814+130.8800/+31.8915+130.8600/+31.9000+130.8540/+31.9159+130.8600/+31.9200+130.8607/+31.9345+130.8800/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">3</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ以上の火山灰</Name>
+          <Code>32</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">0.1</Size>
+            <jmx_eb:Polygon type="位置（度）">+31.9262+130.8400/+31.9380+130.8600/+31.9395+130.8800/+31.9353+130.9000/+31.9200+130.9153/+31.9000+130.9171/+31.8811+130.9000/+31.8800+130.8989/+31.8600+130.8895/+31.8482+130.8800/+31.8400+130.8649/+31.8352+130.8600/+31.8340+130.8400/+31.8400+130.8341/+31.8600+130.8314/+31.8800+130.8323/+31.9000+130.8291/+31.9200+130.8329/+31.9262+130.8400/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">9</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+        </Areas>
+      </Item>
+      <Item>
+        <Kind>
+          <Name>０．１ｍｍ未満の火山灰</Name>
+          <Code>31</Code>
+          <Property>
+            <Size type="火山灰の深さ" unit="mm">0.0001</Size>
+            <jmx_eb:Polygon type="位置（度）">+32.0259+130.7200/+32.0200+130.7270/+32.0000+130.7379/+31.9972+130.7400/+31.9800+130.7536/+31.9779+130.7600/+31.9800+130.7791/+32.0000+130.7794/+32.0007+130.7800/+32.0000+130.7816/+31.9951+130.8000/+31.9800+130.8189/+31.9798+130.8200/+31.9800+130.8280/+31.9818+130.8400/+32.0000+130.8536/+32.0171+130.8600/+32.0000+130.8674/+31.9800+130.8619/+31.9703+130.8800/+31.9600+130.8988/+31.9580+130.9000/+31.9400+130.9054/+31.9241+130.9200/+31.9200+130.9239/+31.9000+130.9394/+31.8991+130.9400/+31.8866+130.9600/+31.8800+130.9681/+31.8600+130.9601/+31.8400+130.9552/+31.8200+130.9449/+31.8000+130.9525/+31.7800+130.9366/+31.7600+130.9574/+31.7400+130.9467/+31.7200+130.9371/+31.7000+130.9454/+31.6800+130.9385/+31.6600+130.9378/+31.6400+130.9031/+31.6200+130.8994/+31.6000+130.9428/+31.5800+130.9501/+31.5400+130.9299/+31.5200+130.9232/+31.5000+130.8894/+31.4800+130.8637/+31.4600+130.8099/+31.4400+130.8168/+31.4200+130.7959/+31.4000+130.7413/+31.3900+130.7000/+31.3900+130.6800/+31.3600+130.6541/+31.3400+130.6318/+31.3200+130.5538/+31.3400+130.4666/+31.3600+130.5083/+31.3800+130.4958/+31.4000+130.4451/+31.4200+130.4453/+31.4400+130.4205/+31.4600+130.3835/+31.4800+130.3937/+31.5000+130.3986/+31.5200+130.3965/+31.5400+130.3968/+31.5600+130.3789/+31.5800+130.3920/+31.6000+130.3881/+31.6200+130.4236/+31.6400+130.4108/+31.6600+130.4038/+31.6800+130.4150/+31.7000+130.4574/+31.7200+130.4787/+31.7400+130.4681/+31.7600+130.4599/+31.7800+130.4749/+31.8000+130.4869/+31.8200+130.5312/+31.8400+130.5487/+31.8600+130.5902/+31.8800+130.6000/+31.9000+130.6061/+31.9200+130.6333/+31.9400+130.6388/+31.9600+130.7135/+31.9800+130.6853/+32.0000+130.6973/+32.0200+130.7005/+32.0259+130.7200/</jmx_eb:Polygon>
+            <jmx_eb:PlumeDirection type="火山灰の方向" unit="漢字" description="南西">南西</jmx_eb:PlumeDirection>
+            <Distance type="火山灰の到達距離" unit="km">70</Distance>
+          </Property>
+        </Kind>
+        <Areas codeType="気象・地震・火山情報／市町村等">
+          <Area>
+            <Name>宮崎県都城市</Name>
+            <Code>4520200</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県小林市</Name>
+            <Code>4520500</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県えびの市</Name>
+            <Code>4520900</Code>
+          </Area>
+          <Area>
+            <Name>宮崎県高原町</Name>
+            <Code>4536100</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県鹿児島市</Name>
+            <Code>4620100</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県鹿屋市</Name>
+            <Code>4620300</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県垂水市</Name>
+            <Code>4621400</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県薩摩川内市</Name>
+            <Code>4621500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県日置市</Name>
+            <Code>4621600</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県曽於市</Name>
+            <Code>4621700</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県霧島市</Name>
+            <Code>4621800</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県南さつま市</Name>
+            <Code>4622000</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県南九州市</Name>
+            <Code>4622300</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県伊佐市</Name>
+            <Code>4622400</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県姶良市</Name>
+            <Code>4622500</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県さつま町</Name>
+            <Code>4639200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県湧水町</Name>
+            <Code>4645200</Code>
+          </Area>
+          <Area>
+            <Name>鹿児島県大崎町</Name>
+            <Code>4646800</Code>
+          </Area>
+        </Areas>
+      </Item>
+    </AshInfo>
+  </AshInfos>
+  <VolcanoInfoContent>
+    <VolcanoHeadline>　２８日１１時までに小林市では３０ｃｍ以上の火山灰が降り、火山灰は鹿児島県南九州市まで到達することが予想されます。</VolcanoHeadline>
+    <VolcanoActivity>１．火山活動の状況及び予報事項
+　２８日０４時５３分に霧島山（新燃岳）（新燃岳）で噴火が発生し、噴煙は火口縁上５５００ｍまで上がりました。
+　火口から南西方向に火山灰が流され、２８日１１時までに小林市では３０ｃｍ以上の火山灰が降り、火山灰は鹿児島県南九州市まで到達することが予想されます。
+
+２．対象市町村等
+　２８日１１時までに予想される火山灰量は各市町村の多いところで次のとおりです。
+　３０ｃｍ以上　　宮崎県：小林市
+　１０ｃｍ以上　　宮崎県：小林市
+　　　　　　　　鹿児島県：霧島市
+　３ｃｍ以上　　　宮崎県：小林市
+　　　　　　　　鹿児島県：霧島市
+　１ｃｍ以上　　　宮崎県：小林市、都城市
+　　　　　　　　鹿児島県：霧島市
+　１ｍｍ以上　　　宮崎県：小林市、都城市
+　　　　　　　　鹿児島県：霧島市
+　０．１ｍｍ以上　宮崎県：都城市
+　０．１ｍｍ未満　宮崎県：えびの市、高原町
+　　　　　　　　鹿児島県：湧水町、曽於市、姶良市、鹿児島市、鹿屋市、垂水市、薩摩川内市、伊佐市、
+　　　　　　　　　　　　　さつま町、大崎町、日置市、南さつま市、南九州市
+
+　予想される各市町村の火山灰が降り始める時刻は次のとおりです。
+　０６時まで　宮崎県　：都城市、小林市、えびの市、高原町
+　　　　　　　鹿児島県：霧島市、湧水町
+　０７時まで　鹿児島県：曽於市
+　０８時まで　鹿児島県：姶良市
+　０９時まで　鹿児島県：鹿児島市、鹿屋市、垂水市
+　１０時まで　鹿児島県：薩摩川内市、伊佐市、さつま町、大崎町
+　１１時まで　鹿児島県：日置市、南さつま市、南九州市</VolcanoActivity>
+    <VolcanoPrevention>　３０ｃｍ以上の火山灰が予想される範囲内では、建物への被害や交通の途絶が生じるおそれがあります。直ちに安全な場所へ避難してください。
+　１０ｃｍ以上の火山灰が予想される範囲内では、屋根への荷重や農作物への甚大な被害が生じるおそれがあります。不要な外出を控えてください。
+　３ｃｍ以上の火山灰が予想される範囲内では、農作物への重大な被害や交通障害が生じるおそれがあります。不要な外出や車の運転を控えてください。
+　１ｃｍ以上の火山灰が予想される範囲内では、農作物への被害や交通障害が生じるおそれがあります。不要な外出や車の運転を控えてください。
+　１ｍｍ以上の火山灰が予想される範囲内では、不要な外出や車の運転を控えてください。
+　０．１ｍｍ以上の火山灰が予想される範囲内では、傘やマスク等で防灰対策をして、徐行運転を心掛けてください。</VolcanoPrevention>
+    <Appendix>＊＊（参考：火山灰量階級　深さ・キーワードなど）＊＊
+【 30cm以上】降雨時に木造家屋が倒壊する恐れがある
+【 10cm以上】二輪駆動車が通行不能となる恐れがある
+【  3cm以上】降雨時に二輪駆動車が通行不能となる恐れがある
+【  1cm以上】健康な人でも呼吸器に異常が起きる恐れがある
+【  1mm以上】火山灰がまきあげられ視界不良となり地面は完全に覆われる【外出を控える】
+【0.1mm以上】火山灰が降っているのが明らかにわかり路面表示は見えにくくなる【注意】
+【0.1mm未満】火山灰が降っているのがようやくわかり地面にうっすら積もる</Appendix>
+  </VolcanoInfoContent>
+  <VolcanoObservation>
+    <EventTime>
+      <EventDateTime significant="yyyy-mm-ddThh:mm">2025-08-28T04:53:00+09:00</EventDateTime>
+      <EventDateTimeUTC significant="yyyy-mm-ddThh:mm">2025-08-27T19:53:00Z</EventDateTimeUTC>
+    </EventTime>
+    <ColorPlume>
+      <jmx_eb:PlumeHeightAboveCrater type="火口上噴煙高度" unit="m" description="火口上5500m">5500</jmx_eb:PlumeHeightAboveCrater>
+      <jmx_eb:PlumeHeightAboveSeaLevel type="海抜噴煙高度" unit="FT" description="海抜22800FT">22800</jmx_eb:PlumeHeightAboveSeaLevel>
+      <jmx_eb:PlumeDirection type="噴煙の流向" unit="漢字" description="流向不明">流向不明</jmx_eb:PlumeDirection>
+    </ColorPlume>
+  </VolcanoObservation>
+</Body>
+</Report>

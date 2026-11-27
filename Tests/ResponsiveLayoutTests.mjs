@@ -852,7 +852,7 @@ assert.match(
 );
 assert.match(panel, /data-mobile-weather-date/);
 assert.match(panel, /data-mobile-weather-frames=/);
-assert.match(panel, /class="mobile-dock-weather-timeline\$\{loadingLabel \? " is-loading" : ""\}"/);
+assert.match(panel, /class="mobile-dock-weather-timeline mobile-weather-timeline-axis\$\{loadingLabel \? " is-loading" : ""\}"/);
 assert.match(panel, /const loadingLabel = weatherChartLoading[\s\S]*?"天気図を読み込み中"[\s\S]*?"雷情報を読み込み中"[\s\S]*?"雨雲レーダーを読み込み中"/);
 assert.match(panel, />天気図<\/button>[\s\S]*?>雷<\/button>/);
 assert.match(panel, /function buildMobileDockLoadingStatus\(label\)[\s\S]*?class="mobile-dock-loading-status" role="status" aria-live="polite"/);
@@ -884,11 +884,11 @@ assert.match(
 );
 assert.match(
   styles,
-  /\.mobile-dock-world-time-control \.weather-time-timeline\s*\{[\s\S]*?width:\s*calc\(100% - 68px\);[\s\S]*?margin:\s*0 34px;/
+  /\.mobile-dock-world-time-control \.weather-time-timeline\s*\{[\s\S]*?width:\s*100%;[\s\S]*?margin:\s*0;/
 );
 assert.match(
   styles,
-  /\.mobile-dock-world-time-control \.mobile-dock-date\s*\{[\s\S]*?left:\s*0;[\s\S]*?width:\s*30px;/
+  /\.mobile-weather-readout\s*\{[^}]*white-space:\s*nowrap;/
 );
 assert.match(styles, /\.mobile-dock-weather-timeline\s*\{[\s\S]*?height:\s*52px;/);
 assert.match(styles, /\.mobile-dock-loading-status\s*\{[\s\S]*?display:\s*inline-flex;[\s\S]*?border-radius:\s*999px;/);
@@ -935,11 +935,11 @@ assert.match(
 );
 assert.match(
   styles,
-  /html\[data-theme="light"\] \.volcano-ash-timeline\s*\{[\s\S]*?--volcano-ash-thumb-border:\s*#167997;[\s\S]*?--volcano-ash-thumb-background:\s*#55c7db;/
+  /html\[data-theme="light"\] \.volcano-ash-timeline\s*\{[\s\S]*?--volcano-ash-thumb-background:\s*#167997;/
 );
 assert.match(
   styles,
-  /html\[data-theme="light"\] \.volcano-selected-header h2\s*\{[\s\S]*?color:\s*#0c2b47;[\s\S]*?font-weight:\s*950;/
+  /html\[data-theme="light"\] \.volcano-selected-header h2\s*\{[\s\S]*?color:\s*#0c2b47;/
 );
 assert.doesNotMatch(styles, /html\[data-theme="light"\] #sidebar\s*\{[\s\S]{0,320}?background:\s*rgba\(246, 250, 254, 0\.94\)/);
 assert.match(

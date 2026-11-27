@@ -1,13 +1,23 @@
 import { EARTHQUAKE_REFRESH_INTERVAL_MS, JMA_ENDPOINTS } from "../config.js";
 import { fetchText, parseJmaTime } from "./jmaClient.js";
+import {
+  buildVolcanicAshWarningState,
+  classifyVolcanicAshKind,
+  classifyVolcanicAshWarning,
+  isVolcanicAshDisplayEnabled,
+  partitionVolcanicAshProducts,
+  VOLCANIC_ASH_ROLLOUT
+} from "../volcanicAsh.js";
 
-const VOLCANO_XML_CODES = new Set(["VFVO50", "VFVO51", "VFVO52", "VFVO53", "VFVO54", "VFVO55", "VFVO56"]);
+const VOLCANO_XML_CODES = new Set(["VFVO50", "VFVO51", "VFVO52", "VFVO53", "VFVO54", "VFVO55", "VFVO56", "VFVO70"]);
 const VOLCANO_DETAIL_FETCH_LIMIT = 32;
 const VOLCANO_WARNING_DETAIL_CODES = new Set(["VFVO50", "VFVO51"]);
 const VOLCANO_ASH_FORECAST_CODES = new Set(["VFVO53", "VFVO54", "VFVO55"]);
 const VOLCANO_WARNING_DETAIL_LIMIT = 20;
 const VOLCANO_ASH_FORECAST_LIMIT = 10;
 const VOLCANO_DISPLAY_LIMIT = 130;
+const VOLCANIC_ASH_WARNING_DETAIL_LIMIT = 3;
+let lastVolcanicAshWarningReport = null;
 
 export async function fetchVolcanoXmlList() {
   const [feeds, baselineReports] = await Promise.all([
@@ -31,12 +41,22 @@ export async function fetchVolcanoXmlList() {
     throw new Error("Volcano XML detail unavailable");
   }
 
+  const products = partitionVolcanicAshProducts(reports);
+  const warningFetchFailed = results.some((result, index) => entries[index]?.code === "VFVO70" && (
+    result.status === "rejected" || !result.value || (!["試験", "訓練"].includes(result.value.status)
+      && (!result.value.isOperational || !result.value.isUsable))
+  ));
+  const warningState = buildVolcanicAshWarningState(products.warningReports, {
+    previousReport: lastVolcanicAshWarningReport,
+    sourceAvailable: feeds.length > 0 && !warningFetchFailed
+  });
+  lastVolcanicAshWarningReport = warningState.report;
   const consolidatedReports = consolidateVolcanoReports([
-    ...reports,
+    ...products.visibleReports,
     ...latestActivityReports,
     ...baselineReports
   ]).slice(0, VOLCANO_DISPLAY_LIMIT);
-  const updatedAt = [...reports, ...latestActivityReports]
+  const updatedAt = [...products.visibleReports, ...latestActivityReports]
     .sort((left, right) => dateMs(right.reportTimeRaw || right.reportTime) - dateMs(left.reportTimeRaw || left.reportTime))[0]?.reportTime
     ?? baselineReports[0]?.reportTime
     ?? feeds.map(({ feed }) => getText(getFirst(feed, "updated"))).sort((a, b) => dateMs(b) - dateMs(a))[0]
@@ -46,6 +66,14 @@ export async function fetchVolcanoXmlList() {
     source: "jma-volcano-xml",
     sourceLabel: "気象庁 火山情報（JSON・XML）",
     reports: consolidatedReports,
+    // Readiness data is separate from volcano markers and alert levels. Neither
+    // receipt nor a test bulletin can switch the public display on.
+    volcanicAsh: {
+      forecastDisplayEnabled: products.forecastDisplayEnabled,
+      warningDisplayEnabled: products.warningDisplayEnabled,
+      preparedForecastReports: products.newForecastReports,
+      warningState
+    },
     mapVolcanoes: consolidatedReports.filter((report) => Array.isArray(report.coordinates)),
     updatedAt: parseJmaTime(updatedAt) ?? updatedAt ?? "未取得",
     latestTime: parseJmaTime(updatedAt) ?? updatedAt ?? "未取得"
@@ -54,16 +82,18 @@ export async function fetchVolcanoXmlList() {
 
 export function selectVolcanoFeedEntries(entries, limit = VOLCANO_DETAIL_FETCH_LIMIT) {
   const unique = uniqueEntries(entries);
+  const ashWarningEntries = unique.filter(entry => entry.code === "VFVO70")
+    .slice(0, Math.min(VOLCANIC_ASH_WARNING_DETAIL_LIMIT, Math.max(0, limit)));
   const warningEntries = unique
     .filter((entry) => VOLCANO_WARNING_DETAIL_CODES.has(entry.code))
-    .slice(0, Math.min(VOLCANO_WARNING_DETAIL_LIMIT, limit));
+    .slice(0, Math.min(VOLCANO_WARNING_DETAIL_LIMIT, Math.max(0, limit - ashWarningEntries.length)));
   const ashForecastEntries = unique
     .filter((entry) => VOLCANO_ASH_FORECAST_CODES.has(entry.code))
-    .slice(0, Math.min(VOLCANO_ASH_FORECAST_LIMIT, Math.max(0, limit - warningEntries.length)));
+    .slice(0, Math.min(VOLCANO_ASH_FORECAST_LIMIT, Math.max(0, limit - warningEntries.length - ashWarningEntries.length)));
   const remainingEntries = unique.filter((entry) =>
-    !VOLCANO_WARNING_DETAIL_CODES.has(entry.code) && !VOLCANO_ASH_FORECAST_CODES.has(entry.code)
+    entry.code !== "VFVO70" && !VOLCANO_WARNING_DETAIL_CODES.has(entry.code) && !VOLCANO_ASH_FORECAST_CODES.has(entry.code)
   );
-  return [...warningEntries, ...ashForecastEntries, ...remainingEntries].slice(0, limit);
+  return [...ashWarningEntries, ...warningEntries, ...ashForecastEntries, ...remainingEntries].slice(0, Math.max(0, limit));
 }
 
 export function getVolcanoWarningDetailReport(report) {
@@ -114,6 +144,7 @@ export function getHighestPriorityVolcanoReport(reports) {
 export function consolidateVolcanoReports(reports) {
   const groups = new Map();
   [...reports]
+    .filter(report => report?.productType !== "volcanic-ash-warning")
     .sort((left, right) => dateMs(right.reportTimeRaw || right.reportTime) - dateMs(left.reportTimeRaw || left.reportTime))
     .forEach((report) => {
       const key = String(report.volcanoCode || report.volcanoName || report.id || "").trim();
@@ -363,6 +394,15 @@ export function parseVolcanoReport(text, entry = {}) {
   const control = getFirstChild(report, "Control");
   const head = getFirstChild(report, "Head");
   const body = getFirstChild(report, "Body");
+  const bulletinCode = entry.code || getXmlCodeFromUrl(entry.url);
+  if (bulletinCode === "VFVO70" || getText(getFirstChild(control, "Title")) === "火山灰警報・注意報") {
+    return parseVolcanicAshWarning(report, entry);
+  }
+  const ashForecastFormat = /火山灰予報/u.test([
+    getText(getFirstChild(control, "Title")), getText(getFirstChild(head, "InfoKind")),
+    ...getElements(body, "AshInfos").map(element => element.getAttribute("type"))
+  ].join(" ")) ? "volcanic-ash" : "legacy";
+  const status = getText(getFirstChild(control, "Status"));
   const volcanoInfo = getElements(body, "VolcanoInfo").find((element) =>
     String(element.getAttribute("type") ?? "").includes("対象火山")
   ) ?? getFirst(body, "VolcanoInfo");
@@ -400,7 +440,10 @@ export function parseVolcanoReport(text, entry = {}) {
   return {
     id: entry.id || `${getText(getFirstChild(head, "EventID"))}-${reportTimeRaw}-${entry.code}`,
     title: normalizeText(getText(getFirstChild(head, "Title")) || entry.title),
-    bulletinCode: entry.code || getXmlCodeFromUrl(entry.url),
+    bulletinCode,
+    status,
+    isOperational: status === "通常" || (!status && ashForecastFormat === "legacy"),
+    ashForecastFormat,
     volcanoCode: getText(getFirstChild(area, "Code")),
     volcanoName: volcanoName || "火山名不明",
     craterName: getText(getFirstChild(area, "CraterName")),
@@ -421,13 +464,87 @@ export function parseVolcanoReport(text, entry = {}) {
     plumeHeight: plumeHeight ? `${plumeHeight}${plumeHeightNode?.getAttribute("unit") ?? "m"}` : "",
     plumeDirection: getText(getFirst(observation, "PlumeDirection")),
     observation: normalizeText(getText(getFirstChild(observation, "OtherObservation"))),
-    targetAreas: entry.code === "VFVO50" ? parseVolcanoTargetAreas(body) : [],
-    ashForecasts: parseAshForecasts(body, entry.code || getXmlCodeFromUrl(entry.url)),
+    targetAreas: bulletinCode === "VFVO50" ? parseVolcanoTargetAreas(body) : [],
+    ashTargetAreas: VOLCANO_ASH_FORECAST_CODES.has(bulletinCode) ? parseVolcanoTargetAreas(body) : [],
+    ashForecasts: parseAshForecasts(body, bulletinCode, ashForecastFormat),
     sourceUrl: entry.url || "https://www.jma.go.jp/bosai/volcano/"
   };
 }
 
-function parseAshForecasts(body, bulletinCode) {
+// VFVO70 is nationwide. It must never pass through the single-volcano parser.
+export function parseVolcanicAshWarning(textOrReport, entry = {}) {
+  const xml = typeof textOrReport === "string" ? parseXml(textOrReport) : textOrReport;
+  const report = getFirst(xml, "Report") ?? xml;
+  const control = getFirstChild(report, "Control");
+  const head = getFirstChild(report, "Head");
+  const body = getFirstChild(report, "Body");
+  const reportTimeRaw = getText(getFirstChild(head, "ReportDateTime"));
+  const controlTimeRaw = getText(getFirstChild(control, "DateTime"));
+  const status = getText(getFirstChild(control, "Status"));
+  const infoType = getText(getFirstChild(head, "InfoType"));
+  const regions = getChildren(body, "VolcanoInfo").flatMap(information => {
+    const type = String(information.getAttribute("type") ?? "");
+    const scope = type.includes("市町村") ? "municipality" : type.includes("都道府県") ? "prefecture" : "unknown";
+    return getChildren(information, "Item").flatMap(item => {
+      const kind = getFirstChild(item, "Kind");
+      const previous = getFirstChild(item, "LastKind");
+      const categoryCode = getText(getFirstChild(kind, "Code"));
+      const condition = getText(getFirstChild(kind, "Condition"));
+      const classification = classifyVolcanicAshWarning(categoryCode);
+      return getChildren(item, "Area").map(area => ({
+        scope,
+        code: getText(getFirstChild(area, "Code")),
+        name: getText(getFirstChild(area, "Name")),
+        categoryCode,
+        categoryName: getText(getFirstChild(kind, "Name")),
+        previousCategoryCode: getText(getFirstChild(previous, "Code")),
+        previousCategoryName: getText(getFirstChild(previous, "Name")),
+        condition,
+        ashDepthCategory: getText(getFirstChild(item, "AshDepthCategory")),
+        ...classification,
+        ...(classification.known && condition === "解除" ? { active: false, severity: 0 } : {})
+      }));
+    });
+  });
+  const sources = getChildren(getFirstChild(body, "AshSources"), "AshSource").map(source => {
+    const area = getFirstChild(source, "Area");
+    return {
+      volcanoCode: getText(getFirstChild(area, "Code")),
+      volcanoName: getText(getFirstChild(area, "Name")),
+      coordinates: parseVolcanoCoordinate(getText(getFirstChild(area, "Coordinate"))),
+      widespreadAshfall: getText(getFirstChild(source, "WidespreadAshfall"))
+    };
+  });
+  const content = getFirstChild(body, "VolcanoInfoContent");
+  const keys = regions.map(region => `${region.scope}:${region.code}`);
+  return {
+    id: entry.id || `VFVO70-${reportTimeRaw}-${controlTimeRaw}-${infoType}`,
+    productType: "volcanic-ash-warning",
+    bulletinCode: "VFVO70",
+    title: getText(getFirstChild(head, "Title")),
+    infoKind: getText(getFirstChild(head, "InfoKind")),
+    infoKindVersion: getText(getFirstChild(head, "InfoKindVersion")),
+    status,
+    infoType,
+    isOperational: status === "通常",
+    isUsable: Number.isFinite(Date.parse(reportTimeRaw)) && ["発表", "訂正"].includes(infoType)
+      && regions.some(region => region.scope === "municipality")
+      && regions.every(region => region.code && region.name && region.categoryCode && region.scope !== "unknown")
+      && new Set(keys).size === keys.length,
+    reportTimeRaw,
+    controlTimeRaw,
+    targetTimeRaw: getText(getFirstChild(head, "TargetDateTime")),
+    reportTime: parseJmaTime(reportTimeRaw) ?? reportTimeRaw,
+    headline: normalizeText(getText(getFirst(getFirstChild(head, "Headline"), "Text"))),
+    activity: normalizeText(getText(getFirstChild(content, "VolcanoActivity"))),
+    prevention: normalizeText(getText(getFirstChild(content, "VolcanoPrevent")) || getText(getFirstChild(content, "VolcanoPrevention"))),
+    regions,
+    sources,
+    sourceUrl: entry.url || "https://www.jma.go.jp/bosai/volcano/"
+  };
+}
+
+function parseAshForecasts(body, bulletinCode, format) {
   return getElements(body, "AshInfo").map((ashInfo, forecastIndex) => {
     const startTimeRaw = getText(getFirstChild(ashInfo, "StartTime"));
     const endTimeRaw = getText(getFirstChild(ashInfo, "EndTime"));
@@ -443,6 +560,8 @@ function parseAshForecasts(body, bulletinCode) {
       return getChildren(item, "Kind").flatMap((kind, kindIndex) => {
         const property = getFirstChild(kind, "Property") ?? getFirst(item, "Property");
         const kindName = getText(getFirstChild(kind, "Name")) || "降灰予報";
+        const kindCode = getText(getFirstChild(kind, "Code"));
+        const classification = classifyVolcanicAshKind(kindName, kindCode, format);
         const sizeNode = getFirst(property, "Size");
         const distanceNode = getFirst(property, "Distance");
         const polygonGroups = groupVolcanoPolygonRings(
@@ -453,9 +572,8 @@ function parseAshForecasts(body, bulletinCode) {
         return polygonGroups.map(({ polygon, holes }, polygonIndex) => ({
           id: `${bulletinCode || "VFVO"}-${forecastIndex}-${itemIndex}-${kindIndex}-${polygonIndex}`,
           kindName,
-          kindCode: getText(getFirstChild(kind, "Code")),
-          category: /小さな噴石/u.test(kindName) ? "small-cinders" : "ashfall",
-          amount: ashfallAmount(kindName),
+          kindCode,
+          ...classification,
           polygon,
           holes,
           plumeDirection: getText(getFirst(property, "PlumeDirection")),
@@ -469,6 +587,7 @@ function parseAshForecasts(body, bulletinCode) {
     return {
       id: `${bulletinCode || "VFVO"}-${forecastIndex}-${startTimeRaw}-${endTimeRaw}`,
       bulletinCode,
+      format,
       startTimeRaw,
       endTimeRaw,
       startTime: parseJmaTime(startTimeRaw) ?? startTimeRaw,
@@ -476,13 +595,6 @@ function parseAshForecasts(body, bulletinCode) {
       areas
     };
   }).filter((forecast) => forecast.areas.length > 0);
-}
-
-function ashfallAmount(kindName) {
-  if (/やや多量/u.test(kindName)) return "moderate";
-  if (/多量/u.test(kindName)) return "heavy";
-  if (/少量/u.test(kindName)) return "light";
-  return "unknown";
 }
 
 function measurement(node) {
@@ -574,9 +686,11 @@ function pointInPolygon([pointX, pointY], ring) {
   return inside;
 }
 
-export function getAvailableVolcanoAshForecasts(report, now = Date.now()) {
+export function getAvailableVolcanoAshForecasts(report, now = Date.now(), rollout = VOLCANIC_ASH_ROLLOUT) {
   const candidates = (report?.relatedReports ?? [report])
+    .filter(item => item?.isOperational !== false)
     .flatMap((item) => item?.ashForecasts ?? [])
+    .filter(forecast => forecast.format !== "volcanic-ash" || isVolcanicAshDisplayEnabled("forecast", now, rollout))
     .filter((forecast) => forecast?.areas?.some((area) => Array.isArray(area?.polygon) && area.polygon.length >= 4))
     .map((forecast) => ({
       ...forecast,
@@ -659,7 +773,7 @@ async function fetchVolcanoFeeds() {
 }
 
 async function fetchVolcanoDetail(entry) {
-  return parseVolcanoReport(await fetchText(entry.url, { ttlMs: 60 * 1000, cache: "no-store" }), entry);
+  return parseVolcanoReport(await fetchText(entry.url, { ttlMs: 60 * 1000, cache: "no-store", staleIfError: entry.code !== "VFVO70" }), entry);
 }
 
 function parseFeedEntry(entry) {

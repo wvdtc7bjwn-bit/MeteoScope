@@ -497,12 +497,15 @@ assert.doesNotMatch(
 );
 assert.match(map, /\["to-number", \["get", "level"\], 0\], 1/);
 assert.match(map, /volcanoLevel1:\s*"#8fa5b9"/);
-assert.match(map, /volcanoBaseHaloWidth:\s*0/);
+assert.match(map, /volcanoBaseHaloWidth:\s*0\.75/);
 assert.match(map, /\["sample-volcano", "icon-halo-width", colors\.volcanoBaseHaloWidth\]/);
 assert.doesNotMatch(map, /function buildVolcanoHalo(?:Color|Width)Expression/);
-assert.match(map, /const levelOneScale = theme === "light" \? 1\.15 : 1/);
+assert.match(map, /const levelOneScale = theme === "light" \? 1\.08 : 1/);
 assert.match(map, /level:\s*priority/);
 assert.match(map, /function setupVolcanoMarkerImage/);
+assert.match(map, /id: "sample-volcano-selection"/);
+assert.match(map, /id: "sample-volcano-hit"/);
+assert.match(map, /id: "sample-volcano-label"/);
 assert.doesNotMatch(map, /"text-field": "△"/);
 assert.match(map, /CustomEvent\("volcano-select"/);
 assert.match(map, /CustomEvent\("volcano-select"[\s\S]*hideMapInfo\("earthquake-distribution"\);[\s\S]*return;/);
@@ -516,7 +519,7 @@ assert.match(map, /getAvailableVolcanoAshForecasts/);
 assert.match(map, /getHighestPriorityVolcanoReport\(reports\)/);
 assert.match(map, /volcanoCode:\s*activeVolcanoCode/);
 assert.match(map, /volcanoCode: String\(report\.volcanoCode/);
-assert.match(map, /layerID === "sample-volcano" \|\| feature\?\.properties\?\.markerType === "ashfall"/);
+assert.match(map, /layerID === "sample-volcano-hit" \|\| feature\?\.properties\?\.markerType === "ashfall"/);
 assert.match(map, /mapInfoElement\.dataset\.variant = variant/);
 assert.match(style, /\.map-info-popup\[data-variant="volcano"\]\s*\{\s*z-index: 410;/);
 assert.match(app, /setupLongPressButton[\s\S]*data-tab="earthquake"/);
@@ -540,12 +543,9 @@ assert.match(panel, /activity_info\/\$\{volcanoCode\}\.html/);
 assert.match(panel, /JVDN_VOLCANO_PAGE_NAMES\.has\(volcanoName\)/);
 assert.match(panel, /JVDN_VOLCANO_PAGE_ALIASES\.get\(volcanoName\)/);
 assert.match(panel, /https:\/\/jvdn\.bosai\.go\.jp\/portal\/ja\/\$\{encodeURIComponent\(jvdnPageName\)\}/);
-assert.match(panel, /const hasLongVolcanoName = Array\.from\(displayName\)\.length >= 7;/);
-assert.match(panel, /volcano-selected-header\$\{hasLongVolcanoName \? " is-long-name" : ""\}/);
 assert.match(panel, /label: localizeText\("気象庁"\)/);
 assert.match(panel, /label: "JVDN"/);
 assert.match(panel, /class="volcano-reference-links"/);
-assert.match(style, /\.volcano-selected-header\.is-long-name \.volcano-reference-links\s*\{[\s\S]*?flex-basis:\s*100%/);
 assert.match(style, /\.volcano-reference-link\s*\{[\s\S]*?min-height:\s*32px;/);
 assert.match(
   panel,
@@ -579,16 +579,14 @@ assert.match(
 );
 assert.match(app, /function refreshVolcanoView[\s\S]*?updateCurrentView/);
 assert.match(app, /function updateCurrentView[\s\S]*?scheduleMapRender\(tab\.id, displayData\)/);
-assert.match(style, /\.volcano-ash-timeline\s*\{[\s\S]*?height:\s*28px;/);
-assert.match(style, /\.volcano-ash-timeline-rail\s*\{[\s\S]*?justify-content:\s*space-between;/);
+assert.match(style, /\.volcano-ash-timeline\s*\{[\s\S]*?height:\s*34px;/);
+assert.match(style, /\.volcano-ash-timeline-labels,\s*\.volcano-ash-timeline-rail\s*\{[\s\S]*?justify-content:\s*space-between;/);
 assert.match(style, /\.volcano-ash-slider::\-webkit-slider-thumb[\s\S]*?width:\s*44px;[\s\S]*?border-radius:\s*999px;/);
-assert.match(style, /\.volcano-ash-slider::\-webkit-slider-thumb[\s\S]*?background:\s*var\(--volcano-ash-thumb-background\);[\s\S]*?box-shadow:\s*none;/);
-assert.match(style, /\.volcano-ash-slider::\-moz-range-thumb[\s\S]*?background:\s*var\(--volcano-ash-thumb-background\);[\s\S]*?box-shadow:\s*none;/);
+assert.match(style, /\.volcano-ash-slider::\-webkit-slider-thumb[\s\S]*?background:\s*linear-gradient\(var\(--volcano-ash-thumb-background\), var\(--volcano-ash-thumb-background\)\) center \/ 6px 20px no-repeat;[\s\S]*?box-shadow:\s*none;/);
+assert.match(style, /\.volcano-ash-slider::\-moz-range-thumb[\s\S]*?background:\s*linear-gradient\(var\(--volcano-ash-thumb-background\), var\(--volcano-ash-thumb-background\)\) center \/ 6px 20px no-repeat;[\s\S]*?box-shadow:\s*none;/);
 assert.doesNotMatch(style, /\.volcano-ash-timeline-rail i\.active/);
 assert.match(panel, /function formatVolcanoBulletinTitle/);
 assert.match(panel, /replace\(\/\^火山名\[\\s\\u3000\]\*\/u/);
-assert.match(panel, /volcano-bulletin-detail-nav volcano-selection-nav/);
-assert.match(panel, /data-volcano-clear-selection>\$\{escapeHtml\(localizeText\("← 火山情報の見方"\)\)\}/);
 assert.doesNotMatch(panel, /一覧へ戻る/);
 assert.match(panel, /buildSelectedVolcanoDetail\(selectedReport, selectedBulletinId\)/);
 assert.match(panel, /function buildVolcanoAlertLevelGuide/);
@@ -610,36 +608,19 @@ assert.match(style, /\.tab-button\[data-tab="earthquake"\]\.is-volcano-mode\s*\{
 assert.match(style, /\.volcano-guide-level\s*\{/);
 assert.match(style, /\.volcano-history-item\s*\{[\s\S]*?appearance:\s*none;[\s\S]*?border:\s*0;/);
 assert.match(style, /\.volcano-history-item:last-child\s*\{\s*border-bottom:\s*0;/);
-assert.match(style, /\.volcano-selection-nav\s*\{/);
 assert.match(style, /\.level-5\s*\{[\s\S]*?--volcano-level-color:\s*#ca01f9;/);
 assert.match(volcanoParser, /function parseVolcanoTargetAreas/);
 assert.match(volcanoParser, /"VFVO53"/);
 assert.match(volcanoParser, /function parseAshForecasts/);
 assert.match(volcanoParser, /export function groupVolcanoPolygonRings/);
-assert.match(volcanoParser, /targetAreas: entry\.code === "VFVO50" \? parseVolcanoTargetAreas\(body\) : \[\]/);
+assert.match(volcanoParser, /targetAreas: bulletinCode === "VFVO50" \? parseVolcanoTargetAreas\(body\) : \[\]/);
 
 console.log("Volcano tests passed");
 
 // Reduced structure from JMA VFVO51 20261110070006_0_VFVO51_010000.xml:
 // EventID 900, nationwide title and multiple target volcanoes.
-const { DOMParser: XmlParser } = await import("@xmldom/xmldom");
-const previousParser = globalThis.DOMParser;
-globalThis.DOMParser = class {
-  parseFromString(text, type) {
-    const doc = new XmlParser().parseFromString(text, type);
-    doc.querySelector = () => null;
-    const adapt = node => {
-      if (node.getElementsByTagNameNS) {
-        const getElements = node.getElementsByTagNameNS.bind(node);
-        node.getElementsByTagNameNS = (...args) => Array.from(getElements(...args));
-      }
-      Object.defineProperty(node, "children", { get: () => Array.from(node.childNodes ?? []).filter(child => child.nodeType === 1) });
-      for (const child of Array.from(node.childNodes ?? [])) adapt(child);
-    };
-    adapt(doc);
-    return doc;
-  }
-};
+const { installXmlDom } = await import("./helpers/installXmlDom.mjs");
+const restoreXmlDom = installXmlDom();
 try {
   const bulletin = (eventId, title, codes) => `<Report><Head><Title>${title}</Title><EventID>${eventId}</EventID><ReportDateTime>2026-11-10T16:00:00+09:00</ReportDateTime></Head><Body><VolcanoInfo type="対象火山"><Item><Kind><Name>レベル3（入山規制）</Name><Code>13</Code></Kind><Areas>${codes.map(code => `<Area><Name>火山${code}</Name><Code>${code}</Code><Coordinate>+31.59+130.66/</Coordinate></Area>`).join("")}</Areas></Item></VolcanoInfo><VolcanoInfoContent><VolcanoActivity>活動の本文</VolcanoActivity></VolcanoInfoContent></Body></Report>`;
   assert.equal(parseVolcanoReport(bulletin("900", "火山名 全国の活火山 火山の状況に関する解説情報", ["506", "108"])), null);
@@ -652,6 +633,6 @@ try {
     assert.equal(report.level, 3);
   }
 } finally {
-  globalThis.DOMParser = previousParser;
+  restoreXmlDom();
 }
 console.log("Volcano bulletin scope tests passed");

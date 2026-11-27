@@ -586,9 +586,9 @@ const [
   readFile(new URL("../DATA_SOURCES.md", import.meta.url), "utf8")
 ]);
 assert.match(appSource, /setupTyphoonForecastModeControls/);
-assert.match(panelSource, /data-typhoon-forecast-mode="jma"/);
-assert.match(panelSource, /data-typhoon-forecast-mode="world"/);
-assert.match(panelSource, />海外モデル<\/button>/);
+assert.match(panelSource, /\["jma", isEnglish \? "JMA" : "気象庁"\]/);
+assert.match(panelSource, /\["world", isEnglish \? "Global models" : "海外モデル"\]/);
+assert.match(panelSource, /mobile-dock-typhoon-dots/);
 assert.match(panelSource, /data-world-typhoon-model-toggle=/);
 assert.match(panelSource, /--world-model-color:/);
 assert.match(panelSource, /data-world-typhoon-time-slider/);
@@ -618,7 +618,7 @@ assert.match(mapSource, /function buildTyphoonPopup\(typhoon, label\)[\s\S]*?con
   "実況の最大風速がある熱帯低気圧でも種別を表示する");
 assert.match(panelSource, /function getTyphoonStatusPresentation\(transitionStatus, systemType\)[\s\S]*?return type \? \{ label: "種別", text: type \} : null/u,
   "番号bの熱帯低気圧にも種別を表示する");
-const mobileTyphoonSummaryStart = panelSource.indexOf("function buildTyphoonMobileContextMarkup");
+const mobileTyphoonSummaryStart = panelSource.indexOf("function buildTyphoonMobilePageMarkup");
 const mobileTyphoonSummaryEnd = panelSource.indexOf("\r\n\r\nfunction ", mobileTyphoonSummaryStart + 1);
 const mobileTyphoonSummarySource = panelSource.slice(mobileTyphoonSummaryStart, mobileTyphoonSummaryEnd);
 assert.match(mobileTyphoonSummarySource, /transitionStatus \?[^\n]*mobile-dock-typhoon-status/u);
@@ -712,7 +712,7 @@ assert.match(styleSource, /\.typhoon-analysis-classification-item\.is-strength\.
 assert.match(styleSource, /\.typhoon-analysis-classification-item\.is-strength\.is-strong/);
 assert.match(styleSource, /\.mobile-dock-typhoon-classification\.is-size\.is-super-large/);
 assert.match(styleSource, /\.mobile-dock-typhoon-classification\.is-strength\.is-strong/);
-assert.match(styleSource, /\.mobile-dock-typhoon-classifications\s*\{[\s\S]*flex-direction:\s*column/);
+assert.match(styleSource, /\.mobile-dock-typhoon-classifications\s*\{[\s\S]*flex-direction:\s*row/);
 assert.match(panelSource, /class="typhoon-analysis-movement"/);
 assert.match(panelSource, /class="typhoon-select-count"/);
 assert.match(panelSource, /class="typhoon-analysis-position"/);

@@ -358,7 +358,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     lastHorizontalTime = event.timeStamp || performance.now();
     horizontalVelocityX = 0;
     horizontalSummarySwipeEnabled = target === mobileContextDock
-      && Boolean(mobileContextDock?.querySelector(".mobile-dock-earthquake-summary-track"));
+      && Boolean(mobileContextDock?.querySelector(".mobile-dock-earthquake-summary-track, .mobile-dock-typhoon-track"));
     startOffset = renderedOffset;
     currentOffset = startOffset;
     sidebar.style.transition = "none";
@@ -376,6 +376,14 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     }
     mobileContextDock?.classList.toggle("is-vertical-dragging", initialAxis === "y");
     if (initialAxis === "y") target.setPointerCapture?.(event.pointerId);
+  }
+
+  function isSummaryBoundaryDrag(distance) {
+    const page = mobileContextDock?.dataset.tab === "typhoon"
+      ? mobileContextDock.dataset.mobileTyphoonSummaryPage
+      : mobileContextDock?.dataset.mobileEarthquakeSummaryPage;
+    return (["earthquake", "jma"].includes(page) && distance > 0)
+      || (["tide", "world"].includes(page) && distance < 0);
   }
 
   function moveDrag(event) {
@@ -398,9 +406,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
       horizontalVelocityX = horizontalVelocityX * 0.65 + instantaneousVelocity * 0.35;
       lastHorizontalX = event.clientX;
       lastHorizontalTime = eventTime;
-      const page = mobileContextDock?.dataset.mobileEarthquakeSummaryPage;
-      const isBoundaryDrag = (page === "earthquake" && deltaX > 0)
-        || (page === "tide" && deltaX < 0);
+      const isBoundaryDrag = isSummaryBoundaryDrag(deltaX);
       const visualDelta = isBoundaryDrag ? deltaX * 0.24 : deltaX;
       mobileContextDock?.classList.add("is-horizontal-swiping");
       applyHorizontalDragSoon(visualDelta);
@@ -418,9 +424,7 @@ export function setupPanelToggle({ onLayoutChange } = {}) {
     const horizontalDistance = (event.clientX ?? currentX) - startX;
     if (dragAxis === "x") {
       const moved = Math.abs(horizontalDistance) > 6;
-      const page = mobileContextDock?.dataset.mobileEarthquakeSummaryPage;
-      const isBoundaryDrag = (page === "earthquake" && horizontalDistance > 0)
-        || (page === "tide" && horizontalDistance < 0);
+      const isBoundaryDrag = isSummaryBoundaryDrag(horizontalDistance);
       const visualDistance = isBoundaryDrag ? horizontalDistance * 0.24 : horizontalDistance;
       cancelPendingHorizontalDrag();
       mobileContextDock?.style.setProperty("--mobile-summary-drag-x", `${visualDistance}px`);
