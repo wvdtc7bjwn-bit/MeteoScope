@@ -1,5 +1,5 @@
 import { escapeHtml } from "../utils/html.js";
-import { CUSTOMIZATION_DEFAULTS } from "../preferences/customization.js";
+import { CUSTOMIZATION_DEFAULTS, applySurfaceAppearance } from "../preferences/customization.js";
 
 const select = (group, key, label, choices) => `<label class="settings-customization-field"><span>${label}</span><select aria-label="${label}" data-customization-group="${group}" data-customization-key="${key}">${choices.map(([value, text]) => `<option value="${value}">${text}</option>`).join("")}</select></label>`;
 const toggle = (group, key, label) => `<div class="settings-detail-item settings-toggle-item"><div class="settings-customization-toggle settings-switch-row"><span>${label}</span><button type="button" class="settings-switch" role="switch" aria-checked="true" aria-label="${label}" data-customization-toggle="${key}" data-customization-group="${group}"><span class="settings-switch-thumb"></span></button></div></div>`;
@@ -26,14 +26,37 @@ export function customizationSettingsMarkup() {
     ].join(""));
 }
 
+export function surfaceSettingsMarkup() {
+  const range = (key, label, min, max, unit, ends) => `<label class="settings-surface-range"><span>${label}<output data-surface-output="${key}" aria-hidden="true"></output></span><input type="range" min="${min}" max="${max}" step="1" aria-label="${label}" data-surface-adjustment="${key}" data-surface-unit="${unit}"><small><span>${ends[0]}</span><span>${ends[1]}</span></small></label>`;
+  return `<div class="settings-detail-item"><p class="settings-theme-help" id="settings-surface-label">背景の透け具合</p>
+    <div class="settings-theme-options" role="radiogroup" aria-labelledby="settings-surface-label">${[["default", "標準"], ["translucent", "半透明"], ["opaque", "不透明"]].map(([value, label]) => `<button type="button" role="radio" aria-checked="false" tabindex="-1" data-surface-choice="${value}">${label}</button>`).join("")}</div>
+    <p class="settings-theme-help">要約パネル、下部ボタン、時計、地図上のボタン、メニュー、モーダルの背景にまとめて反映します。文字やアイコンの濃さは変わりません。</p></div>
+    <div class="settings-detail-item" data-surface-adjustments hidden>
+      ${range("opacity", "半透明の濃さ", 40, 100, "%", ["薄い", "濃い"])}
+      ${range("blur", "ぼかしの強さ", 0, 24, "px", ["なし", "強い"])}
+      <p class="settings-theme-help">スライダーを動かすと、その場で見た目を確認できます。</p>
+    </div><button type="button" class="settings-tab-order-reset" data-customization-reset="appearance">背景を標準に戻す</button><p class="settings-theme-help" data-customization-status="appearance" role="status"></p>`;
+}
+
 export function setupCustomizationSettings(modal, { getState, onChange, getMapView }) {
   modal.querySelector(".settings-theme-group").insertAdjacentHTML("beforebegin", customizationSettingsMarkup());
-  modal.querySelector(".settings-theme-group .settings-group-content").insertAdjacentHTML("beforeend", `<div class="settings-detail-item">${select("appearance", "surfaces", "背景の透け具合", [["default", "標準（現在の表示）"], ["translucent", "半透明"], ["opaque", "不透明"]])}<p class="settings-theme-help">要約パネル、下部ボタン、時計、地図上のボタン、メニュー、モーダルの背景にまとめて反映します。文字やアイコンの濃さは変わりません。</p></div><button type="button" class="settings-tab-order-reset" data-customization-reset="appearance">背景を標準に戻す</button><p class="settings-theme-help" data-customization-status="appearance" role="status"></p>`);
+  modal.querySelector(".settings-theme-group .settings-group-content").insertAdjacentHTML("beforeend", surfaceSettingsMarkup());
   let menuSignature = "";
   const state = () => getState().customization ?? CUSTOMIZATION_DEFAULTS;
   const menuButtons = () => [...document.querySelectorAll("#map-utility-actions > button[id]")].filter(button => !button.hidden);
   function render() {
     const preferences = state();
+    for (const button of modal.querySelectorAll("[data-surface-choice]")) {
+      const selected = button.dataset.surfaceChoice === preferences.appearance.surfaces;
+      button.setAttribute("aria-checked", String(selected));
+      button.tabIndex = selected ? 0 : -1;
+    }
+    modal.querySelector("[data-surface-adjustments]").hidden = preferences.appearance.surfaces !== "translucent";
+    for (const input of modal.querySelectorAll("[data-surface-adjustment]")) {
+      const key = input.dataset.surfaceAdjustment;
+      input.value = String(preferences.appearance[key] ?? (document.documentElement?.dataset.theme === "light" ? 82 : 78));
+      renderRange(input);
+    }
     for (const element of modal.querySelectorAll("[data-customization-key]")) {
       element.value = String(preferences[element.dataset.customizationGroup][element.dataset.customizationKey]);
     }
@@ -59,10 +82,24 @@ export function setupCustomizationSettings(modal, { getState, onChange, getMapVi
   }
   function save(key, patch) {
     onChange(key, patch);
+    const status = modal.querySelector(`[data-customization-status="${key}"]`);
+    if (status) status.textContent = "";
     render();
   }
+  function renderRange(input) {
+    const unit = input.dataset.surfaceUnit;
+    input.setAttribute("aria-valuetext", `${input.value}${unit}`);
+    modal.querySelector(`[data-surface-output="${input.dataset.surfaceAdjustment}"]`).textContent = `${input.value}${unit}`;
+  }
+  modal.addEventListener("input", event => {
+    const input = event.target;
+    if (!input.dataset.surfaceAdjustment) return;
+    renderRange(input);
+    applySurfaceAppearance({ ...state().appearance, [input.dataset.surfaceAdjustment]: Number(input.value) });
+  });
   modal.addEventListener("change", event => {
     const element = event.target;
+    if (element.dataset.surfaceAdjustment) save("appearance", { [element.dataset.surfaceAdjustment]: Number(element.value) });
     if (element.matches("[data-customization-key]")) {
       const key = element.dataset.customizationKey;
       save(element.dataset.customizationGroup, { [key]: ["earthquakeZoom", "markerScale", "boundaryOpacity"].includes(key) ? Number(element.value) : element.value });
@@ -80,6 +117,7 @@ export function setupCustomizationSettings(modal, { getState, onChange, getMapVi
     if (!button) return;
     const key = button.dataset.customizationToggle;
     const section = button.dataset.customizationGroup;
+    if (button.dataset.surfaceChoice) save("appearance", { surfaces: button.dataset.surfaceChoice });
     if (key) save(section, { [key]: !state()[section][key] });
     if (button.dataset.customizationReset) {
       const target = button.dataset.customizationReset;
@@ -91,6 +129,17 @@ export function setupCustomizationSettings(modal, { getState, onChange, getMapVi
       if (view) save("startup", { savedView: view, viewport: "saved" });
       modal.querySelector('[data-customization-status="startup"]').textContent = view ? "今の地図範囲を保存しました。" : "地図の読み込み完了後にお試しください。";
     }
+  });
+  modal.addEventListener("keydown", event => {
+    const button = event.target.closest("[data-surface-choice]");
+    if (!button || !["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const buttons = [...modal.querySelectorAll("[data-surface-choice]")];
+    const index = buttons.indexOf(button);
+    const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1
+      : (index + (["ArrowRight", "ArrowDown"].includes(event.key) ? 1 : -1) + buttons.length) % buttons.length;
+    buttons[next].focus();
+    save("appearance", { surfaces: buttons[next].dataset.surfaceChoice });
   });
   return { render };
 }

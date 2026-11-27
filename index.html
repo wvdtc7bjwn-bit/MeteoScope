@@ -45,8 +45,14 @@
         document.documentElement.dataset.themePreference = "system";
       }
       try {
-        const surfaceAppearance = JSON.parse(localStorage.getItem("meteoscope.customization.v1") || "null")?.appearance?.surfaces;
+        const appearance = JSON.parse(localStorage.getItem("meteoscope.customization.v1") || "null")?.appearance;
+        const surfaceAppearance = appearance?.surfaces;
         document.documentElement.dataset.surfaceAppearance = ["translucent", "opaque"].includes(surfaceAppearance) ? surfaceAppearance : "default";
+        if (typeof appearance?.opacity === "number" && Number.isFinite(appearance.opacity)) {
+          document.documentElement.style.setProperty("--ui-custom-surface-alpha", String(Math.round(Math.max(40, Math.min(100, appearance.opacity))) / 100));
+        }
+        const blur = typeof appearance?.blur === "number" && Number.isFinite(appearance.blur) ? Math.round(Math.max(0, Math.min(24, appearance.blur))) : 12;
+        document.documentElement.style.setProperty("--ui-custom-surface-filter", blur === 0 ? "none" : `blur(${blur}px) saturate(115%)`);
       } catch {
         document.documentElement.dataset.surfaceAppearance = "default";
       }

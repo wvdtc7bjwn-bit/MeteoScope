@@ -8,6 +8,7 @@ import { setupAccountCardMotion } from "./accountCardMotion.js";
 import { getCurrentLanguage } from "./locale.js";
 import { createSettingsNavigator } from "./settingsNavigation.js";
 import { setupCustomizationSettings } from "./customizationSettings.js";
+import { setupSettingsChoiceLists } from "./settingsChoiceLists.js";
 import { openLocalTemperatureTerms } from "./localTemperatureTerms.js";
 import { createTemperatureSourceSelector, effectiveTemperatureSource, canUseTemperatureEstimation } from "../preferences/temperatureSource.js";
 import { getEarthquakeIntensityColor } from "../config.js";
@@ -30,6 +31,7 @@ let settingsProfileImageRequest = 0;
 let settingsProfileImageBusy = false;
 let settingsNavigator = null;
 let customizationSettings = null;
+let settingsChoiceLists = null;
 const selectTemperatureSource = createTemperatureSourceSelector({
   getState: () => settingsOptions.getState?.() ?? {},
   onChange: source => settingsOptions.onTemperatureSourceChange?.(source),
@@ -54,6 +56,7 @@ export function setupSettingsModal(options = {}) {
     onChange: (group, patch) => settingsOptions.onCustomizationChange?.(group, patch),
     getMapView: () => settingsOptions.getMapView?.()
   });
+  settingsChoiceLists = setupSettingsChoiceLists(modal);
   settingsNavigator = createSettingsNavigator(modal, { onOpenGroup(group) {
     if (group.matches(".settings-changelog-group")) renderSettingsChangelog();
     void renderSettingsLegalDocument(group);
@@ -213,6 +216,7 @@ export function setupSettingsModal(options = {}) {
     if (themeButton) {
       settingsOptions.onThemeChange?.(themeButton.dataset.settingsTheme);
       renderSettingsTheme();
+      customizationSettings?.render();
       return;
     }
 
@@ -307,6 +311,7 @@ export function refreshSettingsModalView() {
   renderSettingsEarlyAccess();
   void renderSettingsAccount();
   void renderSettingsDisasterMapPdf();
+  settingsChoiceLists?.render();
 }
 
 export function openSettingsModal() {
@@ -331,6 +336,7 @@ export function openSettingsModal() {
   renderSettingsEarlyAccess();
   void renderSettingsAccount();
   void renderSettingsDisasterMapPdf();
+  settingsChoiceLists?.render();
 }
 
 function closeSettingsModal() {

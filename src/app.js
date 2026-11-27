@@ -267,7 +267,7 @@ export function createWeatherApp() {
   setupRemoteConfig();
 
   let customization = loadCustomization();
-  applySurfaceAppearance(customization.appearance.surfaces);
+  applySurfaceAppearance(customization.appearance);
   const launchOptions = getLaunchOptions(customization);
   let activeTab = launchOptions.initialTab;
   let activeAmedasMetric = AMEDAS_METRICS[0].id;
@@ -4852,7 +4852,8 @@ if (layerId === "river") {
       getMapView: () => weatherMap?.getCameraView(),
       onCustomizationChange: (group, patch) => {
         customization = saveCustomization({ ...customization, [group]: { ...customization[group], ...patch } });
-        applySurfaceAppearance(customization.appearance.surfaces);
+        applySurfaceAppearance(customization.appearance);
+        if (group === "appearance") return;
         if (group === "startup") {
           if (customization.startup.tab === "previous") storeCustomizationValue(LAST_TAB_KEY, activeTab);
           if (customization.startup.viewport === "previous") storeCustomizationValue(LAST_VIEW_KEY, weatherMap?.getCameraView());

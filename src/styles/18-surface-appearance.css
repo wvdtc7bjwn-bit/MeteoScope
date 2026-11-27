@@ -4,7 +4,7 @@ html:is([data-surface-appearance="translucent"], [data-surface-appearance="opaqu
   --ui-chrome-rgb: 7, 16, 34;
   --ui-modal-rgb: 16, 27, 43;
   --ui-card-rgb: 27, 41, 58;
-  --ui-surface-alpha: .88;
+  --ui-surface-alpha: var(--ui-custom-surface-alpha, .88);
   --ui-surface-filter: none;
   --ui-surface-fill: rgba(var(--ui-chrome-rgb), var(--ui-surface-alpha));
 }
@@ -19,11 +19,11 @@ html[data-theme="light"]:is([data-surface-appearance="translucent"], [data-surfa
    Keep the denser fallback above for browsers without backdrop filtering. */
 @supports ((backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px))) {
   html[data-surface-appearance="translucent"] {
-    --ui-surface-alpha: .78;
-    --ui-surface-filter: blur(12px) saturate(115%);
+    --ui-surface-alpha: var(--ui-custom-surface-alpha, .78);
+    --ui-surface-filter: var(--ui-custom-surface-filter, blur(12px) saturate(115%));
   }
   html[data-theme="light"][data-surface-appearance="translucent"] {
-    --ui-surface-alpha: .82;
+    --ui-surface-alpha: var(--ui-custom-surface-alpha, .82);
   }
 }
 
@@ -57,3 +57,20 @@ html:is([data-surface-appearance="translucent"], [data-surface-appearance="opaqu
 html:is([data-surface-appearance="translucent"], [data-surface-appearance="opaque"]) .warning-modal-panel > :is([class$="-body"], .feedback-form) {
   background: transparent !important;
 }
+
+.settings-surface-range { display: grid; gap: 8px; margin: 8px 0 24px; }
+.settings-surface-range + .settings-surface-range { padding-top: 24px; border-top: 1px solid rgba(148, 163, 184, .18); }
+.settings-surface-range > span, .settings-surface-range > small { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.settings-surface-range output { color: var(--modal-focus); font-variant-numeric: tabular-nums; }
+.settings-surface-range > small { color: var(--modal-muted); }
+#settings-modal .settings-surface-range input[type="range"] {
+  width: 100%; min-width: 0; height: 32px; min-height: 0; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  accent-color: var(--modal-focus); cursor: pointer;
+}
+
+#settings-modal select[data-settings-choice-native] { display: none !important; }
+.settings-choice-field { min-width: 0; margin-bottom: 20px; }
+.settings-choice-field > label { margin-bottom: 8px; }
+.settings-choice-field + .settings-choice-field { padding-top: 20px; border-top: 1px solid rgba(148, 163, 184, .18); }
+#settings-modal .settings-color-legend-controls { display: block; }

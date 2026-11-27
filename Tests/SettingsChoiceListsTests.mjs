@@ -1,0 +1,36 @@
+import assert from "node:assert/strict";
+import { settingsSelectOptions, chooseSettingsOption } from "../src/ui/settingsChoiceLists.js";
+import { normalizeCustomization, saveCustomization, loadCustomization } from "../src/preferences/customization.js";
+
+const option = (value, label, extra = {}) => ({ value, label, hidden: false, disabled: false, closest: () => null, ...extra });
+const select = new EventTarget();
+Object.assign(select, { value: "7.4", disabled: false, options: [option("6", "広め"), option("7.4", "標準"), option("9", "詳しく")] });
+let stored = null, changes = 0;
+const storage = { getItem: () => stored, setItem: (_key, value) => { stored = value; } };
+let state = normalizeCustomization();
+select.addEventListener("change", event => {
+  assert.equal(event.bubbles, true);
+  changes++;
+  state = saveCustomization({ ...state, controls: { ...state.controls, earthquakeZoom: Number(select.value) } }, storage);
+});
+assert.equal(chooseSettingsOption(select, "9"), true);
+assert.equal(loadCustomization(storage).controls.earthquakeZoom, 9);
+assert.equal(settingsSelectOptions(select).find(item => item.selected).label, "詳しく");
+assert.equal(chooseSettingsOption(select, "9"), true);
+assert.equal(changes, 1, "selecting the checked row must not repeat writes or effects");
+assert.equal(chooseSettingsOption(select, "unexpected"), false);
+select.disabled = true;
+assert.equal(chooseSettingsOption(select, "6"), false);
+select.disabled = false;
+select.options[0].disabled = true;
+assert.equal(chooseSettingsOption(select, "6"), false);
+select.options[0].disabled = false;
+select.options[0].closest = () => ({ disabled: true });
+assert.equal(chooseSettingsOption(select, "6"), false, "optgroup restrictions must remain effective");
+select.options.push(option("hidden", "非表示", { hidden: true }));
+assert.equal(chooseSettingsOption(select, "hidden"), false);
+assert.equal(settingsSelectOptions(select).length, 3);
+select.options = [option("support", "サポート"), option("settings-button", "設定")];
+select.value = "support";
+assert.deepEqual(settingsSelectOptions(select).map(item => item.label), ["サポート", "設定"], "dynamic clock choices must use current options");
+console.log("Settings choice lists: original change events, numeric persistence, duplicate suppression, unavailable choices and dynamic options passed");

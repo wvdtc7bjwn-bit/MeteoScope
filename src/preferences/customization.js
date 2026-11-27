@@ -2,7 +2,7 @@ export const CUSTOMIZATION_KEY = "meteoscope.customization.v1";
 export const LAST_VIEW_KEY = "meteoscope.lastView.v1";
 export const LAST_TAB_KEY = "meteoscope.lastTab.v1";
 export const CUSTOMIZATION_DEFAULTS = Object.freeze({
-  appearance: Object.freeze({ surfaces: "default" }),
+  appearance: Object.freeze({ surfaces: "default", opacity: null, blur: 12 }),
   startup: Object.freeze({ tab: "radar", viewport: "default", savedView: null }),
   menu: Object.freeze({ hidden: [], pinned: [] }),
   controls: Object.freeze({ earthquakeFocus: true, earthquakeZoom: 7.4, cameraSpeed: "standard" }),
@@ -22,7 +22,7 @@ export function normalizeMapView(view) {
 export function normalizeCustomization(value = {}) {
   const { appearance = {}, startup = {}, menu = {}, controls = {}, information = {} } = value ?? {};
   return {
-    appearance: { surfaces: normalizeSurfaceAppearance(appearance?.surfaces) },
+    appearance: normalizeAppearance(appearance),
     startup: { tab: choose(startup?.tab, [...TABS, "previous"], "radar"),
       viewport: choose(startup?.viewport, ["default", "saved", "previous"], "default"), savedView: normalizeMapView(startup?.savedView) },
     menu: { hidden: ids(menu?.hidden).filter(id => id !== "settings-button"), pinned: ids(menu?.pinned) },
@@ -63,8 +63,20 @@ export function normalizeSurfaceAppearance(value) {
   return choose(value, ["default", "translucent", "opaque"], "default");
 }
 
+export function normalizeAppearance(value = {}) {
+  const bounded = (number, min, max, fallback) => typeof number === "number" && Number.isFinite(number)
+    ? Math.round(Math.max(min, Math.min(max, number))) : fallback;
+  return { surfaces: normalizeSurfaceAppearance(value?.surfaces),
+    opacity: bounded(value?.opacity, 40, 100, null), blur: bounded(value?.blur, 0, 24, 12) };
+}
+
 export function applySurfaceAppearance(value, root = globalThis.document?.documentElement) {
-  const appearance = normalizeSurfaceAppearance(value);
-  if (root) root.dataset.surfaceAppearance = appearance;
-  return appearance;
+  const appearance = normalizeAppearance(typeof value === "string" ? { surfaces: value } : value);
+  if (root) {
+    root.dataset.surfaceAppearance = appearance.surfaces;
+    if (appearance.opacity === null) root.style?.removeProperty("--ui-custom-surface-alpha");
+    else root.style?.setProperty("--ui-custom-surface-alpha", String(appearance.opacity / 100));
+    root.style?.setProperty("--ui-custom-surface-filter", appearance.blur === 0 ? "none" : `blur(${appearance.blur}px) saturate(115%)`);
+  }
+  return appearance.surfaces;
 }
