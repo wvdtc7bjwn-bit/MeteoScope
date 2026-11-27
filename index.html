@@ -44,6 +44,12 @@
         document.documentElement.dataset.theme = "dark";
         document.documentElement.dataset.themePreference = "system";
       }
+      try {
+        const surfaceAppearance = JSON.parse(localStorage.getItem("meteoscope.customization.v1") || "null")?.appearance?.surfaces;
+        document.documentElement.dataset.surfaceAppearance = ["translucent", "opaque"].includes(surfaceAppearance) ? surfaceAppearance : "default";
+      } catch {
+        document.documentElement.dataset.surfaceAppearance = "default";
+      }
     })();
   </script>
   <style>
@@ -436,11 +442,13 @@
           <section class="settings-group settings-theme-group" data-settings-section="account">
             <button class="settings-group-title settings-group-toggle" type="button" aria-expanded="false" data-settings-group-toggle><span class="settings-group-title-copy"><strong>外観</strong><small>アプリと地図の配色</small></span></button>
             <div class="settings-group-content" hidden>
-              <p class="settings-theme-help">アプリと地図の配色を選択します。</p>
-              <div id="settings-theme-options" class="settings-theme-options" role="radiogroup" aria-label="外観">
-                <button type="button" data-settings-theme="system" role="radio" aria-checked="false">端末設定</button>
-                <button type="button" data-settings-theme="dark" role="radio" aria-checked="false">ダーク</button>
-                <button type="button" data-settings-theme="light" role="radio" aria-checked="false">ライト</button>
+              <div class="settings-detail-item">
+                <p class="settings-theme-help">アプリと地図の配色を選択します。</p>
+                <div id="settings-theme-options" class="settings-theme-options" role="radiogroup" aria-label="外観">
+                  <button type="button" data-settings-theme="system" role="radio" aria-checked="false">端末設定</button>
+                  <button type="button" data-settings-theme="dark" role="radio" aria-checked="false">ダーク</button>
+                  <button type="button" data-settings-theme="light" role="radio" aria-checked="false">ライト</button>
+                </div>
               </div>
             </div>
           </section>

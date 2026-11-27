@@ -1,5 +1,5 @@
 import { mergeRefreshedData, mergeWarningTabData } from "./app/refreshedData.js";
-import { loadCustomization, saveCustomization, resolveStartup, storeCustomizationValue, LAST_TAB_KEY, LAST_VIEW_KEY } from "./preferences/customization.js";
+import { loadCustomization, saveCustomization, resolveStartup, storeCustomizationValue, applySurfaceAppearance, LAST_TAB_KEY, LAST_VIEW_KEY } from "./preferences/customization.js";
 import { createLocalTemperatureController } from "./location/localTemperatureController.js";
 import { createJmaTemperatureController } from "./location/jmaTemperatureController.js";
 import { loadTemperatureSource, saveTemperatureSource, effectiveTemperatureSource, canUseTemperatureEstimation } from "./preferences/temperatureSource.js";
@@ -267,6 +267,7 @@ export function createWeatherApp() {
   setupRemoteConfig();
 
   let customization = loadCustomization();
+  applySurfaceAppearance(customization.appearance.surfaces);
   const launchOptions = getLaunchOptions(customization);
   let activeTab = launchOptions.initialTab;
   let activeAmedasMetric = AMEDAS_METRICS[0].id;
@@ -4851,6 +4852,7 @@ if (layerId === "river") {
       getMapView: () => weatherMap?.getCameraView(),
       onCustomizationChange: (group, patch) => {
         customization = saveCustomization({ ...customization, [group]: { ...customization[group], ...patch } });
+        applySurfaceAppearance(customization.appearance.surfaces);
         if (group === "startup") {
           if (customization.startup.tab === "previous") storeCustomizationValue(LAST_TAB_KEY, activeTab);
           if (customization.startup.viewport === "previous") storeCustomizationValue(LAST_VIEW_KEY, weatherMap?.getCameraView());

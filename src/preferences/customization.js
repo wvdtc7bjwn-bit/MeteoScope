@@ -2,6 +2,7 @@ export const CUSTOMIZATION_KEY = "meteoscope.customization.v1";
 export const LAST_VIEW_KEY = "meteoscope.lastView.v1";
 export const LAST_TAB_KEY = "meteoscope.lastTab.v1";
 export const CUSTOMIZATION_DEFAULTS = Object.freeze({
+  appearance: Object.freeze({ surfaces: "default" }),
   startup: Object.freeze({ tab: "radar", viewport: "default", savedView: null }),
   menu: Object.freeze({ hidden: [], pinned: [] }),
   controls: Object.freeze({ earthquakeFocus: true, earthquakeZoom: 7.4, cameraSpeed: "standard" }),
@@ -19,8 +20,9 @@ export function normalizeMapView(view) {
     pitch: Number.isFinite(view.pitch) ? Math.max(0, Math.min(60, view.pitch)) : 0 };
 }
 export function normalizeCustomization(value = {}) {
-  const { startup = {}, menu = {}, controls = {}, information = {} } = value ?? {};
+  const { appearance = {}, startup = {}, menu = {}, controls = {}, information = {} } = value ?? {};
   return {
+    appearance: { surfaces: normalizeSurfaceAppearance(appearance?.surfaces) },
     startup: { tab: choose(startup?.tab, [...TABS, "previous"], "radar"),
       viewport: choose(startup?.viewport, ["default", "saved", "previous"], "default"), savedView: normalizeMapView(startup?.savedView) },
     menu: { hidden: ids(menu?.hidden).filter(id => id !== "settings-button"), pinned: ids(menu?.pinned) },
@@ -55,4 +57,14 @@ export function resolveStartup(customization, explicitTab, storage) {
 export function cameraDuration(speed, duration = 850, reducedMotion = false) {
   if (reducedMotion || speed === "instant") return 0;
   return Math.round(duration * ({ slow: 1.6, fast: 0.5 }[speed] ?? 1));
+}
+
+export function normalizeSurfaceAppearance(value) {
+  return choose(value, ["default", "translucent", "opaque"], "default");
+}
+
+export function applySurfaceAppearance(value, root = globalThis.document?.documentElement) {
+  const appearance = normalizeSurfaceAppearance(value);
+  if (root) root.dataset.surfaceAppearance = appearance;
+  return appearance;
 }

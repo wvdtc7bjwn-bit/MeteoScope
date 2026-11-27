@@ -1,0 +1,59 @@
+/* Explicit preferences override the existing surface rules. Leaving the
+   preference at "default" preserves each component's current appearance. */
+html:is([data-surface-appearance="translucent"], [data-surface-appearance="opaque"]) {
+  --ui-chrome-rgb: 7, 16, 34;
+  --ui-modal-rgb: 16, 27, 43;
+  --ui-card-rgb: 27, 41, 58;
+  --ui-surface-alpha: .88;
+  --ui-surface-filter: none;
+  --ui-surface-fill: rgba(var(--ui-chrome-rgb), var(--ui-surface-alpha));
+}
+html[data-surface-appearance="opaque"] { --ui-surface-alpha: 1; }
+html[data-theme="light"]:is([data-surface-appearance="translucent"], [data-surface-appearance="opaque"]) {
+  --ui-chrome-rgb: 242, 248, 253;
+  --ui-modal-rgb: 245, 248, 251;
+  --ui-card-rgb: 255, 255, 255;
+}
+
+/* Blur only the outer surfaces, not their text, buttons or nested cards.
+   Keep the denser fallback above for browsers without backdrop filtering. */
+@supports ((backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px))) {
+  html[data-surface-appearance="translucent"] {
+    --ui-surface-alpha: .78;
+    --ui-surface-filter: blur(12px) saturate(115%);
+  }
+  html[data-theme="light"][data-surface-appearance="translucent"] {
+    --ui-surface-alpha: .82;
+  }
+}
+
+html:is([data-surface-appearance="translucent"], [data-surface-appearance="opaque"]) :is(
+  #sidebar, #main-tabs, #mobile-context-dock, #clock, #map-legend, #map-layer-toggle, #map-utility-actions, #map-attribution,
+  .map-utility-menu-toggle, .map-locate-button, .map-community-report-button, .map-weather-distribution-toggle,
+  .map-world-typhoon-target-button, .map-settings-open-button, .weather-distribution-toggle-choices,
+  .warning-modal-panel, .hypocenter-date-wheel-sheet, .temperature-estimation-terms-panel,
+  .map-info-popup, .maplibregl-popup-content, .earthquake-long-press-hint, .remote-notice-ticker
+) {
+  background: var(--ui-surface-fill) !important;
+  backdrop-filter: var(--ui-surface-filter) !important;
+  -webkit-backdrop-filter: var(--ui-surface-filter) !important;
+}
+
+html:is([data-surface-appearance="translucent"], [data-surface-appearance="opaque"]) :is(
+  .warning-modal-panel, .hypocenter-date-wheel-sheet, .temperature-estimation-terms-panel
+) {
+  --ui-surface-fill: rgba(var(--ui-modal-rgb), var(--ui-surface-alpha));
+  --modal-surface: var(--ui-surface-fill) !important;
+  --modal-card: rgba(var(--ui-card-rgb), var(--ui-surface-alpha)) !important;
+  --settings-surface: var(--modal-card) !important;
+  --modal-control-surface: var(--modal-card) !important;
+}
+
+/* A nested opaque header/footer would mask the selected modal material.
+   Keep the surface on the shell to avoid stacking translucent backgrounds. */
+html:is([data-surface-appearance="translucent"], [data-surface-appearance="opaque"]) .warning-modal-panel :is(
+  .settings-modal-header, .warning-modal-head, .warning-chat-composer
+) { background: transparent !important; }
+html:is([data-surface-appearance="translucent"], [data-surface-appearance="opaque"]) .warning-modal-panel > :is([class$="-body"], .feedback-form) {
+  background: transparent !important;
+}

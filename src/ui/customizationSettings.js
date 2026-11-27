@@ -28,6 +28,7 @@ export function customizationSettingsMarkup() {
 
 export function setupCustomizationSettings(modal, { getState, onChange, getMapView }) {
   modal.querySelector(".settings-theme-group").insertAdjacentHTML("beforebegin", customizationSettingsMarkup());
+  modal.querySelector(".settings-theme-group .settings-group-content").insertAdjacentHTML("beforeend", `<div class="settings-detail-item">${select("appearance", "surfaces", "背景の透け具合", [["default", "標準（現在の表示）"], ["translucent", "半透明"], ["opaque", "不透明"]])}<p class="settings-theme-help">要約パネル、下部ボタン、時計、地図上のボタン、メニュー、モーダルの背景にまとめて反映します。文字やアイコンの濃さは変わりません。</p></div><button type="button" class="settings-tab-order-reset" data-customization-reset="appearance">背景を標準に戻す</button><p class="settings-theme-help" data-customization-status="appearance" role="status"></p>`);
   let menuSignature = "";
   const state = () => getState().customization ?? CUSTOMIZATION_DEFAULTS;
   const menuButtons = () => [...document.querySelectorAll("#map-utility-actions > button[id]")].filter(button => !button.hidden);

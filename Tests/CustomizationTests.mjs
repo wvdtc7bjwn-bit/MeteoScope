@@ -87,7 +87,7 @@ const attributes = new Map(), classes = new Set(), listeners = new Map();
 const button = { dataset: { customizationGroup: "information", customizationToggle: "stationNames" },
   classList: { toggle(name, enabled) { if (enabled) classes.add(name); else classes.delete(name); } },
   setAttribute: (name, value) => attributes.set(name, value), hasAttribute: () => false };
-const modal = { querySelector: selector => selector === ".settings-theme-group" ? { insertAdjacentHTML() {} } : {},
+const modal = { querySelector: selector => selector.startsWith(".settings-theme-group") ? { insertAdjacentHTML() {} } : {},
   querySelectorAll: selector => selector === "[data-customization-toggle]" ? [button] : [],
   addEventListener: (name, listener) => listeners.set(name, listener) };
 const previousDocument = globalThis.document;
