@@ -77,10 +77,11 @@ export function createJmaTemperatureReader({ json = fetchJson, bytes = fetchArra
     if (!frame) return { reason: "no-fresh-frame" };
     const url = `${JMA_TEMPERATURE_ROOT}/${frame.basetime}/none/${frame.validtime}/surf/temp/10/${position.tileX}/${position.tileY}.png`;
     const data = await tile(url,signal);
-    const range = decodeJmaTemperaturePixel(await pixel(data,position.pixelX,position.pixelY));
+    const sampledPixel = await pixel(data,position.pixelX,position.pixelY);
+    const range = decodeJmaTemperaturePixel(sampledPixel);
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
     if (now()-Date.parse(frame.observationTime)>JMA_TEMPERATURE_MAX_AGE_MS) return { reason: "no-fresh-frame" };
     return { ...frame, range, meshCoordinates: position.coordinates, retrievedAt: new Date(now()).toISOString(),
-      reason: range ? null : "missing-mesh", sourceUrl: "https://www.jma.go.jp/bosai/suikei/#elem=temp" };
+      reason: range ? null : sampledPixel?.[3] === 255 ? "unsupported-color" : "missing-mesh", sourceUrl: "https://www.jma.go.jp/bosai/suikei/#elem=temp" };
   };
 }

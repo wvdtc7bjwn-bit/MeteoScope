@@ -4,6 +4,9 @@ export const UI_EN_ENTRIES = `
 現在地の地域は特定できました。警報情報を取得できませんでした。|The local area is known, but warning information could not be loaded.
 現在地の座標は取得済みです。地域情報を取得できませんでした。|Location coordinates are available, but regional information could not be loaded.
 地域情報を取得できません|Regional information is unavailable
+地域情報を取得中|Loading regional information
+独自推定の信頼度が低い場合は気象庁の推計気象分布へ自動切り替え · アーリーアクセス|Automatically use JMA estimated weather distribution when local estimate reliability is low · Early access
+独自推定とAUTOはアーリーアクセス限定です。選択するときに利用規約を表示します。|MeteoScope estimates and AUTO require early access. Terms are shown when you select either option.
 観測グラフ・推定気温|Observation charts and local temperature
 観測グラフ・気温の表示元|Observation charts and temperature source
 観測グラフと、要約パネルに表示する気温の取得元を設定します。|Configure observation charts and the summary panel's temperature source.

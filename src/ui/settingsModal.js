@@ -488,10 +488,12 @@ function resetSettingsFilter({ focus = false } = {}) {
 function renderSettingsAmedasChart() {
   const state = settingsOptions.getState?.() ?? {};
   const temperatureAllowed = canUseTemperatureEstimation(state);
-  const estimation = document.querySelector('[data-settings-temperature-source="meteoscope"]');
-  if (estimation) {
-    estimation.disabled = !temperatureAllowed;
-    estimation.hidden = !temperatureAllowed;
+  for (const protectedSource of ["meteoscope", "auto"]) {
+    const estimation = document.querySelector(`[data-settings-temperature-source="${protectedSource}"]`);
+    if (estimation) {
+      estimation.disabled = !temperatureAllowed;
+      estimation.hidden = !temperatureAllowed;
+    }
   }
   document.querySelectorAll("[data-settings-temperature-access]").forEach(element => { element.hidden = !temperatureAllowed; });
   const source = effectiveTemperatureSource(state.temperatureSource, temperatureAllowed);

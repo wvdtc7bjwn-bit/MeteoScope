@@ -2,7 +2,8 @@ import { mergeRefreshedData, mergeWarningTabData } from "./app/refreshedData.js"
 import { loadCustomization, saveCustomization, resolveStartup, storeCustomizationValue, applySurfaceAppearance, LAST_TAB_KEY, LAST_VIEW_KEY } from "./preferences/customization.js";
 import { createLocalTemperatureController } from "./location/localTemperatureController.js";
 import { createJmaTemperatureController } from "./location/jmaTemperatureController.js";
-import { loadTemperatureSource, saveTemperatureSource, effectiveTemperatureSource, canUseTemperatureEstimation } from "./preferences/temperatureSource.js";
+import { loadTemperatureSource, saveTemperatureSource, effectiveTemperatureSource, canUseTemperatureEstimation, usesTemperatureEstimation } from "./preferences/temperatureSource.js";
+import { getAutoTemperatureFallbackReason, selectAutoTemperature } from "./location/autoTemperature.js";
 import { loadTemperatureEstimationEnabled, saveTemperatureEstimationEnabled } from "./location/temperatureEstimationPolicy.js";
 import {
   buildTyphoonFocusCoordinates,
@@ -499,7 +500,9 @@ export function createWeatherApp() {
   let tabAutoFocusSettled = Promise.resolve();
 
   function renderLeftPanelState(tab, panelState) {
-    updateLeftPanel(tab, panelState);
+    updateLeftPanel(tab, panelState, {
+      onRequestLocation: () => requestAndFocusCurrentPosition({ announceLoading: true, setBusy: true, flyTo: false })
+    });
     renderCommunityReportLayerToggle();
     syncCommonLayerToggle(tab?.id !== "earthquake" && !(tab?.id === "radar" && (weatherDistributionMode || weatherChartSatelliteEnabled)));
     syncWeatherDistributionToggle({
@@ -2419,16 +2422,20 @@ if (layerId === "river") {
     if (tab.id === "radar") ensureLocationRadarTimeline(displayData);
     const activeTemperatureSource = effectiveTemperatureSource(temperatureSource, hasTemperatureEstimationAccess());
     const localTemperature = tab.id === "amedas" ? localTemperatureController.update({
-      enabled: hasTemperatureEstimationAccess() && temperatureEstimationEnabled && activeTemperatureSource === "meteoscope" && activeAmedasMetric === "temperature",
+      enabled: hasTemperatureEstimationAccess() && temperatureEstimationEnabled && usesTemperatureEstimation(activeTemperatureSource) && activeAmedasMetric === "temperature",
       data, location: currentLocationInfo
     }) : null;
+    const temperatureNow = Date.now();
     const jmaTemperature = tab.id === "amedas" ? jmaTemperatureController.update({
-      enabled: activeTemperatureSource === "jma" && activeAmedasMetric === "temperature", location: currentLocationInfo
+      enabled: activeAmedasMetric === "temperature" && (activeTemperatureSource === "jma"
+        || (activeTemperatureSource === "auto" && temperatureEstimationEnabled && Boolean(getAutoTemperatureFallbackReason(localTemperature, temperatureNow)))), location: currentLocationInfo
     }) : null;
+    const displayedTemperature = activeTemperatureSource === "auto"
+      ? selectAutoTemperature(localTemperature, jmaTemperature, temperatureNow) : localTemperature ?? jmaTemperature;
     const panelState = {
       status: "ok",
       data: displayData,
-      localTemperature: localTemperature ?? jmaTemperature,
+      localTemperature: displayedTemperature,
       amedasMetric: activeAmedasMetric,
       amedasPrecipitationPeriod: activeAmedasPrecipitationPeriod,
       selectedAmedasStationId,
@@ -3843,7 +3850,7 @@ if (layerId === "river") {
     await requestAndFocusCurrentPosition({ announceLoading: false, setBusy: false });
   }
 
-  async function requestAndFocusCurrentPosition({ announceLoading, setBusy }) {
+  async function requestAndFocusCurrentPosition({ announceLoading, setBusy, flyTo = true }) {
     if (!navigator.geolocation) {
       currentLocationInfo = {
         status: "error",
@@ -3868,7 +3875,7 @@ if (layerId === "river") {
     locationRequest = (async () => {
       try {
         const position = await requestCurrentPosition();
-        await applyCurrentPosition(position, { forceResolve: true, flyTo: true });
+        await applyCurrentPosition(position, { forceResolve: true, flyTo });
         if (locationWatchId === null) startLocationWatch({ announceLoading: false });
       } catch (error) {
         currentLocationInfo = buildCurrentLocationError(error);
@@ -4873,9 +4880,9 @@ if (layerId === "river") {
       onTerrainLayerChange: setTerrainLayerSettings,
       onAmedasChartDisplayChange: setAmedasChartDisplay,
       onTemperatureSourceChange: source => {
-        if (source === "meteoscope" && !hasTemperatureEstimationAccess()) return;
+        if (usesTemperatureEstimation(source) && !hasTemperatureEstimationAccess()) return;
         temperatureSource = saveTemperatureSource(source);
-        temperatureEstimationEnabled = saveTemperatureEstimationEnabled(temperatureSource === "meteoscope");
+        temperatureEstimationEnabled = saveTemperatureEstimationEnabled(usesTemperatureEstimation(temperatureSource));
         localTemperatureController.update({ enabled: false });
         jmaTemperatureController.update({ enabled: false });
         refreshAmedasPanel();

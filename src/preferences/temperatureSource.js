@@ -1,7 +1,10 @@
 import { loadTemperatureEstimationEnabled } from "../location/temperatureEstimationPolicy.js";
 
 const KEY = "meteoscope.temperatureSource.v1";
-export const TEMPERATURE_SOURCES = Object.freeze(["nearest", "meteoscope", "jma"]);
+export const TEMPERATURE_SOURCES = Object.freeze(["nearest", "meteoscope", "auto", "jma"]);
+export function usesTemperatureEstimation(source) {
+  return source === "meteoscope" || source === "auto";
+}
 export function normalizeTemperatureSource(value) {
   return TEMPERATURE_SOURCES.includes(value) ? value : "nearest";
 }
@@ -22,7 +25,7 @@ export function canUseTemperatureEstimation(state) {
   return state?.earlyAccessEnabled === true && state?.temperatureEstimationAllowed === true;
 }
 export function effectiveTemperatureSource(source, allowed) {
-  return source === "meteoscope" && allowed !== true ? "nearest" : normalizeTemperatureSource(source);
+  return usesTemperatureEstimation(source) && allowed !== true ? "nearest" : normalizeTemperatureSource(source);
 }
 
 // Changing to another source while consent is pending invalidates that consent action.
@@ -31,9 +34,9 @@ export function createTemperatureSourceSelector({ getState, onChange, confirm })
   return async value => {
     if (!TEMPERATURE_SOURCES.includes(value)) return false;
     const state = getState();
-    if (value === "meteoscope" && pending) return false;
+    if (usesTemperatureEstimation(value) && pending) return false;
     const token = ++generation;
-    if (value === "meteoscope") {
+    if (usesTemperatureEstimation(value)) {
       if (!canUseTemperatureEstimation(state)) return false;
       if (!state.temperatureEstimationEnabled) {
         pending = true;

@@ -42,21 +42,24 @@ test("settings hide custom source, explanation, terms and feature-list entry, in
   const file=await readFile(new URL("../src/ui/settingsModal.js",import.meta.url),"utf8");
   const body=file.slice(file.indexOf("function renderSettingsAmedasChart()"),file.indexOf("function renderSettingsMyAreas()"));
   const element=(dataset={})=>({hidden:false,disabled:false,dataset,attributes:{},setAttribute(k,v){this.attributes[k]=v;}});
-  const nearest=element({settingsTemperatureSource:"nearest"}),custom=element({settingsTemperatureSource:"meteoscope"}),jma=element({settingsTemperatureSource:"jma"});
-  const protectedElements=[custom,element(),element(),element()];
+  const nearest=element({settingsTemperatureSource:"nearest"}),custom=element({settingsTemperatureSource:"meteoscope"}),auto=element({settingsTemperatureSource:"auto"}),jma=element({settingsTemperatureSource:"jma"});
+  const protectedElements=[custom,auto,element(),element(),element()];
   let state={earlyAccessEnabled:true,temperatureEstimationAllowed:false,temperatureEstimationEnabled:true,temperatureSource:"meteoscope"};
   const ctx=vm.createContext({canUseTemperatureEstimation,effectiveTemperatureSource,settingsOptions:{getState:()=>state},document:{
-    querySelector:s=>s.includes('="meteoscope"')?custom:null,
-    querySelectorAll:s=>s==="[data-settings-temperature-access]"?protectedElements:s==="[data-settings-temperature-source]"?[nearest,custom,jma]:[]
+    querySelector:s=>s.includes('="meteoscope"')?custom:s.includes('="auto"')?auto:null,
+    querySelectorAll:s=>s==="[data-settings-temperature-access]"?protectedElements:s==="[data-settings-temperature-source]"?[nearest,custom,auto,jma]:[]
   }});
   vm.runInContext(body,ctx);ctx.renderSettingsAmedasChart();
   assert.ok(protectedElements.every(e=>e.hidden));assert.equal(custom.disabled,true);assert.equal(nearest.attributes["aria-checked"],"true");
+  assert.equal(auto.disabled,true);
   state={...state,temperatureEstimationAllowed:true};ctx.renderSettingsAmedasChart();
   assert.ok(protectedElements.every(e=>!e.hidden));assert.equal(custom.disabled,false);assert.equal(custom.attributes["aria-checked"],"true");
+  state={...state,temperatureSource:"auto"};ctx.renderSettingsAmedasChart();
+  assert.equal(auto.disabled,false);assert.equal(auto.attributes["aria-checked"],"true");
   state={...state,earlyAccessEnabled:false};ctx.renderSettingsAmedasChart();assert.ok(protectedElements.every(e=>e.hidden));
   const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
   const tags=[...html.matchAll(/<[^/!][^>]*data-settings-temperature-access[^>]*>/g)].map(m=>m[0]);
-  assert.equal(tags.length,4);assert.ok(tags.every(tag=>/\bhidden\b/.test(tag)),"no initial-load flash before authentication");
+  assert.equal(tags.length,5);assert.ok(tags.every(tag=>/\bhidden\b/.test(tag)),"no initial-load flash before authentication");
 });
 
 test("saved opt-in cannot enable an unapproved user, and revocation while consent is open cancels enable", async () => {

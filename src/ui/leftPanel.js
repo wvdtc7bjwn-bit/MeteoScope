@@ -3,9 +3,11 @@ import { buildLocalTemperatureButton, updateLocalTemperatureView } from "./local
 import { renderMobileWeatherTimelineToolbar, getMobileWeatherFocusSelector } from "./mobileWeatherTimeline.js";
 import { renderLightningLegendSymbol } from "./lightningLegend.js";
 import { VOLCANO_ALERT_LEVEL_GUIDE, renderVolcanoList } from "./panels/volcanoPanel.js";
+import { updateWeatherBulletinsPanel } from "./panels/weatherBulletinsPanel.js";
 import { getWarningLegendBackground } from "../warningMapColors.js";
 import { escapeHtmlString as escapeHtml } from "../utils/html.js";
 import { updateHistorySelection } from "./historySelection.js";
+import { prepareSidebarScroll } from "./sidebarScroll.js";
 import { EEW_WARNING_AREA_COLOR, isEewWarningArea } from "../eew/eewForecastAreas.js";
 import { summarizeEewAreaNames } from "../eew/eewSummaryAreas.js";
 import { renderFocalMechanism } from "./focalMechanism.js";
@@ -84,7 +86,7 @@ import {
 } from "../volcanoAshfall.js";
 import { findLatestRadarObservationIndex } from "../jma/radar.js";
 import { getWeatherDistributionLabel } from "../jma/weatherDistribution.js";
-import { assignAmedasCompetitionRanks } from "../amedasRanking.js";
+import { assignAmedasCompetitionRanks, formatAmedasRankingClock } from "../amedasRanking.js";
 import { setSocialSharePayload } from "../socialShareState.js";
 import { mergeRiverFloodWarningsIntoGroups } from "../warningRiverMerge.js";
 import {
@@ -169,7 +171,10 @@ const legendsByTab = {
   earthquake: [["震源", "legend-earthquake-center"]]
 };
 
-export function updateLeftPanel(tab, state = {}) {
+export function updateLeftPanel(tab, state = {}, { onRequestLocation } = {}) {
+  const panelKey = tab.id === "earthquake" && (state.earthquakeContentMode ?? state.data?.earthquakeContentMode) === "volcano"
+    ? "volcano" : tab.id;
+  const restoreSidebarScroll = prepareSidebarScroll(document.getElementById("sidebar"), panelKey, { loading: state.status === "loading" });
   const amedasMetric = getAmedasMetric(state.amedasMetric ?? state.data?.activeMetric);
   const warningView = state.warningView ?? state.data?.activeWarningView ?? "status";
   const activeKikikuruLayer = state.activeKikikuruLayer ?? state.data?.activeKikikuruLayer ?? KIKIKURU_LAYER_OPTIONS[0]?.id;
@@ -207,6 +212,7 @@ export function updateLeftPanel(tab, state = {}) {
   renderRadarControls(tab, state);
   renderWeatherChartControls(tab, state.weatherChartEnabled, state.weatherChartStatus, state.weatherChart ?? state.data?.weatherChart, state.weatherChartPlaying, state.weatherChartSatellite ?? state.data?.weatherChartSatellite);
   renderLocationInsights(tab, state.locationInsights, state.myAreas);
+  updateWeatherBulletinsPanel(tab.id === "warnings" && warningView === "status", state.currentLocation, onRequestLocation);
   renderWarningDetails(tab, state, warningView);
   renderTyphoonSelector(tab, state);
   renderTyphoonDetails(tab, state);
@@ -216,6 +222,7 @@ export function updateLeftPanel(tab, state = {}) {
   renderMobileContextDock(tab, state, { amedasMetric, warningView });
   updateLocalTemperatureView(tab.id === "amedas" && amedasMetric.id === "temperature" ? state.localTemperature : null);
   renderLegend(tab.id, amedasMetric.id, warningView, state.data);
+  restoreSidebarScroll();
 }
 
 export function setupAmedasSubTabs({ onChange }) {
@@ -2867,6 +2874,8 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
       activeKikikuruLayer: state.data?.activeKikikuruLayer,
       area,
       currentLocation: info,
+      dataStatus: state.status,
+      warningsAvailable: warningView === "early" ? Boolean(state.data?.earlyDetailsLoaded) : Array.isArray(state.data?.activeAreas),
       loadingLabel: warningLoadingLabel,
       warningView,
       warnings,
@@ -4030,8 +4039,11 @@ function getTyphoonStatusPresentation(transitionStatus, systemType) {
   return type ? { label: "種別", text: type } : null;
 }
 
-function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLocation, loadingLabel, riverFlood, warningView, warnings }) {
+function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLocation, dataStatus, warningsAvailable, loadingLabel, riverFlood, warningView, warnings }) {
   if (warningView === "river") return buildRiverFloodMobileContextMarkup(riverFlood, currentLocation, loadingLabel);
+  const locationMessage = ["status", "early"].includes(warningView)
+    ? getLocalWarningUnavailableText(currentLocation) : "";
+  const errorMessage = dataStatus === "error" || warningsAvailable === false ? "取得失敗" : "";
   const topWarning = getPrimaryMobileWarning(warnings);
   const warningBadges = warningView === "status" && !loadingLabel
     ? buildWarningBadgesMarkup(warnings)
@@ -4040,14 +4052,18 @@ function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLoc
   const level = topWarning?.level ?? "none";
   const badgeColorClass = getMobileWarningBadgeColorClass(warningView, level);
   return `
-    <div class="mobile-dock-content mobile-dock-warning" aria-busy="${Boolean(loadingLabel)}">
+    <div class="mobile-dock-content mobile-dock-warning" aria-busy="${Boolean(locationMessage ? currentLocation?.status === "loading" || currentLocation?.geographyStatus === "loading" : loadingLabel)}">
       <div class="mobile-dock-warning-head">
         ${buildWarningMobileActionRow(warningView)}
       </div>
-      ${loadingLabel
+      ${locationMessage
+        ? `<div class="mobile-dock-warning-main"><div class="mobile-dock-warning-text"><strong>${escapeHtml(localizeWarningDisplayText(locationMessage))}</strong></div></div>`
+        : loadingLabel
         ? `<div class="mobile-dock-warning-main is-loading">${buildMobileDockLoadingStatus(loadingLabel)}</div>`
         : warningView === "kikikuru"
         ? buildKikikuruMobileLayerRow(activeKikikuruLayer)
+        : errorMessage
+        ? `<div class="mobile-dock-warning-main"><div class="mobile-dock-warning-text"><strong>${escapeHtml(localizeWarningDisplayText(area))}</strong></div><span>${escapeHtml(localizeWarningDisplayText(errorMessage))}</span></div>`
         : `<div class="mobile-dock-warning-main">
             <div class="mobile-dock-warning-text">
               <strong>${escapeHtml(localizeWarningDisplayText(area))}</strong>
@@ -4058,6 +4074,13 @@ function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLoc
           </div>`}
     </div>
   `;
+}
+
+function getLocalWarningUnavailableText(info) {
+  if (info?.status === "loading") return "現在地取得中";
+  if (info?.status !== "found") return "現在地未取得";
+  if (info.areaCode) return "";
+  return info.geographyStatus === "loading" ? "地域情報を取得中" : "地域情報を取得できません";
 }
 
 function buildRiverFloodMobileContextMarkup(riverFlood = {}, currentLocation = {}, loadingLabel = "") {
@@ -6057,20 +6080,6 @@ function getAmedasRankingUpdatedAt(data = {}, metricId, rankingView, windKind) {
     return data.pressureRankings?.minimumUpdatedAt ?? null;
   }
   return data.latestTime ?? null;
-}
-
-function formatAmedasRankingClock(value) {
-  const text = String(value ?? "");
-  const directMatch = text.match(/(?:^|\s)(\d{1,2}):(\d{2})(?::\d{2})?$/);
-  if (directMatch) return `${directMatch[1].padStart(2, "0")}:${directMatch[2]}`;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return text;
-  return new Intl.DateTimeFormat("ja-JP", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
-    timeZone: "Asia/Tokyo"
-  }).format(date);
 }
 
 function getAmedasLevels(metricId) {

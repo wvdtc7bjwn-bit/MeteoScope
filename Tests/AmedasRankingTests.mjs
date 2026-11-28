@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { assignAmedasCompetitionRanks } from "../src/amedasRanking.js";
+import { assignAmedasCompetitionRanks, formatAmedasRankingClock } from "../src/amedasRanking.js";
 
 const leftPanelSource = await readFile(new URL("../src/ui/leftPanel.js", import.meta.url), "utf8");
 
@@ -38,4 +38,18 @@ assert.match(
 );
 assert.doesNotMatch(leftPanelSource, /function getAmedasLevelColor\(/);
 
-console.log("AMeDAS ranking tests passed");
+for (const [input, expected] of [
+  ["20261128090000", "09:00"],
+  ["20261128000000", "00:00"],
+  ["2026-11-28T00:00:00Z", "09:00"],
+  ["2026-11-28T09:00:00+09:00", "09:00"],
+  ["2026/11/28 09:00", "09:00"],
+  ["2026-11-28T09:00:00", "09:00"],
+  ["9:05", "09:05"],
+  ["24:00", "24:00"],
+  ["24:30", "--:--"],
+  ["not-a-time", "--:--"],
+  [null, "--:--"]
+]) assert.equal(formatAmedasRankingClock(input), expected, `ranking clock: ${input}`);
+
+console.log("AMeDAS ranking and JST observation clock tests passed");

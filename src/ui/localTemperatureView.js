@@ -43,7 +43,7 @@ export function buildLocalTemperatureButton(result) {
     ? `${text("気象庁の推計気象分布", "JMA estimated weather distribution")} ${formatJmaTemperatureRange(result.range)} ${formatTime(result.observationTime)}${result.loading?text(" · 読み込み中"," · Loading"):""}`
     : `${label} ${number(result.value)}${result.value==null?"":"℃"}${status}`;
   const value=result.source === "jma" ? formatJmaTemperatureRange(result.range) : `${number(result.value)}${result.value==null?"":"℃"}`;
-  return `<button type="button" class="local-temperature-button" data-local-temperature-details data-mobile-dock-control aria-haspopup="dialog" aria-expanded="false" aria-label="${escapeHtml(`${text("現在地の気象情報・推定の詳細", "Local weather and estimation details")}：${display}`)}"><span class="amedas-observation-value">${escapeHtml(value)}</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg></button>`;
+  return `<button type="button" class="local-temperature-button" data-local-temperature-details data-mobile-dock-control aria-haspopup="dialog" aria-expanded="false" aria-label="${escapeHtml(`${result.autoSelection ? "AUTO · " : ""}${text("現在地の気象情報・推定の詳細", "Local weather and estimation details")}：${display}`)}"><span class="amedas-observation-value">${escapeHtml(value)}</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v1"/></svg></button>`;
 }
 
 export function buildLocalTemperatureDetails(result) {
@@ -60,6 +60,7 @@ export function buildLocalTemperatureDetails(result) {
   const stamp = formatTime(result.observationTime);
   const warnings = (result.flags??[]).filter(flag => labels[flag]).map(flag => `<li>${escapeHtml(text(...labels[flag]))}</li>`).join("");
   return `${popoverHeader()}
+    ${buildAutoTemperatureNote(result)}
     <p class="local-temperature-value">${estimated ? text("推定気温", "Estimated temperature") : result.kind==="unavailable"?text("気温","Temperature"):text("実測気温", "Observed temperature")} <strong>${number(result.value)}${result.value == null ? "" : "℃"}</strong></p>
     <p>${method}${result.loading ? text(estimated?" · 推定を更新中":" · 推定を計算中",estimated?" · Updating estimate":" · Calculating estimate") : ""}</p>
     ${result.kind === "observed" && !result.loading && !result.flags.includes("station-observation") ? `<p class="local-temperature-caution">${text("現在地の推定気温は表示できません。近隣観測点の実測値です。", "A local estimate is unavailable. This is a nearby station observation.")}</p>` : ""}
@@ -94,11 +95,13 @@ function buildJmaTemperatureDetails(result) {
   const reasons = {
     "outside-coverage": text("この場所は気象庁の推計気象分布の対象範囲外です。", "This location is outside the JMA product coverage."),
     "no-fresh-frame": text("新しい対象時刻のデータがありません。", "No sufficiently recent analysis is available."),
-    "missing-mesh": text("この格子の気温は欠測、または対応していない表示区分です。", "The mesh is missing or its display category is unsupported."),
+    "missing-mesh": text("この格子には気温データがありません。", "This mesh has no temperature data."),
+    "unsupported-color": text("この格子の表示色を気温区分として判定できませんでした。", "The mesh colour could not be identified as a temperature category."),
     "request-failed": text("気象庁の推計気温を取得できませんでした。", "The JMA temperature could not be loaded.")
   };
   const range = result.range;
   return `${popoverHeader()}
+    ${buildAutoTemperatureNote(result)}
     <p class="local-temperature-value">${text("気象庁の推計気温", "JMA estimated temperature")} <strong>${escapeHtml(formatJmaTemperatureRange(range))}</strong></p>
     <p>${text("気象庁の推計気象分布 · 約1km格子", "JMA estimated weather distribution · approx. 1 km mesh")}${result.loading?text(" · 読み込み中"," · Loading"):""}</p>
     ${result.reason ? `<p class="local-temperature-caution">${escapeHtml(reasons[result.reason] ?? reasons["request-failed"])}</p>` : ""}
@@ -109,6 +112,23 @@ function buildJmaTemperatureDetails(result) {
     <p class="local-temperature-note">${text("現在地を含む格子の代表値で、最寄り観測点の実測値やMeteoScope独自推定とは異なります。AMeDASとは更新間隔・対象時刻が異なります。", "This represents the mesh containing your location, not a station observation or a MeteoScope estimate. Its update interval and analysis time differ from AMeDAS.")}</p>
     <p class="local-temperature-note">${text("出典：気象庁 推計気象分布（気温）。この製品には気象庁が数値予報モデル等も利用しています。独自推定の計算には取り込みません。取得時は気象庁へ周辺タイルの番号を送信し、緯度・経度そのものは送信しません。", "Source: JMA estimated weather distribution (temperature). JMA also uses numerical model information in this product. It is not an input to MeteoScope's estimator. Requests send surrounding tile identifiers to JMA, not the latitude/longitude themselves.")}</p>
     <a href="https://www.jma.go.jp/bosai/suikei/#elem=temp" target="_blank" rel="noopener noreferrer">${text("気象庁の推計気象分布を開く", "Open JMA estimated weather distribution")} ↗</a>`;
+}
+
+function buildAutoTemperatureNote(result) {
+  const selection = result.autoSelection;
+  if (!selection) return "";
+  const reasons = {
+    "low-confidence": text("独自推定の信頼度が低いため、気象庁の推計気象分布へ切り替えています。", "Local estimate reliability is low, so AUTO uses JMA estimated weather distribution."),
+    "stale-observations": text("独自推定に使う観測値が古いか時刻を確認できないため、気象庁の推計気象分布へ切り替えています。", "Local observations are stale or their time is invalid, so AUTO uses JMA estimated weather distribution."),
+    "calculating": text("独自推定を計算中のため、気象庁の推計気象分布を使用します。", "While the local estimate is being calculated, AUTO uses JMA estimated weather distribution."),
+    "estimate-unavailable": text("独自推定を利用できないため、気象庁の推計気象分布へ切り替えています。", "A local estimate is unavailable, so AUTO uses JMA estimated weather distribution.")
+  };
+  const message = selection.selectedSource === "jma"
+    ? `${reasons[selection.reason] ?? reasons["estimate-unavailable"]}${text("気象庁データも取得できない場合は「—」を表示します。", "If JMA data is also unavailable, the display shows —.")}`
+    : result.kind === "observed"
+    ? text("現在地とほぼ一致する観測点の実測値を表示しています。", "Showing the observation at a station effectively coincident with your location.")
+    : text("独自推定の信頼度が高または中のため、MeteoScope独自推定を表示しています。", "Local estimate reliability is high or medium, so AUTO shows the MeteoScope estimate.");
+  return `<p class="local-temperature-note"><strong>AUTO</strong> · ${escapeHtml(message)}</p>`;
 }
 
 function buildEnvironmentDetails(environment, row) {

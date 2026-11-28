@@ -1823,6 +1823,8 @@ html[data-theme="light"] :is(.earthquake-card-info > strong, .earthquake-card-fa
   gap: 10px;
   min-width: 0;
   padding: 16px 0 4px;
+}
+.volcano-detail-section:not(.volcano-expandable-section) {
   border-top: 1px solid var(--line);
 }
 .volcano-detail-section h3 {
@@ -1843,7 +1845,7 @@ html[data-theme="light"] :is(.earthquake-card-info > strong, .earthquake-card-fa
   align-items: center;
   gap: 8px;
   min-height: 48px;
-  padding: 12px 0;
+  padding: 12px;
   box-sizing: border-box;
   font-size: 0.88rem;
   font-weight: 750;
@@ -1863,7 +1865,7 @@ html[data-theme="light"] :is(.earthquake-card-info > strong, .earthquake-card-fa
 }
 .volcano-section-chevron { margin-inline-start: auto; color: var(--muted); font-size: 1.2rem; line-height: 1; }
 .volcano-expandable-section[open] > summary .volcano-section-chevron { transform: rotate(90deg); }
-.volcano-section-body { display: grid; gap: 12px; padding: 0 0 16px; }
+.volcano-section-body { display: grid; gap: 12px; padding: 0 12px 12px; }
 
 html[data-theme="light"] .typhoon-world-attribution {
   color: #38516b;

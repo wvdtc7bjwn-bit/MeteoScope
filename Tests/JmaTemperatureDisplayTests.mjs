@@ -70,6 +70,8 @@ test("missing mesh is not replaced by neighbouring pixels or older frames; downl
   const result=await read(coordinates);assert.equal(result.reason,"missing-mesh");assert.equal(result.range,null);assert.equal(pixels,1);assert.equal(result.validtime,stamp);
   const expiring=createJmaTemperatureReader({now:()=>clock,json:async()=>[record()],bytes:async()=>{clock=now+90*60000;return new ArrayBuffer(4);},pixel:async()=>[0,116,255,255]});
   assert.equal((await expiring(coordinates)).reason,"no-fresh-frame");
+  const unsupported=createJmaTemperatureReader({now:()=>now,json:async()=>[record()],bytes:async()=>new ArrayBuffer(4),pixel:async()=>[1,2,3,255]});
+  assert.equal((await unsupported(coordinates)).reason,"unsupported-color","unknown opaque colours are distinct from missing/transparent data");
 });
 
 test("controller ignores disabled, old location and late requests; repeated renders do not fetch; failed requests cool down", async () => {
@@ -144,10 +146,10 @@ test("summary only shows official interval; details distinguish source, analysis
 
 test("settings and app wire source choices to summary only while the original independent estimator is preserved", async () => {
   const html=await readFile(new URL("../index.html",import.meta.url),"utf8");
-  for(const source of ["nearest","meteoscope","jma"])assert.match(html,new RegExp(`data-settings-temperature-source="${source}"`));
+  for(const source of ["nearest","meteoscope","auto","jma"])assert.match(html,new RegExp(`data-settings-temperature-source="${source}"`));
   const app=await readFile(new URL("../src/app.js",import.meta.url),"utf8");
-  assert.match(app,/activeTemperatureSource === "meteoscope"/);assert.match(app,/activeTemperatureSource === "jma"/);
-  assert.match(app,/localTemperature: localTemperature \?\? jmaTemperature/);
+  assert.match(app,/usesTemperatureEstimation\(activeTemperatureSource\)/);assert.match(app,/activeTemperatureSource === "jma"/);
+  assert.match(app,/localTemperature: displayedTemperature/);
   const estimator=await readFile(new URL("../src/location/localTemperatureController.js",import.meta.url),"utf8");assert.ok(!estimator.includes("estimatedTemperature.js"));
   const worker=await readFile(new URL("../public/sw.js",import.meta.url),"utf8");
   assert.match(worker,/meteoscope-shell-v10/);assert.match(worker,/key !== APP_SHELL_CACHE/);
