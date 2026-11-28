@@ -162,7 +162,7 @@ const renderCtx = vm.createContext({
   ...Object.fromEntries(['syncAmedasValueMarkerVisibility','setupAmedasValueMarkerImages','hideMapInfo','syncTsunamiBlink','updateHypocenter3D','updateTyphoonLayers',
     'updateWarningAreaLookup','updateRadarLayer','updateWeatherDistributionLayer','updateLightningLayer',
     'updateLightningObservationLayer','updateWeatherChartSatelliteLayer','updateWeatherChartLayer',
-    'setRadarOverlayZoomLimit','updateKikikuruLayer','updateEstimatedIntensityLayer','updateRiverFloodLayer',
+    'setWorldEarthquakeMapZoom','setRadarOverlayZoomLimit','updateKikikuruLayer','updateEstimatedIntensityLayer','updateRiverFloodLayer',
     'updateWarningMunicipalityPaint'].map(key => [key, noop]))
 });
 const splitStart = mapSource.indexOf("const earthquakeCollectionPartsCache =");
@@ -240,7 +240,7 @@ const focused = [];
 let releaseCamera;
 const focusCtx = vm.createContext({
   tabAutoFocusSettled: Promise.resolve(), tabAutoFocusGeneration: 1, activeTab: 'earthquake',
-  earthquakeContentMode: 'earthquake', earthquakeView: 'recent',
+  earthquakeContentMode: 'earthquake', earthquakeView: 'recent', recentEarthquakeScope: 'japan',
   earthquakeNearbySearchActive: false, earthquakeSummaryPage: 'earthquake', console,
   yieldAfterPaint: () => new Promise(resolve => focusPaints.push(resolve)),
   getDisplayedEewEvents: () => [],
@@ -291,6 +291,12 @@ focusCtx.scheduleTabAutoFocus('earthquake', 2);
 focusPaints.shift()(); await new Promise(setImmediate);
 focusPaints.shift()(); await focusCtx.tabAutoFocusSettled;
 assert.equal(focused.length, 1, 'nearby history search must preserve its camera');
+focusCtx.earthquakeNearbySearchActive = false;
+focusCtx.recentEarthquakeScope = 'world';
+focusCtx.scheduleTabAutoFocus('earthquake', 2);
+focusPaints.shift()(); await new Promise(setImmediate);
+focusPaints.shift()(); await focusCtx.tabAutoFocusSettled;
+assert.equal(focused.length, 1, 'returning to world earthquakes must preserve its camera');
 
 const cameraListeners = new Map();
 const cameraCtx = vm.createContext({map: {

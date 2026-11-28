@@ -478,7 +478,8 @@
     white-space: nowrap;
   }
 
-  .mobile-dock-amedas-head > .mobile-dock-loading-status {
+  .mobile-dock-amedas-head > .mobile-dock-loading-status,
+  .mobile-dock-archive-count > .mobile-dock-loading-status {
     justify-self: end;
   }
 
@@ -491,6 +492,7 @@
 
   .mobile-dock-typhoon > .mobile-dock-loading-status,
   .mobile-dock-volcano > .mobile-dock-loading-status,
+  .is-summary-chart > .mobile-dock-loading-status,
   .mobile-dock-world-time-control.is-empty > .mobile-dock-loading-status {
     place-self: center;
   }
@@ -1014,6 +1016,10 @@
     min-height: 50px;
   }
 
+  .mobile-dock-earthquake-main.is-world-event {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .mobile-dock-eew-main {
     grid-template-columns: 52px minmax(0, 1fr);
     gap: 10px;
@@ -1437,7 +1443,7 @@
     white-space: nowrap;
   }
 
-  .is-event-summary .earthquake-nearby-search-button.is-compact {
+  :is(.is-event-summary, .mobile-dock-earthquake-recent-actions) .earthquake-nearby-search-button.is-compact {
     flex: 0 0 auto;
     min-width: 56px;
     min-height: 24px;
@@ -1453,7 +1459,13 @@
     white-space: nowrap;
   }
 
-  html[data-theme="light"] .is-event-summary .earthquake-nearby-search-button.is-compact {
+  .mobile-dock-earthquake-recent-actions .earthquake-nearby-search-button.is-compact {
+    min-height: 13px;
+    padding-block: 0;
+    line-height: 1;
+  }
+
+  html[data-theme="light"] :is(.is-event-summary, .mobile-dock-earthquake-recent-actions) .earthquake-nearby-search-button.is-compact {
     color: #274b67;
   }
 

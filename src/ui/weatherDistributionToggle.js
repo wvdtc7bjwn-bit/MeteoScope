@@ -188,8 +188,10 @@ export function setupEarthquakeLayerToggle({
     }
   });
   if (!controller) return;
-  updateEarthquakeLayerToggle = ({ visible = false, layers = {}, presentation3d = false, plateSource = "slab2" } = {}) => {
+  const tsunamiChoice = root?.querySelector?.('[data-earthquake-map-layer="tsunamiInundation"]');
+  updateEarthquakeLayerToggle = ({ visible = false, layers = {}, presentation3d = false, plateSource = "slab2", tsunamiInundationAvailable = false } = {}) => {
     if (sourceSelect) sourceSelect.value = plateSource;
+    if (tsunamiChoice) tsunamiChoice.hidden = !tsunamiInundationAvailable;
     controller.update({
     visible,
     isSelected: (choice) => choice.dataset.earthquakeMapLayer

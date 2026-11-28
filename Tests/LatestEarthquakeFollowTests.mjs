@@ -8,7 +8,7 @@ const end = source.indexOf('  async function mergeEarthquakeRealtimeData(', star
 let cancelled = 0;
 const context = vm.createContext({
   activeEarthquakeId: 'old', collapsedEarthquakeId: 'old',
-  earthquakeContentMode: 'earthquake', earthquakeView: 'history',
+  earthquakeContentMode: 'earthquake', earthquakeView: 'history', recentEarthquakeScope: 'japan',
   earthquakeNearbySearchActive: true, earthquakeDistributionAreaDrawing: true,
   earthquakeSummaryPage: 'earthquake',
   cancelEarthquakeArchiveAreaDrawing() { cancelled++; },
@@ -36,5 +36,10 @@ assert.equal(context.earthquakeView, 'history');
 context.followLatestEarthquakeUpdate([previous], [{ ...previous, id: 'new', eventTimeRaw: '2026-11-12T11:00:00+09:00' }]);
 assert.equal(context.activeEarthquakeId, 'new');
 assert.equal(context.earthquakeView, 'recent');
+context.recentEarthquakeScope = 'world';
+context.earthquakeSummaryPage = 'tsunami';
+context.followLatestEarthquakeUpdate([previous], [{ ...previous, id: 'retained', eventTimeRaw: '2026-11-12T12:00:00+09:00' }]);
+assert.equal(context.activeEarthquakeId, 'retained', 'domestic data stays current while browsing the world list');
+assert.equal(context.earthquakeSummaryPage, 'tsunami', 'new reports do not disrupt the chosen view');
 assert.equal((source.match(/followLatestEarthquakeUpdate\(previousEarthquakes, earthquakes\)/g) ?? []).length, 2);
 console.log('Latest earthquake follow: new event, update, duplicate, stale, initial, invalid and cleanup passed.');

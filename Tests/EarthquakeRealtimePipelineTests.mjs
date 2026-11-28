@@ -99,7 +99,7 @@ const metricSource = panelSource.slice(panelSource.indexOf("function formatEarth
 let displayLanguage = "ja";
 const ctx = vm.createContext({ ...format, summarizeEewAreaNames, renderLongPeriodSummary, escapeHtml, Number, localizeText: (s) => s, getCurrentLanguage: () => displayLanguage,
   getEarthquakeIntensityColor: () => "#ffff00", getEarthquakeIntensityTextClass: () => "intensity-dark",
-  formatMobileEarthquakeTime: (s) => s, buildEarthquakeMobileViewSwitch: () => "",
+  formatMobileEarthquakeTime: (s) => s, buildEarthquakeMobileViewSwitch: () => "", buildRecentEarthquakeScopeToggle: () => "",
   buildMobileTsunamiStatusMarkup: () => "調査中", buildMobileEarthquakeSummaryCarousel: (data) => data.primaryMarkup });
 vm.runInContext(metricSource + summarySource, ctx);
 const markup = ctx.buildEarthquakeMobileContextMarkup(prompt, null, "none", null, "ok", null, [], null, true);

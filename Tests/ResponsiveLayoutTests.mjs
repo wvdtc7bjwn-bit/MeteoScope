@@ -215,7 +215,7 @@ assert.match(
 );
 assert.match(
   app,
-  /function scheduleTabAutoFocus\(tabId, generation\)[\s\S]*?generation !== tabAutoFocusGeneration \|\| activeTab !== tabId[\s\S]*?focusSelectedTyphoon\(\{ includeWorldForecast: true \}\)[\s\S]*?earthquakeContentMode === "earthquake"[\s\S]*?earthquakeView === "recent"[\s\S]*?focusEewOnce\(\);\s*else focusSelectedEarthquake\(\);/,
+  /function scheduleTabAutoFocus\(tabId, generation\)[\s\S]*?generation !== tabAutoFocusGeneration \|\| activeTab !== tabId[\s\S]*?focusSelectedTyphoon\(\{ includeWorldForecast: true \}\)[\s\S]*?earthquakeContentMode === "earthquake"[\s\S]*?earthquakeView === "recent"[\s\S]*?focusEewOnce\(\);\s*else if \(recentEarthquakeScope !== "world"\) focusSelectedEarthquake\(\);/,
   "stale tab focus callbacks must not move the map after another tab is selected"
 );
 assert.match(
@@ -723,7 +723,7 @@ assert.match(
   app,
   /const earthquakeMapView = earthquakeSummaryPage === "earthquake"\s*\? earthquakeView\s*:\s*"recent"/
 );
-assert.match(app, /earthquakeView,\s*earthquakeMapView,/);
+assert.match(app, /earthquakeView,\s*earthquakeMapView: showWorld \? "world" : earthquakeMapView,/);
 assert.match(app, /setupMobileEarthquakeSummarySwipe\(\{[\s\S]*?onChange:\s*\(page\)/);
 assert.match(weatherMap, /function getEarthquakeMapView\(data\)/);
 assert.match(weatherMap, /getEarthquakeMapView\(data\) === "distribution"/);
@@ -946,7 +946,7 @@ assert.match(
   panel,
   /class="mobile-dock-tsunami-heading">\$\{isEnglish \? "Tsunami information" : "津波情報"\}<\/div>/
 );
-assert.match(panel, /`Epicenters · \$\{periodLabel\} · \$\{rangeEnabled \? "Selected" : "Provisional"\}`/);
+assert.match(panel, /\["Epicenters", periodLabel, rangeEnabled \? "Selected" : "Provisional"\]\.filter\(Boolean\)\.join\(" · "\)/);
 assert.match(panel, /\$\{isEnglish \? "Prev" : "前日"\}/);
 assert.match(panel, /\$\{isEnglish \? "Next" : "翌日"\}/);
 assert.match(

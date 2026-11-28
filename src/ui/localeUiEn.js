@@ -880,6 +880,10 @@ V 北向き|V northward
 プレート境界・等深線を表示|Show plate boundaries and depth contours
 プレート境界：地図で非表示|Plate boundaries: hidden on map
 地震レイヤー|Earthquake layers
+津波浸水想定（都道府県）|Tsunami inundation (prefectures)
+世界の地震|World earthquakes
+世界の震央（USGS）|World epicenters (USGS)
+選択中の震央|Selected epicenter
 地図レイヤー|Map layers
 地図のレイヤー|Map layers
 地図のレイヤーを選択|Choose map layers

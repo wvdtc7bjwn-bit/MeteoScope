@@ -12,6 +12,8 @@ import { JAPAN_TERRAIN_BOUNDS, getGlobalTerrainPaint, getTerrainBoundaryPaint, r
 import { normalizeTerrainCoverage, normalizeTerrainLayerColorMode } from "../preferences/mapPreferences.js";
 import { createSimulationMapOverlay } from "./simulationOverlay.js";
 import { createSimulationWaveCanvas } from "./simulationWaveCanvas.js";
+import { formatWorldEarthquakeDepth, getWorldEarthquakePlace, WORLD_EARTHQUAKE_MARKER_COLOR, WORLD_EARTHQUAKE_SELECTED_COLOR } from "../earthquake/worldEarthquakes.js";
+import { syncTsunamiInundationLayer } from "./tsunamiInundationLayer.js";
 import { EARTHQUAKE_STATION_INTENSITY_MARKER_IMAGE_ID } from "./earthquakeMarkerIds.js";
 import { exposedWavefrontArcs } from "../simulation/wavefrontGeometry.js";
 import {
@@ -519,6 +521,7 @@ export function createWeatherMap(elementId, options = {}) {
   let eewHypocenterBlinkTimer = 0;
   let eewHypocenterBlinkVisible = true;
   let activeFaultVisible = true;
+  let tsunamiInundationVisible = false;
   let activeFaultDataSource = "jshis";
   let gsjActiveFaultData = EMPTY_GEOJSON;
   let plateBoundaryVisible = true;
@@ -634,6 +637,8 @@ export function createWeatherMap(elementId, options = {}) {
     if (mode !== activeMode) viewportFocus.clear();
     if (mode !== "earthquake") simulationOverlay.clear();
     activeMode = mode;
+    if (mode !== "earthquake") setWorldEarthquakeMapZoom(false);
+    updateTsunamiInundationLayer();
     const container = map?.getContainer();
     if (!container) return;
     hideMapInfo();
@@ -833,6 +838,15 @@ export function createWeatherMap(elementId, options = {}) {
     });
     void updateWarningFeatureStates(map, statusAreas, "status");
     void updateWarningFeatureStates(map, earlyAreas, "early");
+  }
+
+  function setTsunamiInundationVisible(visible) {
+    tsunamiInundationVisible = Boolean(visible);
+    updateTsunamiInundationLayer();
+  }
+
+  function updateTsunamiInundationLayer() {
+    syncTsunamiInundationLayer(map, activeMode === "earthquake" && tsunamiInundationVisible, HYPOCENTER_AREA_FILL_LAYER_ID);
   }
 
   function setActiveFaultVisible(visible) {
@@ -1149,9 +1163,12 @@ export function createWeatherMap(elementId, options = {}) {
       pendingRender = { mode, data };
       return;
     }
+    const worldEarthquakeView = mode === "earthquake" && data?.earthquakeMapView === "world";
+    if (worldEarthquakeView !== (lastRenderedData?.earthquakeMapView === "world")) hideMapInfo("earthquake-distribution");
     lastRenderedMode = mode;
     lastRenderedData = data;
-    if (mode !== "earthquake" || getEarthquakeMapView(data) !== "recent"
+    setWorldEarthquakeMapZoom(worldEarthquakeView);
+    if (mode !== "earthquake" || !["recent", "world"].includes(getEarthquakeMapView(data))
       || data?.earthquakeContentMode === "volcano") viewportFocus.clear();
     if (mode === "earthquake" && data?.historicalEarthquakeDetailVisible === true) {
       hideMapInfo("earthquake-distribution");
@@ -1174,19 +1191,21 @@ export function createWeatherMap(elementId, options = {}) {
     }
     let collection = EMPTY_GEOJSON;
     if (mode === "earthquake" || mode === "amedas") {
-      if (mode === "earthquake" && getEarthquakeMapView(data) === "recent"
+      if (mode === "earthquake" && ["recent", "world"].includes(getEarthquakeMapView(data))
         && data?.earthquakeContentMode !== "volcano") {
         const earthquake = data.selectedEarthquake
           ?? data.earthquakes?.find((item) => String(item.id) === String(data.selectedEarthquakeId ?? ""))
           ?? data.earthquakes?.[0];
-        const inputs = [
-          earthquake?.id, earthquake?.coordinates, earthquake?.coordinateDecimalPlaces, earthquake?.intensityStations,
-          earthquake?.intensityAreaFeatures, Boolean(earthquake?.estimatedIntensity?.images?.length),
-          earthquake ? buildEarthquakePopup(earthquake) : "",
-          data.tsunami?.mapFeatures, data.tideStationsVisible,
-          data.tideStationsVisible ? data.tideStations : null,
-          data.tideStationsVisible ? data.selectedTideStationCode : null
-        ];
+        const inputs = worldEarthquakeView
+          ? ["world", data.worldEarthquakes, data.selectedWorldEarthquakeId]
+          : [
+              "recent", earthquake?.id, earthquake?.coordinates, earthquake?.coordinateDecimalPlaces, earthquake?.intensityStations,
+              earthquake?.intensityAreaFeatures, Boolean(earthquake?.estimatedIntensity?.images?.length),
+              earthquake ? buildEarthquakePopup(earthquake) : "",
+              data.tsunami?.mapFeatures, data.tideStationsVisible,
+              data.tideStationsVisible ? data.tideStations : null,
+              data.tideStationsVisible ? data.selectedTideStationCode : null
+            ];
         if (recentEarthquakeCollectionCache?.inputs.every((value, index) => value === inputs[index])) {
           collection = recentEarthquakeCollectionCache.collection;
         } else {
@@ -1326,6 +1345,21 @@ export function createWeatherMap(elementId, options = {}) {
       offset: getFocusOffset(options),
       essential: true
     });
+  }
+
+  function setWorldEarthquakeMapZoom(visible) {
+    if (!map) return;
+    const minimum = visible ? 0 : DEFAULT_VIEW.minZoom;
+    if (map.getMinZoom() !== minimum) map.setMinZoom(minimum);
+  }
+
+  function showWorldEarthquakeOverview() {
+    if (!map || activeMode !== "earthquake") return;
+    setWorldEarthquakeMapZoom(true);
+    ensureWorldGeometryLoaded();
+    const width = map.getContainer().clientWidth;
+    const zoom = clampNumber(Math.log2(Math.max(1, width) / 512), 0, 1);
+    flyToLocation([160, 15], { zoom, duration: 650 });
   }
 
   function setSimulationCameraInteractionHandler(handler) {
@@ -2696,6 +2730,12 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
           ? (event.features?.find((item) => item?.properties?.tideStationCode) ?? event.features?.[0])
           : event.features?.[0];
         if (layerID === "sample-fill" && feature?.properties?.markerType !== "ashfall") return;
+        const worldEventId = feature?.properties?.worldEarthquakeId;
+        if (layerID === "sample-circle" && worldEventId) {
+          window.dispatchEvent(new CustomEvent("world-earthquake-select", {
+            detail: { eventId: worldEventId }
+          }));
+        }
         const historicalEventId = String(feature?.properties?.earthquakeHistoryId ?? "").trim();
         if (historicalEventId) {
           window.dispatchEvent(new CustomEvent("earthquake-history-select", {
@@ -3364,7 +3404,7 @@ map.addSource(WEATHER_CHART_POINT_SOURCE_ID, {
   function pickSimulationEpicenter(onPick) { return simulationOverlay.pick(onPick); }
   function cancelSimulationEpicenterPick() { simulationOverlay.cancelPick(); }
 
-  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarnings, setEarthquakeSimulationFrame, pickSimulationEpicenter, cancelSimulationEpicenterPick, whenCameraIdle, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, setSimulationCameraInteractionHandler, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection, refreshObservationColors, setCustomization, getCameraView };
+  return { initialize, whenReady, setMode, prepareWarningData, setTheme, setTerrainLayer, setTsunamiInundationVisible, setActiveFaultVisible, setActiveFaultDataSource, setGsjActiveFaultData, setPlateBoundaryVisible, setPlateDepthContoursVisible, setPlateDepthSource, setCommunityReports, setCommunityReportsVisible, setCommunityReportDeleteHandler, getVisibleBounds, renderData, updateWorldTyphoonForecastPositions, setEmergencyEarthquakeWarnings, setEarthquakeSimulationFrame, pickSimulationEpicenter, cancelSimulationEpicenterPick, whenCameraIdle, resize, showCurrentLocation, setCurrentLocationVisible, flyToLocation, fitToCoordinates, setSimulationCameraInteractionHandler, startHypocenterAreaSelection, cancelHypocenterAreaDrawing, setHypocenterAreaSelection, clearHypocenterAreaSelection, refreshObservationColors, setCustomization, getCameraView, showWorldEarthquakeOverview };
 }
 
 function normalizeTerrainOpacity(value) {
@@ -5491,6 +5531,29 @@ function createEarthquakeFeatures(data) {
       }];
     });
     return [...ashFeatures, ...volcanoFeatures];
+  }
+  if (getEarthquakeMapView(data) === "world") {
+    const en = getCurrentLanguage() === "en";
+    return (data.worldEarthquakes ?? []).map((event) => {
+      const selected = event.id === data.selectedWorldEarthquakeId;
+      const place = getWorldEarthquakePlace(event, en);
+      const depth = formatWorldEarthquakeDepth(event.depthKm, en);
+      const radius = clampNumber(event.magnitude - 0.5, 4, 9);
+      return {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: event.coordinates },
+        properties: {
+          markerType: "world-earthquake",
+          worldEarthquakeId: event.id,
+          color: selected ? WORLD_EARTHQUAKE_SELECTED_COLOR : WORLD_EARTHQUAKE_MARKER_COLOR,
+          radius: radius + (selected ? 3 : 0),
+          strokeWidth: selected ? 2 : 0.8,
+          sortKey: selected ? 100 : event.magnitude,
+          popup: `<strong>${escapePopup(place)}</strong><br><span>${escapePopup(event.eventTime)} JST</span><br>
+            <span>M${event.magnitude} · ${escapePopup(depth)}</span><br><small>USGS</small>`
+        }
+      };
+    });
   }
   if (getEarthquakeMapView(data) === "distribution") {
     const is3D = data?.distribution3DEnabled === true;

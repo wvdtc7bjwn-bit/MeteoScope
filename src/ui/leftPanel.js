@@ -2,9 +2,12 @@ import { getEarthquakeHistoryStatus } from "./earthquakeHistoryStatus.js";
 import { buildLocalTemperatureButton, updateLocalTemperatureView } from "./localTemperatureView.js";
 import { renderMobileWeatherTimelineToolbar, getMobileWeatherFocusSelector } from "./mobileWeatherTimeline.js";
 import { renderLightningLegendSymbol } from "./lightningLegend.js";
+import { buildRecentEarthquakeScopeToggle, buildWorldEarthquakesList, getWorldEarthquakeStatusText } from "./panels/worldEarthquakesPanel.js";
+import { formatWorldEarthquakeDepth, getWorldEarthquakePlace, WORLD_EARTHQUAKE_MARKER_COLOR, WORLD_EARTHQUAKE_SELECTED_COLOR } from "../earthquake/worldEarthquakes.js";
 import { VOLCANO_ALERT_LEVEL_GUIDE, renderVolcanoList } from "./panels/volcanoPanel.js";
 import { updateWeatherBulletinsPanel } from "./panels/weatherBulletinsPanel.js";
 import { getWarningLegendBackground } from "../warningMapColors.js";
+import { TSUNAMI_INUNDATION_DEPTHS, TSUNAMI_INUNDATION_MAP_URL, TSUNAMI_INUNDATION_SOURCE_URL } from "../map/tsunamiInundationLayer.js";
 import { escapeHtmlString as escapeHtml } from "../utils/html.js";
 import { updateHistorySelection } from "./historySelection.js";
 import { prepareSidebarScroll } from "./sidebarScroll.js";
@@ -117,7 +120,6 @@ let warningAreaSelectionOptions = {};
 let mobileRadarDockSliding = false;
 let mobileVolcanoAshSliderDragging = false;
 let mobileEarthquakeSummaryPage = "earthquake";
-let lastMobileTideStationCode = "";
 
 function consumeCompatibilityClick(event, isSuppressed, clearSuppression, selector) {
   if (!isSuppressed || !(event.target instanceof Element) || !event.target.closest(selector)) return false;
@@ -171,7 +173,7 @@ const legendsByTab = {
   earthquake: [["震源", "legend-earthquake-center"]]
 };
 
-export function updateLeftPanel(tab, state = {}, { onRequestLocation } = {}) {
+export function updateLeftPanel(tab, state = {}, { onRequestLocation, tsunamiInundationVisible = false } = {}) {
   const panelKey = tab.id === "earthquake" && (state.earthquakeContentMode ?? state.data?.earthquakeContentMode) === "volcano"
     ? "volcano" : tab.id;
   const restoreSidebarScroll = prepareSidebarScroll(document.getElementById("sidebar"), panelKey, { loading: state.status === "loading" });
@@ -221,7 +223,7 @@ export function updateLeftPanel(tab, state = {}, { onRequestLocation } = {}) {
   renderAmedasRanking(tab, state, amedasMetric);
   renderMobileContextDock(tab, state, { amedasMetric, warningView });
   updateLocalTemperatureView(tab.id === "amedas" && amedasMetric.id === "temperature" ? state.localTemperature : null);
-  renderLegend(tab.id, amedasMetric.id, warningView, state.data);
+  renderLegend(tab.id, amedasMetric.id, warningView, state.data, tsunamiInundationVisible);
   restoreSidebarScroll();
 }
 
@@ -1410,6 +1412,9 @@ export function setupTyphoonForecastModeControls({ onChange, onModelToggle, onTi
 
 export function setupEarthquakeSelector({
   onChange,
+  onRecentScopeChange,
+  onWorldEarthquakeSelect,
+  onWorldEarthquakesRetry,
   onEewSelect,
   onHistoryLoadMore,
   onVolcanoClear,
@@ -1505,6 +1510,21 @@ export function setupEarthquakeSelector({
     const viewButton = event.target.closest("button[data-earthquake-view]");
     if (viewButton) {
       onViewChange?.(viewButton.dataset.earthquakeView);
+      return;
+    }
+    const recentScopeButton = event.target.closest("[data-earthquake-recent-scope]");
+    if (recentScopeButton) {
+      event.stopPropagation();
+      onRecentScopeChange?.(recentScopeButton.dataset.earthquakeRecentScope);
+      return;
+    }
+    const worldEarthquakeButton = event.target.closest("[data-world-earthquake-id]");
+    if (worldEarthquakeButton) {
+      onWorldEarthquakeSelect?.(worldEarthquakeButton.dataset.worldEarthquakeId);
+      return;
+    }
+    if (event.target.closest("[data-world-earthquakes-retry]")) {
+      onWorldEarthquakesRetry?.();
       return;
     }
     const archiveRetryButton = event.target.closest("[data-earthquake-archive-retry]");
@@ -2053,7 +2073,7 @@ function buildMyAreaEarlyWarningBadges(area, loading = false) {
   `).join("");
 }
 
-function renderLegend(tabId, amedasMetricId, warningView = "status", data = null) {
+function renderLegend(tabId, amedasMetricId, warningView = "status", data = null, tsunamiInundationVisible = false) {
   const root = document.getElementById("legend-list");
   if (!root) return;
   const items = buildLegendItems(tabId, amedasMetricId, warningView, data);
@@ -2074,18 +2094,31 @@ function renderLegend(tabId, amedasMetricId, warningView = "status", data = null
 
   const unit = getMapLegendUnit(tabId, amedasMetricId, data);
 
-  root.innerHTML = `${isCountryForecast
+  root.innerHTML = `${tsunamiInundationVisible ? renderTsunamiInundationLegend() : ""}${isCountryForecast
     ? '<p class="legend-world-typhoon-note">線と点の色は各モデルボタンの色に対応します</p>'
-    : ""}${items
-    .map(([label, className, color, symbol]) => {
-      const swatchStyle = color ? ` style="background:${escapeHtml(color)}"` : "";
-      const visibleLabel = formatLegendLabelWithUnit(localizeText(label), unit);
-      const icon = renderLightningLegendSymbol(symbol);
-      if (icon) return `<div class="legend-item"><span class="legend-swatch legend-discharge-symbol" style="color:${escapeHtml(color)}">${icon}</span>${escapeHtml(visibleLabel)}</div>`;
-      return `<div class="legend-item"><span class="legend-swatch ${className}"${swatchStyle}></span>${escapeHtml(visibleLabel)}</div>`;
-    })
-    .join("")}`;
+    : ""}${renderMapLegendItems(items, unit)}`;
+}
 
+function renderMapLegendItems(items, unit = "") {
+  return items.map(([label, className, color, symbol]) => {
+    const swatchStyle = color ? ` style="background:${escapeHtml(color)}"` : "";
+    const visibleLabel = formatLegendLabelWithUnit(localizeText(label), unit);
+    const icon = renderLightningLegendSymbol(symbol);
+    if (icon) return `<div class="legend-item"><span class="legend-swatch legend-discharge-symbol" style="color:${escapeHtml(color)}">${icon}</span>${escapeHtml(visibleLabel)}</div>`;
+    return `<div class="legend-item"><span class="legend-swatch ${className}"${swatchStyle}></span>${escapeHtml(visibleLabel)}</div>`;
+  }).join("");
+}
+
+function renderTsunamiInundationLegend() {
+  const english = getCurrentLanguage() === "en";
+  const items = TSUNAMI_INUNDATION_DEPTHS.map(([ja, en, color]) => [english ? en : ja, "", color]);
+  return `<section class="legend-tsunami-inundation" aria-label="${escapeHtml(localizeText("津波浸水想定（都道府県）"))}">
+    <h3>${english ? "Tsunami inundation depth (scenario)" : "津波浸水深（事前の想定）"}</h3>
+    ${renderMapLegendItems(items)}
+    <p>${english ? "Depth bands vary by area. Inundation may occur outside shaded areas." : "地域により浸水深の区分が異なります。着色のない場所でも浸水する場合があります。"}</p>
+    <p>${english ? "Source" : "出典"} <a href="${TSUNAMI_INUNDATION_SOURCE_URL}" target="_blank" rel="noopener noreferrer">${english ? "Hazard Map Portal (GSI and prefectures)" : "ハザードマップポータルサイト（国土地理院・都道府県）"}</a></p>
+    <a href="${TSUNAMI_INUNDATION_MAP_URL}" target="_blank" rel="noopener noreferrer">${english ? "View the official hazard map" : "重ねるハザードマップで見る"}</a>
+  </section>`;
 }
 
 export function getMapLegendUnit(tabId, amedasMetricId, data = null) {
@@ -2239,7 +2272,7 @@ if (tabId === "warnings" && warningView === "early") {
       ? [["潮位観測点", "legend-tide-station", "#5e93ad"]]
       : [];
     const mapLayerLegend = [
-      ...(data?.selectedEarthquake?.estimatedIntensity && data?.estimatedIntensityVisible !== false
+      ...(data?.earthquakeMapView !== "world" && data?.selectedEarthquake?.estimatedIntensity && data?.estimatedIntensityVisible !== false
         ? [["推計震度分布（250mメッシュ）", "legend-estimated-intensity"]]
         : []),
       ...(data?.activeFaultVisible !== false ? [["主要活断層帯", "legend-active-fault"]] : []),
@@ -2254,6 +2287,13 @@ if (tabId === "warnings" && warningView === "early") {
           : "プレート等深線（浅い → 深い）", "legend-plate-depth"]]
         : [])
     ];
+    if (data?.earthquakeMapView === "world") {
+      return [
+        ["世界の震央（USGS）", "", WORLD_EARTHQUAKE_MARKER_COLOR],
+        ["選択中の震央", "", WORLD_EARTHQUAKE_SELECTED_COLOR],
+        ...mapLayerLegend
+      ];
+    }
     if (isHypocenterDistribution) {
       const depthLegend = HYPOCENTER_DEPTH_STOPS.map((stop, index) => [
         index === 0
@@ -2734,13 +2774,6 @@ function renderMobileContextDock(tab, state, context = {}) {
     && state.earthquakeContentMode === "volcano"
     && root.dataset.tab === "earthquake"
   ) return;
-  const tideStationCode = tab.id === "earthquake"
-    ? String(state.data?.tideObservation?.station?.code ?? "")
-    : "";
-  if (tideStationCode && tideStationCode !== lastMobileTideStationCode) {
-    mobileEarthquakeSummaryPage = "tide";
-  }
-  lastMobileTideStationCode = tideStationCode;
   root.dataset.tab = tab.id;
   const showAmedasChart = tab.id === "amedas" && Boolean(state.selectedAmedasStationId && state.amedasSummaryChartVisible);
   root.classList.toggle("has-amedas-chart", showAmedasChart);
@@ -2824,13 +2857,16 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     const amedasLoadingLabel = state.status === "loading"
       ? "AMeDAS観測値を読み込み中"
       : (!nearest && state.currentLocation?.status === "loading" ? "現在地を読み込み中" : "");
-    const estimatedMarkup = metric.id === "temperature" && state.localTemperature
-      ? buildLocalTemperatureButton(state.localTemperature) : "";
+    const localTemperature = metric.id === "temperature" ? state.localTemperature : null;
+    const temperatureLoading = localTemperature?.loading && localTemperature.value == null && !localTemperature.range;
+    const estimatedMarkup = localTemperature
+      ? temperatureLoading ? buildMobileDockLoadingStatus("気温を読み込み中") : buildLocalTemperatureButton(localTemperature)
+      : "";
     const nearestMarkup = estimatedMarkup || (amedasLoadingLabel
       ? buildMobileDockLoadingStatus(amedasLoadingLabel)
       : `<span class="mobile-dock-amedas-nearest amedas-observation-value${nearest ? "" : " is-muted"}" title="${escapeHtml(nearestText)}">${escapeHtml(nearestText)}</span>`);
     return `
-      <div class="mobile-dock-content mobile-dock-amedas${isPrecipitation ? " has-precipitation-period" : ""}" aria-busy="${Boolean(amedasLoadingLabel)}">
+      <div class="mobile-dock-content mobile-dock-amedas${isPrecipitation ? " has-precipitation-period" : ""}" aria-busy="${Boolean(temperatureLoading || (amedasLoadingLabel && !estimatedMarkup))}">
         <div class="mobile-dock-amedas-head">
           <span class="mobile-dock-kicker">アメダス</span>
           ${isPrecipitation ? `
@@ -2860,7 +2896,7 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     const area = [info?.prefecture, info?.areaName].filter(Boolean).join(" ") || "現在地の発表状況";
     const warningLoading = state.status === "loading"
       || info?.status === "loading"
-      || (warningView === "kikikuru" && Boolean(state.data?.kikikuru?.deferred))
+      || (warningView === "kikikuru" && (state.data?.kikikuru?.deferred || state.data?.currentKikikuruStatus?.status === "loading"))
       || (warningView === "river" && (!state.data?.riverFlood?.status || state.data.riverFlood.status === "loading"));
     const warningLoadingLabel = warningLoading
       ? ({
@@ -2897,6 +2933,19 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
     }
     const earthquakes = state.data?.earthquakes ?? [];
     const earthquake = state.data?.selectedEarthquake ?? earthquakes[0];
+    if (state.recentEarthquakeScope === "world" && !state.data?.eew && !state.data?.eewSummaryOverride) {
+      return buildMobileEarthquakeSummaryCarousel({
+        containerClass: "mobile-dock-content mobile-dock-earthquake mobile-dock-earthquake-carousel",
+        primaryAriaLabel: localizeText("世界の地震"),
+        primaryDotLabel: localizeText("地震情報"),
+        primaryMarkup: buildEarthquakeMobileRecentContent("world",
+          buildWorldEarthquakeEventSummary(state.worldEarthquakeState, state.selectedWorldEarthquakeId)),
+        earthquake,
+        tsunami: state.data?.tsunami,
+        tsunamiStatus: state.data?.tsunamiStatus,
+        tideObservation: state.data?.tideObservation
+      });
+    }
     return buildEarthquakeMobileContextMarkup(
       state.data?.eewSummaryOverride ?? earthquake,
       state.data?.tsunami,
@@ -2906,7 +2955,8 @@ function buildMobileContextDockContent(tab, state, { amedasMetric, warningView }
       state.data?.eewSummaryOverride ? null : state.data?.eew,
       state.data?.eewEvents,
       state.data?.eewConnection,
-      Boolean(state.data?.eewSummaryOverride)
+      Boolean(state.data?.eewSummaryOverride),
+      state.recentEarthquakeScope
     );
   }
   return buildMobileContextMarkup(tab.label ?? "情報", "詳細情報", "開く");
@@ -2943,9 +2993,9 @@ function buildTideObservationMobileContextMarkup(tideObservation = {}) {
     : "偏差 --";
   const graph = tideObservation.status === "ok"
     ? buildTideObservationGraph(tideObservation, rangeHours)
-    : `<div class="mobile-tide-graph-status">${escapeHtml(
-      tideObservation.status === "error" ? tideObservation.error : "潮位を取得中"
-    )}</div>`;
+    : `<div class="mobile-tide-graph-status">${tideObservation.status === "error"
+      ? escapeHtml(tideObservation.error)
+      : buildMobileDockLoadingStatus("潮位を読み込み中")}</div>`;
 
   return `
       <div class="mobile-tide-head">
@@ -3356,9 +3406,9 @@ function buildTyphoonMobilePageMarkup(data = {}, status = "ok") {
   const forecastMode = data.forecastMode === "world" ? "world" : "jma";
   if (forecastMode === "world") {
     const worldStatus = data.worldForecastStatus ?? "idle";
-    const worldLoading = ["idle", "loading"].includes(worldStatus);
     const modelStates = data.worldForecastModelStates ?? [];
     const enabledModels = modelStates.filter((model) => model.enabled);
+    const worldLoading = enabledModels.length > 0 && ["idle", "loading"].includes(worldStatus);
     const title = enabledModels.length === 0
       ? "表示モデルを選択"
       : (worldLoading
@@ -3438,8 +3488,11 @@ function buildTyphoonMobilePageMarkup(data = {}, status = "ok") {
   }
 
   const typhoons = data.typhoons ?? [];
-  if (status === "loading") {
+  if (status === "loading" && !typhoons.length) {
     return `<div class="mobile-dock-content mobile-dock-typhoon" aria-busy="true">${buildMobileDockLoadingStatus("台風情報を読み込み中")}</div>`;
+  }
+  if (status === "error" && !typhoons.length) {
+    return `<div class="mobile-dock-content mobile-dock-typhoon"><div class="mobile-dock-typhoon-empty" role="status">${escapeHtml(localizeText("台風情報を取得できませんでした。"))}</div></div>`;
   }
   if (!typhoons.length || data.hasTyphoon === false) {
     return `<div class="mobile-dock-content mobile-dock-typhoon"><div class="mobile-dock-typhoon-empty">${escapeHtml(NO_TYPHOON_MESSAGE)}</div></div>`;
@@ -3519,7 +3572,8 @@ function buildEarthquakeMobileContextMarkup(
   eew = null,
   eewEvents = [],
   eewConnection = null,
-  isInfoOverride = false
+  isInfoOverride = false,
+  recentScope = "japan"
 ) {
   const eewConnectionNotice = eewConnection?.status
     && !["connected", "stopped"].includes(eewConnection.status)
@@ -3632,12 +3686,11 @@ function buildEarthquakeMobileContextMarkup(
     const statusText = status === "error"
         ? localizeText("地震情報を取得できませんでした。")
         : localizeText("直近の地震情報はありません。");
-    const primaryMarkup = `
-      ${buildEarthquakeMobileViewSwitch("recent")}
+    const primaryMarkup = buildEarthquakeMobileRecentContent(recentScope, `
       <div class="mobile-dock-earthquake-empty-state${isLoading ? " is-loading" : ""}" role="${status === "error" ? "alert" : "status"}" aria-live="polite" aria-busy="${isLoading}">
         ${eewConnectionNotice || (isLoading ? buildMobileDockLoadingStatus("地震情報を読み込み中") : escapeHtml(statusText))}
       </div>
-    `;
+    `);
     return buildMobileEarthquakeSummaryCarousel({
       containerClass: "mobile-dock-content mobile-dock-earthquake mobile-dock-earthquake-carousel",
       primaryAriaLabel: localizeText("地震情報要約"),
@@ -3670,8 +3723,7 @@ function buildEarthquakeMobileContextMarkup(
   const tsunamiMarkup = buildMobileTsunamiStatusMarkup(earthquake, tsunami, tsunamiStatus);
   const nearbyAction = Array.isArray(earthquake?.coordinates) && earthquake.coordinates.length === 2
     ? `<button type="button" class="earthquake-nearby-search-button is-compact" data-mobile-dock-control data-earthquake-nearby-search="${escapeHtml(earthquake.id)}" aria-label="${escapeHtml(localizeText("この震源の近傍を検索"))}">近傍検索</button>` : "";
-  const primaryMarkup = `
-    ${buildEarthquakeMobileViewSwitch("recent")}
+  const primaryMarkup = buildEarthquakeMobileRecentContent(recentScope, `
     <div class="mobile-dock-earthquake-main is-event-summary">
       <em class="mobile-dock-earthquake-intensity ${intensityTextClass}">
         <small>最大震度</small>
@@ -3681,10 +3733,10 @@ function buildEarthquakeMobileContextMarkup(
         statusLabel: isInfoOverride ? earthquake?.reportTitle || "地震情報" : "発生時刻：",
         time, place: formatEarthquakeHypocenterText(earthquake), magnitude, depth,
         longPeriodMarkup: renderLongPeriodSummary(earthquake.longPeriod),
-        actionMarkup: nearbyAction, noticeMarkup: eewConnectionNotice, tsunamiMarkup
+        noticeMarkup: eewConnectionNotice, tsunamiMarkup
       })}
     </div>
-  `;
+  `, nearbyAction);
   return buildMobileEarthquakeSummaryCarousel({
     containerClass: "mobile-dock-content mobile-dock-earthquake mobile-dock-earthquake-carousel",
     containerStyle: `--mobile-earthquake-intensity-bg: ${escapeHtml(intensityColor)};`,
@@ -3721,6 +3773,41 @@ function buildMobileEarthquakeEventText({ statusLabel, time, place, magnitude, d
       ${actionMarkup ? `<div class="mobile-dock-earthquake-summary-aside">
         ${actionMarkup}
       </div>` : ""}
+    </div>
+  `;
+}
+
+function buildWorldEarthquakeEventSummary(state, selectedId) {
+  const en = getCurrentLanguage() === "en";
+  const events = state?.events ?? [];
+  const event = events.find(({ id }) => id === selectedId) ?? events[0];
+  if (!event) {
+    const status = state?.status;
+    if (!status || status === "idle" || status === "loading") {
+      return `<div class="mobile-dock-earthquake-empty-state is-loading">${buildMobileDockLoadingStatus("USGSの地震情報を読み込み中")}</div>`;
+    }
+    return `<div class="mobile-dock-earthquake-empty-state" role="status">${escapeHtml(getWorldEarthquakeStatusText(status, en))}</div>`;
+  }
+  return `<div class="mobile-dock-earthquake-main is-event-summary is-world-event">
+    ${buildMobileEarthquakeEventText({
+      statusLabel: localizeText("発生時刻："),
+      time: formatMobileEarthquakeTime(event.eventTime, true),
+      place: getWorldEarthquakePlace(event, en),
+      magnitude: `M${event.magnitude}`,
+      depth: formatWorldEarthquakeDepth(event.depthKm, en, { compact: true })
+    })}
+  </div>`;
+}
+
+function buildEarthquakeMobileRecentContent(scope, summaryMarkup, actionMarkup = "") {
+  return `
+    ${buildEarthquakeMobileViewSwitch("recent")}
+    <div class="mobile-dock-earthquake-recent-body">
+      ${summaryMarkup}
+      <div class="mobile-dock-earthquake-recent-actions">
+        ${buildRecentEarthquakeScopeToggle(scope, true)}
+        ${actionMarkup}
+      </div>
     </div>
   `;
 }
@@ -3799,6 +3886,9 @@ function buildMobileEarthquakeSummaryCarousel({
 
 function buildMobileTsunamiSummaryMarkup(earthquake, tsunami, tsunamiStatus) {
   const state = getCurrentTsunamiState(earthquake, tsunami, tsunamiStatus);
+  if (state.waiting) {
+    return `<div class="mobile-dock-earthquake-empty-state is-loading">${buildMobileDockLoadingStatus(state.label)}</div>`;
+  }
   const report = state.tsunami;
   const areas = (report?.areas ?? []).filter((area) => area.level !== "none");
   const tickerGroups = groupMobileTsunamiAreas(areas);
@@ -3848,7 +3938,7 @@ function buildMobileTsunamiSummaryMarkup(earthquake, tsunami, tsunamiStatus) {
     <div class="mobile-dock-tsunami-main${hasCounts ? "" : " no-counts"}" style="--mobile-tsunami-color: ${escapeHtml(color)};">
       ${report?.isTestScenario ? '<span class="tsunami-test-badge">LOCAL TEST</span>' : ""}
       <em class="mobile-dock-tsunami-level" data-mobile-tsunami-level-badge>
-        <span>${escapeHtml(state.waiting ? "受信待ち" : getMobileTsunamiLevelShortLabel(state.level))}</span>
+        <span>${escapeHtml(getMobileTsunamiLevelShortLabel(state.level))}</span>
       </em>
       <div class="mobile-dock-tsunami-text">
         <span class="mobile-dock-earthquake-time">${reportTime !== "--" ? `発表 ${escapeHtml(reportTime)}` : state.noBulletin ? "発表状況" : "受信状況"}</span>
@@ -4043,6 +4133,9 @@ function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLoc
   if (warningView === "river") return buildRiverFloodMobileContextMarkup(riverFlood, currentLocation, loadingLabel);
   const locationMessage = ["status", "early"].includes(warningView)
     ? getLocalWarningUnavailableText(currentLocation) : "";
+  const locationLoading = currentLocation?.status === "loading"
+    || (currentLocation?.status === "found" && currentLocation.geographyStatus === "loading");
+  const activeLoadingLabel = locationMessage ? (locationLoading ? locationMessage : "") : loadingLabel;
   const errorMessage = dataStatus === "error" || warningsAvailable === false ? "取得失敗" : "";
   const topWarning = getPrimaryMobileWarning(warnings);
   const warningBadges = warningView === "status" && !loadingLabel
@@ -4052,14 +4145,14 @@ function buildWarningMobileContextMarkup({ activeKikikuruLayer, area, currentLoc
   const level = topWarning?.level ?? "none";
   const badgeColorClass = getMobileWarningBadgeColorClass(warningView, level);
   return `
-    <div class="mobile-dock-content mobile-dock-warning" aria-busy="${Boolean(locationMessage ? currentLocation?.status === "loading" || currentLocation?.geographyStatus === "loading" : loadingLabel)}">
+    <div class="mobile-dock-content mobile-dock-warning" aria-busy="${Boolean(activeLoadingLabel)}">
       <div class="mobile-dock-warning-head">
         ${buildWarningMobileActionRow(warningView)}
       </div>
-      ${locationMessage
+      ${activeLoadingLabel
+        ? `<div class="mobile-dock-warning-main is-loading">${buildMobileDockLoadingStatus(activeLoadingLabel)}</div>`
+        : locationMessage
         ? `<div class="mobile-dock-warning-main"><div class="mobile-dock-warning-text"><strong>${escapeHtml(localizeWarningDisplayText(locationMessage))}</strong></div></div>`
-        : loadingLabel
-        ? `<div class="mobile-dock-warning-main is-loading">${buildMobileDockLoadingStatus(loadingLabel)}</div>`
         : warningView === "kikikuru"
         ? buildKikikuruMobileLayerRow(activeKikikuruLayer)
         : errorMessage
@@ -4266,14 +4359,15 @@ function buildKikikuruMobileLayerRow(activeKikikuruLayer) {
 function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   const weatherChartEnabled = Boolean(state.weatherChartEnabled);
   const lightningEnabled = Boolean(state.lightningEnabled);
+  const satellite = state.weatherChartSatellite ?? state.data?.weatherChartSatellite ?? {};
+  const satelliteEnabled = Boolean(satellite.enabled);
   const weatherDistributionMode = state.weatherDistributionMode ?? state.data?.weatherDistributionMode ?? null;
   const weatherDistributionEnabled = Boolean(weatherDistributionMode);
   const weatherChartLoading = weatherChartEnabled && state.weatherChartStatus === "loading";
-  const satelliteLoading = Boolean(state.weatherChartSatellite?.enabled ?? state.data?.weatherChartSatellite?.enabled)
-    && (state.weatherChartSatellite?.status ?? state.data?.weatherChartSatellite?.status) === "loading";
+  const satelliteLoading = satelliteEnabled && satellite.status === "loading";
   const lightningLoading = lightningEnabled && state.lightningStatus === "loading";
   const weatherDistributionLoading = weatherDistributionEnabled && state.weatherDistributionStatus === "loading";
-  const radarLoading = !weatherChartEnabled && !satelliteLoading && !lightningEnabled && !weatherDistributionEnabled && status === "loading";
+  const radarLoading = !weatherChartEnabled && !satelliteEnabled && !lightningEnabled && !weatherDistributionEnabled && status === "loading";
   const loadingLabel = weatherChartLoading
     ? "天気図を読み込み中"
     : (satelliteLoading ? "衛星雲画像を読み込み中" : (lightningLoading ? "雷情報を読み込み中" : (weatherDistributionLoading
@@ -4285,7 +4379,6 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
     : (weatherChart?.featureCount > 0 ? [weatherChart] : []);
   const chartIndex = clampIndex(weatherChart?.activeFrameIndex ?? 0, chartFrames.length);
   const chartFrame = chartFrames[chartIndex] ?? weatherChart?.activeFrame ?? weatherChart;
-  const satellite = state.weatherChartSatellite ?? state.data?.weatherChartSatellite ?? {};
   const satelliteFrames = Array.isArray(satellite.frames) ? satellite.frames : [];
   const satelliteIndex = clampIndex(satellite.activeFrameIndex ?? 0, satelliteFrames.length);
   const weatherDistribution = state.weatherDistribution ?? state.data?.weatherDistribution;
@@ -4325,7 +4418,6 @@ function buildRadarMobileContextMarkup(frames, index, status, state = {}) {
   }));
 
   const isChartMode = weatherChartEnabled;
-  const satelliteEnabled = Boolean(satellite?.enabled);
   const isSatelliteMode = satelliteEnabled;
   const isLightningMode = lightningEnabled;
   const isDistributionMode = weatherDistributionEnabled;
@@ -5753,7 +5845,9 @@ function renderAmedasDailyChart(tab, state, metric, root = document.getElementBy
     // Retain the previous chart's footprint so the ranking below cannot jump
     // into its place while the replacement observation is fetched.
     root.style.minHeight = `${root.getBoundingClientRect().height}px`;
-    root.innerHTML = `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(chart.stationName || "観測点")}の${escapeHtml(getAmedasDailySeriesTitle(metric.id, seriesDayOffset, precipitationPeriod.id))}を読み込んでいます...</p>`;
+    root.innerHTML = compact
+      ? buildMobileDockLoadingStatus("AMeDAS観測値を読み込み中")
+      : `${periodToggle}<p class="amedas-temperature-chart-empty">${escapeHtml(chart.stationName || "観測点")}の${escapeHtml(getAmedasDailySeriesTitle(metric.id, seriesDayOffset, precipitationPeriod.id))}を読み込んでいます...</p>`;
     return;
   }
   root.style.minHeight = "";
@@ -6324,7 +6418,7 @@ function renderTyphoonDetails(tab, state) {
   `;
 }
 
-const historyListMarkup = new WeakMap();
+const earthquakeDetailMarkup = new WeakMap();
 
 function renderEarthquakeList(tab, state) {
   const root = document.getElementById("earthquake-list");
@@ -6339,14 +6433,14 @@ function renderEarthquakeList(tab, state) {
   root.hidden = !isEarthquake;
   root.classList.remove("is-distribution-view", "is-history-view");
   if (!isEarthquake) {
-    historyListMarkup.delete(root);
+    earthquakeDetailMarkup.delete(root);
     setSocialSharePayload("earthquake", null);
     root.innerHTML = "";
     return;
   }
 
   if (state.earthquakeContentMode === "volcano" || state.data?.earthquakeContentMode === "volcano") {
-    historyListMarkup.delete(root);
+    earthquakeDetailMarkup.delete(root);
     setSocialSharePayload("earthquake", null);
     const detailKey = `${state.selectedVolcanoCode ?? state.data?.selectedVolcanoCode ?? ""}:${state.selectedVolcanoBulletinId ?? ""}`;
     const expandedSections = root.dataset.volcanoDetailKey === detailKey
@@ -6367,15 +6461,17 @@ function renderEarthquakeList(tab, state) {
   root.dataset.earthquakeView = view;
   if (viewChanged) {
     root.scrollTop = 0;
-    historyListMarkup.delete(root);
+    earthquakeDetailMarkup.delete(root);
   }
   root.classList.toggle("is-distribution-view", view === "distribution");
   root.classList.toggle("is-history-view", view === "history");
   const viewToggle = buildEarthquakeViewToggle(view);
+  const recentScope = state.recentEarthquakeScope ?? "japan";
+  const isWorld = view === "recent" && recentScope === "world";
   const mapLayerControls = buildEarthquakeMapLayerControls(state.data ?? {});
   const earthquakes = state.data?.earthquakes ?? [];
   const selectedEarthquake = state.data?.selectedEarthquake ?? earthquakes[0] ?? null;
-  if (selectedEarthquake) {
+  if (selectedEarthquake && !isWorld) {
     const unknownText = getEarthquakeUnknownText(selectedEarthquake);
     const selectedObservationSource = selectedEarthquake.intensityStations?.length
       ? selectedEarthquake.intensityStations
@@ -6436,9 +6532,11 @@ function renderEarthquakeList(tab, state) {
       ${buildTideObservationDedicatedDetailMarkup(state.data?.tideObservation)}
     </div>
   `;
-    if (view === "history" && historyListMarkup.get(root) === markup) return;
+    const cacheable = view === "history" || isWorld;
+    if (cacheable && earthquakeDetailMarkup.get(root) === markup) return;
     render(markup);
-    if (view === "history") historyListMarkup.set(root, markup);
+    if (cacheable) earthquakeDetailMarkup.set(root, markup);
+    else earthquakeDetailMarkup.delete(root);
   };
 
   if (view === "history") {
@@ -6460,8 +6558,17 @@ function renderEarthquakeList(tab, state) {
   }
 
   const renderRecent = (earthquakeMarkup) => renderDetailPages(
-    `${viewToggle}${mapLayerControls}${earthquakeMarkup}`
+    `${viewToggle}${buildRecentEarthquakeScopeToggle(recentScope)}${mapLayerControls}${earthquakeMarkup}`
   );
+
+  if (isWorld) {
+    const focusedId = root.contains(document.activeElement) ? document.activeElement.dataset?.worldEarthquakeId : "";
+    renderRecent(buildWorldEarthquakesList(state.worldEarthquakeState, state.selectedWorldEarthquakeId));
+    if (focusedId) {
+      root.querySelector(`[data-world-earthquake-id="${CSS.escape(focusedId)}"]`)?.focus({ preventScroll: true });
+    }
+    return;
+  }
 
   if (state.status === "loading") {
     renderRecent(`<div class="earthquake-empty" role="status" aria-live="polite">${escapeHtml(
@@ -6567,13 +6674,14 @@ function buildVolcanoMobileContextMarkup(state) {
   const selectedCode = String(state.selectedVolcanoCode ?? state.data?.selectedVolcanoCode ?? "");
   const report = reports.find((item) => String(item.volcanoCode ?? item.code ?? "") === selectedCode)
     ?? getHighestPriorityVolcanoReport(reports);
-  if (state.status === "loading") {
+  if (state.status === "loading" && !report) {
     return `<div class="mobile-dock-content mobile-dock-volcano" aria-busy="true">${buildMobileDockLoadingStatus("火山情報を読み込み中")}</div>`;
   }
   if (!report) {
     return buildMobileContextMarkup(
       localizeText("火山情報"),
-      getCurrentLanguage() === "en" ? "No recent bulletins" : "直近の発表はありません",
+      state.status === "error" ? localizeText("火山情報を取得できませんでした。")
+        : getCurrentLanguage() === "en" ? "No recent bulletins" : "直近の発表はありません",
       getCurrentLanguage() === "en" ? "Press and hold for earthquakes" : "長押しで地震へ"
     );
   }
@@ -6656,7 +6764,7 @@ function formatVolcanoForecastTime(value, includeDate = true) {
 
 function buildEarthquakeMapLayerControls(data) {
   const layers = [
-    ...(data.selectedEarthquake?.estimatedIntensity
+    ...(data.earthquakeMapView !== "world" && data.selectedEarthquake?.estimatedIntensity
       ? [["estimatedIntensity", "推計震度", data.estimatedIntensityVisible !== false]]
       : []),
     ["activeFault", "主要活断層", data.activeFaultVisible !== false],
@@ -7160,6 +7268,7 @@ function formatDistributionFullDate(value) {
 function buildEarthquakeDistributionMobileContextMarkup(data) {
   const isEnglish = getCurrentLanguage() === "en";
   const snapshot = data.distribution;
+  const status = data.distributionStatus ?? "idle";
   const filters = data.distributionFilters ?? {};
   const availableDates = Array.isArray(snapshot?.availableDates)
     ? snapshot.availableDates.slice(0, HYPOCENTER_DISTRIBUTION_DAY_COUNT)
@@ -7172,22 +7281,25 @@ function buildEarthquakeDistributionMobileContextMarkup(data) {
   const rangeEndDate = filters.endDate || snapshot?.rangeEndDate || "";
   const count = snapshot?.items?.length ?? 0;
   const isPendingDate = snapshot && Number(snapshot.dayOffset) !== dayOffset;
+  const loading = status === "loading" || (rangeEnabled && status === "refreshing")
+    || (!snapshot && status === "idle") || (isPendingDate && status !== "error");
+  const countMarkup = loading ? buildMobileDockLoadingStatus("震央分布を読み込み中")
+    : `<strong>${status === "error" ? escapeHtml(localizeText("取得失敗"))
+      : isEnglish ? `${count.toLocaleString("en-US")} items` : `${count.toLocaleString("ja-JP")}件`}</strong>`;
   const earthquakes = data.earthquakes ?? [];
   const earthquake = data.selectedEarthquake ?? earthquakes[0];
-  const periodLabel = rangeEnabled
+  const periodLabel = rangeEnabled && rangeStartDate && rangeEndDate
     ? `${formatDistributionDate(rangeStartDate)}–${formatDistributionDate(rangeEndDate)}`
-    : selectedDate ? formatDistributionDate(selectedDate) : isEnglish ? "Waiting" : "取得待ち";
+    : selectedDate ? formatDistributionDate(selectedDate) : "";
   const distributionKicker = isEnglish
-    ? `Epicenters · ${periodLabel} · ${rangeEnabled ? "Selected" : "Provisional"}`
-    : `震央分布・${periodLabel}・${rangeEnabled ? "指定範囲" : "暫定値"}`;
+    ? ["Epicenters", periodLabel, rangeEnabled ? "Selected" : "Provisional"].filter(Boolean).join(" · ")
+    : ["震央分布", periodLabel, rangeEnabled ? "指定範囲" : "暫定値"].filter(Boolean).join("・");
   const primaryMarkup = `
     ${buildEarthquakeMobileViewSwitch("distribution")}
     <div class="mobile-dock-earthquake-distribution-summary">
       <div class="mobile-dock-earthquake-distribution-head">
         <span class="mobile-dock-kicker">${escapeHtml(distributionKicker)}</span>
-        <strong>${isPendingDate
-          ? isEnglish ? "Loading" : "取得中"
-          : isEnglish ? `${count.toLocaleString("en-US")} items` : `${count.toLocaleString("ja-JP")}件`}</strong>
+        ${countMarkup}
       </div>
       ${rangeEnabled
         ? `<div class="mobile-dock-earthquake-distribution-range-hint">${isEnglish
@@ -7419,19 +7531,20 @@ function buildEarthquakeArchiveMobileContextMarkup(data) {
   const failed = status === "error";
   const countVisible = Boolean(snapshot) && !failed;
   const coverage = getEarthquakeHistoryStatus(snapshot, status);
-  const summaryHint = coverage.hint;
+  const isSearching = coverage.kind === "searching";
+  const hasSearchPeriod = Boolean(filters.startDate && filters.endDate);
   const primaryMarkup = `
     ${buildEarthquakeMobileViewSwitch("history")}
     <div class="mobile-dock-earthquake-distribution-summary is-archive-summary">
       <div class="mobile-dock-archive-period">
-        <span class="mobile-dock-kicker">${data.earthquakeNearbySearchActive ? "震源近傍・震度3以上" : "検索期間"}</span>
-        <strong>${escapeHtml(formatArchiveDate(filters.startDate))}〜${escapeHtml(formatArchiveDate(filters.endDate))}</strong>
+        ${hasSearchPeriod ? `<span class="mobile-dock-kicker">${data.earthquakeNearbySearchActive ? "震源近傍・震度3以上" : "検索期間"}</span>
+        <strong>${escapeHtml(formatArchiveDate(filters.startDate))}〜${escapeHtml(formatArchiveDate(filters.endDate))}</strong>` : ""}
       </div>
       <div class="mobile-dock-archive-count">
-        <strong>${countVisible ? `${count.toLocaleString("ja-JP")}<small>件</small>` : "—"}</strong>
-        <span>${coverage.label}</span>
+        ${countVisible || !isSearching ? `<strong>${countVisible ? `${count.toLocaleString("ja-JP")}<small>件</small>` : "—"}</strong>` : ""}
+        ${isSearching ? buildMobileDockLoadingStatus("地震データを検索中") : `<span>${escapeHtml(coverage.label)}</span>`}
       </div>
-      <div class="mobile-dock-earthquake-distribution-range-hint">${escapeHtml(summaryHint)}</div>
+      ${isSearching ? "" : `<div class="mobile-dock-earthquake-distribution-range-hint">${escapeHtml(coverage.hint)}</div>`}
     </div>
   `;
   return buildMobileEarthquakeSummaryCarousel({

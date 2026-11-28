@@ -33,6 +33,7 @@ import { createWeatherMap } from "./map/weatherMap.js";
 import { setupTabs } from "./ui/tabs.js";
 import { setupAmedasDailyChartToggle, setupAmedasSummaryControls, setupAmedasPrecipitationPeriods, setupAmedasRankingToggle, setupAmedasSubTabs, setupEarthquakeMapLayerToggles, setupEarthquakeSelector, setupKikikuruLayerToggles, setupMobileDockSegmentedControls, setupMobileEarthquakeSummarySwipe, showMobileEarthquakeSummaryPage, setupMobileWeatherTimelineControls, setupRadarControls, setupRadarOverlayToggle, setupTideObservationControls, setupTyphoonForecastModeControls, setupTyphoonSelector, setupWarningAreaSelection, setupWeatherChartControls, updateLeftPanel } from "./ui/leftPanel.js";
 import { applyAmedasPrecipitationPeriod, normalizeAmedasPrecipitationPeriod } from "./amedasPrecipitationPeriod.js";
+import { fetchWorldEarthquakes, WORLD_EARTHQUAKE_REFRESH_MS } from "./earthquake/worldEarthquakes.js";
 import { setupLegendToggle } from "./ui/legendToggle.js";
 import { setupEarthquakeSimulation } from "./ui/earthquakeSimulation.js";
 import { setupCommonLayerToggle, setupEarthquakeLayerToggle, setupSatelliteLayerToggle, setupWeatherDistributionToggle, syncCommonLayerToggle, syncEarthquakeLayerToggle, syncSatelliteLayerToggle, syncWeatherDistributionToggle, toggleWeatherDistributionPicker } from "./ui/weatherDistributionToggle.js";
@@ -341,6 +342,10 @@ export function createWeatherApp() {
   let volcanoRefreshRequest = null;
   const volcanoLatestActivityRequests = new Map();
   let earthquakeView = "recent";
+  let recentEarthquakeScope = "japan";
+  let worldEarthquakeState = { status: "idle", events: [], requestedAt: 0 };
+  let worldEarthquakeRequest = null;
+  let selectedWorldEarthquakeId = "";
   let earthquakeNearbySearchActive = false;
   let earthquakeDistribution3DEnabled = loadOptionalLayerVisibility("earthquake-3d");
   let earthquakeDistributionRecentXmlVisible =
@@ -405,6 +410,7 @@ export function createWeatherApp() {
     }
   });
   let earthquakeActiveFaultVisible = loadEarthquakeLayerVisibility("activeFault");
+  let earthquakeTsunamiInundationVisible = false;
   let earlyAccessActiveFaultDataState = { status: "idle", data: null, error: "" };
   let earlyAccessActiveFaultDataRequest = null;
   let earlyAccessActiveFaultDataRequestId = 0;
@@ -499,8 +505,20 @@ export function createWeatherApp() {
   let tabAutoFocusGeneration = 0;
   let tabAutoFocusSettled = Promise.resolve();
 
+  function isTsunamiInundationAvailable(tabId = activeTab) {
+    return tabId === "earthquake"
+      && earthquakeContentMode === "earthquake"
+      && earthquakeSummaryPage === "tsunami";
+  }
+
   function renderLeftPanelState(tab, panelState) {
-    updateLeftPanel(tab, panelState, {
+    const tsunamiInundationAvailable = isTsunamiInundationAvailable(tab.id);
+    const tsunamiInundationVisible = tsunamiInundationAvailable && earthquakeTsunamiInundationVisible;
+    weatherMap?.setTsunamiInundationVisible(tsunamiInundationVisible);
+    updateLeftPanel(tab, tab.id === "earthquake"
+      ? { ...panelState, recentEarthquakeScope, worldEarthquakeState, selectedWorldEarthquakeId }
+      : panelState, {
+      tsunamiInundationVisible,
       onRequestLocation: () => requestAndFocusCurrentPosition({ announceLoading: true, setBusy: true, flyTo: false })
     });
     renderCommunityReportLayerToggle();
@@ -516,7 +534,9 @@ export function createWeatherApp() {
     });
     syncEarthquakeLayerToggle({
       visible: tab?.id === "earthquake",
+      tsunamiInundationAvailable,
       layers: {
+        tsunamiInundation: tsunamiInundationVisible,
         activeFault: earthquakeActiveFaultVisible,
         plateBoundary: earthquakePlateBoundaryVisible,
         plateDepthContours: earthquakePlateDepthContoursVisible
@@ -542,7 +562,7 @@ export function createWeatherApp() {
   function syncSimulationButton() {
     const button = document.getElementById("earthquake-simulation-button");
     if (button) {
-      button.hidden = activeTab !== "earthquake" || earthquakeContentMode !== "earthquake" || earthquakeView !== "recent";
+      button.hidden = activeTab !== "earthquake" || earthquakeContentMode !== "earthquake" || earthquakeView !== "recent" || recentEarthquakeScope === "world";
       button.parentElement?.classList.toggle("has-simulation", !button.hidden);
     }
   }
@@ -639,7 +659,7 @@ export function createWeatherApp() {
     if (!newerEvent && !newerReport) return;
     activeEarthquakeId = String(latest.id ?? "");
     collapsedEarthquakeId = "";
-    if (earthquakeContentMode !== "earthquake") return;
+    if (earthquakeContentMode !== "earthquake" || (earthquakeView === "recent" && recentEarthquakeScope === "world")) return;
     cancelEarthquakeArchiveAreaDrawing();
     if (earthquakeDistributionAreaDrawing) {
       weatherMap?.cancelHypocenterAreaDrawing();
@@ -1698,6 +1718,7 @@ if (layerId === "river") {
     weatherMap?.setActiveFaultVisible(earthquakeContentMode === "earthquake" && earthquakeActiveFaultVisible);
     weatherMap?.setPlateBoundaryVisible(earthquakeContentMode === "earthquake" && earthquakePlateBoundaryVisible);
     weatherMap?.setPlateDepthContoursVisible(earthquakeContentMode === "earthquake" && earthquakePlateDepthContoursVisible);
+    weatherMap?.setTsunamiInundationVisible(isTsunamiInundationAvailable() && earthquakeTsunamiInundationVisible);
     void selectTab("earthquake");
   }
 
@@ -1794,9 +1815,80 @@ if (layerId === "river") {
       void refreshEarthquakeDistribution();
     }
     if (view === "distribution") void ensureEarthquakeDistributionPlateData();
+    if (isWorldEarthquakeView()) {
+      weatherMap?.showWorldEarthquakeOverview();
+      void refreshWorldEarthquakes();
+    }
     if (view === "history" && earthquakeArchiveState.status === "idle") {
       void refreshEarthquakeArchive();
     }
+  }
+
+  function isWorldEarthquakeView() {
+    return activeTab === "earthquake" && earthquakeContentMode === "earthquake"
+      && earthquakeView === "recent" && earthquakeSummaryPage === "earthquake" && recentEarthquakeScope === "world";
+  }
+
+  function selectRecentEarthquakeScope(scope) {
+    if (activeTab !== "earthquake" || earthquakeContentMode !== "earthquake" || earthquakeView !== "recent"
+      || earthquakeSummaryPage !== "earthquake" || !["japan", "world"].includes(scope) || scope === recentEarthquakeScope) return;
+    recentEarthquakeScope = scope;
+    if (scope === "world") simulationController?.stop();
+    syncSimulationButton();
+    refreshWorldEarthquakeView({ immediateMap: true });
+    if (scope === "world") {
+      weatherMap?.showWorldEarthquakeOverview();
+      void refreshWorldEarthquakes();
+    } else {
+      focusSelectedEarthquake();
+    }
+  }
+
+  function refreshWorldEarthquakeView(options) {
+    const tab = TABS.find((item) => item.id === "earthquake");
+    updateCurrentView(tab, latestDataByTab.earthquake ?? {}, options);
+  }
+
+  function refreshWorldEarthquakes({ force = false } = {}) {
+    if (!isWorldEarthquakeView() || document.hidden || worldEarthquakeRequest) return worldEarthquakeRequest;
+    const requestedAt = Date.now();
+    if (!force && requestedAt - worldEarthquakeState.requestedAt < WORLD_EARTHQUAKE_REFRESH_MS) return null;
+    worldEarthquakeState = {
+      ...worldEarthquakeState,
+      status: worldEarthquakeState.events.length ? "refreshing" : "loading",
+      requestedAt
+    };
+    worldEarthquakeRequest = fetchWorldEarthquakes()
+      .then((events) => {
+        if (!events.some((event) => event.id === selectedWorldEarthquakeId)) selectedWorldEarthquakeId = "";
+        worldEarthquakeState = { status: "ok", events, requestedAt };
+      })
+      .catch((error) => {
+        console.warn("[MeteoScope] USGS earthquake feed unavailable", error);
+        worldEarthquakeState = { ...worldEarthquakeState, status: "error" };
+      })
+      .finally(() => {
+        worldEarthquakeRequest = null;
+        if (isWorldEarthquakeView()) refreshWorldEarthquakeView();
+      });
+    if (!worldEarthquakeState.events.length) refreshWorldEarthquakeView();
+    return worldEarthquakeRequest;
+  }
+
+  function selectWorldEarthquake(id, { focus = true } = {}) {
+    if (!isWorldEarthquakeView()) return;
+    const earthquake = worldEarthquakeState.events.find((event) => event.id === id);
+    if (!earthquake) return;
+    if (selectedWorldEarthquakeId !== earthquake.id) {
+      selectedWorldEarthquakeId = earthquake.id;
+      refreshWorldEarthquakeView({ immediateMap: true });
+    }
+    if (!focus) return;
+    weatherMap?.flyToLocation(earthquake.coordinates, {
+      zoom: customization.controls.earthquakeZoom === 7.4 ? 7 : customization.controls.earthquakeZoom,
+      followViewport: true,
+      duration: 850
+    });
   }
 
   async function ensureEarthquakeDistributionPlateData() {
@@ -2207,6 +2299,12 @@ if (layerId === "river") {
 
   function setEarthquakeMapLayerVisible(layerId, visible) {
     const isVisible = Boolean(visible);
+    if (layerId === "tsunamiInundation") {
+      if (!isTsunamiInundationAvailable()) return;
+      earthquakeTsunamiInundationVisible = isVisible;
+      refreshActivePanel();
+      return;
+    }
     if (layerId === "activeFault") {
       earthquakeActiveFaultVisible = isVisible;
       weatherMap?.setActiveFaultVisible(isVisible);
@@ -2298,7 +2396,7 @@ if (layerId === "river") {
         && !earthquakeNearbySearchActive
         && earthquakeSummaryPage === "earthquake") {
         if (getDisplayedEewEvents().some((event) => !event.isCancel)) focusEewOnce();
-        else focusSelectedEarthquake();
+        else if (recentEarthquakeScope !== "world") focusSelectedEarthquake();
       }
       await weatherMap?.whenCameraIdle();
     })().catch((error) => {
@@ -2761,9 +2859,11 @@ if (layerId === "river") {
     const earthquakeMapView = earthquakeSummaryPage === "earthquake"
       ? earthquakeView
       : "recent";
+    const showWorld = isWorldEarthquakeView() && !getDisplayedEewEvents().length;
     const distributionData = {
       earthquakeView,
-      earthquakeMapView,
+      earthquakeMapView: showWorld ? "world" : earthquakeMapView,
+      ...(showWorld ? { worldEarthquakes: worldEarthquakeState.events, selectedWorldEarthquakeId } : {}),
       distribution3DEnabled: earthquakeDistribution3DEnabled,
       distributionFilters: earthquakeDistributionFilters,
       distributionStatus: earthquakeDistributionState.status,
@@ -3775,6 +3875,7 @@ if (layerId === "river") {
     force = false,
     refreshOpenDistribution = true
   } = {}) {
+    if (isWorldEarthquakeView()) void refreshWorldEarthquakes();
     const nextData = await refreshEarthquakeData({ force });
     const shouldRefreshDistribution = earthquakeContentMode !== "volcano"
       && (
@@ -4620,7 +4721,10 @@ if (layerId === "river") {
       onChange: (page) => {
         if (!["earthquake", "tsunami", "tide"].includes(page) || earthquakeSummaryPage === page) return;
         earthquakeSummaryPage = page;
-        if (activeTab === "earthquake" && earthquakeContentMode === "earthquake") refreshActivePanel();
+        if (activeTab === "earthquake" && earthquakeContentMode === "earthquake") {
+          refreshActivePanel();
+          if (isWorldEarthquakeView()) void refreshWorldEarthquakes();
+        }
       }
     });
     setupTideObservationControls({
@@ -4651,6 +4755,9 @@ if (layerId === "river") {
       const stationCode = String(event.detail?.stationCode ?? "").trim();
       if (stationCode) void selectTideObservationStation(stationCode);
     });
+    window.addEventListener("world-earthquake-select", (event) => {
+      selectWorldEarthquake(event.detail?.eventId, { focus: false });
+    });
     window.addEventListener("earthquake-history-select", (event) => {
       if (earthquakeContentMode !== "earthquake" || earthquakeView !== "history") return;
       selectHistoricalEarthquake(event.detail?.eventId);
@@ -4671,6 +4778,9 @@ if (layerId === "river") {
       ?.addEventListener("click", () => void toggleTyphoonRadarOverlay());
     setupEarthquakeSelector({
       onChange: selectEarthquake,
+      onRecentScopeChange: selectRecentEarthquakeScope,
+      onWorldEarthquakeSelect: selectWorldEarthquake,
+      onWorldEarthquakesRetry: () => void refreshWorldEarthquakes({ force: true }),
       onEewSelect: selectEewEvent,
       onNearbySearch: searchNearbyEarthquakes,
       onNearbyClear: closeNearbyEarthquakeSearch,

@@ -10,7 +10,7 @@ const context = vm.createContext({
   getMobileWarningBadgeColorClass: () => "neutral",
   buildWarningBadgesMarkup: warnings => warnings.map(item => item.label).join(" "),
   buildWarningMobileActionRow: () => "<nav>発表 早期 キキクル 河川</nav>",
-  buildMobileDockLoadingStatus: text => text,
+  buildMobileDockLoadingStatus: text => `<div class="mobile-dock-loading-status">${text}</div>`,
   buildKikikuruMobileLayerRow: () => "全国のキキクル",
   buildRiverFloodMobileContextMarkup: () => "全国の河川情報"
 });
@@ -27,9 +27,9 @@ for (const info of [undefined, { status: "idle" }, { status: "error" }, { status
     assert.doesNotMatch(html, /発表なし|古い警報/);
   }
 }
-assert.match(render({ status: "loading" }), /現在地取得中/);
+assert.match(render({ status: "loading" }), /mobile-dock-loading-status[^]*現在地取得中/);
 assert.match(render({ status: "loading" }), /aria-busy="true"/);
-assert.match(render({ status: "found", geographyStatus: "loading" }), /地域情報を取得中/);
+assert.match(render({ status: "found", geographyStatus: "loading" }), /mobile-dock-loading-status[^]*地域情報を取得中/);
 assert.match(render({ status: "found", geographyStatus: "unavailable" }), /地域情報を取得できません/);
 assert.match(render({ status: "found", geographyStatus: "ready" }), /地域情報を取得できません/);
 assert.match(render(ready), /発表なし/);

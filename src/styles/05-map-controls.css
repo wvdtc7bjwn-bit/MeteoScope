@@ -108,6 +108,35 @@
   line-height: 1.35;
 }
 
+.legend-tsunami-inundation {
+  display: grid;
+  gap: 5px;
+  padding-block-end: 8px;
+  border-block-end: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.legend-tsunami-inundation h3,
+.legend-tsunami-inundation p {
+  margin: 0;
+}
+
+.legend-tsunami-inundation h3 {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.legend-tsunami-inundation a {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+
+[data-earthquake-map-layer="tsunamiInundation"][hidden] {
+  display: none;
+}
+
 .legend-swatch {
   flex: none;
   width: 14px;
